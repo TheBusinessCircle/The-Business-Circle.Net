@@ -9,7 +9,7 @@ import { CACHE_TAGS } from "@/lib/cache";
 import { CONNECTION_WIN_TAG } from "@/lib/connection-wins";
 import { buildCommunityPostPath } from "@/lib/community-paths";
 import { db } from "@/lib/db";
-import { getRateLimitBackend } from "@/lib/security/rate-limit";
+import { getRateLimitStatus } from "@/lib/security/rate-limit";
 import { toTitleCase } from "@/lib/utils";
 import { isBillingEnabled } from "@/server/subscriptions/subscription.service";
 import type {
@@ -123,7 +123,8 @@ export async function getAdminRevenueSnapshot(): Promise<AdminRevenueSnapshot> {
 
 export async function getAdminSecuritySnapshot(): Promise<AdminSecuritySnapshot> {
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const rateLimitBackend = getRateLimitBackend();
+  const rateLimitStatus = await getRateLimitStatus();
+  const rateLimitBackend = rateLimitStatus.backend;
   const billingEnabled = isBillingEnabled();
   const httpsConfigured = isHttpsConfigured();
   const authSecretIsConfigured = authSecretConfigured();
@@ -198,7 +199,7 @@ export async function getAdminSecuritySnapshot(): Promise<AdminSecuritySnapshot>
     warnings.push("Primary application URL is not configured for HTTPS.");
   }
   if (process.env.NODE_ENV === "production" && rateLimitBackend === "in-memory") {
-    warnings.push("Rate limiting is using the in-memory fallback instead of Upstash.");
+    warnings.push(rateLimitStatus.warning ?? "Rate limiting is using the local fallback instead of shared Redis.");
   }
   if (billingEnabled && !billingWebhookConfigured()) {
     warnings.push("Stripe billing is enabled without a configured webhook secret.");
@@ -212,6 +213,8 @@ export async function getAdminSecuritySnapshot(): Promise<AdminSecuritySnapshot>
     httpsConfigured,
     billingEnabled,
     rateLimitBackend,
+    rateLimitLabel: rateLimitStatus.label,
+    rateLimitDescription: rateLimitStatus.description,
     suspendedUsers,
     unverifiedMembers,
     paymentRiskMembers,
@@ -223,7 +226,8 @@ export async function getAdminSecuritySnapshot(): Promise<AdminSecuritySnapshot>
 
 export async function getAdminSystemHealthSnapshot(): Promise<AdminSystemHealthSnapshot> {
   const now = new Date();
-  const rateLimitBackend = getRateLimitBackend();
+  const rateLimitStatus = await getRateLimitStatus();
+  const rateLimitBackend = rateLimitStatus.backend;
   const billingEnabled = isBillingEnabled();
 
   const [
@@ -301,7 +305,10 @@ export async function getAdminSystemHealthSnapshot(): Promise<AdminSystemHealthS
     warnings.push("Stripe billing is not configured in this environment.");
   }
   if (process.env.NODE_ENV === "production" && rateLimitBackend === "in-memory") {
-    warnings.push("Operational rate limiting is using the in-memory fallback.");
+    warnings.push(
+      rateLimitStatus.warning ??
+        "Operational rate limiting is using the local fallback instead of shared Redis."
+    );
   }
 
   return {
@@ -309,6 +316,8 @@ export async function getAdminSystemHealthSnapshot(): Promise<AdminSystemHealthS
     databaseStatus,
     billingEnabled,
     rateLimitBackend,
+    rateLimitLabel: rateLimitStatus.label,
+    rateLimitDescription: rateLimitStatus.description,
     scheduledResourcesDue,
     nextScheduledResourceAt: nextScheduledResource?.scheduledFor ?? null,
     lastPublishedResourceAt: lastPublishedResource?.publishedAt ?? null,

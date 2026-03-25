@@ -8,6 +8,7 @@ This runbook is the production checklist for deploying The Business Circle Netwo
 - SSL/TLS enabled (proxy, CDN, or ingress).
 - Docker + Docker Compose installed on the host.
 - PostgreSQL connectivity confirmed from the app container.
+- Shared Redis configured for production rate limiting (Upstash Redis recommended).
 - Stripe products/prices created for:
   - Standard (`£30/month`)
   - Inner Circle (`£79/month`)
@@ -37,6 +38,16 @@ Use a production env file (example: `.env.production`) and set:
 - `AUTH_MAGIC_LINK_ENABLED=false` (or true if enabled intentionally)
 - `AUTH_BCRYPT_ROUNDS=12` (or higher with acceptable CPU cost)
 - `PASSWORD_RESET_TOKEN_TTL_MINUTES=60`
+
+### Shared rate limiting
+
+- `UPSTASH_REDIS_REST_URL=https://...`
+- `UPSTASH_REDIS_REST_TOKEN=...`
+- Or provider-compatible aliases:
+  - `KV_REST_API_URL=https://...`
+  - `KV_REST_API_TOKEN=...`
+- Optional:
+  - `RATE_LIMIT_REDIS_PREFIX=ratelimit:business-circle`
 
 ### Billing (Stripe)
 
@@ -131,6 +142,7 @@ Rules:
 - Authentication works (`/login`, password reset flow).
 - Member dashboard, resources, and community work.
 - Admin pages load (`/admin`, `/admin/resources`, `/admin/community`).
+- `/admin/security` and `/admin/system-health` show `Shared Redis` for rate limiting.
 - Stripe checkout + portal redirect correctly.
 - Contact form sends to `contact@thebcnet.co.uk`.
 

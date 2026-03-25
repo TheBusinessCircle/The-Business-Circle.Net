@@ -28,6 +28,8 @@ export interface AdminSecuritySnapshot {
   httpsConfigured: boolean;
   billingEnabled: boolean;
   rateLimitBackend: "upstash" | "in-memory";
+  rateLimitLabel: string;
+  rateLimitDescription: string;
   suspendedUsers: number;
   unverifiedMembers: number;
   paymentRiskMembers: number;
@@ -41,6 +43,8 @@ export interface AdminSystemHealthSnapshot {
   databaseStatus: "healthy" | "degraded";
   billingEnabled: boolean;
   rateLimitBackend: "upstash" | "in-memory";
+  rateLimitLabel: string;
+  rateLimitDescription: string;
   scheduledResourcesDue: number;
   nextScheduledResourceAt: Date | null;
   lastPublishedResourceAt: Date | null;

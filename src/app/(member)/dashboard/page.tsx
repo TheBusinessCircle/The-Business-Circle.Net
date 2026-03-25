@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { MembershipTier } from "@prisma/client";
+import { CommunityPostKind, MembershipTier } from "@prisma/client";
 import {
   ArrowRight,
   Crown,
@@ -45,6 +45,7 @@ import { roleToTier } from "@/lib/permissions";
 import { getDashboardPersonalisation } from "@/lib/personalization";
 import { getProfileCompletion } from "@/lib/profile";
 import { prisma } from "@/lib/prisma";
+import { logServerError } from "@/lib/security/logging";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
 import { getTierAccentTextClassName, getTierCardClassName } from "@/lib/tier-styles";
@@ -100,6 +101,23 @@ function signalClassName(tone: "live" | "recent" | "quiet") {
   }
 
   return "border-border bg-background/18 text-muted";
+}
+
+async function getRecentConnectionWinsForDashboard(input: {
+  tiers: MembershipTier[];
+  viewerUserId: string;
+  take?: number;
+}) {
+  try {
+    return await listRecentConnectionWinsForTiers(input);
+  } catch (error) {
+    logServerError("dashboard-connection-wins-unavailable", error, {
+      take: input.take,
+      tiers: input.tiers.join(",")
+    });
+
+    return [];
+  }
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
@@ -200,7 +218,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       pageSize: 3,
       excludeUserId: session.user.id
     }),
-    listRecentConnectionWinsForTiers({
+    getRecentConnectionWinsForDashboard({
       tiers,
       viewerUserId: session.user.id,
       take: 3
@@ -293,7 +311,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const memberContribution =
     rankedRecentPosts.find(
       (post) =>
-        post.kind !== "AUTO_PROMPT" &&
+        post.kind !== CommunityPostKind.AUTO_PROMPT &&
         !isConnectionWinTags(post.tags) &&
         !activeDiscussions.some((activeDiscussion) => activeDiscussion.id === post.id)
     ) ?? null;
@@ -1147,8 +1165,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 })
               ) : (
                 <EmptyState
-                  title="No wins shared yet"
-                  description="The first useful outcome shared here will appear once a member names what moved."
+                  title="No recent wins yet"
+                  description="Wins will appear here as members share outcomes from useful conversations and introductions."
                   icon={Sparkles}
                   action={
                     <Link href={buildCommunityChannelPath("wins-and-progress")}>

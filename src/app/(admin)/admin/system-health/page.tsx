@@ -74,8 +74,8 @@ export default async function AdminSystemHealthPage() {
         <HealthCard
           icon={Gauge}
           label="Rate limiting"
-          value={health.rateLimitBackend === "upstash" ? "Upstash" : "In-memory"}
-          description="Current backend enforcing request throttling."
+          value={health.rateLimitLabel}
+          description={health.rateLimitDescription}
           tone={health.rateLimitBackend === "upstash" ? "healthy" : "attention"}
         />
       </section>
@@ -133,7 +133,7 @@ export default async function AdminSystemHealthPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted">
             <NoteCard title="Near-live monitoring" description="The admin sidebar now polls for live platform activity, system status, and security signals at a gentle interval." />
-            <NoteCard title="Safe defaults" description="The platform falls back to in-memory rate limiting if Upstash is unavailable, and surfaces that clearly here rather than hiding it." />
+            <NoteCard title="Safe defaults" description="Shared Redis is the production path for request throttling. If the platform falls back locally, that state is surfaced here clearly instead of being hidden." />
             <NoteCard title="Publishing stability" description="Scheduled content checks are visible here so overdue resources can be addressed before the experience feels stale." />
           </CardContent>
         </Card>

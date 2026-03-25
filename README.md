@@ -132,6 +132,7 @@ Route guards are enforced by `middleware.ts` and server-side checks in admin act
 2. Edit `.env` and set real secrets:
    - `NEXTAUTH_SECRET`
    - `AUTH_SECRET`
+   - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for shared production rate limiting
    - Stripe keys if billing is enabled
 3. Start the full stack:
    ```bash
@@ -203,6 +204,7 @@ docker compose --env-file .env.production logs -f app
 The runbook includes:
 
 - full production env var checklist
+- shared Redis rate-limiting setup
 - Stripe webhook endpoint setup
 - migration strategy (`migrate deploy` workflow)
 - post-deploy smoke test and rollback steps
@@ -319,6 +321,7 @@ docker compose exec app npm run db:seed
 - Passwords are hashed with `bcryptjs`.
 - Tier/role checks are enforced server-side for APIs and pages.
 - Stripe webhook is signature-verified.
+- Rate limiting supports shared Redis via Upstash or KV-compatible env aliases for multi-instance production.
 - Prisma relations and indexes support growth in resource/chat/event data.
 - Architecture is modular (`lib`, `components`, grouped routes) for future extraction into service layers.
 

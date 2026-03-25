@@ -89,8 +89,8 @@ export default async function AdminSecurityPage() {
         />
         <StatusCard
           label="Rate limiting"
-          value={security.rateLimitBackend === "upstash" ? "Upstash" : "In-memory"}
-          description="Backend currently enforcing API rate limits."
+          value={security.rateLimitLabel}
+          description={security.rateLimitDescription}
           tone={security.rateLimitBackend === "upstash" ? "healthy" : "attention"}
         />
       </section>
@@ -124,6 +124,7 @@ export default async function AdminSecurityPage() {
             <ProtectionItem title="Admin routes" description="Protected in middleware and server session checks. Non-admin users are redirected away from /admin." />
             <ProtectionItem title="Member access" description="Protected routes require a valid entitled membership unless the user is an administrator." />
             <ProtectionItem title="Tier enforcement" description="Community access, resources, and billing changes are enforced server-side, not only in the UI." />
+            <ProtectionItem title="Shared rate limiting" description="Production should run request throttling through shared Redis so limits stay consistent across deploys and instances." />
             <ProtectionItem title="Sensitive logging" description="Server error logging is sanitized so raw secrets and payload contents are not written to logs." />
           </CardContent>
         </Card>
