@@ -1,0 +1,52 @@
+import type {
+  ChannelAccessLevel,
+  MembershipTier,
+  Role
+} from "@prisma/client";
+import type { PlatformEventModel } from "@/types/events/event";
+import type {
+  CommunityBadgeModel,
+  CommunityStatusLevel
+} from "@/types/community/recognition";
+
+export interface CommunityChannelModel {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  topic?: string | null;
+  accessTier: MembershipTier;
+  accessLevel: ChannelAccessLevel;
+  position: number;
+  isPrivate: boolean;
+  isPremiumChannel: boolean;
+}
+
+export interface CommunityUserSummaryModel {
+  id: string;
+  name: string | null;
+  email: string;
+  image?: string | null;
+  membershipTier: MembershipTier;
+  role: Role;
+  foundingMember: boolean;
+  foundingTier: MembershipTier | null;
+  primaryBadge: CommunityBadgeModel | null;
+  statusLevel: CommunityStatusLevel;
+  reputationScore: number;
+  referralCount: number;
+}
+
+export interface ChannelMessageModel {
+  id: string;
+  channelId: string;
+  userId: string;
+  parentMessageId: string | null;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  isEdited: boolean;
+  user: CommunityUserSummaryModel;
+}
+
+export type CommunityEventModel = PlatformEventModel;

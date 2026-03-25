@@ -1,0 +1,26 @@
+# Community Prompt Automation
+
+The quiet-time prompt system is intentionally conservative.
+
+- Member page loads can run an opportunistic check through `maybePublishQuietCommunityPrompt(...)`.
+- A secure internal route is available at `/api/internal/community/prompts/run`.
+- Manual admin checks are available from `/admin/community`.
+
+Safeguards:
+
+- Maximum 3 automated prompts per rolling 7 days.
+- Minimum 48 hours between published automated prompts.
+- Recent manual founder posts suppress prompt publication in the same window.
+- Only inactive categories with active prompt inventory are considered.
+- Prompt rotation respects per-prompt cooldown windows.
+- Category choice is narrowed and randomized so the behaviour does not feel mechanical.
+
+Environment:
+
+- `COMMUNITY_AUTOMATION_SECRET` secures the internal route.
+- `COMMUNITY_PROMPT_AUTHOR_ID` can pin the author account used for automated prompts. If omitted, the oldest active admin account is used.
+
+Cron example:
+
+- `GET /api/internal/community/prompts/run?secret=YOUR_SECRET`
+- or send `Authorization: Bearer YOUR_SECRET`

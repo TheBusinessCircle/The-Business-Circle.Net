@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: business_circle
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d business_circle"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/business_circle?schema=public
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-nextauth-secret
+      AUTH_SECRET: ci-auth-secret
+      AUTH_MAGIC_LINK_ENABLED: "false"
+      AUTH_BCRYPT_ROUNDS: "12"
+      PASSWORD_RESET_TOKEN_TTL_MINUTES: "60"
+      EMAIL_VERIFICATION_TOKEN_TTL_HOURS: "48"
+      ABLY_API_KEY: ""
+      ABLY_CHANNEL_PREFIX: community
+      NEXT_PUBLIC_COMMUNITY_REALTIME_ENABLED: "false"
+      NEXT_PUBLIC_ABLY_CHANNEL_PREFIX: community
+      CLOUDINARY_CLOUD_NAME: ""
+      CLOUDINARY_API_KEY: ""
+      CLOUDINARY_API_SECRET: ""
+      CLOUDINARY_RESOURCE_FOLDER: business-circle/resources
+      CLOUDINARY_PROFILE_FOLDER: business-circle/profiles
+      UPSTASH_REDIS_REST_URL: ""
+      UPSTASH_REDIS_REST_TOKEN: ""
+      RESEND_API_KEY: re_ci_placeholder
+      RESEND_FROM_EMAIL: The Business Circle Network <noreply@example.com>
+      CONTACT_NOTIFY_EMAIL: contact@example.com
+      RESEND_TEST_TO: delivered@resend.dev
+      STRIPE_SECRET_KEY: sk_test_ci
+      STRIPE_WEBHOOK_SECRET: whsec_ci
+      STRIPE_FOUNDATION_PRICE_ID: price_foundation_ci
+      STRIPE_INNER_CIRCLE_PRICE_ID: price_inner_circle_ci
+      STRIPE_CORE_PRICE_ID: price_core_ci
+      STRIPE_FOUNDING_FOUNDATION_PRICE_ID: price_founding_foundation_ci
+      STRIPE_FOUNDING_INNER_CIRCLE_PRICE_ID: price_founding_inner_circle_ci
+      STRIPE_FOUNDING_CORE_PRICE_ID: price_founding_core_ci
+      COMMUNITY_AUTOMATION_SECRET: community-automation-ci
+      COMMUNITY_PROMPT_AUTHOR_ID: ""
+      RESOURCE_AUTOMATION_SECRET: resource-automation-ci
+      RESOURCE_SCHEDULE_TIMEZONE: Europe/London
+      RESOURCE_FOUNDATION_PUBLISH_TIMES: 09:00,13:00,18:00
+      RESOURCE_INNER_PUBLISH_TIMES: 10:30,14:30,19:30
+      RESOURCE_CORE_PUBLISH_TIMES: 12:00,16:00,20:30
+      RESOURCE_AUTOMATION_THROTTLE_MS: "300000"
+      APP_URL: http://localhost:3000
+      NEXT_PUBLIC_LINKEDIN_URL: ""
+      NEXT_PUBLIC_INSTAGRAM_URL: ""
+      NEXT_PUBLIC_FACEBOOK_URL: ""
+      NEXT_PUBLIC_TIKTOK_URL: ""
+      NEXT_PUBLIC_YOUTUBE_URL: ""
+      NEXT_PUBLIC_X_URL: ""
+      ADMIN_EMAIL: admin@businesscircle.local
+      ADMIN_PASSWORD: ChangeMe123!
+      SEED_MODE: bootstrap
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build

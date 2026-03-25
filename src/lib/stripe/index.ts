@@ -1,0 +1,1 @@
+﻿export type StripeModule = "checkout" | "portal" | "webhook";

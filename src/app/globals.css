@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --background: 222 58% 8%;
+  --card: 223 45% 12%;
+  --foreground: 210 43% 97%;
+  --muted: 217 20% 73%;
+  --border: 222 34% 24%;
+  --primary: 42 52% 60%;
+  --ring: 42 55% 67%;
+  --accent: 222 42% 18%;
+  --foundation: 208 52% 60%;
+  --inner-circle: 214 18% 82%;
+  --core: 42 52% 63%;
+  --silver: 214 18% 82%;
+  --gold: 42 52% 63%;
+}
+
+* {
+  @apply border-border;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  font-feature-settings: "cv11", "ss01";
+  background-image:
+    radial-gradient(circle at 8% 4%, hsl(var(--gold) / 0.16), transparent 42%),
+    radial-gradient(circle at 86% 13%, hsl(var(--silver) / 0.06), transparent 30%),
+    linear-gradient(180deg, #070e1f 0%, #081024 100%);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-[-0.01em] text-balance;
+  }
+
+  p {
+    @apply leading-relaxed;
+  }
+}
+
+a {
+  @apply text-foreground transition-colors;
+}
+
+a:hover {
+  @apply text-primary;
+}
+
+::selection {
+  background: hsl(var(--gold) / 0.35);
+  color: #ffffff;
+}
+
+@layer components {
+  .premium-surface {
+    @apply rounded-3xl border border-border/90 bg-card/75 shadow-panel backdrop-blur transition-colors duration-300;
+  }
+
+  .public-panel {
+    @apply rounded-3xl border border-border/80 bg-card/70 shadow-panel backdrop-blur transition-all duration-300;
+  }
+
+  .public-grid-overlay {
+    background-image:
+      linear-gradient(to right, hsl(var(--silver) / 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--silver) / 0.08) 1px, transparent 1px);
+    background-size: 52px 52px;
+  }
+
+  .gold-divider {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-gold/45 to-transparent;
+  }
+
+  .gold-border {
+    @apply border border-gold/35;
+  }
+
+  .interactive-card {
+    @apply transition-all duration-300 hover:-translate-y-0.5 hover:border-gold/35 hover:bg-card/85 hover:shadow-gold-soft;
+  }
+
+  .empty-state-panel {
+    @apply rounded-2xl border border-silver/10 bg-gradient-to-br from-background/60 via-card/45 to-background/25 p-6 text-center shadow-panel-soft;
+  }
+
+  .premium-kicker {
+    @apply inline-flex rounded-full border border-gold/35 bg-gold/10 px-3 py-1 text-[11px] tracking-[0.1em] text-gold uppercase;
+  }
+}
+
+.brand-mark-shine {
+  position: absolute;
+  inset: -24%;
+  overflow: hidden;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+
+.brand-mark-shine::before {
+  content: "";
+  position: absolute;
+  top: -42%;
+  left: -18%;
+  width: 58%;
+  height: 190%;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(
+      180deg,
+      rgba(255, 250, 232, 0) 0%,
+      rgba(255, 250, 232, 0.12) 18%,
+      rgba(236, 244, 255, 0.52) 46%,
+      rgba(220, 188, 122, 0.28) 66%,
+      rgba(255, 250, 232, 0) 100%
+    );
+  opacity: 0;
+  filter: blur(1.2px);
+  transform: translate3d(-250%, 0, 0) rotate(18deg);
+  animation: brand-mark-shine-sweep 7.4s cubic-bezier(0.18, 0.72, 0.22, 1) infinite;
+}
+
+@keyframes brand-mark-shine-sweep {
+  0%,
+  70%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-250%, 0, 0) rotate(18deg);
+  }
+
+  9% {
+    opacity: 0.08;
+  }
+
+  16% {
+    opacity: 0.42;
+  }
+
+  26% {
+    opacity: 0.08;
+    transform: translate3d(250%, 0, 0) rotate(18deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark-shine::before {
+    animation: none !important;
+  }
+
+  .brand-mark-shine::before {
+    opacity: 0.08;
+    transform: translate3d(-18%, 0, 0) rotate(18deg);
+  }
+}

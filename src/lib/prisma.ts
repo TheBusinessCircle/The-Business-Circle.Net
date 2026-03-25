@@ -1,0 +1,1 @@
+﻿export { db as prisma, withTransaction } from "@/lib/db";

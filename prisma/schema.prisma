@@ -1,0 +1,908 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                           String                     @id @default(cuid())
+  name                         String?
+  email                        String                     @unique
+  emailVerified                DateTime?
+  image                        String?
+  passwordHash                 String?
+  role                         Role                       @default(MEMBER)
+  membershipTier               MembershipTier             @default(FOUNDATION)
+  foundingMember               Boolean                    @default(false)
+  foundingTier                 MembershipTier?
+  foundingPrice                Int?
+  foundingClaimedAt            DateTime?
+  suspended                    Boolean                    @default(false)
+  suspendedAt                  DateTime?
+  createdAt                    DateTime                   @default(now())
+  updatedAt                    DateTime                   @updatedAt
+  accounts                     Account[]
+  createdChannels              Channel[]                  @relation("ChannelCreator")
+  handledContacts              ContactSubmission[]        @relation("SubmissionHandler")
+  submittedContacts            ContactSubmission[]        @relation("SubmissionAuthor")
+  hostedEvents                 Event[]                    @relation("EventHost")
+  communityComments            CommunityComment[]
+  communityCommentLikes        CommunityCommentLike[]
+  communityPostLikes           CommunityPostLike[]
+  communityPosts               CommunityPost[]
+  communityPromptEvents        CommunityPromptEvent[]     @relation("CommunityPromptActor")
+  messages                     Message[]
+  founderServiceRequests       FounderServiceRequest[]
+  foundingMembership           FoundingMember?
+  foundingReservations         FoundingOfferReservation[]
+  memberInvite                 MemberInvite?
+  inviteReferralsSent          InviteReferral[]           @relation("InviteReferrer")
+  inviteReferralReceived       InviteReferral?            @relation("InviteReferred")
+  reputationScore              ReputationScore?
+  reputationEvents             ReputationEvent[]
+  userBadges                   UserBadge[]
+  innerCircleQuestions         InnerCircleQuestion[]      @relation("InnerCircleQuestionAuthor")
+  answeredInnerCircleQuestions InnerCircleQuestion[]      @relation("InnerCircleQuestionAnswerer")
+  profile                      Profile?
+  resourcesAuthored            Resource[]                 @relation("ResourceAuthor")
+  passwordResetTokens          PasswordResetToken[]
+  sessions                     Session[]
+  subscription                 Subscription?
+
+  @@index([role])
+  @@index([membershipTier])
+  @@index([foundingMember])
+  @@index([foundingTier])
+  @@index([suspended])
+  @@index([createdAt])
+  @@index([suspended, createdAt])
+}
+
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  requestedIp String?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+  @@index([usedAt])
+  @@index([createdAt])
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+
+  @@unique([identifier, token])
+  @@index([identifier])
+}
+
+model Profile {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  headline             String?
+  bio                  String?
+  location             String?
+  experience           String?
+  website              String?
+  instagram            String?
+  linkedin             String?
+  tiktok               String?
+  collaborationNeeds   String?
+  collaborationOffers  String?
+  partnershipInterests String?
+  collaborationTags    String[]  @default([])
+  isPublic             Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  business             Business?
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([location])
+  @@index([isPublic])
+  @@index([updatedAt])
+}
+
+model Business {
+  id            String          @id @default(cuid())
+  profileId     String          @unique
+  status        BusinessStatus?
+  companyName   String?
+  companyNumber String?
+  slug          String?         @unique
+  description   String?
+  industry      String?
+  services      String?
+  stage         BusinessStage?
+  location      String?
+  website       String?
+  teamSize      Int?
+  foundedYear   Int?
+  isPublic      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  profile       Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([industry])
+  @@index([status])
+  @@index([stage])
+  @@index([location])
+  @@index([isPublic])
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  colorHex    String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  resources   Resource[]
+
+  @@index([isActive, sortOrder])
+}
+
+model Resource {
+  id                   String            @id @default(cuid())
+  title                String
+  slug                 String            @unique
+  content              String            @default("") @db.Text
+  excerpt              String            @default("")
+  tier                 ResourceTier      @default(FOUNDATION)
+  category             String            @default("Getting Started")
+  type                 ResourceType      @default(CLARITY)
+  summary              String
+  coverImage           String?
+  stage                ResourceStage     @default(STARTUP)
+  status               ResourceStatus    @default(DRAFT)
+  accessTier           MembershipTier    @default(FOUNDATION)
+  earlyAccess          Boolean           @default(false)
+  mediaType            ResourceMediaType @default(NONE)
+  mediaUrl             String?
+  categoryId           String?
+  authorId             String?
+  estimatedReadMinutes Int?
+  scheduledFor         DateTime?
+  publishedAt          DateTime?
+  archivedAt           DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  author               User?             @relation("ResourceAuthor", fields: [authorId], references: [id])
+  catalogCategory      Category?         @relation(fields: [categoryId], references: [id])
+  blocks               ResourceBlock[]
+  tags                 ResourceTag[]
+
+  @@index([tier])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([status, tier])
+  @@index([status, accessTier])
+  @@index([status, accessTier, earlyAccess])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([publishedAt])
+  @@index([status, publishedAt])
+  @@index([createdAt])
+}
+
+model ResourceBlock {
+  id         String            @id @default(cuid())
+  resourceId String
+  type       ResourceBlockType
+  heading    String?
+  position   Int
+  content    Json
+  metadata   Json?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  resource   Resource          @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, position])
+  @@index([resourceId, type])
+}
+
+model ResourceTag {
+  id         String   @id @default(cuid())
+  resourceId String
+  name       String
+  slug       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, slug])
+  @@index([resourceId])
+  @@index([slug])
+  @@index([name])
+}
+
+model Channel {
+  id                    String                 @id @default(cuid())
+  name                  String
+  slug                  String                 @unique
+  description           String?
+  topic                 String?
+  accessTier            MembershipTier         @default(FOUNDATION)
+  accessLevel           ChannelAccessLevel     @default(MEMBERS)
+  position              Int                    @default(0)
+  allowAutomatedPrompts Boolean                @default(true)
+  isPrivate             Boolean                @default(false)
+  isArchived            Boolean                @default(false)
+  createdById           String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  communityPosts        CommunityPost[]
+  promptEvents          CommunityPromptEvent[]
+  createdBy             User?                  @relation("ChannelCreator", fields: [createdById], references: [id])
+  messages              Message[]
+
+  @@index([accessTier])
+  @@index([accessLevel, position])
+  @@index([isPrivate])
+  @@index([isArchived])
+  @@index([isArchived, accessTier, position])
+  @@index([createdById])
+}
+
+model Message {
+  id              String    @id @default(cuid())
+  channelId       String
+  userId          String
+  parentMessageId String?
+  content         String
+  attachments     Json?
+  isEdited        Boolean   @default(false)
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  channel         Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  parentMessage   Message?  @relation("MessageReplies", fields: [parentMessageId], references: [id])
+  replies         Message[] @relation("MessageReplies")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, createdAt])
+  @@index([userId, createdAt])
+  @@index([parentMessageId])
+}
+
+model Event {
+  id          String           @id @default(cuid())
+  title       String
+  slug        String?          @unique
+  description String?
+  accessTier  MembershipTier   @default(FOUNDATION)
+  accessLevel EventAccessLevel @default(MEMBERS)
+  startAt     DateTime
+  endAt       DateTime?
+  timezone    String           @default("UTC")
+  location    String?
+  hostName    String?
+  meetingLink String?
+  replayUrl   String?
+  capacity    Int?
+  isCancelled Boolean          @default(false)
+  hostId      String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  host        User?            @relation("EventHost", fields: [hostId], references: [id])
+
+  @@index([accessTier])
+  @@index([accessLevel])
+  @@index([startAt, accessTier])
+  @@index([hostId])
+  @@index([isCancelled])
+  @@index([isCancelled, startAt])
+}
+
+model Subscription {
+  id                   String                     @id @default(cuid())
+  userId               String                     @unique
+  stripeCustomerId     String?                    @unique
+  stripeSubscriptionId String?                    @unique
+  stripeProductId      String?
+  stripePriceId        String?
+  status               SubscriptionStatus         @default(INCOMPLETE)
+  tier                 MembershipTier             @default(FOUNDATION)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  cancelAtPeriodEnd    Boolean                    @default(false)
+  canceledAt           DateTime?
+  metadata             Json?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  foundingClaims       FoundingMember[]
+  foundingReservations FoundingOfferReservation[]
+  user                 User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([tier])
+  @@index([status, tier])
+  @@index([currentPeriodEnd])
+  @@index([updatedAt])
+}
+
+model FoundingOfferSettings {
+  id                       String   @id @default("default")
+  enabled                  Boolean  @default(true)
+  foundationLimit          Int      @default(50)
+  innerCircleLimit         Int      @default(50)
+  coreLimit                Int      @default(50)
+  foundationClaimed        Int      @default(0)
+  innerCircleClaimed       Int      @default(0)
+  coreClaimed              Int      @default(0)
+  foundationFoundingPrice  Int      @default(15)
+  innerCircleFoundingPrice Int      @default(40)
+  coreFoundingPrice        Int      @default(80)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model MemberInvite {
+  id            String   @id @default(cuid())
+  inviterUserId String   @unique
+  inviteCode    String   @unique
+  createdAt     DateTime @default(now())
+  inviterUser   User     @relation(fields: [inviterUserId], references: [id], onDelete: Cascade)
+
+  @@index([inviteCode])
+  @@index([createdAt])
+}
+
+model InviteReferral {
+  id               String         @id @default(cuid())
+  inviterUserId    String
+  referredUserId   String         @unique
+  subscriptionTier MembershipTier
+  joinedAt         DateTime       @default(now())
+  inviterUser      User           @relation("InviteReferrer", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  referredUser     User           @relation("InviteReferred", fields: [referredUserId], references: [id], onDelete: Cascade)
+
+  @@index([inviterUserId, joinedAt])
+  @@index([subscriptionTier, joinedAt])
+}
+
+model ReputationScore {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  score       Int      @default(0)
+  lastUpdated DateTime @default(now()) @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ReputationEvent {
+  id        String              @id @default(cuid())
+  userId    String
+  eventType ReputationEventType
+  points    Int
+  createdAt DateTime            @default(now())
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String
+  icon        String
+  priority    Int
+  createdAt   DateTime    @default(now())
+  userBadges  UserBadge[]
+
+  @@index([priority])
+}
+
+model UserBadge {
+  id             String   @id @default(cuid())
+  userId         String
+  badgeId        String
+  awardedAt      DateTime @default(now())
+  awardedByAdmin Boolean  @default(false)
+  badge          Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId, awardedAt])
+  @@index([badgeId])
+}
+
+model FoundingMember {
+  id             String         @id @default(cuid())
+  userId         String         @unique
+  tier           MembershipTier
+  foundingPrice  Int
+  claimedAt      DateTime       @default(now())
+  subscriptionId String?
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tier, claimedAt])
+  @@index([claimedAt])
+  @@index([subscriptionId])
+}
+
+model FoundingOfferReservation {
+  id                String                    @id @default(cuid())
+  userId            String
+  tier              MembershipTier
+  foundingPrice     Int
+  source            FoundingReservationSource @default(CHECKOUT)
+  status            FoundingReservationStatus @default(ACTIVE)
+  checkoutSessionId String?                   @unique
+  subscriptionId    String?
+  expiresAt         DateTime
+  claimedAt         DateTime?
+  releasedAt        DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  subscription      Subscription?             @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tier, status, expiresAt])
+  @@index([userId, status, expiresAt])
+  @@index([checkoutSessionId])
+  @@index([subscriptionId])
+}
+
+model InnerCircleQuestion {
+  id           String    @id @default(cuid())
+  userId       String
+  answeredById String?
+  question     String
+  answer       String?
+  isAnswered   Boolean   @default(false)
+  answeredAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  answeredBy   User?     @relation("InnerCircleQuestionAnswerer", fields: [answeredById], references: [id], onDelete: SetNull)
+  user         User      @relation("InnerCircleQuestionAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([isAnswered, createdAt])
+  @@index([answeredAt])
+}
+
+model ContactSubmission {
+  id          String    @id @default(cuid())
+  userId      String?
+  handledById String?
+  name        String
+  email       String
+  company     String?
+  subject     String?
+  message     String
+  sourcePath  String?
+  isResolved  Boolean   @default(false)
+  resolvedAt  DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  handledBy   User?     @relation("SubmissionHandler", fields: [handledById], references: [id])
+  user        User?     @relation("SubmissionAuthor", fields: [userId], references: [id])
+
+  @@index([email])
+  @@index([createdAt])
+  @@index([isResolved])
+  @@index([userId])
+  @@index([handledById])
+}
+
+model FounderService {
+  id               String                    @id @default(cuid())
+  slug             String                    @unique
+  title            String
+  shortDescription String
+  fullDescription  String
+  includes         String[]                  @default([])
+  ctaLabel         String
+  price            Int
+  currency         String                    @default("GBP")
+  billingType      FounderServiceBillingType @default(ONE_TIME)
+  intakeMode       FounderServiceIntakeMode  @default(CHECKOUT)
+  position         Int                       @default(0)
+  active           Boolean                   @default(true)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  requests         FounderServiceRequest[]
+
+  @@index([active, position])
+}
+
+model CommunityPost {
+  id           String                 @id @default(cuid())
+  channelId    String
+  userId       String
+  title        String
+  content      String
+  tags         String[]               @default([])
+  kind         CommunityPostKind      @default(MEMBER_POST)
+  promptId     String?
+  promptTier   MembershipTier?
+  deletedAt    DateTime?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  channel      Channel                @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  comments     CommunityComment[]
+  likes        CommunityPostLike[]
+  promptEvents CommunityPromptEvent[]
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, createdAt])
+  @@index([channelId, deletedAt, createdAt])
+  @@index([userId, createdAt])
+  @@index([kind, createdAt])
+  @@index([deletedAt])
+  @@index([deletedAt, createdAt])
+}
+
+model CommunityComment {
+  id              String                 @id @default(cuid())
+  postId          String
+  userId          String
+  parentCommentId String?
+  content         String
+  deletedAt       DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  likes           CommunityCommentLike[]
+  parentComment   CommunityComment?      @relation("CommunityCommentReplies", fields: [parentCommentId], references: [id])
+  post            CommunityPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  replies         CommunityComment[]     @relation("CommunityCommentReplies")
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([postId, deletedAt, createdAt])
+  @@index([userId, createdAt])
+  @@index([parentCommentId])
+  @@index([deletedAt])
+  @@index([deletedAt, createdAt])
+}
+
+model CommunityPostLike {
+  postId    String
+  userId    String
+  createdAt DateTime      @default(now())
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, createdAt])
+}
+
+model CommunityCommentLike {
+  commentId String
+  userId    String
+  createdAt DateTime         @default(now())
+  comment   CommunityComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@index([userId, createdAt])
+}
+
+model CommunityPromptEvent {
+  id            String                       @id @default(cuid())
+  channelId     String
+  postId        String?
+  actorUserId   String?
+  promptId      String
+  promptTier    MembershipTier
+  status        CommunityPromptEventStatus   @default(PUBLISHED)
+  triggerSource CommunityPromptTriggerSource @default(OPPORTUNISTIC)
+  reason        String?
+  createdAt     DateTime                     @default(now())
+  actorUser     User?                        @relation("CommunityPromptActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  channel       Channel                      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  post          CommunityPost?               @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([channelId, createdAt])
+  @@index([postId])
+  @@index([promptId, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model FounderServiceRequest {
+  id                        String                      @id @default(cuid())
+  userId                    String?
+  serviceId                 String
+  fullName                  String
+  email                     String
+  phone                     String
+  businessName              String
+  website                   String
+  industry                  String
+  location                  String
+  yearsInBusiness           String
+  employeeCount             String
+  revenueRange              FounderRevenueRange
+  instagram                 String?
+  tiktok                    String?
+  facebook                  String?
+  linkedin                  String?
+  otherSocial               String?
+  businessDescription       String
+  targetAudience            String
+  productsOrServices        String
+  offers                    String
+  differentiator            String
+  mainGoal                  String
+  biggestChallenge          String
+  blockers                  String
+  pastAttempts              String
+  successDefinition         String
+  marketingChannels         String[]                    @default([])
+  whyTrev                   String
+  serviceOwner              String                      @default("Trev")
+  sourcePage                String?
+  sourceSection             String?
+  baseAmount                Int
+  paymentStatus             FounderServicePaymentStatus @default(PENDING)
+  serviceStatus             FounderServiceStatus        @default(NEW)
+  amount                    Int
+  membershipDiscountPercent Int                         @default(0)
+  membershipTierApplied     MembershipTier?
+  discountLabel             String?
+  currency                  String                      @default("GBP")
+  stripeCheckoutSessionId   String?                     @unique
+  stripePaymentIntentId     String?                     @unique
+  stripeSubscriptionId      String?                     @unique
+  stripeInvoiceId           String?
+  paidAt                    DateTime?
+  adminNotes                String?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  service                   FounderService              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  uploads                   FounderServiceUpload[]
+  user                      User?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([serviceId, createdAt])
+  @@index([userId, createdAt])
+  @@index([paymentStatus, createdAt])
+  @@index([serviceStatus, createdAt])
+  @@index([email])
+}
+
+model FounderServiceUpload {
+  id        String                @id @default(cuid())
+  requestId String
+  fileUrl   String
+  fileName  String
+  mimeType  String?
+  createdAt DateTime              @default(now())
+  request   FounderServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+model SiteContent {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  sections  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+}
+
+enum Role {
+  MEMBER
+  INNER_CIRCLE
+  ADMIN
+}
+
+enum MembershipTier {
+  FOUNDATION
+  INNER_CIRCLE
+  CORE
+}
+
+enum ResourceStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ResourceTier {
+  FOUNDATION
+  INNER
+  CORE
+}
+
+enum ResourceType {
+  CLARITY
+  STRATEGY
+  OBSERVATION
+  MINDSET
+  ACTION
+}
+
+enum ResourceStage {
+  IDEA
+  STARTUP
+  GROWTH
+  SCALE
+}
+
+enum ResourceMediaType {
+  NONE
+  IMAGE
+  VIDEO
+}
+
+enum ResourceBlockType {
+  TEXT
+  CHECKLIST
+  STEPS
+  IMAGE
+  VIDEO
+  QUOTE
+  CALLOUT
+  DOWNLOAD
+  LINKS
+}
+
+enum ChannelAccessLevel {
+  PUBLIC
+  MEMBERS
+  INNER_CIRCLE
+  ADMIN_ONLY
+}
+
+enum EventAccessLevel {
+  PUBLIC
+  MEMBERS
+  INNER_CIRCLE
+  ADMIN_ONLY
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  PAUSED
+}
+
+enum FoundingReservationStatus {
+  ACTIVE
+  CLAIMED
+  RELEASED
+  EXPIRED
+}
+
+enum FoundingReservationSource {
+  CHECKOUT
+  UPGRADE
+}
+
+enum BusinessStage {
+  IDEA
+  STARTUP
+  GROWTH
+  SCALE
+  ESTABLISHED
+}
+
+enum BusinessStatus {
+  IDEA_STARTUP
+  REGISTERED_BUSINESS
+  ESTABLISHED_COMPANY
+}
+
+enum FounderServiceBillingType {
+  ONE_TIME
+  MONTHLY_RETAINER
+}
+
+enum FounderServiceIntakeMode {
+  CHECKOUT
+  APPLICATION
+}
+
+enum FounderServicePaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum FounderServiceStatus {
+  NEW
+  REVIEWED
+  IN_PROGRESS
+  WAITING_ON_CLIENT
+  COMPLETED
+  CANCELLED
+}
+
+enum FounderRevenueRange {
+  PRE_REVENUE
+  UNDER_2000
+  BETWEEN_2000_10000
+  BETWEEN_10000_50000
+  OVER_50000
+}
+
+enum ReputationEventType {
+  HELPFUL_POST
+  ANSWER_MARKED_HELPFUL
+  INVITE_MEMBER
+  INVITE_INNER_CIRCLE
+  ADMIN_GRANTED
+  ADMIN_RESET
+}
+
+enum CommunityPostKind {
+  MEMBER_POST
+  FOUNDER_POST
+  AUTO_PROMPT
+}
+
+enum CommunityPromptEventStatus {
+  PUBLISHED
+  SKIPPED
+}
+
+enum CommunityPromptTriggerSource {
+  OPPORTUNISTIC
+  ADMIN_MANUAL
+  CRON
+}

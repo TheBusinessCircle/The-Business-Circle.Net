@@ -1,0 +1,1 @@
+﻿export type ResourceVisibility = "standard" | "inner_circle";

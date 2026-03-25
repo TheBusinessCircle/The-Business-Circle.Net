@@ -1,0 +1,1 @@
+﻿See [docs/package-guidance.md](docs/package-guidance.md) for package and architecture guidance.
