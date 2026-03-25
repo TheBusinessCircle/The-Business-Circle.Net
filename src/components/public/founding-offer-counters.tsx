@@ -34,8 +34,8 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
           </p>
           <p className="mt-1 text-xs text-muted">
             {item.available
-              ? "Locked-in launch pricing while places remain."
-              : "Launch pricing has closed. Standard membership pricing now applies."}
+              ? "Limited founding member spots available."
+              : "Founding member spots have now been claimed. Standard membership pricing applies."}
           </p>
         </div>
       ))}

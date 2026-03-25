@@ -1,4 +1,4 @@
-import { BusinessStage, MembershipTier } from "@prisma/client";
+import type { BusinessStage, MemberRoleTag, MembershipTier } from "@prisma/client";
 import {
   BriefcaseBusiness,
   Clock3,
@@ -19,7 +19,9 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FoundingBadge } from "@/components/ui/founding-badge";
+import { MemberRoleBadge } from "@/components/ui/member-role-badge";
 import { getPresenceSignal } from "@/lib/community-rhythm";
+import { getMemberRoleLabel } from "@/lib/member-role";
 import { getExternalLinkProps } from "@/lib/links";
 import { getTierCardClassName } from "@/lib/tier-styles";
 import type { ProfileCompletionResult } from "@/lib/profile";
@@ -31,6 +33,7 @@ type PublicMemberProfileViewProps = {
     name: string;
     image?: string | null;
     membershipTier: MembershipTier;
+    memberRoleTag: MemberRoleTag;
     foundingTier?: MembershipTier | null;
     headline?: string | null;
     bio?: string | null;
@@ -109,6 +112,7 @@ export function PublicMemberProfileView({
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <TierBadge tier={member.membershipTier} />
+                  <MemberRoleBadge roleTag={member.memberRoleTag} />
                   <FoundingBadge tier={member.foundingTier} />
                   {presence ? (
                     <Badge variant="outline" className="inline-flex items-center gap-1 border-silver/18 bg-silver/10 text-silver">
@@ -139,6 +143,8 @@ export function PublicMemberProfileView({
                   {member.business?.companyName || "Independent operator"}
                 </p>
                 <p className="mt-2 text-sm text-muted">
+                  {getMemberRoleLabel(member.memberRoleTag)}
+                  {" | "}
                   {member.business?.industry || "Industry not shared yet"}
                   {stageLabel ? ` | ${stageLabel}` : ""}
                 </p>

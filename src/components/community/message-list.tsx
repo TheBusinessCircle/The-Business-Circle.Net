@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { CommunityBadge } from "@/components/ui/community-badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MemberRoleBadge } from "@/components/ui/member-role-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getTierAccentTextClassName } from "@/lib/tier-styles";
 import type { ChannelMessageModel } from "@/types";
@@ -184,6 +185,7 @@ export function MessageList({
                       {displayName}
                     </p>
                     <CommunityBadge badge={message.user.primaryBadge} mode="icon" />
+                    <MemberRoleBadge roleTag={message.user.memberRoleTag} />
                   </div>
                   <p className="text-xs text-muted">
                     {formatDistanceToNowStrict(new Date(message.createdAt), {
@@ -192,6 +194,9 @@ export function MessageList({
                     {message.isEdited ? " | edited" : ""}
                     {hasParent ? " | reply" : ""}
                     {message.user.statusLevel ? ` | ${message.user.statusLevel}` : ""}
+                    {message.user.reputationScore > 0
+                      ? ` | Reputation ${message.user.reputationScore}`
+                      : ""}
                   </p>
                 </div>
               </div>

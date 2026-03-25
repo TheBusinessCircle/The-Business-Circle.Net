@@ -17,7 +17,7 @@ export function authorName(user: {
 }
 
 export function postKindBadge(kind: CommunityPostKind, tags: string[] = []) {
-  if (isConnectionWinTags(tags)) {
+  if (kind === CommunityPostKind.WIN || isConnectionWinTags(tags)) {
     return createElement(
       Badge,
       { variant: "outline", className: "border-silver/24 bg-silver/10 text-silver" },

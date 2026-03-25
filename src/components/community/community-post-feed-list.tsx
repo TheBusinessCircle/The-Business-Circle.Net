@@ -16,6 +16,7 @@ import {
   CommunityPostEngagementBar,
   CommunityPostTags
 } from "@/components/community/community-post-discussion";
+import { CommunityUserSignals } from "@/components/community/community-user-signals";
 import {
   authorName,
   buildCommunityPostPreview,
@@ -182,6 +183,7 @@ export function CommunityPostFeedList({
                       <FoundingBadge tier={post.user.foundingTier} />
                       {postKindBadge(post.kind, post.tags)}
                     </div>
+                    <CommunityUserSignals user={post.user} />
                     <p className="mt-1 text-xs text-muted">{formatDate(post.createdAt)}</p>
                   </div>
                 </Link>

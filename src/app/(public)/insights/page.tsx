@@ -11,14 +11,14 @@ import {
 } from "@/server/insights/insight.service";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Business Insights",
+  title: "Business Growth Insights For Founders",
   description:
-    "Public business insight articles from The Business Circle, designed to create clarity, attract organic search traffic, and lead into membership.",
+    "Business growth insights for founders covering clarity, strategy, better decisions, and the next step into Business Circle membership.",
   keywords: [
-    "business insights for founders",
+    "business growth insights for founders",
     "founder strategy articles",
     "business growth insights",
-    "business membership content"
+    "business decision making for founders"
   ],
   path: "/insights"
 });
@@ -26,28 +26,32 @@ export const metadata: Metadata = createPageMetadata({
 const journeyItems = [
   {
     icon: Compass,
-    title: "Public insight",
+    title: "Start here",
     description:
-      "Each article is written to help a business owner understand the issue clearly without overwhelming the page."
+      "Use the free insights layer to understand the issue clearly before you decide whether to go deeper."
   },
   {
     icon: BookOpen,
-    title: "Member structure",
+    title: "Go deeper inside membership",
     description:
-      "The deeper framework, review prompts, and execution sequence stay inside the Business Circle where they belong."
+      "Full frameworks, review prompts, and the execution sequence stay inside membership where the deeper structure belongs."
   },
   {
     icon: Lock,
-    title: "Calm conversion",
+    title: "This is just the surface layer",
     description:
-      "Locked depth and relevant next steps create curiosity without turning the experience into a noisy gated funnel."
+      "The free layer should be useful on its own, while membership makes the next move clearer when you want more depth."
   }
 ] as const;
 
 export default function InsightsPage() {
   const insights = listPublicInsights();
   const topicClusters = listInsightTopicClusters();
-  const [featuredInsight, ...remainingInsights] = insights;
+  const startHereInsight =
+    insights.find(
+      (insight) => insight.slug === "why-your-business-is-not-growing-even-though-you-are-working-hard"
+    ) ?? insights[0];
+  const remainingInsights = insights.filter((insight) => insight.slug !== startHereInsight?.slug);
 
   return (
     <div className="space-y-14 pb-14 sm:space-y-16 lg:space-y-16 lg:pb-16">
@@ -56,7 +60,7 @@ export default function InsightsPage() {
         <div className="pointer-events-none absolute -right-16 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
         <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
           <div className="space-y-6">
-            <p className="premium-kicker">Insights</p>
+            <p className="premium-kicker">You&apos;re In The Insights Layer</p>
             <div className="space-y-4">
               <h1 className="max-w-4xl font-display text-4xl leading-tight text-foreground sm:text-5xl">
                 {INSIGHT_SECTION_COPY.title}
@@ -69,15 +73,15 @@ export default function InsightsPage() {
               {INSIGHT_SECTION_COPY.supportLine}
             </p>
             <div className="flex flex-wrap gap-3">
-              <a href="#latest-insights">
+              <a href="#start-here">
                 <Button size="lg">
-                  Explore Insights
+                  Start Here
                   <ArrowRight size={16} className="ml-2" />
                 </Button>
               </a>
               <Link href="/membership?from=/insights">
                 <Button size="lg" variant="outline">
-                  Explore Membership
+                  Go Deeper Inside Membership
                 </Button>
               </Link>
             </div>
@@ -85,40 +89,40 @@ export default function InsightsPage() {
 
           <div className="grid gap-4">
             <article className="rounded-[1.75rem] border border-silver/20 bg-background/28 p-5">
-              <p className="premium-kicker">Publishing rhythm</p>
+              <p className="premium-kicker">Browse topics</p>
               <h2 className="mt-4 font-display text-2xl text-foreground">
-                Curated weekly batches, not a daily content dump
+                Clarity, strategy, and better decisions for founders
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted">
-                The public layer is built for 3 to 5 strong articles each week, rewritten from internal resources for discovery, search, and curiosity.
+                This layer is organised around real founder problems, so it is easier to scan by topic before you read deeper.
               </p>
             </article>
             <article className="rounded-[1.75rem] border border-border/80 bg-background/22 p-5">
-              <p className="premium-kicker">Authority structure</p>
+              <p className="premium-kicker">Most relevant right now</p>
               <p className="mt-3 text-sm leading-relaxed text-muted">
-                {topicClusters.length} structured topic clusters connect public clarity to the deeper member layer without turning the site into SEO noise.
+                {topicClusters.length} structured topic clusters connect free business growth insights to the deeper membership layer without turning the site into SEO noise.
               </p>
             </article>
           </div>
         </div>
       </section>
 
-      {featuredInsight ? (
-        <section className="space-y-6">
+      {startHereInsight ? (
+        <section id="start-here" className="space-y-6">
           <SectionHeading
-            label="Featured Insight"
-            title="The latest public article"
-            description="A stronger discovery layer should feel useful on its own before it asks anyone to go further."
+            label="Start Here"
+            title="Free business growth insight to begin with"
+            description="If you are new to the platform, start with the clearest article first before you browse the wider topic clusters."
           />
-          <InsightCard insight={featuredInsight} featured />
+          <InsightCard insight={startHereInsight} featured />
         </section>
       ) : null}
 
       <section className="space-y-6">
         <SectionHeading
-          label="Topic Clusters"
-          title="Structured topic areas, not disconnected articles"
-          description="Each topic cluster is designed to build authority around a real business problem and lead naturally into the deeper member layer."
+          label="Browse Topics"
+          title="Business growth topics built around real founder search intent"
+          description="Choose the topic that matches the business pressure you are dealing with right now, then follow the supporting articles underneath it."
         />
         <div className="grid gap-4 lg:grid-cols-3">
           {topicClusters.map((cluster) => (
@@ -158,9 +162,9 @@ export default function InsightsPage() {
 
       <section className="space-y-6">
         <SectionHeading
-          label="How Insights Work"
-          title="Clarity first, depth second"
-          description="The experience is built to feel valuable in public and more structured inside the Circle."
+          label="How This Layer Works"
+          title="Free insight first. Membership depth next."
+          description="The experience is built to feel useful in public, then more structured inside membership when you want the full framework."
         />
         <div className="grid gap-4 md:grid-cols-3">
           {journeyItems.map((item) => (
@@ -178,8 +182,8 @@ export default function InsightsPage() {
       <section id="latest-insights" className="space-y-6">
         <SectionHeading
           label="Latest Insights"
-          title="Search-led articles for business owners"
-          description="Each piece is structured for indexability, calm reading, and a natural route into membership."
+          title="Start with what's most relevant right now"
+          description="These business growth insights are ordered for calm scanning, current relevance, and a natural move into deeper membership when it fits."
         />
         <div className="grid gap-5 lg:grid-cols-2">
           {remainingInsights.map((insight) => (
@@ -189,9 +193,9 @@ export default function InsightsPage() {
       </section>
 
       <CTASection
-        title="Go from public insight to member structure"
-        description="When you want the framework, the clearer sequence, and the practical next steps, continue inside the Business Circle."
-        primaryAction={{ href: "/membership?from=/insights", label: "Continue inside the Business Circle" }}
+        title="This is just the surface layer"
+        description="When you want the full frameworks, clearer sequence, and practical next steps, go deeper inside membership."
+        primaryAction={{ href: "/membership?from=/insights", label: "Go Deeper Inside Membership" }}
         secondaryAction={{ href: "/founder", label: "Meet The Founder", variant: "outline" }}
       />
     </div>

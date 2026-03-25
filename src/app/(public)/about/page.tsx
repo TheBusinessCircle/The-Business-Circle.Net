@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = createPageMetadata({
   title: "About",
   description:
-    "Learn why The Business Circle Network exists, what it believes about growth, and why it is being built as a founder-led business ecosystem.",
+    "Learn why The Business Circle Network exists, what it believes about growth, and how the live founder-led ecosystem is structured.",
   path: "/about"
 });
 
@@ -66,7 +66,7 @@ export default async function AboutPage() {
       <section className="space-y-8">
         <SectionHeading
           label="About"
-          title="A founder-led business ecosystem built for the way growth actually works"
+          title="You're In The Business Circle Network"
           description={aboutContent.intro}
         />
         <FeatureGrid columns={4} items={aboutFoundationItems} />
@@ -90,8 +90,8 @@ export default async function AboutPage() {
             <Link href="/founder">
               <Button>Meet Trevor Newton</Button>
             </Link>
-            <Link href="/early-access">
-              <Button variant="outline">Join Early Access</Button>
+            <Link href="/membership">
+              <Button variant="outline">Explore Membership</Button>
             </Link>
           </div>
         </article>
@@ -128,24 +128,24 @@ export default async function AboutPage() {
       </section>
 
       <section className="public-panel p-6 sm:p-8">
-        <p className="premium-kicker">Pre-Launch Intent</p>
+        <p className="premium-kicker">Live Ecosystem</p>
         <h2 className="mt-5 font-display text-3xl text-foreground">
-          This is being launched carefully, not rushed
+          This is now live and built to stay structured as it grows
         </h2>
         <div className="mt-5 space-y-4 text-sm leading-relaxed text-muted">
           <p>
-            Pre-launch here means intention. The Business Circle Network is being shaped to feel premium, useful, and founder-led from the start.
+            The Business Circle Network is live, founder-led, and designed to feel premium, useful, and calm from the first visit.
           </p>
           <p>
-            The goal is to build the right culture, quality, and momentum early so the network grows with substance rather than noise.
+            The goal is to keep the right culture, quality, and momentum visible as the network grows with substance rather than noise.
           </p>
         </div>
       </section>
 
       <CTASection
         title="Join the first wave of builders entering The Business Circle Network"
-        description="If the vision feels aligned, step into early access now or explore the membership structure in more detail."
-        primaryAction={{ href: "/early-access", label: "Join Early Access" }}
+        description="If the vision feels aligned, join the first wave of members now or explore the membership structure in more detail."
+        primaryAction={{ href: "/join", label: "Join The Business Circle" }}
         secondaryAction={{ href: "/membership", label: "View Membership", variant: "outline" }}
       />
     </div>

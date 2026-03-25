@@ -1,10 +1,11 @@
-import { BusinessStage, MembershipTier } from "@prisma/client";
+import { BusinessStage, MemberRoleTag, MembershipTier } from "@prisma/client";
 
 export interface MemberProfileModel {
   userId: string;
   fullName: string;
   image?: string | null;
   membershipTier: MembershipTier;
+  memberRoleTag: MemberRoleTag;
   headline?: string | null;
   bio?: string | null;
   location?: string | null;
@@ -28,6 +29,7 @@ export interface MemberProfileModel {
 export interface MemberProfileFormModel {
   name: string;
   profileImage: string;
+  memberRoleTag: MemberRoleTag;
   headline: string;
   bio: string;
   location: string;

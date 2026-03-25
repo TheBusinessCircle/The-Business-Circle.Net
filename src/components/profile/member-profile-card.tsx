@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BusinessStage, MembershipTier } from "@prisma/client";
+import type { BusinessStage, MemberRoleTag, MembershipTier } from "@prisma/client";
 import { ArrowUpRight, BriefcaseBusiness, Building2, Clock3, MapPin } from "lucide-react";
 import type { CommunityRecognitionSummary } from "@/types";
 import { Avatar } from "@/components/ui/avatar";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CommunityBadge } from "@/components/ui/community-badge";
 import { FoundingBadge } from "@/components/ui/founding-badge";
+import { MemberRoleBadge } from "@/components/ui/member-role-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { getPresenceSignal } from "@/lib/community-rhythm";
 import { buildMemberProfilePath } from "@/lib/member-paths";
@@ -19,6 +20,7 @@ type MemberProfileCardProps = {
   name: string;
   image?: string | null;
   membershipTier: MembershipTier;
+  memberRoleTag: MemberRoleTag;
   foundingTier?: MembershipTier | null;
   companyName?: string | null;
   bio?: string | null;
@@ -36,6 +38,7 @@ export function MemberProfileCard({
   name,
   image,
   membershipTier,
+  memberRoleTag,
   foundingTier,
   companyName,
   bio,
@@ -77,6 +80,7 @@ export function MemberProfileCard({
 
         <div className="flex flex-wrap gap-2">
           <MembershipTierBadge tier={membershipTier} />
+          <MemberRoleBadge roleTag={memberRoleTag} />
           <FoundingBadge tier={foundingTier} />
           {presence ? (
             <Badge variant="outline" className="inline-flex items-center gap-1 normal-case tracking-normal">

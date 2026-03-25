@@ -248,13 +248,13 @@ export default async function InsightArticlePage({ params }: PageProps) {
                 <div className="rounded-[1.75rem] border border-gold/30 bg-background/94 p-6 shadow-panel backdrop-blur">
                   <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
                     <Lock size={12} />
-                    Member depth
+                    Membership depth
                   </div>
                   <h2 className="mt-4 font-display text-3xl text-foreground">
-                    {insight.lockedTitle}
+                    This is just the surface layer
                   </h2>
                   <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">
-                    {insight.lockedDescription}
+                    {insight.lockedDescription} Full frameworks are available inside membership.
                   </p>
                   <div className="mt-5 grid gap-3 sm:grid-cols-3">
                     {insight.lockedBullets.map((item) => (
@@ -268,7 +268,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
                   </div>
                   <div className="mt-6 flex flex-wrap gap-3">
                     <Link href={insight.recommendedMembershipHref}>
-                      <Button size="lg">Continue inside the Business Circle</Button>
+                      <Button size="lg">Go Deeper Inside Membership</Button>
                     </Link>
                     <Link href="/membership">
                       <Button size="lg" variant="outline">
@@ -305,12 +305,12 @@ export default async function InsightArticlePage({ params }: PageProps) {
                   </p>
                 </Link>
                 <Link
-                  href="/resources"
+                  href={insight.recommendedMembershipHref}
                   className="rounded-[1.75rem] border border-gold/24 bg-gradient-to-br from-gold/8 via-card/72 to-card/68 p-5 transition-colors hover:border-gold/34"
                 >
-                  <p className="premium-kicker">Member resources</p>
+                  <p className="premium-kicker">Go deeper inside membership</p>
                   <h3 className="mt-4 font-display text-2xl text-foreground">
-                    Continue into the member resource library
+                    Full frameworks available inside
                   </h3>
                   <p className="mt-3 text-sm leading-relaxed text-muted">
                     Public insight creates understanding. The member library adds the fuller frameworks, review questions, and practical execution depth.
@@ -358,7 +358,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
                     { href: "#problem", label: insight.problemTitle },
                     { href: "#key-insight", label: insight.keyInsightTitle },
                     { href: "#breakdown", label: insight.breakdownTitle },
-                    { href: "#inside-circle", label: "Continue inside the Business Circle" },
+                    { href: "#inside-circle", label: "Go deeper inside membership" },
                     { href: "#inside-topic", label: "Inside This Topic" }
                   ].map((item) => (
                     <a
@@ -375,7 +375,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
               <section className="public-panel border-silver/22 bg-gradient-to-br from-silver/10 via-card/72 to-card/68 p-5">
                 <p className="premium-kicker">Best place to continue</p>
                 <h2 className="mt-4 font-display text-2xl text-foreground">
-                  Public clarity. Member structure.
+                  Free insight first. Membership depth next.
                 </h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted">
                   This article gives the thinking. Membership gives the fuller framework, the execution layer, and the more structured next step.
@@ -385,18 +385,18 @@ export default async function InsightArticlePage({ params }: PageProps) {
                 </div>
                 <div className="mt-4 space-y-2 text-sm text-muted">
                   <Link
-                    href="/resources"
+                    href={insight.recommendedMembershipHref}
                     className="inline-flex items-center gap-2 transition-colors hover:text-foreground"
                   >
                     <BookOpen size={15} />
-                    Open the member resource library
+                    Go deeper inside membership
                   </Link>
                   <Link
                     href={insight.recommendedMembershipHref}
                     className="inline-flex items-center gap-2 text-foreground transition-colors hover:text-silver"
                   >
                     <Compass size={15} />
-                    Explore the matching membership path
+                    Go deeper inside membership
                   </Link>
                   <Link
                     href={topicCluster?.href ?? "/insights"}

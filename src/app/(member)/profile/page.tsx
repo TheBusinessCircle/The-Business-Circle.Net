@@ -78,6 +78,7 @@ export default async function ProfilePage() {
         initialValues={{
           name: user.name || "",
           profileImage: user.image || "",
+          memberRoleTag: user.memberRoleTag,
           headline: user.profile?.headline || "",
           bio: user.profile?.bio || "",
           location: user.profile?.location || "",

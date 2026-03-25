@@ -221,7 +221,7 @@ export default async function HomePage() {
           description={homeContent.heroSubtitle}
           supportLine={homeContent.heroSupportLine}
           callouts={heroCallouts}
-          primaryAction={{ href: "/early-access", label: "Join Early Access" }}
+          primaryAction={{ href: "/join", label: "Join The Business Circle" }}
           secondaryAction={{ href: "/membership", label: "Explore Membership", variant: "outline" }}
           metrics={[
             { value: "Private", label: "Curated membership" },
@@ -434,9 +434,9 @@ export default async function HomePage() {
 
         <HomeSection>
           <SectionHeading
-            label="Public Insight"
-            title="Authority-building insight that leads naturally into membership"
-            description="The public layer helps founders think more clearly in search. Membership adds the fuller frameworks, deeper context, and stronger next steps behind it."
+            label="You're In The Insights Layer"
+            title="Free insights to help you think clearer and grow your business"
+            description="Start here before going deeper into membership. The free layer builds clarity first, then membership adds the deeper frameworks, context, and execution path."
           />
           <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
             <div className="grid gap-4 md:grid-cols-3">
@@ -469,12 +469,12 @@ export default async function HomePage() {
             </div>
 
             <article className="public-panel border-gold/25 bg-gradient-to-br from-gold/8 via-card/72 to-card/68 p-6 sm:p-8">
-              <p className="premium-kicker">Latest insight</p>
+              <p className="premium-kicker">Latest insights</p>
               <h2 className="mt-5 font-display text-3xl leading-tight text-foreground">
-                Search-led content that still feels like the Business Circle
+                Start with what&apos;s most relevant right now
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-muted">
-                These articles are written to rank, to help, and to lead naturally into the deeper member layer without becoming SEO filler.
+                Read the free insight layer first. Full frameworks, deeper context, and the practical next steps live inside membership when you want to go further.
               </p>
               <div className="mt-5 space-y-3">
                 {latestInsights.map((insight) => (
@@ -490,10 +490,10 @@ export default async function HomePage() {
               </div>
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link href="/insights">
-                  <Button>Explore Insights</Button>
+                  <Button>Browse Topics</Button>
                 </Link>
                 <Link href="/membership?from=/insights">
-                  <Button variant="outline">See The Membership Path</Button>
+                  <Button variant="outline">Go Deeper Inside Membership</Button>
                 </Link>
               </div>
             </article>
@@ -541,8 +541,8 @@ export default async function HomePage() {
         <CTASection
           title={homeContent.ctaTitle}
           description={homeContent.ctaDescription}
-          primaryAction={{ href: "/early-access", label: "Join Early Access" }}
-          secondaryAction={{ href: "/join", label: "Become A Founding Member", variant: "outline" }}
+          primaryAction={{ href: "/join", label: "Join The First Wave Of Members" }}
+          secondaryAction={{ href: "/membership", label: "Explore Membership", variant: "outline" }}
         />
       </div>
     </>

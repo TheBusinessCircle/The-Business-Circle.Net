@@ -116,7 +116,7 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
           <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
           <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
           <div className="relative space-y-5">
-            <p className="premium-kicker">Topic Cluster</p>
+            <p className="premium-kicker">You&apos;re In The Insights Layer</p>
             <h1 className="max-w-5xl font-display text-4xl leading-tight text-foreground sm:text-5xl">
               {pillar.headline}
             </h1>
@@ -175,8 +175,8 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
         {featuredSupportingInsight ? (
           <section className="space-y-6">
             <div className="space-y-2">
-              <p className="premium-kicker">Supporting insights</p>
-              <h2 className="font-display text-3xl text-foreground">Build the topic more fully</h2>
+              <p className="premium-kicker">Most relevant right now</p>
+              <h2 className="font-display text-3xl text-foreground">Build this topic more fully</h2>
             </div>
             <InsightCard insight={featuredSupportingInsight} featured />
             {remainingSupportingInsights.length ? (
@@ -192,8 +192,8 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
         {relatedClusters.length ? (
           <section className="space-y-6">
             <div className="space-y-2">
-              <p className="premium-kicker">Related topics</p>
-              <h2 className="font-display text-3xl text-foreground">Build authority across the wider subject</h2>
+              <p className="premium-kicker">Browse related topics</p>
+              <h2 className="font-display text-3xl text-foreground">Keep exploring connected business growth topics</h2>
               <p className="max-w-3xl text-sm leading-relaxed text-muted">
                 Strong topic coverage works better when connected problems are easy to continue into, not left as isolated articles.
               </p>
@@ -215,7 +215,7 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
         ) : null}
 
         <section className="public-panel border-silver/22 bg-gradient-to-br from-silver/10 via-card/72 to-card/68 p-6">
-          <p className="premium-kicker">Continue inside the Circle</p>
+          <p className="premium-kicker">Go deeper inside membership</p>
           <h2 className="mt-4 font-display text-3xl text-foreground">
             {pillar.ctaTitle}
           </h2>
@@ -225,7 +225,7 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
           <div className="mt-5 flex flex-wrap gap-3">
             <Link href={membershipPath}>
               <Button>
-                Continue inside the Business Circle
+                Go Deeper Inside Membership
                 <ArrowRight size={14} className="ml-2" />
               </Button>
             </Link>

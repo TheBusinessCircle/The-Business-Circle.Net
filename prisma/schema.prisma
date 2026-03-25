@@ -14,6 +14,7 @@ model User {
   image                        String?
   passwordHash                 String?
   role                         Role                       @default(MEMBER)
+  memberRoleTag                MemberRoleTag              @default(FOUNDER)
   membershipTier               MembershipTier             @default(FOUNDATION)
   foundingMember               Boolean                    @default(false)
   foundingTier                 MembershipTier?
@@ -52,6 +53,7 @@ model User {
   subscription                 Subscription?
 
   @@index([role])
+  @@index([memberRoleTag])
   @@index([membershipTier])
   @@index([foundingMember])
   @@index([foundingTier])
@@ -202,7 +204,6 @@ model Resource {
   stage                ResourceStage     @default(STARTUP)
   status               ResourceStatus    @default(DRAFT)
   accessTier           MembershipTier    @default(FOUNDATION)
-  earlyAccess          Boolean           @default(false)
   mediaType            ResourceMediaType @default(NONE)
   mediaUrl             String?
   categoryId           String?
@@ -223,7 +224,6 @@ model Resource {
   @@index([scheduledFor])
   @@index([status, tier])
   @@index([status, accessTier])
-  @@index([status, accessTier, earlyAccess])
   @@index([categoryId])
   @@index([authorId])
   @@index([publishedAt])
@@ -750,6 +750,12 @@ enum MembershipTier {
   CORE
 }
 
+enum MemberRoleTag {
+  FOUNDER
+  OPERATOR
+  ADVISOR
+}
+
 enum ResourceStatus {
   DRAFT
   SCHEDULED
@@ -894,6 +900,7 @@ enum CommunityPostKind {
   MEMBER_POST
   FOUNDER_POST
   AUTO_PROMPT
+  WIN
 }
 
 enum CommunityPromptEventStatus {

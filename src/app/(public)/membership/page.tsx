@@ -187,15 +187,15 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         <SectionHeading
           align="center"
           label="Membership"
-          title="Choose the level that fits where you are now"
-          description="Each tier gives you access to a stronger environment, better context, and a clearer path forward. You are choosing for the stage you are in now, not trying to predict everything upfront."
+          title="Business Membership For Founders"
+          description="Choose the level that fits where you are now. Each tier gives you access to a stronger environment, better context, and a clearer path forward without overcomplicating the decision."
         />
         <div className="flex flex-wrap justify-center gap-2">
           {[
             "Choose for now",
             "Move deeper later",
             "Clear monthly billing",
-            "Natural progression"
+            "Limited founding places available"
           ].map((item) => (
             <span
               key={item}
@@ -438,9 +438,9 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
 
       <section className="space-y-6">
         <SectionHeading
-          label="Public Insight"
-          title="Explore the topics that lead naturally into membership"
-          description="Public insight sharpens understanding first. Membership gives you the deeper frameworks, better sequence, and stronger context behind the same themes."
+          label="Free Insights Layer"
+          title="Free insights first. Membership depth next."
+          description="Use the free insights layer to think clearer, then go deeper inside membership when you want full frameworks, stronger context, and practical next steps."
         />
         <div className="grid gap-4 lg:grid-cols-3">
           {featuredInsightTopics.map((cluster) => (
@@ -461,10 +461,10 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
               </div>
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link href={cluster.href}>
-                  <Button variant="outline">Explore Topic</Button>
+                  <Button variant="outline">Browse Topic</Button>
                 </Link>
                 <Link href="/join">
-                  <Button>Join The Circle</Button>
+                  <Button>Go Deeper Inside Membership</Button>
                 </Link>
               </div>
             </article>
@@ -481,9 +481,9 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
 
       <CTASection
         title="Choose the level that matches your next phase"
-        description="Start where the fit is strongest now, then move deeper when the business needs a more focused room."
+        description="This is now live. Start where the fit is strongest now, then move deeper when the business needs a more focused room."
         primaryAction={{ href: "/join", label: "Join The Business Circle" }}
-        secondaryAction={{ href: "/early-access", label: "Join Early Access", variant: "outline" }}
+        secondaryAction={{ href: "/insights", label: "Start With Free Insights", variant: "outline" }}
       />
     </div>
   );

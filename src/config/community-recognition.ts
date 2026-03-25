@@ -18,14 +18,14 @@ export const COMMUNITY_BADGE_DEFINITIONS: Array<{
   {
     slug: "founding-core",
     name: "Founding Core",
-    description: "One of the original Core members who joined during launch.",
+    description: "One of the original Core members who joined in the founding wave.",
     icon: "shield",
     priority: 95
   },
   {
     slug: "founding-inner-circle",
     name: "Founding Inner Circle",
-    description: "One of the original Inner Circle members who joined during launch.",
+    description: "One of the original Inner Circle members who joined in the founding wave.",
     icon: "crown",
     priority: 90
   },
@@ -46,7 +46,7 @@ export const COMMUNITY_BADGE_DEFINITIONS: Array<{
   {
     slug: "founding-member",
     name: "Founding Member",
-    description: "Joined during the founding launch and secured launch pricing.",
+    description: "Joined in the founding wave and secured founding member pricing.",
     icon: "star",
     priority: 70
   },

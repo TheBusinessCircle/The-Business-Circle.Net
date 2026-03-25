@@ -57,6 +57,15 @@ const nextConfig: NextConfig = {
         headers: [...SECURITY_HEADERS]
       }
     ];
+  },
+  async redirects() {
+    return [
+      {
+        source: "/early-access",
+        destination: "/membership",
+        permanent: true
+      }
+    ];
   }
 };
 

@@ -15,6 +15,8 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
+import { MemberRoleBadge } from "@/components/ui/member-role-badge";
+import { getMemberRoleDescription, getMemberRoleLabel } from "@/lib/member-role";
 import { getProfileCompletion } from "@/lib/profile";
 import { profileSchema, type ProfileFormValues } from "@/lib/validators";
 
@@ -23,6 +25,12 @@ type ProfileFormProps = {
   membershipTier: MembershipTier;
   memberProfileHref: string;
 };
+
+const MEMBER_ROLE_OPTIONS: Array<ProfileFormValues["memberRoleTag"]> = [
+  "FOUNDER",
+  "OPERATOR",
+  "ADVISOR"
+];
 
 function FieldError({ message }: { message?: string }) {
   if (!message) {
@@ -146,8 +154,9 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
               />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-foreground">{values.name || "Business Circle Member"}</p>
-                <div className="mt-1">
+                <div className="mt-1 flex flex-wrap items-center gap-2">
                   <MembershipTierBadge tier={membershipTier} />
+                  <MemberRoleBadge roleTag={values.memberRoleTag} />
                 </div>
               </div>
             </div>
@@ -199,6 +208,20 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
                 <Label htmlFor="headline">Headline</Label>
                 <Input id="headline" {...form.register("headline")} placeholder="Founder, strategist, operator" />
                 <FieldError message={form.formState.errors.headline?.message} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="memberRoleTag">Role Tag</Label>
+                <Select id="memberRoleTag" {...form.register("memberRoleTag")}>
+                  {MEMBER_ROLE_OPTIONS.map((roleTag) => (
+                    <option key={roleTag} value={roleTag}>
+                      {getMemberRoleLabel(roleTag)}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-muted">
+                  {getMemberRoleDescription(values.memberRoleTag)}
+                </p>
+                <FieldError message={form.formState.errors.memberRoleTag?.message} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>

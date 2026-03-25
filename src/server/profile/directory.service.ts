@@ -1,4 +1,4 @@
-import { BusinessStage, MembershipTier, Prisma } from "@prisma/client";
+import { BusinessStage, MemberRoleTag, MembershipTier, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getRecentActivityByUserIds } from "@/server/community/member-activity.service";
 import { getCommunityRecognitionForUsers } from "@/server/community-recognition";
@@ -36,6 +36,7 @@ export interface DirectoryMember {
   email: string;
   image: string | null;
   membershipTier: MembershipTier;
+  memberRoleTag: MemberRoleTag;
   foundingTier: MembershipTier | null;
   createdAt: Date;
   profile: {
@@ -436,6 +437,7 @@ export async function searchDirectoryMembers(
       email: true,
       image: true,
       membershipTier: true,
+      memberRoleTag: true,
       foundingTier: true,
       createdAt: true,
       profile: {

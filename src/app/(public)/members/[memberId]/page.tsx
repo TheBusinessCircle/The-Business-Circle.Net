@@ -39,6 +39,7 @@ async function getMemberProfileRouteData(memberId: string, viewerUserId?: string
       email: true,
       image: true,
       membershipTier: true,
+      memberRoleTag: true,
       foundingTier: true,
       profile: {
         select: {
@@ -168,6 +169,7 @@ export default async function PublicMemberProfilePage({ params }: PageProps) {
         name: user.name || user.email,
         image: user.image,
         membershipTier: user.membershipTier,
+        memberRoleTag: user.memberRoleTag,
         foundingTier: user.foundingTier,
         headline: user.profile?.headline,
         bio: user.profile?.bio,

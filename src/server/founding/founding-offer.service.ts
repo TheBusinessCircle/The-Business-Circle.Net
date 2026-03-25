@@ -192,7 +192,7 @@ function buildTierSnapshot(input: {
       input.settings.enabled &&
       remaining > 0 &&
       isMembershipVariantStripeConfigured(input.tier, "founding"),
-    launchClosedLabel: "Launch Access Closed"
+    launchClosedLabel: "Founding places filled"
   };
 }
 

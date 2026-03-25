@@ -6,7 +6,7 @@ import { nonEmpty } from "@/lib/utils";
 
 const EXPLORE_LINKS = [
   { label: "About", href: "/about" },
-  { label: "Early Access", href: "/early-access" },
+  { label: "Insights", href: "/insights" },
   { label: "Membership", href: "/membership" },
   { label: "Founder", href: "/founder" },
   { label: "Contact", href: "/contact" },

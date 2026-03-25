@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { CommunityPostKind } from "@prisma/client";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import {
   buildConnectionWinTags,
@@ -206,7 +207,8 @@ export async function createConnectionWinAction(formData: FormData) {
       userTier: effectiveTier,
       title: buildConnectionWinTitle(parsed.data),
       content: serializeConnectionWin(parsed.data),
-      tags: buildConnectionWinTags()
+      tags: buildConnectionWinTags(),
+      kind: CommunityPostKind.WIN
     });
   } catch (error) {
     if (error instanceof Error && error.message === "community-channel-forbidden") {

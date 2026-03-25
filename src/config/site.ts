@@ -6,7 +6,6 @@ const publicNavigation: NavigationItem[] = [
   { label: "Membership", href: "/membership" },
   { label: "Founder", href: "/founder" },
   { label: "About", href: "/about" },
-  { label: "Early Access", href: "/early-access" },
   { label: "Contact", href: "/contact" },
 ];
 

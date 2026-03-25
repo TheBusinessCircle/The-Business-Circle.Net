@@ -332,6 +332,7 @@ export default async function DirectoryPage({ searchParams }: PageProps) {
               name={member.name || member.email}
               image={member.image}
               membershipTier={member.membershipTier}
+              memberRoleTag={member.memberRoleTag}
               foundingTier={member.foundingTier}
               companyName={member.profile?.business?.companyName}
               bio={member.profile?.bio || member.profile?.business?.description}

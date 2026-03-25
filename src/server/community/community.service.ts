@@ -36,16 +36,31 @@ import type {
 const COMMUNITY_POST_PAGE_SIZE = 18;
 const DEFAULT_AUTOMATION_RANDOM_THRESHOLD = 0.48;
 
-type CommunityUserRecord = {
-  id: string;
-  name: string | null;
-  email: string;
-  image: string | null;
-  membershipTier: MembershipTier;
-  role: Role;
-  foundingMember: boolean;
-  foundingTier: MembershipTier | null;
-};
+const communityUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  image: true,
+  membershipTier: true,
+  role: true,
+  memberRoleTag: true,
+  foundingMember: true,
+  foundingTier: true,
+  profile: {
+    select: {
+      collaborationTags: true,
+      business: {
+        select: {
+          industry: true
+        }
+      }
+    }
+  }
+} satisfies Prisma.UserSelect;
+
+type CommunityUserRecord = Prisma.UserGetPayload<{
+  select: typeof communityUserSelect;
+}>;
 
 type FeedChannelRecord = {
   id: string;
@@ -112,11 +127,21 @@ function mapCommunityUser(
   const recognition = recognitionByUserId.get(user.id);
 
   return {
-    ...user,
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    image: user.image,
+    membershipTier: user.membershipTier,
+    role: user.role,
+    memberRoleTag: user.memberRoleTag,
+    foundingMember: user.foundingMember,
+    foundingTier: user.foundingTier,
     primaryBadge: recognition?.primaryBadge ?? null,
     statusLevel: recognition?.statusLevel ?? "Member",
     reputationScore: recognition?.score ?? 0,
-    referralCount: recognition?.referralCount ?? 0
+    referralCount: recognition?.referralCount ?? 0,
+    industry: user.profile?.business?.industry ?? null,
+    focusTags: user.profile?.collaborationTags?.slice(0, 3) ?? []
   };
 }
 
@@ -195,16 +220,7 @@ async function getCommunityComments(input: { postId: string; viewerUserId: strin
           }
         },
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            membershipTier: true,
-            role: true,
-            foundingMember: true,
-            foundingTier: true
-          }
+          select: communityUserSelect
         }
       }
     });
@@ -233,16 +249,7 @@ async function getCommunityComments(input: { postId: string; viewerUserId: strin
         createdAt: true,
         updatedAt: true,
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            membershipTier: true,
-            role: true,
-            foundingMember: true,
-            foundingTier: true
-          }
+          select: communityUserSelect
         }
       }
     });
@@ -523,16 +530,7 @@ export async function getCommunityFeedPage(input: {
       createdAt: true,
       updatedAt: true,
       user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          membershipTier: true,
-          role: true,
-          foundingMember: true,
-          foundingTier: true
-        }
+        select: communityUserSelect
       },
       likes: {
         where: {
@@ -618,16 +616,7 @@ export async function listRecentCommunityPostsForTiers(input: {
         }
       },
       user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          membershipTier: true,
-          role: true,
-          foundingMember: true,
-          foundingTier: true
-        }
+        select: communityUserSelect
       },
       likes: {
         where: {
@@ -679,9 +668,16 @@ export async function listRecentConnectionWinsForTiers(input: {
   const posts = await db.communityPost.findMany({
     where: {
       deletedAt: null,
-      tags: {
-        has: CONNECTION_WIN_TAG
-      },
+      OR: [
+        {
+          kind: CommunityPostKind.WIN
+        },
+        {
+          tags: {
+            has: CONNECTION_WIN_TAG
+          }
+        }
+      ],
       channel: {
         accessTier: {
           in: input.tiers
@@ -711,16 +707,7 @@ export async function listRecentConnectionWinsForTiers(input: {
         }
       },
       user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          membershipTier: true,
-          role: true,
-          foundingMember: true,
-          foundingTier: true
-        }
+        select: communityUserSelect
       },
       likes: {
         where: {
@@ -800,16 +787,7 @@ export async function getCommunityPostDetail(input: {
         }
       },
       user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          membershipTier: true,
-          role: true,
-          foundingMember: true,
-          foundingTier: true
-        }
+        select: communityUserSelect
       },
       likes: {
         where: {
@@ -879,6 +857,7 @@ export async function createCommunityPost(input: {
   title: string;
   content: string;
   tags?: string;
+  kind?: CommunityPostKind;
 }) {
   const channel = await getAccessibleChannelBySlug(input.channelSlug, input.userTier);
 
@@ -889,7 +868,7 @@ export async function createCommunityPost(input: {
       title: input.title.trim(),
       content: input.content.trim(),
       tags: normalizeTagList(input.tags),
-      kind: founderPostKind(input.userRole)
+      kind: input.kind ?? founderPostKind(input.userRole)
     }
   });
 }
@@ -1284,16 +1263,7 @@ export async function listMessagesForChannel(channelId: string, limit = 80): Pro
     },
     include: {
       user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          membershipTier: true,
-          role: true,
-          foundingMember: true,
-          foundingTier: true
-        }
+        select: communityUserSelect
       }
     },
     orderBy: {

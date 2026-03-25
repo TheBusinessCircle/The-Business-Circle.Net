@@ -1,4 +1,4 @@
-import { BusinessStatus } from "@prisma/client";
+import { BusinessStatus, MemberRoleTag } from "@prisma/client";
 import { z } from "zod";
 import { credentialsSignInSchema, registerMemberSchema } from "@/lib/auth/schemas";
 import { FOUNDER_MARKETING_CHANNEL_OPTIONS } from "@/config/founder";
@@ -22,6 +22,7 @@ export const contactSchema = z.object({
 export const profileSchema = z.object({
   name: z.string().trim().min(2).max(100),
   profileImage: optionalUrl,
+  memberRoleTag: z.nativeEnum(MemberRoleTag),
   headline: optionalText(120),
   bio: optionalText(1200),
   location: optionalText(100),

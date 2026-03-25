@@ -17,19 +17,32 @@ import type { ChannelMessageModel } from "@/types";
 const DEFAULT_TAKE = 120;
 const MAX_TAKE = 200;
 
+const messageUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  image: true,
+  membershipTier: true,
+  role: true,
+  memberRoleTag: true,
+  foundingMember: true,
+  foundingTier: true,
+  profile: {
+    select: {
+      collaborationTags: true,
+      business: {
+        select: {
+          industry: true
+        }
+      }
+    }
+  }
+} satisfies Prisma.UserSelect;
+
 type MessageWithUser = Prisma.MessageGetPayload<{
   include: {
     user: {
-      select: {
-        id: true;
-        name: true;
-        email: true;
-        image: true;
-        membershipTier: true;
-        role: true;
-        foundingMember: true;
-        foundingTier: true;
-      };
+      select: typeof messageUserSelect;
     };
   };
 }>;
@@ -45,11 +58,21 @@ function toChannelMessageModel(message: MessageWithUser): ChannelMessageModel {
     updatedAt: message.updatedAt.toISOString(),
     isEdited: message.isEdited,
     user: {
-      ...message.user,
+      id: message.user.id,
+      name: message.user.name,
+      email: message.user.email,
+      image: message.user.image,
+      membershipTier: message.user.membershipTier,
+      role: message.user.role,
+      memberRoleTag: message.user.memberRoleTag,
+      foundingMember: message.user.foundingMember,
+      foundingTier: message.user.foundingTier,
       primaryBadge: null,
       statusLevel: "Member",
       reputationScore: 0,
-      referralCount: 0
+      referralCount: 0,
+      industry: message.user.profile?.business?.industry ?? null,
+      focusTags: message.user.profile?.collaborationTags?.slice(0, 3) ?? []
     }
   };
 }
@@ -99,16 +122,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       },
       include: {
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            membershipTier: true,
-            role: true,
-            foundingMember: true,
-            foundingTier: true
-          }
+          select: messageUserSelect
         }
       },
       orderBy: {
@@ -257,16 +271,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       },
       include: {
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            membershipTier: true,
-            role: true,
-            foundingMember: true,
-            foundingTier: true
-          }
+          select: messageUserSelect
         }
       }
     });

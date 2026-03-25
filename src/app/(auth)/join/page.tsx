@@ -167,14 +167,14 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         description={
           isAuthenticated
             ? "You are signed in. Choose the level you want and continue directly into billing."
-            : "Create your account, tell us enough about your business to place you properly, and choose the membership level that fits your stage. If you want a calmer, stronger environment around the business, you are in the right place."
+            : "Create your account, tell us enough about your business to place you properly, and choose the membership level that fits your stage. This is live, and if you want a calmer, stronger environment around the business, you are in the right place."
         }
       />
 
       <div className="flex flex-wrap gap-2">
         {[
           "Structured founder environment",
-          "Launch pricing where available",
+          "Limited founding places available",
           "Business-first membership"
         ].map((item) => (
           <span
@@ -209,16 +209,19 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
           </article>
 
           <article className="public-panel p-6">
-            <p className="premium-kicker">Still Exploring?</p>
+            <p className="premium-kicker">This Is Live</p>
             <h2 className="mt-5 font-display text-3xl text-foreground">
-              Join early access first
+              Join the first wave of members or start with free insights
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-muted">
-              If you want to stay close to launch without setting up a full account today, use the early-access route and we will keep you informed.
+              The platform is now live. If you want more context before choosing a tier, start with the free insights layer and come back when you are ready to join.
             </p>
-            <div className="mt-5">
-              <Link href="/early-access">
-                <Button variant="outline">Join Early Access</Button>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link href="/insights">
+                <Button variant="outline">Start With Insights</Button>
+              </Link>
+              <Link href="/membership">
+                <Button>View Membership</Button>
               </Link>
             </div>
           </article>

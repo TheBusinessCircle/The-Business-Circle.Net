@@ -1,11 +1,11 @@
 import type { InsightTopicCluster, PublicInsightSeed } from "@/types/insights";
 
 export const INSIGHT_SECTION_COPY = {
-  title: "Business insights for owners who want clearer, stronger decisions",
+  title: "Business Growth Insights",
   description:
-    "Structured public articles drawn from Business Circle member resources and rewritten for search, clarity, and better judgement.",
+    "Free insights to help you think clearer, grow your business, and make better decisions as a founder.",
   supportLine:
-    "Public insight gives visitors understanding. Membership gives the frameworks, structure, and execution path behind it."
+    "You're in the Insights Layer. Start here before going deeper into membership."
 } as const;
 
 export const INSIGHT_TOPIC_CLUSTERS: InsightTopicCluster[] = [

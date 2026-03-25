@@ -9,6 +9,7 @@ import { buildCommunityChannelPath, buildCommunityPostPath } from "@/lib/communi
 import { buildMemberProfilePath } from "@/lib/member-paths";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
+import { CommunityUserSignals } from "@/components/community/community-user-signals";
 import { CommunityPostDiscussion } from "@/components/community/community-post-discussion";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -143,6 +144,7 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
                   <FoundingBadge tier={post.user.foundingTier} />
                   {postKindBadge(post.kind, post.tags)}
                 </div>
+                <CommunityUserSignals user={post.user} />
                 <p className="mt-1 text-xs text-muted">{formatDate(post.createdAt)}</p>
               </div>
             </Link>

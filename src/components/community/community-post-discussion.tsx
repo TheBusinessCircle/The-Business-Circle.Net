@@ -16,6 +16,7 @@ import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { FeedSubmitButton } from "@/components/community/feed-submit-button";
+import { CommunityUserSignals } from "@/components/community/community-user-signals";
 import { authorName } from "@/lib/community-helpers";
 import {
   CONNECTION_WIN_INTERNAL_TAGS,
@@ -251,6 +252,7 @@ function CommentThread({
                   <MembershipTierBadge tier={comment.user.membershipTier} className="shrink-0" />
                   <FoundingBadge tier={comment.user.foundingTier} />
                 </div>
+                <CommunityUserSignals user={comment.user} className="mt-3" maxTags={1} />
                 <p className="mt-1 text-xs text-muted">{formatDate(comment.createdAt)}</p>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                   {comment.content}

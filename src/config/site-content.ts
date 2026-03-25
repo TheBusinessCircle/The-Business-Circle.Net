@@ -91,9 +91,9 @@ export const SITE_CONTENT_TITLES: Record<SiteContentSlug, string> = {
 export const siteContentDefaults: SiteContentValueMap = {
   home: {
     heroSupportLine: "Founder-led membership. Calm structure. Clearer business growth for founders who want a better room around the business.",
-    heroTitle: "A private business environment where founders can think clearly, belong quickly, and grow properly",
+    heroTitle: "A private business environment where founders can think clearly, feel they belong, and grow with more certainty",
     heroSubtitle:
-      "The Business Circle Network is a structured environment for business owners who want stronger context, better people around them, and a calmer route to momentum. If you have outgrown noisy founder spaces, you are in the right place.",
+      "The Business Circle Network is a live, structured environment for business owners who want stronger context, better people around them, and a calmer route to momentum. If you have outgrown noisy founder spaces, you are in the right place here.",
     whyTitle: "Why The Business Circle Network exists",
     whyDescription:
       "Too many businesses are trying to grow inside fragmented advice, shallow networking, and noisy communities. The Business Circle Network was created to bring structure, trust, founder-led thinking, and better business relationships into one serious environment.",
@@ -261,7 +261,6 @@ export const SITE_CONTENT_REVALIDATION_PATHS: Record<SiteContentSlug, string[]> 
     "/",
     "/about",
     "/membership",
-    "/early-access",
     "/join",
     "/contact",
     "/founder",

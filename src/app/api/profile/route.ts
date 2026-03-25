@@ -19,6 +19,7 @@ const CLOUDINARY_PROFILE_FOLDER =
 const PROFILE_FORM_FIELDS = [
   "name",
   "profileImage",
+  "memberRoleTag",
   "headline",
   "bio",
   "location",
@@ -234,6 +235,7 @@ export async function PATCH(request: Request) {
       data: {
         name: data.name.trim(),
         image: resolvedProfileImage,
+        memberRoleTag: data.memberRoleTag,
         profile: {
           upsert: {
             create: {

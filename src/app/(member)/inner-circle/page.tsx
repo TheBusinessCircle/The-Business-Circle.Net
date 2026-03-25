@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FoundingBadge } from "@/components/ui/founding-badge";
+import { MemberRoleBadge } from "@/components/ui/member-role-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { getMembershipPlan } from "@/config/membership";
 import { formatEventScheduleWindow } from "@/lib/events";
@@ -188,7 +189,7 @@ export default async function InnerCirclePage() {
             tier={MembershipTier.INNER_CIRCLE}
           />
           <LockedPreviewCard
-            eyebrow="Early Access Tools"
+            eyebrow="Priority Releases"
             title="Get new assets before the wider community"
             description="Selected resources and tools land here first."
             tier={MembershipTier.INNER_CIRCLE}
@@ -299,6 +300,7 @@ export default async function InnerCirclePage() {
           select: {
             name: true,
             email: true,
+            memberRoleTag: true,
             foundingTier: true
           }
         }
@@ -413,6 +415,7 @@ export default async function InnerCirclePage() {
         email: true,
         image: true,
         membershipTier: true,
+        memberRoleTag: true,
         foundingTier: true,
         profile: {
           select: {
@@ -687,6 +690,7 @@ export default async function InnerCirclePage() {
                   name={member.name || member.email}
                   image={member.image}
                   membershipTier={member.membershipTier}
+                  memberRoleTag={member.memberRoleTag}
                   foundingTier={member.foundingTier}
                   companyName={member.profile?.business?.companyName}
                   bio={member.profile?.headline || member.profile?.business?.description}
@@ -720,6 +724,7 @@ export default async function InnerCirclePage() {
                   <p className="line-clamp-2 text-sm text-foreground">{message.content}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted">
                     <span>{message.user.name || message.user.email}</span>
+                    <MemberRoleBadge roleTag={message.user.memberRoleTag} />
                     <FoundingBadge tier={message.user.foundingTier} />
                     <span>#{message.channel.slug}</span>
                     <span>{formatDate(message.createdAt)}</span>

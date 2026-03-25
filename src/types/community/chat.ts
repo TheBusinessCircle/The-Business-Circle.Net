@@ -1,5 +1,6 @@
 import type {
   ChannelAccessLevel,
+  MemberRoleTag,
   MembershipTier,
   Role
 } from "@prisma/client";
@@ -29,12 +30,15 @@ export interface CommunityUserSummaryModel {
   image?: string | null;
   membershipTier: MembershipTier;
   role: Role;
+  memberRoleTag: MemberRoleTag;
   foundingMember: boolean;
   foundingTier: MembershipTier | null;
   primaryBadge: CommunityBadgeModel | null;
   statusLevel: CommunityStatusLevel;
   reputationScore: number;
   referralCount: number;
+  industry: string | null;
+  focusTags: string[];
 }
 
 export interface ChannelMessageModel {
