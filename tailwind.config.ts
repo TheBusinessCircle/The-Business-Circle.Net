@@ -14,6 +14,7 @@ const config: Config = {
         background: "hsl(var(--background) / <alpha-value>)",
         card: "hsl(var(--card) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",
+        buttonForeground: "hsl(var(--button-foreground) / <alpha-value>)",
         muted: "hsl(var(--muted) / <alpha-value>)",
         border: "hsl(var(--border) / <alpha-value>)",
         primary: "hsl(var(--primary) / <alpha-value>)",

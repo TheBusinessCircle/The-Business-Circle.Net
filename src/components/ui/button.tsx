@@ -8,13 +8,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-background shadow-gold-soft hover:-translate-y-0.5 hover:bg-primary/90",
+          "bg-primary text-buttonForeground shadow-gold-soft hover:-translate-y-0.5 hover:bg-primary/90",
         foundation:
-          "bg-foundation text-background shadow-foundation-soft hover:-translate-y-0.5 hover:bg-foundation/88",
+          "bg-foundation text-buttonForeground shadow-foundation-soft hover:-translate-y-0.5 hover:bg-foundation/88",
         innerCircle:
           "border border-silver/24 bg-gradient-to-b from-silver/18 to-silver/10 text-silver shadow-silver-soft hover:-translate-y-0.5 hover:border-silver/34 hover:from-silver/22 hover:to-silver/14",
         core:
-          "bg-gold text-background shadow-gold-soft hover:-translate-y-0.5 hover:bg-gold/90",
+          "bg-gold text-buttonForeground shadow-gold-soft hover:-translate-y-0.5 hover:bg-gold/90",
         secondary:
           "bg-accent text-foreground shadow-inner-surface hover:-translate-y-0.5 hover:bg-accent/85",
         ghost: "bg-transparent text-foreground hover:bg-white/8",

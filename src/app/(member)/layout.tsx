@@ -2,9 +2,10 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { MembershipTier } from "@prisma/client";
 import { ShieldCheck } from "lucide-react";
+import { BackgroundModeToggle } from "@/components/background-mode/background-mode-toggle";
 import { BrandMark } from "@/components/branding/brand-mark";
-import { AppShell } from "@/components/shell/app-shell";
 import { MemberNavigation } from "@/components/member";
+import { AppShell } from "@/components/shell/app-shell";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,10 @@ import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Separator } from "@/components/ui/separator";
 import { getMembershipTierLabel } from "@/config/membership";
+import { signOutAction } from "@/lib/actions/auth-actions";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
 import { requireUser } from "@/lib/session";
-import { signOutAction } from "@/lib/actions/auth-actions";
 
 export default async function MemberLayout({ children }: { children: ReactNode }) {
   const session = await requireUser();
@@ -51,6 +52,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
               {membershipBadge}
             </Badge>
             <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
+            <BackgroundModeToggle labelClassName="hidden sm:inline" />
             {session.user.role === "ADMIN" ? (
               <Link href="/admin">
                 <Button variant="outline" size="sm">

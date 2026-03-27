@@ -1,7 +1,9 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Sora, Plus_Jakarta_Sans } from "next/font/google";
+import Script from "next/script";
 import { Providers } from "@/components/providers";
 import { SITE_CONFIG } from "@/config/site";
+import { getBackgroundModeInitScript } from "@/lib/background-mode";
 import "./globals.css";
 
 const display = Sora({
@@ -52,6 +54,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${display.variable} ${sans.variable} font-sans bg-background text-foreground`}>
+        <Script id="background-mode-init" strategy="beforeInteractive">
+          {getBackgroundModeInitScript()}
+        </Script>
         <Providers>{children}</Providers>
       </body>
     </html>
