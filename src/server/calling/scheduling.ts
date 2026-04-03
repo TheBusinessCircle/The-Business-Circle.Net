@@ -3,6 +3,10 @@ import { db } from "@/lib/db";
 import type { CallAudienceScope } from "@/lib/calling";
 import { normalizeTierVisibility } from "@/lib/calling";
 import { recordCallAuditLog } from "@/server/calling/audit";
+import {
+  isMissingCallingSchemaError,
+  logCallingSchemaFallback
+} from "@/server/calling/errors";
 import { canHostAudienceScope, canUserHostGroupCalls, type CallingUser } from "@/server/calling/permissions";
 import {
   cancelCallRoom,
@@ -39,38 +43,47 @@ export async function listUpcomingCallSchedulesForUser(actor: CallingUser) {
 }
 
 export async function listUpcomingCallSchedulesForAdmin(limit = 25) {
-  return db.callSchedule.findMany({
-    where: {
-      startsAt: {
-        gte: new Date(Date.now() - 60 * 60 * 1000)
-      }
-    },
-    orderBy: {
-      startsAt: "asc"
-    },
-    take: limit,
-    include: {
-      hostUser: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          membershipTier: true
+  try {
+    return await db.callSchedule.findMany({
+      where: {
+        startsAt: {
+          gte: new Date(Date.now() - 60 * 60 * 1000)
         }
       },
-      room: {
-        include: {
-          hostUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true
+      orderBy: {
+        startsAt: "asc"
+      },
+      take: limit,
+      include: {
+        hostUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            membershipTier: true
+          }
+        },
+        room: {
+          include: {
+            hostUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
             }
           }
         }
       }
+    });
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
     }
-  });
+
+    logCallingSchemaFallback("list-upcoming-call-schedules-for-admin", error);
+    return [];
+  }
 }
 
 export async function updateScheduledCallRoom(input: {
@@ -174,18 +187,27 @@ export async function cancelScheduledCallRoom(input: {
 }
 
 export async function syncScheduledRoomStates() {
-  const readyRooms = await db.callRoom.findMany({
-    where: {
-      status: "SCHEDULED",
-      startsAt: {
-        lte: new Date()
+  try {
+    const readyRooms = await db.callRoom.findMany({
+      where: {
+        status: "SCHEDULED",
+        startsAt: {
+          lte: new Date()
+        }
+      },
+      select: {
+        id: true
       }
-    },
-    select: {
-      id: true
-    }
-  });
+    });
 
-  await Promise.all(readyRooms.map((room) => syncCallRoomStatus(room.id)));
-  return readyRooms.length;
+    await Promise.all(readyRooms.map((room) => syncCallRoomStatus(room.id)));
+    return readyRooms.length;
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
+    }
+
+    logCallingSchemaFallback("sync-scheduled-room-states", error);
+    return 0;
+  }
 }

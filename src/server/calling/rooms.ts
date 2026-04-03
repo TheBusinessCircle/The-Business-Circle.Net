@@ -11,6 +11,10 @@ import { db } from "@/lib/db";
 import { buildCallParticipantIdentity, normalizeTierVisibility } from "@/lib/calling";
 import { slugify } from "@/lib/utils";
 import { recordCallAuditLog } from "@/server/calling/audit";
+import {
+  isMissingCallingSchemaError,
+  logCallingSchemaFallback
+} from "@/server/calling/errors";
 import { deleteLiveKitRoom, listLiveKitParticipants } from "@/server/calling/livekit";
 import {
   canHostAudienceScope,
@@ -162,47 +166,65 @@ function getParticipantUserIds(room: Pick<CallRoomDetail, "participants">) {
 }
 
 export async function getCallRoomById(roomId: string) {
-  return db.callRoom.findUnique({
-    where: {
-      id: roomId
-    },
-    include: callRoomDetailInclude
-  });
+  try {
+    return await db.callRoom.findUnique({
+      where: {
+        id: roomId
+      },
+      include: callRoomDetailInclude
+    });
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
+    }
+
+    logCallingSchemaFallback("get-call-room-by-id", error);
+    return null;
+  }
 }
 
 export async function syncCallRoomStatus(roomId: string) {
-  const room = await db.callRoom.findUnique({
-    where: {
-      id: roomId
-    },
-    select: {
-      id: true,
-      status: true,
-      startsAt: true
-    }
-  });
-
-  if (!room) {
-    return null;
-  }
-
-  if (
-    room.status === "SCHEDULED" &&
-    room.startsAt &&
-    room.startsAt.getTime() <= Date.now()
-  ) {
-    await db.callRoom.update({
+  try {
+    const room = await db.callRoom.findUnique({
       where: {
-        id: room.id
+        id: roomId
       },
-      data: {
-        status: "LIVE",
-        startedAt: new Date()
+      select: {
+        id: true,
+        status: true,
+        startsAt: true
       }
     });
-  }
 
-  return getCallRoomById(roomId);
+    if (!room) {
+      return null;
+    }
+
+    if (
+      room.status === "SCHEDULED" &&
+      room.startsAt &&
+      room.startsAt.getTime() <= Date.now()
+    ) {
+      await db.callRoom.update({
+        where: {
+          id: room.id
+        },
+        data: {
+          status: "LIVE",
+          startedAt: new Date()
+        }
+      });
+    }
+
+    return getCallRoomById(roomId);
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
+    }
+
+    logCallingSchemaFallback("sync-call-room-status", error);
+    return null;
+  }
 }
 
 export async function createOneToOneCallRoom(input: {
@@ -489,63 +511,81 @@ export async function getAccessibleCallRoomForUser(input: {
 }
 
 export async function listVisibleCallRoomsForUser(actor: CallingUser) {
-  const rooms = await db.callRoom.findMany({
-    where: {
-      status: {
-        in: ["SCHEDULED", "LIVE"]
-      }
-    },
-    orderBy: [
-      {
-        startsAt: "asc"
+  try {
+    const rooms = await db.callRoom.findMany({
+      where: {
+        status: {
+          in: ["SCHEDULED", "LIVE"]
+        }
       },
-      {
-        createdAt: "desc"
-      }
-    ],
-    take: 40,
-    include: callRoomDetailInclude
-  });
+      orderBy: [
+        {
+          startsAt: "asc"
+        },
+        {
+          createdAt: "desc"
+        }
+      ],
+      take: 40,
+      include: callRoomDetailInclude
+    });
 
-  const visibleRooms = await Promise.all(
-    rooms.map(async (room) => {
-      const access = await canUserJoinCallRoom(actor, room, getParticipantUserIds(room));
-      return access.allowed ? room : null;
-    })
-  );
+    const visibleRooms = await Promise.all(
+      rooms.map(async (room) => {
+        const access = await canUserJoinCallRoom(actor, room, getParticipantUserIds(room));
+        return access.allowed ? room : null;
+      })
+    );
 
-  return visibleRooms.filter((room): room is CallRoomDetail => Boolean(room));
+    return visibleRooms.filter((room): room is CallRoomDetail => Boolean(room));
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
+    }
+
+    logCallingSchemaFallback("list-visible-call-rooms-for-user", error);
+    return [];
+  }
 }
 
 export async function listAdminCallRooms() {
-  const rooms = await db.callRoom.findMany({
-    where: {
-      status: {
-        in: ["SCHEDULED", "LIVE"]
-      }
-    },
-    orderBy: [
-      {
-        status: "asc"
+  try {
+    const rooms = await db.callRoom.findMany({
+      where: {
+        status: {
+          in: ["SCHEDULED", "LIVE"]
+        }
       },
-      {
-        startsAt: "asc"
-      },
-      {
-        createdAt: "desc"
-      }
-    ],
-    include: callRoomDetailInclude
-  });
+      orderBy: [
+        {
+          status: "asc"
+        },
+        {
+          startsAt: "asc"
+        },
+        {
+          createdAt: "desc"
+        }
+      ],
+      include: callRoomDetailInclude
+    });
 
-  const withParticipantCounts = await Promise.all(
-    rooms.map(async (room) => ({
-      ...room,
-      liveParticipantCount: (await listLiveKitParticipants(room.livekitRoomName)).length
-    }))
-  );
+    const withParticipantCounts = await Promise.all(
+      rooms.map(async (room) => ({
+        ...room,
+        liveParticipantCount: (await listLiveKitParticipants(room.livekitRoomName)).length
+      }))
+    );
 
-  return withParticipantCounts;
+    return withParticipantCounts;
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
+    }
+
+    logCallingSchemaFallback("list-admin-call-rooms", error);
+    return [];
+  }
 }
 
 export async function endCallRoom(input: {

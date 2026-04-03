@@ -3,6 +3,10 @@ import { db } from "@/lib/db";
 import { normalizeTierVisibility } from "@/lib/calling";
 import { recordCallAuditLog } from "@/server/calling/audit";
 import {
+  isMissingCallingSchemaError,
+  logCallingSchemaFallback
+} from "@/server/calling/errors";
+import {
   canUserRequestGroupHostAccess,
   type CallingUser
 } from "@/server/calling/permissions";
@@ -299,125 +303,161 @@ export async function rejectGroupHostAccessRequest(input: {
 }
 
 export async function listPendingGroupHostAccessRequests() {
-  return db.groupHostAccessRequest.findMany({
-    where: {
-      status: "PENDING"
-    },
-    orderBy: {
-      requestedAt: "asc"
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          membershipTier: true
+  try {
+    return await db.groupHostAccessRequest.findMany({
+      where: {
+        status: "PENDING"
+      },
+      orderBy: {
+        requestedAt: "asc"
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            membershipTier: true
+          }
         }
       }
+    });
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
     }
-  });
+
+    logCallingSchemaFallback("list-pending-group-host-access-requests", error);
+    return [];
+  }
 }
 
 export async function listUserGroupHostAccessRequests(userId: string, limit = 5) {
-  return db.groupHostAccessRequest.findMany({
-    where: {
-      userId
-    },
-    take: limit,
-    orderBy: {
-      requestedAt: "desc"
+  try {
+    return await db.groupHostAccessRequest.findMany({
+      where: {
+        userId
+      },
+      take: limit,
+      orderBy: {
+        requestedAt: "desc"
+      }
+    });
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
     }
-  });
+
+    logCallingSchemaFallback("list-user-group-host-access-requests", error);
+    return [];
+  }
 }
 
 export async function listRecentGroupHostAccessRequests(limit = 50) {
-  return db.groupHostAccessRequest.findMany({
-    take: limit,
-    orderBy: {
-      requestedAt: "desc"
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          membershipTier: true
-        }
+  try {
+    return await db.groupHostAccessRequest.findMany({
+      take: limit,
+      orderBy: {
+        requestedAt: "desc"
       },
-      reviewedBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            membershipTier: true
+          }
+        },
+        reviewedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
         }
       }
+    });
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
     }
-  });
+
+    logCallingSchemaFallback("list-recent-group-host-access-requests", error);
+    return [];
+  }
 }
 
 export async function listCallHostPermissions(query?: string) {
   const normalizedQuery = query?.trim() ?? "";
 
-  return db.user.findMany({
-    where: {
-      OR: [
-        {
-          callHostPermission: {
-            isNot: null
-          }
-        },
-        {
-          role: "ADMIN"
-        },
-        normalizedQuery
-          ? {
-              OR: [
-                {
-                  name: {
-                    contains: normalizedQuery,
-                    mode: "insensitive"
-                  }
-                },
-                {
-                  email: {
-                    contains: normalizedQuery,
-                    mode: "insensitive"
-                  }
-                }
-              ]
+  try {
+    return await db.user.findMany({
+      where: {
+        OR: [
+          {
+            callHostPermission: {
+              isNot: null
             }
-          : {
-              subscription: {
-                is: {
-                  status: {
-                    in: ["ACTIVE", "TRIALING"]
+          },
+          {
+            role: "ADMIN"
+          },
+          normalizedQuery
+            ? {
+                OR: [
+                  {
+                    name: {
+                      contains: normalizedQuery,
+                      mode: "insensitive"
+                    }
+                  },
+                  {
+                    email: {
+                      contains: normalizedQuery,
+                      mode: "insensitive"
+                    }
+                  }
+                ]
+              }
+            : {
+                subscription: {
+                  is: {
+                    status: {
+                      in: ["ACTIVE", "TRIALING"]
+                    }
                   }
                 }
               }
-            }
-      ]
-    },
-    take: 50,
-    orderBy: [
-      {
-        role: "desc"
+        ]
       },
-      {
-        membershipTier: "desc"
-      },
-      {
-        createdAt: "desc"
+      take: 50,
+      orderBy: [
+        {
+          role: "desc"
+        },
+        {
+          membershipTier: "desc"
+        },
+        {
+          createdAt: "desc"
+        }
+      ],
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        membershipTier: true,
+        callHostPermission: true
       }
-    ],
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      membershipTier: true,
-      callHostPermission: true
+    });
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
     }
-  });
+
+    logCallingSchemaFallback("list-call-host-permissions", error);
+    return [];
+  }
 }

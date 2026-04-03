@@ -14,6 +14,10 @@ import {
 } from "@/lib/calling";
 import { canTierAccess, resolveEffectiveTier } from "@/lib/auth/permissions";
 import { ensureRealtimeSystemConfig, isCallingSystemEnabled } from "@/server/calling/config";
+import {
+  isMissingCallingSchemaError,
+  logCallingSchemaFallback
+} from "@/server/calling/errors";
 
 export type CallingUser = {
   id: string;
@@ -97,14 +101,27 @@ function getAllowedHostAudience(
   return allowed.length ? allowed : [effectiveTier];
 }
 
+async function getCallHostPermission(userId: string) {
+  try {
+    return await db.callHostPermission.findUnique({
+      where: {
+        userId
+      }
+    });
+  } catch (error) {
+    if (!isMissingCallingSchemaError(error)) {
+      throw error;
+    }
+
+    logCallingSchemaFallback("call-host-permission", error);
+    return null;
+  }
+}
+
 export async function getCallingContext(user: CallingUser): Promise<CallingContext> {
   const [config, hostPermission] = await Promise.all([
     ensureRealtimeSystemConfig(),
-    db.callHostPermission.findUnique({
-      where: {
-        userId: user.id
-      }
-    })
+    getCallHostPermission(user.id)
   ]);
 
   return {
