@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { RegisterForm } from "@/components/auth/register-form";
-import { MembershipPlanAction } from "@/components/billing";
-import { FoundingOfferCounters, PricingCard, SectionHeading } from "@/components/public";
+import { JoinExperience } from "@/components/auth/join-experience";
+import { SectionHeading } from "@/components/public";
 import { Button } from "@/components/ui/button";
 import {
   getMembershipTierLabel,
@@ -271,162 +270,95 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         </div>
       ) : null}
 
-      <div className={`grid gap-6 ${isAuthenticated ? "" : "xl:grid-cols-[1.1fr_0.9fr]"}`}>
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership levels</p>
-            <h2 className="font-display text-3xl text-foreground">
-              Choose the level that fits where you are now
-            </h2>
-            <p className="max-w-3xl text-sm leading-relaxed text-muted">
-              Each tier gives you access to a stronger environment, better context, and a clearer path forward.
-            </p>
-          </div>
-          <FoundingOfferCounters offer={foundingOffer} />
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            <PricingCard
-              tier="FOUNDATION"
-              name={MEMBERSHIP_PLANS.FOUNDATION.name}
-              positioningLabel="Best place to start"
-              monthlyPrice={MEMBERSHIP_PLANS.FOUNDATION.monthlyPrice}
-              description="Best for business owners who want a clearer base, a stronger room, and the right place to start inside the ecosystem."
-              features={MEMBERSHIP_PLANS.FOUNDATION.features}
-              cta={
-                <MembershipPlanAction
-                  tier="FOUNDATION"
-                  source="join"
-                  isAuthenticated={isAuthenticated}
-                  isCurrentPlan={currentTier === "FOUNDATION"}
-                  hasActiveSubscription={hasActiveSubscription}
-                  buttonVariant="foundation"
-                  authenticatedLabel={currentTier === "FOUNDATION" ? "Current Foundation Plan" : "Start With Foundation"}
-                  unauthenticatedLabel="Start With Foundation"
-                  joinHref={`${foundationJoinBase}#create-account`}
-                  loginHref={foundationLoginHref}
-                />
-              }
-              foundingOffer={foundingOffer.foundation}
-              selected={selectedTier === "FOUNDATION"}
-            />
-            <PricingCard
-              tier="INNER_CIRCLE"
-              name={MEMBERSHIP_PLANS.INNER_CIRCLE.name}
-              positioningLabel="Smartest next step"
-              spotlight={{
-                label: "Natural progression",
-                text:
-                  "Often the right move when you want stronger signal, more focused discussion, and a better level of business context."
-              }}
-              monthlyPrice={MEMBERSHIP_PLANS.INNER_CIRCLE.monthlyPrice}
-              description="Best for founders who want a more focused environment, stronger intent, and better business conversation around what comes next."
-              features={MEMBERSHIP_PLANS.INNER_CIRCLE.features}
-              cta={
-                <MembershipPlanAction
-                  tier="INNER_CIRCLE"
-                  source="join"
-                  isAuthenticated={isAuthenticated}
-                  isCurrentPlan={currentTier === "INNER_CIRCLE"}
-                  hasActiveSubscription={hasActiveSubscription}
-                  buttonVariant="innerCircle"
-                  authenticatedLabel={
-                    currentTier === "INNER_CIRCLE" ? "Current Inner Circle Plan" : "Step Into Inner Circle"
-                  }
-                  unauthenticatedLabel="Step Into Inner Circle"
-                  joinHref={`${innerCircleJoinBase}#create-account`}
-                  loginHref={innerCircleLoginHref}
-                />
-              }
-              foundingOffer={foundingOffer.innerCircle}
-              featured
-              featuredLabel="Smartest next step"
-              selected={selectedTier === "INNER_CIRCLE"}
-            />
-            <PricingCard
-              tier="CORE"
-              name={MEMBERSHIP_PLANS.CORE.name}
-              positioningLabel="Highest-value room"
-              monthlyPrice={MEMBERSHIP_PLANS.CORE.monthlyPrice}
-              description="Best for business owners who want the calmest high-value room, closer founder proximity, and stronger strategic context."
-              features={MEMBERSHIP_PLANS.CORE.features}
-              cta={
-                <MembershipPlanAction
-                  tier="CORE"
-                  source="join"
-                  isAuthenticated={isAuthenticated}
-                  isCurrentPlan={currentTier === "CORE"}
-                  hasActiveSubscription={hasActiveSubscription}
-                  buttonVariant="core"
-                  authenticatedLabel={
-                    currentTier === "CORE" ? "Current Core Plan" : "Choose Core"
-                  }
-                  unauthenticatedLabel="Choose Core"
-                  joinHref={`${coreJoinBase}#create-account`}
-                  loginHref={coreLoginHref}
-                />
-              }
-              foundingOffer={foundingOffer.core}
-              selected={selectedTier === "CORE"}
-            />
-          </div>
-          <p className="text-sm text-muted">
-            * Discounted pricing is for eligible new members only. If membership ends and you later
-            rejoin, standard pricing applies.
-          </p>
-          <p className="text-sm text-muted">
-            Not sure where to start? Foundation gives you a strong entry into the ecosystem, and you can move deeper when the fit becomes clearer.
-          </p>
-
-          <article className="public-panel p-6">
-            <p className="premium-kicker">What Happens Next</p>
-            <div className="mt-5 space-y-3 text-sm leading-relaxed text-muted">
-              <p>Create your account with the level that fits where your business is now.</p>
-              <p>Complete secure checkout and activate access.</p>
-              <p>Enter the platform with a clear route into discussion, resources, profile setup, and the wider ecosystem.</p>
-              <p>You can move between tiers later if the business needs a stronger room.</p>
-            </div>
-          </article>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            {joinDecisionSteps.map((item) => (
-              <article key={item.step} className="public-panel interactive-card p-6">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{item.step}</p>
-                <h3 className="mt-4 font-display text-2xl text-foreground">{item.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-
-        {!isAuthenticated ? (
-          <div id="create-account" className="scroll-mt-24">
-            <RegisterForm
-              from={from}
-              defaultTier={selectedTier}
-              inviteCode={inviteCode}
-              tierOptions={[
-                {
-                  value: "FOUNDATION",
-                  label: foundingOffer.foundation.available
-                    ? `Foundation - GBP ${foundingOffer.foundation.foundingPrice}/month founding*`
-                    : "Foundation - GBP 30/month"
-                },
-                {
-                  value: "INNER_CIRCLE",
-                  label: foundingOffer.innerCircle.available
-                    ? `Inner Circle - GBP ${foundingOffer.innerCircle.foundingPrice}/month founding*`
-                    : "Inner Circle - GBP 60/month"
-                },
-                {
-                  value: "CORE",
-                  label: foundingOffer.core.available
-                    ? `Core - GBP ${foundingOffer.core.foundingPrice}/month founding*`
-                    : "Core - GBP 120/month"
-                }
-              ]}
-            />
-          </div>
-        ) : null}
-      </div>
+      <JoinExperience
+        foundingOffer={foundingOffer}
+        initialSelectedTier={selectedTier}
+        from={from}
+        inviteCode={inviteCode}
+        isAuthenticated={isAuthenticated}
+        hasActiveSubscription={hasActiveSubscription}
+        currentTier={currentTier}
+        joinDecisionSteps={joinDecisionSteps}
+        tierOptions={[
+          {
+            value: "FOUNDATION",
+            label: foundingOffer.foundation.available
+              ? `Foundation - GBP ${foundingOffer.foundation.foundingPrice}/month founding*`
+              : "Foundation - GBP 30/month"
+          },
+          {
+            value: "INNER_CIRCLE",
+            label: foundingOffer.innerCircle.available
+              ? `Inner Circle - GBP ${foundingOffer.innerCircle.foundingPrice}/month founding*`
+              : "Inner Circle - GBP 60/month"
+          },
+          {
+            value: "CORE",
+            label: foundingOffer.core.available
+              ? `Core - GBP ${foundingOffer.core.foundingPrice}/month founding*`
+              : "Core - GBP 120/month"
+          }
+        ]}
+        pricingCards={[
+          {
+            tier: "FOUNDATION",
+            name: MEMBERSHIP_PLANS.FOUNDATION.name,
+            positioningLabel: "Best place to start",
+            monthlyPrice: MEMBERSHIP_PLANS.FOUNDATION.monthlyPrice,
+            description:
+              "Best for business owners who want a clearer base, a stronger room, and the right place to start inside the ecosystem.",
+            features: MEMBERSHIP_PLANS.FOUNDATION.features,
+            foundingOffer: foundingOffer.foundation,
+            joinHref: `${foundationJoinBase}#create-account`,
+            loginHref: foundationLoginHref,
+            buttonVariant: "foundation",
+            authenticatedLabel:
+              currentTier === "FOUNDATION" ? "Current Foundation Plan" : "Start With Foundation",
+            unauthenticatedLabel: "Start With Foundation",
+            isCurrentPlan: currentTier === "FOUNDATION"
+          },
+          {
+            tier: "INNER_CIRCLE",
+            name: MEMBERSHIP_PLANS.INNER_CIRCLE.name,
+            positioningLabel: "Smartest next step",
+            spotlight: {
+              label: "Natural progression",
+              text:
+                "Often the right move when you want stronger signal, more focused discussion, and a better level of business context."
+            },
+            monthlyPrice: MEMBERSHIP_PLANS.INNER_CIRCLE.monthlyPrice,
+            description:
+              "Best for founders who want a more focused environment, stronger intent, and better business conversation around what comes next.",
+            features: MEMBERSHIP_PLANS.INNER_CIRCLE.features,
+            foundingOffer: foundingOffer.innerCircle,
+            featured: true,
+            featuredLabel: "Smartest next step",
+            joinHref: `${innerCircleJoinBase}#create-account`,
+            loginHref: innerCircleLoginHref,
+            buttonVariant: "innerCircle",
+            authenticatedLabel:
+              currentTier === "INNER_CIRCLE" ? "Current Inner Circle Plan" : "Step Into Inner Circle",
+            unauthenticatedLabel: "Step Into Inner Circle",
+            isCurrentPlan: currentTier === "INNER_CIRCLE"
+          },
+          {
+            tier: "CORE",
+            name: MEMBERSHIP_PLANS.CORE.name,
+            positioningLabel: "Highest-value room",
+            monthlyPrice: MEMBERSHIP_PLANS.CORE.monthlyPrice,
+            description:
+              "Best for business owners who want the calmest high-value room, closer founder proximity, and stronger strategic context.",
+            features: MEMBERSHIP_PLANS.CORE.features,
+            foundingOffer: foundingOffer.core,
+            joinHref: `${coreJoinBase}#create-account`,
+            loginHref: coreLoginHref,
+            buttonVariant: "core",
+            authenticatedLabel: currentTier === "CORE" ? "Current Core Plan" : "Choose Core",
+            unauthenticatedLabel: "Choose Core",
+            isCurrentPlan: currentTier === "CORE"
+          }
+        ]}
+      />
     </div>
   );
 }

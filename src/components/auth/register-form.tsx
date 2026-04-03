@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight, CheckCircle2, LockKeyhole, Sparkles } from "lucide-react";
 import { signIn } from "next-auth/react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,12 +16,16 @@ import { Select } from "@/components/ui/select";
 import { type RegisterMemberFormInput, registerMemberFormSchema } from "@/lib/auth/schemas";
 import { safeRedirectPath } from "@/lib/auth/utils";
 
+type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
+
 type RegisterFormProps = {
   from?: string;
-  defaultTier?: "FOUNDATION" | "INNER_CIRCLE" | "CORE";
+  defaultTier?: MembershipTier;
+  selectedTier?: MembershipTier;
+  onTierChange?: (tier: MembershipTier) => void;
   inviteCode?: string;
   tierOptions?: Array<{
-    value: "FOUNDATION" | "INNER_CIRCLE" | "CORE";
+    value: MembershipTier;
     label: string;
   }>;
 };
@@ -28,7 +34,7 @@ type RegisterPayload = {
   name: string;
   email: string;
   password: string;
-  tier: "FOUNDATION" | "INNER_CIRCLE" | "CORE";
+  tier: MembershipTier;
   businessName?: string;
   businessStatus?: "IDEA_STARTUP" | "REGISTERED_BUSINESS" | "ESTABLISHED_COMPANY";
   companyNumber?: string;
@@ -71,9 +77,39 @@ const DEFAULT_TIER_OPTIONS: NonNullable<RegisterFormProps["tierOptions"]> = [
   { value: "CORE", label: "Core - GBP 120/month" }
 ];
 
+const tierHeroCopy: Record<
+  MembershipTier,
+  {
+    label: string;
+    highlight: string;
+    description: string;
+  }
+> = {
+  FOUNDATION: {
+    label: "Foundation selected",
+    highlight: "Clearest place to begin",
+    description:
+      "A strong entry into the ecosystem for members who want structure, signal, and a calmer room."
+  },
+  INNER_CIRCLE: {
+    label: "Inner Circle selected",
+    highlight: "The balanced next move",
+    description:
+      "A more focused environment with stronger business context and a better level of conversation."
+  },
+  CORE: {
+    label: "Core selected",
+    highlight: "Closest strategic access",
+    description:
+      "The highest-value room for members who want the deepest layer of proximity and context."
+  }
+};
+
 export function RegisterForm({
   from,
   defaultTier = "FOUNDATION",
+  selectedTier,
+  onTierChange,
   inviteCode,
   tierOptions = DEFAULT_TIER_OPTIONS
 }: RegisterFormProps) {
@@ -98,6 +134,21 @@ export function RegisterForm({
       inviteCode: inviteCode ?? ""
     }
   });
+  const tierField = form.register("tier");
+  const activeTier = form.watch("tier");
+  const activeTierContent = tierHeroCopy[activeTier];
+
+  useEffect(() => {
+    if (!selectedTier) {
+      return;
+    }
+
+    form.setValue("tier", selectedTier, {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: true
+    });
+  }, [form, selectedTier]);
 
   const onSubmit = form.handleSubmit((values) => {
     setNotice(null);
@@ -174,76 +225,154 @@ export function RegisterForm({
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create Account</CardTitle>
-        <CardDescription>
-          Create your account, choose the membership level that fits your business, and enter a calmer, more structured founder environment. If you want a better room around the business, you are in the right place.
-        </CardDescription>
+    <Card className="overflow-hidden border-gold/25 bg-gradient-to-b from-card/95 via-card/84 to-background/76 shadow-panel">
+      <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-gold/10 via-background/10 to-transparent pb-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
+                <Sparkles size={12} className="mr-1" />
+                Create Account
+              </Badge>
+              <Badge variant="outline" className="border-border/80 bg-background/35 text-silver">
+                <LockKeyhole size={12} className="mr-1" />
+                Secure setup
+              </Badge>
+            </div>
+            <CardTitle className="text-2xl sm:text-[2rem]">{activeTierContent.highlight}</CardTitle>
+            <CardDescription className="max-w-xl text-sm">
+              Create your account, choose the membership level that fits your business, and move
+              directly into the current join and checkout flow without losing your place.
+            </CardDescription>
+          </div>
+
+          <div className="min-w-[180px] rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">{activeTierContent.label}</p>
+            <p className="mt-2 text-sm text-muted">{activeTierContent.description}</p>
+          </div>
+        </div>
+
+        {inviteCode ? (
+          <div className="rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.08em] text-gold">Member invite attached</p>
+            <p className="mt-2 text-sm text-muted">
+              Invite code{" "}
+              <span className="font-medium tracking-[0.08em] text-foreground">{inviteCode}</span>{" "}
+              will stay attached when you register.
+            </p>
+          </div>
+        ) : null}
       </CardHeader>
-      <CardContent className="space-y-5">
+
+      <CardContent className="space-y-6 pt-6">
         {notice ? (
-          <p className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-primary">
+          <p
+            aria-live="polite"
+            className="rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm text-primary"
+          >
             {notice}
           </p>
         ) : null}
 
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <div className="space-y-2">
-            <Label htmlFor="register-name">Full Name</Label>
-            <Input id="register-name" autoComplete="name" {...form.register("name")} />
-            {form.formState.errors.name ? (
-              <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="register-email">Email</Label>
-            <Input id="register-email" type="email" autoComplete="email" {...form.register("email")} />
-            {form.formState.errors.email ? (
-              <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="register-password">Password</Label>
-            <Input
-              id="register-password"
-              type="password"
-              autoComplete="new-password"
-              {...form.register("password")}
-            />
-            {form.formState.errors.password ? (
-              <p className="text-xs text-destructive">{form.formState.errors.password.message}</p>
-            ) : (
-              <p className="text-xs text-muted">
-                Use at least 10 characters with uppercase, lowercase, number, and symbol.
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            "Business-first member environment",
+            "Secure checkout after registration",
+            "Tier selection stays synced"
+          ].map((item) => (
+            <div
+              key={item}
+              className="rounded-2xl border border-border/70 bg-background/28 px-4 py-3 text-sm text-muted"
+            >
+              <p className="inline-flex items-center gap-2">
+                <CheckCircle2 size={15} className="text-gold" />
+                {item}
               </p>
-            )}
+            </div>
+          ))}
+        </div>
+
+        <form className="space-y-5" onSubmit={onSubmit}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="register-name">Full Name</Label>
+              <Input id="register-name" autoComplete="name" {...form.register("name")} />
+              {form.formState.errors.name ? (
+                <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="register-email">Email</Label>
+              <Input id="register-email" type="email" autoComplete="email" {...form.register("email")} />
+              {form.formState.errors.email ? (
+                <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
+              ) : null}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="register-confirm-password">Confirm Password</Label>
-            <Input
-              id="register-confirm-password"
-              type="password"
-              autoComplete="new-password"
-              {...form.register("confirmPassword")}
-            />
-            {form.formState.errors.confirmPassword ? (
-              <p className="text-xs text-destructive">{form.formState.errors.confirmPassword.message}</p>
-            ) : null}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="register-password">Password</Label>
+              <Input
+                id="register-password"
+                type="password"
+                autoComplete="new-password"
+                {...form.register("password")}
+              />
+              {form.formState.errors.password ? (
+                <p className="text-xs text-destructive">{form.formState.errors.password.message}</p>
+              ) : (
+                <p className="text-xs text-muted">
+                  Use at least 10 characters with uppercase, lowercase, number, and symbol.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="register-confirm-password">Confirm Password</Label>
+              <Input
+                id="register-confirm-password"
+                type="password"
+                autoComplete="new-password"
+                {...form.register("confirmPassword")}
+              />
+              {form.formState.errors.confirmPassword ? (
+                <p className="text-xs text-destructive">{form.formState.errors.confirmPassword.message}</p>
+              ) : null}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="register-tier">Membership Tier</Label>
-            <Select id="register-tier" {...form.register("tier")}>
-              {resolvedTierOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
+          <div className="rounded-2xl border border-gold/20 bg-gold/8 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Membership tier</p>
+                <p className="mt-1 text-sm text-muted">
+                  Choose the room you want your registration and billing flow to continue with.
+                </p>
+              </div>
+              <span className="rounded-full border border-gold/35 bg-gold/10 px-3 py-1 text-xs text-gold">
+                {activeTierContent.label}
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="register-tier">Membership Tier</Label>
+              <Select
+                id="register-tier"
+                {...tierField}
+                onChange={(event) => {
+                  tierField.onChange(event);
+                  onTierChange?.(event.target.value as MembershipTier);
+                }}
+              >
+                {resolvedTierOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -255,13 +384,11 @@ export function RegisterForm({
               {...form.register("businessName")}
             />
             {form.formState.errors.businessName ? (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.businessName.message}
-              </p>
+              <p className="text-xs text-destructive">{form.formState.errors.businessName.message}</p>
             ) : null}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="register-business-status">Business Status</Label>
               <Select id="register-business-status" {...form.register("businessStatus")}>
@@ -299,8 +426,11 @@ export function RegisterForm({
 
           <input type="hidden" {...form.register("inviteCode")} />
 
-          <Button disabled={isPending} type="submit" className="w-full">
-            {isPending ? "Creating Account..." : "Create Account And Continue"}
+          <Button disabled={isPending} type="submit" className="w-full" size="lg">
+            <span className="inline-flex items-center gap-2">
+              {isPending ? "Creating Account..." : "Create Account And Continue"}
+              {isPending ? null : <ArrowRight size={16} />}
+            </span>
           </Button>
         </form>
 
@@ -314,4 +444,3 @@ export function RegisterForm({
     </Card>
   );
 }
-

@@ -187,6 +187,12 @@ export default async function PublicMemberProfilePage({ params }: PageProps) {
         lastActiveAt: activityByUserId.get(user.id) ?? null
       }}
       recognition={recognition}
+      viewerCanStartCall={Boolean(
+        session?.user &&
+          !session.user.suspended &&
+          (session.user.role === "ADMIN" || session.user.hasActiveSubscription)
+      )}
+      isSelfView={isSelfPreview}
     />
   );
 }

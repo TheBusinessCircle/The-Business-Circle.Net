@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CommunityRecognitionSummary } from "@/types";
+import { StartDirectCallButton } from "@/components/calling";
 import { CommunityRecognitionPanel } from "@/components/profile/community-recognition-panel";
 import { TierBadge } from "@/components/public/tier-badge";
 import { Avatar } from "@/components/ui/avatar";
@@ -59,6 +60,8 @@ type PublicMemberProfileViewProps = {
   };
   recognition: CommunityRecognitionSummary;
   completion: ProfileCompletionResult;
+  viewerCanStartCall?: boolean;
+  isSelfView?: boolean;
 };
 
 function LinkItem({
@@ -84,7 +87,9 @@ function LinkItem({
 export function PublicMemberProfileView({
   member,
   recognition,
-  completion
+  completion,
+  viewerCanStartCall = false,
+  isSelfView = false
 }: PublicMemberProfileViewProps) {
   const website = member.website || member.business?.website || null;
   const tierCardClassName = getTierCardClassName(member.membershipTier);
@@ -191,6 +196,21 @@ export function PublicMemberProfileView({
                 Visible through badges, contribution history, and member referrals.
               </p>
             </div>
+            {viewerCanStartCall && !isSelfView ? (
+              <div className="rounded-2xl border border-gold/25 bg-gold/10 px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.08em] text-gold">Private member call</p>
+                <p className="mt-2 text-sm text-muted">
+                  Start a direct 1 to 1 room directly from this profile.
+                </p>
+                <div className="mt-4">
+                  <StartDirectCallButton
+                    targetUserId={member.id}
+                    label="Start 1 to 1 Call"
+                    className="w-full justify-center"
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
         </CardContent>
       </Card>

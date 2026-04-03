@@ -69,6 +69,26 @@ Use a production env file (example: `.env.production`) and set:
 - `NEXT_PUBLIC_COMMUNITY_REALTIME_ENABLED=true`
 - `NEXT_PUBLIC_ABLY_CHANNEL_PREFIX=community`
 
+### Internal calling stack
+
+- `LIVEKIT_URL=wss://rtc.your-domain`
+- `LIVEKIT_SERVER_URL=http://livekit:7880` (or an internal/private host if LiveKit moves to another VPS)
+- `LIVEKIT_API_KEY=...`
+- `LIVEKIT_API_SECRET=...`
+- `LIVEKIT_TCP_PORT=7881`
+- `LIVEKIT_RTC_PORT_START=40000`
+- `LIVEKIT_RTC_PORT_END=40100`
+- `LIVEKIT_USE_EXTERNAL_IP=true` (recommended on most cloud VMs)
+- `TURN_DOMAIN=turn.your-domain`
+- `TURN_REALM=turn.your-domain`
+- `TURN_SHARED_SECRET=<random secret for TURN REST auth>`
+- `TURN_UDP_PORT=3478`
+- `TURN_MIN_PORT=41000`
+- `TURN_MAX_PORT=41040`
+- Optional:
+  - `TURN_TLS_PORT=5349`
+  - `TURN_TTL_SECONDS=3600`
+
 ### Resource media uploads (Cloudinary)
 
 - `CLOUDINARY_CLOUD_NAME=...`
@@ -89,6 +109,8 @@ Confirm services:
 ```bash
 docker compose ps
 docker compose logs -f app
+docker compose logs -f livekit
+docker compose logs -f coturn
 ```
 
 ## 4) Run database migrations (required)
@@ -141,12 +163,27 @@ Rules:
 - Public pages load (`/`, `/about`, `/membership`, `/contact`).
 - Authentication works (`/login`, password reset flow).
 - Member dashboard, resources, and community work.
+- `/join` still preserves tier selection, invite handling, and checkout redirects.
+- `/calls` loads for paid members and direct-call buttons appear on eligible member surfaces.
+- `/admin/calling` loads with realtime overview, request review, permissions, schedules, and audit data.
 - Admin pages load (`/admin`, `/admin/resources`, `/admin/community`).
 - `/admin/security` and `/admin/system-health` show `Shared Redis` for rate limiting.
 - Stripe checkout + portal redirect correctly.
 - Contact form sends to `contact@thebcnet.co.uk`.
 
-## 8) Rollback
+## 8) Calling network and firewall notes
+
+- Open `3000/tcp` for the Next.js app (or your reverse-proxied web port).
+- Open `7880/tcp` only if clients connect directly to LiveKit there; otherwise front it with TLS and expose only the public realtime endpoint.
+- Open `7881/tcp` for LiveKit WebRTC over TCP.
+- Open `40000-40100/udp` for LiveKit RTP/RTCP media on this controlled v1 deployment.
+- Open `3478/udp` and `3478/tcp` for coturn.
+- Open `41000-41040/udp` for coturn relay traffic.
+- If you enable TURN/TLS later, also open `5349/tcp` or `443/tcp` for the TURN endpoint and mount valid certificates into coturn.
+
+See [calling-infrastructure.md](./calling-infrastructure.md) for the split-host upgrade path and realtime deployment notes.
+
+## 9) Rollback
 
 If deploy fails:
 

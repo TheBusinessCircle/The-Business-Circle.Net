@@ -21,6 +21,78 @@ services:
       timeout: 5s
       retries: 20
 
+  redis:
+    image: redis:7-alpine
+    container_name: business-circle-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: business-circle-livekit
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        bind_addresses:
+          - 0.0.0.0
+        log_level: info
+        rtc:
+          tcp_port: ${LIVEKIT_TCP_PORT:-7881}
+          port_range_start: ${LIVEKIT_RTC_PORT_START:-40000}
+          port_range_end: ${LIVEKIT_RTC_PORT_END:-40100}
+          use_external_ip: ${LIVEKIT_USE_EXTERNAL_IP:-false}
+        redis:
+          address: redis:6379
+        keys:
+          ${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET:-devsecret}
+        # Embedded TURN stays off here because this stack uses a separate coturn service.
+        turn:
+          enabled: false
+    ports:
+      - "${LIVEKIT_PORT:-7880}:7880"
+      - "${LIVEKIT_TCP_PORT:-7881}:7881"
+      - "${LIVEKIT_RTC_PORT_START:-40000}-${LIVEKIT_RTC_PORT_END:-40100}:${LIVEKIT_RTC_PORT_START:-40000}-${LIVEKIT_RTC_PORT_END:-40100}/udp"
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: business-circle-coturn
+    restart: unless-stopped
+    command:
+      - -n
+      - --fingerprint
+      - --lt-cred-mech
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SHARED_SECRET:-change-this-turn-secret}
+      - --realm=${TURN_REALM:-thebusinesscircle.local}
+      - --server-name=${TURN_DOMAIN:-turn.localhost}
+      - --listening-ip=0.0.0.0
+      - --listening-port=${TURN_UDP_PORT:-3478}
+      - --min-port=${TURN_MIN_PORT:-41000}
+      - --max-port=${TURN_MAX_PORT:-41040}
+      - --stale-nonce=600
+      - --total-quota=200
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --no-multicast-peers
+      - --log-file=stdout
+      - --simple-log
+    ports:
+      - "${TURN_UDP_PORT:-3478}:${TURN_UDP_PORT:-3478}/udp"
+      - "${TURN_UDP_PORT:-3478}:${TURN_UDP_PORT:-3478}/tcp"
+      - "${TURN_MIN_PORT:-41000}-${TURN_MAX_PORT:-41040}:${TURN_MIN_PORT:-41000}-${TURN_MAX_PORT:-41040}/udp"
+
   app:
     build:
       context: .
@@ -36,9 +108,12 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-business_circle}?schema=public
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       APP_URL: ${APP_URL:-http://localhost:3000}
+      LIVEKIT_URL: ${LIVEKIT_URL:-ws://localhost:7880}
+      LIVEKIT_SERVER_URL: ${LIVEKIT_SERVER_URL:-http://livekit:7880}
       NODE_ENV: production
     ports:
       - "3000:3000"
 
 volumes:
   postgres_data:
+  redis_data:

@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   Sparkles,
   Settings,
-  UsersRound
+  UsersRound,
+  Video
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import type { NavigationItem } from "@/types";
@@ -43,6 +44,9 @@ function iconForHref(href: string) {
   }
   if (href.startsWith("/admin/events")) {
     return CalendarDays;
+  }
+  if (href.startsWith("/admin/calling")) {
+    return Video;
   }
   if (href.startsWith("/admin/revenue")) {
     return Briefcase;

@@ -8,7 +8,8 @@ import {
   LayoutGrid,
   MessageSquare,
   Search,
-  UserCircle2
+  UserCircle2,
+  Video
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import type { NavigationItem } from "@/types";
@@ -31,6 +32,9 @@ function iconForHref(href: string) {
   }
   if (href.startsWith("/directory")) {
     return UserCircle2;
+  }
+  if (href.startsWith("/calls")) {
+    return Video;
   }
   if (href.startsWith("/community")) {
     return MessageSquare;

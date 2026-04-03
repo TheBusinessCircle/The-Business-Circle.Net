@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { StartDirectCallButton } from "@/components/calling";
 import { CommunityBadge } from "@/components/ui/community-badge";
 import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MemberRoleBadge } from "@/components/ui/member-role-badge";
@@ -146,11 +147,20 @@ export function MemberProfileCard({
           </div>
         ) : null}
 
-        <Link href={buildMemberProfilePath(userId)}>
-          <Button variant="outline" className="w-full justify-center">
-            View Business Profile <ArrowUpRight size={14} className="ml-1" />
-          </Button>
-        </Link>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Link href={buildMemberProfilePath(userId)}>
+            <Button variant="outline" className="w-full justify-center">
+              View Business Profile <ArrowUpRight size={14} className="ml-1" />
+            </Button>
+          </Link>
+
+          <StartDirectCallButton
+            targetUserId={userId}
+            label="Start 1 to 1 Call"
+            variant="outline"
+            className="w-full justify-center"
+          />
+        </div>
       </CardContent>
     </Card>
   );
