@@ -1,3 +1,5 @@
+import "server-only";
+
 import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { CONNECTION_WIN_TAG } from "@/lib/connection-wins";

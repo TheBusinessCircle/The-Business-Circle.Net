@@ -19,7 +19,7 @@ import {
 } from "@/config/membership";
 import { roleToTier } from "@/lib/permissions";
 import { createPageMetadata } from "@/lib/seo";
-import { getSiteContentSection } from "@/lib/site-content";
+import { getSiteContentSection } from "@/server/site-content";
 import { buildFaqSchema } from "@/lib/structured-data";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { listInsightTopicClusters } from "@/server/insights/insight.service";

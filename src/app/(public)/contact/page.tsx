@@ -3,7 +3,7 @@ import { Mail, MessageSquare, ShieldCheck } from "lucide-react";
 import { SectionHeading } from "@/components/public";
 import { ContactForm } from "@/components/platform/contact-form";
 import { createPageMetadata } from "@/lib/seo";
-import { getSiteContentSection } from "@/lib/site-content";
+import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Contact",

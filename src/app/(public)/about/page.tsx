@@ -5,7 +5,7 @@ import { TREV_FOUNDER_CONTENT } from "@/config/founder";
 import { CTASection, FeatureGrid, SectionHeading } from "@/components/public";
 import { Button } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
-import { getSiteContentSection } from "@/lib/site-content";
+import { getSiteContentSection } from "@/server/site-content";
 
 export const dynamic = "force-dynamic";
 

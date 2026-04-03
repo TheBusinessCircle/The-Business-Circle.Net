@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import { JsonLd } from "@/components/public";
 import { PublicSiteShell } from "@/components/public/public-site-shell";
 import { SITE_CONFIG } from "@/config/site";
-import { getSiteContentSection } from "@/lib/site-content";
+import { getSiteContentSection } from "@/server/site-content";
 import { buildPublicSiteSchemaGraph } from "@/lib/structured-data";
 
 export const dynamic = "force-dynamic";

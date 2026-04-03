@@ -277,7 +277,6 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         inviteCode={inviteCode}
         isAuthenticated={isAuthenticated}
         hasActiveSubscription={hasActiveSubscription}
-        currentTier={currentTier}
         joinDecisionSteps={joinDecisionSteps}
         tierOptions={[
           {

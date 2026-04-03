@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SITE_CONFIG } from "@/config/site";
 import { BrandMark } from "@/components/branding/brand-mark";
-import { getSiteContentSection } from "@/lib/site-content";
+import { getSiteContentSection } from "@/server/site-content";
 import { nonEmpty } from "@/lib/utils";
 
 const EXPLORE_LINKS = [

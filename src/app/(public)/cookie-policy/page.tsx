@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { COOKIE_POLICY_CONTENT, LEGAL_LAST_UPDATED } from "@/config/legal";
 import { LegalDocument } from "@/components/public";
 import { createPageMetadata } from "@/lib/seo";
-import { getSiteContentSection } from "@/lib/site-content";
+import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Cookie Policy",

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { RegisterForm } from "@/components/auth/register-form";
 import { MembershipPlanAction } from "@/components/billing";
-import { FoundingOfferCounters, PricingCard } from "@/components/public";
+import { FoundingOfferCounters } from "@/components/public/founding-offer-counters";
+import { PricingCard } from "@/components/public/pricing-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -65,7 +66,6 @@ type JoinExperienceProps = {
   inviteCode?: string;
   isAuthenticated: boolean;
   hasActiveSubscription: boolean;
-  currentTier: MembershipTier;
   tierOptions: TierOption[];
   pricingCards: PricingCardConfig[];
   joinDecisionSteps: readonly JoinDecisionStep[];
@@ -113,7 +113,6 @@ export function JoinExperience({
   inviteCode,
   isAuthenticated,
   hasActiveSubscription,
-  currentTier,
   tierOptions,
   pricingCards,
   joinDecisionSteps

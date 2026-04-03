@@ -159,7 +159,7 @@ export async function rejectGroupHostRequestAction(formData: FormData) {
 }
 
 export async function updateRealtimeSystemConfigAction(formData: FormData) {
-  const session = await requireAdmin();
+  await requireAdmin();
   const returnPath = resolveReturnPath(formData.get("returnPath"), "/admin/calling/config");
   const parsed = realtimeConfigSchema.safeParse({
     globalCallingEnabled: Boolean(formData.get("globalCallingEnabled")),
