@@ -66,6 +66,10 @@ const DEVICE_PERMISSION_DENIED_COPY =
   "Camera or microphone access was denied. You can still join and enable devices when ready, if supported.";
 const DEVICE_NOT_FOUND_COPY =
   "A camera or microphone could not be found for this device. You can still join and enable devices later if they become available.";
+const DEVICE_IN_USE_COPY =
+  "Your camera or microphone is currently busy in another app or browser tab. Close the other app, then try preview again.";
+const DEVICE_SECURE_CONTEXT_COPY =
+  "Camera and microphone preview needs a secure page context. Use HTTPS or localhost, then try again.";
 
 function stopMediaStream(stream: MediaStream | null) {
   if (!stream) {
@@ -193,7 +197,50 @@ function formatDeviceLabel(device: MediaDeviceInfo, fallbackPrefix: string, inde
   return device.label || `${fallbackPrefix} ${index + 1}`;
 }
 
+function isBlockedByPermissionsPolicy(feature: "camera" | "microphone") {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const documentWithPolicy = document as Document & {
+    permissionsPolicy?: { allowsFeature?: (value: string) => boolean };
+    featurePolicy?: { allowsFeature?: (value: string) => boolean };
+  };
+  const policy =
+    documentWithPolicy.permissionsPolicy ?? documentWithPolicy.featurePolicy;
+
+  if (!policy?.allowsFeature) {
+    return false;
+  }
+
+  try {
+    return !policy.allowsFeature(feature);
+  } catch {
+    return false;
+  }
+}
+
+function getMediaPolicyBlockReason() {
+  const blockedFeatures = ["camera", "microphone"].filter((feature) =>
+    isBlockedByPermissionsPolicy(feature as "camera" | "microphone")
+  );
+
+  return blockedFeatures.length ? blockedFeatures.join(",") : null;
+}
+
 function getPreviewErrorCopy(error: unknown) {
+  if (typeof window !== "undefined" && !window.isSecureContext) {
+    return DEVICE_SECURE_CONTEXT_COPY;
+  }
+
+  if (getMediaPolicyBlockReason()) {
+    return "Camera and microphone are currently blocked by the page security policy. Refresh the page and try again.";
+  }
+
+  if (error instanceof Error && error.message === "media-blocked-by-permissions-policy") {
+    return "Camera and microphone are currently blocked by the page security policy. Refresh the page and try again.";
+  }
+
   if (error instanceof DOMException) {
     if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
       return DEVICE_PERMISSION_DENIED_COPY;
@@ -201,6 +248,10 @@ function getPreviewErrorCopy(error: unknown) {
 
     if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
       return DEVICE_NOT_FOUND_COPY;
+    }
+
+    if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+      return DEVICE_IN_USE_COPY;
     }
   }
 
@@ -268,6 +319,10 @@ async function requestPreviewStream(input: {
     typeof navigator.mediaDevices.getUserMedia !== "function"
   ) {
     throw new Error("media-preview-not-supported");
+  }
+
+  if (getMediaPolicyBlockReason()) {
+    throw new Error("media-blocked-by-permissions-policy");
   }
 
   const videoConstraints = buildPreviewVideoConstraints(input.cameraId);
@@ -426,6 +481,7 @@ export function CallRoomClient({
   const previewRequestIdRef = useRef(0);
   const cameraEnabledRef = useRef(cameraEnabled);
   const micEnabledRef = useRef(micEnabled);
+  const lastPreviewWarningRef = useRef<string | null>(null);
   const supportsMediaPreview =
     typeof navigator !== "undefined" &&
     Boolean(navigator.mediaDevices) &&
@@ -642,6 +698,30 @@ export function CallRoomClient({
     }
 
     const requestId = ++previewRequestIdRef.current;
+    const previousPreviewStream = previewStreamRef.current;
+    const activeVideoTrack = previousPreviewStream?.getVideoTracks()[0];
+    const activeAudioTrack = previousPreviewStream?.getAudioTracks()[0];
+    const activeVideoDeviceId = activeVideoTrack?.getSettings().deviceId;
+    const activeAudioDeviceId = activeAudioTrack?.getSettings().deviceId;
+    const needsVideoRefresh =
+      cameraEnabledRef.current &&
+      (!activeVideoTrack ||
+        Boolean(selectedCameraId && activeVideoDeviceId && selectedCameraId !== activeVideoDeviceId));
+    const needsAudioRefresh =
+      micEnabledRef.current &&
+      (!activeAudioTrack ||
+        Boolean(
+          selectedMicrophoneId &&
+            activeAudioDeviceId &&
+            selectedMicrophoneId !== activeAudioDeviceId
+        ));
+
+    if (previousPreviewStream && !needsVideoRefresh && !needsAudioRefresh) {
+      syncPreviewTrackStates(previousPreviewStream);
+      setIsPreparingPreview(false);
+      return;
+    }
+
     setIsPreparingPreview(true);
 
     try {
@@ -666,15 +746,25 @@ export function CallRoomClient({
         return;
       }
 
-      releasePreview();
+      if (!previousPreviewStream) {
+        releasePreview();
+      } else {
+        syncPreviewTrackStates(previousPreviewStream);
+      }
+
       setDeviceNotice(getPreviewErrorCopy(error));
       await syncAvailableDevices();
 
       if (process.env.NODE_ENV !== "production") {
-        console.error("[calling] preview-media-failed", {
-          roomId,
-          error: error instanceof Error ? error.message : "unknown"
-        });
+        const warningCode = error instanceof Error ? error.message : "unknown";
+
+        if (lastPreviewWarningRef.current !== warningCode) {
+          lastPreviewWarningRef.current = warningCode;
+          console.warn("[calling] preview-media-failed", {
+            roomId,
+            error: warningCode
+          });
+        }
       }
     } finally {
       if (previewRequestIdRef.current === requestId) {
@@ -732,6 +822,37 @@ export function CallRoomClient({
       previewRequestIdRef.current += 1;
     };
   }, [refreshPreview, roomState]);
+
+  useEffect(() => {
+    if (roomState || previewStream || isPreparingPreview) {
+      return;
+    }
+
+    if (getMediaPolicyBlockReason()) {
+      return;
+    }
+
+    const retryPreviewIfNeeded = () => {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+
+      if (!roomRef.current && !previewStreamRef.current) {
+        void refreshPreview();
+      }
+    };
+
+    window.addEventListener("focus", retryPreviewIfNeeded);
+    document.addEventListener("visibilitychange", retryPreviewIfNeeded);
+
+    return () => {
+      window.removeEventListener("focus", retryPreviewIfNeeded);
+      document.removeEventListener("visibilitychange", retryPreviewIfNeeded);
+    };
+  }, [isPreparingPreview, previewStream, refreshPreview, roomState]);
 
   useEffect(() => {
     syncPreviewTrackStates(previewStream);
@@ -1168,10 +1289,26 @@ export function CallRoomClient({
 
               {deviceNotice ? (
                 <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3 text-sm text-muted">
-                  <span className="inline-flex items-start gap-2">
-                    <AlertCircle size={16} className="mt-0.5 shrink-0 text-gold" />
-                    <span>{deviceNotice}</span>
-                  </span>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <span className="inline-flex items-start gap-2">
+                      <AlertCircle size={16} className="mt-0.5 shrink-0 text-gold" />
+                      <span>{deviceNotice}</span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void refreshPreview()}
+                      disabled={isPreparingPreview || isJoining}
+                    >
+                      {isPreparingPreview ? (
+                        <Loader2 size={14} className="mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCcw size={14} className="mr-2" />
+                      )}
+                      Retry preview
+                    </Button>
+                  </div>
                 </div>
               ) : null}
 
@@ -1267,6 +1404,21 @@ export function CallRoomClient({
               ) : null}
 
               <div className="flex flex-wrap gap-3">
+                {!previewStream ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void refreshPreview()}
+                    disabled={isPreparingPreview || isJoining}
+                  >
+                    {isPreparingPreview ? (
+                      <Loader2 size={16} className="mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCcw size={16} className="mr-2" />
+                    )}
+                    Enable Camera & Mic
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   size="lg"
