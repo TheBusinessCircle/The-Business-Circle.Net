@@ -7,7 +7,7 @@ import {
   type Participant,
   Room,
   RoomEvent,
-  type Track
+  Track
 } from "livekit-client";
 import {
   AlertCircle,
@@ -62,6 +62,10 @@ type ParticipantSnapshot = {
 const CONNECTION_ERROR_COPY = "Unable to start the call right now. Please try again in a moment.";
 const DEVICE_FALLBACK_COPY =
   "Camera or microphone access is currently unavailable. You can still join and enable devices when ready, if supported.";
+const DEVICE_PERMISSION_DENIED_COPY =
+  "Camera or microphone access was denied. You can still join and enable devices when ready, if supported.";
+const DEVICE_NOT_FOUND_COPY =
+  "A camera or microphone could not be found for this device. You can still join and enable devices later if they become available.";
 
 function stopMediaStream(stream: MediaStream | null) {
   if (!stream) {
@@ -130,7 +134,7 @@ function getParticipantRoleLabel(role: string) {
   return role;
 }
 
-function buildVideoCaptureOptions(deviceId?: string) {
+function buildLiveKitVideoCaptureOptions(deviceId?: string) {
   return {
     deviceId: deviceId ? { ideal: deviceId } : undefined,
     frameRate: { ideal: 30, max: 30 },
@@ -142,7 +146,25 @@ function buildVideoCaptureOptions(deviceId?: string) {
   };
 }
 
-function buildAudioCaptureOptions(deviceId?: string) {
+function buildLiveKitAudioCaptureOptions(deviceId?: string) {
+  return {
+    deviceId: deviceId ? { ideal: deviceId } : undefined,
+    autoGainControl: true,
+    echoCancellation: true,
+    noiseSuppression: true
+  };
+}
+
+function buildPreviewVideoConstraints(deviceId?: string): MediaTrackConstraints {
+  return {
+    deviceId: deviceId ? { ideal: deviceId } : undefined,
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    frameRate: { ideal: 30, max: 30 }
+  };
+}
+
+function buildPreviewAudioConstraints(deviceId?: string): MediaTrackConstraints {
   return {
     deviceId: deviceId ? { ideal: deviceId } : undefined,
     autoGainControl: true,
@@ -171,9 +193,72 @@ function formatDeviceLabel(device: MediaDeviceInfo, fallbackPrefix: string, inde
   return device.label || `${fallbackPrefix} ${index + 1}`;
 }
 
+function getPreviewErrorCopy(error: unknown) {
+  if (error instanceof DOMException) {
+    if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+      return DEVICE_PERMISSION_DENIED_COPY;
+    }
+
+    if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+      return DEVICE_NOT_FOUND_COPY;
+    }
+  }
+
+  if (error instanceof Error && error.message === "media-preview-not-supported") {
+    return DEVICE_FALLBACK_COPY;
+  }
+
+  return DEVICE_FALLBACK_COPY;
+}
+
+function getJoinFailureCopy(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message === "Failed to fetch") {
+      return "Unable to reach the call service right now. Please try again in a moment.";
+    }
+
+    return error.message || CONNECTION_ERROR_COPY;
+  }
+
+  return CONNECTION_ERROR_COPY;
+}
+
+function setPreviewTrackEnabled(
+  stream: MediaStream | null,
+  kind: "audio" | "video",
+  enabled: boolean
+) {
+  if (!stream) {
+    return false;
+  }
+
+  const tracks =
+    kind === "video" ? stream.getVideoTracks() : stream.getAudioTracks();
+
+  if (!tracks.length) {
+    return false;
+  }
+
+  tracks.forEach((track) => {
+    track.enabled = enabled;
+  });
+
+  return true;
+}
+
+function stopTracksExcept(stream: MediaStream | null, keepTracks: Set<MediaStreamTrack>) {
+  if (!stream) {
+    return;
+  }
+
+  stream.getTracks().forEach((track) => {
+    if (!keepTracks.has(track)) {
+      track.stop();
+    }
+  });
+}
+
 async function requestPreviewStream(input: {
-  cameraEnabled: boolean;
-  microphoneEnabled: boolean;
   cameraId?: string;
   microphoneId?: string;
 }) {
@@ -185,64 +270,45 @@ async function requestPreviewStream(input: {
     throw new Error("media-preview-not-supported");
   }
 
-  if (!input.cameraEnabled && !input.microphoneEnabled) {
+  const videoConstraints = buildPreviewVideoConstraints(input.cameraId);
+  const audioConstraints = buildPreviewAudioConstraints(input.microphoneId);
+
+  try {
     return {
-      stream: null,
+      stream: await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: audioConstraints
+      }),
       partialFailure: false
     };
-  }
+  } catch (error) {
+    const partialStream = new MediaStream();
 
-  const videoConstraints = input.cameraEnabled ? buildVideoCaptureOptions(input.cameraId) : false;
-  const audioConstraints = input.microphoneEnabled
-    ? buildAudioCaptureOptions(input.microphoneId)
-    : false;
-
-  if (input.cameraEnabled && input.microphoneEnabled) {
     try {
+      const videoOnly = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: false
+      });
+      videoOnly.getVideoTracks().forEach((track) => partialStream.addTrack(track));
+    } catch {}
+
+    try {
+      const audioOnly = await navigator.mediaDevices.getUserMedia({
+        video: false,
+        audio: audioConstraints
+      });
+      audioOnly.getAudioTracks().forEach((track) => partialStream.addTrack(track));
+    } catch {}
+
+    if (partialStream.getTracks().length > 0) {
       return {
-        stream: await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: audioConstraints
-        }),
-        partialFailure: false
+        stream: partialStream,
+        partialFailure: true
       };
-    } catch (error) {
-      const partialStream = new MediaStream();
-
-      try {
-        const videoOnly = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: false
-        });
-        videoOnly.getVideoTracks().forEach((track) => partialStream.addTrack(track));
-      } catch {}
-
-      try {
-        const audioOnly = await navigator.mediaDevices.getUserMedia({
-          video: false,
-          audio: audioConstraints
-        });
-        audioOnly.getAudioTracks().forEach((track) => partialStream.addTrack(track));
-      } catch {}
-
-      if (partialStream.getTracks().length > 0) {
-        return {
-          stream: partialStream,
-          partialFailure: true
-        };
-      }
-
-      throw error;
     }
-  }
 
-  return {
-    stream: await navigator.mediaDevices.getUserMedia({
-      video: videoConstraints,
-      audio: audioConstraints
-    }),
-    partialFailure: false
-  };
+    throw error;
+  }
 }
 
 function MediaTrackView({
@@ -266,6 +332,7 @@ function MediaTrackView({
     }
 
     track.attach(element);
+    void element.play().catch(() => undefined);
     return () => {
       track.detach(element);
     };
@@ -301,6 +368,7 @@ function PreviewStreamView({ stream }: { stream: MediaStream | null }) {
     }
 
     element.srcObject = stream;
+    void element.play().catch(() => undefined);
 
     return () => {
       element.srcObject = null;
@@ -352,8 +420,12 @@ export function CallRoomClient({
   const [availableMicrophones, setAvailableMicrophones] = useState<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const [selectedMicrophoneId, setSelectedMicrophoneId] = useState("");
+  const [previewAudioLevel, setPreviewAudioLevel] = useState(0);
   const roomRef = useRef<Room | null>(null);
   const previewStreamRef = useRef<MediaStream | null>(null);
+  const previewRequestIdRef = useRef(0);
+  const cameraEnabledRef = useRef(cameraEnabled);
+  const micEnabledRef = useRef(micEnabled);
   const supportsMediaPreview =
     typeof navigator !== "undefined" &&
     Boolean(navigator.mediaDevices) &&
@@ -414,11 +486,33 @@ export function CallRoomClient({
     setCameraEnabled(room.localParticipant.isCameraEnabled);
   }, []);
 
-  const releasePreview = useCallback(() => {
-    stopMediaStream(previewStreamRef.current);
+  const clearPreviewReference = useCallback(() => {
     previewStreamRef.current = null;
     setPreviewStream(null);
+    setPreviewAudioLevel(0);
   }, []);
+
+  const releasePreview = useCallback(() => {
+    stopMediaStream(previewStreamRef.current);
+    clearPreviewReference();
+  }, [clearPreviewReference]);
+
+  const syncPreviewTrackStates = useCallback(
+    (stream: MediaStream | null) => {
+      if (!stream) {
+        return;
+      }
+
+      stream.getVideoTracks().forEach((track) => {
+        track.enabled = cameraEnabledRef.current;
+      });
+
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = micEnabledRef.current;
+      });
+    },
+    []
+  );
 
   const syncAvailableDevices = useCallback(async (activeStream?: MediaStream | null) => {
     if (
@@ -460,19 +554,60 @@ export function CallRoomClient({
   );
 
   const applyPreferredDevicesToRoom = useCallback(
-    async (room: Room) => {
-      const publishResults = await Promise.allSettled([
-        room.localParticipant.setCameraEnabled(
-          cameraEnabled,
-          cameraEnabled ? buildVideoCaptureOptions(selectedCameraId) : undefined
-        ),
-        room.localParticipant.setMicrophoneEnabled(
-          micEnabled,
-          micEnabled ? buildAudioCaptureOptions(selectedMicrophoneId) : undefined
-        )
-      ]);
+    async (room: Room, previewStream: MediaStream | null) => {
+      const publishedTracks = new Set<MediaStreamTrack>();
+      const publishActions: Promise<unknown>[] = [];
+      const previewVideoTrack = previewStream?.getVideoTracks()[0];
+      const previewAudioTrack = previewStream?.getAudioTracks()[0];
+
+      if (cameraEnabled) {
+        if (previewVideoTrack) {
+          publishActions.push(
+            room.localParticipant
+              .publishTrack(previewVideoTrack, { source: Track.Source.Camera })
+              .then(() => {
+                publishedTracks.add(previewVideoTrack);
+              })
+          );
+        } else {
+          publishActions.push(
+            room.localParticipant.setCameraEnabled(
+              true,
+              buildLiveKitVideoCaptureOptions(selectedCameraId)
+            )
+          );
+        }
+      } else {
+        publishActions.push(room.localParticipant.setCameraEnabled(false));
+      }
+
+      if (micEnabled) {
+        if (previewAudioTrack) {
+          publishActions.push(
+            room.localParticipant
+              .publishTrack(previewAudioTrack, { source: Track.Source.Microphone })
+              .then(() => {
+                publishedTracks.add(previewAudioTrack);
+              })
+          );
+        } else {
+          publishActions.push(
+            room.localParticipant.setMicrophoneEnabled(
+              true,
+              buildLiveKitAudioCaptureOptions(selectedMicrophoneId)
+            )
+          );
+        }
+      } else {
+        publishActions.push(room.localParticipant.setMicrophoneEnabled(false));
+      }
+
+      const publishResults = await Promise.allSettled(publishActions);
 
       const failed = publishResults.some((result) => result.status === "rejected");
+
+      stopTracksExcept(previewStream, publishedTracks);
+      clearPreviewReference();
       setDeviceNotice(failed ? DEVICE_FALLBACK_COPY : null);
       syncRoomFromInstance(room);
 
@@ -486,6 +621,7 @@ export function CallRoomClient({
     },
     [
       cameraEnabled,
+      clearPreviewReference,
       micEnabled,
       roomId,
       selectedCameraId,
@@ -493,6 +629,75 @@ export function CallRoomClient({
       syncRoomFromInstance
     ]
   );
+
+  const refreshPreview = useCallback(async () => {
+    if (roomRef.current) {
+      return;
+    }
+
+    if (!supportsMediaPreview) {
+      setIsPreparingPreview(false);
+      setDeviceNotice(DEVICE_FALLBACK_COPY);
+      return;
+    }
+
+    const requestId = ++previewRequestIdRef.current;
+    setIsPreparingPreview(true);
+
+    try {
+      const result = await requestPreviewStream({
+        cameraId: selectedCameraId || undefined,
+        microphoneId: selectedMicrophoneId || undefined
+      });
+
+      if (previewRequestIdRef.current !== requestId || roomRef.current) {
+        stopMediaStream(result.stream);
+        return;
+      }
+
+      syncPreviewTrackStates(result.stream);
+      stopMediaStream(previewStreamRef.current);
+      previewStreamRef.current = result.stream;
+      setPreviewStream(result.stream);
+      setDeviceNotice(result.partialFailure ? DEVICE_FALLBACK_COPY : null);
+      await syncAvailableDevices(result.stream);
+    } catch (error) {
+      if (previewRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      releasePreview();
+      setDeviceNotice(getPreviewErrorCopy(error));
+      await syncAvailableDevices();
+
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[calling] preview-media-failed", {
+          roomId,
+          error: error instanceof Error ? error.message : "unknown"
+        });
+      }
+    } finally {
+      if (previewRequestIdRef.current === requestId) {
+        setIsPreparingPreview(false);
+      }
+    }
+  }, [
+    releasePreview,
+    roomId,
+    selectedCameraId,
+    selectedMicrophoneId,
+    supportsMediaPreview,
+    syncAvailableDevices,
+    syncPreviewTrackStates
+  ]);
+
+  useEffect(() => {
+    cameraEnabledRef.current = cameraEnabled;
+  }, [cameraEnabled]);
+
+  useEffect(() => {
+    micEnabledRef.current = micEnabled;
+  }, [micEnabled]);
 
   useEffect(() => {
     void syncAvailableDevices(previewStreamRef.current);
@@ -521,73 +726,74 @@ export function CallRoomClient({
       return;
     }
 
-    if (!supportsMediaPreview) {
-      setIsPreparingPreview(false);
-      setDeviceNotice(DEVICE_FALLBACK_COPY);
+    void refreshPreview();
+
+    return () => {
+      previewRequestIdRef.current += 1;
+    };
+  }, [refreshPreview, roomState]);
+
+  useEffect(() => {
+    syncPreviewTrackStates(previewStream);
+  }, [cameraEnabled, micEnabled, previewStream, syncPreviewTrackStates]);
+
+  useEffect(() => {
+    if (!previewStream?.getAudioTracks().length || typeof window === "undefined") {
+      setPreviewAudioLevel(0);
       return;
     }
 
-    let cancelled = false;
+    const AudioContextCtor =
+      typeof window.AudioContext !== "undefined"
+        ? window.AudioContext
+        : (
+            window as Window &
+              typeof globalThis & {
+                webkitAudioContext?: typeof AudioContext;
+              }
+          ).webkitAudioContext;
 
-    const loadPreview = async () => {
-      setIsPreparingPreview(true);
+    if (!AudioContextCtor) {
+      setPreviewAudioLevel(0);
+      return;
+    }
 
-      try {
-        const result = await requestPreviewStream({
-          cameraEnabled,
-          microphoneEnabled: micEnabled,
-          cameraId: selectedCameraId || undefined,
-          microphoneId: selectedMicrophoneId || undefined
-        });
+    const audioContext = new AudioContextCtor();
+    const analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaStreamSource(previewStream);
+    const samples = new Uint8Array(analyser.fftSize);
+    let animationFrameId = 0;
 
-        if (cancelled) {
-          stopMediaStream(result.stream);
-          return;
-        }
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.85;
+    source.connect(analyser);
+    void audioContext.resume().catch(() => undefined);
 
-        stopMediaStream(previewStreamRef.current);
-        previewStreamRef.current = result.stream;
-        setPreviewStream(result.stream);
-        setDeviceNotice(result.partialFailure ? DEVICE_FALLBACK_COPY : null);
-        await syncAvailableDevices(result.stream);
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
+    const updateLevel = () => {
+      analyser.getByteTimeDomainData(samples);
 
-        releasePreview();
-        setDeviceNotice(DEVICE_FALLBACK_COPY);
-        await syncAvailableDevices();
+      let total = 0;
 
-        if (process.env.NODE_ENV !== "production") {
-          console.error("[calling] preview-media-failed", {
-            roomId,
-            error: error instanceof Error ? error.message : "unknown"
-          });
-        }
-      } finally {
-        if (!cancelled) {
-          setIsPreparingPreview(false);
-        }
+      for (const sample of samples) {
+        const normalized = (sample - 128) / 128;
+        total += normalized * normalized;
       }
+
+      const rootMeanSquare = Math.sqrt(total / samples.length);
+      setPreviewAudioLevel(Math.min(1, rootMeanSquare * 4.5));
+      animationFrameId = window.requestAnimationFrame(updateLevel);
     };
 
-    void loadPreview();
+    animationFrameId = window.requestAnimationFrame(updateLevel);
 
     return () => {
-      cancelled = true;
+      window.cancelAnimationFrame(animationFrameId);
+      source.disconnect();
+      analyser.disconnect();
+      void audioContext.close().catch(() => undefined);
+      setPreviewAudioLevel(0);
     };
-  }, [
-    cameraEnabled,
-    micEnabled,
-    releasePreview,
-    roomId,
-    roomState,
-    selectedCameraId,
-    selectedMicrophoneId,
-    supportsMediaPreview,
-    syncAvailableDevices
-  ]);
+  }, [previewStream]);
 
   useEffect(() => {
     return () => {
@@ -647,6 +853,8 @@ export function CallRoomClient({
           .on(RoomEvent.ParticipantDisconnected, syncState)
           .on(RoomEvent.TrackSubscribed, syncState)
           .on(RoomEvent.TrackUnsubscribed, syncState)
+          .on(RoomEvent.TrackMuted, syncState)
+          .on(RoomEvent.TrackUnmuted, syncState)
           .on(RoomEvent.LocalTrackPublished, syncState)
           .on(RoomEvent.LocalTrackUnpublished, syncState)
           .on(RoomEvent.ActiveSpeakersChanged, syncState)
@@ -669,13 +877,12 @@ export function CallRoomClient({
 
         roomRef.current = roomInstance;
         syncRoomFromInstance(roomInstance);
-        releasePreview();
         setJoinError(null);
 
         await roomInstance.startAudio().catch(() => undefined);
         await Promise.allSettled([
           updatePresence("JOINED"),
-          applyPreferredDevicesToRoom(roomInstance)
+          applyPreferredDevicesToRoom(roomInstance, previewStreamRef.current)
         ]);
       } catch (error) {
         if (nextRoom) {
@@ -685,12 +892,13 @@ export function CallRoomClient({
         roomRef.current = null;
         setRoomState(null);
         setConnectionState(ConnectionState.Disconnected);
-        setJoinError(error instanceof Error ? error.message : CONNECTION_ERROR_COPY);
+        setJoinError(getJoinFailureCopy(error));
 
         if (process.env.NODE_ENV !== "production") {
           console.error("[calling] room-connect-failed", {
             roomId,
-            error: error instanceof Error ? error.message : "unknown"
+            error: error instanceof Error ? error.message : "unknown",
+            stack: error instanceof Error ? error.stack : undefined
           });
         }
       }
@@ -701,7 +909,17 @@ export function CallRoomClient({
     const activeRoom = roomRef.current;
 
     if (!activeRoom) {
-      setMicEnabled((current) => !current);
+      const nextValue = !micEnabled;
+      micEnabledRef.current = nextValue;
+      setMicEnabled(nextValue);
+
+      const updated = setPreviewTrackEnabled(previewStreamRef.current, "audio", nextValue);
+      if (updated || !nextValue) {
+        setDeviceNotice(null);
+      } else {
+        void refreshPreview();
+      }
+
       return;
     }
 
@@ -710,7 +928,7 @@ export function CallRoomClient({
     void activeRoom.localParticipant
       .setMicrophoneEnabled(
         nextValue,
-        nextValue ? buildAudioCaptureOptions(selectedMicrophoneId) : undefined
+        nextValue ? buildLiveKitAudioCaptureOptions(selectedMicrophoneId) : undefined
       )
       .then(() => {
         setDeviceNotice(null);
@@ -725,7 +943,17 @@ export function CallRoomClient({
     const activeRoom = roomRef.current;
 
     if (!activeRoom) {
-      setCameraEnabled((current) => !current);
+      const nextValue = !cameraEnabled;
+      cameraEnabledRef.current = nextValue;
+      setCameraEnabled(nextValue);
+
+      const updated = setPreviewTrackEnabled(previewStreamRef.current, "video", nextValue);
+      if (updated || !nextValue) {
+        setDeviceNotice(null);
+      } else {
+        void refreshPreview();
+      }
+
       return;
     }
 
@@ -734,7 +962,7 @@ export function CallRoomClient({
     void activeRoom.localParticipant
       .setCameraEnabled(
         nextValue,
-        nextValue ? buildVideoCaptureOptions(selectedCameraId) : undefined
+        nextValue ? buildLiveKitVideoCaptureOptions(selectedCameraId) : undefined
       )
       .then(() => {
         setDeviceNotice(null);
@@ -917,6 +1145,24 @@ export function CallRoomClient({
                     )}
                     {micEnabled ? "Mic on" : "Mic muted"}
                   </Badge>
+                  <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/30 px-3 py-1.5 text-xs text-silver">
+                    <span>Mic level</span>
+                    <span className="flex items-center gap-1">
+                      {Array.from({ length: 5 }).map((_, index) => {
+                        const threshold = (index + 1) / 5;
+
+                        return (
+                          <span
+                            key={`preview-level-${index}`}
+                            className={cn(
+                              "h-2 w-1.5 rounded-full bg-silver/25 transition-colors",
+                              previewAudioLevel >= threshold ? "bg-gold" : undefined
+                            )}
+                          />
+                        );
+                      })}
+                    </span>
+                  </div>
                 </div>
               </div>
 
