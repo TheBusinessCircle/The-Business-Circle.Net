@@ -274,7 +274,7 @@ export function RegisterForm({
           </p>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10.75rem,1fr))]">
           {[
             "Business-first member environment",
             "Secure checkout after registration",
@@ -282,11 +282,11 @@ export function RegisterForm({
           ].map((item) => (
             <div
               key={item}
-              className="rounded-2xl border border-border/70 bg-background/28 px-4 py-3 text-sm text-muted"
+              className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/28 px-4 py-3.5 text-sm text-muted min-h-[84px]"
             >
-              <p className="inline-flex items-center gap-2">
-                <CheckCircle2 size={15} className="text-gold" />
-                {item}
+              <p className="flex min-w-0 items-start gap-2.5 leading-relaxed">
+                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-gold" />
+                <span className="min-w-0 break-words">{item}</span>
               </p>
             </div>
           ))}
