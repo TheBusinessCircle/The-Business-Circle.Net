@@ -136,7 +136,7 @@ export function JoinExperience({
         "grid items-start gap-8 xl:gap-10",
         isAuthenticated
           ? "grid-cols-1"
-          : "xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,430px)]"
+          : "xl:grid-cols-[minmax(0,1.28fr)_minmax(340px,390px)] 2xl:grid-cols-[minmax(0,1.34fr)_minmax(350px,400px)]"
       )}
     >
       <div className="min-w-0 space-y-8">
@@ -171,7 +171,12 @@ export function JoinExperience({
         <section className="space-y-6">
           <FoundingOfferCounters offer={foundingOffer} />
 
-          <div className="grid items-stretch gap-6 md:grid-cols-2 xl:gap-7 2xl:grid-cols-3">
+          <div
+            className={cn(
+              "grid items-stretch gap-6 md:grid-cols-2 xl:gap-7",
+              isAuthenticated ? "2xl:grid-cols-3" : ""
+            )}
+          >
             {pricingCards.map((card) => {
               const selected = selectedTier === card.tier;
 
