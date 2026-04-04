@@ -133,13 +133,13 @@ export function JoinExperience({
   return (
     <div
       className={cn(
-        "grid items-start gap-6",
+        "grid items-start gap-8 xl:gap-10",
         isAuthenticated
           ? "grid-cols-1"
           : "xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,430px)]"
       )}
     >
-      <div className="min-w-0 space-y-6">
+      <div className="min-w-0 space-y-8">
         <div className="space-y-3">
           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership levels</p>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -168,85 +168,87 @@ export function JoinExperience({
           </div>
         </div>
 
-        <FoundingOfferCounters offer={foundingOffer} />
+        <section className="space-y-6">
+          <FoundingOfferCounters offer={foundingOffer} />
 
-        <div className="grid items-stretch gap-5 md:grid-cols-2 2xl:grid-cols-3">
-          {pricingCards.map((card) => {
-            const selected = selectedTier === card.tier;
+          <div className="grid items-stretch gap-6 md:grid-cols-2 xl:gap-7 2xl:grid-cols-3">
+            {pricingCards.map((card) => {
+              const selected = selectedTier === card.tier;
 
-            return (
-              <div
-                key={card.tier}
-                role="button"
-                tabIndex={0}
-                aria-pressed={selected}
-                onClick={() => handleTierChange(card.tier)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    handleTierChange(card.tier);
-                  }
-                }}
-                className={cn(
-                  "group min-w-0 rounded-[1.7rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-0",
-                  selected ? "ring-1 ring-gold/45" : ""
-                )}
-              >
-                <div className="mb-3 flex items-center justify-between px-1">
-                  <p className="inline-flex items-center gap-2 text-xs text-muted">
-                    <CheckCircle2
-                      size={14}
-                      className={
-                        selected ? "text-gold" : "text-silver/45 transition-colors group-hover:text-silver"
-                      }
-                    />
-                    {selected ? "Selected for the form" : "Click anywhere to select"}
-                  </p>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.08em]",
-                      selected ? "text-gold" : "text-silver/70"
-                    )}
-                  >
-                    Choose plan
-                    <ArrowRight size={12} />
-                  </span>
+              return (
+                <div
+                  key={card.tier}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selected}
+                  onClick={() => handleTierChange(card.tier)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleTierChange(card.tier);
+                    }
+                  }}
+                  className={cn(
+                    "group flex h-full min-w-0 flex-col gap-3 rounded-[1.7rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-0",
+                    selected ? "ring-1 ring-gold/45" : ""
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3 px-1 pt-1">
+                    <p className="inline-flex items-center gap-2 text-xs text-muted">
+                      <CheckCircle2
+                        size={14}
+                        className={
+                          selected ? "text-gold" : "text-silver/45 transition-colors group-hover:text-silver"
+                        }
+                      />
+                      {selected ? "Selected for the form" : "Click anywhere to select"}
+                    </p>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.08em]",
+                        selected ? "text-gold" : "text-silver/70"
+                      )}
+                    >
+                      Choose plan
+                      <ArrowRight size={12} />
+                    </span>
+                  </div>
+
+                  <PricingCard
+                    tier={card.tier}
+                    name={card.name}
+                    positioningLabel={card.positioningLabel}
+                    spotlight={card.spotlight}
+                    monthlyPrice={card.monthlyPrice}
+                    description={card.description}
+                    features={card.features}
+                    foundingOffer={card.foundingOffer}
+                    featured={card.featured}
+                    featuredLabel={card.featuredLabel}
+                    selected={selected}
+                    className="min-w-0 h-auto flex-1"
+                    cta={
+                      <MembershipPlanAction
+                        tier={card.tier}
+                        source="join"
+                        isAuthenticated={isAuthenticated}
+                        isCurrentPlan={card.isCurrentPlan}
+                        hasActiveSubscription={hasActiveSubscription}
+                        buttonVariant={card.buttonVariant}
+                        authenticatedLabel={card.authenticatedLabel}
+                        unauthenticatedLabel={card.unauthenticatedLabel}
+                        joinHref={card.joinHref}
+                        loginHref={card.loginHref}
+                      />
+                    }
+                  />
                 </div>
+              );
+            })}
+          </div>
+        </section>
 
-                <PricingCard
-                  tier={card.tier}
-                  name={card.name}
-                  positioningLabel={card.positioningLabel}
-                  spotlight={card.spotlight}
-                  monthlyPrice={card.monthlyPrice}
-                  description={card.description}
-                  features={card.features}
-                  foundingOffer={card.foundingOffer}
-                  featured={card.featured}
-                  featuredLabel={card.featuredLabel}
-                  selected={selected}
-                  className="min-w-0"
-                  cta={
-                    <MembershipPlanAction
-                      tier={card.tier}
-                      source="join"
-                      isAuthenticated={isAuthenticated}
-                      isCurrentPlan={card.isCurrentPlan}
-                      hasActiveSubscription={hasActiveSubscription}
-                      buttonVariant={card.buttonVariant}
-                      authenticatedLabel={card.authenticatedLabel}
-                      unauthenticatedLabel={card.unauthenticatedLabel}
-                      joinHref={card.joinHref}
-                      loginHref={card.loginHref}
-                    />
-                  }
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(240px,0.95fr)]">
+        <section className="grid gap-5 pt-2 xl:grid-cols-[minmax(0,1.05fr)_minmax(240px,0.95fr)]">
           <Card className="border-border/80 bg-card/68">
             <CardHeader className="pb-4">
               <p className="premium-kicker w-fit">What Happens Next</p>
@@ -275,7 +277,7 @@ export function JoinExperience({
               </p>
             </CardContent>
           </Card>
-        </div>
+        </section>
 
         <div className="grid gap-4 md:grid-cols-3">
           {joinDecisionSteps.map((item) => (
