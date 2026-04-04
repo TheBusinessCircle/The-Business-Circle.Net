@@ -110,6 +110,8 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3000}
       LIVEKIT_URL: ${LIVEKIT_URL:-ws://localhost:7880}
       LIVEKIT_SERVER_URL: ${LIVEKIT_SERVER_URL:-http://livekit:7880}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-devsecret}
       NODE_ENV: production
     ports:
       - "3000:3000"

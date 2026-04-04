@@ -16,7 +16,16 @@ function summarizeError(error: unknown): SafeLogDetails {
     const errorWithCode = error as Error & { code?: unknown };
     return {
       errorName: error.name,
-      errorCode: typeof errorWithCode.code === "string" ? errorWithCode.code : undefined
+      errorMessage: error.message,
+      errorCode: typeof errorWithCode.code === "string" ? errorWithCode.code : undefined,
+      errorStack:
+        process.env.NODE_ENV !== "production"
+          ? error.stack
+              ?.split("\n")
+              .map((line) => line.trim())
+              .slice(0, 8)
+              .join(" | ")
+          : undefined
     };
   }
 

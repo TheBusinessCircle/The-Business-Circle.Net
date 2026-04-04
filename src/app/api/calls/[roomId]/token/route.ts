@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { logServerError } from "@/lib/security/logging";
-import { issueCallRoomToken } from "@/server/calling";
+import { CallRoomTokenIssueError, issueCallRoomToken } from "@/server/calling";
 import { roomIdSchema } from "@/server/calling/schemas";
 import { toCallingUser } from "@/server/calling/session";
 
@@ -16,6 +16,8 @@ export async function POST(
     return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
   }
 
+  let roomId: string | null = null;
+
   try {
     const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
@@ -28,13 +30,25 @@ export async function POST(
       return NextResponse.json({ error: "Invalid room identifier." }, { status: 400 });
     }
 
+    roomId = parsed.data.roomId;
+
     const result = await issueCallRoomToken({
-      roomId: parsed.data.roomId,
+      roomId,
       actor: toCallingUser(authResult.user)
     });
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof CallRoomTokenIssueError) {
+      logServerError("calling-room-token-issue-failed", error, {
+        roomId: roomId ?? undefined,
+        tokenIssueStage: error.stage,
+        ...error.details
+      });
+
+      return NextResponse.json({ error: error.safeMessage }, { status: error.status });
+    }
+
     if (error instanceof Error) {
       const status =
         error.message === "room-not-found"
@@ -60,7 +74,9 @@ export async function POST(
       }
     }
 
-    logServerError("calling-room-token-issue-failed", error);
+    logServerError("calling-room-token-issue-failed", error, {
+      roomId: roomId ?? undefined
+    });
     return NextResponse.json({ error: "Unable to issue a room token." }, { status: 500 });
   }
 }
