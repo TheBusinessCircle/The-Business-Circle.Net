@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Sora, Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
+import { CookieConsent } from "@/components/privacy/cookie-consent";
 import { Providers } from "@/components/providers";
 import { SITE_CONFIG } from "@/config/site";
 import { getBackgroundModeInitScript } from "@/lib/background-mode";
@@ -58,6 +59,7 @@ export default function RootLayout({
           {getBackgroundModeInitScript()}
         </Script>
         <Providers>{children}</Providers>
+        <CookieConsent />
       </body>
     </html>
   );

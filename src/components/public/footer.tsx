@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SITE_CONFIG } from "@/config/site";
 import { BrandMark } from "@/components/branding/brand-mark";
+import { CookieSettingsButton } from "@/components/privacy/cookie-settings-button";
 import { getSiteContentSection } from "@/server/site-content";
 import { nonEmpty } from "@/lib/utils";
 
@@ -89,6 +90,11 @@ export async function Footer() {
                 </Link>
               </li>
             ))}
+            <li>
+              <CookieSettingsButton className="text-sm text-muted">
+                Cookie settings
+              </CookieSettingsButton>
+            </li>
             <li>
               <Link href="/join" className="transition-colors hover:text-foreground">
                 Join The Network
