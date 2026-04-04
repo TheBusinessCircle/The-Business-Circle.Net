@@ -26,7 +26,6 @@ export type CallRoomTokenIssueStage =
   | "livekit-participant-check"
   | "token-construction"
   | "token-signing"
-  | "presence-record"
   | "response-build";
 
 export class CallRoomTokenIssueError extends Error {
@@ -258,26 +257,6 @@ export async function issueCallRoomToken(input: {
       });
     }
   })();
-
-  try {
-    await recordCallParticipantPresence({
-      roomId: room.id,
-      userId: input.actor.id,
-      role:
-        input.actor.role === "ADMIN"
-          ? "ADMIN"
-          : room.hostUserId === input.actor.id
-            ? "HOST"
-            : "MEMBER",
-      state: "JOINED"
-    });
-  } catch (error) {
-    throw toCallRoomTokenIssueError("presence-record", error, {
-      message: "Call participant presence recording failed.",
-      safeMessage: "Unable to complete the call join right now. Please try again in a moment.",
-      status: 500
-    });
-  }
 
   try {
     return {
