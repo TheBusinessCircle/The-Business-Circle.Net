@@ -17,7 +17,8 @@ const EXPLORE_LINKS = [
 const TRUST_LINKS = [
   { label: "Privacy Policy", href: "/privacy-policy" },
   { label: "Terms of Service", href: "/terms-of-service" },
-  { label: "Cookie Policy", href: "/cookie-policy" }
+  { label: "Cookie Policy", href: "/cookie-policy" },
+  { label: "DPIA & Data Protection", href: "/dpia" }
 ];
 
 const SOCIAL_LABELS: Record<string, string> = {

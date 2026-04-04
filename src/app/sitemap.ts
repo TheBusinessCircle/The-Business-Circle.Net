@@ -69,6 +69,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: "yearly",
       priority: 0.3
+    },
+    {
+      url: `${SITE_CONFIG.url}/dpia`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.35
     }
   ];
 

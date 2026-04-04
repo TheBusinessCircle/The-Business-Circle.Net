@@ -264,6 +264,7 @@ export const SITE_CONTENT_REVALIDATION_PATHS: Record<SiteContentSlug, string[]> 
     "/join",
     "/contact",
     "/founder",
+    "/dpia",
     "/privacy-policy",
     "/terms-of-service",
     "/cookie-policy"
