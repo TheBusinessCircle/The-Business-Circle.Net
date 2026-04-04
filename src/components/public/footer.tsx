@@ -14,11 +14,23 @@ const EXPLORE_LINKS = [
   { label: "FAQ", href: "/#faq" }
 ];
 
-const TRUST_LINKS = [
-  { label: "Privacy Policy", href: "/privacy-policy" },
-  { label: "Terms of Service", href: "/terms-of-service" },
-  { label: "Cookie Policy", href: "/cookie-policy" },
-  { label: "DPIA & Data Protection", href: "/dpia" }
+type TrustLinkItem =
+  | {
+      kind: "link";
+      label: string;
+      href: string;
+    }
+  | {
+      kind: "button";
+      label: string;
+    };
+
+const TRUST_LINKS: TrustLinkItem[] = [
+  { kind: "link", label: "Privacy Policy", href: "/privacy-policy" },
+  { kind: "link", label: "Terms of Service", href: "/terms-of-service" },
+  { kind: "link", label: "Cookie Policy", href: "/cookie-policy" },
+  { kind: "button", label: "Cookie settings" },
+  { kind: "link", label: "DPIA & Data Protection", href: "/dpia" }
 ];
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -85,17 +97,18 @@ export async function Footer() {
           <p className="text-xs uppercase tracking-[0.1em] text-silver">Trust</p>
           <ul className="space-y-2 text-sm text-muted">
             {TRUST_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className="transition-colors hover:text-foreground">
-                  {link.label}
-                </Link>
+              <li key={link.label}>
+                {link.kind === "link" ? (
+                  <Link href={link.href} className="transition-colors hover:text-foreground">
+                    {link.label}
+                  </Link>
+                ) : (
+                  <CookieSettingsButton className="w-full text-left text-sm text-muted">
+                    {link.label}
+                  </CookieSettingsButton>
+                )}
               </li>
             ))}
-            <li>
-              <CookieSettingsButton className="text-sm text-muted">
-                Cookie settings
-              </CookieSettingsButton>
-            </li>
             <li>
               <Link href="/join" className="transition-colors hover:text-foreground">
                 Join The Network
