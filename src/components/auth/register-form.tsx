@@ -241,8 +241,8 @@ export function RegisterForm({
             </div>
             <CardTitle className="text-2xl sm:text-[2rem]">Create your account and choose your room</CardTitle>
             <CardDescription className="max-w-xl text-sm">
-              Start with the membership level that fits where your business is now, then continue
-              through the existing join and checkout flow without losing your place.
+              Start with the room that fits where your business is now, then continue into secure
+              membership setup.
             </CardDescription>
           </div>
 
@@ -279,8 +279,8 @@ export function RegisterForm({
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10.75rem,1fr))]">
           {[
             "Business-first member environment",
-            "Secure checkout starts after registration",
-            "Tier selection stays synced with the page"
+            "Secure membership setup",
+            "Clear room progression"
           ].map((item) => (
             <div
               key={item}

@@ -29,6 +29,7 @@ export function BrandMark({
   shine = false
 }: BrandMarkProps) {
   const [imageMissing, setImageMissing] = useState(false);
+  const [src, setSrc] = useState("/branding/the-business-circle-logo.webp");
   const size = SIZE_BY_PLACEMENT[placement];
 
   const shellClassName = cn(
@@ -48,13 +49,20 @@ export function BrandMark({
     <span className={shellClassName} style={{ width: size, height: size }}>
       {shine ? <span aria-hidden="true" className="brand-mark-shine" /> : null}
       <Image
-        src="/branding/the-business-circle-logo.png"
+        src={src}
         alt="The Business Circle logo"
         fill
         sizes={`${size}px`}
         className="object-contain"
         priority={priority}
-        onError={() => setImageMissing(true)}
+        onError={() => {
+          if (src.endsWith(".webp")) {
+            setSrc("/branding/the-business-circle-logo.png");
+            return;
+          }
+
+          setImageMissing(true);
+        }}
       />
     </span>
   );

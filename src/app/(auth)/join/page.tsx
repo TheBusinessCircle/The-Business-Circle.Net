@@ -9,7 +9,6 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarDays,
-  CheckCircle2,
   Compass,
   Crown,
   Layers3,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/auth";
 import { JoinExperience } from "@/components/auth/join-experience";
+import { JoinHeroStage } from "@/components/auth/join-hero-stage";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { SectionHeading } from "@/components/public";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,6 @@ import { roleToTier } from "@/lib/permissions";
 import { createPageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { getFoundingOfferSnapshot } from "@/server/founding";
-import { getPublicTrustSnapshot } from "@/server/public-site";
 
 type JoinPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -87,10 +86,6 @@ function resolveTier(value: string | undefined): "FOUNDATION" | "INNER_CIRCLE" |
   return "FOUNDATION";
 }
 
-function formatSnapshotValue(value: number, emptyLabel: string) {
-  return value > 0 ? value.toLocaleString("en-GB") : emptyLabel;
-}
-
 function JoinLandingSection({
   id,
   label,
@@ -113,12 +108,6 @@ function JoinLandingSection({
     </section>
   );
 }
-
-const heroSupportPoints = [
-  "Private member ecosystem",
-  "Founder-led growth environment",
-  "Real conversations and built-in calls"
-] as const;
 
 const whyItExistsShifts: readonly ProblemShift[] = [
   {
@@ -274,27 +263,6 @@ const trustCards: readonly StoryCard[] = [
   }
 ] as const;
 
-const joinDecisionSteps = [
-  {
-    step: "01",
-    title: "Choose the room that fits now",
-    description:
-      "Foundation is the clearest place to begin. Inner Circle deepens the signal. Core is the closest strategic layer."
-  },
-  {
-    step: "02",
-    title: "Create your account once",
-    description:
-      "Your tier selection, invite flow, and secure checkout stay connected so there is no messy handoff."
-  },
-  {
-    step: "03",
-    title: "Enter with intention",
-    description:
-      "The point is not to collect access. It is to enter the right environment and actually use it properly."
-  }
-] as const;
-
 export const metadata: Metadata = createPageMetadata({
   title: "Join The Business Circle",
   description:
@@ -312,10 +280,7 @@ export const metadata: Metadata = createPageMetadata({
 export default async function JoinPage({ searchParams }: JoinPageProps) {
   const session = await auth();
   const params = await searchParams;
-  const [foundingOffer, trustSnapshot] = await Promise.all([
-    getFoundingOfferSnapshot(),
-    getPublicTrustSnapshot()
-  ]);
+  const foundingOffer = await getFoundingOfferSnapshot();
   const from = firstValue(params.from);
   const error = firstValue(params.error);
   const mode = firstValue(params.mode);
@@ -374,28 +339,12 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
     from: from ?? "/membership?tier=CORE"
   });
   const heroPrimaryHref = isAuthenticated ? "#join-entry" : `${selectedTierJoinBase}#join-entry`;
-  const heroSecondaryHref = "#what-you-get";
-  const roomsHref = "#rooms-and-tiers";
+  const heroSecondaryHref = "#rooms-and-tiers";
   const joinEntryHref = "#join-entry";
   const foundationEntryHref = `${foundationJoinBase}#join-entry`;
   const foundingSignal = foundingOffer.foundation.available
     ? `${foundingOffer.foundation.remaining} Foundation founding place${foundingOffer.foundation.remaining === 1 ? "" : "s"} currently open.`
     : "Foundation is live and ready at the standard monthly rate.";
-
-  const heroMetrics = [
-    {
-      value: formatSnapshotValue(trustSnapshot.publicMemberCount, "Private"),
-      label: "Visible member profiles"
-    },
-    {
-      value: formatSnapshotValue(trustSnapshot.activeDiscussionCount, "Active"),
-      label: "Discussions moving this week"
-    },
-    {
-      value: formatSnapshotValue(trustSnapshot.connectionWinsCount, "Growing"),
-      label: "Connection wins being shared"
-    }
-  ] as const;
 
   const roomCards = [
     {
@@ -450,133 +399,12 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[34rem] bg-[radial-gradient(circle_at_top,_rgba(76,130,255,0.2),_transparent_46%),radial-gradient(circle_at_18%_12%,_rgba(214,180,103,0.16),_transparent_28%)]" />
 
       <div className="space-y-24 sm:space-y-28 lg:space-y-32">
-        <section className="join-cinematic-shell relative isolate overflow-hidden rounded-[2.25rem] border border-white/10 px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10 xl:px-12 xl:py-12">
-          <div className="join-network-grid pointer-events-none absolute inset-0 opacity-45" />
-          <div className="pointer-events-none absolute -left-20 top-12 h-56 w-56 rounded-full bg-gold/20 blur-[96px]" />
-          <div className="pointer-events-none absolute -right-24 top-8 h-64 w-64 rounded-full bg-blue-500/20 blur-[120px]" />
-          <div className="pointer-events-none absolute bottom-0 left-1/2 h-48 w-[78%] -translate-x-1/2 rounded-full bg-sky-500/10 blur-[110px]" />
-
-          <div className="relative grid items-center gap-10 xl:grid-cols-[minmax(0,1.02fr)_minmax(360px,0.98fr)] xl:gap-12">
-            <div className="space-y-8">
-              <div className="space-y-5">
-                <p className="premium-kicker">Private Growth Environment For Business Owners</p>
-                <div className="space-y-5">
-                  <h1 className="max-w-4xl font-display text-4xl leading-[1.02] text-foreground sm:text-5xl lg:text-6xl xl:text-[4.9rem]">
-                    Stop building in the wrong environment.
-                    <span className="block text-silver">
-                      Enter the room where clarity, connection, and real progress come together.
-                    </span>
-                  </h1>
-                  <p className="max-w-3xl text-base leading-relaxed text-silver sm:text-lg">
-                    The Business Circle is a premium founder-led ecosystem for business owners who
-                    want better conversations, stronger direction, and a serious environment to
-                    grow inside.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <Link href={heroPrimaryHref}>
-                  <Button size="lg" className="group min-w-[15rem] justify-center">
-                    Join The Business Circle
-                    <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-                  </Button>
-                </Link>
-                <Link href={heroSecondaryHref}>
-                  <Button size="lg" variant="outline" className="min-w-[12rem] justify-center">
-                    See What You Get
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {heroSupportPoints.map((point) => (
-                  <div
-                    key={point}
-                    className="join-floating-panel flex items-start gap-3 px-4 py-4 text-sm text-muted"
-                  >
-                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-gold" />
-                    <span>{point}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {heroMetrics.map((metric) => (
-                  <div
-                    key={metric.label}
-                    className="rounded-[1.35rem] border border-white/10 bg-background/18 px-4 py-4 backdrop-blur"
-                  >
-                    <p className="font-display text-3xl text-foreground">{metric.value}</p>
-                    <p className="mt-2 text-[11px] uppercase tracking-[0.08em] text-silver/80">
-                      {metric.label}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4 text-sm text-muted">
-                <span>{foundingSignal}</span>
-                {!isAuthenticated ? (
-                  <Link href="/login" className="inline-flex items-center gap-2 text-silver hover:text-foreground">
-                    Already a member? Sign in
-                    <ArrowRight size={14} />
-                  </Link>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="join-stage-panel relative min-h-[25rem] overflow-hidden rounded-[2rem] border border-white/10 p-5 sm:min-h-[29rem] sm:p-6">
-                <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-15" />
-                <div className="join-pulse pointer-events-none absolute left-1/2 top-1/2 h-[17rem] w-[17rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-gold/20 bg-gold/10 blur-[2px] sm:h-[20rem] sm:w-[20rem]" />
-                <div className="pointer-events-none absolute left-1/2 top-1/2 h-[13rem] w-[13rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-sky-300/20 sm:h-[16rem] sm:w-[16rem]" />
-                <div className="join-hero-beam pointer-events-none absolute inset-x-8 top-1/2 h-24 -translate-y-1/2 rounded-full blur-3xl" />
-
-                <div className="join-floating-panel join-float absolute left-4 top-4 hidden max-w-[12rem] px-4 py-3 sm:block">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Founder-led</p>
-                  <p className="mt-2 text-sm text-silver">
-                    Built with intention for business owners who are serious.
-                  </p>
-                </div>
-
-                <div className="join-floating-panel join-float-delayed absolute right-4 top-8 hidden max-w-[12rem] px-4 py-3 sm:block">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Private room</p>
-                  <p className="mt-2 text-sm text-silver">
-                    A calmer environment than public feeds and scattered groups.
-                  </p>
-                </div>
-
-                <div className="relative flex h-full items-center justify-center">
-                  <BrandMark
-                    placement="hero"
-                    priority
-                    shine
-                    className="join-float border-gold/55 bg-slate-950/90 shadow-[0_24px_60px_rgba(2,6,23,0.4)]"
-                  />
-                </div>
-
-                <div className="join-floating-panel absolute inset-x-4 bottom-4 p-5 sm:inset-x-6 sm:bottom-6">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                    The premium front door
-                  </p>
-                  <h2 className="mt-3 font-display text-2xl text-foreground">
-                    Serious business growth needs a better room around it.
-                  </h2>
-                  <p className="mt-3 max-w-xl text-sm text-muted">
-                    This page is built for warm traffic with intent. Emotion first, then proof,
-                    then a clear path into the existing join and checkout flow.
-                  </p>
-                </div>
-              </div>
-
-              <div className="join-scroll-cue mt-4 hidden items-center gap-2 text-xs uppercase tracking-[0.08em] text-silver/70 lg:inline-flex">
-                <span>Scroll for the rooms, proof, and entry point</span>
-                <ArrowRight size={12} className="rotate-90" />
-              </div>
-            </div>
-          </div>
-        </section>
+        <JoinHeroStage
+          primaryHref={heroPrimaryHref}
+          secondaryHref={heroSecondaryHref}
+          foundingSignal={foundingSignal}
+          showLoginLink={!isAuthenticated}
+        />
 
         <JoinLandingSection
           id="why-this-exists"
@@ -645,7 +473,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link href={roomsHref}>
+            <Link href={heroSecondaryHref}>
               <Button variant="outline" size="lg">
                 See The Rooms
               </Button>
@@ -877,9 +705,8 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
             <p className="text-sm leading-relaxed text-muted">
-              Privacy, billing, and member access are already part of the wider platform. The join
-              page now frames that same system in a stronger, more intentional way for high-intent
-              traffic.
+              Membership is structured, private, and built to feel clear from first click through
+              to access inside the ecosystem.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link href="/privacy-policy">
@@ -924,172 +751,181 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         </section>
 
         <section id="join-entry" className="scroll-mt-24">
-          <div className="public-panel overflow-hidden rounded-[2.25rem] border-gold/20 bg-gradient-to-br from-background/78 via-card/82 to-background/72 p-5 sm:p-7 lg:p-8">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,0.98fr)_minmax(280px,0.82fr)] lg:items-center">
-              <div className="space-y-4">
-                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                  <BrandMark placement="navbar" shine className="border-gold/50 bg-slate-950/90" />
-                  <div>
-                    <p className="premium-kicker">Your Entry Point</p>
-                    <h2 className="mt-3 font-display text-3xl text-foreground sm:text-4xl">
-                      Create your account and choose your room
-                    </h2>
+          <div className="join-cinematic-shell relative overflow-hidden rounded-[2.25rem] border border-gold/20 px-5 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
+            <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
+            <div className="pointer-events-none absolute -right-16 top-0 h-44 w-44 rounded-full bg-blue-500/10 blur-[90px]" />
+            <div className="pointer-events-none absolute bottom-0 left-0 h-40 w-40 rounded-full bg-gold/12 blur-[84px]" />
+
+            <div className="relative">
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,0.98fr)_minmax(280px,0.82fr)] lg:items-center">
+                <div className="space-y-4">
+                  <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                    <BrandMark
+                      placement="navbar"
+                      shine
+                      className="border-gold/50 bg-slate-950/90"
+                    />
+                    <div>
+                      <p className="premium-kicker">Your Entry Point</p>
+                      <h2 className="mt-3 font-display text-3xl text-foreground sm:text-4xl">
+                        Create your account and choose your room
+                      </h2>
+                    </div>
                   </div>
+                  <p className="max-w-3xl text-sm leading-relaxed text-muted">
+                    Choose the room that fits now, create your account once, and step inside.
+                  </p>
                 </div>
-                <p className="max-w-3xl text-sm leading-relaxed text-muted">
-                  Start with the membership level that fits where your business is now, then move
-                  into the ecosystem with a clear path forward. The existing join, invite, auth,
-                  and checkout flow is still the engine underneath this page.
-                </p>
+
+                <div className="join-floating-panel p-5">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                    Private membership setup
+                  </p>
+                  <p className="mt-3 text-sm text-muted">
+                    Your tier selection, invite, and secure checkout stay connected all the way
+                    through.
+                  </p>
+                </div>
               </div>
 
-              <div className="join-floating-panel p-5">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Current route behaviour</p>
-                <p className="mt-3 text-sm text-muted">
-                  Tier selection stays synced, invite handling remains intact, auth works the same,
-                  and checkout continues from the same production flow.
-                </p>
+              <div className="gold-divider my-6" />
+
+              <div className="space-y-4">
+                {error === "suspended" ? (
+                  <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
+                    Your account is currently suspended. Contact support to reactivate access.
+                  </p>
+                ) : null}
+
+                {billing === "cancelled" ? (
+                  <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
+                    Stripe checkout was cancelled. You can restart plan selection at any time.
+                  </p>
+                ) : null}
+
+                {billing === "required" ? (
+                  <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
+                    Your account needs an active membership subscription to unlock member access.
+                  </p>
+                ) : null}
+
+                {inviteCode ? (
+                  <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
+                    You&apos;re joining through a member invite. Create your account below to keep
+                    the referral attached.
+                  </p>
+                ) : null}
+
+                {isAuthenticated ? (
+                  <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-4 text-sm text-muted">
+                    Signed in as{" "}
+                    <span className="font-medium text-foreground">{session?.user?.email}</span>.
+                    Current tier:{" "}
+                    <span className="font-medium text-foreground">
+                      {getMembershipTierLabel(currentTier)}
+                    </span>
+                    .{" "}
+                    {hasActiveSubscription
+                      ? "You can upgrade, downgrade, or manage billing directly from this section."
+                      : "Complete checkout below to activate your membership and enter the member platform."}
+                  </div>
+                ) : null}
               </div>
-            </div>
 
-            <div className="gold-divider my-6" />
-
-            <div className="space-y-4">
-              {error === "suspended" ? (
-                <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
-                  Your account is currently suspended. Contact support to reactivate access.
-                </p>
-              ) : null}
-
-              {billing === "cancelled" ? (
-                <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
-                  Stripe checkout was cancelled. You can restart plan selection at any time.
-                </p>
-              ) : null}
-
-              {billing === "required" ? (
-                <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
-                  Your account needs an active membership subscription to unlock member access.
-                </p>
-              ) : null}
-
-              {inviteCode ? (
-                <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
-                  You&apos;re joining through a member invite. Create your account below to keep the
-                  referral attached.
-                </p>
-              ) : null}
-
-              {isAuthenticated ? (
-                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-4 text-sm text-muted">
-                  Signed in as{" "}
-                  <span className="font-medium text-foreground">{session?.user?.email}</span>.
-                  Current tier:{" "}
-                  <span className="font-medium text-foreground">
-                    {getMembershipTierLabel(currentTier)}
-                  </span>
-                  .{" "}
-                  {hasActiveSubscription
-                    ? "You can upgrade, downgrade, or manage billing directly from this section."
-                    : "Complete checkout below to activate your membership and enter the member platform."}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="mt-8">
-              <JoinExperience
-                foundingOffer={foundingOffer}
-                initialSelectedTier={selectedTier}
-                from={from}
-                inviteCode={inviteCode}
-                isAuthenticated={isAuthenticated}
-                hasActiveSubscription={hasActiveSubscription}
-                joinDecisionSteps={joinDecisionSteps}
-                tierOptions={[
-                  {
-                    value: "FOUNDATION",
-                    label: foundingOffer.foundation.available
-                      ? `Foundation - GBP ${foundingOffer.foundation.foundingPrice}/month founding*`
-                      : "Foundation - GBP 30/month"
-                  },
-                  {
-                    value: "INNER_CIRCLE",
-                    label: foundingOffer.innerCircle.available
-                      ? `Inner Circle - GBP ${foundingOffer.innerCircle.foundingPrice}/month founding*`
-                      : "Inner Circle - GBP 60/month"
-                  },
-                  {
-                    value: "CORE",
-                    label: foundingOffer.core.available
-                      ? `Core - GBP ${foundingOffer.core.foundingPrice}/month founding*`
-                      : "Core - GBP 120/month"
-                  }
-                ]}
-                pricingCards={[
-                  {
-                    tier: "FOUNDATION",
-                    name: MEMBERSHIP_PLANS.FOUNDATION.name,
-                    positioningLabel: "Best place to start",
-                    monthlyPrice: MEMBERSHIP_PLANS.FOUNDATION.monthlyPrice,
-                    description:
-                      "Best for business owners who want a clearer base, a stronger room, and the right place to start inside the ecosystem.",
-                    features: MEMBERSHIP_PLANS.FOUNDATION.features,
-                    foundingOffer: foundingOffer.foundation,
-                    joinHref: `${foundationJoinBase}#create-account`,
-                    loginHref: foundationLoginHref,
-                    buttonVariant: "foundation",
-                    authenticatedLabel:
-                      currentTier === "FOUNDATION"
-                        ? "Current Foundation Plan"
-                        : "Start With Foundation",
-                    unauthenticatedLabel: "Start With Foundation",
-                    isCurrentPlan: currentTier === "FOUNDATION"
-                  },
-                  {
-                    tier: "INNER_CIRCLE",
-                    name: MEMBERSHIP_PLANS.INNER_CIRCLE.name,
-                    positioningLabel: "Smartest next step",
-                    spotlight: {
-                      label: "Natural progression",
-                      text:
-                        "Often the right move when you want stronger signal, more focused discussion, and a better level of business context."
+              <div className="mt-8">
+                <JoinExperience
+                  foundingOffer={foundingOffer}
+                  initialSelectedTier={selectedTier}
+                  from={from}
+                  inviteCode={inviteCode}
+                  isAuthenticated={isAuthenticated}
+                  hasActiveSubscription={hasActiveSubscription}
+                  tierOptions={[
+                    {
+                      value: "FOUNDATION",
+                      label: foundingOffer.foundation.available
+                        ? `Foundation - GBP ${foundingOffer.foundation.foundingPrice}/month founding*`
+                        : "Foundation - GBP 30/month"
                     },
-                    monthlyPrice: MEMBERSHIP_PLANS.INNER_CIRCLE.monthlyPrice,
-                    description:
-                      "Best for founders who want a more focused environment, stronger intent, and better business conversation around what comes next.",
-                    features: MEMBERSHIP_PLANS.INNER_CIRCLE.features,
-                    foundingOffer: foundingOffer.innerCircle,
-                    featured: true,
-                    featuredLabel: "Smartest next step",
-                    joinHref: `${innerCircleJoinBase}#create-account`,
-                    loginHref: innerCircleLoginHref,
-                    buttonVariant: "innerCircle",
-                    authenticatedLabel:
-                      currentTier === "INNER_CIRCLE"
-                        ? "Current Inner Circle Plan"
-                        : "Step Into Inner Circle",
-                    unauthenticatedLabel: "Step Into Inner Circle",
-                    isCurrentPlan: currentTier === "INNER_CIRCLE"
-                  },
-                  {
-                    tier: "CORE",
-                    name: MEMBERSHIP_PLANS.CORE.name,
-                    positioningLabel: "Highest-value room",
-                    monthlyPrice: MEMBERSHIP_PLANS.CORE.monthlyPrice,
-                    description:
-                      "Best for business owners who want the calmest high-value room, closer founder proximity, and stronger strategic context.",
-                    features: MEMBERSHIP_PLANS.CORE.features,
-                    foundingOffer: foundingOffer.core,
-                    joinHref: `${coreJoinBase}#create-account`,
-                    loginHref: coreLoginHref,
-                    buttonVariant: "core",
-                    authenticatedLabel:
-                      currentTier === "CORE" ? "Current Core Plan" : "Choose Core",
-                    unauthenticatedLabel: "Choose Core",
-                    isCurrentPlan: currentTier === "CORE"
-                  }
-                ]}
-              />
+                    {
+                      value: "INNER_CIRCLE",
+                      label: foundingOffer.innerCircle.available
+                        ? `Inner Circle - GBP ${foundingOffer.innerCircle.foundingPrice}/month founding*`
+                        : "Inner Circle - GBP 60/month"
+                    },
+                    {
+                      value: "CORE",
+                      label: foundingOffer.core.available
+                        ? `Core - GBP ${foundingOffer.core.foundingPrice}/month founding*`
+                        : "Core - GBP 120/month"
+                    }
+                  ]}
+                  pricingCards={[
+                    {
+                      tier: "FOUNDATION",
+                      name: MEMBERSHIP_PLANS.FOUNDATION.name,
+                      positioningLabel: "Best place to start",
+                      monthlyPrice: MEMBERSHIP_PLANS.FOUNDATION.monthlyPrice,
+                      description:
+                        "Best for business owners who want a clearer base, a stronger room, and the right place to start inside the ecosystem.",
+                      features: MEMBERSHIP_PLANS.FOUNDATION.features,
+                      foundingOffer: foundingOffer.foundation,
+                      joinHref: `${foundationJoinBase}#create-account`,
+                      loginHref: foundationLoginHref,
+                      buttonVariant: "foundation",
+                      authenticatedLabel:
+                        currentTier === "FOUNDATION"
+                          ? "Current Foundation Plan"
+                          : "Start With Foundation",
+                      unauthenticatedLabel: "Start With Foundation",
+                      isCurrentPlan: currentTier === "FOUNDATION"
+                    },
+                    {
+                      tier: "INNER_CIRCLE",
+                      name: MEMBERSHIP_PLANS.INNER_CIRCLE.name,
+                      positioningLabel: "Smartest next step",
+                      spotlight: {
+                        label: "Natural progression",
+                        text:
+                          "Often the right move when you want stronger signal, more focused discussion, and a better level of business context."
+                      },
+                      monthlyPrice: MEMBERSHIP_PLANS.INNER_CIRCLE.monthlyPrice,
+                      description:
+                        "Best for founders who want a more focused environment, stronger intent, and better business conversation around what comes next.",
+                      features: MEMBERSHIP_PLANS.INNER_CIRCLE.features,
+                      foundingOffer: foundingOffer.innerCircle,
+                      featured: true,
+                      featuredLabel: "Smartest next step",
+                      joinHref: `${innerCircleJoinBase}#create-account`,
+                      loginHref: innerCircleLoginHref,
+                      buttonVariant: "innerCircle",
+                      authenticatedLabel:
+                        currentTier === "INNER_CIRCLE"
+                          ? "Current Inner Circle Plan"
+                          : "Step Into Inner Circle",
+                      unauthenticatedLabel: "Step Into Inner Circle",
+                      isCurrentPlan: currentTier === "INNER_CIRCLE"
+                    },
+                    {
+                      tier: "CORE",
+                      name: MEMBERSHIP_PLANS.CORE.name,
+                      positioningLabel: "Highest-value room",
+                      monthlyPrice: MEMBERSHIP_PLANS.CORE.monthlyPrice,
+                      description:
+                        "Best for business owners who want the calmest high-value room, closer founder proximity, and stronger strategic context.",
+                      features: MEMBERSHIP_PLANS.CORE.features,
+                      foundingOffer: foundingOffer.core,
+                      joinHref: `${coreJoinBase}#create-account`,
+                      loginHref: coreLoginHref,
+                      buttonVariant: "core",
+                      authenticatedLabel:
+                        currentTier === "CORE" ? "Current Core Plan" : "Choose Core",
+                      unauthenticatedLabel: "Choose Core",
+                      isCurrentPlan: currentTier === "CORE"
+                    }
+                  ]}
+                />
+              </div>
             </div>
           </div>
         </section>

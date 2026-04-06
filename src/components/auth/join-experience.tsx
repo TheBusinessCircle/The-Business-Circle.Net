@@ -1,13 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { RegisterForm } from "@/components/auth/register-form";
 import { MembershipPlanAction } from "@/components/billing";
 import { FoundingOfferCounters } from "@/components/public/founding-offer-counters";
 import { PricingCard } from "@/components/public/pricing-card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { FoundingOfferSnapshot } from "@/types";
 
@@ -53,12 +53,6 @@ type PricingCardConfig = {
   isCurrentPlan: boolean;
 };
 
-type JoinDecisionStep = {
-  step: string;
-  title: string;
-  description: string;
-};
-
 type JoinExperienceProps = {
   foundingOffer: FoundingOfferSnapshot;
   initialSelectedTier: MembershipTier;
@@ -68,8 +62,25 @@ type JoinExperienceProps = {
   hasActiveSubscription: boolean;
   tierOptions: TierOption[];
   pricingCards: PricingCardConfig[];
-  joinDecisionSteps: readonly JoinDecisionStep[];
 };
+
+const RegisterForm = dynamic(
+  () => import("@/components/auth/register-form").then((mod) => mod.RegisterForm),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="overflow-hidden rounded-3xl border border-gold/25 bg-gradient-to-b from-card/95 via-card/84 to-background/76 p-6 shadow-[0_24px_70px_rgba(2,6,23,0.32)] backdrop-blur-xl">
+        <p className="premium-kicker">Your entry point</p>
+        <h3 className="mt-4 font-display text-2xl text-foreground">
+          Preparing secure membership setup
+        </h3>
+        <p className="mt-3 text-sm text-muted">
+          The account form is loading now and will appear here in a moment.
+        </p>
+      </div>
+    )
+  }
+);
 
 const tierSummary: Record<
   MembershipTier,
@@ -114,8 +125,7 @@ export function JoinExperience({
   isAuthenticated,
   hasActiveSubscription,
   tierOptions,
-  pricingCards,
-  joinDecisionSteps
+  pricingCards
 }: JoinExperienceProps) {
   const [selectedTier, setSelectedTier] = useState<MembershipTier>(initialSelectedTier);
 
@@ -141,21 +151,21 @@ export function JoinExperience({
     >
       <div className="min-w-0 space-y-8">
         <div className="space-y-3">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Rooms and membership progression</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Choose your room</p>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-2">
               <h2 className="font-display text-3xl text-foreground sm:text-[2.15rem]">
-                Choose the room that fits where the business is now
+                Choose the room that fits now
               </h2>
               <p className="max-w-3xl text-sm leading-relaxed text-muted">
-                Compare the rooms properly, keep your selection synced with the account setup
-                below, and move into billing without breaking the current join flow.
+                Foundation is the cleanest place to start. You can move deeper later if the
+                business needs it.
               </p>
             </div>
 
             <Card className="border-gold/25 bg-gradient-to-br from-gold/10 via-card/82 to-background/65 shadow-gold-soft lg:max-w-sm">
               <CardContent className="space-y-2 p-4">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Selected tier</p>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Selected room</p>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
                     {selectedSummary.label}
@@ -253,46 +263,18 @@ export function JoinExperience({
           </div>
         </section>
 
-        <section className="grid gap-5 pt-2 xl:grid-cols-[minmax(0,1.05fr)_minmax(240px,0.95fr)]">
-          <Card className="border-border/80 bg-card/68 shadow-panel-soft">
-            <CardHeader className="pb-4">
-              <p className="premium-kicker w-fit">What Happens Next</p>
-              <CardTitle className="text-2xl">Create your account once, then move cleanly into billing</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm leading-relaxed text-muted">
-              <p>Create your account with the room that fits where your business is now.</p>
-              <p>Complete secure checkout and activate access without losing your selection.</p>
-              <p>Enter the platform with a clear route into discussion, resources, profile setup, and connection.</p>
-              <p>You can move between tiers later if the business genuinely needs a stronger room.</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 bg-gradient-to-br from-background/70 via-card/72 to-gold/10 shadow-gold-soft">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Selection notes</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted">
-              <p>
-                Discounted pricing is for eligible new members only. If membership ends and you
-                later rejoin, standard pricing applies.
-              </p>
-              <p>
-                Not sure where to start? Foundation is the smart entry point. It gets you into the
-                ecosystem properly and keeps the next move open.
-              </p>
-            </CardContent>
-          </Card>
-        </section>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          {joinDecisionSteps.map((item) => (
-            <article key={item.step} className="public-panel interactive-card min-w-0 p-6">
-              <p className="premium-kicker">{item.step}</p>
-              <h3 className="mt-4 font-display text-2xl text-foreground">{item.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-            </article>
-          ))}
-        </div>
+        <Card className="border-gold/20 bg-gradient-to-r from-background/74 via-card/74 to-gold/10 shadow-gold-soft">
+          <CardContent className="flex flex-col gap-3 p-5 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              Not sure where to start? <span className="text-foreground">Foundation</span> is the
+              clearest entry point, and you can move deeper later if the business needs it.
+            </p>
+            <p className="text-silver">
+              Your tier selection, invite flow, and secure checkout stay connected in the same join
+              path.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {!isAuthenticated ? (
