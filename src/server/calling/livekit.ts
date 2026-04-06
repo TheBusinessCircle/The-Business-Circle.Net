@@ -1,5 +1,6 @@
 import type { CallRoom } from "@prisma/client";
 import { RoomServiceClient } from "livekit-server-sdk";
+import { logServerWarning } from "@/lib/security/logging";
 
 let roomServiceClient: RoomServiceClient | null = null;
 
@@ -23,12 +24,15 @@ export type LiveKitConfig = {
   summary: LiveKitConfigSummary;
 };
 
+export type LiveKitJoinConfig = Omit<LiveKitConfig, "serverUrl">;
+
 export class LiveKitConfigError extends Error {
   readonly code = "livekit-config-invalid";
 
   constructor(
     message: string,
-    readonly summary: LiveKitConfigSummary
+    readonly summary: LiveKitConfigSummary,
+    readonly missingKeys: readonly string[] = []
   ) {
     super(message);
     this.name = "LiveKitConfigError";
@@ -109,43 +113,85 @@ export function getLiveKitConfigSummary(): LiveKitConfigSummary {
   };
 }
 
-export function getLiveKitConfig(): LiveKitConfig {
+function createLiveKitConfigError(
+  message: string,
+  summary: LiveKitConfigSummary,
+  missingKeys: readonly string[] = []
+) {
+  if (process.env.NODE_ENV !== "production") {
+    logServerWarning("livekit-config-invalid", {
+      livekitPublicUrlConfigured: summary.publicUrlConfigured,
+      livekitPublicUrlProtocol: summary.publicUrlProtocol ?? undefined,
+      livekitServerUrlConfigured: summary.serverUrlConfigured,
+      livekitServerUrlProtocol: summary.serverUrlProtocol ?? undefined,
+      livekitServerUrlDerived: summary.serverUrlDerivedFromPublicUrl,
+      livekitApiKeyConfigured: summary.apiKeyConfigured,
+      livekitApiSecretConfigured: summary.apiSecretConfigured,
+      livekitMissingKeys: missingKeys.length ? missingKeys.join(",") : undefined
+    });
+  }
+
+  return new LiveKitConfigError(message, summary, missingKeys);
+}
+
+export function getLiveKitJoinConfig(): LiveKitJoinConfig {
   const env = readRawLiveKitEnvironment();
   const summary = getLiveKitConfigSummary();
+  const missingKeys = [
+    !env.publicUrl ? "LIVEKIT_URL" : null,
+    !env.apiKey ? "LIVEKIT_API_KEY" : null,
+    !env.apiSecret ? "LIVEKIT_API_SECRET" : null
+  ].filter((key): key is string => Boolean(key));
 
-  if (!env.publicUrl || !env.apiKey || !env.apiSecret) {
-    throw new LiveKitConfigError(
+  if (missingKeys.length > 0) {
+    throw createLiveKitConfigError(
       "LiveKit calling is not configured. Set LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET.",
-      summary
+      summary,
+      missingKeys
     );
   }
 
   if (!["ws", "wss", "http", "https"].includes(summary.publicUrlProtocol ?? "")) {
-    throw new LiveKitConfigError(
+    throw createLiveKitConfigError(
       "LIVEKIT_URL must use ws://, wss://, http://, or https://.",
       summary
     );
   }
 
+  return {
+    publicUrl: env.publicUrl as string,
+    apiKey: env.apiKey as string,
+    apiSecret: env.apiSecret as string,
+    summary
+  };
+}
+
+export function getLiveKitConfig(): LiveKitConfig {
+  const env = readRawLiveKitEnvironment();
+  const joinConfig = getLiveKitJoinConfig();
+  const summary = joinConfig.summary;
+  const missingKeys = !env.serverUrl ? ["LIVEKIT_SERVER_URL"] : [];
+
   if (!env.serverUrl) {
-    throw new LiveKitConfigError(
+    throw createLiveKitConfigError(
       "LIVEKIT_SERVER_URL is missing. Set it to the server-to-server HTTP endpoint for LiveKit.",
-      summary
+      summary,
+      missingKeys
     );
   }
 
   if (!["http", "https"].includes(summary.serverUrlProtocol ?? "")) {
-    throw new LiveKitConfigError(
+    throw createLiveKitConfigError(
       "LIVEKIT_SERVER_URL must use http:// or https:// so the server can call the LiveKit API.",
       summary
     );
   }
 
   return {
-    publicUrl: env.publicUrl,
+    publicUrl: joinConfig.publicUrl,
     serverUrl: env.serverUrl,
-    apiKey: env.apiKey,
-    apiSecret: env.apiSecret,
+    apiKey: joinConfig.apiKey,
+    apiSecret: joinConfig.apiSecret,
     summary
   };
 }
@@ -174,7 +220,7 @@ function isMissingRoomError(error: unknown) {
 
 export function isLiveKitConfigured() {
   try {
-    getLiveKitConfig();
+    getLiveKitJoinConfig();
     return true;
   } catch {
     return false;
@@ -182,7 +228,7 @@ export function isLiveKitConfigured() {
 }
 
 export function getLiveKitPublicConfig() {
-  const { publicUrl } = getLiveKitConfig();
+  const { publicUrl } = getLiveKitJoinConfig();
 
   return {
     url: publicUrl

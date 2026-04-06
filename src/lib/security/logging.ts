@@ -11,13 +11,33 @@ function compactDetails(details?: SafeLogDetails) {
   return entries.length ? Object.fromEntries(entries) : undefined;
 }
 
+function summarizeErrorCause(error: Error) {
+  const causeChain: string[] = [];
+  let current: unknown = error;
+
+  while (current instanceof Error && causeChain.length < 4) {
+    causeChain.push(`${current.name}: ${current.message}`);
+    current = current.cause;
+  }
+
+  return causeChain.length > 1
+    ? {
+        errorCauseMessage: causeChain[1]?.split(": ").slice(1).join(": ") || undefined,
+        errorChain: causeChain.join(" <= ")
+      }
+    : undefined;
+}
+
 function summarizeError(error: unknown): SafeLogDetails {
   if (error instanceof Error) {
     const errorWithCode = error as Error & { code?: unknown };
+    const causeSummary = summarizeErrorCause(error);
+
     return {
       errorName: error.name,
       errorMessage: error.message,
       errorCode: typeof errorWithCode.code === "string" ? errorWithCode.code : undefined,
+      ...causeSummary,
       errorStack:
         process.env.NODE_ENV !== "production"
           ? error.stack

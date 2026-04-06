@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getLiveKitConfig, getLiveKitConfigSummary, LiveKitConfigError } from "@/server/calling/livekit";
+import {
+  getLiveKitConfig,
+  getLiveKitConfigSummary,
+  getLiveKitJoinConfig,
+  LiveKitConfigError
+} from "@/server/calling/livekit";
 
 const LIVEKIT_ENV_KEYS = [
   "LIVEKIT_URL",
@@ -30,6 +35,19 @@ afterEach(() => {
 });
 
 describe("livekit config", () => {
+  it("allows token issuance config without an explicit server management URL", () => {
+    process.env.LIVEKIT_URL = "wss://rtc.example.com";
+    delete process.env.LIVEKIT_SERVER_URL;
+    process.env.LIVEKIT_API_KEY = "test-key";
+    process.env.LIVEKIT_API_SECRET = "test-secret";
+
+    const config = getLiveKitJoinConfig();
+
+    expect(config.publicUrl).toBe("wss://rtc.example.com");
+    expect(config.apiKey).toBe("test-key");
+    expect(config.apiSecret).toBe("test-secret");
+  });
+
   it("derives the server-side HTTP endpoint from a websocket public URL", () => {
     process.env.LIVEKIT_URL = "wss://rtc.example.com";
     delete process.env.LIVEKIT_SERVER_URL;

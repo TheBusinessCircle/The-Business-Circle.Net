@@ -2,11 +2,9 @@ import { AccessToken } from "livekit-server-sdk";
 import { buildCallParticipantIdentity } from "@/lib/calling";
 import type { SafeLogDetails } from "@/lib/security/logging";
 import {
-  ensureLiveKitRoom,
-  getLiveKitConfig,
+  getLiveKitJoinConfig,
   type LiveKitConfigSummary,
-  LiveKitConfigError,
-  listLiveKitParticipants
+  LiveKitConfigError
 } from "@/server/calling/livekit";
 import {
   canUserJoinCallRoom,
@@ -22,8 +20,7 @@ import { getCallingRtcConfig } from "@/server/calling/turn";
 
 export type CallRoomTokenIssueStage =
   | "config-validation"
-  | "livekit-room-prepare"
-  | "livekit-participant-check"
+  | "room-capacity-check"
   | "token-construction"
   | "token-signing"
   | "response-build";
@@ -161,7 +158,7 @@ export async function issueCallRoomToken(input: {
 
   const liveKitConfig = (() => {
     try {
-      return getLiveKitConfig();
+      return getLiveKitJoinConfig();
     } catch (error) {
       throw toCallRoomTokenIssueError("config-validation", error, {
         message: "LiveKit calling configuration is invalid.",
@@ -170,35 +167,33 @@ export async function issueCallRoomToken(input: {
       });
     }
   })();
+  const identity = buildCallParticipantIdentity(input.actor.id);
 
   try {
-    await ensureLiveKitRoom(room);
+    // Enforce capacity from app presence state so join-token issuance does not depend on
+    // LiveKit's management API being reachable before the first participant enters.
+    const activeParticipants = room.participants.filter(
+      (participant) => participant.presenceState === "JOINED" && participant.leftAt === null
+    );
+    const isAlreadyConnected = activeParticipants.some(
+      (participant) =>
+        participant.userId === input.actor.id || participant.livekitIdentity === identity
+    );
+
+    if (!isAlreadyConnected && activeParticipants.length >= room.maxParticipants) {
+      throw new Error("room-full");
+    }
   } catch (error) {
-    throw toCallRoomTokenIssueError("livekit-room-prepare", error, {
-      message: "LiveKit room preparation failed.",
+    if (error instanceof Error && error.message === "room-full") {
+      throw error;
+    }
+
+    throw toCallRoomTokenIssueError("room-capacity-check", error, {
+      message: "Room capacity check failed.",
       safeMessage: "Unable to start the call right now. Please try again in a moment.",
-      status: 503,
+      status: 500,
       details: liveKitSummaryToLogDetails(liveKitConfig.summary)
     });
-  }
-
-  const liveParticipants = await (async () => {
-    try {
-      return await listLiveKitParticipants(room.livekitRoomName);
-    } catch (error) {
-      throw toCallRoomTokenIssueError("livekit-participant-check", error, {
-        message: "LiveKit participant lookup failed.",
-        safeMessage: "Unable to start the call right now. Please try again in a moment.",
-        status: 503,
-        details: liveKitSummaryToLogDetails(liveKitConfig.summary)
-      });
-    }
-  })();
-  const identity = buildCallParticipantIdentity(input.actor.id);
-  const isAlreadyConnected = liveParticipants.some((participant) => participant.identity === identity);
-
-  if (!isAlreadyConnected && liveParticipants.length >= room.maxParticipants) {
-    throw new Error("room-full");
   }
 
   const { effectiveTier } = await getCallingContext(input.actor);
