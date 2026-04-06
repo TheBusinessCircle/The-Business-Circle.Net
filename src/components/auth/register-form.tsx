@@ -225,29 +225,31 @@ export function RegisterForm({
   });
 
   return (
-    <Card className="overflow-hidden border-gold/25 bg-gradient-to-b from-card/95 via-card/84 to-background/76 shadow-panel">
-      <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-gold/10 via-background/10 to-transparent pb-6">
+    <Card className="overflow-hidden border-gold/25 bg-gradient-to-b from-card/95 via-card/84 to-background/76 shadow-[0_24px_70px_rgba(2,6,23,0.32)] backdrop-blur-xl">
+      <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-gold/12 via-background/12 to-transparent pb-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
                 <Sparkles size={12} className="mr-1" />
-                Create Account
+                Your entry point
               </Badge>
               <Badge variant="outline" className="border-border/80 bg-background/35 text-silver">
                 <LockKeyhole size={12} className="mr-1" />
                 Secure setup
               </Badge>
             </div>
-            <CardTitle className="text-2xl sm:text-[2rem]">{activeTierContent.highlight}</CardTitle>
+            <CardTitle className="text-2xl sm:text-[2rem]">Create your account and choose your room</CardTitle>
             <CardDescription className="max-w-xl text-sm">
-              Create your account, choose the membership level that fits your business, and move
-              directly into the current join and checkout flow without losing your place.
+              Start with the membership level that fits where your business is now, then continue
+              through the existing join and checkout flow without losing your place.
             </CardDescription>
           </div>
 
-          <div className="min-w-[180px] rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3">
+          <div className="min-w-[180px] rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 shadow-gold-soft">
             <p className="text-[11px] uppercase tracking-[0.08em] text-gold">{activeTierContent.label}</p>
+            <p className="mt-2 text-sm font-medium text-foreground">{activeTierContent.highlight}</p>
+            <div className="gold-divider my-3" />
             <p className="mt-2 text-sm text-muted">{activeTierContent.description}</p>
           </div>
         </div>
@@ -277,12 +279,12 @@ export function RegisterForm({
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10.75rem,1fr))]">
           {[
             "Business-first member environment",
-            "Secure checkout after registration",
-            "Tier selection stays synced"
+            "Secure checkout starts after registration",
+            "Tier selection stays synced with the page"
           ].map((item) => (
             <div
               key={item}
-              className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/28 px-4 py-3.5 text-sm text-muted min-h-[84px]"
+              className="min-h-[84px] min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/28 px-4 py-3.5 text-sm text-muted"
             >
               <p className="flex min-w-0 items-start gap-2.5 leading-relaxed">
                 <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-gold" />

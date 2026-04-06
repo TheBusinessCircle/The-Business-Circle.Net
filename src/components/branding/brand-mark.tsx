@@ -9,7 +9,8 @@ const SIZE_BY_PLACEMENT = {
   navbar: 80,
   footer: 68,
   workspace: 40,
-  admin: 36
+  admin: 36,
+  hero: 176
 } as const;
 
 type BrandMarkPlacement = keyof typeof SIZE_BY_PLACEMENT;

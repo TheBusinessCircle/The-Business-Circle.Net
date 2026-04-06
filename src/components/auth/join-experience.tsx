@@ -133,7 +133,7 @@ export function JoinExperience({
   return (
     <div
       className={cn(
-        "grid items-start gap-8 xl:gap-10",
+        "grid items-start gap-10 xl:gap-12",
         isAuthenticated
           ? "grid-cols-1"
           : "xl:grid-cols-[minmax(0,1.28fr)_minmax(340px,390px)] 2xl:grid-cols-[minmax(0,1.34fr)_minmax(350px,400px)]"
@@ -141,19 +141,19 @@ export function JoinExperience({
     >
       <div className="min-w-0 space-y-8">
         <div className="space-y-3">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership levels</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Rooms and membership progression</p>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-2">
               <h2 className="font-display text-3xl text-foreground sm:text-[2.15rem]">
-                Choose the level that fits where you are now
+                Choose the room that fits where the business is now
               </h2>
               <p className="max-w-3xl text-sm leading-relaxed text-muted">
-                Compare the rooms properly, keep the tier selection in sync with the form, and
-                move into checkout without losing the current flow.
+                Compare the rooms properly, keep your selection synced with the account setup
+                below, and move into billing without breaking the current join flow.
               </p>
             </div>
 
-            <Card className="border-gold/25 bg-gradient-to-br from-gold/10 via-card/82 to-background/65 lg:max-w-sm">
+            <Card className="border-gold/25 bg-gradient-to-br from-gold/10 via-card/82 to-background/65 shadow-gold-soft lg:max-w-sm">
               <CardContent className="space-y-2 p-4">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Selected tier</p>
                 <div className="flex flex-wrap items-center gap-2">
@@ -206,7 +206,7 @@ export function JoinExperience({
                           selected ? "text-gold" : "text-silver/45 transition-colors group-hover:text-silver"
                         }
                       />
-                      {selected ? "Selected for the form" : "Click anywhere to select"}
+                      {selected ? "Selected for your entry flow" : "Click anywhere to select"}
                     </p>
                     <span
                       className={cn(
@@ -254,20 +254,20 @@ export function JoinExperience({
         </section>
 
         <section className="grid gap-5 pt-2 xl:grid-cols-[minmax(0,1.05fr)_minmax(240px,0.95fr)]">
-          <Card className="border-border/80 bg-card/68">
+          <Card className="border-border/80 bg-card/68 shadow-panel-soft">
             <CardHeader className="pb-4">
               <p className="premium-kicker w-fit">What Happens Next</p>
               <CardTitle className="text-2xl">Create your account once, then move cleanly into billing</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm leading-relaxed text-muted">
-              <p>Create your account with the level that fits where your business is now.</p>
-              <p>Complete secure checkout and activate access.</p>
-              <p>Enter the platform with a clear route into discussion, resources, profile setup, and the wider ecosystem.</p>
-              <p>You can move between tiers later if the business needs a stronger room.</p>
+              <p>Create your account with the room that fits where your business is now.</p>
+              <p>Complete secure checkout and activate access without losing your selection.</p>
+              <p>Enter the platform with a clear route into discussion, resources, profile setup, and connection.</p>
+              <p>You can move between tiers later if the business genuinely needs a stronger room.</p>
             </CardContent>
           </Card>
 
-          <Card className="border-gold/20 bg-gradient-to-br from-background/70 via-card/72 to-gold/10">
+          <Card className="border-gold/20 bg-gradient-to-br from-background/70 via-card/72 to-gold/10 shadow-gold-soft">
             <CardHeader className="pb-4">
               <CardTitle className="text-xl">Selection notes</CardTitle>
             </CardHeader>
@@ -277,8 +277,8 @@ export function JoinExperience({
                 later rejoin, standard pricing applies.
               </p>
               <p>
-                Not sure where to start? Foundation gives you a strong entry into the ecosystem,
-                and you can move deeper when the fit becomes clearer.
+                Not sure where to start? Foundation is the smart entry point. It gets you into the
+                ecosystem properly and keeps the next move open.
               </p>
             </CardContent>
           </Card>
@@ -287,7 +287,7 @@ export function JoinExperience({
         <div className="grid gap-4 md:grid-cols-3">
           {joinDecisionSteps.map((item) => (
             <article key={item.step} className="public-panel interactive-card min-w-0 p-6">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{item.step}</p>
+              <p className="premium-kicker">{item.step}</p>
               <h3 className="mt-4 font-display text-2xl text-foreground">{item.title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
             </article>
@@ -296,7 +296,7 @@ export function JoinExperience({
       </div>
 
       {!isAuthenticated ? (
-        <div id="create-account" className="scroll-mt-24 xl:sticky xl:top-6">
+        <div id="create-account" className="scroll-mt-28 xl:sticky xl:top-8">
           <RegisterForm
             from={from}
             defaultTier={selectedTier}
