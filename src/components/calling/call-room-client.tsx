@@ -59,11 +59,13 @@ type ParticipantSnapshot = {
   audioTrack: Track | null;
 };
 
+type MediaAccessState = "idle" | "granted" | "denied";
+
 const CONNECTION_ERROR_COPY = "Unable to start the call right now. Please try again in a moment.";
 const DEVICE_FALLBACK_COPY =
   "Camera or microphone access is currently unavailable. You can still join and enable devices when ready, if supported.";
 const DEVICE_PERMISSION_DENIED_COPY =
-  "Camera or microphone access was denied. You can still join and enable devices when ready, if supported.";
+  "Camera or microphone access was denied. Allow access in your browser site settings, then retry preview or join without devices for now.";
 const DEVICE_NOT_FOUND_COPY =
   "A camera or microphone could not be found for this device. You can still join and enable devices later if they become available.";
 const DEVICE_IN_USE_COPY =
@@ -274,6 +276,13 @@ function getJoinFailureCopy(error: unknown) {
   return CONNECTION_ERROR_COPY;
 }
 
+function isPermissionDeniedError(error: unknown) {
+  return (
+    error instanceof DOMException &&
+    (error.name === "NotAllowedError" || error.name === "PermissionDeniedError")
+  );
+}
+
 function setPreviewTrackEnabled(
   stream: MediaStream | null,
   kind: "audio" | "video",
@@ -467,10 +476,11 @@ export function CallRoomClient({
   const [isLeaving, startLeaveTransition] = useTransition();
   const [joinError, setJoinError] = useState<string | null>(null);
   const [deviceNotice, setDeviceNotice] = useState<string | null>(null);
+  const [mediaAccessState, setMediaAccessState] = useState<MediaAccessState>("idle");
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
-  const [isPreparingPreview, setIsPreparingPreview] = useState(true);
+  const [isPreparingPreview, setIsPreparingPreview] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [availableMicrophones, setAvailableMicrophones] = useState<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState("");
@@ -525,6 +535,7 @@ export function CallRoomClient({
   }, [hostUserId, participantDirectoryByUserId, roomState]);
 
   const isDirectRoom = roomTypeLabel.toLowerCase() === "1 to 1 call";
+  const hasGrantedMediaAccess = mediaAccessState === "granted";
   const remoteParticipantCount = roomState?.remoteParticipants.size ?? 0;
   const waitingForParticipant =
     Boolean(roomState) && connectionState === ConnectionState.Connected && remoteParticipantCount === 0;
@@ -534,6 +545,11 @@ export function CallRoomClient({
   const connectionLabel = roomState
     ? getConnectionLabel(connectionState)
     : getPreviewConnectionLabel({ canJoinNow, isPreparingPreview });
+  const previewActionLabel = !hasGrantedMediaAccess
+    ? mediaAccessState === "denied"
+      ? "Retry Camera & Mic Access"
+      : "Allow Camera & Mic"
+    : "Refresh Preview";
 
   const syncRoomFromInstance = useCallback((room: Room) => {
     setRoomState(room);
@@ -579,6 +595,17 @@ export function CallRoomClient({
       return;
     }
 
+    const hasDeviceAccess =
+      mediaAccessState === "granted" || Boolean(activeStream?.getTracks().length);
+
+    if (!hasDeviceAccess) {
+      setAvailableCameras([]);
+      setAvailableMicrophones([]);
+      setSelectedCameraId("");
+      setSelectedMicrophoneId("");
+      return;
+    }
+
     const devices = await navigator.mediaDevices.enumerateDevices();
     const cameras = devices.filter((device) => device.kind === "videoinput");
     const microphones = devices.filter((device) => device.kind === "audioinput");
@@ -593,7 +620,7 @@ export function CallRoomClient({
     setSelectedMicrophoneId((current) =>
       resolvePreferredDeviceId(current, microphones, activeMicrophoneId)
     );
-  }, []);
+  }, [mediaAccessState]);
 
   const updatePresence = useCallback(
     async (state: "JOINED" | "LEFT", keepalive = false) => {
@@ -667,6 +694,16 @@ export function CallRoomClient({
       setDeviceNotice(failed ? DEVICE_FALLBACK_COPY : null);
       syncRoomFromInstance(room);
 
+      const hasActiveLocalMedia =
+        Boolean(previewStream?.getTracks().length) ||
+        room.localParticipant.isCameraEnabled ||
+        room.localParticipant.isMicrophoneEnabled;
+
+      if (hasActiveLocalMedia) {
+        setMediaAccessState("granted");
+        await syncAvailableDevices(previewStream);
+      }
+
       if (failed && process.env.NODE_ENV !== "production") {
         console.error("[calling] local-media-enable-failed", {
           roomId,
@@ -682,6 +719,7 @@ export function CallRoomClient({
       roomId,
       selectedCameraId,
       selectedMicrophoneId,
+      syncAvailableDevices,
       syncRoomFromInstance
     ]
   );
@@ -717,12 +755,14 @@ export function CallRoomClient({
         ));
 
     if (previousPreviewStream && !needsVideoRefresh && !needsAudioRefresh) {
+      setMediaAccessState("granted");
       syncPreviewTrackStates(previousPreviewStream);
       setIsPreparingPreview(false);
       return;
     }
 
     setIsPreparingPreview(true);
+    setDeviceNotice(null);
 
     try {
       const result = await requestPreviewStream({
@@ -739,6 +779,7 @@ export function CallRoomClient({
       stopMediaStream(previewStreamRef.current);
       previewStreamRef.current = result.stream;
       setPreviewStream(result.stream);
+      setMediaAccessState("granted");
       setDeviceNotice(result.partialFailure ? DEVICE_FALLBACK_COPY : null);
       await syncAvailableDevices(result.stream);
     } catch (error) {
@@ -750,6 +791,10 @@ export function CallRoomClient({
         releasePreview();
       } else {
         syncPreviewTrackStates(previousPreviewStream);
+      }
+
+      if (isPermissionDeniedError(error)) {
+        setMediaAccessState("denied");
       }
 
       setDeviceNotice(getPreviewErrorCopy(error));
@@ -790,6 +835,11 @@ export function CallRoomClient({
   }, [micEnabled]);
 
   useEffect(() => {
+    if (!hasGrantedMediaAccess) {
+      void syncAvailableDevices();
+      return;
+    }
+
     void syncAvailableDevices(previewStreamRef.current);
 
     if (
@@ -808,23 +858,20 @@ export function CallRoomClient({
     return () => {
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
     };
-  }, [syncAvailableDevices]);
+  }, [hasGrantedMediaAccess, syncAvailableDevices]);
 
   useEffect(() => {
     if (roomState) {
       setIsPreparingPreview(false);
-      return;
     }
-
-    void refreshPreview();
 
     return () => {
       previewRequestIdRef.current += 1;
     };
-  }, [refreshPreview, roomState]);
+  }, [roomState]);
 
   useEffect(() => {
-    if (roomState || previewStream || isPreparingPreview) {
+    if (roomState || previewStream || isPreparingPreview || !hasGrantedMediaAccess) {
       return;
     }
 
@@ -852,7 +899,7 @@ export function CallRoomClient({
       window.removeEventListener("focus", retryPreviewIfNeeded);
       document.removeEventListener("visibilitychange", retryPreviewIfNeeded);
     };
-  }, [isPreparingPreview, previewStream, refreshPreview, roomState]);
+  }, [hasGrantedMediaAccess, isPreparingPreview, previewStream, refreshPreview, roomState]);
 
   useEffect(() => {
     syncPreviewTrackStates(previewStream);
@@ -1051,7 +1098,12 @@ export function CallRoomClient({
         nextValue,
         nextValue ? buildLiveKitAudioCaptureOptions(selectedMicrophoneId) : undefined
       )
-      .then(() => {
+      .then(async () => {
+        if (nextValue) {
+          setMediaAccessState("granted");
+          await syncAvailableDevices();
+        }
+
         setDeviceNotice(null);
         syncRoomFromInstance(activeRoom);
       })
@@ -1085,7 +1137,12 @@ export function CallRoomClient({
         nextValue,
         nextValue ? buildLiveKitVideoCaptureOptions(selectedCameraId) : undefined
       )
-      .then(() => {
+      .then(async () => {
+        if (nextValue) {
+          setMediaAccessState("granted");
+          await syncAvailableDevices();
+        }
+
         setDeviceNotice(null);
         syncRoomFromInstance(activeRoom);
       })
@@ -1226,12 +1283,16 @@ export function CallRoomClient({
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-foreground">
                             {cameraEnabled
-                              ? "Camera preview is not available yet."
+                              ? hasGrantedMediaAccess
+                                ? "Camera preview is not available yet."
+                                : "Allow camera and microphone access to start your preview."
                               : "Camera is off for this join."}
                           </p>
                           <p className="text-sm text-muted">
                             {cameraEnabled
-                              ? "You can still join and enable devices as soon as permissions are ready."
+                              ? hasGrantedMediaAccess
+                                ? "You can still join and enable devices as soon as permissions are ready."
+                                : "We will list your available devices after access is granted."
                               : "You can enter the room with audio only and enable video later."}
                           </p>
                         </div>
@@ -1306,7 +1367,7 @@ export function CallRoomClient({
                       ) : (
                         <RefreshCcw size={14} className="mr-2" />
                       )}
-                      Retry preview
+                      {previewActionLabel}
                     </Button>
                   </div>
                 </div>
@@ -1368,9 +1429,13 @@ export function CallRoomClient({
                     id="call-camera-device"
                     value={selectedCameraId}
                     onChange={(event) => handleCameraDeviceChange(event.target.value)}
-                    disabled={!availableCameras.length || isJoining}
+                    disabled={!hasGrantedMediaAccess || !availableCameras.length || isJoining}
                   >
-                    {availableCameras.length ? null : <option value="">No camera detected</option>}
+                    {hasGrantedMediaAccess ? (
+                      availableCameras.length ? null : <option value="">No camera detected</option>
+                    ) : (
+                      <option value="">Allow camera access to list devices</option>
+                    )}
                     {availableCameras.map((device, index) => (
                       <option key={device.deviceId || `${device.kind}-${index}`} value={device.deviceId}>
                         {formatDeviceLabel(device, "Camera", index)}
@@ -1385,9 +1450,15 @@ export function CallRoomClient({
                     id="call-mic-device"
                     value={selectedMicrophoneId}
                     onChange={(event) => handleMicrophoneDeviceChange(event.target.value)}
-                    disabled={!availableMicrophones.length || isJoining}
+                    disabled={!hasGrantedMediaAccess || !availableMicrophones.length || isJoining}
                   >
-                    {availableMicrophones.length ? null : <option value="">No microphone detected</option>}
+                    {hasGrantedMediaAccess ? (
+                      availableMicrophones.length ? null : (
+                        <option value="">No microphone detected</option>
+                      )
+                    ) : (
+                      <option value="">Allow microphone access to list devices</option>
+                    )}
                     {availableMicrophones.map((device, index) => (
                       <option key={device.deviceId || `${device.kind}-${index}`} value={device.deviceId}>
                         {formatDeviceLabel(device, "Microphone", index)}
@@ -1416,7 +1487,7 @@ export function CallRoomClient({
                     ) : (
                       <RefreshCcw size={16} className="mr-2" />
                     )}
-                    Enable Camera & Mic
+                    {previewActionLabel}
                   </Button>
                 ) : null}
                 <Button
@@ -1670,9 +1741,13 @@ export function CallRoomClient({
                       id="in-room-camera-device"
                       value={selectedCameraId}
                       onChange={(event) => handleCameraDeviceChange(event.target.value)}
-                      disabled={!availableCameras.length}
+                      disabled={!hasGrantedMediaAccess || !availableCameras.length}
                     >
-                      {availableCameras.length ? null : <option value="">No camera detected</option>}
+                      {hasGrantedMediaAccess ? (
+                        availableCameras.length ? null : <option value="">No camera detected</option>
+                      ) : (
+                        <option value="">Allow camera access to list devices</option>
+                      )}
                       {availableCameras.map((device, index) => (
                         <option key={device.deviceId || `${device.kind}-${index}`} value={device.deviceId}>
                           {formatDeviceLabel(device, "Camera", index)}
@@ -1687,10 +1762,14 @@ export function CallRoomClient({
                       id="in-room-mic-device"
                       value={selectedMicrophoneId}
                       onChange={(event) => handleMicrophoneDeviceChange(event.target.value)}
-                      disabled={!availableMicrophones.length}
+                      disabled={!hasGrantedMediaAccess || !availableMicrophones.length}
                     >
-                      {availableMicrophones.length ? null : (
-                        <option value="">No microphone detected</option>
+                      {hasGrantedMediaAccess ? (
+                        availableMicrophones.length ? null : (
+                          <option value="">No microphone detected</option>
+                        )
+                      ) : (
+                        <option value="">Allow microphone access to list devices</option>
                       )}
                       {availableMicrophones.map((device, index) => (
                         <option key={device.deviceId || `${device.kind}-${index}`} value={device.deviceId}>

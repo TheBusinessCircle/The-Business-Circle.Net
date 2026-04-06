@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 
-function buildSecurityHeaders(input?: { allowMediaCapture?: boolean }) {
-  const permissionsPolicy = input?.allowMediaCapture
-    ? "camera=(self), microphone=(self), geolocation=(), payment=()"
-    : "camera=(), microphone=(), geolocation=(), payment=()";
-
+function buildSecurityHeaders() {
   return [
     {
       key: "X-Frame-Options",
@@ -20,7 +16,7 @@ function buildSecurityHeaders(input?: { allowMediaCapture?: boolean }) {
     },
     {
       key: "Permissions-Policy",
-      value: permissionsPolicy
+      value: "camera=(self), microphone=(self), geolocation=(), payment=()"
     },
     {
       key: "Cross-Origin-Opener-Policy",
@@ -47,7 +43,6 @@ function buildSecurityHeaders(input?: { allowMediaCapture?: boolean }) {
 }
 
 const SECURITY_HEADERS = buildSecurityHeaders();
-const CALLING_SECURITY_HEADERS = buildSecurityHeaders({ allowMediaCapture: true });
 const PAGE_ROUTE_SOURCE =
   "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|opengraph-image|.*\\.[^/]+$).*)";
 
@@ -70,10 +65,6 @@ const nextConfig: NextConfig = {
       {
         source: PAGE_ROUTE_SOURCE,
         headers: [...SECURITY_HEADERS]
-      },
-      {
-        source: "/calls/:path*",
-        headers: [...CALLING_SECURITY_HEADERS]
       }
     ];
   },
