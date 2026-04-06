@@ -21,6 +21,10 @@ export const roomIdSchema = z.object({
   roomId: z.string().cuid()
 });
 
+export const participantUserIdSchema = z.object({
+  participantUserId: z.string().cuid()
+});
+
 export const participantPresenceSchema = z.object({
   state: z.enum(["JOINED", "LEFT"])
 });

@@ -1,5 +1,6 @@
 import type {
   CallHostPermission,
+  CallParticipantPresenceState,
   CallRoom,
   MembershipTier,
   RealtimeSystemConfig,
@@ -53,6 +54,11 @@ type JoinableCallRoom = Pick<
   CallRoom,
   "id" | "type" | "status" | "hostUserId" | "tierVisibility" | "customTierVisibility"
 >;
+
+type JoinAccessParticipant = {
+  userId: string;
+  presenceState: CallParticipantPresenceState;
+};
 
 function createDecision(
   context: CallingContext,
@@ -287,7 +293,7 @@ export function canHostAudienceScope(
 export async function canUserJoinCallRoom(
   user: CallingUser,
   room: JoinableCallRoom,
-  participantUserIds: string[] = []
+  participants: JoinAccessParticipant[] = []
 ) {
   const context = await getCallingContext(user);
   const baseDecision = checkBaseCallAvailability(user, context);
@@ -304,8 +310,19 @@ export async function canUserJoinCallRoom(
     return createDecision(context, true);
   }
 
+  const participant = participants.find((candidate) => candidate.userId === user.id);
+
+  if (participant?.presenceState === "REMOVED") {
+    return createDecision(
+      context,
+      false,
+      "room-removed",
+      "The host has removed you from this room."
+    );
+  }
+
   if (room.type === "ONE_TO_ONE") {
-    return participantUserIds.includes(user.id)
+    return participant
       ? createDecision(context, true)
       : createDecision(
           context,

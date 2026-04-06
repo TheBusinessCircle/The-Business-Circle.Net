@@ -48,6 +48,9 @@ export default async function CallRoomPage({ params }: PageProps) {
       hostUserId={room.hostUserId}
       hostName={room.hostUser.name || room.hostUser.email || "Business Circle Host"}
       canJoinNow={result.canJoinNow ?? false}
+      currentUserId={session.user.id}
+      currentUserRole={session.user.role}
+      canManageRoom={session.user.role === "ADMIN" || room.hostUserId === session.user.id}
       participantDirectory={room.participants.map((participant) => ({
         userId: participant.userId,
         name: participant.user.name || participant.user.email || "Business Circle Member",

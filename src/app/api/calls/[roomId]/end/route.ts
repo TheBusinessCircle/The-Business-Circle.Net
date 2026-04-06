@@ -36,7 +36,10 @@ export async function POST(
     return NextResponse.json({ room });
   } catch (error) {
     if (error instanceof Error && error.message === "room-end-forbidden") {
-      return NextResponse.json({ error: "Only the room host can end this call." }, { status: 403 });
+      return NextResponse.json(
+        { error: "Only the room host or an admin can end this call." },
+        { status: 403 }
+      );
     }
 
     logServerError("calling-room-end-failed", error);

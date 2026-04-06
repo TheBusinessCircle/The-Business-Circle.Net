@@ -15,7 +15,11 @@ import {
   isMissingCallingSchemaError,
   logCallingSchemaFallback
 } from "@/server/calling/errors";
-import { deleteLiveKitRoom, listLiveKitParticipants } from "@/server/calling/livekit";
+import {
+  deleteLiveKitRoom,
+  listLiveKitParticipants,
+  removeLiveKitParticipant
+} from "@/server/calling/livekit";
 import {
   canHostAudienceScope,
   canUserHostGroupCalls,
@@ -161,8 +165,11 @@ async function getMemberForCalling(userId: string) {
   return user ? toCallingUser(user) : null;
 }
 
-function getParticipantUserIds(room: Pick<CallRoomDetail, "participants">) {
-  return room.participants.map((participant) => participant.userId);
+function getJoinAccessParticipants(room: Pick<CallRoomDetail, "participants">) {
+  return room.participants.map((participant) => ({
+    userId: participant.userId,
+    presenceState: participant.presenceState
+  }));
 }
 
 export async function getCallRoomById(roomId: string) {
@@ -456,7 +463,12 @@ export async function recordCallParticipantPresence(input: ParticipantPresenceIn
       role: input.role,
       presenceState: input.state,
       joinedAt: input.state === "JOINED" ? now : undefined,
-      leftAt: input.state === "LEFT" ? now : input.state === "JOINED" ? null : undefined,
+      leftAt:
+        input.state === "LEFT" || input.state === "REMOVED"
+          ? now
+          : input.state === "JOINED"
+            ? null
+            : undefined,
       livekitIdentity: buildCallParticipantIdentity(input.userId)
     },
     create: {
@@ -465,7 +477,7 @@ export async function recordCallParticipantPresence(input: ParticipantPresenceIn
       role: input.role ?? (room.hostUserId === input.userId ? "HOST" : "MEMBER"),
       presenceState: input.state,
       joinedAt: input.state === "JOINED" ? now : null,
-      leftAt: input.state === "LEFT" ? now : null,
+      leftAt: input.state === "LEFT" || input.state === "REMOVED" ? now : null,
       livekitIdentity: buildCallParticipantIdentity(input.userId)
     }
   });
@@ -487,6 +499,66 @@ export async function recordCallParticipantPresence(input: ParticipantPresenceIn
   }
 }
 
+export async function removeParticipantFromCallRoom(input: {
+  roomId: string;
+  actor: CallingUser;
+  participantUserId: string;
+}) {
+  const room = await getCallRoomById(input.roomId);
+
+  if (!room) {
+    throw new Error("room-not-found");
+  }
+
+  const actorCanManageRoom =
+    input.actor.role === "ADMIN" || room.hostUserId === input.actor.id;
+
+  if (!actorCanManageRoom) {
+    throw new Error("room-remove-forbidden");
+  }
+
+  if (input.participantUserId === input.actor.id) {
+    throw new Error("room-remove-self-forbidden");
+  }
+
+  if (input.actor.role !== "ADMIN" && input.participantUserId === room.hostUserId) {
+    throw new Error("room-remove-host-forbidden");
+  }
+
+  const participant = room.participants.find(
+    (candidate) => candidate.userId === input.participantUserId
+  );
+
+  if (!participant) {
+    throw new Error("participant-not-found");
+  }
+
+  await removeLiveKitParticipant(
+    room.livekitRoomName,
+    participant.livekitIdentity || buildCallParticipantIdentity(input.participantUserId)
+  );
+
+  await recordCallParticipantPresence({
+    roomId: room.id,
+    userId: input.participantUserId,
+    role: participant.role,
+    state: "REMOVED"
+  });
+
+  await recordCallAuditLog({
+    actorUserId: input.actor.id,
+    targetUserId: input.participantUserId,
+    roomId: room.id,
+    action: "call-room.participant.removed",
+    metadata: {
+      roomType: room.type,
+      removedRole: participant.role
+    }
+  });
+
+  return getCallRoomById(room.id);
+}
+
 export async function getAccessibleCallRoomForUser(input: {
   roomId: string;
   actor: CallingUser;
@@ -500,7 +572,7 @@ export async function getAccessibleCallRoomForUser(input: {
   const access = await canUserJoinCallRoom(
     input.actor,
     room,
-    getParticipantUserIds(room)
+    getJoinAccessParticipants(room)
   );
 
   if (!access.allowed) {
@@ -532,7 +604,7 @@ export async function listVisibleCallRoomsForUser(actor: CallingUser) {
 
     const visibleRooms = await Promise.all(
       rooms.map(async (room) => {
-        const access = await canUserJoinCallRoom(actor, room, getParticipantUserIds(room));
+        const access = await canUserJoinCallRoom(actor, room, getJoinAccessParticipants(room));
         return access.allowed ? room : null;
       })
     );

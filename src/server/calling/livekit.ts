@@ -218,6 +218,10 @@ function isMissingRoomError(error: unknown) {
   return error instanceof Error && /(not found|requested room does not exist|room does not exist)/i.test(error.message);
 }
 
+function isMissingParticipantError(error: unknown) {
+  return error instanceof Error && /(participant.*not found|could not find participant|not found)/i.test(error.message);
+}
+
 export function isLiveKitConfigured() {
   try {
     getLiveKitJoinConfig();
@@ -283,6 +287,20 @@ export async function deleteLiveKitRoom(roomName: string) {
     await client.deleteRoom(roomName);
   } catch (error) {
     if (isMissingRoomError(error)) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+export async function removeLiveKitParticipant(roomName: string, identity: string) {
+  const client = getRoomServiceClient();
+
+  try {
+    await client.removeParticipant(roomName, identity);
+  } catch (error) {
+    if (isMissingRoomError(error) || isMissingParticipantError(error)) {
       return;
     }
 

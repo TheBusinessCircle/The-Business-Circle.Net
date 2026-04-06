@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from "next/navigation";
 import {
   ConnectionState,
+  DisconnectReason,
   type Participant,
   Room,
   RoomEvent,
@@ -44,6 +45,9 @@ type CallRoomClientProps = {
   hostName: string;
   participantDirectory: ParticipantDirectoryItem[];
   canJoinNow: boolean;
+  currentUserId: string;
+  currentUserRole: string;
+  canManageRoom: boolean;
 };
 
 type ParticipantSnapshot = {
@@ -55,8 +59,11 @@ type ParticipantSnapshot = {
   isSpeaking: boolean;
   isCameraEnabled: boolean;
   isMicrophoneEnabled: boolean;
-  videoTrack: Track | null;
-  audioTrack: Track | null;
+  isScreenShareEnabled: boolean;
+  cameraTrack: Track | null;
+  microphoneTrack: Track | null;
+  screenShareTrack: Track | null;
+  screenShareAudioTrack: Track | null;
 };
 
 type MediaAccessState = "idle" | "granted" | "denied";
@@ -72,6 +79,14 @@ const DEVICE_IN_USE_COPY =
   "Your camera or microphone is currently busy in another app or browser tab. Close the other app, then try preview again.";
 const DEVICE_SECURE_CONTEXT_COPY =
   "Camera and microphone preview needs a secure page context. Use HTTPS or localhost, then try again.";
+const SCREEN_SHARE_ERROR_COPY =
+  "Screen sharing could not be started. Check your browser prompt and try again.";
+const DEVICE_SWITCH_ERROR_COPY =
+  "We couldn't switch to that device just yet. Try again, or re-enable the device if it was recently disconnected.";
+const ROOM_ENDED_COPY =
+  "This room has been ended by the host. Returning you to the call lobby.";
+const REMOVED_FROM_ROOM_COPY =
+  "You were removed from this room by the host. Returning you to the call lobby.";
 
 function stopMediaStream(stream: MediaStream | null) {
   if (!stream) {
@@ -81,16 +96,18 @@ function stopMediaStream(stream: MediaStream | null) {
   stream.getTracks().forEach((track) => track.stop());
 }
 
-function trackForKind(participant: Participant, kind: "audio" | "video") {
-  for (const publication of participant.trackPublications.values()) {
-    const track = publication.track;
+function trackForSource(
+  participant: Participant,
+  source: Track.Source,
+  kind: "audio" | "video"
+) {
+  const publication = participant.getTrackPublication(source);
 
-    if (track?.kind === kind) {
-      return track;
-    }
+  if (!publication) {
+    return null;
   }
 
-  return null;
+  return kind === "audio" ? publication.audioTrack ?? null : publication.videoTrack ?? null;
 }
 
 function identityToUserId(identity: string) {
@@ -197,6 +214,10 @@ function resolvePreferredDeviceId(
 
 function formatDeviceLabel(device: MediaDeviceInfo, fallbackPrefix: string, index: number) {
   return device.label || `${fallbackPrefix} ${index + 1}`;
+}
+
+function getParticipantInitial(name: string) {
+  return name.slice(0, 1).toUpperCase();
 }
 
 function isBlockedByPermissionsPolicy(feature: "camera" | "microphone") {
@@ -454,6 +475,72 @@ function PreviewStreamView({ stream }: { stream: MediaStream | null }) {
   );
 }
 
+function AudioLevelMeter({
+  level,
+  label = "Mic level",
+  className
+}: {
+  level: number;
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/30 px-3 py-1.5 text-xs text-silver",
+        className
+      )}
+    >
+      <span>{label}</span>
+      <span className="flex items-center gap-1">
+        {Array.from({ length: 5 }).map((_, index) => {
+          const threshold = (index + 1) / 5;
+
+          return (
+            <span
+              key={`${label}-level-${index}`}
+              className={cn(
+                "h-2 w-1.5 rounded-full bg-silver/25 transition-colors",
+                level >= threshold ? "bg-gold" : undefined
+              )}
+            />
+          );
+        })}
+      </span>
+    </div>
+  );
+}
+
+function ParticipantFallback({
+  name,
+  cameraEnabled,
+  isScreenSharing
+}: {
+  name: string;
+  cameraEnabled: boolean;
+  isScreenSharing?: boolean;
+}) {
+  return (
+    <div className="flex h-full items-center justify-center bg-gradient-to-br from-background via-card to-background/70 px-6 text-center">
+      <div className="space-y-3">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-gold/25 bg-gold/10 text-2xl font-semibold text-gold">
+          {getParticipantInitial(name)}
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">
+            {cameraEnabled ? "Camera preview is not available." : "Camera is off right now."}
+          </p>
+          <p className="text-sm text-muted">
+            {isScreenSharing
+              ? "Their screen share stays available while camera is off."
+              : "They can still take part with audio and re-enable video at any time."}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CallRoomClient({
   roomId,
   title,
@@ -465,17 +552,23 @@ export function CallRoomClient({
   hostUserId,
   hostName,
   participantDirectory,
-  canJoinNow
+  canJoinNow,
+  currentUserId,
+  currentUserRole,
+  canManageRoom
 }: CallRoomClientProps) {
   const router = useRouter();
   const [roomState, setRoomState] = useState<Room | null>(null);
+  const [roomVersion, setRoomVersion] = useState(0);
   const [connectionState, setConnectionState] = useState<ConnectionState>(
     ConnectionState.Disconnected
   );
   const [isJoining, startJoinTransition] = useTransition();
   const [isLeaving, startLeaveTransition] = useTransition();
+  const [isEndingRoom, startEndRoomTransition] = useTransition();
   const [joinError, setJoinError] = useState<string | null>(null);
   const [deviceNotice, setDeviceNotice] = useState<string | null>(null);
+  const [roomNotice, setRoomNotice] = useState<string | null>(null);
   const [mediaAccessState, setMediaAccessState] = useState<MediaAccessState>("idle");
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
@@ -486,9 +579,13 @@ export function CallRoomClient({
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const [selectedMicrophoneId, setSelectedMicrophoneId] = useState("");
   const [previewAudioLevel, setPreviewAudioLevel] = useState(0);
+  const [localMicLevel, setLocalMicLevel] = useState(0);
+  const [isTogglingScreenShare, setIsTogglingScreenShare] = useState(false);
+  const [removingParticipantUserId, setRemovingParticipantUserId] = useState<string | null>(null);
   const roomRef = useRef<Room | null>(null);
   const previewStreamRef = useRef<MediaStream | null>(null);
   const previewRequestIdRef = useRef(0);
+  const disconnectRedirectTimerRef = useRef<number | null>(null);
   const cameraEnabledRef = useRef(cameraEnabled);
   const micEnabledRef = useRef(micEnabled);
   const lastPreviewWarningRef = useRef<string | null>(null);
@@ -496,6 +593,10 @@ export function CallRoomClient({
     typeof navigator !== "undefined" &&
     Boolean(navigator.mediaDevices) &&
     typeof navigator.mediaDevices.getUserMedia === "function";
+  const supportsScreenShare =
+    typeof navigator !== "undefined" &&
+    Boolean(navigator.mediaDevices) &&
+    typeof navigator.mediaDevices.getDisplayMedia === "function";
 
   const participantDirectoryByUserId = useMemo(
     () =>
@@ -509,6 +610,8 @@ export function CallRoomClient({
     if (!roomState) {
       return [] as ParticipantSnapshot[];
     }
+
+    void roomVersion;
 
     const participants: Participant[] = [
       roomState.localParticipant,
@@ -528,11 +631,14 @@ export function CallRoomClient({
         isSpeaking: participant.isSpeaking,
         isCameraEnabled: participant.isCameraEnabled,
         isMicrophoneEnabled: participant.isMicrophoneEnabled,
-        videoTrack: trackForKind(participant, "video"),
-        audioTrack: trackForKind(participant, "audio")
+        isScreenShareEnabled: participant.isScreenShareEnabled,
+        cameraTrack: trackForSource(participant, Track.Source.Camera, "video"),
+        microphoneTrack: trackForSource(participant, Track.Source.Microphone, "audio"),
+        screenShareTrack: trackForSource(participant, Track.Source.ScreenShare, "video"),
+        screenShareAudioTrack: trackForSource(participant, Track.Source.ScreenShareAudio, "audio")
       };
     });
-  }, [hostUserId, participantDirectoryByUserId, roomState]);
+  }, [hostUserId, participantDirectoryByUserId, roomState, roomVersion]);
 
   const isDirectRoom = roomTypeLabel.toLowerCase() === "1 to 1 call";
   const hasGrantedMediaAccess = mediaAccessState === "granted";
@@ -550,12 +656,34 @@ export function CallRoomClient({
       ? "Retry Camera & Mic Access"
       : "Allow Camera & Mic"
     : "Refresh Preview";
+  const stageParticipant = useMemo(
+    () => participantSnapshots.find((participant) => participant.screenShareTrack) ?? null,
+    [participantSnapshots]
+  );
+  const localParticipantSnapshot = useMemo(
+    () => participantSnapshots.find((participant) => participant.isLocal) ?? null,
+    [participantSnapshots]
+  );
+  const cameraParticipants = participantSnapshots;
+  const localMicrophoneTrack = useMemo(() => {
+    if (!roomState) {
+      return null;
+    }
+
+    void roomVersion;
+
+    return (
+      roomState.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack?.mediaStreamTrack ??
+      null
+    );
+  }, [roomState, roomVersion]);
 
   const syncRoomFromInstance = useCallback((room: Room) => {
-    setRoomState(room);
+    setRoomState((current) => (current === room ? current : room));
     setConnectionState(room.state);
     setMicEnabled(room.localParticipant.isMicrophoneEnabled);
     setCameraEnabled(room.localParticipant.isCameraEnabled);
+    setRoomVersion((current) => current + 1);
   }, []);
 
   const clearPreviewReference = useCallback(() => {
@@ -964,9 +1092,72 @@ export function CallRoomClient({
   }, [previewStream]);
 
   useEffect(() => {
+    if (!localMicrophoneTrack || typeof window === "undefined" || !micEnabled) {
+      setLocalMicLevel(0);
+      return;
+    }
+
+    const AudioContextCtor =
+      typeof window.AudioContext !== "undefined"
+        ? window.AudioContext
+        : (
+            window as Window &
+              typeof globalThis & {
+                webkitAudioContext?: typeof AudioContext;
+              }
+          ).webkitAudioContext;
+
+    if (!AudioContextCtor) {
+      setLocalMicLevel(0);
+      return;
+    }
+
+    const audioContext = new AudioContextCtor();
+    const analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaStreamSource(new MediaStream([localMicrophoneTrack]));
+    const samples = new Uint8Array(analyser.fftSize);
+    let animationFrameId = 0;
+
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.85;
+    source.connect(analyser);
+    void audioContext.resume().catch(() => undefined);
+
+    const updateLevel = () => {
+      analyser.getByteTimeDomainData(samples);
+
+      let total = 0;
+
+      for (const sample of samples) {
+        const normalized = (sample - 128) / 128;
+        total += normalized * normalized;
+      }
+
+      const rootMeanSquare = Math.sqrt(total / samples.length);
+      setLocalMicLevel(Math.min(1, rootMeanSquare * 4.5));
+      animationFrameId = window.requestAnimationFrame(updateLevel);
+    };
+
+    animationFrameId = window.requestAnimationFrame(updateLevel);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      source.disconnect();
+      analyser.disconnect();
+      void audioContext.close().catch(() => undefined);
+      setLocalMicLevel(0);
+    };
+  }, [localMicrophoneTrack, micEnabled]);
+
+  useEffect(() => {
     return () => {
       const activeRoom = roomRef.current;
       roomRef.current = null;
+
+      if (disconnectRedirectTimerRef.current) {
+        window.clearTimeout(disconnectRedirectTimerRef.current);
+        disconnectRedirectTimerRef.current = null;
+      }
 
       if (activeRoom) {
         void updatePresence("LEFT", true).catch(() => undefined);
@@ -977,8 +1168,25 @@ export function CallRoomClient({
     };
   }, [releasePreview, updatePresence]);
 
+  const scheduleRoomExit = useCallback(
+    (message: string) => {
+      setRoomNotice(message);
+
+      if (disconnectRedirectTimerRef.current) {
+        window.clearTimeout(disconnectRedirectTimerRef.current);
+      }
+
+      disconnectRedirectTimerRef.current = window.setTimeout(() => {
+        router.push("/calls");
+        router.refresh();
+      }, 1200);
+    },
+    [router]
+  );
+
   const connectToRoom = () => {
     setJoinError(null);
+    setRoomNotice(null);
  
     startJoinTransition(async () => {
       let nextRoom: Room | null = null;
@@ -1015,20 +1223,52 @@ export function CallRoomClient({
           syncRoomFromInstance(roomInstance);
         };
 
+        const handleDisconnected = (reason?: DisconnectReason) => {
+          if (roomRef.current !== roomInstance) {
+            return;
+          }
+
+          syncRoomFromInstance(roomInstance);
+          roomRef.current = null;
+          setRoomState(null);
+          setConnectionState(ConnectionState.Disconnected);
+
+          if (reason === DisconnectReason.ROOM_DELETED) {
+            scheduleRoomExit(ROOM_ENDED_COPY);
+            return;
+          }
+
+          if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+            scheduleRoomExit(REMOVED_FROM_ROOM_COPY);
+          }
+        };
+
         roomInstance
           .on(RoomEvent.ConnectionStateChanged, syncState)
           .on(RoomEvent.ParticipantConnected, syncState)
           .on(RoomEvent.ParticipantDisconnected, syncState)
+          .on(RoomEvent.TrackPublished, syncState)
           .on(RoomEvent.TrackSubscribed, syncState)
+          .on(RoomEvent.TrackSubscriptionFailed, () => {
+            setRoomNotice(
+              "A participant track could not be subscribed. We'll keep trying as the room stabilises."
+            );
+            syncState();
+          })
+          .on(RoomEvent.TrackUnpublished, syncState)
           .on(RoomEvent.TrackUnsubscribed, syncState)
           .on(RoomEvent.TrackMuted, syncState)
           .on(RoomEvent.TrackUnmuted, syncState)
           .on(RoomEvent.LocalTrackPublished, syncState)
           .on(RoomEvent.LocalTrackUnpublished, syncState)
           .on(RoomEvent.ActiveSpeakersChanged, syncState)
+          .on(RoomEvent.MediaDevicesChanged, () => {
+            syncState();
+            void syncAvailableDevices();
+          })
           .on(RoomEvent.Reconnected, syncState)
           .on(RoomEvent.Reconnecting, syncState)
-          .on(RoomEvent.Disconnected, syncState);
+          .on(RoomEvent.Disconnected, handleDisconnected);
 
         await roomInstance.prepareConnection(payload.url, payload.token).catch(() => undefined);
         await roomInstance.connect(
@@ -1046,6 +1286,7 @@ export function CallRoomClient({
         roomRef.current = roomInstance;
         syncRoomFromInstance(roomInstance);
         setJoinError(null);
+        setRoomNotice(null);
 
         await roomInstance.startAudio().catch(() => undefined);
         await Promise.allSettled([
@@ -1105,10 +1346,11 @@ export function CallRoomClient({
         }
 
         setDeviceNotice(null);
+        setRoomNotice(null);
         syncRoomFromInstance(activeRoom);
       })
       .catch(() => {
-        setDeviceNotice(DEVICE_FALLBACK_COPY);
+        setDeviceNotice(DEVICE_SWITCH_ERROR_COPY);
       });
   };
 
@@ -1144,10 +1386,11 @@ export function CallRoomClient({
         }
 
         setDeviceNotice(null);
+        setRoomNotice(null);
         syncRoomFromInstance(activeRoom);
       })
       .catch(() => {
-        setDeviceNotice(DEVICE_FALLBACK_COPY);
+        setDeviceNotice(DEVICE_SWITCH_ERROR_COPY);
       });
   };
 
@@ -1166,6 +1409,7 @@ export function CallRoomClient({
       setConnectionState(ConnectionState.Disconnected);
       setJoinError(null);
       setDeviceNotice(null);
+      setRoomNotice(null);
       router.push("/calls");
       router.refresh();
     });
@@ -1177,12 +1421,14 @@ export function CallRoomClient({
     if (roomRef.current && deviceId) {
       void roomRef.current
         .switchActiveDevice("videoinput", deviceId)
-        .then(() => {
+        .then(async () => {
           setDeviceNotice(null);
+          setRoomNotice(null);
+          await syncAvailableDevices();
           syncRoomFromInstance(roomRef.current as Room);
         })
         .catch(() => {
-          setDeviceNotice(DEVICE_FALLBACK_COPY);
+          setDeviceNotice(DEVICE_SWITCH_ERROR_COPY);
         });
     }
   };
@@ -1193,20 +1439,108 @@ export function CallRoomClient({
     if (roomRef.current && deviceId) {
       void roomRef.current
         .switchActiveDevice("audioinput", deviceId)
-        .then(() => {
+        .then(async () => {
           setDeviceNotice(null);
+          setRoomNotice(null);
+          await syncAvailableDevices();
           syncRoomFromInstance(roomRef.current as Room);
         })
         .catch(() => {
-          setDeviceNotice(DEVICE_FALLBACK_COPY);
+          setDeviceNotice(DEVICE_SWITCH_ERROR_COPY);
         });
     }
   };
 
+  const toggleScreenShare = () => {
+    const activeRoom = roomRef.current;
+
+    if (!activeRoom) {
+      setRoomNotice("Join the room first before starting screen share.");
+      return;
+    }
+
+    const isSharing = activeRoom.localParticipant.isScreenShareEnabled;
+
+    setIsTogglingScreenShare(true);
+    setRoomNotice(null);
+
+    void activeRoom.localParticipant
+      .setScreenShareEnabled(!isSharing, { audio: true })
+      .then(() => {
+        setDeviceNotice(null);
+        syncRoomFromInstance(activeRoom);
+      })
+      .catch((error) => {
+        if (
+          error instanceof DOMException &&
+          (error.name === "NotAllowedError" || error.name === "AbortError")
+        ) {
+          setRoomNotice("Screen sharing was cancelled before it could begin.");
+          return;
+        }
+
+        setRoomNotice(SCREEN_SHARE_ERROR_COPY);
+      })
+      .finally(() => {
+        setIsTogglingScreenShare(false);
+      });
+  };
+
+  const endRoom = () => {
+    startEndRoomTransition(async () => {
+      try {
+        const response = await fetch(`/api/calls/${roomId}/end`, {
+          method: "POST"
+        });
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+        if (!response.ok) {
+          setRoomNotice(payload.error ?? "Unable to end the room right now.");
+          return;
+        }
+
+        const activeRoom = roomRef.current;
+        roomRef.current = null;
+        await activeRoom?.disconnect().catch(() => undefined);
+        setRoomState(null);
+        setConnectionState(ConnectionState.Disconnected);
+        router.push("/calls");
+        router.refresh();
+      } catch {
+        setRoomNotice("Unable to end the room right now.");
+      }
+    });
+  };
+
+  const removeParticipant = (participantUserId: string) => {
+    setRemovingParticipantUserId(participantUserId);
+    setRoomNotice(null);
+
+    void fetch(`/api/calls/${roomId}/participants/${participantUserId}`, {
+      method: "DELETE"
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+        if (!response.ok) {
+          setRoomNotice(payload.error ?? "Unable to remove that participant right now.");
+          return;
+        }
+
+        setRoomNotice("Participant removed from the room.");
+      })
+      .catch(() => {
+        setRoomNotice("Unable to remove that participant right now.");
+      })
+      .finally(() => {
+        setRemovingParticipantUserId(null);
+      });
+  };
+
   const gridClassName =
-    participantSnapshots.length <= 1
+    cameraParticipants.length <= 1
       ? "md:grid-cols-1"
-      : participantSnapshots.length === 2
+      : cameraParticipants.length === 2
         ? "md:grid-cols-2"
         : "md:grid-cols-2 xl:grid-cols-3";
 
@@ -1327,24 +1661,7 @@ export function CallRoomClient({
                     )}
                     {micEnabled ? "Mic on" : "Mic muted"}
                   </Badge>
-                  <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/30 px-3 py-1.5 text-xs text-silver">
-                    <span>Mic level</span>
-                    <span className="flex items-center gap-1">
-                      {Array.from({ length: 5 }).map((_, index) => {
-                        const threshold = (index + 1) / 5;
-
-                        return (
-                          <span
-                            key={`preview-level-${index}`}
-                            className={cn(
-                              "h-2 w-1.5 rounded-full bg-silver/25 transition-colors",
-                              previewAudioLevel >= threshold ? "bg-gold" : undefined
-                            )}
-                          />
-                        );
-                      })}
-                    </span>
-                  </div>
+                  <AudioLevelMeter level={previewAudioLevel} />
                 </div>
               </div>
 
@@ -1542,6 +1859,17 @@ export function CallRoomClient({
             </Card>
           ) : null}
 
+          {roomNotice ? (
+            <Card className="border-gold/25 bg-gold/8">
+              <CardContent className="py-4 text-sm text-muted">
+                <span className="inline-flex items-start gap-2">
+                  <AlertCircle size={16} className="mt-0.5 shrink-0 text-gold" />
+                  <span>{roomNotice}</span>
+                </span>
+              </CardContent>
+            </Card>
+          ) : null}
+
           {deviceNotice ? (
             <Card className="border-border/80 bg-background/25">
               <CardContent className="py-4 text-sm text-muted">
@@ -1563,48 +1891,100 @@ export function CallRoomClient({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {stageParticipant?.screenShareTrack ? (
+                  <div className="overflow-hidden rounded-3xl border border-gold/25 bg-background/20">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-background/35 px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {stageParticipant.name} is sharing their screen
+                        </p>
+                        <p className="text-xs text-muted">
+                          Screen share stays front and centre while participant tiles remain live
+                          below.
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
+                        Screen share live
+                      </Badge>
+                    </div>
+                    <div className="relative aspect-[16/9] bg-black/80">
+                      <MediaTrackView
+                        track={stageParticipant.screenShareTrack}
+                        kind="video"
+                        muted={stageParticipant.isLocal}
+                      />
+                      <MediaTrackView
+                        track={stageParticipant.screenShareAudioTrack}
+                        kind="audio"
+                        muted={stageParticipant.isLocal}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className={cn("grid gap-4", gridClassName)}>
-                  {participantSnapshots.map((participant) => (
+                  {cameraParticipants.map((participant) => (
                     <div
                       key={participant.identity}
                       className="relative overflow-hidden rounded-3xl border border-border/80 bg-background/30"
                     >
                       <div className="aspect-video bg-background/60">
-                        {participant.videoTrack ? (
+                        {participant.cameraTrack ? (
                           <MediaTrackView
-                            track={participant.videoTrack}
+                            track={participant.cameraTrack}
                             kind="video"
                             muted={participant.isLocal}
                             mirrored={participant.isLocal}
                           />
                         ) : (
-                          <div className="flex h-full items-center justify-center bg-gradient-to-br from-background via-card to-background/70">
-                            <div className="rounded-full border border-gold/25 bg-gold/10 px-6 py-6 text-2xl font-semibold text-gold">
-                              {participant.name.slice(0, 1).toUpperCase()}
-                            </div>
-                          </div>
+                          <ParticipantFallback
+                            name={participant.name}
+                            cameraEnabled={participant.isCameraEnabled}
+                            isScreenSharing={participant.isScreenShareEnabled}
+                          />
                         )}
                         <MediaTrackView
-                          track={participant.audioTrack}
+                          track={participant.microphoneTrack}
                           kind="audio"
                           muted={participant.isLocal}
                         />
                       </div>
 
-                      <div className="flex items-center justify-between gap-3 border-t border-border/70 bg-background/40 px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{participant.name}</p>
-                          <p className="text-xs text-muted">
-                            {getParticipantRoleLabel(participant.role)}
-                            {participant.isLocal ? " | You" : ""}
-                          </p>
+                      <div className="space-y-3 border-t border-border/70 bg-background/40 px-4 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{participant.name}</p>
+                            <p className="text-xs text-muted">
+                              {getParticipantRoleLabel(participant.role)}
+                              {participant.isLocal ? " | You" : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {participant.userId === hostUserId ? (
+                              <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
+                                Host
+                              </Badge>
+                            ) : null}
+                            {participant.isScreenShareEnabled ? (
+                              <Badge
+                                variant="outline"
+                                className="border-gold/35 bg-gold/10 text-gold"
+                              >
+                                Sharing screen
+                              </Badge>
+                            ) : null}
+                            <span
+                              className={cn(
+                                "h-2.5 w-2.5 rounded-full",
+                                participant.isSpeaking
+                                  ? "bg-gold shadow-[0_0_0_6px_rgba(214,180,103,0.18)]"
+                                  : "bg-silver/30"
+                              )}
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {participant.userId === hostUserId ? (
-                            <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
-                              Host
-                            </Badge>
-                          ) : null}
+
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge
                             variant="outline"
                             className="border-border/80 bg-background/35 text-silver"
@@ -1627,14 +2007,13 @@ export function CallRoomClient({
                             )}
                             {participant.isCameraEnabled ? "Camera on" : "Camera off"}
                           </Badge>
-                          <span
-                            className={cn(
-                              "h-2.5 w-2.5 rounded-full",
-                              participant.isSpeaking
-                                ? "bg-gold shadow-[0_0_0_6px_rgba(214,180,103,0.18)]"
-                                : "bg-silver/30"
-                            )}
-                          />
+                          {participant.isLocal ? (
+                            <AudioLevelMeter
+                              level={localMicLevel}
+                              label="Your mic"
+                              className="ml-auto"
+                            />
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -1668,6 +2047,20 @@ export function CallRoomClient({
                     )}
                     {cameraEnabled ? "Camera Off" : "Camera On"}
                   </Button>
+                  <Button
+                    type="button"
+                    variant={localParticipantSnapshot?.isScreenShareEnabled ? "secondary" : "outline"}
+                    aria-pressed={Boolean(localParticipantSnapshot?.isScreenShareEnabled)}
+                    onClick={toggleScreenShare}
+                    disabled={!supportsScreenShare || isTogglingScreenShare}
+                  >
+                    {isTogglingScreenShare ? (
+                      <Loader2 size={16} className="mr-2 animate-spin" />
+                    ) : null}
+                    {localParticipantSnapshot?.isScreenShareEnabled
+                      ? "Stop Screen Share"
+                      : "Share Screen"}
+                  </Button>
                   <Button type="button" variant="danger" onClick={leaveRoom} disabled={isLeaving}>
                     {isLeaving ? (
                       <Loader2 size={16} className="mr-2 animate-spin" />
@@ -1694,29 +2087,81 @@ export function CallRoomClient({
                   {participantSnapshots.map((participant) => (
                     <div
                       key={`${participant.identity}-list`}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-border/80 bg-background/25 px-4 py-3"
+                      className="space-y-3 rounded-2xl border border-border/80 bg-background/25 px-4 py-3"
                     >
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{participant.name}</p>
-                        <p className="text-xs text-muted">
-                          {getParticipantRoleLabel(participant.role)}
-                          {participant.isLocal ? " | You" : ""}
-                        </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{participant.name}</p>
+                          <p className="text-xs text-muted">
+                            {getParticipantRoleLabel(participant.role)}
+                            {participant.isLocal ? " | You" : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {participant.userId === hostUserId ? (
+                            <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
+                              Host
+                            </Badge>
+                          ) : null}
+                          <span
+                            className={cn(
+                              "h-2.5 w-2.5 rounded-full",
+                              participant.isSpeaking
+                                ? "bg-gold shadow-[0_0_0_6px_rgba(214,180,103,0.18)]"
+                                : "bg-silver/30"
+                            )}
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {participant.userId === hostUserId ? (
-                          <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
-                            Host
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className="border-border/80 bg-background/35 text-silver"
+                        >
+                          {participant.isMicrophoneEnabled ? (
+                            <Mic size={12} className="mr-1.5" />
+                          ) : (
+                            <MicOff size={12} className="mr-1.5" />
+                          )}
+                          {participant.isMicrophoneEnabled ? "Mic on" : "Mic muted"}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="border-border/80 bg-background/35 text-silver"
+                        >
+                          {participant.isCameraEnabled ? (
+                            <Video size={12} className="mr-1.5" />
+                          ) : (
+                            <VideoOff size={12} className="mr-1.5" />
+                          )}
+                          {participant.isCameraEnabled ? "Camera on" : "Camera off"}
+                        </Badge>
+                        {participant.isScreenShareEnabled ? (
+                          <Badge
+                            variant="outline"
+                            className="border-gold/35 bg-gold/10 text-gold"
+                          >
+                            Sharing screen
                           </Badge>
                         ) : null}
-                        <span
-                          className={cn(
-                            "h-2.5 w-2.5 rounded-full",
-                            participant.isSpeaking
-                              ? "bg-gold shadow-[0_0_0_6px_rgba(214,180,103,0.18)]"
-                              : "bg-silver/30"
-                          )}
-                        />
+                        {canManageRoom &&
+                        participant.userId !== currentUserId &&
+                        (currentUserRole === "ADMIN" || participant.userId !== hostUserId) ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto"
+                            disabled={removingParticipantUserId === participant.userId}
+                            onClick={() => removeParticipant(participant.userId)}
+                          >
+                            {removingParticipantUserId === participant.userId ? (
+                              <Loader2 size={14} className="mr-2 animate-spin" />
+                            ) : null}
+                            Remove
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -1726,6 +2171,38 @@ export function CallRoomClient({
                   ) : null}
                 </CardContent>
               </Card>
+
+              {canManageRoom ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Host controls</CardTitle>
+                    <CardDescription>
+                      End the room for everyone, or remove a participant if the session needs to
+                      be moderated.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button
+                      type="button"
+                      variant="danger"
+                      className="w-full justify-center"
+                      onClick={endRoom}
+                      disabled={isEndingRoom}
+                    >
+                      {isEndingRoom ? (
+                        <Loader2 size={16} className="mr-2 animate-spin" />
+                      ) : (
+                        <PhoneOff size={16} className="mr-2" />
+                      )}
+                      End Room For Everyone
+                    </Button>
+                    <p className="text-xs text-muted">
+                      Removing a participant disconnects them immediately. Ending the room closes
+                      the LiveKit session for everyone still connected.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : null}
 
               <Card>
                 <CardHeader>

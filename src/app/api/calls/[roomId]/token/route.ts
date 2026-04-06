@@ -54,6 +54,7 @@ export async function POST(
         error.message === "room-not-found"
           ? 404
           : error.message === "room-not-live" ||
+              error.message === "room-removed" ||
               error.message === "room-full" ||
               error.message === "room-join-forbidden"
             ? 403
@@ -67,6 +68,8 @@ export async function POST(
                 ? "This room has reached its participant limit."
                 : error.message === "room-not-live"
                   ? "This room is not open for members yet."
+                  : error.message === "room-removed"
+                    ? "The host has removed you from this room."
                   : "You are not allowed to join this room."
           },
           { status }

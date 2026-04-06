@@ -103,7 +103,10 @@ export async function validateCallRoomAccess(input: {
   const access = await canUserJoinCallRoom(
     input.actor,
     room,
-    room.participants.map((participant) => participant.userId)
+    room.participants.map((participant) => ({
+      userId: participant.userId,
+      presenceState: participant.presenceState
+    }))
   );
 
   if (!access.allowed) {
@@ -139,7 +142,10 @@ export async function issueCallRoomToken(input: {
   const access = await canUserJoinCallRoom(
     input.actor,
     room,
-    room.participants.map((participant) => participant.userId)
+    room.participants.map((participant) => ({
+      userId: participant.userId,
+      presenceState: participant.presenceState
+    }))
   );
 
   if (!access.allowed) {
