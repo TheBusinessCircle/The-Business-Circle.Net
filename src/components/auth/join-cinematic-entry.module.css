@@ -1,0 +1,1009 @@
+.route {
+  --join-ink: #02050d;
+  --join-void: #030712;
+  --join-navy: #071225;
+  --join-navy-soft: #0b1a34;
+  --join-gold: #d9b76d;
+  --join-gold-soft: rgba(217, 183, 109, 0.34);
+  --join-silver: #d8e0eb;
+  --join-silver-soft: rgba(216, 224, 235, 0.32);
+  --join-text: #f5f8fc;
+  --join-muted: rgba(216, 224, 235, 0.72);
+  --join-faint: rgba(216, 224, 235, 0.48);
+  --join-border: rgba(216, 224, 235, 0.16);
+  --portal-x: 0px;
+  --portal-y: 0px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(12, 36, 74, 0.9), transparent 36rem),
+    radial-gradient(circle at 12% 18%, rgba(217, 183, 109, 0.12), transparent 22rem),
+    linear-gradient(180deg, #000 0%, var(--join-ink) 25%, #050b18 100%);
+  color: var(--join-text);
+  isolation: isolate;
+  scroll-behavior: smooth;
+}
+
+.scene {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.ambientLayer {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: -5;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 58%, rgba(217, 183, 109, 0.08), transparent 34rem),
+    radial-gradient(circle at 30% 24%, rgba(67, 104, 164, 0.2), transparent 26rem),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.96), rgba(2, 6, 15, 0.7) 44%, rgba(0, 0, 0, 0.92));
+}
+
+.cityVideo {
+  position: absolute;
+  inset: -7%;
+  width: 114%;
+  height: 114%;
+  object-fit: cover;
+  opacity: 0.28;
+  filter: blur(18px) brightness(0.6) saturate(1.15) contrast(1.08);
+  transform: scale(1.08);
+}
+
+.cityVeil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(11, 26, 52, 0.32), transparent 28rem),
+    radial-gradient(circle at 50% 72%, rgba(217, 183, 109, 0.1), transparent 32rem),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.94), transparent 32%, transparent 68%, rgba(0, 0, 0, 0.92)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.94), transparent 42%, rgba(0, 0, 0, 0.88));
+}
+
+.particleField,
+.orbitalHaze {
+  position: absolute;
+  inset: 0;
+}
+
+.particleField {
+  opacity: 0.34;
+  background-image:
+    radial-gradient(circle, rgba(216, 224, 235, 0.28) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(217, 183, 109, 0.2) 0 1px, transparent 1.6px);
+  background-position:
+    10% 18%,
+    72% 64%;
+  background-size:
+    140px 140px,
+    220px 220px;
+  mask-image: radial-gradient(circle at 50% 45%, black, transparent 72%);
+}
+
+.orbitalHaze {
+  opacity: 0.7;
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 0 18%, rgba(216, 224, 235, 0.11) 18.5%, transparent 19.5%),
+    radial-gradient(ellipse at 50% 45%, transparent 0 28%, rgba(217, 183, 109, 0.08) 28.4%, transparent 29.2%),
+    radial-gradient(ellipse at 50% 45%, transparent 0 38%, rgba(216, 224, 235, 0.06) 38.4%, transparent 39.1%);
+  transform: rotate(-12deg) scaleX(1.28);
+  filter: blur(0.4px);
+}
+
+.arrivalScene {
+  position: relative;
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: clamp(1.5rem, 4vw, 4rem);
+}
+
+.arrivalInner {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: min(100%, 72rem);
+  gap: clamp(2.5rem, 6vw, 5rem);
+  place-items: center;
+  text-align: center;
+}
+
+.arrivalCopy {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.45rem);
+  max-width: 58rem;
+}
+
+.brandLine {
+  font-size: clamp(3.1rem, 9vw, 8.4rem);
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.065em;
+  color: var(--join-text);
+  text-shadow:
+    0 0 42px rgba(216, 224, 235, 0.2),
+    0 24px 90px rgba(2, 5, 13, 0.9);
+}
+
+.accessLine {
+  font-size: clamp(1.15rem, 2.8vw, 2.3rem);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--join-silver);
+}
+
+.connectionLine {
+  max-width: 43rem;
+  margin: 0 auto;
+  font-size: clamp(1rem, 1.6vw, 1.22rem);
+  line-height: 1.75;
+  color: var(--join-muted);
+}
+
+.portalStage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, 38rem);
+  min-height: clamp(20rem, 48vw, 38rem);
+  perspective: 1200px;
+}
+
+.portalShadow {
+  position: absolute;
+  width: min(82vw, 36rem);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(217, 183, 109, 0.22), transparent 33%),
+    radial-gradient(circle, rgba(33, 79, 143, 0.28), transparent 54%);
+  filter: blur(42px);
+  opacity: 0.86;
+  transform: translate3d(0, 2.4rem, -90px) rotateX(68deg) scaleY(0.34);
+}
+
+.portalButton {
+  position: relative;
+  display: grid;
+  width: clamp(18.5rem, 45vw, 34rem);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(217, 183, 109, 0.2), transparent 12%),
+    radial-gradient(circle at 50% 50%, rgba(29, 69, 128, 0.52), rgba(4, 11, 25, 0.72) 34%, rgba(2, 5, 13, 0.95) 63%),
+    conic-gradient(from 18deg, rgba(216, 224, 235, 0.16), rgba(217, 183, 109, 0.22), rgba(216, 224, 235, 0.18), rgba(15, 28, 51, 0.1), rgba(216, 224, 235, 0.16));
+  box-shadow:
+    0 0 0 1px rgba(216, 224, 235, 0.16),
+    0 0 0 12px rgba(216, 224, 235, 0.025),
+    0 34px 120px rgba(0, 0, 0, 0.74),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 -38px 72px rgba(0, 0, 0, 0.46);
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+  transform-style: preserve-3d;
+}
+
+.portalButton::before,
+.portalButton::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  border-radius: inherit;
+}
+
+.portalButton::before {
+  inset: -0.35rem;
+  padding: 2px;
+  background:
+    conic-gradient(
+      from 206deg,
+      rgba(255, 255, 255, 0.06),
+      rgba(216, 224, 235, 0.8) 9%,
+      rgba(217, 183, 109, 0.86) 16%,
+      rgba(16, 32, 56, 0.2) 26%,
+      rgba(216, 224, 235, 0.55) 44%,
+      rgba(255, 255, 255, 0.08) 60%,
+      rgba(217, 183, 109, 0.72) 78%,
+      rgba(255, 255, 255, 0.06)
+    );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ringBreath 6.4s ease-in-out infinite;
+}
+
+.portalButton::after {
+  inset: 8%;
+  border: 1px solid rgba(216, 224, 235, 0.17);
+  box-shadow:
+    inset 0 0 44px rgba(45, 100, 170, 0.2),
+    0 0 46px rgba(217, 183, 109, 0.12);
+}
+
+.portalButton:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(217, 183, 109, 0.74),
+    0 0 0 12px rgba(217, 183, 109, 0.08),
+    0 34px 120px rgba(0, 0, 0, 0.74),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+.portalOpen {
+  cursor: default;
+}
+
+.portalRing {
+  position: absolute;
+  inset: 3%;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(255, 255, 255, 0.48), transparent 5%),
+    conic-gradient(from 90deg, rgba(216, 224, 235, 0.16), rgba(255, 255, 255, 0.62), rgba(217, 183, 109, 0.66), rgba(18, 36, 67, 0.22), rgba(216, 224, 235, 0.38), rgba(255, 255, 255, 0.08));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    inset 0 22px 28px rgba(255, 255, 255, 0.07),
+    inset 0 -30px 52px rgba(0, 0, 0, 0.64);
+  mask-image: radial-gradient(circle, transparent 0 64%, black 65% 72%, transparent 73%);
+  animation: slowRotate 28s linear infinite;
+}
+
+.portalInnerRing {
+  position: absolute;
+  inset: 15%;
+  border-radius: inherit;
+  border: 1px solid rgba(216, 224, 235, 0.2);
+  background:
+    radial-gradient(circle at 50% 48%, rgba(217, 183, 109, 0.18), transparent 20%),
+    radial-gradient(circle at 50% 50%, rgba(30, 78, 146, 0.48), transparent 48%);
+  box-shadow:
+    inset 0 0 70px rgba(217, 183, 109, 0.1),
+    0 0 58px rgba(34, 80, 148, 0.18);
+}
+
+.portalGlobe {
+  position: absolute;
+  inset: 24%;
+  border-radius: inherit;
+  opacity: 0.8;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(216, 224, 235, 0.08), transparent 54%),
+    linear-gradient(90deg, transparent 47%, rgba(216, 224, 235, 0.2) 48%, transparent 49% 51%, rgba(216, 224, 235, 0.18) 52%, transparent 53%),
+    repeating-radial-gradient(ellipse at 50% 50%, transparent 0 18px, rgba(216, 224, 235, 0.12) 19px 20px, transparent 21px 44px);
+  filter: blur(0.2px);
+  transform: rotateX(58deg) rotateZ(-18deg);
+}
+
+.portalCore {
+  position: absolute;
+  inset: 28%;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 232, 177, 0.82), rgba(217, 183, 109, 0.24) 18%, rgba(30, 78, 146, 0.36) 42%, transparent 70%);
+  filter: blur(11px);
+  opacity: 0.48;
+  animation: corePulse 5.8s ease-in-out infinite;
+}
+
+.portalSweep {
+  position: absolute;
+  inset: -12%;
+  border-radius: inherit;
+  background:
+    linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.22) 46%, rgba(217, 183, 109, 0.22) 50%, transparent 63%);
+  filter: blur(10px);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: portalSweep 7.8s cubic-bezier(0.18, 0.72, 0.2, 1) infinite;
+}
+
+.portalLabel {
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(217, 183, 109, 0.38);
+  border-radius: 999px;
+  padding: 0.85rem 1.25rem;
+  background: rgba(1, 6, 15, 0.48);
+  color: var(--join-gold);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.portalButton:hover .portalCore,
+.portalButton:focus-visible .portalCore,
+.portalButton[data-pressed="true"] .portalCore {
+  opacity: 0.72;
+}
+
+.portalButton:hover .portalSweep,
+.portalButton:focus-visible .portalSweep,
+.portalButton[data-pressed="true"] .portalSweep {
+  animation-duration: 4.2s;
+}
+
+.enterHint {
+  margin-top: -0.75rem;
+  color: var(--join-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+.revealScene {
+  position: relative;
+  min-height: 100dvh;
+  padding: clamp(1.25rem, 3.2vw, 3rem);
+}
+
+.revealShell {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: min(100%, 76rem);
+  min-height: calc(100dvh - clamp(2.5rem, 6.4vw, 6rem));
+  margin: 0 auto;
+  align-content: center;
+  gap: clamp(2rem, 4vw, 4rem);
+  padding: clamp(1rem, 2vw, 1.5rem) 0;
+}
+
+.revealHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(17rem, 0.48fr);
+  gap: clamp(1.25rem, 4vw, 4rem);
+  align-items: end;
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  border: 1px solid rgba(217, 183, 109, 0.34);
+  border-radius: 999px;
+  padding: 0.42rem 0.75rem;
+  background: rgba(217, 183, 109, 0.08);
+  color: var(--join-gold);
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.revealTitle {
+  margin-top: 1.15rem;
+  max-width: 48rem;
+  font-size: clamp(2.7rem, 7vw, 6.35rem);
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.07em;
+}
+
+.revealCopy {
+  max-width: 42rem;
+  margin-top: 1.35rem;
+  color: var(--join-muted);
+  font-size: clamp(0.98rem, 1.35vw, 1.08rem);
+  line-height: 1.85;
+}
+
+.revealAside {
+  justify-self: end;
+  max-width: 24rem;
+  border-left: 1px solid rgba(216, 224, 235, 0.18);
+  padding-left: clamp(1rem, 2.4vw, 2rem);
+  color: var(--join-faint);
+  font-size: 0.86rem;
+  line-height: 1.8;
+}
+
+.composition {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.04fr) minmax(20rem, 0.72fr);
+  gap: clamp(1.5rem, 4vw, 4.5rem);
+  align-items: start;
+}
+
+.composition::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: -8% 22% auto auto;
+  width: 28rem;
+  aspect-ratio: 1;
+  border: 1px solid rgba(216, 224, 235, 0.08);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(217, 183, 109, 0.12), transparent 32%),
+    radial-gradient(circle, transparent 54%, rgba(216, 224, 235, 0.08) 55%, transparent 56%);
+  filter: blur(0.2px);
+  opacity: 0.9;
+}
+
+.pathwayField {
+  position: relative;
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.35rem);
+}
+
+.pathwayField::before {
+  content: "";
+  position: absolute;
+  top: 1.4rem;
+  bottom: 1.4rem;
+  left: 1.1rem;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(217, 183, 109, 0.42), rgba(216, 224, 235, 0.16), transparent);
+}
+
+.pathway {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(1rem, 2.4vw, 1.6rem);
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  padding: clamp(1rem, 2.6vw, 1.8rem) 0 clamp(1rem, 2.6vw, 1.8rem) clamp(3rem, 6vw, 5.4rem);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pathway::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(216, 224, 235, 0.09);
+  border-radius: 2rem;
+  background:
+    linear-gradient(110deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015) 42%, rgba(217, 183, 109, 0.05)),
+    rgba(2, 7, 17, 0.38);
+  opacity: 0.42;
+  transform: scaleX(0.965);
+  transform-origin: left;
+  transition:
+    opacity 320ms ease,
+    transform 420ms cubic-bezier(0.2, 0.72, 0.22, 1),
+    border-color 320ms ease;
+  backdrop-filter: blur(24px);
+}
+
+.pathway:hover::before,
+.pathway:focus-visible::before,
+.selectedPathway::before {
+  border-color: rgba(217, 183, 109, 0.35);
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.pathway:focus-visible {
+  outline: none;
+}
+
+.pathIndex {
+  position: absolute;
+  top: clamp(1.35rem, 3vw, 2rem);
+  left: 0;
+  z-index: 2;
+  display: grid;
+  width: 2.3rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgba(216, 224, 235, 0.2);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(217, 183, 109, 0.16), rgba(2, 7, 17, 0.86) 68%),
+    #050b18;
+  color: var(--join-silver);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  box-shadow: 0 0 34px rgba(217, 183, 109, 0.12);
+  transition:
+    border-color 320ms ease,
+    box-shadow 320ms ease,
+    color 320ms ease;
+}
+
+.selectedPathway .pathIndex,
+.pathway:hover .pathIndex,
+.pathway:focus-visible .pathIndex {
+  border-color: rgba(217, 183, 109, 0.62);
+  color: var(--join-gold);
+  box-shadow: 0 0 40px rgba(217, 183, 109, 0.28);
+}
+
+.pathContent {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.pathEyebrow {
+  display: block;
+  color: var(--join-gold);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.pathTitle {
+  display: block;
+  margin-top: 0.55rem;
+  font-size: clamp(1.75rem, 3vw, 3rem);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.pathDescription {
+  display: block;
+  max-width: 38rem;
+  margin-top: 0.85rem;
+  color: var(--join-muted);
+  font-size: 0.92rem;
+  line-height: 1.78;
+}
+
+.pathMeta {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: end;
+  color: var(--join-faint);
+  white-space: nowrap;
+}
+
+.pathPrice {
+  color: var(--join-silver);
+  font-size: 0.8rem;
+}
+
+.pathIntent {
+  color: var(--join-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.selectedGlyph {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--join-gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.entryPanel {
+  position: sticky;
+  top: clamp(1rem, 3vw, 2rem);
+  overflow: hidden;
+  border: 1px solid rgba(216, 224, 235, 0.14);
+  border-radius: clamp(1.65rem, 3vw, 2.35rem);
+  background:
+    radial-gradient(circle at 26% 0%, rgba(217, 183, 109, 0.14), transparent 16rem),
+    radial-gradient(circle at 80% 22%, rgba(38, 83, 151, 0.18), transparent 18rem),
+    linear-gradient(150deg, rgba(7, 15, 31, 0.82), rgba(2, 6, 15, 0.86));
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(26px);
+}
+
+.entryPanel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, transparent 0 24%, rgba(255, 255, 255, 0.07) 36%, transparent 52%),
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.08), transparent 16rem);
+  opacity: 0.54;
+}
+
+.entryPanelInner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1.25rem;
+  padding: clamp(1.1rem, 2.5vw, 1.7rem);
+}
+
+.selectedSummary {
+  border-bottom: 1px solid rgba(216, 224, 235, 0.12);
+  padding-bottom: 1.15rem;
+}
+
+.selectedLabel {
+  color: var(--join-gold);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.selectedTitle {
+  margin-top: 0.75rem;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.selectedDescription {
+  margin-top: 0.8rem;
+  color: var(--join-muted);
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.statusStack {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.notice {
+  border: 1px solid rgba(217, 183, 109, 0.25);
+  border-radius: 1rem;
+  padding: 0.78rem 0.9rem;
+  background: rgba(217, 183, 109, 0.08);
+  color: var(--join-silver);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.mutedNotice {
+  border-color: rgba(216, 224, 235, 0.13);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--join-muted);
+}
+
+.pathwayActions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.primaryAction,
+.secondaryAction {
+  display: inline-flex;
+  min-height: 3.1rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  border-radius: 999px;
+  padding: 0.85rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    background 220ms ease,
+    color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.primaryAction {
+  border: 1px solid rgba(217, 183, 109, 0.58);
+  background:
+    linear-gradient(135deg, rgba(217, 183, 109, 0.95), rgba(255, 230, 172, 0.92));
+  color: #081126;
+  box-shadow: 0 16px 44px rgba(217, 183, 109, 0.24);
+}
+
+.secondaryAction {
+  border: 1px solid rgba(216, 224, 235, 0.2);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--join-silver);
+}
+
+.primaryAction:hover,
+.secondaryAction:hover,
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible {
+  transform: translateY(-1px);
+}
+
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible {
+  outline: 2px solid rgba(217, 183, 109, 0.7);
+  outline-offset: 3px;
+}
+
+.primaryAction:disabled,
+.secondaryAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+.signinLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  color: var(--join-faint);
+  font-size: 0.82rem;
+}
+
+.signinLink:hover {
+  color: var(--join-gold);
+}
+
+.form {
+  display: grid;
+  gap: 1rem;
+}
+
+.formIntro {
+  display: grid;
+  gap: 0.5rem;
+  color: var(--join-muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.formGrid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.twoColumn {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fieldGroup {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.label {
+  color: rgba(245, 248, 252, 0.9);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.field {
+  border-color: rgba(216, 224, 235, 0.16);
+  background: rgba(2, 7, 17, 0.5);
+  color: var(--join-text);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 30px rgba(0, 0, 0, 0.16);
+}
+
+.field:focus-visible {
+  border-color: rgba(217, 183, 109, 0.48);
+  box-shadow:
+    0 0 0 2px rgba(217, 183, 109, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.field option {
+  background: #071225;
+  color: var(--join-text);
+}
+
+.errorText {
+  color: #f3ba9b;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.helperText {
+  color: var(--join-faint);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.formDivider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(217, 183, 109, 0.38), transparent);
+}
+
+.finePrint {
+  color: var(--join-faint);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+.footerNote {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.2rem;
+  justify-content: space-between;
+  border-top: 1px solid rgba(216, 224, 235, 0.1);
+  padding-top: 1rem;
+  color: var(--join-faint);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+.footerNote a {
+  color: var(--join-silver);
+}
+
+.footerNote a:hover {
+  color: var(--join-gold);
+}
+
+@keyframes ringBreath {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.012);
+  }
+}
+
+@keyframes slowRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes corePulse {
+  0%,
+  100% {
+    transform: scale(0.96);
+  }
+
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+@keyframes portalSweep {
+  0%,
+  72%,
+  100% {
+    opacity: 0;
+    transform: translateX(-34%) rotate(14deg);
+  }
+
+  81% {
+    opacity: 0.42;
+  }
+
+  92% {
+    opacity: 0.05;
+    transform: translateX(34%) rotate(14deg);
+  }
+}
+
+@media (max-width: 980px) {
+  .revealHeader,
+  .composition {
+    grid-template-columns: 1fr;
+  }
+
+  .revealAside {
+    justify-self: start;
+    max-width: 42rem;
+  }
+
+  .entryPanel {
+    position: relative;
+    top: auto;
+  }
+
+  .pathContent {
+    grid-template-columns: 1fr;
+  }
+
+  .pathMeta {
+    justify-items: start;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 640px) {
+  .route {
+    --portal-x: 0px;
+    --portal-y: 0px;
+  }
+
+  .arrivalScene,
+  .revealScene {
+    padding: 1rem;
+  }
+
+  .arrivalInner {
+    gap: 2.2rem;
+  }
+
+  .portalStage {
+    min-height: 21rem;
+  }
+
+  .portalButton {
+    width: min(78vw, 21rem);
+  }
+
+  .portalLabel {
+    padding: 0.72rem 0.9rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.24em;
+  }
+
+  .revealShell {
+    min-height: calc(100dvh - 2rem);
+  }
+
+  .revealAside {
+    border-left: 0;
+    border-top: 1px solid rgba(216, 224, 235, 0.14);
+    padding-top: 1rem;
+    padding-left: 0;
+  }
+
+  .pathway {
+    padding-left: 3.15rem;
+  }
+
+  .pathwayField::before {
+    left: 1rem;
+  }
+
+  .pathIndex {
+    width: 2.05rem;
+  }
+
+  .twoColumn {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portalButton::before,
+  .portalRing,
+  .portalCore,
+  .portalSweep {
+    animation: none !important;
+  }
+
+  .cityVideo {
+    transform: none !important;
+  }
+
+  .route {
+    scroll-behavior: auto;
+  }
+}
