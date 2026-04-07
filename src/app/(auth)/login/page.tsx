@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { withFromParam } from "@/lib/auth/utils";
 import { createPageMetadata } from "@/lib/seo";
 
 type LoginPageProps = {
@@ -39,7 +40,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <p>Access your dashboard, resource vault, channel conversations, and member collaborations.</p>
           <p>
             New here?{" "}
-            <Link href="/join" className="text-primary hover:underline">
+            <Link href={withFromParam("/membership", from)} className="text-primary hover:underline">
               Create your account
             </Link>{" "}
             to join The Business Circle Network.

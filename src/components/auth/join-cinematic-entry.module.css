@@ -45,8 +45,8 @@
   width: 116%;
   height: 116%;
   object-fit: cover;
-  opacity: 0.24;
-  filter: blur(14px) brightness(0.52) saturate(1.08);
+  opacity: 0.28;
+  filter: blur(12px) brightness(0.58) saturate(1.1);
   transform: scale(1.08);
 }
 
@@ -54,9 +54,22 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 44%, rgba(10, 26, 51, 0.36), transparent 30rem),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.94), transparent 26%, transparent 74%, rgba(0, 0, 0, 0.94)),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.94), transparent 38%, rgba(0, 0, 0, 0.92));
+    radial-gradient(circle at 50% 44%, rgba(10, 26, 51, 0.3), transparent 30rem),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.92), transparent 26%, transparent 74%, rgba(0, 0, 0, 0.92)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 38%, rgba(0, 0, 0, 0.88));
+}
+
+.route[data-portal-opened="false"] .cityVideo {
+  opacity: 0.36;
+  filter: blur(8px) brightness(0.7) saturate(1.14);
+  transform: scale(1.05);
+}
+
+.route[data-portal-opened="false"] .cityVeil {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(10, 26, 51, 0.18), transparent 30rem),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.84), transparent 24%, transparent 76%, rgba(0, 0, 0, 0.84)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.82), transparent 34%, rgba(0, 0, 0, 0.84));
 }
 
 .particleField,
@@ -103,19 +116,77 @@
 }
 
 .arrivalCopy {
+  position: relative;
+  isolation: isolate;
   display: grid;
   gap: clamp(0.95rem, 2vw, 1.35rem);
   max-width: 56rem;
 }
 
+.arrivalCopy::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: -3.5rem -4rem auto;
+  height: clamp(10rem, 20vw, 14rem);
+  background:
+    radial-gradient(circle at 42% 50%, rgba(36, 84, 152, 0.18), transparent 38%),
+    radial-gradient(circle at 58% 48%, rgba(215, 180, 107, 0.1), transparent 28%);
+  filter: blur(30px);
+  opacity: 0.72;
+}
+
+.arrivalCopy > * {
+  position: relative;
+  z-index: 1;
+}
+
 .brandLine {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: fit-content;
+  margin: 0 auto;
   font-size: clamp(3.3rem, 10vw, 8.4rem);
   font-weight: 600;
   line-height: 0.9;
   letter-spacing: -0.07em;
   text-shadow:
-    0 0 36px rgba(217, 225, 237, 0.12),
+    0 0 30px rgba(36, 84, 152, 0.14),
     0 22px 84px rgba(2, 5, 13, 0.86);
+}
+
+.brandLineBase,
+.brandLineSheen {
+  grid-area: 1 / 1;
+}
+
+.brandLineBase {
+  color: #f4f8fc;
+}
+
+.brandLineSheen {
+  pointer-events: none;
+  opacity: 0.78;
+  color: transparent;
+  background:
+    linear-gradient(
+      107deg,
+      transparent 26%,
+      rgba(255, 255, 255, 0.08) 38%,
+      rgba(255, 255, 255, 0.98) 45%,
+      rgba(215, 180, 107, 0.94) 49%,
+      rgba(255, 255, 255, 0.82) 53%,
+      rgba(255, 255, 255, 0.18) 61%,
+      transparent 74%
+    );
+  background-position: 138% 50%;
+  background-size: 190% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.12);
+  animation: textSheen 8.8s cubic-bezier(0.18, 0.72, 0.2, 1) infinite;
 }
 
 .leadLine {
@@ -123,7 +194,8 @@
   font-weight: 500;
   line-height: 1.04;
   letter-spacing: -0.03em;
-  color: var(--join-silver);
+  color: rgba(244, 248, 252, 0.92);
+  text-shadow: 0 0 20px rgba(36, 84, 152, 0.12);
 }
 
 .supportingLine {
@@ -131,7 +203,103 @@
   margin: 0 auto;
   font-size: clamp(1rem, 1.5vw, 1.16rem);
   line-height: 1.8;
-  color: var(--join-muted);
+  color: rgba(217, 225, 237, 0.78);
+}
+
+.arrivalGuide {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  margin-top: -0.75rem;
+  transition:
+    opacity 240ms ease,
+    transform 320ms ease;
+}
+
+.arrivalGuide[data-dimmed="true"] {
+  opacity: 0.42;
+  transform: translateY(0.35rem);
+}
+
+.arrivalGuideLabel {
+  color: rgba(217, 225, 237, 0.6);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.arrivalGuideTrack {
+  position: relative;
+  display: block;
+  width: clamp(5.75rem, 12vw, 7.5rem);
+  height: 2.2rem;
+}
+
+.arrivalGuideOrbit {
+  position: absolute;
+  inset: auto 0 0;
+  height: 1.1rem;
+  border: 1px solid transparent;
+  border-bottom-color: rgba(217, 225, 237, 0.14);
+  border-radius: 0 0 999px 999px;
+}
+
+.arrivalGuideOrbit::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 68%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(215, 180, 107, 0.34), transparent);
+  transform: translate(-50%, -1px);
+}
+
+.arrivalGuideLine {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0.5rem;
+  width: 1px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(217, 225, 237, 0.04),
+      rgba(217, 225, 237, 0.3) 48%,
+      rgba(215, 180, 107, 0.18),
+      transparent
+    );
+  transform: translateX(-50%);
+}
+
+.arrivalGuideLine::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 0.26rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(215, 180, 107, 0.56));
+  box-shadow:
+    0 0 18px rgba(36, 84, 152, 0.2),
+    0 0 14px rgba(215, 180, 107, 0.16);
+  transform: translateX(-50%);
+  animation: guideLightDrop 2.9s ease-in-out infinite;
+}
+
+.arrivalGuideMarker {
+  position: absolute;
+  left: 50%;
+  top: 0.35rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 1px solid rgba(217, 225, 237, 0.54);
+  border-bottom: 1px solid rgba(217, 225, 237, 0.54);
+  opacity: 0.7;
+  transform: translateX(-50%) rotate(45deg);
+  animation: guideChevronDrift 2.9s ease-in-out infinite;
 }
 
 .portalStage {
@@ -621,6 +789,24 @@
   }
 }
 
+@keyframes textSheen {
+  0%,
+  12%,
+  100% {
+    background-position: 138% 50%;
+    opacity: 0.34;
+  }
+
+  22% {
+    opacity: 0.82;
+  }
+
+  42% {
+    background-position: -44% 50%;
+    opacity: 0.18;
+  }
+}
+
 @keyframes slowRotate {
   to {
     transform: rotate(360deg);
@@ -656,6 +842,41 @@
   }
 }
 
+@keyframes guideLightDrop {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  18% {
+    opacity: 0.82;
+  }
+
+  70% {
+    opacity: 0.22;
+    transform: translateX(-50%) translateY(1rem);
+  }
+}
+
+@keyframes guideChevronDrift {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: translateX(-50%) translateY(0) rotate(45deg);
+  }
+
+  42% {
+    opacity: 0.7;
+    transform: translateX(-50%) translateY(0.22rem) rotate(45deg);
+  }
+
+  76% {
+    opacity: 0.2;
+    transform: translateX(-50%) translateY(0.5rem) rotate(45deg);
+  }
+}
+
 @media (max-width: 900px) {
   .choiceGrid {
     grid-template-columns: 1fr;
@@ -680,6 +901,10 @@
     gap: 2.2rem;
   }
 
+  .arrivalCopy::before {
+    inset: -2.5rem -2rem auto;
+  }
+
   .portalStage {
     min-height: 20rem;
   }
@@ -692,6 +917,10 @@
     padding: 0.72rem 0.95rem;
     font-size: 0.62rem;
     letter-spacing: 0.24em;
+  }
+
+  .arrivalGuide {
+    margin-top: -0.45rem;
   }
 
   .choiceShell {
@@ -731,10 +960,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .brandLineSheen,
   .portalButton::before,
   .portalRing,
   .portalCore,
-  .portalSweep {
+  .portalSweep,
+  .arrivalGuideLine::after,
+  .arrivalGuideMarker {
     animation: none !important;
   }
 

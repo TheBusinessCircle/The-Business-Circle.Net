@@ -115,7 +115,7 @@ export function LoginForm({ from, errorCode, errorDetailCode, initialNotice }: L
 
         <p className="text-sm text-muted">
           Need an account?{" "}
-          <Link href={withFrom("/join", from)} className="text-primary hover:underline">
+          <Link href={withFrom("/membership", from)} className="text-primary hover:underline">
             Create one
           </Link>
         </p>

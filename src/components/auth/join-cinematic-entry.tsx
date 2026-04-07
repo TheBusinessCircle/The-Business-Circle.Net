@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from "react";
+import {
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { safeRedirectPath } from "@/lib/auth/utils";
@@ -134,11 +140,18 @@ export function JoinCinematicEntry({
   billing
 }: JoinCinematicEntryProps) {
   const reduceMotion = useReducedMotion();
+  const routeRef = useRef<HTMLDivElement | null>(null);
+  const portalStageRef = useRef<HTMLDivElement | null>(null);
   const portalX = useMotionValue(0);
   const portalY = useMotionValue(0);
+  const copyX = useMotionValue(0);
+  const copyY = useMotionValue(0);
   const springX = useSpring(portalX, { stiffness: 120, damping: 22, mass: 0.45 });
   const springY = useSpring(portalY, { stiffness: 120, damping: 22, mass: 0.45 });
+  const copySpringX = useSpring(copyX, { stiffness: 70, damping: 20, mass: 0.9 });
+  const copySpringY = useSpring(copyY, { stiffness: 70, damping: 20, mass: 0.9 });
   const [portalOpened, setPortalOpened] = useState(false);
+  const [guideDimmed, setGuideDimmed] = useState(false);
   const [resolvedContext, setResolvedContext] = useState<JoinHandoff>({
     from: from ? safeRedirectPath(from, "") || undefined : undefined,
     inviteCode: normalizeInviteCode(inviteCode)
@@ -200,6 +213,36 @@ export function JoinCinematicEntry({
     writeJoinHandoff(nextContext);
   }, [billing, initialFrom, initialInvite]);
 
+  useEffect(() => {
+    const route = routeRef.current;
+    const portalStage = portalStageRef.current;
+
+    if (!route || !portalStage || portalOpened) {
+      setGuideDimmed(false);
+      return;
+    }
+
+    const updateGuideState = () => {
+      const routeRect = route.getBoundingClientRect();
+      const portalRect = portalStage.getBoundingClientRect();
+      const portalCenter = portalRect.top - routeRect.top + portalRect.height / 2;
+      const targetLine = route.clientHeight * 0.58;
+      const portalNearCenter = Math.abs(portalCenter - targetLine) <= route.clientHeight * 0.08;
+
+      setGuideDimmed(route.scrollTop > 12 || portalNearCenter);
+    };
+
+    updateGuideState();
+
+    route.addEventListener("scroll", updateGuideState, { passive: true });
+    window.addEventListener("resize", updateGuideState);
+
+    return () => {
+      route.removeEventListener("scroll", updateGuideState);
+      window.removeEventListener("resize", updateGuideState);
+    };
+  }, [portalOpened]);
+
   const membershipHref = useMemo(
     () =>
       buildMembershipHref({
@@ -257,6 +300,24 @@ export function JoinCinematicEntry({
     portalY.set(y * 24);
   };
 
+  const handleArrivalMove = (event: ReactPointerEvent<HTMLElement>) => {
+    if (reduceMotion || portalOpened) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+
+    copyX.set(x * 12);
+    copyY.set(y * 10);
+  };
+
+  const resetArrivalMotion = () => {
+    copyX.set(0);
+    copyY.set(0);
+  };
+
   const resetPortalPosition = () => {
     portalX.set(0);
     portalY.set(0);
@@ -272,7 +333,12 @@ export function JoinCinematicEntry({
   };
 
   return (
-    <div className={`${styles.route} joinCinematicRoute`} aria-label="Join The Business Circle">
+    <div
+      ref={routeRef}
+      className={`${styles.route} joinCinematicRoute`}
+      aria-label="Join The Business Circle"
+      data-portal-opened={portalOpened}
+    >
       <div className={styles.ambientLayer} aria-hidden="true">
         <video
           className={styles.cityVideo}
@@ -295,6 +361,8 @@ export function JoinCinematicEntry({
           <motion.section
             key="arrival"
             className={cn(styles.scene, styles.arrivalScene)}
+            onPointerMove={handleArrivalMove}
+            onPointerLeave={resetArrivalMotion}
             initial={{ opacity: 0, backgroundColor: "#000" }}
             animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }}
             exit={
@@ -305,20 +373,29 @@ export function JoinCinematicEntry({
             transition={{ duration: reduceMotion ? 0.3 : 0.95, ease: portalEase }}
           >
             <div className={styles.arrivalInner}>
-              <div className={styles.arrivalCopy}>
+              <motion.div
+                className={styles.arrivalCopy}
+                style={{ x: copySpringX, y: copySpringY }}
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: reduceMotion ? 0.3 : 1.2, ease: portalEase }}
+              >
                 <motion.h1
                   className={styles.brandLine}
-                  initial={{ opacity: 0, y: 24, filter: "blur(16px)" }}
+                  initial={{ opacity: 0, y: 28, filter: "blur(16px)" }}
                   animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  transition={{ delay: reduceMotion ? 0 : 0.24, duration: 1.15, ease: portalEase }}
+                  transition={{ delay: reduceMotion ? 0 : 0.22, duration: 1.18, ease: portalEase }}
                 >
-                  The Business Circle
+                  <span className={styles.brandLineBase}>The Business Circle</span>
+                  <span aria-hidden="true" className={styles.brandLineSheen}>
+                    The Business Circle
+                  </span>
                 </motion.h1>
                 <motion.p
                   className={styles.leadLine}
                   initial={{ opacity: 0, y: 20, filter: "blur(12px)" }}
                   animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  transition={{ delay: reduceMotion ? 0 : 0.9, duration: 0.9, ease: portalEase }}
+                  transition={{ delay: reduceMotion ? 0 : 0.82, duration: 0.96, ease: portalEase }}
                 >
                   Not every room is worth entering.
                 </motion.p>
@@ -326,13 +403,29 @@ export function JoinCinematicEntry({
                   className={styles.supportingLine}
                   initial={{ opacity: 0, y: 18, filter: "blur(10px)" }}
                   animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  transition={{ delay: reduceMotion ? 0 : 1.4, duration: 0.9, ease: portalEase }}
+                  transition={{ delay: reduceMotion ? 0 : 1.34, duration: 0.98, ease: portalEase }}
                 >
                   This one is built for business owners moving with intent.
                 </motion.p>
-              </div>
+              </motion.div>
 
               <motion.div
+                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: reduceMotion ? 0 : 1.8, duration: reduceMotion ? 0.2 : 0.9, ease: portalEase }}
+              >
+                <div className={styles.arrivalGuide} data-dimmed={guideDimmed}>
+                  <span className={styles.arrivalGuideLabel}>Scroll to enter</span>
+                  <span className={styles.arrivalGuideTrack} aria-hidden="true">
+                    <span className={styles.arrivalGuideOrbit} />
+                    <span className={styles.arrivalGuideLine} />
+                    <span className={styles.arrivalGuideMarker} />
+                  </span>
+                </div>
+              </motion.div>
+
+              <motion.div
+                ref={portalStageRef}
                 className={styles.portalStage}
                 initial={{ opacity: 0, y: 24, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
