@@ -1,15 +1,15 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowRight,
-  BookOpen,
-  Compass,
-  Crown,
+  CalendarDays,
+  Eye,
   Handshake,
+  Lightbulb,
   MessagesSquare,
-  ShieldCheck,
   Sparkles,
-  Target
+  Users
 } from "lucide-react";
 import { MEMBERSHIP_TIER_ORDER, getMembershipTierDefinition } from "@/config/membership";
 import {
@@ -41,56 +41,94 @@ export const metadata: Metadata = createPageMetadata({
   ]
 });
 
-const publicRoutes = [
+const insideItems: FeatureGridItem[] = [
   {
-    icon: Compass,
-    title: "About The Circle",
+    title: "Structured business discussions",
     description:
-      "Understand the standards, the intent behind the network, and the type of business environment being built.",
-    href: "/about"
+      "Conversations are shaped for useful business thinking, not endless noise or low-signal posting.",
+    icon: MessagesSquare
   },
   {
-    icon: BookOpen,
-    title: "Read The Insights",
+    title: "Private network of active owners",
     description:
-      "Start with the public thinking and practical guidance shaping the way the network approaches growth.",
-    href: "/insights"
+      "You step into a room of people who are actually building, operating, and making decisions.",
+    icon: Users
   },
   {
-    icon: Crown,
-    title: "Meet The Founder",
+    title: "Ongoing growth conversations",
     description:
-      "See the founder perspective behind the room, the standards, and the wider business ecosystem.",
-    href: "/founder"
-  },
-  {
-    icon: MessagesSquare,
-    title: "Get In Touch",
-    description:
-      "Reach out for partnerships, enquiries, introductions, or a more direct conversation.",
-    href: "/contact"
-  }
-] as const;
-
-const clarityItems: FeatureGridItem[] = [
-  {
-    title: "Better clarity",
-    description:
-      "Use the network to sharpen thinking, see the next move more clearly, and avoid building momentum inside confusion.",
-    icon: Target
-  },
-  {
-    title: "Stronger connections",
-    description:
-      "Meet more aligned people in a calmer setting built for useful introductions, better conversations, and real business relationships.",
+      "The environment stays active around positioning, growth, delivery, relationships, and momentum.",
     icon: Handshake
   },
   {
-    title: "Real momentum",
+    title: "Real strategies, not recycled content",
     description:
-      "Stay close to the mix of member conversation, events, and practical resources that keeps progress moving.",
-    icon: ShieldCheck
+      "Resources and discussion prompts are built to help owners think more clearly and act more cleanly.",
+    icon: Lightbulb
+  },
+  {
+    title: "Visibility into how businesses are growing",
+    description:
+      "You gain exposure to how other owners are moving, what is working, and where momentum is really coming from.",
+    icon: Eye
+  },
+  {
+    title: "Events, collaboration, and deeper support",
+    description:
+      "The network includes events, collaboration opportunities, and optional closer strategic access when needed.",
+    icon: CalendarDays
   }
+] as const;
+
+const joinSteps = [
+  {
+    step: "01",
+    title: "Create your profile",
+    description:
+      "Set up your member profile so people can understand the business properly."
+  },
+  {
+    step: "02",
+    title: "Enter the community",
+    description:
+      "Move straight into the member environment with the right level of access already in place."
+  },
+  {
+    step: "03",
+    title: "See active discussions",
+    description:
+      "You can immediately see the conversations, prompts, and business activity happening inside your room."
+  },
+  {
+    step: "04",
+    title: "Introduce your business",
+    description:
+      "Start with a clear introduction so the network has real context around what you do."
+  },
+  {
+    step: "05",
+    title: "Join or start conversations",
+    description:
+      "Respond where you can add value, ask sharper questions, or open discussions around real business movement."
+  },
+  {
+    step: "06",
+    title: "Explore resources by level",
+    description:
+      "Use the materials, spaces, and opportunities that match the tier you joined at."
+  }
+] as const;
+
+const forList = [
+  "Business owners and active builders",
+  "People who want better clarity around the next move",
+  "Owners who value stronger relationships and real momentum"
+] as const;
+
+const notForList = [
+  "Passive learners looking to observe from the edges",
+  "Freebie seekers looking for easy extraction",
+  "People who are not currently building or operating"
 ] as const;
 
 const tierStageLabels = {
@@ -98,6 +136,13 @@ const tierStageLabels = {
   INNER_CIRCLE: "Growing business",
   CORE: "Established operator"
 } as const;
+
+const heroImageBlendStyle: CSSProperties = {
+  WebkitMaskImage:
+    "radial-gradient(ellipse at center, rgba(0,0,0,1) 28%, rgba(0,0,0,0.96) 46%, rgba(0,0,0,0.82) 60%, rgba(0,0,0,0.42) 76%, transparent 94%)",
+  maskImage:
+    "radial-gradient(ellipse at center, rgba(0,0,0,1) 28%, rgba(0,0,0,0.96) 46%, rgba(0,0,0,0.82) 60%, rgba(0,0,0,0.42) 76%, transparent 94%)"
+};
 
 export default async function HomePage() {
   const [homeContent, publicTrustSnapshot] = await Promise.all([
@@ -124,23 +169,96 @@ export default async function HomePage() {
       <HeroSection
         eyebrow="Premium business growth network"
         title="A premium business growth network for owners who want better clarity, stronger connections, and real momentum."
-        description="The Business Circle Network gives owners a calmer environment to sharpen positioning, build stronger business relationships, and move with more structure through member conversations, curated events, and practical resources."
-        supportLine="Start on the public side, understand the room properly, then move into the membership level that fits the stage of the business."
-        callouts={["Founder-led", "Private membership", "Built for owners"]}
+        description="The Business Circle Network is a private business environment for owners who want a better room around the work. It helps you think more clearly, build stronger relationships, and keep momentum moving through focused discussion, practical strategy, and the right level of access."
+        supportLine="This is for owners who are actively building and want a calmer, more useful place to grow."
+        callouts={["Founder-led", "Private membership", "Built for active owners"]}
         primaryAction={{ href: "/membership", label: "Explore Membership" }}
-        secondaryAction={{ href: "/about", label: "About The Circle", variant: "outline" }}
+        secondaryAction={{ href: "/join", label: "Go Straight To Join", variant: "outline" }}
+        metrics={trustDisplay.items}
         aside={
-          <article className="public-panel p-6 sm:p-7">
-            <p className="premium-kicker inline-flex items-center gap-2">
-              <Sparkles size={14} />
-              Inside the network
-            </p>
-            <div className="mt-5 space-y-3">
-              {[
-                "Get clearer on what the business needs next.",
-                "Build stronger relationships around the work.",
-                "Keep momentum moving in a calmer room."
-              ].map((item) => (
+          <div className="flex h-full flex-col gap-5 lg:min-h-[34rem]">
+            <article className="public-panel p-6 sm:p-7">
+              <p className="premium-kicker inline-flex items-center gap-2">
+                <Sparkles size={14} />
+                What this is
+              </p>
+              <div className="mt-5 space-y-3">
+                {[
+                  "A calmer place to sharpen the business.",
+                  "A more useful network of active owners.",
+                  "A structured environment for real momentum."
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3 text-sm leading-relaxed text-muted"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <figure className="relative flex flex-1 overflow-hidden rounded-[2.6rem] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02),transparent_62%)] min-h-[20rem] sm:min-h-[23rem] lg:min-h-[28rem]">
+              <div className="pointer-events-none absolute inset-x-[2%] bottom-[2%] top-[4%] rounded-[2.8rem] bg-[radial-gradient(circle_at_center,rgba(214,180,103,0.18),transparent_46%)] blur-3xl" />
+              <div className="pointer-events-none absolute inset-x-[6%] bottom-[-4%] top-[14%] rounded-[3rem] bg-[radial-gradient(circle_at_center,rgba(82,146,255,0.12),transparent_58%)] blur-[100px]" />
+              <div className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(8,16,36,0.08),rgba(8,16,36,0.04)_30%,rgba(8,16,36,0.22)_100%)]" />
+              <Image
+                src="/branding/home-hero-network-portrait.png"
+                alt="Business owners in a focused premium meeting environment"
+                fill
+                priority
+                sizes="(min-width: 1024px) 42vw, 100vw"
+                className="object-cover object-[center_44%] scale-[1.08] opacity-[0.95] sm:scale-[1.12] lg:scale-[1.16]"
+                style={heroImageBlendStyle}
+              />
+            </figure>
+          </div>
+        }
+      />
+
+      <section className="space-y-8">
+        <SectionHeading
+          label="What You Get Inside"
+          title="Concrete value, held in one premium environment."
+          description="The point is not just access. It is access to a room that helps the business move better."
+        />
+
+        <FeatureGrid columns={3} items={insideItems} />
+      </section>
+
+      <section className="space-y-8">
+        <SectionHeading
+          label="What Happens When You Join"
+          title="The first experience is clear from day one."
+          description="There is no mystery about what happens next. You join, enter the room, and start using it properly."
+        />
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {joinSteps.map((item) => (
+            <article
+              key={item.step}
+              className="rounded-[1.8rem] border border-border/80 bg-card/60 p-6 shadow-panel"
+            >
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gold">{item.step}</p>
+              <h3 className="mt-4 font-display text-2xl text-foreground">{item.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-8">
+        <SectionHeading
+          label="Fit"
+          title="A clearer sense of who this environment is for."
+          description="The Business Circle is designed for people who are building. That clarity helps the room stay useful."
+        />
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <article className="rounded-[2rem] border border-gold/20 bg-gradient-to-br from-gold/10 via-card/78 to-card/70 p-6 shadow-gold-soft sm:p-8">
+            <p className="premium-kicker">This is for</p>
+            <div className="mt-5 space-y-4">
+              {forList.map((item) => (
                 <div
                   key={item}
                   className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3 text-sm leading-relaxed text-muted"
@@ -150,80 +268,28 @@ export default async function HomePage() {
               ))}
             </div>
           </article>
-        }
-      />
 
-      <section className="space-y-8">
-        <SectionHeading
-          label="What It Does"
-          title="A better business environment, not a noisy membership site."
-          description="The platform is designed to help owners think more clearly, meet better people, and keep the business moving with more structure."
-        />
-
-        <FeatureGrid columns={3} items={clarityItems} />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
-        <article className="rounded-[2rem] border border-gold/20 bg-gradient-to-br from-gold/10 via-card/78 to-card/70 p-6 shadow-gold-soft sm:p-8">
-          <p className="premium-kicker">Trust snapshot</p>
-          <h2 className="mt-4 font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            {trustDisplay.kind === "live"
-              ? "Current public signal from inside the network"
-              : "Public trust is shown with restraint"}
-          </h2>
-          <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
-            {trustDisplay.kind === "live"
-              ? "Only useful public movement is shown here. Empty or weak numbers stay private until there is enough signal to show properly."
-              : "The public side stays clean until there is enough real movement to show. The standards come first, and the numbers follow when they are worth showing."}
-          </p>
-        </article>
-
-        <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
-          {trustDisplay.items.map((item) => (
-            <article
-              key={item.label}
-              className="rounded-3xl border border-border/80 bg-card/60 p-6 shadow-panel"
-            >
-              <p className="font-display text-3xl text-silver">{item.value}</p>
-              <p className="mt-2 text-sm leading-relaxed text-muted">{item.label}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-6">
-        <SectionHeading
-          label="Public site"
-          title="Understand the room before you decide."
-          description="The homepage gives you instant context. The wider public site fills in the standards, perspective, and founder-led thinking behind the network."
-        />
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {publicRoutes.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="public-panel interactive-card flex h-full flex-col p-6"
-            >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
-                <item.icon size={18} />
-              </span>
-              <h3 className="mt-5 font-display text-2xl text-foreground">{item.title}</h3>
-              <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{item.description}</p>
-              <span className="mt-5 inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground">
-                Open section
-                <ArrowRight size={15} />
-              </span>
-            </Link>
-          ))}
+          <article className="rounded-[2rem] border border-border/80 bg-card/60 p-6 shadow-panel sm:p-8">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">This is not for</p>
+            <div className="mt-5 space-y-4">
+              {notForList.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3 text-sm leading-relaxed text-muted"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </article>
         </div>
       </section>
 
       <section className="space-y-8">
         <SectionHeading
           label="Membership"
-          title="Membership follows the stage of the business."
-          description="The next step is not about choosing the deepest tier. It is about choosing the room that fits where the business is now."
+          title="Choose the room that fits the stage of the business."
+          description="Foundation, Inner Circle, and Core are designed for different levels of need, depth, and proximity."
           action={
             <Link
               href="/membership"

@@ -73,27 +73,29 @@ export const MEMBERSHIP_PAGE_MICROCOPY = [
 ] as const;
 
 const FOUNDATION_PLAN_FEATURES = [
-  "Core community access",
-  "Member-only business resources",
-  "Directory and event access",
-  "Structured discussion feeds",
-  "Thoughtful collaboration opportunities"
+  "Access to the wider member environment",
+  "Structured business discussions instead of noise",
+  "Resources and strategy material for active learning",
+  "Directory visibility and event access",
+  "Exposure to how other businesses are growing"
 ];
 
 const INNER_CIRCLE_PLAN_FEATURES = [
   "Everything in Foundation",
-  "More focused discussion spaces",
-  "Stronger intent and better context",
-  "Higher-value business conversations",
-  "More curated resources and access"
+  "Deeper discussion spaces with stronger context",
+  "Increased visibility inside the network",
+  "Stronger positioning through a tighter room",
+  "Higher-signal business conversations",
+  "More private access and stronger intent"
 ];
 
 const CORE_PLAN_FEATURES = [
   "Everything in Inner Circle",
-  "Private Core discussion space",
+  "Private room for higher-level operators",
   "Closer founder proximity",
-  "Higher-level strategic context",
-  "Stronger bridge into premium ecosystem work"
+  "Serious growth conversations with stronger context",
+  "Quieter space for consequential decisions",
+  "Optional deeper strategic support when needed"
 ];
 
 function calculateAnnualPrice(monthlyPrice: number): number {
@@ -177,12 +179,12 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
     },
     content: {
       badgeLabel: "Foundation",
-      supportingBadge: "Best place to start",
+      supportingBadge: "Access, learning, exposure",
       description:
-        "Start here. Build the right base, connect with the right people, and begin moving with more clarity.",
-      bestFitLine: "Best if you are early, refining, or building your base.",
+        "Foundation gives you the full base: access to the network, a stronger place to learn, and exposure to how other businesses are moving.",
+      bestFitLine: "Best if you need access, learning, and a clearer base around the business.",
       narrative:
-        "A strong entry into the network when you want structure, signal, and a better environment around the work.",
+        "A strong entry into the network when you want structure, signal, and business growth without overcomplicating the decision.",
       ctaLabel: "Enter Foundation",
       trustLine: "Built for business owners, not browsers.",
       homeDescription:
@@ -214,12 +216,13 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
     },
     content: {
       badgeLabel: "Inner Circle",
-      supportingBadge: "Smartest next step",
+      supportingBadge: "Depth, visibility, positioning",
       description:
-        "For business owners who want a more focused room, better conversations, and stronger momentum inside the network.",
-      bestFitLine: "Best if you are active and want better conversations and momentum.",
+        "Inner Circle gives you deeper discussions, increased visibility, and stronger positioning inside a more focused room.",
+      bestFitLine:
+        "Best if the business is moving and you want stronger positioning with higher-signal conversation.",
       narrative:
-        "This is where the room feels tighter, more useful, and more alive without becoming noisy.",
+        "This is where the room becomes tighter, more useful, and more strategic without becoming noisy.",
       ctaLabel: "Join Inner Circle",
       emphasisLabel: "Most active members choose this",
       trustLine: "No noise, just real conversations and growth.",
@@ -257,11 +260,11 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
     },
     content: {
       badgeLabel: "Core",
-      supportingBadge: "Highest-value room",
+      supportingBadge: "Operators, proximity, seriousness",
       description:
-        "Designed for serious operators already running or scaling a business. A calmer, higher-value environment with stronger strategic context.",
+        "Core is for serious operators who want higher-level company, closer proximity, and more serious growth conversations in a protected room.",
       bestFitLine:
-        "Best if you are already operating seriously and want stronger strategic proximity.",
+        "Best if you want higher-level operators, closer proximity, and more serious conversations.",
       narrative:
         "Protected by design so the room stays useful for operators carrying real decisions and real responsibility.",
       ctaLabel: "Continue to Core",

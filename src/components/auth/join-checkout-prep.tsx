@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { MembershipTier } from "@prisma/client";
 import type { FoundingOfferTierSnapshot } from "@/types";
 import { RegisterForm } from "@/components/auth/register-form";
 import { MembershipPlanAction } from "@/components/billing";
 import { TierBadge } from "@/components/public/tier-badge";
+import { Button } from "@/components/ui/button";
 import {
   formatMembershipPrice,
   getMembershipBillingPlan,
@@ -30,6 +32,7 @@ type JoinCheckoutPrepProps = {
   initialSelectedTier: MembershipTier;
   initialBillingInterval: MembershipBillingInterval;
   initialCoreAccessConfirmed?: boolean;
+  initialShowAccountSetup?: boolean;
   billing?: string;
   from?: string;
   inviteCode?: string;
@@ -47,9 +50,9 @@ const tierStageLabels: Record<MembershipTier, string> = {
 };
 
 const tierSwitchLines: Record<MembershipTier, string> = {
-  FOUNDATION: "Start with the clearest base around the business.",
-  INNER_CIRCLE: "Step into a tighter room with stronger momentum.",
-  CORE: "Move into the closest strategic layer."
+  FOUNDATION: "Access, learning, and exposure.",
+  INNER_CIRCLE: "Deeper discussions, stronger visibility, and positioning.",
+  CORE: "Higher-level operators, proximity, and serious conversations."
 };
 
 function getAuthenticatedLabel(input: {
@@ -105,6 +108,7 @@ export function JoinCheckoutPrep({
   initialSelectedTier,
   initialBillingInterval,
   initialCoreAccessConfirmed = false,
+  initialShowAccountSetup = false,
   billing,
   from,
   inviteCode,
@@ -118,6 +122,7 @@ export function JoinCheckoutPrep({
   const [billingInterval, setBillingInterval] =
     useState<MembershipBillingInterval>(initialBillingInterval);
   const [coreAccessConfirmed, setCoreAccessConfirmed] = useState(initialCoreAccessConfirmed);
+  const [showAccountSetup, setShowAccountSetup] = useState(initialShowAccountSetup);
 
   useEffect(() => {
     setSelectedTier(initialSelectedTier);
@@ -130,6 +135,10 @@ export function JoinCheckoutPrep({
   useEffect(() => {
     setCoreAccessConfirmed(initialCoreAccessConfirmed);
   }, [initialCoreAccessConfirmed]);
+
+  useEffect(() => {
+    setShowAccountSetup(initialShowAccountSetup);
+  }, [initialShowAccountSetup]);
 
   const selectedOffer = foundingOfferByTier[selectedTier];
   const selectedContent = getMembershipTierContent(selectedTier);
@@ -147,6 +156,10 @@ export function JoinCheckoutPrep({
       }),
     [billing, billingInterval, coreAccessConfirmed, from, inviteCode, selectedTier]
   );
+  const loginHref = useMemo(
+    () => `/login?from=${encodeURIComponent(currentJoinHref)}`,
+    [currentJoinHref]
+  );
   const selectedDisplayPrice = selectedPriceForInterval(selectedOffer, billingInterval);
   const selectedStandardPrice =
     billingInterval === "annual" ? selectedPlan.annualPrice : selectedPlan.monthlyPrice;
@@ -158,47 +171,35 @@ export function JoinCheckoutPrep({
   }, [currentJoinHref]);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1fr)] xl:items-start">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,0.82fr)_minmax(360px,0.78fr)] xl:items-start">
       <section className="space-y-4">
-        <div className="rounded-[1.8rem] border border-white/10 bg-card/55 p-5 shadow-panel sm:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Price view</p>
-              <h1 className="font-display text-3xl text-foreground sm:text-[2.45rem]">
-                Choose your tier, then continue.
-              </h1>
-              <p className="max-w-xl text-sm leading-relaxed text-muted">
-                Switch between tiers and billing before checkout. The selected room stays attached
-                to this join path.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="inline-flex rounded-full border border-border/80 bg-background/30 p-1">
-                {(["monthly", "annual"] as const).map((period) => (
-                  <button
-                    key={period}
-                    type="button"
-                    onClick={() => setBillingInterval(period)}
-                    className={cn(
-                      "rounded-full px-4 py-2 text-sm transition-colors",
-                      billingInterval === period
-                        ? "bg-foreground text-background"
-                        : "text-muted hover:text-foreground"
-                    )}
-                  >
-                    {period === "monthly" ? "Monthly" : "Annual"}
-                  </button>
-                ))}
-              </div>
-              <p className="text-sm text-muted md:text-right">Annual billing saves 20%</p>
+        <div className="flex flex-col gap-4 rounded-[1.8rem] border border-white/10 bg-card/55 p-5 shadow-panel sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Billing</p>
+            <div className="inline-flex rounded-full border border-border/80 bg-background/30 p-1">
+              {(["monthly", "annual"] as const).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setBillingInterval(period)}
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm transition-colors",
+                    billingInterval === period
+                      ? "bg-foreground text-background"
+                      : "text-muted hover:text-foreground"
+                  )}
+                >
+                  {period === "monthly" ? "Monthly" : "Annual"}
+                </button>
+              ))}
             </div>
           </div>
+
+          <p className="text-sm text-muted sm:text-right">Annual billing saves 20%</p>
         </div>
 
         <div className="grid gap-3">
           {MEMBERSHIP_TIER_ORDER.map((tier) => {
-            const tierContent = getMembershipTierContent(tier);
             const offer = foundingOfferByTier[tier];
             const displayPrice = selectedPriceForInterval(offer, billingInterval);
             const tierSelected = selectedTier === tier;
@@ -233,9 +234,6 @@ export function JoinCheckoutPrep({
                         {getMembershipTierLabel(tier)}
                       </h2>
                       <p className="text-sm leading-relaxed text-muted">{tierSwitchLines[tier]}</p>
-                      <p className="text-xs uppercase tracking-[0.08em] text-silver">
-                        {tierContent.supportingBadge}
-                      </p>
                     </div>
                   </div>
 
@@ -266,9 +264,6 @@ export function JoinCheckoutPrep({
             <span className="rounded-full border border-white/10 bg-background/25 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
               {tierStageLabels[selectedTier]}
             </span>
-            <span className="rounded-full border border-white/10 bg-background/25 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-              {selectedContent.supportingBadge}
-            </span>
             {selectedContent.accessNote ? (
               <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
                 {selectedContent.accessNote}
@@ -276,17 +271,14 @@ export function JoinCheckoutPrep({
             ) : null}
           </div>
 
-          <div className="mt-5 space-y-3">
-            <h2 className="font-display text-4xl text-foreground">{selectedDefinition.name}</h2>
-            <p className="text-sm leading-relaxed text-muted">{tierSwitchLines[selectedTier]}</p>
-          </div>
+          <h1 className="mt-5 font-display text-4xl text-foreground">{selectedDefinition.name}</h1>
 
           <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-background/28 p-5">
             {selectedOffer.available ? (
               <div className="space-y-3">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Founding access</p>
                 <p className="text-sm text-muted">
-                  Early access pricing for the first {selectedOffer.limit} members in this tier.
+                  Limited to the first {selectedOffer.limit} members in this tier.
                 </p>
                 <div className="flex flex-wrap items-end gap-2">
                   <span
@@ -307,7 +299,7 @@ export function JoinCheckoutPrep({
                   {selectedOffer.remaining} of {selectedOffer.limit} founding places remaining
                 </p>
                 <p className="text-sm text-muted">
-                  Once these places are filled, pricing moves to the standard rate.
+                  When these places are filled, pricing moves to the standard rate.
                 </p>
               </div>
             ) : (
@@ -325,42 +317,21 @@ export function JoinCheckoutPrep({
               </div>
             )}
           </div>
-        </article>
 
-        {requiresCoreConfirmation ? (
-          <label className="flex items-start gap-3 rounded-[1.6rem] border border-gold/25 bg-card/60 px-5 py-4 text-sm text-foreground shadow-panel">
-            <input
-              type="checkbox"
-              checked={coreAccessConfirmed}
-              onChange={(event) => setCoreAccessConfirmed(event.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-            />
-            <span>I am actively running a business or generating revenue from a business</span>
-          </label>
-        ) : null}
+          {requiresCoreConfirmation ? (
+            <label className="mt-4 flex items-start gap-3 rounded-[1.4rem] border border-gold/25 bg-background/25 px-4 py-4 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={coreAccessConfirmed}
+                onChange={(event) => setCoreAccessConfirmed(event.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+              />
+              <span>I am actively running a business or generating revenue from a business</span>
+            </label>
+          ) : null}
 
-        {!isAuthenticated ? (
-          <RegisterForm
-            from={from}
-            loginFrom={currentJoinHref}
-            defaultTier={selectedTier}
-            selectedTier={selectedTier}
-            inviteCode={inviteCode}
-            billingInterval={billingInterval}
-            coreAccessConfirmed={coreAccessConfirmed}
-            showTierSelector={false}
-            showCoreConfirmation={false}
-            submitDisabled={!canContinueToCore}
-            streamlined
-          />
-        ) : (
-          <div className="rounded-[2rem] border border-white/10 bg-card/70 p-6 shadow-panel">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Checkout</p>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
-              Continue with {selectedDefinition.name} on {billingInterval} billing.
-            </p>
-
-            <div className="mt-6">
+          <div className="mt-6">
+            {isAuthenticated ? (
               <MembershipPlanAction
                 tier={selectedTier}
                 source="join"
@@ -380,11 +351,46 @@ export function JoinCheckoutPrep({
                 })}
                 unauthenticatedLabel={selectedContent.ctaLabel}
                 joinHref={currentJoinHref}
-                loginHref={`/login?from=${encodeURIComponent(currentJoinHref)}`}
+                loginHref={loginHref}
               />
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  className="w-full"
+                  size="lg"
+                  variant={getTierButtonVariant(selectedTier)}
+                  onClick={() => setShowAccountSetup(true)}
+                  disabled={!canContinueToCore}
+                >
+                  Continue To Secure Setup
+                </Button>
+                <p className="text-center text-xs text-muted">
+                  Already a member?{" "}
+                  <Link href={loginHref} className="text-primary hover:underline">
+                    Sign in
+                  </Link>
+                </p>
+              </div>
+            )}
           </div>
-        )}
+        </article>
+
+        {!isAuthenticated && showAccountSetup ? (
+          <RegisterForm
+            from={from}
+            loginFrom={currentJoinHref}
+            defaultTier={selectedTier}
+            selectedTier={selectedTier}
+            inviteCode={inviteCode}
+            billingInterval={billingInterval}
+            coreAccessConfirmed={coreAccessConfirmed}
+            showTierSelector={false}
+            showCoreConfirmation={false}
+            submitDisabled={!canContinueToCore}
+            streamlined
+          />
+        ) : null}
       </aside>
     </div>
   );

@@ -173,7 +173,7 @@ export const siteContentDefaults: SiteContentValueMap = {
   },
   about: {
     intro:
-      "The Business Circle Network exists to help business owners grow through practical strategy, better relationships, stronger trust, and consistent execution."
+      "The Business Circle Network exists to give business owners a calmer, more useful environment for growth through clearer strategy, stronger relationships, better trust, and more consistent momentum."
   },
   membership: {
     intro:

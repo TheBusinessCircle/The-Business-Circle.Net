@@ -51,7 +51,12 @@ export function HeroSection({
       <div className="pointer-events-none absolute -right-16 -top-14 h-56 w-56 rounded-full bg-gold/20 blur-[90px] sm:-right-24 sm:-top-20 sm:h-72 sm:w-72 sm:blur-[100px]" />
       <div className="pointer-events-none absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-silver/10 blur-[90px] sm:-left-24 sm:h-72 sm:w-72 sm:blur-[110px]" />
 
-      <div className={cn("relative grid items-start gap-8 sm:gap-10", aside ? "lg:grid-cols-[1.05fr_0.95fr]" : "grid-cols-1")}>
+      <div
+        className={cn(
+          "relative grid items-start gap-8 sm:gap-10",
+          aside ? "lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch" : "grid-cols-1"
+        )}
+      >
         <div className="space-y-7">
           {eyebrow ? (
             <p className="premium-kicker">
@@ -127,7 +132,7 @@ export function HeroSection({
           ) : null}
         </div>
 
-        {aside ? <div className="relative">{aside}</div> : null}
+        {aside ? <div className="relative min-h-0">{aside}</div> : null}
       </div>
     </section>
   );
