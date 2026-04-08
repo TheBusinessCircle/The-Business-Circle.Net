@@ -5,6 +5,7 @@ import {
   Prisma
 } from "@prisma/client";
 import {
+  MEMBERSHIP_FOUNDING_CAPACITY,
   getMembershipBillingPlan,
   getMembershipPlan,
   getMembershipPlanVariant,
@@ -21,9 +22,9 @@ import type { FoundingOfferSnapshot, FoundingOfferTierSnapshot, FoundingStatusMo
 const FOUNDING_SETTINGS_ID = "default";
 const DEFAULT_RESERVATION_WINDOW_MINUTES = 30;
 const SERIALIZABLE_RETRY_ATTEMPTS = 3;
-const DEFAULT_FOUNDATION_LIMIT = 50;
-const DEFAULT_INNER_CIRCLE_LIMIT = 50;
-const DEFAULT_CORE_LIMIT = 50;
+const DEFAULT_FOUNDATION_LIMIT = MEMBERSHIP_FOUNDING_CAPACITY;
+const DEFAULT_INNER_CIRCLE_LIMIT = MEMBERSHIP_FOUNDING_CAPACITY;
+const DEFAULT_CORE_LIMIT = MEMBERSHIP_FOUNDING_CAPACITY;
 const DEFAULT_FOUNDING_SETTINGS = {
   enabled: true,
   foundationLimit: DEFAULT_FOUNDATION_LIMIT,
@@ -209,7 +210,7 @@ function buildTierSnapshot(input: {
       remaining > 0 &&
       isMembershipVariantStripeConfigured(input.tier, "founding", "monthly") &&
       isMembershipVariantStripeConfigured(input.tier, "founding", "annual"),
-    launchClosedLabel: "Founding places filled"
+    launchClosedLabel: "Founding Member spots have now been filled"
   };
 }
 
@@ -381,7 +382,11 @@ export async function reserveFoundingSlot(
     await cleanupExpiredFoundingReservations(tx);
 
     const settings = await getOrCreateFoundingOfferSettings(tx);
-    if (!settings.enabled || !isMembershipVariantStripeConfigured(input.tier, "founding")) {
+    if (
+      !settings.enabled ||
+      !isMembershipVariantStripeConfigured(input.tier, "founding", "monthly") ||
+      !isMembershipVariantStripeConfigured(input.tier, "founding", "annual")
+    ) {
       return null;
     }
 

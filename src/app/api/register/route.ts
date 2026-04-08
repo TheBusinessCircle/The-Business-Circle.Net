@@ -61,8 +61,8 @@ export async function POST(request: Request) {
       billingInterval,
       coreAccessConfirmed:
         typeof payload?.coreAccessConfirmed === "boolean" ? payload.coreAccessConfirmed : false,
-      successPath: "/dashboard?billing=success&source=join",
-      cancelPath: `/join?billing=cancelled&tier=${selectedTier}&interval=${billingInterval}`
+      successPath: "/dashboard?billing=success&source=membership",
+      cancelPath: `/membership?billing=cancelled&tier=${selectedTier}&interval=${billingInterval}`
     });
 
     return NextResponse.json({ checkoutUrl: checkoutSession.url }, { headers });

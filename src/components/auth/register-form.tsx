@@ -14,6 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import {
+  formatMembershipPrice,
+  getMembershipTierLabel,
+  getMembershipTierPricing
+} from "@/config/membership";
+import {
   type MembershipBillingIntervalValue,
   type RegisterMemberFormInput,
   registerMemberFormSchema
@@ -80,9 +85,18 @@ function withJoinWelcome(pathname: string) {
 }
 
 const DEFAULT_TIER_OPTIONS: NonNullable<RegisterFormProps["tierOptions"]> = [
-  { value: "FOUNDATION", label: "Foundation - GBP 30/month" },
-  { value: "INNER_CIRCLE", label: "Inner Circle - GBP 79/month" },
-  { value: "CORE", label: "Core - GBP 149/month" }
+  {
+    value: "FOUNDATION",
+    label: `${getMembershipTierLabel("FOUNDATION")} - ${formatMembershipPrice(getMembershipTierPricing("FOUNDATION").standardMonthlyPrice)}/month`
+  },
+  {
+    value: "INNER_CIRCLE",
+    label: `${getMembershipTierLabel("INNER_CIRCLE")} - ${formatMembershipPrice(getMembershipTierPricing("INNER_CIRCLE").standardMonthlyPrice)}/month`
+  },
+  {
+    value: "CORE",
+    label: `${getMembershipTierLabel("CORE")} - ${formatMembershipPrice(getMembershipTierPricing("CORE").standardMonthlyPrice)}/month`
+  }
 ];
 
 const tierHeroCopy: Record<

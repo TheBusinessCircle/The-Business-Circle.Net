@@ -59,7 +59,37 @@ function withSelectionParams(pathname: string, params: Record<string, string | b
     }
   }
 
-  return `${url.pathname}${url.search}`;
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function withSelectionParamsInFromParam(
+  pathname: string,
+  params: Record<string, string | boolean | undefined>
+) {
+  const url = new URL(pathname, "http://localhost");
+  const from = url.searchParams.get("from");
+
+  if (!from) {
+    return withSelectionParams(pathname, params);
+  }
+
+  const fromUrl = new URL(from, "http://localhost");
+
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "boolean") {
+      if (value) {
+        fromUrl.searchParams.set(key, "1");
+      }
+      continue;
+    }
+
+    if (value) {
+      fromUrl.searchParams.set(key, value);
+    }
+  }
+
+  url.searchParams.set("from", `${fromUrl.pathname}${fromUrl.search}${fromUrl.hash}`);
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 export function MembershipPlanAction({
@@ -105,6 +135,13 @@ export function MembershipPlanAction({
         coreAccessConfirmed: requiresCoreConfirmation ? coreAccessConfirmed : undefined
       }),
     [billingInterval, coreAccessConfirmed, joinHref, requiresCoreConfirmation]
+  );
+  const resolvedLoginHref = useMemo(
+    () =>
+      withSelectionParamsInFromParam(loginHref, {
+        coreAccessConfirmed: requiresCoreConfirmation ? coreAccessConfirmed : undefined
+      }),
+    [coreAccessConfirmed, loginHref, requiresCoreConfirmation]
   );
 
   const startCheckout = () => {
@@ -202,7 +239,7 @@ export function MembershipPlanAction({
           )}
           <p className="text-center text-xs text-muted">
             Already a member?{" "}
-            <Link href={loginHref} className="text-primary hover:underline">
+            <Link href={resolvedLoginHref} className="text-primary hover:underline">
               Sign in
             </Link>
           </p>

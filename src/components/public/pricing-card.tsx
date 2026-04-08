@@ -161,6 +161,9 @@ export function PricingCard({
                 Limited to 50
               </p>
             </div>
+            <p className="text-sm leading-relaxed text-muted">
+              Limited to the first 50 members in this tier
+            </p>
 
             <div className="space-y-3">
               <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
@@ -177,7 +180,7 @@ export function PricingCard({
                 </span>
               </div>
               <p className="text-sm leading-relaxed text-muted">
-                Standard {isAnnual ? "annual" : "monthly"} pricing is{" "}
+                Usually{" "}
                 <span className="text-foreground">
                   {formatMembershipPrice(primaryStandardPrice)}
                   {isAnnual ? "/year" : "/month"}
@@ -203,8 +206,9 @@ export function PricingCard({
             </div>
 
             <div className="border-t border-white/8 pt-4 text-xs leading-relaxed text-muted">
-              <p>{foundingOffer.remaining} of {foundingOffer.limit} Founding Member spots remaining</p>
+              <p>{foundingOffer.remaining} of {foundingOffer.limit} founding places remaining</p>
               <p>Once these are gone, standard pricing applies.</p>
+              <p>Founding rates stay locked while membership remains active.</p>
             </div>
           </div>
         ) : (
@@ -242,7 +246,7 @@ export function PricingCard({
             </div>
             {foundingOffer ? (
               <p className="border-t border-white/8 pt-4 text-xs leading-relaxed text-muted">
-                {foundingOffer.launchClosedLabel}. Standard pricing now applies.
+                {foundingOffer.launchClosedLabel}
               </p>
             ) : null}
           </div>

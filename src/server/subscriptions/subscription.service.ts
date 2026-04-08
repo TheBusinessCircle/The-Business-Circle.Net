@@ -11,6 +11,7 @@ import { BillingReceiptEmail } from "@/emails";
 import {
   getMembershipPlan,
   getMembershipBillingPlan,
+  getMembershipPlanKey,
   getMembershipPriceDifference,
   getMembershipStripePriceId,
   resolveMembershipPriceFromStripePriceId,
@@ -618,6 +619,7 @@ export async function createStripeCheckoutSessionForUser(
     billingVariant,
     input.billingInterval
   );
+  const planKey = getMembershipPlanKey(input.targetTier, billingVariant, input.billingInterval);
 
   let session: Stripe.Checkout.Session;
   try {
@@ -635,6 +637,7 @@ export async function createStripeCheckoutSessionForUser(
         targetTier: input.targetTier,
         billingVariant,
         billingInterval: input.billingInterval,
+        planKey,
         ...(foundingReservation
           ? {
               foundingReservationId: foundingReservation.id
@@ -647,6 +650,7 @@ export async function createStripeCheckoutSessionForUser(
           targetTier: input.targetTier,
           billingVariant,
           billingInterval: input.billingInterval,
+          planKey,
           ...(foundingReservation
             ? {
                 foundingReservationId: foundingReservation.id
@@ -795,7 +799,8 @@ export async function updateStripeSubscriptionPlanForUser(input: {
         userId: input.userId,
         targetTier: input.targetTier,
         billingVariant,
-        billingInterval: input.billingInterval
+        billingInterval: input.billingInterval,
+        planKey: targetPlan.planKey
       }
     });
 

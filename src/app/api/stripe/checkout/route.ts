@@ -97,13 +97,13 @@ export async function POST(request: Request) {
 
     const successPath =
       source === "join"
-        ? `/dashboard?billing=success&source=join&interval=${billingInterval}`
+        ? `/dashboard?billing=success&source=membership&interval=${billingInterval}`
         : source === "membership"
           ? `/dashboard?billing=success&source=membership&interval=${billingInterval}`
           : `/dashboard?billing=success&interval=${billingInterval}`;
     const cancelPath =
       source === "join"
-        ? `/join?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`
+        ? `/membership?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`
         : source === "dashboard"
           ? `/dashboard?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`
           : `/membership?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`;

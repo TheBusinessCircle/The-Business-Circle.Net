@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { buildMembershipSelectionRedirect } from "@/lib/join/routing";
 
 type PageProps = {
   params: Promise<{ inviteCode: string }>;
@@ -9,8 +10,13 @@ export default async function InvitePage({ params }: PageProps) {
   const normalizedInviteCode = inviteCode.trim().toUpperCase();
 
   if (!normalizedInviteCode) {
-    redirect("/join");
+    redirect("/membership?auth=register");
   }
 
-  redirect(`/join?invite=${encodeURIComponent(normalizedInviteCode)}`);
+  redirect(
+    buildMembershipSelectionRedirect({
+      invite: normalizedInviteCode,
+      auth: "register"
+    })
+  );
 }

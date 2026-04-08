@@ -409,7 +409,7 @@ export default async function FounderPage() {
         title="Explore the right pathway for your business"
         description="Start with a founder service if you need direct strategic focus, or join The Business Circle if you want an ongoing ecosystem around your growth."
         primaryAction={{ href: "/founder#services", label: "View Service Pathways" }}
-        secondaryAction={{ href: "/join", label: "Join The Business Circle", variant: "outline" }}
+        secondaryAction={{ href: "/membership", label: "Join The Business Circle", variant: "outline" }}
       />
     </div>
   );

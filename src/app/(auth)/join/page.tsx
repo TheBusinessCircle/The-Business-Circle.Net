@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { JoinRouteGateway } from "@/components/auth/join-route-gateway";
-import { shouldUseMobileJoin, toSearchParams } from "@/lib/join/routing";
+import {
+  buildAuthModeRedirect,
+  buildMembershipSelectionRedirect,
+  firstValue
+} from "@/lib/join/routing";
 import { createPageMetadata } from "@/lib/seo";
 
 type JoinPageProps = {
@@ -27,12 +29,23 @@ export const metadata: Metadata = createPageMetadata({
 
 export default async function JoinPage({ searchParams }: JoinPageProps) {
   const params = await searchParams;
-  const headerList = await headers();
-  const search = toSearchParams(params).toString();
+  const from = firstValue(params.from);
+  const error = firstValue(params.error);
+  const mode = firstValue(params.mode);
 
-  if (shouldUseMobileJoin(headerList)) {
-    redirect(search ? `/join-mobile?${search}` : "/join-mobile");
+  if (mode === "signin") {
+    redirect(buildAuthModeRedirect({ from, error }));
   }
 
-  return <JoinRouteGateway search={search} />;
+  redirect(
+    buildMembershipSelectionRedirect({
+      from,
+      tier: firstValue(params.tier),
+      interval: firstValue(params.interval),
+      billing: firstValue(params.billing),
+      invite: firstValue(params.invite),
+      auth: firstValue(params.auth),
+      coreAccessConfirmed: firstValue(params.coreAccessConfirmed)
+    })
+  );
 }

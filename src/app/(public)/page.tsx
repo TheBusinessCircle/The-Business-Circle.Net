@@ -9,7 +9,11 @@ import {
   Sparkles,
   Users
 } from "lucide-react";
-import { getMembershipTierPricing, MEMBERSHIP_PLANS } from "@/config/membership";
+import {
+  getMembershipTierDefinition,
+  getMembershipTierPricing,
+  MEMBERSHIP_PLANS
+} from "@/config/membership";
 import { TREV_FOUNDER_CONTENT } from "@/config/founder";
 import {
   CTASection,
@@ -185,6 +189,9 @@ export default async function HomePage() {
     featuredInsightTopicSlugs.has(cluster.slug)
   );
   const latestInsights = listPublicInsights().slice(0, 3);
+  const foundationDefinition = getMembershipTierDefinition("FOUNDATION");
+  const innerCircleDefinition = getMembershipTierDefinition("INNER_CIRCLE");
+  const coreDefinition = getMembershipTierDefinition("CORE");
   const foundationPricing = getMembershipTierPricing("FOUNDATION");
   const innerCirclePricing = getMembershipTierPricing("INNER_CIRCLE");
   const corePricing = getMembershipTierPricing("CORE");
@@ -224,7 +231,7 @@ export default async function HomePage() {
           description={homeContent.heroSubtitle}
           supportLine={homeContent.heroSupportLine}
           callouts={heroCallouts}
-          primaryAction={{ href: "/join", label: "Join The Business Circle" }}
+          primaryAction={{ href: "/membership", label: "Join The Business Circle" }}
           secondaryAction={{ href: "/membership", label: "Explore Membership", variant: "outline" }}
           metrics={[
             { value: "Private", label: "Curated membership" },
@@ -370,47 +377,44 @@ export default async function HomePage() {
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             <PricingCard
               tier="FOUNDATION"
-              name={MEMBERSHIP_PLANS.FOUNDATION.name}
-              positioningLabel="Best place to start"
+              name={foundationDefinition.name}
+              positioningLabel={foundationDefinition.content.homePositioningLabel}
               billingInterval="monthly"
               monthlyPrice={MEMBERSHIP_PLANS.FOUNDATION.monthlyPrice}
               annualPrice={foundationPricing.standardAnnualPrice}
-              description="For business owners who want a stronger room, a clearer base, and the full structure around them."
+              description={foundationDefinition.content.homeDescription}
               features={MEMBERSHIP_PLANS.FOUNDATION.features}
-              ctaHref="/join?tier=FOUNDATION"
-              ctaLabel="Join Foundation"
+              ctaHref="/membership?tier=FOUNDATION"
+              ctaLabel={foundationDefinition.content.ctaLabel}
               foundingOffer={foundingOffer.foundation}
             />
             <PricingCard
               tier="INNER_CIRCLE"
-              name={MEMBERSHIP_PLANS.INNER_CIRCLE.name}
-              positioningLabel="The natural upgrade"
-              spotlight={{
-                label: "Clearer difference",
-                text: "Move into Inner Circle when you want stronger signal, more private context, and a more focused room than Foundation alone."
-              }}
+              name={innerCircleDefinition.name}
+              positioningLabel={innerCircleDefinition.content.homePositioningLabel}
+              spotlight={innerCircleDefinition.content.homeSpotlight}
               billingInterval="monthly"
               monthlyPrice={MEMBERSHIP_PLANS.INNER_CIRCLE.monthlyPrice}
               annualPrice={innerCirclePricing.standardAnnualPrice}
-              description="For founders who want a more focused environment, deeper conversation, and better context around the next decision."
+              description={innerCircleDefinition.content.homeDescription}
               features={MEMBERSHIP_PLANS.INNER_CIRCLE.features}
-              ctaHref="/join?tier=INNER_CIRCLE"
-              ctaLabel="Enter Inner Circle"
+              ctaHref="/membership?tier=INNER_CIRCLE"
+              ctaLabel={innerCircleDefinition.content.ctaLabel}
               foundingOffer={foundingOffer.innerCircle}
               featured
-              featuredLabel="Most natural step up"
+              featuredLabel={innerCircleDefinition.content.homeFeaturedLabel}
             />
             <PricingCard
               tier="CORE"
-              name={MEMBERSHIP_PLANS.CORE.name}
-              positioningLabel="Closest strategic layer"
+              name={coreDefinition.name}
+              positioningLabel={coreDefinition.content.homePositioningLabel}
               billingInterval="monthly"
               monthlyPrice={MEMBERSHIP_PLANS.CORE.monthlyPrice}
               annualPrice={corePricing.standardAnnualPrice}
-              description="For business owners who want the calmest high-value room and the strongest proximity to founder thinking."
+              description={coreDefinition.content.homeDescription}
               features={MEMBERSHIP_PLANS.CORE.features}
-              ctaHref="/join?tier=CORE"
-              ctaLabel="Join Core"
+              ctaHref="/membership?tier=CORE"
+              ctaLabel={coreDefinition.content.ctaLabel}
               foundingOffer={foundingOffer.core}
             />
           </div>
@@ -550,7 +554,7 @@ export default async function HomePage() {
         <CTASection
           title={homeContent.ctaTitle}
           description={homeContent.ctaDescription}
-          primaryAction={{ href: "/join", label: "Join The First Wave Of Members" }}
+          primaryAction={{ href: "/membership", label: "Join The First Wave Of Members" }}
           secondaryAction={{ href: "/membership", label: "Explore Membership", variant: "outline" }}
         />
       </div>

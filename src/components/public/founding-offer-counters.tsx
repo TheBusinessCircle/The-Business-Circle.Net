@@ -1,4 +1,5 @@
 import type { MembershipTier } from "@prisma/client";
+import { getMembershipTierLabel } from "@/config/membership";
 import type { FoundingOfferSnapshot } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { getTierBadgeVariant, getTierPanelClassName } from "@/lib/tier-styles";
@@ -24,7 +25,7 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
           className={cn("rounded-2xl border px-4 py-4", counterTone(item.tier))}
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium">{item.badgeLabel}</p>
+            <p className="text-sm font-medium">{getMembershipTierLabel(item.tier)}</p>
             <Badge variant={item.available ? getTierBadgeVariant(item.tier) : "muted"}>
               {item.available ? "Available" : "Closed"}
             </Badge>
@@ -32,11 +33,11 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
           {item.available ? (
             <>
               <p className="mt-3 text-sm text-foreground">
-                {item.remaining} of {item.limit} Founding Member spots remaining
+                {item.remaining} of {item.limit} founding places remaining
               </p>
               <p className="mt-1 text-xs text-muted">
-                Once these are gone, standard pricing applies. Founding rates are locked for active
-                members.
+                Once these are gone, standard pricing applies. Founding rates stay locked while
+                membership remains active.
               </p>
             </>
           ) : (

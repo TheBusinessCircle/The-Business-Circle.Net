@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Join2CinematicEntry } from "@/components/auth/join2-cinematic-entry";
 import {
   buildAuthModeRedirect,
+  buildMembershipSelectionRedirect,
   firstValue,
-  resolveBillingInterval,
-  resolveTier
 } from "@/lib/join/routing";
 import { createPageMetadata } from "@/lib/seo";
 
@@ -32,23 +30,20 @@ export default async function JoinMobilePage({ searchParams }: JoinMobilePagePro
   const from = firstValue(params.from);
   const error = firstValue(params.error);
   const mode = firstValue(params.mode);
-  const billing = firstValue(params.billing);
-  const billingInterval = resolveBillingInterval(firstValue(params.interval));
-  const selectedTier = resolveTier(firstValue(params.tier));
-  const inviteCode = (firstValue(params.invite) ?? "").trim().toUpperCase();
 
   if (mode === "signin") {
     redirect(buildAuthModeRedirect({ from, error }));
   }
 
-  return (
-    <Join2CinematicEntry
-      initialSelectedTier={selectedTier}
-      billingInterval={billingInterval}
-      from={from}
-      inviteCode={inviteCode || undefined}
-      error={error}
-      billing={billing}
-    />
+  redirect(
+    buildMembershipSelectionRedirect({
+      from,
+      tier: firstValue(params.tier),
+      interval: firstValue(params.interval),
+      billing: firstValue(params.billing),
+      invite: firstValue(params.invite),
+      auth: firstValue(params.auth),
+      coreAccessConfirmed: firstValue(params.coreAccessConfirmed)
+    })
   );
 }

@@ -10,5 +10,5 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default function SignUpPage() {
-  redirect("/join");
+  redirect("/membership?auth=register");
 }

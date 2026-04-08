@@ -110,7 +110,7 @@ export async function Footer() {
               </li>
             ))}
             <li>
-              <Link href="/join" className="transition-colors hover:text-foreground">
+              <Link href="/membership" className="transition-colors hover:text-foreground">
                 Join The Network
               </Link>
             </li>

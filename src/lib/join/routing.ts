@@ -1,3 +1,5 @@
+import { safeRedirectPath } from "@/lib/auth/utils";
+
 export type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
 export type MembershipBillingInterval = "monthly" | "annual";
 
@@ -44,6 +46,53 @@ export function buildAuthModeRedirect({
   }
 
   return search.size ? `/login?${search.toString()}` : "/login";
+}
+
+export function buildMembershipSelectionRedirect(input: {
+  from?: string;
+  tier?: string;
+  interval?: string;
+  billing?: string;
+  invite?: string;
+  auth?: string;
+  coreAccessConfirmed?: string | boolean;
+}) {
+  const search = new URLSearchParams();
+  const from = input.from ? safeRedirectPath(input.from, "") : "";
+  const tier = input.tier ? resolveTier(input.tier) : undefined;
+  const interval = input.interval ? resolveBillingInterval(input.interval) : undefined;
+  const invite = input.invite?.trim().toUpperCase();
+  const auth = input.auth === "register" || invite ? "register" : undefined;
+
+  if (from) {
+    search.set("from", from);
+  }
+
+  if (tier) {
+    search.set("tier", tier);
+  }
+
+  if (interval) {
+    search.set("interval", interval);
+  }
+
+  if (input.billing) {
+    search.set("billing", input.billing);
+  }
+
+  if (invite) {
+    search.set("invite", invite);
+  }
+
+  if (auth) {
+    search.set("auth", auth);
+  }
+
+  if (input.coreAccessConfirmed === true || input.coreAccessConfirmed === "1") {
+    search.set("coreAccessConfirmed", "1");
+  }
+
+  return search.size ? `/membership?${search.toString()}` : "/membership";
 }
 
 export function toSearchParams(params: Record<string, string | string[] | undefined>) {

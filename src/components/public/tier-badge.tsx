@@ -1,3 +1,4 @@
+import { getMembershipTierLabel } from "@/config/membership";
 import { Badge } from "@/components/ui/badge";
 import { getTierBadgeVariant } from "@/lib/tier-styles";
 import { cn } from "@/lib/utils";
@@ -5,12 +6,6 @@ import { cn } from "@/lib/utils";
 type TierBadgeProps = {
   tier: "FOUNDATION" | "INNER_CIRCLE" | "CORE";
   className?: string;
-};
-
-const TIER_LABELS: Record<TierBadgeProps["tier"], string> = {
-  FOUNDATION: "Foundation",
-  INNER_CIRCLE: "Inner Circle",
-  CORE: "Core"
 };
 
 export function TierBadge({ tier, className }: TierBadgeProps) {
@@ -22,7 +17,7 @@ export function TierBadge({ tier, className }: TierBadgeProps) {
         className
       )}
     >
-      {TIER_LABELS[tier]}
+      {getMembershipTierLabel(tier)}
     </Badge>
   );
 }

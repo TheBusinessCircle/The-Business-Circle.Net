@@ -6,6 +6,7 @@ export type MembershipBillingInterval = "monthly" | "annual";
 
 export type MembershipPlanVariant = MembershipPlan & {
   billingVariant: MembershipBillingVariant;
+  planKey: string;
 };
 
 export type MembershipBillingPlan = MembershipPlanVariant & {
@@ -13,6 +14,42 @@ export type MembershipBillingPlan = MembershipPlanVariant & {
   checkoutPrice: number;
   annualPrice: number;
   monthlyEquivalentPrice: number;
+};
+
+type MembershipTierPricing = {
+  standardMonthly: number;
+  foundersMonthly: number;
+  standardAnnual: number;
+  foundersAnnual: number;
+};
+
+type MembershipTierContent = {
+  badgeLabel: string;
+  supportingBadge: string;
+  description: string;
+  narrative: string;
+  ctaLabel: string;
+  emphasisLabel?: string;
+  accessNote?: string;
+  trustLine: string;
+  homeDescription: string;
+  homePositioningLabel: string;
+  homeFeaturedLabel?: string;
+  homeSpotlight?: {
+    label: string;
+    text: string;
+  };
+};
+
+type MembershipTierDefinition = {
+  tier: MembershipTier;
+  name: string;
+  slug: string;
+  rank: number;
+  pricing: MembershipTierPricing;
+  content: MembershipTierContent;
+  features: string[];
+  stripe: Record<MembershipBillingVariant, Record<MembershipBillingInterval, string>>;
 };
 
 type MembershipVariantMap = Record<
@@ -25,37 +62,14 @@ type MembershipStripePriceMap = Record<
   Record<MembershipBillingVariant, Record<MembershipBillingInterval, string>>
 >;
 
-const TIER_RANK: Record<MembershipTier, number> = {
-  FOUNDATION: 1,
-  INNER_CIRCLE: 2,
-  CORE: 3
-};
-
 export const MEMBERSHIP_ANNUAL_SAVINGS_PERCENT = 20;
+export const MEMBERSHIP_FOUNDING_CAPACITY = 50;
 
-const STANDARD_MONTHLY_PRICES: Record<MembershipTier, number> = {
-  FOUNDATION: 30,
-  INNER_CIRCLE: 79,
-  CORE: 149
-};
-
-const DEFAULT_FOUNDING_MONTHLY_PRICES: Record<MembershipTier, number> = {
-  FOUNDATION: 15,
-  INNER_CIRCLE: 39,
-  CORE: 74
-};
-
-export const MEMBERSHIP_TIER_ORDER = [
-  "FOUNDATION",
-  "INNER_CIRCLE",
-  "CORE"
-] as const satisfies readonly MembershipTier[];
-
-export const MEMBERSHIP_TIER_LABELS: Record<MembershipTier, string> = {
-  FOUNDATION: "Foundation",
-  INNER_CIRCLE: "Inner Circle",
-  CORE: "Core"
-};
+export const MEMBERSHIP_PAGE_MICROCOPY = [
+  "Built for business owners, not browsers.",
+  "No noise, just real conversations and growth.",
+  "Move at your own pace, or step into something bigger."
+] as const;
 
 const FOUNDATION_PLAN_FEATURES = [
   "Core community access",
@@ -81,8 +95,8 @@ const CORE_PLAN_FEATURES = [
   "Stronger bridge into premium ecosystem work"
 ];
 
-function resolveAnnualPrice(monthlyPrice: number): number {
-  return Math.floor(monthlyPrice * (100 - MEMBERSHIP_ANNUAL_SAVINGS_PERCENT) / 100) * 12;
+function calculateAnnualPrice(monthlyPrice: number): number {
+  return Math.floor((monthlyPrice * (100 - MEMBERSHIP_ANNUAL_SAVINGS_PERCENT)) / 100) * 12;
 }
 
 function resolveStripePriceIdMap(): MembershipStripePriceMap {
@@ -142,26 +156,156 @@ function resolveStripePriceIdMap(): MembershipStripePriceMap {
 
 export const MEMBERSHIP_STRIPE_PRICE_IDS = resolveStripePriceIdMap();
 
+export const MEMBERSHIP_TIER_ORDER = [
+  "FOUNDATION",
+  "INNER_CIRCLE",
+  "CORE"
+] as const satisfies readonly MembershipTier[];
+
+export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierDefinition> = {
+  FOUNDATION: {
+    tier: "FOUNDATION",
+    name: "Foundation",
+    slug: "foundation",
+    rank: 1,
+    pricing: {
+      standardMonthly: 30,
+      foundersMonthly: 15,
+      standardAnnual: 288,
+      foundersAnnual: 144
+    },
+    content: {
+      badgeLabel: "Foundation",
+      supportingBadge: "Best place to start",
+      description:
+        "Start here. Build the right base, connect with the right people, and begin moving with more clarity.",
+      narrative:
+        "A strong entry into the network when you want structure, signal, and a better environment around the work.",
+      ctaLabel: "Enter Foundation",
+      trustLine: "Built for business owners, not browsers.",
+      homeDescription:
+        "Start here when you want the full structure: resources, community, directory, events, and a better business room around you.",
+      homePositioningLabel: "Best place to start"
+    },
+    features: FOUNDATION_PLAN_FEATURES,
+    stripe: {
+      standard: {
+        monthly: "foundation-monthly",
+        annual: "foundation-annual"
+      },
+      founding: {
+        monthly: "foundation-founding-monthly",
+        annual: "foundation-founding-annual"
+      }
+    }
+  },
+  INNER_CIRCLE: {
+    tier: "INNER_CIRCLE",
+    name: "Inner Circle",
+    slug: "inner-circle",
+    rank: 2,
+    pricing: {
+      standardMonthly: 79,
+      foundersMonthly: 39,
+      standardAnnual: 756,
+      foundersAnnual: 372
+    },
+    content: {
+      badgeLabel: "Inner Circle",
+      supportingBadge: "Smartest next step",
+      description:
+        "For business owners who want a more focused room, better conversations, and stronger momentum inside the network.",
+      narrative:
+        "This is where the room feels tighter, more useful, and more alive without becoming noisy.",
+      ctaLabel: "Join Inner Circle",
+      emphasisLabel: "Most active members choose this",
+      trustLine: "No noise, just real conversations and growth.",
+      homeDescription:
+        "Choose this when Foundation is already useful and you want stronger signal, more private context, and a room with greater intent.",
+      homePositioningLabel: "Smartest next step",
+      homeFeaturedLabel: "Most active members choose this",
+      homeSpotlight: {
+        label: "Most active members choose this",
+        text: "A more focused room with better conversations and stronger movement inside the network."
+      }
+    },
+    features: INNER_CIRCLE_PLAN_FEATURES,
+    stripe: {
+      standard: {
+        monthly: "inner-circle-monthly",
+        annual: "inner-circle-annual"
+      },
+      founding: {
+        monthly: "inner-circle-founding-monthly",
+        annual: "inner-circle-founding-annual"
+      }
+    }
+  },
+  CORE: {
+    tier: "CORE",
+    name: "Core",
+    slug: "core",
+    rank: 3,
+    pricing: {
+      standardMonthly: 149,
+      foundersMonthly: 74,
+      standardAnnual: 1428,
+      foundersAnnual: 708
+    },
+    content: {
+      badgeLabel: "Core",
+      supportingBadge: "Highest-value room",
+      description:
+        "Designed for serious operators already running or scaling a business. A calmer, higher-value environment with stronger strategic context.",
+      narrative:
+        "Protected by design so the room stays useful for operators carrying real decisions and real responsibility.",
+      ctaLabel: "Continue to Core",
+      accessNote: "Access may be limited",
+      trustLine: "Move at your own pace, or step into something bigger.",
+      homeDescription:
+        "Step into Core when proximity, judgement, and the quality of room matter more than wider access alone.",
+      homePositioningLabel: "Highest-value room"
+    },
+    features: CORE_PLAN_FEATURES,
+    stripe: {
+      standard: {
+        monthly: "core-monthly",
+        annual: "core-annual"
+      },
+      founding: {
+        monthly: "core-founding-monthly",
+        annual: "core-founding-annual"
+      }
+    }
+  }
+};
+
+export const MEMBERSHIP_TIER_LABELS: Record<MembershipTier, string> = Object.fromEntries(
+  MEMBERSHIP_TIER_ORDER.map((tier) => [tier, MEMBERSHIP_TIER_DEFINITIONS[tier].name])
+) as Record<MembershipTier, string>;
+
 export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
   FOUNDATION: {
     standard: {
       tier: "FOUNDATION",
       billingVariant: "standard",
-      name: "Foundation",
-      slug: "foundation",
-      monthlyPrice: STANDARD_MONTHLY_PRICES.FOUNDATION,
+      name: MEMBERSHIP_TIER_DEFINITIONS.FOUNDATION.name,
+      slug: MEMBERSHIP_TIER_DEFINITIONS.FOUNDATION.slug,
+      monthlyPrice: MEMBERSHIP_TIER_DEFINITIONS.FOUNDATION.pricing.standardMonthly,
       currency: "GBP",
       stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.FOUNDATION.standard.monthly,
+      planKey: MEMBERSHIP_TIER_DEFINITIONS.FOUNDATION.stripe.standard.monthly,
       features: FOUNDATION_PLAN_FEATURES
     },
     founding: {
       tier: "FOUNDATION",
       billingVariant: "founding",
-      name: "Foundation",
-      slug: "foundation",
-      monthlyPrice: DEFAULT_FOUNDING_MONTHLY_PRICES.FOUNDATION,
+      name: MEMBERSHIP_TIER_DEFINITIONS.FOUNDATION.name,
+      slug: MEMBERSHIP_TIER_DEFINITIONS.FOUNDATION.slug,
+      monthlyPrice: MEMBERSHIP_TIER_DEFINITIONS.FOUNDATION.pricing.foundersMonthly,
       currency: "GBP",
       stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.FOUNDATION.founding.monthly,
+      planKey: MEMBERSHIP_TIER_DEFINITIONS.FOUNDATION.stripe.founding.monthly,
       features: FOUNDATION_PLAN_FEATURES
     }
   },
@@ -169,21 +313,23 @@ export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
     standard: {
       tier: "INNER_CIRCLE",
       billingVariant: "standard",
-      name: "Inner Circle",
-      slug: "inner-circle",
-      monthlyPrice: STANDARD_MONTHLY_PRICES.INNER_CIRCLE,
+      name: MEMBERSHIP_TIER_DEFINITIONS.INNER_CIRCLE.name,
+      slug: MEMBERSHIP_TIER_DEFINITIONS.INNER_CIRCLE.slug,
+      monthlyPrice: MEMBERSHIP_TIER_DEFINITIONS.INNER_CIRCLE.pricing.standardMonthly,
       currency: "GBP",
       stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.INNER_CIRCLE.standard.monthly,
+      planKey: MEMBERSHIP_TIER_DEFINITIONS.INNER_CIRCLE.stripe.standard.monthly,
       features: INNER_CIRCLE_PLAN_FEATURES
     },
     founding: {
       tier: "INNER_CIRCLE",
       billingVariant: "founding",
-      name: "Inner Circle",
-      slug: "inner-circle",
-      monthlyPrice: DEFAULT_FOUNDING_MONTHLY_PRICES.INNER_CIRCLE,
+      name: MEMBERSHIP_TIER_DEFINITIONS.INNER_CIRCLE.name,
+      slug: MEMBERSHIP_TIER_DEFINITIONS.INNER_CIRCLE.slug,
+      monthlyPrice: MEMBERSHIP_TIER_DEFINITIONS.INNER_CIRCLE.pricing.foundersMonthly,
       currency: "GBP",
       stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.INNER_CIRCLE.founding.monthly,
+      planKey: MEMBERSHIP_TIER_DEFINITIONS.INNER_CIRCLE.stripe.founding.monthly,
       features: INNER_CIRCLE_PLAN_FEATURES
     }
   },
@@ -191,21 +337,23 @@ export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
     standard: {
       tier: "CORE",
       billingVariant: "standard",
-      name: "Core",
-      slug: "core",
-      monthlyPrice: STANDARD_MONTHLY_PRICES.CORE,
+      name: MEMBERSHIP_TIER_DEFINITIONS.CORE.name,
+      slug: MEMBERSHIP_TIER_DEFINITIONS.CORE.slug,
+      monthlyPrice: MEMBERSHIP_TIER_DEFINITIONS.CORE.pricing.standardMonthly,
       currency: "GBP",
       stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.CORE.standard.monthly,
+      planKey: MEMBERSHIP_TIER_DEFINITIONS.CORE.stripe.standard.monthly,
       features: CORE_PLAN_FEATURES
     },
     founding: {
       tier: "CORE",
       billingVariant: "founding",
-      name: "Core",
-      slug: "core",
-      monthlyPrice: DEFAULT_FOUNDING_MONTHLY_PRICES.CORE,
+      name: MEMBERSHIP_TIER_DEFINITIONS.CORE.name,
+      slug: MEMBERSHIP_TIER_DEFINITIONS.CORE.slug,
+      monthlyPrice: MEMBERSHIP_TIER_DEFINITIONS.CORE.pricing.foundersMonthly,
       currency: "GBP",
       stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.CORE.founding.monthly,
+      planKey: MEMBERSHIP_TIER_DEFINITIONS.CORE.stripe.founding.monthly,
       features: CORE_PLAN_FEATURES
     }
   }
@@ -219,6 +367,14 @@ export const MEMBERSHIP_PLANS: MembershipPlanMap = {
 
 export function getMembershipPlan(tier: MembershipTier): MembershipPlanVariant {
   return MEMBERSHIP_PLAN_VARIANTS[tier].standard;
+}
+
+export function getMembershipTierDefinition(tier: MembershipTier) {
+  return MEMBERSHIP_TIER_DEFINITIONS[tier];
+}
+
+export function getMembershipTierContent(tier: MembershipTier) {
+  return MEMBERSHIP_TIER_DEFINITIONS[tier].content;
 }
 
 export function getMembershipPlanVariant(
@@ -250,10 +406,23 @@ export function getMembershipBillingPlan(
   >
 ): MembershipBillingPlan {
   const plan = MEMBERSHIP_PLAN_VARIANTS[tier][billingVariant];
-  const monthlyPrice = Math.max(0, Math.round(overrides?.monthlyPrice ?? plan.monthlyPrice));
+  const pricing = MEMBERSHIP_TIER_DEFINITIONS[tier].pricing;
+  const defaultMonthlyPrice =
+    billingVariant === "founding" ? pricing.foundersMonthly : pricing.standardMonthly;
+  const defaultAnnualPrice =
+    billingVariant === "founding" ? pricing.foundersAnnual : pricing.standardAnnual;
+  const monthlyPrice = Math.max(
+    0,
+    Math.round(overrides?.monthlyPrice ?? defaultMonthlyPrice)
+  );
   const annualPrice = Math.max(
     0,
-    Math.round(overrides?.annualPrice ?? resolveAnnualPrice(monthlyPrice))
+    Math.round(
+      overrides?.annualPrice ??
+        (overrides?.monthlyPrice !== undefined
+          ? calculateAnnualPrice(monthlyPrice)
+          : defaultAnnualPrice)
+    )
   );
   const checkoutPrice = Math.max(
     0,
@@ -270,6 +439,7 @@ export function getMembershipBillingPlan(
   return {
     ...plan,
     stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS[tier][billingVariant][billingInterval],
+    planKey: getMembershipPlanKey(tier, billingVariant, billingInterval),
     billingInterval,
     monthlyPrice,
     annualPrice,
@@ -279,19 +449,26 @@ export function getMembershipBillingPlan(
 }
 
 export function getMembershipTierPricing(tier: MembershipTier) {
-  const standardMonthlyPrice = STANDARD_MONTHLY_PRICES[tier];
-  const foundingMonthlyPrice = DEFAULT_FOUNDING_MONTHLY_PRICES[tier];
+  const pricing = MEMBERSHIP_TIER_DEFINITIONS[tier].pricing;
 
   return {
-    standardMonthlyPrice,
-    standardAnnualPrice: resolveAnnualPrice(standardMonthlyPrice),
-    foundingMonthlyPrice,
-    foundingAnnualPrice: resolveAnnualPrice(foundingMonthlyPrice)
+    standardMonthlyPrice: pricing.standardMonthly,
+    standardAnnualPrice: pricing.standardAnnual,
+    foundingMonthlyPrice: pricing.foundersMonthly,
+    foundingAnnualPrice: pricing.foundersAnnual
   };
 }
 
 export function getMembershipVariantPrices(tier: MembershipTier) {
   return MEMBERSHIP_PLAN_VARIANTS[tier];
+}
+
+export function getMembershipPlanKey(
+  tier: MembershipTier,
+  billingVariant: MembershipBillingVariant,
+  billingInterval: MembershipBillingInterval
+) {
+  return MEMBERSHIP_TIER_DEFINITIONS[tier].stripe[billingVariant][billingInterval];
 }
 
 export function resolveMembershipBillingInterval(
@@ -305,7 +482,7 @@ export function getMembershipTierLabel(tier: MembershipTier): string {
 }
 
 export function getMembershipTierRank(tier: MembershipTier): number {
-  return TIER_RANK[tier];
+  return MEMBERSHIP_TIER_DEFINITIONS[tier].rank;
 }
 
 export function isMembershipVariantStripeConfigured(

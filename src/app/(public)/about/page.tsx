@@ -145,7 +145,7 @@ export default async function AboutPage() {
       <CTASection
         title="Join the first wave of builders entering The Business Circle Network"
         description="If the vision feels aligned, join the first wave of members now or explore the membership structure in more detail."
-        primaryAction={{ href: "/join", label: "Join The Business Circle" }}
+        primaryAction={{ href: "/membership", label: "Join The Business Circle" }}
         secondaryAction={{ href: "/membership", label: "View Membership", variant: "outline" }}
       />
     </div>

@@ -2,6 +2,8 @@ import { MembershipTier } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import {
   getMembershipBillingPlan,
+  getMembershipPlanKey,
+  getMembershipTierContent,
   getMembershipTierPricing
 } from "@/config/membership";
 
@@ -30,5 +32,20 @@ describe("membership pricing", () => {
 
     expect(innerAnnual.checkoutPrice).toBe(756);
     expect(innerAnnual.monthlyEquivalentPrice).toBe(63);
+  });
+
+  it("uses shared tier copy and plan keys as the source of truth", () => {
+    expect(getMembershipTierContent(MembershipTier.FOUNDATION)).toMatchObject({
+      badgeLabel: "Foundation",
+      supportingBadge: "Best place to start",
+      ctaLabel: "Enter Foundation"
+    });
+
+    expect(
+      getMembershipPlanKey(MembershipTier.INNER_CIRCLE, "standard", "annual")
+    ).toBe("inner-circle-annual");
+    expect(getMembershipPlanKey(MembershipTier.CORE, "founding", "annual")).toBe(
+      "core-founding-annual"
+    );
   });
 });
