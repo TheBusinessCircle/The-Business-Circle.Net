@@ -9,8 +9,7 @@ import {
   MessagesSquare,
   ShieldCheck,
   Sparkles,
-  Target,
-  Users
+  Target
 } from "lucide-react";
 import { MEMBERSHIP_TIER_ORDER, getMembershipTierDefinition } from "@/config/membership";
 import {
@@ -18,20 +17,19 @@ import {
   FAQSection,
   type FeatureGridItem,
   FeatureGrid,
-  FoundingOfferCounters,
   HeroSection,
   SectionHeading
 } from "@/components/public";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
-import { getFoundingOfferSnapshot } from "@/server/founding";
+import { buildPublicTrustDisplay, getPublicTrustSnapshot } from "@/server/public-site";
 import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "The Business Circle",
   description:
-    "A founder-led business growth ecosystem where business owners build with stronger strategy, better relationships, and clearer momentum.",
+    "A premium business growth network for owners who want better clarity, stronger connections, and real momentum.",
   path: "/",
   keywords: [
     "The Business Circle",
@@ -48,102 +46,100 @@ const publicRoutes = [
     icon: Compass,
     title: "About The Circle",
     description:
-      "Understand what The Business Circle is, why it exists, and the standards shaping the network.",
+      "Understand the standards, the intent behind the network, and the type of business environment being built.",
     href: "/about"
   },
   {
     icon: BookOpen,
     title: "Read The Insights",
     description:
-      "Start with the public thinking, articles, and practical guidance built for business owners.",
+      "Start with the public thinking and practical guidance shaping the way the network approaches growth.",
     href: "/insights"
   },
   {
     icon: Crown,
     title: "Meet The Founder",
     description:
-      "See the strategic lens, work, and founder direction behind the wider ecosystem.",
+      "See the founder perspective behind the room, the standards, and the wider business ecosystem.",
     href: "/founder"
   },
   {
     icon: MessagesSquare,
     title: "Get In Touch",
     description:
-      "Reach out for partnerships, questions, founder enquiries, or a more direct conversation.",
+      "Reach out for partnerships, enquiries, introductions, or a more direct conversation.",
     href: "/contact"
   }
 ] as const;
 
-const ecosystemPillars: FeatureGridItem[] = [
+const clarityItems: FeatureGridItem[] = [
   {
-    title: "Better strategy",
+    title: "Better clarity",
     description:
-      "Less noise, more direction. The network is built to help business owners think properly and act with more certainty.",
+      "Use the network to sharpen thinking, see the next move more clearly, and avoid building momentum inside confusion.",
     icon: Target
   },
   {
-    title: "Stronger relationships",
+    title: "Stronger connections",
     description:
-      "Trusted conversations, meaningful introductions, and a room that supports genuine momentum.",
+      "Meet more aligned people in a calmer setting built for useful introductions, better conversations, and real business relationships.",
     icon: Handshake
   },
   {
-    title: "Useful structure",
+    title: "Real momentum",
     description:
-      "Resources, events, membership progression, and founder-led context held inside one coherent environment.",
+      "Stay close to the mix of member conversation, events, and practical resources that keeps progress moving.",
     icon: ShieldCheck
   }
 ] as const;
 
+const tierStageLabels = {
+  FOUNDATION: "Early stage",
+  INNER_CIRCLE: "Growing business",
+  CORE: "Established operator"
+} as const;
+
 export default async function HomePage() {
-  const [homeContent, foundingOffer] = await Promise.all([
+  const [homeContent, publicTrustSnapshot] = await Promise.all([
     getSiteContentSection("home"),
-    getFoundingOfferSnapshot()
+    getPublicTrustSnapshot()
   ]);
 
+  const trustDisplay = buildPublicTrustDisplay(publicTrustSnapshot);
   const membershipPreview = MEMBERSHIP_TIER_ORDER.map((tier) => {
     const definition = getMembershipTierDefinition(tier);
 
     return {
       tier,
       name: definition.name,
-      badge: definition.content.homePositioningLabel,
+      stageLabel: tierStageLabels[tier],
       description: definition.content.homeDescription,
-      ctaLabel: definition.content.ctaLabel,
-      href: `/membership?tier=${definition.slug}`,
-      emphasis: definition.content.homeFeaturedLabel ?? definition.content.accessNote ?? null
+      emphasis: definition.content.homeFeaturedLabel ?? definition.content.accessNote ?? null,
+      href: `/membership?tier=${definition.slug}`
     };
   });
 
   return (
     <div className="space-y-14 pb-16 lg:space-y-16">
       <HeroSection
-        eyebrow="Founder-led business ecosystem"
-        title={homeContent.heroTitle}
-        description={homeContent.heroSubtitle}
-        supportLine={homeContent.heroSupportLine}
-        callouts={["Private membership", "Public insight layer", "Founder-led standards", "Business-first"]}
+        eyebrow="Premium business growth network"
+        title="A premium business growth network for owners who want better clarity, stronger connections, and real momentum."
+        description="The Business Circle Network gives owners a calmer environment to sharpen positioning, build stronger business relationships, and move with more structure through member conversations, curated events, and practical resources."
+        supportLine="Start on the public side, understand the room properly, then move into the membership level that fits the stage of the business."
+        callouts={["Founder-led", "Private membership", "Built for owners"]}
         primaryAction={{ href: "/membership", label: "Explore Membership" }}
-        secondaryAction={{ href: "/join", label: "Go Straight To Join", variant: "outline" }}
-        metrics={[
-          { value: "Public", label: "Insight layer" },
-          { value: "Private", label: "Membership rooms" },
-          { value: "Calm", label: "By design" }
-        ]}
+        secondaryAction={{ href: "/about", label: "About The Circle", variant: "outline" }}
         aside={
           <article className="public-panel p-6 sm:p-7">
             <p className="premium-kicker inline-flex items-center gap-2">
               <Sparkles size={14} />
-              Start Here
+              Inside the network
             </p>
-            <h2 className="mt-5 font-display text-2xl leading-tight text-silver">
-              Built for business owners who want a better room around the business.
-            </h2>
             <div className="mt-5 space-y-3">
               {[
-                "Read the public insight layer and understand the thinking.",
-                "Explore the founder, the standards, and the wider ecosystem.",
-                "Move into membership when you know the room that fits."
+                "Get clearer on what the business needs next.",
+                "Build stronger relationships around the work.",
+                "Keep momentum moving in a calmer room."
               ].map((item) => (
                 <div
                   key={item}
@@ -157,11 +153,49 @@ export default async function HomePage() {
         }
       />
 
+      <section className="space-y-8">
+        <SectionHeading
+          label="What It Does"
+          title="A better business environment, not a noisy membership site."
+          description="The platform is designed to help owners think more clearly, meet better people, and keep the business moving with more structure."
+        />
+
+        <FeatureGrid columns={3} items={clarityItems} />
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
+        <article className="rounded-[2rem] border border-gold/20 bg-gradient-to-br from-gold/10 via-card/78 to-card/70 p-6 shadow-gold-soft sm:p-8">
+          <p className="premium-kicker">Trust snapshot</p>
+          <h2 className="mt-4 font-display text-3xl leading-tight text-foreground sm:text-4xl">
+            {trustDisplay.kind === "live"
+              ? "Current public signal from inside the network"
+              : "Public trust is shown with restraint"}
+          </h2>
+          <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
+            {trustDisplay.kind === "live"
+              ? "Only useful public movement is shown here. Empty or weak numbers stay private until there is enough signal to show properly."
+              : "The public side stays clean until there is enough real movement to show. The standards come first, and the numbers follow when they are worth showing."}
+          </p>
+        </article>
+
+        <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
+          {trustDisplay.items.map((item) => (
+            <article
+              key={item.label}
+              className="rounded-3xl border border-border/80 bg-card/60 p-6 shadow-panel"
+            >
+              <p className="font-display text-3xl text-silver">{item.value}</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">{item.label}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="space-y-6">
         <SectionHeading
-          label="Public Site"
-          title="Everything non-member starts here"
-          description="The homepage is the main public route into The Business Circle. Explore the wider site, understand the environment, then step into membership when the timing is right."
+          label="Public site"
+          title="Understand the room before you decide."
+          description="The homepage gives you instant context. The wider public site fills in the standards, perspective, and founder-led thinking behind the network."
         />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -187,92 +221,9 @@ export default async function HomePage() {
 
       <section className="space-y-8">
         <SectionHeading
-          label="Why It Exists"
-          title={homeContent.whyTitle}
-          description={homeContent.whyDescription}
-        />
-
-        <FeatureGrid
-          columns={3}
-          items={[
-            {
-              title: homeContent.vibeTitle,
-              description: homeContent.vibeDescription,
-              icon: Sparkles
-            },
-            {
-              title: homeContent.audienceTitle,
-              description: homeContent.audienceDescription,
-              icon: Users
-            },
-            {
-              title: homeContent.benefitsTitle,
-              description: homeContent.benefitsDescription,
-              icon: ShieldCheck
-            }
-          ]}
-        />
-
-        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <article className="rounded-[2rem] border border-gold/20 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
-            <p className="premium-kicker">What Makes It Different</p>
-            <h2 className="mt-4 font-display text-3xl leading-tight text-foreground sm:text-4xl">
-              {homeContent.differenceTitle}
-            </h2>
-            <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
-              {homeContent.differenceDescription}
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {[
-                "Built for business owners, not browsers.",
-                "No noise, just real conversations and growth.",
-                "Move at your own pace, or step into something bigger."
-              ].map((line) => (
-                <span
-                  key={line}
-                  className="rounded-full border border-border/80 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver"
-                >
-                  {line}
-                </span>
-              ))}
-            </div>
-          </article>
-
-          <article className="public-panel p-6 sm:p-7">
-            <p className="premium-kicker">Inside The Environment</p>
-            <FeatureGrid className="mt-5" columns={3} items={ecosystemPillars} />
-          </article>
-        </div>
-      </section>
-
-      <section className="space-y-8">
-        <SectionHeading
-          label="Proof And Momentum"
-          title={homeContent.proofTitle}
-          description={homeContent.proofDescription}
-        />
-
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {homeContent.proofItems.map((item) => (
-            <article
-              key={item.title}
-              className="interactive-card rounded-3xl border border-border/80 bg-card/65 p-6"
-            >
-              <p className="premium-kicker">{item.eyebrow}</p>
-              <h3 className="mt-4 font-display text-2xl leading-tight text-foreground">
-                {item.title}
-              </h3>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{item.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-8">
-        <SectionHeading
           label="Membership"
-          title="Choose the room that fits your next phase"
-          description="The homepage gives the full public picture. Membership is where you choose your level of access, context, and proximity."
+          title="Membership follows the stage of the business."
+          description="The next step is not about choosing the deepest tier. It is about choosing the room that fits where the business is now."
           action={
             <Link
               href="/membership"
@@ -282,8 +233,6 @@ export default async function HomePage() {
             </Link>
           }
         />
-
-        <FoundingOfferCounters offer={foundingOffer} />
 
         <div className="grid gap-4 lg:grid-cols-3">
           {membershipPreview.map((item) => (
@@ -296,7 +245,7 @@ export default async function HomePage() {
                   {item.name}
                 </span>
                 <span className="rounded-full border border-border/80 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                  {item.badge}
+                  {item.stageLabel}
                 </span>
               </div>
 
@@ -304,14 +253,16 @@ export default async function HomePage() {
               <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
 
               {item.emphasis ? (
-                <p className="mt-4 text-sm text-silver">{item.emphasis}</p>
+                <p className="mt-4 text-xs uppercase tracking-[0.08em] text-silver">
+                  {item.emphasis}
+                </p>
               ) : null}
 
               <Link
                 href={item.href}
                 className={cn(buttonVariants({ size: "lg", variant: "outline" }), "mt-6 w-full")}
               >
-                {item.ctaLabel}
+                See Where It Fits
               </Link>
             </article>
           ))}
@@ -329,7 +280,7 @@ export default async function HomePage() {
         title={homeContent.ctaTitle}
         description={homeContent.ctaDescription}
         primaryAction={{ href: "/membership", label: "Explore Membership" }}
-        secondaryAction={{ href: "/join", label: "Go Straight To Join", variant: "outline" }}
+        secondaryAction={{ href: "/contact", label: "Contact", variant: "outline" }}
       />
     </div>
   );

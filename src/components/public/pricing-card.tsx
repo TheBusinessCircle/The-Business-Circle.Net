@@ -156,14 +156,14 @@ export function PricingCard({
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                Founding Member Rate
+                Founding access
               </p>
               <p className="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.08em] text-silver/90">
-                Limited to 50
+                Limited to {foundingOffer.limit}
               </p>
             </div>
             <p className="text-sm leading-relaxed text-muted">
-              Limited to the first {foundingOffer.limit} members in this tier
+              Early access pricing for the first {foundingOffer.limit} members in this tier.
             </p>
 
             <div className="space-y-3">
@@ -207,8 +207,8 @@ export function PricingCard({
             </div>
 
             <div className="border-t border-white/8 pt-4 text-xs leading-relaxed text-muted">
-              <p>{foundingOffer.remaining} of {foundingOffer.limit} founding places remaining</p>
-              <p>Once these are gone, standard pricing applies.</p>
+              <p>{foundingOffer.remaining} of {foundingOffer.limit} founding places remaining.</p>
+              <p>When these places are filled, pricing moves to the standard rate.</p>
               <p>Founding rates stay locked while membership remains active.</p>
             </div>
           </div>

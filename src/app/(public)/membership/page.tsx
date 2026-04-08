@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MembershipTier } from "@prisma/client";
+import { Compass, Crown, TrendingUp } from "lucide-react";
 import {
   FAQSection,
   FoundingOfferCounters,
   JsonLd,
-  MembershipTierSection
+  PricingCard
 } from "@/components/public";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -23,11 +24,9 @@ import {
   getMembershipTierContent,
   getMembershipTierDefinition,
   getMembershipTierSlug,
-  MEMBERSHIP_PAGE_MICROCOPY,
   MEMBERSHIP_TIER_ORDER,
   resolveMembershipBillingInterval,
-  resolveMembershipTierInput,
-  type MembershipBillingInterval
+  resolveMembershipTierInput
 } from "@/config/membership";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { getSiteContentSection } from "@/server/site-content";
@@ -52,89 +51,45 @@ type MembershipPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function GuidanceCard({
-  tier,
-  billingInterval,
-  selected,
-  href,
-  foundingOffer
-}: {
-  tier: MembershipTier;
-  billingInterval: MembershipBillingInterval;
-  selected: boolean;
-  href: string;
-  foundingOffer: {
-    available: boolean;
-    foundingPrice: number;
-    foundingAnnualPrice: number;
-    standardPrice: number;
-    standardAnnualPrice: number;
-    remaining: number;
-    limit: number;
-    launchClosedLabel: string;
-  };
-}) {
-  const content = getMembershipTierContent(tier);
-  const definition = getMembershipTierDefinition(tier);
-  const displayPrice = foundingOffer.available
-    ? billingInterval === "annual"
-      ? foundingOffer.foundingAnnualPrice
-      : foundingOffer.foundingPrice
-    : billingInterval === "annual"
-      ? foundingOffer.standardAnnualPrice
-      : foundingOffer.standardPrice;
+const stagePaths = [
+  {
+    tier: MembershipTier.FOUNDATION,
+    stage: "Early stage",
+    title: "Build the base properly",
+    userType:
+      "You are refining the offer, sharpening positioning, or building the structure around a younger business.",
+    needNow:
+      "You need a dependable room with better clarity, useful people, and enough structure to create traction cleanly.",
+    recommendedLabel: "Best fit: Foundation",
+    icon: Compass
+  },
+  {
+    tier: MembershipTier.INNER_CIRCLE,
+    stage: "Growing business",
+    title: "Tighten the room around momentum",
+    userType:
+      "The business is moving, and you want better conversations, stronger context, and a more focused environment around the next stage.",
+    needNow:
+      "You need a room with higher signal, more intent, and more useful momentum than a wider base alone can give you.",
+    recommendedLabel: "Best fit: Inner Circle",
+    icon: TrendingUp
+  },
+  {
+    tier: MembershipTier.CORE,
+    stage: "Established operator",
+    title: "Protect decision quality at a higher level",
+    userType:
+      "You are already operating seriously and want the calmest room, the strongest strategic proximity, and less noise around important decisions.",
+    needNow:
+      "You need a quieter, higher-value layer where judgement, access, and the quality of conversation matter more than wider access alone.",
+    recommendedLabel: "Best fit: Core",
+    icon: Crown
+  }
+] as const;
 
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "rounded-[1.8rem] border bg-card/65 p-5 shadow-panel transition-transform hover:-translate-y-0.5",
-        tier === MembershipTier.FOUNDATION
-          ? "border-foundation/28 bg-gradient-to-br from-foundation/12 via-card/78 to-card/70"
-          : tier === MembershipTier.INNER_CIRCLE
-            ? "border-silver/22 bg-gradient-to-br from-silver/12 via-card/78 to-card/70"
-            : "border-gold/30 bg-gradient-to-br from-gold/10 via-card/78 to-card/68",
-        selected
-          ? tier === MembershipTier.FOUNDATION
-            ? "ring-1 ring-foundation/35"
-            : tier === MembershipTier.INNER_CIRCLE
-              ? "ring-1 ring-silver/28"
-              : "ring-1 ring-gold/38"
-          : ""
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full border border-white/10 bg-background/25 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-          {content.supportingBadge}
-        </span>
-        {content.emphasisLabel ? (
-          <span className="rounded-full border border-white/10 bg-background/25 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-            {content.emphasisLabel}
-          </span>
-        ) : null}
-        {content.accessNote ? (
-          <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
-            {content.accessNote}
-          </span>
-        ) : null}
-      </div>
-
-      <h2 className="mt-4 font-display text-3xl text-foreground">{definition.name}</h2>
-      <p className="mt-3 text-sm leading-relaxed text-muted">{content.bestFitLine}</p>
-      <p className="mt-4 font-display text-3xl text-foreground">
-        {formatMembershipPrice(displayPrice)}
-        <span className="ml-2 text-sm text-silver">
-          {billingInterval === "annual" ? "/year" : "/month"}
-        </span>
-      </p>
-      <p className="mt-3 text-xs text-muted">
-        {foundingOffer.available
-          ? `${foundingOffer.remaining} of ${foundingOffer.limit} founding places remaining`
-          : foundingOffer.launchClosedLabel}
-      </p>
-    </Link>
-  );
-}
+const stagePathByTier = Object.fromEntries(
+  stagePaths.map((path) => [path.tier, path])
+) as Record<(typeof stagePaths)[number]["tier"], (typeof stagePaths)[number]>;
 
 export default async function MembershipPage({ searchParams }: MembershipPageProps) {
   const params = await searchParams;
@@ -156,9 +111,11 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
     INNER_CIRCLE: foundingOffer.innerCircle,
     CORE: foundingOffer.core
   } as const;
+
   const selectedDefinition = getMembershipTierDefinition(selectedTier);
-  const selectedContent = selectedDefinition.content;
+  const selectedContent = getMembershipTierContent(selectedTier);
   const selectedOffer = foundingOfferByTier[selectedTier];
+  const selectedPath = stagePathByTier[selectedTier];
   const selectedStandardPlan = getMembershipBillingPlan(selectedTier, "standard", billingInterval);
   const selectedDisplayPrice = selectedOffer.available
     ? billingInterval === "annual"
@@ -168,7 +125,16 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
       ? selectedOffer.standardAnnualPrice
       : selectedOffer.standardPrice;
   const selectedStandardPrice =
-    billingInterval === "annual" ? selectedStandardPlan.annualPrice : selectedStandardPlan.monthlyPrice;
+    billingInterval === "annual"
+      ? selectedStandardPlan.annualPrice
+      : selectedStandardPlan.monthlyPrice;
+  const selectedJoinHref = buildJoinConfirmationHref({
+    tier: getMembershipTierSlug(selectedTier),
+    period: billingInterval,
+    billing,
+    from,
+    invite: inviteCode
+  });
 
   return (
     <div className="space-y-12 pb-16">
@@ -176,37 +142,29 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
 
       {billing === "required" ? (
         <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
-          Your account needs an active membership to access member areas. Choose the right room, then continue into join and checkout.
+          Your account needs an active membership to access member areas. Choose the right room,
+          then continue into join and checkout.
         </p>
       ) : null}
 
       {billing === "cancelled" ? (
         <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
-          Stripe checkout was cancelled. You can review the rooms again here, then continue when you are ready.
+          Stripe checkout was cancelled. You can review the rooms again here, then continue when
+          you are ready.
         </p>
       ) : null}
 
-      <section className="grid gap-6 rounded-[2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:grid-cols-[minmax(0,1.06fr)_minmax(300px,0.94fr)]">
+      <section className="grid gap-6 rounded-[2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
         <div className="space-y-6">
           <div className="space-y-4">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership Decision Page</p>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership</p>
             <h1 className="font-display text-4xl text-foreground sm:text-5xl">
-              The right room depends on where the business is now.
+              Choose the room that fits the business now.
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-muted">
-              Foundation gives you the right base. Inner Circle gives you a more focused room. Core is for serious operators who want the calmest, highest-value environment.
+              Different businesses need different environments. This page is here to help you place
+              yourself clearly, then move into join with confidence.
             </p>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            {MEMBERSHIP_PAGE_MICROCOPY.map((line) => (
-              <div
-                key={line}
-                className="rounded-2xl border border-white/8 bg-background/20 px-4 py-4 text-sm text-muted"
-              >
-                {line}
-              </div>
-            ))}
           </div>
 
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -232,22 +190,70 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
                 </Link>
               ))}
             </div>
-            <p className="text-sm text-muted">Pay annually and save 20%</p>
+            <p className="text-sm text-muted">Annual billing saves 20%</p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {stagePaths.map((path) => {
+              const selected = path.tier === selectedTier;
+              const selectionHref = buildMembershipDecisionHref({
+                tier: getMembershipTierSlug(path.tier),
+                period: billingInterval,
+                billing,
+                from,
+                invite: inviteCode
+              });
+
+              return (
+                <Link
+                  key={path.tier}
+                  href={selectionHref}
+                  className={cn(
+                    "rounded-[1.7rem] border bg-card/65 p-5 shadow-panel transition-transform hover:-translate-y-0.5",
+                    selected
+                      ? path.tier === MembershipTier.FOUNDATION
+                        ? "border-foundation/35 ring-1 ring-foundation/35"
+                        : path.tier === MembershipTier.INNER_CIRCLE
+                          ? "border-silver/28 ring-1 ring-silver/28"
+                          : "border-gold/35 ring-1 ring-gold/35"
+                      : "border-white/8"
+                  )}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-background/25 text-silver">
+                      <path.icon size={18} />
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-background/25 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
+                      {path.stage}
+                    </span>
+                  </div>
+
+                  <h2 className="mt-5 font-display text-2xl leading-tight text-foreground">
+                    {path.title}
+                  </h2>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">{path.userType}</p>
+                  <p className="mt-4 text-sm leading-relaxed text-silver">{path.needNow}</p>
+                  <p className="mt-5 text-xs uppercase tracking-[0.08em] text-gold">
+                    {path.recommendedLabel}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </div>
 
         <aside className="rounded-[1.8rem] border border-gold/20 bg-gradient-to-br from-gold/10 via-background/20 to-background/10 p-5 shadow-gold-soft sm:p-6">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Currently in focus</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Selected path</p>
           <h2 className="mt-3 font-display text-3xl text-foreground">{selectedDefinition.name}</h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted">{selectedContent.description}</p>
-          <p className="mt-3 text-sm text-silver">{selectedContent.bestFitLine}</p>
+          <p className="mt-2 text-sm text-silver">{selectedPath.stage}</p>
+          <p className="mt-4 text-sm leading-relaxed text-muted">{selectedPath.needNow}</p>
 
           <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-background/28 p-5">
             {selectedOffer.available ? (
               <div className="space-y-3">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Founding Member Rate</p>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Founding access</p>
                 <p className="text-sm text-muted">
-                  Limited to the first {selectedOffer.limit} members in this tier
+                  Early access pricing for the first {selectedOffer.limit} members in this tier.
                 </p>
                 <p className="font-display text-4xl text-foreground">
                   {formatMembershipPrice(selectedDisplayPrice)}
@@ -266,7 +272,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
                   {selectedOffer.remaining} of {selectedOffer.limit} founding places remaining
                 </p>
                 <p className="text-sm text-muted">
-                  Founding rates stay locked while membership remains active.
+                  Once these places are filled, pricing rises to the standard rate.
                 </p>
               </div>
             ) : (
@@ -282,93 +288,89 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
               </div>
             )}
           </div>
+
+          <Link
+            href={selectedJoinHref}
+            className={cn(
+              buttonVariants({
+                variant: getTierButtonVariant(selectedTier),
+                size: "lg"
+              }),
+              "mt-6 w-full"
+            )}
+          >
+            {selectedContent.ctaLabel}
+          </Link>
         </aside>
       </section>
 
-      <section className="space-y-5">
-        <div className="space-y-3">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">How To Place Yourself</p>
+      <section className="space-y-6">
+        <div className="max-w-3xl space-y-3">
+          <p className="premium-kicker">Founding access</p>
           <h2 className="font-display text-3xl text-foreground sm:text-[2.3rem]">
-            Choose the room that matches the stage and weight of the business.
+            Early access pricing is limited by tier.
           </h2>
-          <p className="max-w-3xl text-sm leading-relaxed text-muted">
-            This page is here to guide the decision. Once you know the right fit, continue into join to confirm pricing, sign up, and move into secure checkout.
+          <p className="text-sm leading-relaxed text-muted">
+            Founding access is not a permanent public price. Each tier is limited to 50 members,
+            and once a tier fills, pricing moves to the standard rate for everyone after that
+            point.
           </p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          {MEMBERSHIP_TIER_ORDER.map((tier) => (
-            <GuidanceCard
-              key={tier}
-              tier={tier}
-              billingInterval={billingInterval}
-              selected={selectedTier === tier}
-              foundingOffer={foundingOfferByTier[tier]}
-              href={buildMembershipDecisionHref({
-                tier: getMembershipTierSlug(tier),
-                period: billingInterval,
-                billing,
-                from,
-                invite: inviteCode
-              })}
-            />
-          ))}
-        </div>
+        <FoundingOfferCounters offer={foundingOffer} />
+
+        <p className="rounded-[1.8rem] border border-white/8 bg-background/18 px-6 py-5 text-sm text-muted">
+          Founding rates stay locked while membership remains active. If membership is cancelled and
+          later restarted, standard pricing applies.
+        </p>
       </section>
 
-      <FoundingOfferCounters offer={foundingOffer} />
+      <section className="space-y-6">
+        <div className="max-w-3xl space-y-3">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Tier display</p>
+          <h2 className="font-display text-3xl text-foreground sm:text-[2.3rem]">
+            Compare all tiers clearly before you continue.
+          </h2>
+          <p className="text-sm leading-relaxed text-muted">
+            Switch between rooms here, then move into join once the right level feels obvious.
+          </p>
+        </div>
 
-      <div className="space-y-5">
-        {MEMBERSHIP_TIER_ORDER.map((tier) => {
-          const tierContent = getMembershipTierContent(tier);
-          const standardPlan = getMembershipBillingPlan(tier, "standard", billingInterval);
+        <div className="grid gap-6 xl:grid-cols-3">
+          {MEMBERSHIP_TIER_ORDER.map((tier) => {
+            const tierContent = getMembershipTierContent(tier);
+            const definition = getMembershipTierDefinition(tier);
+            const standardPlan = getMembershipBillingPlan(tier, "standard", billingInterval);
+            const isSelected = selectedTier === tier;
+            const selectionHref = buildMembershipDecisionHref({
+              tier: getMembershipTierSlug(tier),
+              period: billingInterval,
+              billing,
+              from,
+              invite: inviteCode
+            });
 
-          return (
-            <MembershipTierSection
-              key={tier}
-              tier={tier}
-              title={tierContent.badgeLabel}
-              supportingBadge={tierContent.supportingBadge}
-              description={tierContent.description}
-              narrative={`${tierContent.bestFitLine} ${tierContent.narrative}`}
-              emphasisLabel={tierContent.emphasisLabel}
-              accessNote={tierContent.accessNote}
-              trustLine={tierContent.trustLine}
-              billingInterval={billingInterval}
-              monthlyPrice={standardPlan.monthlyPrice}
-              annualPrice={standardPlan.annualPrice}
-              foundingOffer={foundingOfferByTier[tier]}
-              featured={tier === MembershipTier.INNER_CIRCLE}
-              selected={selectedTier === tier}
-              action={
-                <Link
-                  href={buildJoinConfirmationHref({
-                    tier: getMembershipTierSlug(tier),
-                    period: billingInterval,
-                    billing,
-                    from,
-                    invite: inviteCode
-                  })}
-                  className={cn(
-                    buttonVariants({
-                      variant: getTierButtonVariant(tier),
-                      size: "lg"
-                    }),
-                    "w-full"
-                  )}
-                >
-                  {tierContent.ctaLabel}
-                </Link>
-              }
-            />
-          );
-        })}
-      </div>
-
-      <section className="rounded-[1.8rem] border border-white/8 bg-background/18 px-6 py-6 text-sm text-muted">
-        <p>
-          Founding rates stay locked while membership remains active. If membership is cancelled and later restarted, standard pricing applies.
-        </p>
+            return (
+              <PricingCard
+                key={tier}
+                tier={tier}
+                name={definition.name}
+                positioningLabel={stagePathByTier[tier].stage}
+                billingInterval={billingInterval}
+                monthlyPrice={standardPlan.monthlyPrice}
+                annualPrice={standardPlan.annualPrice}
+                description={tierContent.description}
+                features={definition.features}
+                foundingOffer={foundingOfferByTier[tier]}
+                featured={tier === MembershipTier.INNER_CIRCLE && !isSelected}
+                featuredLabel="Growing businesses often move here"
+                selected={isSelected}
+                ctaHref={selectionHref}
+                ctaLabel={isSelected ? "Selected above" : `Switch to ${definition.name}`}
+              />
+            );
+          })}
+        </div>
       </section>
 
       <FAQSection

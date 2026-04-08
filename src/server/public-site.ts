@@ -18,6 +18,16 @@ export type PublicTrustSnapshot = {
   connectionWinsCount: number;
 };
 
+export type PublicTrustDisplayItem = {
+  value: string;
+  label: string;
+};
+
+export type PublicTrustDisplay = {
+  kind: "live" | "starter";
+  items: PublicTrustDisplayItem[];
+};
+
 const EMPTY_SNAPSHOT: PublicTrustSnapshot = {
   publicMemberCount: 0,
   upcomingEventCount: 0,
@@ -116,4 +126,70 @@ const getCachedPublicTrustSnapshot = unstable_cache(loadPublicTrustSnapshot, [CA
 
 export async function getPublicTrustSnapshot(): Promise<PublicTrustSnapshot> {
   return getCachedPublicTrustSnapshot();
+}
+
+const STARTER_TRUST_ITEMS: PublicTrustDisplayItem[] = [
+  {
+    value: "Private",
+    label: "member conversations"
+  },
+  {
+    value: "Founder-led",
+    label: "standards and moderation"
+  },
+  {
+    value: "Curated",
+    label: "introductions and events"
+  }
+];
+
+export function buildPublicTrustDisplay(snapshot: PublicTrustSnapshot): PublicTrustDisplay {
+  const liveItems: PublicTrustDisplayItem[] = [];
+
+  if (snapshot.activeDiscussionCount >= 3) {
+    liveItems.push({
+      value: `${snapshot.activeDiscussionCount}+`,
+      label: "active discussions"
+    });
+  }
+
+  if (snapshot.connectionWinsCount >= 2) {
+    liveItems.push({
+      value: `${snapshot.connectionWinsCount}+`,
+      label: "recent wins"
+    });
+  }
+
+  if (snapshot.upcomingEventCount >= 1) {
+    liveItems.push({
+      value: `${snapshot.upcomingEventCount}`,
+      label: "upcoming events"
+    });
+  }
+
+  if (snapshot.recentResourceCount >= 2) {
+    liveItems.push({
+      value: `${snapshot.recentResourceCount}+`,
+      label: "fresh resources"
+    });
+  }
+
+  if (snapshot.publicMemberCount >= 5) {
+    liveItems.push({
+      value: `${snapshot.publicMemberCount}+`,
+      label: "public member profiles"
+    });
+  }
+
+  if (liveItems.length >= 2) {
+    return {
+      kind: "live",
+      items: liveItems.slice(0, 3)
+    };
+  }
+
+  return {
+    kind: "starter",
+    items: STARTER_TRUST_ITEMS
+  };
 }
