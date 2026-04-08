@@ -6,6 +6,8 @@ const AUTH_ROUTES = [
   "/login",
   "/register",
   "/join",
+  "/join-desktop",
+  "/join-mobile",
   "/sign-in",
   "/sign-up",
   "/forgot-password",
@@ -70,7 +72,8 @@ export default auth((req) => {
   const isProtectedRoute = isMemberRoute || isAdminRoute || isInnerCircleRoute;
   const isMemberAreaRoute = isMemberRoute || isInnerCircleRoute;
   const isVerifiedRoute = startsWithPath(pathname, VERIFIED_MEMBER_ROUTE_PREFIXES);
-  const isJoinRoute = pathname === "/join";
+  const isJoinRoute =
+    pathname === "/join" || pathname === "/join-desktop" || pathname === "/join-mobile";
 
   if (isAuthRoute && session?.user && !session.user.suspended) {
     if (isJoinRoute) {
@@ -116,6 +119,8 @@ export const config = {
     "/login",
     "/register",
     "/join",
+    "/join-desktop",
+    "/join-mobile",
     "/sign-in",
     "/sign-up",
     "/forgot-password",

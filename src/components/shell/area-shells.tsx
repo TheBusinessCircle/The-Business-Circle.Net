@@ -9,7 +9,11 @@ export function PublicAreaShell({ children }: { children: ReactNode }) {
 
 export function AuthAreaShell({ children }: { children: ReactNode }) {
   return (
-    <AppShell header={<PublicHeader />} footer={<PublicFooter />} contentClassName="max-w-7xl py-12">
+    <AppShell
+      header={<PublicHeader />}
+      footer={<PublicFooter />}
+      contentClassName="max-w-7xl py-8 sm:py-12"
+    >
       {children}
     </AppShell>
   );

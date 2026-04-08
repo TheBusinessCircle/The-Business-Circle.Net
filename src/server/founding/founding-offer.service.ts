@@ -5,6 +5,7 @@ import {
   Prisma
 } from "@prisma/client";
 import {
+  getMembershipBillingPlan,
   getMembershipPlan,
   getMembershipPlanVariant,
   isMembershipVariantStripeConfigured
@@ -174,7 +175,20 @@ function buildTierSnapshot(input: {
 }): FoundingOfferTierSnapshot {
   const { badgeLabel, offerLabel } = getFoundingLabels(input.tier);
   const standardPrice = getMembershipPlan(input.tier).monthlyPrice;
+  const standardAnnualPrice = getMembershipBillingPlan(
+    input.tier,
+    "standard",
+    "annual"
+  ).checkoutPrice;
   const foundingPrice = getFoundingPrice(input.settings, input.tier);
+  const foundingAnnualPrice = getMembershipBillingPlan(
+    input.tier,
+    "founding",
+    "annual",
+    {
+      monthlyPrice: foundingPrice
+    }
+  ).checkoutPrice;
   const claimed = getClaimedCount(input.settings, input.tier);
   const limit = getLimitCount(input.settings, input.tier);
   const remaining = Math.max(0, limit - claimed - input.reservedCount);
@@ -184,14 +198,17 @@ function buildTierSnapshot(input: {
     badgeLabel,
     offerLabel,
     foundingPrice,
+    foundingAnnualPrice,
     standardPrice,
+    standardAnnualPrice,
     limit,
     claimed,
     remaining,
     available:
       input.settings.enabled &&
       remaining > 0 &&
-      isMembershipVariantStripeConfigured(input.tier, "founding"),
+      isMembershipVariantStripeConfigured(input.tier, "founding", "monthly") &&
+      isMembershipVariantStripeConfigured(input.tier, "founding", "annual"),
     launchClosedLabel: "Founding places filled"
   };
 }

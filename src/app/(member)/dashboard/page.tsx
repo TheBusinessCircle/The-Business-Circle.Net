@@ -127,6 +127,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const billingSource = firstValue(params.source);
   const billingIntent = firstValue(params.intent);
   const billingVariant = firstValue(params.variant);
+  const billingInterval = firstValue(params.interval);
   const billingDelta = firstValue(params.delta);
   const billingTier = resolveTierFromSearch(firstValue(params.tier));
   const welcome = firstValue(params.welcome);
@@ -372,8 +373,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     upgradeTargetMonthlyPrice === null
       ? null
       : getMembershipPriceDifference({
-          currentMonthlyPrice: currentBillingPlan.monthlyPrice,
-          targetMonthlyPrice: upgradeTargetMonthlyPrice
+          currentMonthlyEquivalentPrice: currentBillingPlan.monthlyEquivalentPrice,
+          targetMonthlyEquivalentPrice: upgradeTargetMonthlyPrice
         });
   const upgradeOffer =
     upgradeTargetTier && upgradeTargetOffer && upgradePriceDifference !== null
@@ -465,6 +466,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           {billingVariant === "founding"
             ? ` Founding ${getMembershipTierLabel(billingTier)} pricing is now active.`
             : ` Standard ${getMembershipTierLabel(billingTier)} pricing is now active.`}
+          {billingInterval === "annual" ? " Annual billing is now active." : ""}
           {billingDelta ? ` Monthly uplift: GBP ${billingDelta}.` : ""}
         </p>
       ) : null}

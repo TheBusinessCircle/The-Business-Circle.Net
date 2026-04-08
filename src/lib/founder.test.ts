@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getServicePrice,
   getFounderServicePricing,
   isGrowthArchitectServiceSlug
 } from "@/lib/founder";
@@ -23,12 +24,13 @@ describe("founder pricing", () => {
       }
     );
 
-    expect(pricing.discountPercent).toBe(10);
-    expect(pricing.finalAmount).toBe(45000);
+    expect(pricing.discountPercent).toBe(0);
+    expect(pricing.baseAmount).toBe(25000);
+    expect(pricing.finalAmount).toBe(25000);
     expect(pricing.appliedMembershipTier).toBe("FOUNDATION");
   });
 
-  it("applies the Inner Circle rate as the highest valid discount", () => {
+  it("applies the Inner Circle rate to growth architect services", () => {
     const pricing = getFounderServicePricing(
       {
         slug: "growth-architect-full-growth-architect",
@@ -41,9 +43,16 @@ describe("founder pricing", () => {
       }
     );
 
-    expect(pricing.discountPercent).toBe(20);
-    expect(pricing.finalAmount).toBe(144000);
+    expect(pricing.discountPercent).toBe(10);
+    expect(pricing.baseAmount).toBe(100000);
+    expect(pricing.finalAmount).toBe(90000);
     expect(pricing.appliedMembershipTier).toBe("INNER_CIRCLE");
+  });
+
+  it("applies the Core discount to growth architect services", () => {
+    expect(getServicePrice("CORE", 100000)).toBe(80000);
+    expect(getServicePrice("INNER_CIRCLE", 50000)).toBe(45000);
+    expect(getServicePrice("FOUNDATION", 25000)).toBe(25000);
   });
 
   it("does not apply discounts to unrelated founder services", () => {

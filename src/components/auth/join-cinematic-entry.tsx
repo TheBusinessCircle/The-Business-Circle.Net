@@ -15,9 +15,11 @@ import { cn } from "@/lib/utils";
 import styles from "./join-cinematic-entry.module.css";
 
 type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
+type MembershipBillingInterval = "monthly" | "annual";
 
 type JoinCinematicEntryProps = {
   initialSelectedTier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
   from?: string;
   inviteCode?: string;
   error?: string;
@@ -108,16 +110,19 @@ function writeJoinHandoff(value: JoinHandoff) {
 
 function buildMembershipHref({
   tier,
+  billingInterval,
   billing,
   from
 }: {
   tier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
   billing?: string;
   from?: string;
 }) {
   const url = new URL("/membership", "http://localhost");
 
   url.searchParams.set("tier", tier);
+  url.searchParams.set("interval", billingInterval);
 
   if (billing === "cancelled") {
     url.searchParams.set("billing", billing);
@@ -134,6 +139,7 @@ function buildMembershipHref({
 
 export function JoinCinematicEntry({
   initialSelectedTier,
+  billingInterval,
   from,
   inviteCode,
   error,
@@ -247,10 +253,11 @@ export function JoinCinematicEntry({
     () =>
       buildMembershipHref({
         tier: initialSelectedTier,
+        billingInterval,
         billing,
         from: resolvedContext.from
       }),
-    [billing, initialSelectedTier, resolvedContext.from]
+    [billing, billingInterval, initialSelectedTier, resolvedContext.from]
   );
 
   const loginHref = useMemo(() => withFrom("/login", resolvedContext.from), [resolvedContext.from]);

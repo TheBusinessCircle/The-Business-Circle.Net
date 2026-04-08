@@ -1,75 +1,38 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { JoinCinematicEntry } from "@/components/auth/join-cinematic-entry";
+import { JoinRouteGateway } from "@/components/auth/join-route-gateway";
+import { shouldUseMobileJoin, toSearchParams } from "@/lib/join/routing";
 import { createPageMetadata } from "@/lib/seo";
 
 type JoinPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
-
-function firstValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function resolveTier(value: string | undefined): MembershipTier {
-  if (value === "CORE") {
-    return "CORE";
-  }
-
-  if (value === "INNER_CIRCLE") {
-    return "INNER_CIRCLE";
-  }
-
-  return "FOUNDATION";
-}
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Join The Business Circle",
   description:
-    "Step inside The Business Circle, a premium founder-led business ecosystem for serious owners who want a calmer, stronger room to grow inside.",
+    "Use the public join link to enter the right Business Circle join experience for your device.",
   keywords: [
     "join business circle",
-    "private business network",
-    "founder led business ecosystem",
+    "business circle join",
     "business owner membership",
-    "inner circle membership"
+    "founder network membership",
+    "private business network"
   ],
   path: "/join"
 });
 
 export default async function JoinPage({ searchParams }: JoinPageProps) {
   const params = await searchParams;
-  const from = firstValue(params.from);
-  const error = firstValue(params.error);
-  const mode = firstValue(params.mode);
-  const billing = firstValue(params.billing);
-  const selectedTier = resolveTier(firstValue(params.tier));
-  const inviteCode = (firstValue(params.invite) ?? "").trim().toUpperCase();
+  const headerList = await headers();
+  const search = toSearchParams(params).toString();
 
-  if (mode === "signin") {
-    const search = new URLSearchParams();
-
-    if (from) {
-      search.set("from", from);
-    }
-
-    if (error) {
-      search.set("error", error);
-    }
-
-    const loginUrl = search.size ? `/login?${search.toString()}` : "/login";
-    redirect(loginUrl);
+  if (shouldUseMobileJoin(headerList)) {
+    redirect(search ? `/join-mobile?${search}` : "/join-mobile");
   }
 
-  return (
-    <JoinCinematicEntry
-      initialSelectedTier={selectedTier}
-      from={from}
-      inviteCode={inviteCode || undefined}
-      error={error}
-      billing={billing}
-    />
-  );
+  return <JoinRouteGateway search={search} />;
 }

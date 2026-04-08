@@ -4,12 +4,12 @@ import { Navbar } from "@/components/public/navbar";
 
 export function PublicSiteShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-clip">
       <Navbar />
       <div className="page-surface page-surface-public relative flex flex-1 flex-col overflow-x-clip transition-colors duration-200">
         <div className="page-surface-premium-glow pointer-events-none absolute inset-0 -z-10 bg-radial-premium" />
         <div className="page-surface-premium-top pointer-events-none absolute inset-x-0 top-0 -z-10 h-52 bg-gradient-to-b from-gold/8 to-transparent" />
-        <main className="relative mx-auto w-full max-w-7xl flex-1 px-4 pb-12 pt-5 sm:px-6 sm:pt-6 lg:px-8 lg:pb-16 lg:pt-8">
+        <main className="relative mx-auto flex w-full max-w-7xl min-w-0 flex-1 overflow-x-clip px-4 pb-12 pt-5 sm:px-6 sm:pt-6 lg:px-8 lg:pb-16 lg:pt-8">
           {children}
         </main>
         <Footer />

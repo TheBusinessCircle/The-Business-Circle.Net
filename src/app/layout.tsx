@@ -54,7 +54,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${display.variable} ${sans.variable} font-sans bg-background text-foreground`}>
+      <body
+        suppressHydrationWarning
+        className={`${display.variable} ${sans.variable} font-sans bg-background text-foreground`}
+      >
         <Script id="background-mode-init" strategy="beforeInteractive">
           {getBackgroundModeInitScript()}
         </Script>

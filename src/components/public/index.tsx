@@ -6,6 +6,7 @@ export * from "@/components/public/hero-section";
 export * from "@/components/public/insight-card";
 export * from "@/components/public/json-ld";
 export * from "@/components/public/legal-document";
+export * from "@/components/public/membership-tier-section";
 export * from "@/components/public/pricing-card";
 export * from "@/components/public/section-heading";
 export * from "@/components/public/testimonial-style-section";

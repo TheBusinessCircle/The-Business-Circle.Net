@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import type { MembershipBillingInterval } from "@/config/membership";
+import { formatMembershipPrice } from "@/config/membership";
+import { buttonVariants } from "@/components/ui/button";
 import { TierBadge } from "@/components/public/tier-badge";
 import {
   getTierAccentTextClassName,
@@ -21,7 +23,9 @@ type PricingCardProps = {
     label: string;
     text: string;
   };
+  billingInterval?: MembershipBillingInterval;
   monthlyPrice: number;
+  annualPrice: number;
   description: string;
   features: string[];
   ctaHref?: string;
@@ -33,7 +37,9 @@ type PricingCardProps = {
     badgeLabel: string;
     offerLabel: string;
     foundingPrice: number;
+    foundingAnnualPrice: number;
     standardPrice: number;
+    standardAnnualPrice: number;
     claimed: number;
     limit: number;
     remaining: number;
@@ -44,12 +50,46 @@ type PricingCardProps = {
   className?: string;
 };
 
+function PriceLine({
+  label,
+  amount,
+  suffix,
+  highlighted = false,
+  trailing
+}: {
+  label: string;
+  amount: number;
+  suffix: string;
+  highlighted?: boolean;
+  trailing?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 text-sm",
+        highlighted
+          ? "border-white/12 bg-background/38 text-foreground"
+          : "border-white/8 bg-background/20 text-muted"
+      )}
+    >
+      <span>{label}</span>
+      <span className={cn("font-medium", highlighted ? "text-foreground" : "text-silver")}>
+        {formatMembershipPrice(amount)}
+        {suffix}
+        {trailing ? ` ${trailing}` : ""}
+      </span>
+    </div>
+  );
+}
+
 export function PricingCard({
   tier,
   name,
   positioningLabel,
   spotlight,
+  billingInterval = "monthly",
   monthlyPrice,
+  annualPrice,
   description,
   features,
   ctaHref,
@@ -67,6 +107,11 @@ export function PricingCard({
   const tierAccentTextClassName = getTierAccentTextClassName(tier);
   const tierIconClassName = getTierIconClassName(tier);
   const tierButtonVariant = getTierButtonVariant(tier);
+  const isAnnual = billingInterval === "annual";
+  const primaryStandardPrice = isAnnual ? annualPrice : monthlyPrice;
+  const primaryFoundingPrice = isAnnual
+    ? foundingOffer?.foundingAnnualPrice ?? annualPrice
+    : foundingOffer?.foundingPrice ?? monthlyPrice;
 
   return (
     <article
@@ -105,72 +150,99 @@ export function PricingCard({
         </div>
       </div>
 
-      <div className="mt-7 rounded-[1.6rem] border border-white/8 bg-background/28 p-5 sm:min-h-[208px]">
+      <div className="mt-7 rounded-[1.6rem] border border-white/8 bg-background/28 p-5">
         {foundingOffer?.available ? (
-          <div className="flex h-full flex-col gap-4">
+          <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-muted">
-                Founding rate*
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                Founding Member Rate
               </p>
               <p className="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.08em] text-silver/90">
-                {foundingOffer.offerLabel}
+                Limited to 50
               </p>
             </div>
+
             <div className="space-y-3">
               <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
                 <span
                   className={cn(
-                    "font-display text-[2.65rem] leading-none sm:text-[2.85rem]",
+                    "font-display text-[2.6rem] leading-none sm:text-[2.8rem]",
                     tierAccentTextClassName
                   )}
                 >
-                  &pound;{foundingOffer.foundingPrice}
+                  {formatMembershipPrice(primaryFoundingPrice)}
                 </span>
                 <span className="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground whitespace-nowrap">
-                  FOUNDING
+                  {isAnnual ? "/YEAR" : "/MONTH"}
                 </span>
               </div>
               <p className="text-sm leading-relaxed text-muted">
-                Usually{" "}
-                <span className="whitespace-nowrap text-foreground">
-                  &pound;{foundingOffer.standardPrice}/month
+                Standard {isAnnual ? "annual" : "monthly"} pricing is{" "}
+                <span className="text-foreground">
+                  {formatMembershipPrice(primaryStandardPrice)}
+                  {isAnnual ? "/year" : "/month"}
                 </span>
-              </p>
-              <p className="text-sm leading-relaxed text-silver/85">
-                Eligible new members only. Clear monthly billing through Stripe.
+                .
               </p>
             </div>
-            <p className="mt-auto border-t border-white/8 pt-4 text-xs leading-relaxed text-muted">
-              {foundingOffer.claimed} of {foundingOffer.limit} founding places claimed
-              {foundingOffer.remaining > 0 ? ` | ${foundingOffer.remaining} remaining` : ""}
-            </p>
+
+            <div className="grid gap-3">
+              <PriceLine
+                label="Monthly"
+                amount={foundingOffer.foundingPrice}
+                suffix="/month"
+                highlighted={!isAnnual}
+              />
+              <PriceLine
+                label="Annual"
+                amount={foundingOffer.foundingAnnualPrice}
+                suffix="/year"
+                highlighted={isAnnual}
+                trailing="Save 20%"
+              />
+            </div>
+
+            <div className="border-t border-white/8 pt-4 text-xs leading-relaxed text-muted">
+              <p>{foundingOffer.remaining} of {foundingOffer.limit} Founding Member spots remaining</p>
+              <p>Once these are gone, standard pricing applies.</p>
+            </div>
           </div>
         ) : (
-          <div className="flex h-full flex-col gap-4">
+          <div className="space-y-4">
             <p className="text-[11px] uppercase tracking-[0.08em] text-muted">
               Standard membership
             </p>
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
-                <span
-                  className={cn(
-                    "font-display text-[2.65rem] leading-none sm:text-[2.85rem]",
-                    tierAccentTextClassName
-                  )}
-                >
-                  &pound;{monthlyPrice}
-                </span>
-                <span className="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground whitespace-nowrap">
-                  /MONTH
-                </span>
-              </div>
-              <p className="text-sm leading-relaxed text-silver/85">
-                Full member access at the standard rate with clear monthly billing.
-              </p>
+            <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+              <span
+                className={cn(
+                  "font-display text-[2.6rem] leading-none sm:text-[2.8rem]",
+                  tierAccentTextClassName
+                )}
+              >
+                {formatMembershipPrice(primaryStandardPrice)}
+              </span>
+              <span className="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-foreground whitespace-nowrap">
+                {isAnnual ? "/YEAR" : "/MONTH"}
+              </span>
+            </div>
+            <div className="grid gap-3">
+              <PriceLine
+                label="Monthly"
+                amount={monthlyPrice}
+                suffix="/month"
+                highlighted={!isAnnual}
+              />
+              <PriceLine
+                label="Annual"
+                amount={annualPrice}
+                suffix="/year"
+                highlighted={isAnnual}
+                trailing="Save 20%"
+              />
             </div>
             {foundingOffer ? (
-              <p className="mt-auto border-t border-white/8 pt-4 text-xs leading-relaxed text-muted">
-                {foundingOffer.launchClosedLabel}. Regular pricing now applies.
+              <p className="border-t border-white/8 pt-4 text-xs leading-relaxed text-muted">
+                {foundingOffer.launchClosedLabel}. Standard pricing now applies.
               </p>
             ) : null}
           </div>
@@ -197,14 +269,17 @@ export function PricingCard({
         {cta ? (
           cta
         ) : ctaHref ? (
-          <Link href={ctaHref} className="block">
-            <Button className="w-full" variant={tierButtonVariant} size="lg">
-              {ctaLabel}
-            </Button>
+          <Link
+            href={ctaHref}
+            className={cn(
+              buttonVariants({ variant: tierButtonVariant, size: "lg" }),
+              "w-full"
+            )}
+          >
+            {ctaLabel}
           </Link>
         ) : null}
       </div>
     </article>
   );
 }
-

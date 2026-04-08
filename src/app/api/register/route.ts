@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   try {
     const payload = await request.json();
     const billingEnabled = isBillingEnabled();
-    const { user, selectedTier } = await createMemberAccount(payload, {
+    const { user, selectedTier, billingInterval } = await createMemberAccount(payload, {
       stripeEnabled: billingEnabled
     });
 
@@ -58,8 +58,11 @@ export async function POST(request: Request) {
       email: user.email,
       name: user.name,
       targetTier: selectedTier,
+      billingInterval,
+      coreAccessConfirmed:
+        typeof payload?.coreAccessConfirmed === "boolean" ? payload.coreAccessConfirmed : false,
       successPath: "/dashboard?billing=success&source=join",
-      cancelPath: `/join?billing=cancelled&tier=${selectedTier}`
+      cancelPath: `/join?billing=cancelled&tier=${selectedTier}&interval=${billingInterval}`
     });
 
     return NextResponse.json({ checkoutUrl: checkoutSession.url }, { headers });

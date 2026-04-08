@@ -28,7 +28,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
     search.set("from", from);
   }
 
-  if (tier === "INNER_CIRCLE" || tier === "FOUNDATION") {
+  if (tier === "INNER_CIRCLE" || tier === "FOUNDATION" || tier === "CORE") {
     search.set("tier", tier);
   }
 

@@ -9,7 +9,7 @@ import {
   Sparkles,
   Users
 } from "lucide-react";
-import { MEMBERSHIP_PLANS } from "@/config/membership";
+import { getMembershipTierPricing, MEMBERSHIP_PLANS } from "@/config/membership";
 import { TREV_FOUNDER_CONTENT } from "@/config/founder";
 import {
   CTASection,
@@ -185,6 +185,9 @@ export default async function HomePage() {
     featuredInsightTopicSlugs.has(cluster.slug)
   );
   const latestInsights = listPublicInsights().slice(0, 3);
+  const foundationPricing = getMembershipTierPricing("FOUNDATION");
+  const innerCirclePricing = getMembershipTierPricing("INNER_CIRCLE");
+  const corePricing = getMembershipTierPricing("CORE");
 
   const snapshotCards = [
     {
@@ -369,7 +372,9 @@ export default async function HomePage() {
               tier="FOUNDATION"
               name={MEMBERSHIP_PLANS.FOUNDATION.name}
               positioningLabel="Best place to start"
+              billingInterval="monthly"
               monthlyPrice={MEMBERSHIP_PLANS.FOUNDATION.monthlyPrice}
+              annualPrice={foundationPricing.standardAnnualPrice}
               description="For business owners who want a stronger room, a clearer base, and the full structure around them."
               features={MEMBERSHIP_PLANS.FOUNDATION.features}
               ctaHref="/join?tier=FOUNDATION"
@@ -384,7 +389,9 @@ export default async function HomePage() {
                 label: "Clearer difference",
                 text: "Move into Inner Circle when you want stronger signal, more private context, and a more focused room than Foundation alone."
               }}
+              billingInterval="monthly"
               monthlyPrice={MEMBERSHIP_PLANS.INNER_CIRCLE.monthlyPrice}
+              annualPrice={innerCirclePricing.standardAnnualPrice}
               description="For founders who want a more focused environment, deeper conversation, and better context around the next decision."
               features={MEMBERSHIP_PLANS.INNER_CIRCLE.features}
               ctaHref="/join?tier=INNER_CIRCLE"
@@ -397,7 +404,9 @@ export default async function HomePage() {
               tier="CORE"
               name={MEMBERSHIP_PLANS.CORE.name}
               positioningLabel="Closest strategic layer"
+              billingInterval="monthly"
               monthlyPrice={MEMBERSHIP_PLANS.CORE.monthlyPrice}
+              annualPrice={corePricing.standardAnnualPrice}
               description="For business owners who want the calmest high-value room and the strongest proximity to founder thinking."
               features={MEMBERSHIP_PLANS.CORE.features}
               ctaHref="/join?tier=CORE"

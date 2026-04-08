@@ -36,23 +36,34 @@ export function BrandMark({
     "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/45 bg-slate-950 shadow-inner-surface",
     className
   );
+  const dimensionStyle =
+    placement === "navbar"
+      ? {
+          width: "clamp(3rem, 11vw, 5rem)",
+          height: "clamp(3rem, 11vw, 5rem)"
+        }
+      : {
+          width: size,
+          height: size
+        };
+  const imageSizes = placement === "navbar" ? "(max-width: 640px) 48px, 80px" : `${size}px`;
 
   if (imageMissing) {
     return (
-      <span className={shellClassName} style={{ width: size, height: size }}>
+      <span className={shellClassName} style={dimensionStyle}>
         <Sparkles size={Math.round(size * 0.4)} className="text-gold" />
       </span>
     );
   }
 
   return (
-    <span className={shellClassName} style={{ width: size, height: size }}>
+    <span className={shellClassName} style={dimensionStyle}>
       {shine ? <span aria-hidden="true" className="brand-mark-shine" /> : null}
       <Image
         src={src}
         alt="The Business Circle logo"
         fill
-        sizes={`${size}px`}
+        sizes={imageSizes}
         className="object-contain"
         priority={priority}
         onError={() => {

@@ -5,11 +5,26 @@ import type Stripe from "stripe";
 vi.hoisted(() => {
   process.env.STRIPE_STANDARD_PRICE_ID = "price_standard_test";
   process.env.STRIPE_FOUNDATION_PRICE_ID = "price_foundation_test";
+  process.env.STRIPE_FOUNDATION_MONTHLY_PRICE_ID = "price_foundation_test";
+  process.env.STRIPE_FOUNDATION_ANNUAL_PRICE_ID = "price_foundation_annual_test";
   process.env.STRIPE_INNER_CIRCLE_PRICE_ID = "price_inner_circle_test";
+  process.env.STRIPE_INNER_CIRCLE_MONTHLY_PRICE_ID = "price_inner_circle_test";
+  process.env.STRIPE_INNER_CIRCLE_ANNUAL_PRICE_ID = "price_inner_circle_annual_test";
   process.env.STRIPE_CORE_PRICE_ID = "price_core_test";
+  process.env.STRIPE_CORE_MONTHLY_PRICE_ID = "price_core_test";
+  process.env.STRIPE_CORE_ANNUAL_PRICE_ID = "price_core_annual_test";
   process.env.STRIPE_FOUNDING_STANDARD_PRICE_ID = "price_founding_standard_test";
+  process.env.STRIPE_FOUNDING_FOUNDATION_MONTHLY_PRICE_ID = "price_founding_standard_test";
+  process.env.STRIPE_FOUNDING_FOUNDATION_ANNUAL_PRICE_ID =
+    "price_founding_foundation_annual_test";
   process.env.STRIPE_FOUNDING_INNER_CIRCLE_PRICE_ID = "price_founding_inner_circle_test";
+  process.env.STRIPE_FOUNDING_INNER_CIRCLE_MONTHLY_PRICE_ID =
+    "price_founding_inner_circle_test";
+  process.env.STRIPE_FOUNDING_INNER_CIRCLE_ANNUAL_PRICE_ID =
+    "price_founding_inner_circle_annual_test";
   process.env.STRIPE_FOUNDING_CORE_PRICE_ID = "price_founding_core_test";
+  process.env.STRIPE_FOUNDING_CORE_MONTHLY_PRICE_ID = "price_founding_core_test";
+  process.env.STRIPE_FOUNDING_CORE_ANNUAL_PRICE_ID = "price_founding_core_annual_test";
 });
 
 vi.mock("@/lib/db", () => ({
@@ -24,7 +39,10 @@ vi.mock("@/lib/email/resend", () => ({
   sendTransactionalEmail: vi.fn(async () => ({ sent: true, skipped: false }))
 }));
 
-import { getMembershipPlan } from "@/config/membership";
+import {
+  getMembershipBillingPlan,
+  resolveBillingIntervalFromPriceId
+} from "@/config/membership";
 import {
   getTierFromStripePriceId,
   isSubscriptionEntitled,
@@ -34,20 +52,40 @@ import {
 
 describe("subscription service", () => {
   it("maps Stripe price IDs to membership tiers", () => {
-    const innerPriceId = getMembershipPlan(MembershipTier.INNER_CIRCLE).stripePriceId;
-    const standardPriceId = getMembershipPlan(MembershipTier.FOUNDATION).stripePriceId;
-    const corePriceId = getMembershipPlan(MembershipTier.CORE).stripePriceId;
+    const innerPriceId = getMembershipBillingPlan(
+      MembershipTier.INNER_CIRCLE,
+      "standard",
+      "monthly"
+    ).stripePriceId;
+    const innerAnnualPriceId = getMembershipBillingPlan(
+      MembershipTier.INNER_CIRCLE,
+      "standard",
+      "annual"
+    ).stripePriceId;
+    const standardPriceId = getMembershipBillingPlan(
+      MembershipTier.FOUNDATION,
+      "standard",
+      "monthly"
+    ).stripePriceId;
     const foundingInnerPriceId = "price_founding_inner_circle_test";
+    const foundingInnerAnnualPriceId = "price_founding_inner_circle_annual_test";
     const foundingStandardPriceId = "price_founding_standard_test";
     const foundingCorePriceId = "price_founding_core_test";
 
     expect(getTierFromStripePriceId(innerPriceId)).toBe(MembershipTier.INNER_CIRCLE);
+    expect(getTierFromStripePriceId(innerAnnualPriceId)).toBe(MembershipTier.INNER_CIRCLE);
     expect(getTierFromStripePriceId(standardPriceId)).toBe(MembershipTier.FOUNDATION);
-    expect(getTierFromStripePriceId(corePriceId)).toBe(MembershipTier.CORE);
     expect(getTierFromStripePriceId(foundingInnerPriceId)).toBe(MembershipTier.INNER_CIRCLE);
+    expect(getTierFromStripePriceId(foundingInnerAnnualPriceId)).toBe(MembershipTier.INNER_CIRCLE);
     expect(getTierFromStripePriceId(foundingStandardPriceId)).toBe(MembershipTier.FOUNDATION);
     expect(getTierFromStripePriceId(foundingCorePriceId)).toBe(MembershipTier.CORE);
     expect(getTierFromStripePriceId("unknown_price")).toBe(MembershipTier.FOUNDATION);
+  });
+
+  it("maps Stripe price IDs to the correct billing interval", () => {
+    expect(resolveBillingIntervalFromPriceId("price_foundation_test")).toBe("monthly");
+    expect(resolveBillingIntervalFromPriceId("price_foundation_annual_test")).toBe("annual");
+    expect(resolveBillingIntervalFromPriceId("price_founding_core_annual_test")).toBe("annual");
   });
 
   it("maps Stripe subscription statuses into internal status enum", () => {

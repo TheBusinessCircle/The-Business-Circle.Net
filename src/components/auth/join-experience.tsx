@@ -12,12 +12,15 @@ import { cn } from "@/lib/utils";
 import type { FoundingOfferSnapshot } from "@/types";
 
 type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
+type MembershipBillingInterval = "monthly" | "annual";
 
 type FoundingOfferCard = {
   badgeLabel: string;
   offerLabel: string;
   foundingPrice: number;
+  foundingAnnualPrice: number;
   standardPrice: number;
+  standardAnnualPrice: number;
   claimed: number;
   limit: number;
   remaining: number;
@@ -39,7 +42,9 @@ type PricingCardConfig = {
     label: string;
     text: string;
   };
+  billingInterval: MembershipBillingInterval;
   monthlyPrice: number;
+  annualPrice: number;
   description: string;
   features: string[];
   foundingOffer: FoundingOfferCard;
@@ -234,7 +239,9 @@ export function JoinExperience({
                     name={card.name}
                     positioningLabel={card.positioningLabel}
                     spotlight={card.spotlight}
+                    billingInterval={card.billingInterval}
                     monthlyPrice={card.monthlyPrice}
+                    annualPrice={card.annualPrice}
                     description={card.description}
                     features={card.features}
                     foundingOffer={card.foundingOffer}
@@ -246,6 +253,7 @@ export function JoinExperience({
                       <MembershipPlanAction
                         tier={card.tier}
                         source="join"
+                        billingInterval={card.billingInterval}
                         isAuthenticated={isAuthenticated}
                         isCurrentPlan={card.isCurrentPlan}
                         hasActiveSubscription={hasActiveSubscription}

@@ -560,7 +560,12 @@ export function FounderServiceRequestForm({
               </div>
             ) : null}
 
-            <Button disabled={isPending} type="submit" size="lg" className="group min-w-[220px]">
+            <Button
+              disabled={isPending}
+              type="submit"
+              size="lg"
+              className="group w-full sm:min-w-[220px] sm:w-auto"
+            >
               {isPending ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 size={16} className="animate-spin" />

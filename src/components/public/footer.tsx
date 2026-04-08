@@ -58,7 +58,7 @@ export async function Footer() {
 
   return (
     <footer className="border-t border-border/80 bg-background/88">
-      <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.25fr_0.8fr_0.8fr_0.9fr] lg:px-8 lg:py-16">
+      <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-12 sm:gap-10 sm:px-6 sm:py-14 lg:grid-cols-[1.25fr_0.8fr_0.8fr_0.9fr] lg:px-8 lg:py-16">
         <div className="space-y-5">
           <div className="flex items-center gap-3">
             <BrandMark placement="footer" />

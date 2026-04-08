@@ -20,14 +20,20 @@ export const GROWTH_ARCHITECT_SERVICE_SLUGS = [
   "growth-architect-full-growth-architect"
 ] as const;
 
+const GROWTH_ARCHITECT_BASE_PRICES: Record<string, number> = {
+  "growth-architect-clarity-audit": 25_000,
+  "growth-architect-growth-strategy": 50_000,
+  "growth-architect-full-growth-architect": 100_000
+};
+
 const GROWTH_ARCHITECT_DISCOUNTS: Record<MembershipTier, number> = {
-  FOUNDATION: 10,
-  INNER_CIRCLE: 20,
-  CORE: 30
+  FOUNDATION: 0,
+  INNER_CIRCLE: 10,
+  CORE: 20
 };
 
 const DEFAULT_MEMBER_BENEFIT_MESSAGE =
-  "Foundation members receive 10% off, Inner Circle members receive 20% off, and Core members receive 30% off.";
+  "Inner Circle members receive 10% off and Core members receive 20% off Growth Architect services.";
 
 function resolveFounderPricingTier(
   input:
@@ -74,8 +80,7 @@ function getFounderDiscountMessaging(
   if (membershipTier === "CORE") {
     return {
       discountLabel: "Core member rate",
-      appliedMessage:
-        "30% member rate applied because you are part of Core.",
+      appliedMessage: "20% member rate applied because you are part of Core.",
       memberBenefitMessage: null
     };
   }
@@ -83,18 +88,16 @@ function getFounderDiscountMessaging(
   if (membershipTier === "INNER_CIRCLE") {
     return {
       discountLabel: "Inner Circle member rate",
-      appliedMessage:
-        "20% member rate applied because you are part of the Inner Circle.",
+      appliedMessage: "10% member rate applied because you are part of the Inner Circle.",
       memberBenefitMessage: null
     };
   }
 
   if (membershipTier === "FOUNDATION") {
     return {
-      discountLabel: "Foundation member rate",
-      appliedMessage:
-        "10% member rate applied because you are part of Foundation.",
-      memberBenefitMessage: null
+      discountLabel: null,
+      appliedMessage: null,
+      memberBenefitMessage: DEFAULT_MEMBER_BENEFIT_MESSAGE
     };
   }
 
@@ -103,6 +106,18 @@ function getFounderDiscountMessaging(
     appliedMessage: null,
     memberBenefitMessage: DEFAULT_MEMBER_BENEFIT_MESSAGE
   };
+}
+
+export function getServicePrice(
+  userTier: MembershipTier | null | undefined,
+  basePrice: number
+): number {
+  const discountPercent = userTier ? GROWTH_ARCHITECT_DISCOUNTS[userTier] ?? 0 : 0;
+  return Math.round(basePrice * (100 - discountPercent) / 100);
+}
+
+function getGrowthArchitectBasePrice(slug: string, fallbackPrice: number): number {
+  return GROWTH_ARCHITECT_BASE_PRICES[slug] ?? fallbackPrice;
 }
 
 function buildFounderServicePricing(
@@ -114,13 +129,16 @@ function buildFounderServicePricing(
   membershipTier: MembershipTier | null
 ): FounderServicePricingSummary {
   const isGrowthArchitect = isGrowthArchitectServiceSlug(service.slug);
+  const baseAmount = isGrowthArchitect
+    ? getGrowthArchitectBasePrice(service.slug, service.price)
+    : service.price;
 
   if (service.intakeMode === "APPLICATION") {
     return {
       isGrowthArchitect,
       isApplicationOnly: true,
-      baseAmount: service.price,
-      finalAmount: service.price,
+      baseAmount,
+      finalAmount: baseAmount,
       discountPercent: 0,
       appliedMembershipTier: null,
       discountLabel: null,
@@ -133,13 +151,13 @@ function buildFounderServicePricing(
   const discountPercent = appliedMembershipTier
     ? GROWTH_ARCHITECT_DISCOUNTS[appliedMembershipTier]
     : 0;
-  const finalAmount = Math.round(service.price * (100 - discountPercent) / 100);
+  const finalAmount = getServicePrice(appliedMembershipTier, baseAmount);
   const messaging = getFounderDiscountMessaging(appliedMembershipTier);
 
   return {
     isGrowthArchitect,
     isApplicationOnly: false,
-    baseAmount: service.price,
+    baseAmount,
     finalAmount,
     discountPercent,
     appliedMembershipTier,
@@ -224,12 +242,11 @@ export function formatFounderServiceStatusLabel(
 export function formatFounderRevenueRangeLabel(value: FounderRevenueRange): string {
   const labels: Record<FounderRevenueRange, string> = {
     PRE_REVENUE: "Pre-revenue",
-    UNDER_2000: "Under £2,000",
-    BETWEEN_2000_10000: "£2,000 - £10,000",
-    BETWEEN_10000_50000: "£10,000 - £50,000",
-    OVER_50000: "£50,000+"
+    UNDER_2000: "Under GBP2,000",
+    BETWEEN_2000_10000: "GBP2,000 - GBP10,000",
+    BETWEEN_10000_50000: "GBP10,000 - GBP50,000",
+    OVER_50000: "GBP50,000+"
   };
 
   return labels[value];
 }
-

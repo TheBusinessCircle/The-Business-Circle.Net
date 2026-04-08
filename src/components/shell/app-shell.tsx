@@ -23,12 +23,12 @@ export function AppShell({
   const hasWorkspaceColumns = Boolean(sidebar || rightRail);
 
   return (
-    <div className={cn("flex min-h-screen flex-col", className)}>
+    <div className={cn("flex min-h-screen flex-col overflow-x-clip", className)}>
       {header}
-      <div className="page-surface page-surface-workspace flex-1 transition-colors duration-200">
+      <div className="page-surface page-surface-workspace flex-1 overflow-x-clip transition-colors duration-200">
         <main
           className={cn(
-            "mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10",
+            "mx-auto w-full max-w-7xl overflow-x-clip px-4 py-8 sm:px-6 lg:px-8 lg:py-10",
             contentClassName
           )}
         >
@@ -48,7 +48,7 @@ export function AppShell({
               {rightRail}
             </div>
           ) : (
-            <section>{children}</section>
+            <section className="min-w-0">{children}</section>
           )}
         </main>
         {footer}

@@ -197,7 +197,7 @@ export function ContactForm({
             </p>
           ) : null}
 
-          <Button disabled={isPending} type="submit" className="min-w-[140px]">
+          <Button disabled={isPending} type="submit" className="w-full sm:min-w-[140px] sm:w-auto">
             {isPending ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 size={15} className="animate-spin" />

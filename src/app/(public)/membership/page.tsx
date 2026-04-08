@@ -1,29 +1,28 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Check, Minus, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { MembershipTier } from "@prisma/client";
 import { auth } from "@/auth";
 import { MembershipPlanAction } from "@/components/billing";
 import {
   CTASection,
   FAQSection,
-  FoundingOfferCounters,
   JsonLd,
-  PricingCard,
-  SectionHeading
+  MembershipTierSection
 } from "@/components/public";
-import { Button } from "@/components/ui/button";
 import {
+  getMembershipBillingPlan,
   getMembershipTierLabel,
   getMembershipTierRank,
-  MEMBERSHIP_PLANS
+  resolveBillingIntervalFromPriceId,
+  resolveMembershipBillingInterval,
+  type MembershipBillingInterval
 } from "@/config/membership";
+import { db } from "@/lib/db";
 import { roleToTier } from "@/lib/permissions";
 import { createPageMetadata } from "@/lib/seo";
-import { getSiteContentSection } from "@/server/site-content";
 import { buildFaqSchema } from "@/lib/structured-data";
 import { getFoundingOfferSnapshot } from "@/server/founding";
-import { listInsightTopicClusters } from "@/server/insights/insight.service";
 import { getPublicTrustSnapshot } from "@/server/public-site";
+import { getSiteContentSection } from "@/server/site-content";
 
 export const dynamic = "force-dynamic";
 
@@ -41,58 +40,44 @@ export const metadata: Metadata = createPageMetadata({
   path: "/membership"
 });
 
-const BENEFIT_COMPARISON = [
-  { label: "Category-led community access", foundation: true, inner: true, core: true },
-  { label: "Member directory", foundation: true, inner: true, core: true },
-  { label: "Resource library", foundation: true, inner: true, core: true },
-  { label: "Member events", foundation: true, inner: true, core: true },
-  { label: "Private higher-tier areas", foundation: false, inner: true, core: true },
-  { label: "Deeper strategic access", foundation: false, inner: true, core: true },
-  { label: "Closer founder proximity", foundation: false, inner: false, core: true },
-  { label: "Strongest bridge into premium work", foundation: false, inner: false, core: true }
-];
+const MICROCOPY_LINES = [
+  "Built for business owners, not browsers",
+  "No noise, just real conversations and growth",
+  "Move at your own pace, or step into something bigger"
+] as const;
 
-const membershipTrustItems = [
+const TIER_CONTENT: Record<
+  MembershipTier,
   {
-    icon: ShieldCheck,
-    title: "Start at the right level",
-    description:
-      "Choose the level that matches the business you are building now without overcommitting too early."
-  },
-  {
-    icon: TrendingUp,
-    title: "Move deeper when needed",
-    description:
-      "Foundation gives you the ecosystem. Inner Circle adds more focus. Core adds the strongest strategic proximity."
-  },
-  {
-    icon: Sparkles,
-    title: "Clear and dependable billing",
-    description:
-      "Membership checkout and billing management run through Stripe so the experience stays premium and predictable."
+    description: string;
+    narrative?: string;
+    emphasisLabel?: string;
+    accessNote?: string;
+    unauthenticatedLabel: string;
   }
-];
-
-const membershipDecisionSteps = [
-  {
-    step: "01",
-    title: "Join at the level that fits now",
+> = {
+  FOUNDATION: {
     description:
-      "Foundation is a strong start. Inner Circle is the most balanced step up. Core is the closest strategic layer."
+      "Start here. Understand the system, connect with others, and begin building momentum.",
+    narrative: "A quieter way into the network, with enough structure to help the next move feel clearer.",
+    unauthenticatedLabel: "Enter Foundation"
   },
-  {
-    step: "02",
-    title: "Enter the dashboard with a clear place to begin",
+  INNER_CIRCLE: {
     description:
-      "New members are guided into one discussion, one resource, and a stronger profile without unnecessary noise."
+      "Where business owners actually connect, collaborate, and grow. This is where most of the real activity happens.",
+    narrative:
+      "The room feels tighter, more useful, and more conversational without becoming performative.",
+    emphasisLabel: "Most active members choose this",
+    unauthenticatedLabel: "Join Inner Circle"
   },
-  {
-    step: "03",
-    title: "Move deeper later if the business needs it",
+  CORE: {
     description:
-      "You can move between tiers as the business changes. The point is to choose the right room now, not the deepest room immediately."
+      "Designed for serious operators already running or scaling a business. This is a more focused environment with higher-level conversations and access.",
+    narrative: "Protected by design so the room stays useful for operators carrying real decisions.",
+    accessNote: "Access may be limited",
+    unauthenticatedLabel: "Continue to Core"
   }
-];
+};
 
 type MembershipPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -102,73 +87,152 @@ function firstValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function withFrom(pathname: string, from: string): string {
-  const url = new URL(pathname, "http://localhost");
-  url.searchParams.set("from", from);
-  const query = url.searchParams.toString();
-  return query.length ? `${url.pathname}?${query}` : url.pathname;
+function resolveTier(value: string | undefined): MembershipTier {
+  if (value === MembershipTier.CORE) {
+    return MembershipTier.CORE;
+  }
+
+  if (value === MembershipTier.INNER_CIRCLE) {
+    return MembershipTier.INNER_CIRCLE;
+  }
+
+  return MembershipTier.FOUNDATION;
 }
 
-function resolveTier(value: string | undefined): "FOUNDATION" | "INNER_CIRCLE" | "CORE" {
-  if (value === "CORE") {
-    return "CORE";
+function buildMembershipHref(input: {
+  tier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
+}) {
+  const url = new URL("/membership", "http://localhost");
+  url.searchParams.set("tier", input.tier);
+  url.searchParams.set("interval", input.billingInterval);
+  return `${url.pathname}${url.search}`;
+}
+
+function buildToggleHref(input: {
+  tier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
+  billing?: string;
+}) {
+  const url = new URL("/membership", "http://localhost");
+  url.searchParams.set("tier", input.tier);
+  url.searchParams.set("interval", input.billingInterval);
+
+  if (input.billing) {
+    url.searchParams.set("billing", input.billing);
   }
 
-  if (value === "INNER_CIRCLE") {
-    return "INNER_CIRCLE";
+  return `${url.pathname}${url.search}`;
+}
+
+function buildJoinHref(input: {
+  tier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
+}) {
+  const url = new URL("/join", "http://localhost");
+  url.searchParams.set("tier", input.tier);
+  url.searchParams.set("interval", input.billingInterval);
+  return `${url.pathname}${url.search}`;
+}
+
+function buildLoginHref(input: {
+  tier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
+}) {
+  const url = new URL("/login", "http://localhost");
+  url.searchParams.set("from", buildMembershipHref(input));
+  return `${url.pathname}${url.search}`;
+}
+
+function getAuthenticatedLabel(input: {
+  currentTier: MembershipTier;
+  currentBillingInterval: MembershipBillingInterval | null;
+  targetTier: MembershipTier;
+  targetBillingInterval: MembershipBillingInterval;
+}) {
+  if (
+    input.currentTier === input.targetTier &&
+    input.currentBillingInterval === input.targetBillingInterval
+  ) {
+    return `Current ${getMembershipTierLabel(input.targetTier)} Plan`;
   }
 
-  return "FOUNDATION";
+  if (input.currentTier === input.targetTier) {
+    return input.targetBillingInterval === "annual" ? "Switch To Annual" : "Switch To Monthly";
+  }
+
+  if (
+    getMembershipTierRank(input.targetTier) > getMembershipTierRank(input.currentTier)
+  ) {
+    return input.targetTier === MembershipTier.CORE
+      ? "Continue to Core"
+      : `Join ${getMembershipTierLabel(input.targetTier)}`;
+  }
+
+  return `Move To ${getMembershipTierLabel(input.targetTier)}`;
 }
 
 export default async function MembershipPage({ searchParams }: MembershipPageProps) {
   const session = await auth();
   const params = await searchParams;
-  const [membershipContent, foundingOffer, trustSnapshot] = await Promise.all([
-    getSiteContentSection("membership"),
-    getFoundingOfferSnapshot(),
-    getPublicTrustSnapshot()
-  ]);
-  const featuredInsightTopics = listInsightTopicClusters().filter((cluster) =>
-    [
-      "business-growth-strategy",
-      "visibility-and-trust",
-      "founder-clarity-and-decision-making"
-    ].includes(cluster.slug)
-  );
   const billing = firstValue(params.billing);
+  const selectedTier = resolveTier(firstValue(params.tier));
+  const billingInterval = resolveMembershipBillingInterval(firstValue(params.interval));
   const isAuthenticated = Boolean(session?.user);
   const hasActiveSubscription = session?.user?.hasActiveSubscription ?? false;
   const currentTier = session?.user
     ? roleToTier(session.user.role, session.user.membershipTier)
-    : "FOUNDATION";
-  const currentTierRank = getMembershipTierRank(currentTier);
-  const selectedTier = resolveTier(firstValue(params.tier));
+    : MembershipTier.FOUNDATION;
 
-  const foundationFrom = "/membership?tier=FOUNDATION";
-  const innerCircleFrom = "/membership?tier=INNER_CIRCLE";
-  const coreFrom = "/membership?tier=CORE";
+  const [membershipContent, foundingOffer, trustSnapshot, currentSubscription] = await Promise.all([
+    getSiteContentSection("membership"),
+    getFoundingOfferSnapshot(),
+    getPublicTrustSnapshot(),
+    session?.user
+      ? db.subscription.findUnique({
+          where: {
+            userId: session.user.id
+          },
+          select: {
+            stripePriceId: true
+          }
+        })
+      : Promise.resolve(null)
+  ]);
+
+  const currentBillingInterval = currentSubscription?.stripePriceId
+    ? resolveBillingIntervalFromPriceId(currentSubscription.stripePriceId)
+    : null;
 
   const trustSignals = [
     {
       label: "Active discussions this week",
-      value: trustSnapshot.activeDiscussionCount.toLocaleString("en-GB"),
-      description: "Quiet movement matters more than noise. These are real conversations happening across the network."
+      value: trustSnapshot.activeDiscussionCount.toLocaleString("en-GB")
     },
     {
       label: "Resources recently added",
-      value: trustSnapshot.recentResourceCount.toLocaleString("en-GB"),
-      description: "New material keeps the library current without turning it into a content dump."
+      value: trustSnapshot.recentResourceCount.toLocaleString("en-GB")
     },
     {
       label: "Connection wins visible",
-      value: trustSnapshot.connectionWinsCount.toLocaleString("en-GB"),
-      description: "Visible outcomes create trust that useful conversations are turning into something real."
+      value: trustSnapshot.connectionWinsCount.toLocaleString("en-GB")
     }
   ];
 
+  const foundationPlan = getMembershipBillingPlan(
+    MembershipTier.FOUNDATION,
+    "standard",
+    billingInterval
+  );
+  const innerCirclePlan = getMembershipBillingPlan(
+    MembershipTier.INNER_CIRCLE,
+    "standard",
+    billingInterval
+  );
+  const corePlan = getMembershipBillingPlan(MembershipTier.CORE, "standard", billingInterval);
+
   return (
-    <div className="space-y-16 pb-16">
+    <div className="space-y-12 pb-16">
       <JsonLd data={buildFaqSchema(membershipContent.faqs)} />
 
       {billing === "required" ? (
@@ -183,293 +247,200 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         </p>
       ) : null}
 
-      <section className="space-y-8">
-        <SectionHeading
-          align="center"
-          label="Membership"
-          title="Business Membership For Founders"
-          description="Choose the level that fits where you are now. Each tier gives you access to a stronger environment, better context, and a clearer path forward without overcomplicating the decision."
-        />
-        <div className="flex flex-wrap justify-center gap-2">
-          {[
-            "Choose for now",
-            "Move deeper later",
-            "Clear monthly billing",
-            "Limited founding places available"
-          ].map((item) => (
-            <span
-              key={item}
-              className="rounded-full border border-border/80 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver"
+      <section className="space-y-8 rounded-[2rem] border border-border/80 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10">
+        <div className="space-y-4">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership</p>
+          <h1 className="font-display text-4xl text-foreground sm:text-5xl">
+            The Business Circle
+          </h1>
+          <p className="max-w-3xl text-lg leading-relaxed text-muted">
+            A place for business owners to connect, think clearly, and grow properly.
+          </p>
+          <p className="text-sm text-silver">Choose how you want to enter.</p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {MICROCOPY_LINES.map((line) => (
+            <div
+              key={line}
+              className="rounded-2xl border border-white/8 bg-background/20 px-4 py-4 text-sm text-muted"
             >
-              {item}
-            </span>
-          ))}
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {trustSignals.map((item) => (
-            <article key={item.label} className="public-panel border-silver/18 bg-background/30 p-5">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{item.label}</p>
-              <p className="mt-2 font-display text-3xl text-foreground">{item.value}</p>
-              <p className="mt-2 text-sm text-muted">{item.description}</p>
-            </article>
-          ))}
-        </div>
-        <FoundingOfferCounters offer={foundingOffer} />
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <PricingCard
-            tier="FOUNDATION"
-            name={MEMBERSHIP_PLANS.FOUNDATION.name}
-            positioningLabel="Best place to start"
-            monthlyPrice={MEMBERSHIP_PLANS.FOUNDATION.monthlyPrice}
-            description="Best for business owners who want a clearer base, a stronger room, and the right place to start inside the ecosystem."
-            features={MEMBERSHIP_PLANS.FOUNDATION.features}
-            cta={
-              <MembershipPlanAction
-                tier="FOUNDATION"
-                source="membership"
-                isAuthenticated={isAuthenticated}
-                isCurrentPlan={currentTier === "FOUNDATION"}
-                hasActiveSubscription={hasActiveSubscription}
-                buttonVariant="foundation"
-                authenticatedLabel={
-                  currentTier === "FOUNDATION" ? "Current Foundation Plan" : "Start With Foundation"
-                }
-                unauthenticatedLabel="Start With Foundation"
-                joinHref={withFrom("/join?tier=FOUNDATION", foundationFrom)}
-                loginHref={withFrom("/login", foundationFrom)}
-              />
-            }
-            foundingOffer={foundingOffer.foundation}
-            selected={selectedTier === "FOUNDATION"}
-          />
-          <PricingCard
-            tier="INNER_CIRCLE"
-            name={MEMBERSHIP_PLANS.INNER_CIRCLE.name}
-            positioningLabel="Smartest next step"
-            spotlight={{
-              label: "Natural progression",
-              text:
-                "Often the right move when Foundation is already useful and you want a more focused room, stronger signal, and more relevant private context."
-            }}
-            monthlyPrice={MEMBERSHIP_PLANS.INNER_CIRCLE.monthlyPrice}
-            description="Best for founders who want a more focused environment, stronger intent, and a clearer value jump from Foundation without moving straight to Core."
-            features={MEMBERSHIP_PLANS.INNER_CIRCLE.features}
-            cta={
-              <MembershipPlanAction
-                tier="INNER_CIRCLE"
-                source="membership"
-                isAuthenticated={isAuthenticated}
-                isCurrentPlan={currentTier === "INNER_CIRCLE"}
-                hasActiveSubscription={hasActiveSubscription}
-                buttonVariant="innerCircle"
-                authenticatedLabel={
-                  currentTier === "INNER_CIRCLE" ? "Current Inner Circle Plan" : "Step Into Inner Circle"
-                }
-                unauthenticatedLabel="Step Into Inner Circle"
-                joinHref={withFrom("/join?tier=INNER_CIRCLE", innerCircleFrom)}
-                loginHref={withFrom("/login", innerCircleFrom)}
-              />
-            }
-            foundingOffer={foundingOffer.innerCircle}
-            selected={selectedTier === "INNER_CIRCLE"}
-            featured
-            featuredLabel="Smartest next step"
-          />
-          <PricingCard
-            tier="CORE"
-            name={MEMBERSHIP_PLANS.CORE.name}
-            positioningLabel="Highest-value room"
-            monthlyPrice={MEMBERSHIP_PLANS.CORE.monthlyPrice}
-            description="Best for business owners who want the calmest high-value room, closer founder proximity, and stronger strategic context."
-            features={MEMBERSHIP_PLANS.CORE.features}
-            cta={
-              <MembershipPlanAction
-                tier="CORE"
-                source="membership"
-                isAuthenticated={isAuthenticated}
-                isCurrentPlan={currentTier === "CORE"}
-                hasActiveSubscription={hasActiveSubscription}
-                buttonVariant="core"
-                authenticatedLabel={
-                  currentTier === "CORE" ? "Current Core Plan" : "Choose Core"
-                }
-                unauthenticatedLabel="Choose Core"
-                joinHref={withFrom("/join?tier=CORE", coreFrom)}
-                loginHref={withFrom("/login", coreFrom)}
-              />
-            }
-            foundingOffer={foundingOffer.core}
-            selected={selectedTier === "CORE"}
-          />
-        </div>
-        <p className="text-center text-xs text-muted">
-          * Discounted pricing is for eligible new members only. If membership ends and you later
-          rejoin, standard pricing applies.
-        </p>
-        <p className="text-center text-sm text-muted">
-          Not sure where to start? Foundation gives you a strong entry into the ecosystem, and you can move deeper when the fit becomes clearer.
-        </p>
-      </section>
-
-      <section className="space-y-6">
-        <SectionHeading
-          label="What Happens After Joining"
-          title="Clear first steps reduce hesitation"
-          description="You are not joining a noisy feed. You are entering a structured environment with a clearer place to begin."
-        />
-        <div className="grid gap-4 md:grid-cols-3">
-          {membershipDecisionSteps.map((item) => (
-            <article key={item.step} className="public-panel interactive-card p-6">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{item.step}</p>
-              <h2 className="mt-4 font-display text-2xl text-foreground">{item.title}</h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-3">
-        <article className="public-panel border-foundation/22 bg-gradient-to-br from-foundation/10 via-card/72 to-card/70 p-6">
-          <p className="inline-flex rounded-full border border-foundation/30 bg-foundation/12 px-3 py-1 text-[11px] tracking-[0.1em] text-foundation uppercase">
-            Foundation
-          </p>
-          <h2 className="mt-5 font-display text-3xl text-foreground">A serious place to start</h2>
-          <div className="mt-5 space-y-4 text-sm leading-relaxed text-muted">
-            <p>Best for businesses that want stronger fundamentals, better conversations, and a more structured network around them.</p>
-            <p>Foundation is where people start building trust, visibility, and useful relationships without noise.</p>
-          </div>
-        </article>
-        <article className="public-panel border-silver/22 bg-gradient-to-br from-silver/12 via-card/72 to-card/70 p-6">
-          <p className="inline-flex rounded-full border border-silver/24 bg-silver/12 px-3 py-1 text-[11px] tracking-[0.1em] text-silver uppercase">
-            Inner Circle
-          </p>
-          <h2 className="mt-5 font-display text-3xl text-foreground">The clearest move when Foundation is already working</h2>
-          <div className="mt-5 space-y-4 text-sm leading-relaxed text-muted">
-            <p>Best for founders who want a more intentional environment, stronger signal, and more relevant context around the decisions in front of them.</p>
-            <p>Inner Circle adds private access layers, better discussion quality, and a more focused room without trying to oversell the jump.</p>
-          </div>
-        </article>
-        <article className="public-panel border-gold/30 bg-gradient-to-br from-gold/10 via-card/72 to-card/68 p-6">
-          <p className="inline-flex rounded-full border border-gold/35 bg-gold/12 px-3 py-1 text-[11px] tracking-[0.1em] text-gold uppercase">
-            Core
-          </p>
-          <h2 className="mt-5 font-display text-3xl text-foreground">The strongest strategic proximity</h2>
-          <div className="mt-5 space-y-4 text-sm leading-relaxed text-muted">
-            <p>Best for business owners who want the highest-trust environment inside Business Circle and the closest bridge into premium work.</p>
-            <p>Core is positioned for decision-led founders who value closeness, quality of room, and stronger access to founder thinking.</p>
-          </div>
-        </article>
-      </section>
-
-      <section className="space-y-6">
-        <SectionHeading
-          label="Comparison"
-          title="Compare the level of access, not just the list of features"
-          description="All three levels place you inside the ecosystem. The difference is how focused the environment becomes and how much strategic proximity you want."
-        />
-
-        <div className="overflow-x-auto rounded-3xl border border-border/80 bg-card/70 shadow-panel">
-          <div className="min-w-[860px]">
-            <div className="grid grid-cols-[1.2fr_0.35fr_0.35fr_0.35fr] border-b border-border/70 bg-background/35 px-4 py-3 text-xs uppercase tracking-[0.08em] text-muted sm:px-6">
-              <p>Benefit</p>
-              <p className="text-center text-foundation">Foundation</p>
-              <p className="text-center text-silver">Inner Circle</p>
-              <p className="text-center text-gold">Core</p>
+              {line}
             </div>
-            <div className="divide-y divide-border/70">
-              {BENEFIT_COMPARISON.map((item) => (
-                <div
-                  key={item.label}
-                  className="grid grid-cols-[1.2fr_0.35fr_0.35fr_0.35fr] items-center px-4 py-3 sm:px-6"
-                >
-                  <p className="text-sm text-foreground">{item.label}</p>
-                  <div className="flex justify-center">
-                    {item.foundation ? (
-                      <Check size={16} className="text-foundation" />
-                    ) : (
-                      <Minus size={16} className="text-muted" />
-                    )}
-                  </div>
-                  <div className="flex justify-center">
-                    {item.inner ? (
-                      <Check size={16} className="text-silver" />
-                    ) : (
-                      <Minus size={16} className="text-muted" />
-                    )}
-                  </div>
-                  <div className="flex justify-center">
-                    {item.core ? (
-                      <Check size={16} className="text-gold" />
-                    ) : (
-                      <Minus size={16} className="text-muted" />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="inline-flex w-fit rounded-full border border-border/80 bg-background/30 p-1">
+            <a
+              href={buildToggleHref({
+                tier: selectedTier,
+                billingInterval: "monthly",
+                billing
+              })}
+              className={`rounded-full px-4 py-2 text-sm ${
+                billingInterval === "monthly"
+                  ? "bg-foreground text-background"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              Monthly
+            </a>
+            <a
+              href={buildToggleHref({
+                tier: selectedTier,
+                billingInterval: "annual",
+                billing
+              })}
+              className={`rounded-full px-4 py-2 text-sm ${
+                billingInterval === "annual"
+                  ? "bg-foreground text-background"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              Annual
+            </a>
           </div>
+          <p className="text-sm text-muted">Pay annually and save 20%</p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {trustSignals.map((signal) => (
+            <div
+              key={signal.label}
+              className="rounded-2xl border border-white/8 bg-background/20 px-4 py-4"
+            >
+              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{signal.label}</p>
+              <p className="mt-2 font-display text-3xl text-foreground">{signal.value}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section className="space-y-6">
-        <SectionHeading
-          label="Membership Confidence"
-          title="A premium membership should still feel clear, flexible, and sensible"
-          description="The point is not to push everyone into the deepest level. It is to help people choose the right room for the responsibility they are carrying right now."
+      <div className="space-y-5">
+        <MembershipTierSection
+          tier={MembershipTier.FOUNDATION}
+          title="Foundation"
+          description={TIER_CONTENT.FOUNDATION.description}
+          narrative={TIER_CONTENT.FOUNDATION.narrative}
+          billingInterval={billingInterval}
+          monthlyPrice={foundationPlan.monthlyPrice}
+          annualPrice={foundationPlan.annualPrice}
+          foundingOffer={foundingOffer.foundation}
+          action={
+            <MembershipPlanAction
+              tier="FOUNDATION"
+              source="membership"
+              billingInterval={billingInterval}
+              isAuthenticated={isAuthenticated}
+              isCurrentPlan={currentTier === MembershipTier.FOUNDATION}
+              hasActiveSubscription={hasActiveSubscription}
+              currentBillingInterval={currentBillingInterval}
+              buttonVariant="foundation"
+              authenticatedLabel={getAuthenticatedLabel({
+                currentTier,
+                currentBillingInterval,
+                targetTier: MembershipTier.FOUNDATION,
+                targetBillingInterval: billingInterval
+              })}
+              unauthenticatedLabel={TIER_CONTENT.FOUNDATION.unauthenticatedLabel}
+              joinHref={buildJoinHref({
+                tier: MembershipTier.FOUNDATION,
+                billingInterval
+              })}
+              loginHref={buildLoginHref({
+                tier: MembershipTier.FOUNDATION,
+                billingInterval
+              })}
+            />
+          }
         />
-        <div className="grid gap-5 md:grid-cols-3">
-          {membershipTrustItems.map((item) => (
-            <article key={item.title} className="public-panel interactive-card p-6">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
-                <item.icon size={18} />
-              </span>
-              <h3 className="mt-4 font-display text-2xl text-foreground">{item.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-            </article>
-          ))}
-        </div>
-        {isAuthenticated ? (
-          <p className="text-center text-sm text-muted">
-            Your current level is {getMembershipTierLabel(currentTier)}.
-            {currentTierRank < getMembershipTierRank("CORE") ? " You can move deeper whenever the business needs it." : ""}
-          </p>
-        ) : null}
-      </section>
 
-      <section className="space-y-6">
-        <SectionHeading
-          label="Free Insights Layer"
-          title="Free insights first. Membership depth next."
-          description="Use the free insights layer to think clearer, then go deeper inside membership when you want full frameworks, stronger context, and practical next steps."
+        <MembershipTierSection
+          tier={MembershipTier.INNER_CIRCLE}
+          title="Inner Circle"
+          description={TIER_CONTENT.INNER_CIRCLE.description}
+          narrative={TIER_CONTENT.INNER_CIRCLE.narrative}
+          emphasisLabel={TIER_CONTENT.INNER_CIRCLE.emphasisLabel}
+          billingInterval={billingInterval}
+          monthlyPrice={innerCirclePlan.monthlyPrice}
+          annualPrice={innerCirclePlan.annualPrice}
+          foundingOffer={foundingOffer.innerCircle}
+          featured
+          action={
+            <MembershipPlanAction
+              tier="INNER_CIRCLE"
+              source="membership"
+              billingInterval={billingInterval}
+              isAuthenticated={isAuthenticated}
+              isCurrentPlan={currentTier === MembershipTier.INNER_CIRCLE}
+              hasActiveSubscription={hasActiveSubscription}
+              currentBillingInterval={currentBillingInterval}
+              buttonVariant="innerCircle"
+              authenticatedLabel={getAuthenticatedLabel({
+                currentTier,
+                currentBillingInterval,
+                targetTier: MembershipTier.INNER_CIRCLE,
+                targetBillingInterval: billingInterval
+              })}
+              unauthenticatedLabel={TIER_CONTENT.INNER_CIRCLE.unauthenticatedLabel}
+              joinHref={buildJoinHref({
+                tier: MembershipTier.INNER_CIRCLE,
+                billingInterval
+              })}
+              loginHref={buildLoginHref({
+                tier: MembershipTier.INNER_CIRCLE,
+                billingInterval
+              })}
+            />
+          }
         />
-        <div className="grid gap-4 lg:grid-cols-3">
-          {featuredInsightTopics.map((cluster) => (
-            <article key={cluster.slug} className="public-panel interactive-card p-6">
-              <p className="premium-kicker">{cluster.keyword}</p>
-              <h2 className="mt-4 font-display text-2xl text-foreground">{cluster.title}</h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{cluster.description}</p>
-              <div className="mt-4 space-y-2">
-                {cluster.supportingInsights.slice(0, 2).map((insight) => (
-                  <Link
-                    key={insight.slug}
-                    href={`/insights/${insight.slug}`}
-                    className="block rounded-xl border border-border/80 bg-background/20 px-3 py-3 text-sm text-muted transition-colors hover:border-silver/24 hover:text-foreground"
-                  >
-                    {insight.title}
-                  </Link>
-                ))}
-              </div>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Link href={cluster.href}>
-                  <Button variant="outline">Browse Topic</Button>
-                </Link>
-                <Link href="/join">
-                  <Button>Go Deeper Inside Membership</Button>
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
+
+        <MembershipTierSection
+          tier={MembershipTier.CORE}
+          title="Core"
+          description={TIER_CONTENT.CORE.description}
+          narrative={TIER_CONTENT.CORE.narrative}
+          accessNote={TIER_CONTENT.CORE.accessNote}
+          billingInterval={billingInterval}
+          monthlyPrice={corePlan.monthlyPrice}
+          annualPrice={corePlan.annualPrice}
+          foundingOffer={foundingOffer.core}
+          action={
+            <MembershipPlanAction
+              tier="CORE"
+              source="membership"
+              billingInterval={billingInterval}
+              isAuthenticated={isAuthenticated}
+              isCurrentPlan={currentTier === MembershipTier.CORE}
+              hasActiveSubscription={hasActiveSubscription}
+              currentBillingInterval={currentBillingInterval}
+              buttonVariant="core"
+              authenticatedLabel={getAuthenticatedLabel({
+                currentTier,
+                currentBillingInterval,
+                targetTier: MembershipTier.CORE,
+                targetBillingInterval: billingInterval
+              })}
+              unauthenticatedLabel={TIER_CONTENT.CORE.unauthenticatedLabel}
+              joinHref={buildJoinHref({
+                tier: MembershipTier.CORE,
+                billingInterval
+              })}
+              loginHref={buildLoginHref({
+                tier: MembershipTier.CORE,
+                billingInterval
+              })}
+            />
+          }
+        />
+      </div>
+
+      <section className="rounded-[1.8rem] border border-white/8 bg-background/18 px-6 py-6 text-sm text-muted">
+        <p>
+          Founding rates remain in place while membership stays active. If membership is cancelled
+          and later restarted, standard pricing applies.
+        </p>
       </section>
 
       <FAQSection
@@ -480,9 +451,15 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
       />
 
       <CTASection
-        title="Choose the level that matches your next phase"
-        description="This is now live. Start where the fit is strongest now, then move deeper when the business needs a more focused room."
-        primaryAction={{ href: "/join", label: "Join The Business Circle" }}
+        title="Choose the room that fits the business now"
+        description="Start where the fit is strongest now, then move deeper if the business needs a tighter room."
+        primaryAction={{
+          href: buildJoinHref({
+            tier: selectedTier,
+            billingInterval
+          }),
+          label: "Continue Into Membership"
+        }}
         secondaryAction={{ href: "/insights", label: "Start With Free Insights", variant: "outline" }}
       />
     </div>

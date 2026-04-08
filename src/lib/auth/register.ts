@@ -41,6 +41,7 @@ export type CreateMemberAccountResult = {
   };
   selectedTier: MembershipTier;
   assignedTier: MembershipTier;
+  billingInterval: "monthly" | "annual";
 };
 
 function roleForTier(tier: MembershipTier): Role {
@@ -183,7 +184,8 @@ export async function createMemberAccount(
     return {
       user,
       selectedTier,
-      assignedTier
+      assignedTier,
+      billingInterval: input.billingInterval
     };
   } catch (error) {
     if (isUniqueEmailError(error)) {

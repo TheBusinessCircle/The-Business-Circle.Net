@@ -29,14 +29,26 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
               {item.available ? "Available" : "Closed"}
             </Badge>
           </div>
-          <p className="mt-3 text-sm text-foreground">
-            {item.claimed} of {item.limit} founding places claimed
-          </p>
-          <p className="mt-1 text-xs text-muted">
-            {item.available
-              ? "Limited founding member spots available."
-              : "Founding member spots have now been claimed. Standard membership pricing applies."}
-          </p>
+          {item.available ? (
+            <>
+              <p className="mt-3 text-sm text-foreground">
+                {item.remaining} of {item.limit} Founding Member spots remaining
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Once these are gone, standard pricing applies. Founding rates are locked for active
+                members.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-sm text-foreground">
+                Founding Member spots have now been filled
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Standard pricing now applies for this tier.
+              </p>
+            </>
+          )}
         </div>
       ))}
     </div>

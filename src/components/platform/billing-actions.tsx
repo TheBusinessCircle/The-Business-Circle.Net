@@ -43,23 +43,7 @@ export function BillingActions({ tier, subscription, upgradeOffer = null }: Bill
 
   const openCheckout = (targetTier: Exclude<MembershipTier, "FOUNDATION">) => {
     setNotice(null);
-
-    startTransition(async () => {
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier: targetTier, source: "dashboard" })
-      });
-
-      const payload = (await response.json()) as { url?: string; error?: string };
-
-      if (!response.ok || !payload.url) {
-        setNotice(payload.error ?? "Unable to open checkout.");
-        return;
-      }
-
-      window.location.href = payload.url;
-    });
+    window.location.href = `/membership?tier=${targetTier}`;
   };
 
   const openPortal = (intent: "manage" | "downgrade") => {

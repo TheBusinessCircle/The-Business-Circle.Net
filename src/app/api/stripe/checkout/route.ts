@@ -1,7 +1,10 @@
 import { MembershipTier } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getMembershipTierRank } from "@/config/membership";
+import {
+  getMembershipTierRank,
+  type MembershipBillingInterval
+} from "@/config/membership";
 import { requireApiUser } from "@/lib/auth/api";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { logServerError } from "@/lib/security/logging";
@@ -18,6 +21,8 @@ export const runtime = "nodejs";
 
 const checkoutPayloadSchema = z.object({
   tier: z.nativeEnum(MembershipTier).optional(),
+  billingInterval: z.enum(["monthly", "annual"]).optional(),
+  coreAccessConfirmed: z.boolean().optional(),
   source: z.enum(["membership", "join", "dashboard"]).optional()
 });
 
@@ -72,23 +77,36 @@ export async function POST(request: Request) {
     }
 
     const targetTier = parsedPayload.data.tier ?? MembershipTier.FOUNDATION;
+    const billingInterval =
+      (parsedPayload.data.billingInterval ?? "monthly") as MembershipBillingInterval;
+    const coreAccessConfirmed = parsedPayload.data.coreAccessConfirmed ?? false;
     const source = parsedPayload.data.source ?? "dashboard";
     const currentTier = roleToTier(authResult.user.role, authResult.user.membershipTier);
     const currentTierRank = getMembershipTierRank(currentTier);
     const targetTierRank = getMembershipTierRank(targetTier);
 
+    if (targetTier === MembershipTier.CORE && !coreAccessConfirmed) {
+      return NextResponse.json(
+        {
+          error:
+            "Please confirm that you are actively running a business or generating revenue to continue to Core."
+        },
+        { status: 400, headers }
+      );
+    }
+
     const successPath =
       source === "join"
-        ? "/dashboard?billing=success&source=join"
+        ? `/dashboard?billing=success&source=join&interval=${billingInterval}`
         : source === "membership"
-          ? "/dashboard?billing=success&source=membership"
-          : "/dashboard?billing=success";
+          ? `/dashboard?billing=success&source=membership&interval=${billingInterval}`
+          : `/dashboard?billing=success&interval=${billingInterval}`;
     const cancelPath =
       source === "join"
-        ? `/join?billing=cancelled&tier=${targetTier}`
+        ? `/join?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`
         : source === "dashboard"
-          ? "/dashboard?billing=cancelled"
-          : "/membership?billing=cancelled";
+          ? `/dashboard?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`
+          : `/membership?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`;
 
     if (!authResult.user.email) {
       return NextResponse.json(
@@ -119,7 +137,25 @@ export async function POST(request: Request) {
         userId: authResult.user.id,
         email: authResult.user.email,
         name: authResult.user.name,
-        targetTier
+        targetTier,
+        billingInterval,
+        coreAccessConfirmed
+      });
+
+      return NextResponse.json({ url: updated.url }, { headers });
+    }
+
+    if (
+      authResult.user.hasActiveSubscription &&
+      targetTierRank === currentTierRank
+    ) {
+      const updated = await updateStripeSubscriptionPlanForUser({
+        userId: authResult.user.id,
+        email: authResult.user.email,
+        name: authResult.user.name,
+        targetTier,
+        billingInterval,
+        coreAccessConfirmed
       });
 
       return NextResponse.json({ url: updated.url }, { headers });
@@ -130,6 +166,8 @@ export async function POST(request: Request) {
       email: authResult.user.email,
       name: authResult.user.name,
       targetTier,
+      billingInterval,
+      coreAccessConfirmed,
       successPath,
       cancelPath,
       allowFoundingOffer: !authResult.user.hasActiveSubscription
@@ -137,6 +175,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url }, { headers });
   } catch (error) {
+    if (error instanceof Error && error.message === "core-access-confirmation-required") {
+      return NextResponse.json(
+        {
+          error:
+            "Please confirm that you are actively running a business or generating revenue to continue to Core."
+        },
+        { status: 400, headers }
+      );
+    }
+
     logServerError("stripe-checkout-route-failed", error);
     return NextResponse.json(
       { error: "Unable to start checkout." },

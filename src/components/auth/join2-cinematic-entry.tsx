@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   useEffect,
   useMemo,
@@ -14,9 +15,11 @@ import { safeRedirectPath } from "@/lib/auth/utils";
 import styles from "./join2-cinematic-entry.module.css";
 
 type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
+type MembershipBillingInterval = "monthly" | "annual";
 
 type Join2CinematicEntryProps = {
   initialSelectedTier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
   from?: string;
   inviteCode?: string;
   error?: string;
@@ -34,9 +37,19 @@ type JoinHandoff = {
 };
 
 type SceneStage = "intro" | "entering" | "choices";
+type PortalStyleVars = CSSProperties & {
+  "--join2-portal-left": string;
+  "--join2-portal-top": string;
+  "--join2-portal-size": string;
+};
 
 const portalEase = [0.2, 0.72, 0.18, 1] as const;
 const joinHandoffStorageKey = "business-circle:join-handoff";
+const portalTarget = {
+  centerX: 0.506,
+  centerY: 0.411,
+  diameter: 0.734
+} as const;
 
 const tierLabels: Record<MembershipTier, string> = {
   FOUNDATION: "Foundation",
@@ -109,16 +122,19 @@ function writeJoinHandoff(value: JoinHandoff) {
 
 function buildMembershipHref({
   tier,
+  billingInterval,
   billing,
   from
 }: {
   tier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
   billing?: string;
   from?: string;
 }) {
   const url = new URL("/membership", "http://localhost");
 
   url.searchParams.set("tier", tier);
+  url.searchParams.set("interval", billingInterval);
 
   if (billing === "cancelled") {
     url.searchParams.set("billing", billing);
@@ -135,6 +151,7 @@ function buildMembershipHref({
 
 export function Join2CinematicEntry({
   initialSelectedTier,
+  billingInterval,
   from,
   inviteCode,
   error,
@@ -142,14 +159,21 @@ export function Join2CinematicEntry({
 }: Join2CinematicEntryProps) {
   const reduceMotion = useReducedMotion();
   const routeRef = useRef<HTMLDivElement | null>(null);
+  const heroFrameRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const transitionTimerRef = useRef<number | null>(null);
+  const portalStyleCacheRef = useRef<string>("");
   const portalX = useMotionValue(0);
   const portalY = useMotionValue(0);
   const springX = useSpring(portalX, { stiffness: 118, damping: 24, mass: 0.44 });
   const springY = useSpring(portalY, { stiffness: 118, damping: 24, mass: 0.44 });
   const [sceneStage, setSceneStage] = useState<SceneStage>("intro");
   const [portalReady, setPortalReady] = useState(Boolean(reduceMotion));
+  const [portalStyleVars, setPortalStyleVars] = useState<PortalStyleVars>(() => ({
+    "--join2-portal-left": "50.6%",
+    "--join2-portal-top": "41.1%",
+    "--join2-portal-size": "73.4%"
+  }));
   const [resolvedContext, setResolvedContext] = useState<JoinHandoff>({
     from: from ? safeRedirectPath(from, "") || undefined : undefined,
     inviteCode: normalizeInviteCode(inviteCode)
@@ -221,6 +245,92 @@ export function Join2CinematicEntry({
     void video.play().catch(() => {
       // Muted inline autoplay can still be blocked in some browsers.
     });
+  }, []);
+
+  useEffect(() => {
+    const heroFrame = heroFrameRef.current;
+
+    if (!heroFrame) {
+      return;
+    }
+
+    const video = videoRef.current;
+    let rafId = 0;
+
+    const syncPortalGeometry = () => {
+      const frame = heroFrameRef.current;
+
+      if (!frame) {
+        return;
+      }
+
+      const frameWidth = frame.clientWidth;
+      const frameHeight = frame.clientHeight;
+
+      if (!frameWidth || !frameHeight) {
+        return;
+      }
+
+      const video = videoRef.current;
+      const sourceWidth = video?.videoWidth || 720;
+      const sourceHeight = video?.videoHeight || 1280;
+      const frameAspect = frameWidth / frameHeight;
+      const sourceAspect = sourceWidth / sourceHeight;
+
+      let renderedWidth = frameWidth;
+      let renderedHeight = frameHeight;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (sourceAspect > frameAspect) {
+        renderedHeight = frameHeight;
+        renderedWidth = frameHeight * sourceAspect;
+        offsetX = (frameWidth - renderedWidth) / 2;
+      } else {
+        renderedWidth = frameWidth;
+        renderedHeight = frameWidth / sourceAspect;
+        offsetY = (frameHeight - renderedHeight) / 2;
+      }
+
+      const left = offsetX + renderedWidth * portalTarget.centerX;
+      const top = offsetY + renderedHeight * portalTarget.centerY;
+      const size = renderedWidth * portalTarget.diameter;
+      const nextCacheKey = `${left.toFixed(2)}|${top.toFixed(2)}|${size.toFixed(2)}`;
+
+      if (nextCacheKey === portalStyleCacheRef.current) {
+        return;
+      }
+
+      portalStyleCacheRef.current = nextCacheKey;
+      setPortalStyleVars({
+        "--join2-portal-left": `${left}px`,
+        "--join2-portal-top": `${top}px`,
+        "--join2-portal-size": `${size}px`
+      });
+    };
+
+    const scheduleSync = () => {
+      window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(syncPortalGeometry);
+    };
+
+    scheduleSync();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => scheduleSync());
+
+    resizeObserver?.observe(heroFrame);
+    window.addEventListener("resize", scheduleSync);
+    video?.addEventListener("loadedmetadata", scheduleSync);
+    video?.addEventListener("loadeddata", scheduleSync);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", scheduleSync);
+      video?.removeEventListener("loadedmetadata", scheduleSync);
+      video?.removeEventListener("loadeddata", scheduleSync);
+    };
   }, []);
 
   useEffect(() => {
@@ -306,10 +416,11 @@ export function Join2CinematicEntry({
     () =>
       buildMembershipHref({
         tier: initialSelectedTier,
+        billingInterval,
         billing,
         from: resolvedContext.from
       }),
-    [billing, initialSelectedTier, resolvedContext.from]
+    [billing, billingInterval, initialSelectedTier, resolvedContext.from]
   );
 
   const loginHref = useMemo(() => withFrom("/login", resolvedContext.from), [resolvedContext.from]);
@@ -409,7 +520,10 @@ export function Join2CinematicEntry({
           >
             <motion.div
               className={styles.heroStage}
-              style={{ transformOrigin: "var(--join2-portal-left) var(--join2-portal-top)" }}
+              style={{
+                ...portalStyleVars,
+                transformOrigin: `${portalStyleVars["--join2-portal-left"]} ${portalStyleVars["--join2-portal-top"]}`
+              }}
               initial={false}
               animate={
                 sceneStage === "entering"
@@ -428,7 +542,7 @@ export function Join2CinematicEntry({
               }
               transition={{ duration: reduceMotion ? 0.26 : 1.08, ease: portalEase }}
             >
-              <div className={styles.heroFrame}>
+              <div ref={heroFrameRef} className={styles.heroFrame}>
                 <div className={styles.heroMedia}>
                   <video
                     ref={videoRef}

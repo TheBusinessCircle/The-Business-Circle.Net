@@ -10,10 +10,12 @@ import type Stripe from "stripe";
 import { BillingReceiptEmail } from "@/emails";
 import {
   getMembershipPlan,
-  getMembershipPlanVariant,
+  getMembershipBillingPlan,
   getMembershipPriceDifference,
+  getMembershipStripePriceId,
   resolveMembershipPriceFromStripePriceId,
   resolveTierFromPriceId,
+  type MembershipBillingInterval,
   type MembershipBillingVariant
 } from "@/config/membership";
 import { db } from "@/lib/db";
@@ -38,6 +40,8 @@ type CheckoutSessionInput = {
   email: string;
   name?: string | null;
   targetTier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
+  coreAccessConfirmed?: boolean;
   successPath?: string;
   cancelPath?: string;
   allowFoundingOffer?: boolean;
@@ -54,7 +58,9 @@ type CheckoutSessionResult = {
   id: string;
   url: string;
   billingVariant: MembershipBillingVariant;
-  monthlyPrice: number;
+  billingInterval: MembershipBillingInterval;
+  checkoutPrice: number;
+  monthlyEquivalentPrice: number;
 };
 
 type BillingPortalSessionResult = {
@@ -64,7 +70,9 @@ type BillingPortalSessionResult = {
 type PlanChangeResult = {
   url: string;
   billingVariant: MembershipBillingVariant;
-  monthlyPrice: number;
+  billingInterval: MembershipBillingInterval;
+  checkoutPrice: number;
+  monthlyEquivalentPrice: number;
   priceDifference: number;
 };
 
@@ -73,6 +81,15 @@ type ResolvedStripeSubscriptionContext = {
   customerId: string | null;
   subscriptionId: string | null;
 };
+
+function assertCoreAccessConfirmed(input: {
+  targetTier: MembershipTier;
+  coreAccessConfirmed?: boolean;
+}) {
+  if (input.targetTier === MembershipTier.CORE && !input.coreAccessConfirmed) {
+    throw new Error("core-access-confirmation-required");
+  }
+}
 
 function toStripeObjectId(
   value: string | { id?: string } | null | undefined
@@ -512,11 +529,14 @@ export function isBillingEnabled(): boolean {
 
 export function getStripePriceIdForTier(
   tier: MembershipTier,
-  billingVariant: MembershipBillingVariant = "standard"
+  billingVariant: MembershipBillingVariant = "standard",
+  billingInterval: MembershipBillingInterval = "monthly"
 ): string {
-  const priceId = getMembershipPlanVariant(tier, billingVariant).stripePriceId;
+  const priceId = getMembershipStripePriceId(tier, billingVariant, billingInterval);
   if (!priceId) {
-    throw new Error(`Missing Stripe price id for tier ${tier} (${billingVariant}).`);
+    throw new Error(
+      `Missing Stripe price id for tier ${tier} (${billingVariant}, ${billingInterval}).`
+    );
   }
 
   return priceId;
@@ -566,6 +586,8 @@ export function isSubscriptionEntitled(
 export async function createStripeCheckoutSessionForUser(
   input: CheckoutSessionInput
 ): Promise<CheckoutSessionResult> {
+  assertCoreAccessConfirmed(input);
+
   const stripe = requireStripeClient();
   const customerId = await ensureStripeCustomerId({
     userId: input.userId,
@@ -581,16 +603,21 @@ export async function createStripeCheckoutSessionForUser(
           source: FoundingReservationSource.CHECKOUT
         });
   const billingVariant: MembershipBillingVariant = foundingReservation ? "founding" : "standard";
-  const selectedPlan = getMembershipPlanVariant(
+  const selectedPlan = getMembershipBillingPlan(
     input.targetTier,
     billingVariant,
+    input.billingInterval,
     foundingReservation
       ? {
           monthlyPrice: foundingReservation.foundingPrice
         }
       : undefined
   );
-  const priceId = getStripePriceIdForTier(input.targetTier, billingVariant);
+  const priceId = getStripePriceIdForTier(
+    input.targetTier,
+    billingVariant,
+    input.billingInterval
+  );
 
   let session: Stripe.Checkout.Session;
   try {
@@ -607,6 +634,7 @@ export async function createStripeCheckoutSessionForUser(
         userId: input.userId,
         targetTier: input.targetTier,
         billingVariant,
+        billingInterval: input.billingInterval,
         ...(foundingReservation
           ? {
               foundingReservationId: foundingReservation.id
@@ -618,6 +646,7 @@ export async function createStripeCheckoutSessionForUser(
           userId: input.userId,
           targetTier: input.targetTier,
           billingVariant,
+          billingInterval: input.billingInterval,
           ...(foundingReservation
             ? {
                 foundingReservationId: foundingReservation.id
@@ -671,7 +700,9 @@ export async function createStripeCheckoutSessionForUser(
     id: session.id,
     url: session.url,
     billingVariant,
-    monthlyPrice: selectedPlan.monthlyPrice
+    billingInterval: input.billingInterval,
+    checkoutPrice: selectedPlan.checkoutPrice,
+    monthlyEquivalentPrice: selectedPlan.monthlyEquivalentPrice
   };
 }
 
@@ -680,7 +711,11 @@ export async function updateStripeSubscriptionPlanForUser(input: {
   email: string;
   name?: string | null;
   targetTier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
+  coreAccessConfirmed?: boolean;
 }): Promise<PlanChangeResult> {
+  assertCoreAccessConfirmed(input);
+
   const currentSubscription = await db.subscription.findUnique({
     where: {
       userId: input.userId
@@ -697,14 +732,18 @@ export async function updateStripeSubscriptionPlanForUser(input: {
       userId: input.userId,
       email: input.email,
       name: input.name,
-      targetTier: input.targetTier
+      targetTier: input.targetTier,
+      billingInterval: input.billingInterval,
+      coreAccessConfirmed: input.coreAccessConfirmed
     });
 
     return {
       url: checkout.url,
       billingVariant: checkout.billingVariant,
-      monthlyPrice: checkout.monthlyPrice,
-      priceDifference: checkout.monthlyPrice
+      billingInterval: checkout.billingInterval,
+      checkoutPrice: checkout.checkoutPrice,
+      monthlyEquivalentPrice: checkout.monthlyEquivalentPrice,
+      priceDifference: checkout.monthlyEquivalentPrice
     };
   }
 
@@ -717,27 +756,26 @@ export async function updateStripeSubscriptionPlanForUser(input: {
   }
 
   const currentPlan = resolveMembershipPriceFromStripePriceId(primaryPriceItem.price.id);
-  const foundingReservation = await reserveFoundingSlot({
-    userId: input.userId,
-    tier: input.targetTier,
-    source: FoundingReservationSource.UPGRADE
-  });
-  const billingVariant: MembershipBillingVariant = foundingReservation ? "founding" : "standard";
-  const targetPlan = getMembershipPlanVariant(
+  const billingVariant: MembershipBillingVariant =
+    currentPlan.tier === input.targetTier ? currentPlan.billingVariant : "standard";
+  const targetPlan = getMembershipBillingPlan(
     input.targetTier,
     billingVariant,
-    foundingReservation
-      ? {
-          monthlyPrice: foundingReservation.foundingPrice
-        }
-      : undefined
+    input.billingInterval
+  );
+  const targetPriceId = getStripePriceIdForTier(
+    input.targetTier,
+    billingVariant,
+    input.billingInterval
   );
 
-  if (primaryPriceItem.price.id === getStripePriceIdForTier(input.targetTier, billingVariant)) {
+  if (primaryPriceItem.price.id === targetPriceId) {
     return {
-      url: `/dashboard?billing=plan-updated&tier=${input.targetTier}&variant=${billingVariant}&delta=0`,
+      url: `/dashboard?billing=plan-updated&tier=${input.targetTier}&variant=${billingVariant}&interval=${input.billingInterval}&delta=0`,
       billingVariant,
-      monthlyPrice: targetPlan.monthlyPrice,
+      billingInterval: input.billingInterval,
+      checkoutPrice: targetPlan.checkoutPrice,
+      monthlyEquivalentPrice: targetPlan.monthlyEquivalentPrice,
       priceDifference: 0
     };
   }
@@ -747,7 +785,7 @@ export async function updateStripeSubscriptionPlanForUser(input: {
       items: [
         {
           id: primaryPriceItem.id,
-          price: getStripePriceIdForTier(input.targetTier, billingVariant)
+          price: targetPriceId
         }
       ],
       cancel_at_period_end: false,
@@ -757,44 +795,26 @@ export async function updateStripeSubscriptionPlanForUser(input: {
         userId: input.userId,
         targetTier: input.targetTier,
         billingVariant,
-        ...(foundingReservation
-          ? {
-              foundingReservationId: foundingReservation.id
-            }
-          : {})
+        billingInterval: input.billingInterval
       }
     });
 
-    const persisted = await upsertSubscriptionFromStripeSubscription(
-      updatedSubscription,
-      input.userId
-    );
-
-    if (foundingReservation && persisted?.id) {
-      await claimFoundingReservation({
-        reservationId: foundingReservation.id,
-        subscriptionId: persisted.id
-      });
-    }
+    await upsertSubscriptionFromStripeSubscription(updatedSubscription, input.userId);
 
     const priceDifference = getMembershipPriceDifference({
-      currentMonthlyPrice: currentPlan.monthlyPrice,
-      targetMonthlyPrice: targetPlan.monthlyPrice
+      currentMonthlyEquivalentPrice: currentPlan.monthlyEquivalentPrice,
+      targetMonthlyEquivalentPrice: targetPlan.monthlyEquivalentPrice
     });
 
     return {
-      url: `/dashboard?billing=plan-updated&tier=${input.targetTier}&variant=${billingVariant}&delta=${priceDifference}`,
+      url: `/dashboard?billing=plan-updated&tier=${input.targetTier}&variant=${billingVariant}&interval=${input.billingInterval}&delta=${priceDifference}`,
       billingVariant,
-      monthlyPrice: targetPlan.monthlyPrice,
+      billingInterval: input.billingInterval,
+      checkoutPrice: targetPlan.checkoutPrice,
+      monthlyEquivalentPrice: targetPlan.monthlyEquivalentPrice,
       priceDifference
     };
   } catch (error) {
-    if (foundingReservation) {
-      await releaseFoundingReservation({
-        reservationId: foundingReservation.id
-      });
-    }
-
     throw error;
   }
 }

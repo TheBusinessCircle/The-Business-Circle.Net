@@ -13,7 +13,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { type RegisterMemberFormInput, registerMemberFormSchema } from "@/lib/auth/schemas";
+import {
+  type MembershipBillingIntervalValue,
+  type RegisterMemberFormInput,
+  registerMemberFormSchema
+} from "@/lib/auth/schemas";
 import { safeRedirectPath } from "@/lib/auth/utils";
 
 type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
@@ -24,6 +28,8 @@ type RegisterFormProps = {
   selectedTier?: MembershipTier;
   onTierChange?: (tier: MembershipTier) => void;
   inviteCode?: string;
+  billingInterval?: MembershipBillingIntervalValue;
+  coreAccessConfirmed?: boolean;
   tierOptions?: Array<{
     value: MembershipTier;
     label: string;
@@ -35,6 +41,8 @@ type RegisterPayload = {
   email: string;
   password: string;
   tier: MembershipTier;
+  billingInterval: MembershipBillingIntervalValue;
+  coreAccessConfirmed: boolean;
   businessName?: string;
   businessStatus?: "IDEA_STARTUP" | "REGISTERED_BUSINESS" | "ESTABLISHED_COMPANY";
   companyNumber?: string;
@@ -73,8 +81,8 @@ function withJoinWelcome(pathname: string) {
 
 const DEFAULT_TIER_OPTIONS: NonNullable<RegisterFormProps["tierOptions"]> = [
   { value: "FOUNDATION", label: "Foundation - GBP 30/month" },
-  { value: "INNER_CIRCLE", label: "Inner Circle - GBP 60/month" },
-  { value: "CORE", label: "Core - GBP 120/month" }
+  { value: "INNER_CIRCLE", label: "Inner Circle - GBP 79/month" },
+  { value: "CORE", label: "Core - GBP 149/month" }
 ];
 
 const tierHeroCopy: Record<
@@ -111,6 +119,8 @@ export function RegisterForm({
   selectedTier,
   onTierChange,
   inviteCode,
+  billingInterval = "monthly",
+  coreAccessConfirmed = false,
   tierOptions = DEFAULT_TIER_OPTIONS
 }: RegisterFormProps) {
   const router = useRouter();
@@ -127,6 +137,8 @@ export function RegisterForm({
       password: "",
       confirmPassword: "",
       tier: defaultTier,
+      billingInterval,
+      coreAccessConfirmed,
       businessName: "",
       businessStatus: "",
       companyNumber: "",
@@ -135,7 +147,7 @@ export function RegisterForm({
     }
   });
   const tierField = form.register("tier");
-  const activeTier = form.watch("tier");
+  const activeTier = form.watch("tier") as MembershipTier;
   const activeTierContent = tierHeroCopy[activeTier];
 
   useEffect(() => {
@@ -150,6 +162,22 @@ export function RegisterForm({
     });
   }, [form, selectedTier]);
 
+  useEffect(() => {
+    form.setValue("billingInterval", billingInterval, {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: false
+    });
+  }, [billingInterval, form]);
+
+  useEffect(() => {
+    form.setValue("coreAccessConfirmed", coreAccessConfirmed, {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: false
+    });
+  }, [coreAccessConfirmed, form]);
+
   const onSubmit = form.handleSubmit((values) => {
     setNotice(null);
 
@@ -158,7 +186,9 @@ export function RegisterForm({
         name: values.name,
         email: values.email,
         password: values.password,
-        tier: values.tier
+        tier: values.tier,
+        billingInterval: values.billingInterval,
+        coreAccessConfirmed: values.coreAccessConfirmed
       };
 
       if (values.inviteCode?.trim()) {
@@ -246,7 +276,7 @@ export function RegisterForm({
             </CardDescription>
           </div>
 
-          <div className="min-w-[180px] rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 shadow-gold-soft">
+          <div className="w-full rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 shadow-gold-soft sm:min-w-[180px] sm:max-w-[18rem] sm:w-auto">
             <p className="text-[11px] uppercase tracking-[0.08em] text-gold">{activeTierContent.label}</p>
             <p className="mt-2 text-sm font-medium text-foreground">{activeTierContent.highlight}</p>
             <div className="gold-divider my-3" />
@@ -295,6 +325,8 @@ export function RegisterForm({
         </div>
 
         <form className="space-y-5" onSubmit={onSubmit}>
+          <input type="hidden" {...form.register("billingInterval")} />
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="register-name">Full Name</Label>
@@ -375,6 +407,31 @@ export function RegisterForm({
                 ))}
               </Select>
             </div>
+
+            {activeTier === "CORE" ? (
+              <div className="mt-4 space-y-2 rounded-2xl border border-gold/25 bg-background/35 px-4 py-4">
+                <label
+                  htmlFor="register-core-access-confirmed"
+                  className="flex items-start gap-3 text-sm text-foreground"
+                >
+                  <input
+                    id="register-core-access-confirmed"
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                    {...form.register("coreAccessConfirmed")}
+                  />
+                  <span>I am actively running a business or generating revenue from a business</span>
+                </label>
+                <p className="text-xs text-muted">
+                  Core is designed for operators already running or scaling a business.
+                </p>
+                {form.formState.errors.coreAccessConfirmed ? (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.coreAccessConfirmed.message}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-2">

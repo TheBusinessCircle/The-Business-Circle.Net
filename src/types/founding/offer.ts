@@ -5,7 +5,9 @@ export interface FoundingOfferTierSnapshot {
   badgeLabel: string;
   offerLabel: string;
   foundingPrice: number;
+  foundingAnnualPrice: number;
   standardPrice: number;
+  standardAnnualPrice: number;
   limit: number;
   claimed: number;
   remaining: number;

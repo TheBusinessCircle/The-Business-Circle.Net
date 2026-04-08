@@ -130,7 +130,7 @@ export function GrowthArchitectPricingSection({
         ) : (
           <p>
             <Link href="/membership" className="text-foreground hover:text-gold">
-              Foundation members receive 10% off, Inner Circle members receive 20% off, and Core members receive 30% off.
+              Inner Circle members receive 10% off and Core members receive 20% off.
             </Link>
           </p>
         )}

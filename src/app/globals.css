@@ -27,15 +27,29 @@
 html,
 body {
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 body {
   @apply bg-background text-foreground antialiased;
   font-feature-settings: "cv11", "ss01";
+  position: relative;
+  overflow-x: clip;
   background-image:
     radial-gradient(circle at 8% 4%, hsl(var(--gold) / 0.16), transparent 42%),
     radial-gradient(circle at 86% 13%, hsl(var(--silver) / 0.06), transparent 30%),
     linear-gradient(180deg, #070e1f 0%, #081024 100%);
+}
+
+main,
+section,
+article,
+aside,
+header,
+footer {
+  min-width: 0;
 }
 
 .page-surface {
@@ -442,5 +456,12 @@ html[data-background-mode="light"] .join-stage-copy {
 
   .join-hero-video {
     transform: none !important;
+  }
+}
+
+@supports not (overflow: clip) {
+  html,
+  body {
+    overflow-x: hidden;
   }
 }

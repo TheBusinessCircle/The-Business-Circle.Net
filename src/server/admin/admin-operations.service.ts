@@ -99,7 +99,8 @@ export async function getAdminRevenueSnapshot(): Promise<AdminRevenueSnapshot> {
 
   activeSubscriptions.forEach((subscription) => {
     subscriptionsByTier[subscription.tier] += 1;
-    currentMrr += resolveMembershipPriceFromStripePriceId(subscription.stripePriceId).monthlyPrice;
+    currentMrr +=
+      resolveMembershipPriceFromStripePriceId(subscription.stripePriceId).monthlyEquivalentPrice;
 
     if (resolveBillingVariantFromPriceId(subscription.stripePriceId) === "founding") {
       discountedActiveMembers += 1;

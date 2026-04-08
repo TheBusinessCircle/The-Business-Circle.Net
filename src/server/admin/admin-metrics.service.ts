@@ -290,7 +290,10 @@ async function loadAdminMetrics(): Promise<AdminMetrics> {
   ).length;
   const fullPriceActiveMembers = activeSubscriptions.length - discountedActiveMembers;
   const currentMrr = activeSubscriptions.reduce((sum, subscription) => {
-    return sum + resolveMembershipPriceFromStripePriceId(subscription.stripePriceId).monthlyPrice;
+    return (
+      sum +
+      resolveMembershipPriceFromStripePriceId(subscription.stripePriceId).monthlyEquivalentPrice
+    );
   }, 0);
   const contributorsThisWeek = new Set([
     ...weeklyPostContributors.map((entry) => entry.userId),

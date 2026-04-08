@@ -2,14 +2,27 @@ import type { MembershipTier } from "@prisma/client";
 import type { MembershipPlan, MembershipPlanMap } from "@/types";
 
 export type MembershipBillingVariant = "standard" | "founding";
+export type MembershipBillingInterval = "monthly" | "annual";
 
 export type MembershipPlanVariant = MembershipPlan & {
   billingVariant: MembershipBillingVariant;
 };
 
+export type MembershipBillingPlan = MembershipPlanVariant & {
+  billingInterval: MembershipBillingInterval;
+  checkoutPrice: number;
+  annualPrice: number;
+  monthlyEquivalentPrice: number;
+};
+
 type MembershipVariantMap = Record<
   MembershipTier,
   Record<MembershipBillingVariant, MembershipPlanVariant>
+>;
+
+type MembershipStripePriceMap = Record<
+  MembershipTier,
+  Record<MembershipBillingVariant, Record<MembershipBillingInterval, string>>
 >;
 
 const TIER_RANK: Record<MembershipTier, number> = {
@@ -18,16 +31,18 @@ const TIER_RANK: Record<MembershipTier, number> = {
   CORE: 3
 };
 
+export const MEMBERSHIP_ANNUAL_SAVINGS_PERCENT = 20;
+
 const STANDARD_MONTHLY_PRICES: Record<MembershipTier, number> = {
   FOUNDATION: 30,
-  INNER_CIRCLE: 60,
-  CORE: 120
+  INNER_CIRCLE: 79,
+  CORE: 149
 };
 
 const DEFAULT_FOUNDING_MONTHLY_PRICES: Record<MembershipTier, number> = {
   FOUNDATION: 15,
-  INNER_CIRCLE: 40,
-  CORE: 80
+  INNER_CIRCLE: 39,
+  CORE: 74
 };
 
 export const MEMBERSHIP_TIER_ORDER = [
@@ -66,6 +81,67 @@ const CORE_PLAN_FEATURES = [
   "Stronger bridge into premium ecosystem work"
 ];
 
+function resolveAnnualPrice(monthlyPrice: number): number {
+  return Math.floor(monthlyPrice * (100 - MEMBERSHIP_ANNUAL_SAVINGS_PERCENT) / 100) * 12;
+}
+
+function resolveStripePriceIdMap(): MembershipStripePriceMap {
+  return {
+    FOUNDATION: {
+      standard: {
+        monthly:
+          process.env.STRIPE_FOUNDATION_MONTHLY_PRICE_ID ??
+          process.env.STRIPE_FOUNDATION_PRICE_ID ??
+          process.env.STRIPE_STANDARD_PRICE_ID ??
+          "",
+        annual: process.env.STRIPE_FOUNDATION_ANNUAL_PRICE_ID ?? ""
+      },
+      founding: {
+        monthly:
+          process.env.STRIPE_FOUNDING_FOUNDATION_MONTHLY_PRICE_ID ??
+          process.env.STRIPE_FOUNDING_FOUNDATION_PRICE_ID ??
+          process.env.STRIPE_FOUNDING_STANDARD_PRICE_ID ??
+          "",
+        annual: process.env.STRIPE_FOUNDING_FOUNDATION_ANNUAL_PRICE_ID ?? ""
+      }
+    },
+    INNER_CIRCLE: {
+      standard: {
+        monthly:
+          process.env.STRIPE_INNER_CIRCLE_MONTHLY_PRICE_ID ??
+          process.env.STRIPE_INNER_CIRCLE_PRICE_ID ??
+          "",
+        annual: process.env.STRIPE_INNER_CIRCLE_ANNUAL_PRICE_ID ?? ""
+      },
+      founding: {
+        monthly:
+          process.env.STRIPE_FOUNDING_INNER_CIRCLE_MONTHLY_PRICE_ID ??
+          process.env.STRIPE_FOUNDING_INNER_CIRCLE_PRICE_ID ??
+          "",
+        annual: process.env.STRIPE_FOUNDING_INNER_CIRCLE_ANNUAL_PRICE_ID ?? ""
+      }
+    },
+    CORE: {
+      standard: {
+        monthly:
+          process.env.STRIPE_CORE_MONTHLY_PRICE_ID ??
+          process.env.STRIPE_CORE_PRICE_ID ??
+          "",
+        annual: process.env.STRIPE_CORE_ANNUAL_PRICE_ID ?? ""
+      },
+      founding: {
+        monthly:
+          process.env.STRIPE_FOUNDING_CORE_MONTHLY_PRICE_ID ??
+          process.env.STRIPE_FOUNDING_CORE_PRICE_ID ??
+          "",
+        annual: process.env.STRIPE_FOUNDING_CORE_ANNUAL_PRICE_ID ?? ""
+      }
+    }
+  };
+}
+
+export const MEMBERSHIP_STRIPE_PRICE_IDS = resolveStripePriceIdMap();
+
 export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
   FOUNDATION: {
     standard: {
@@ -75,8 +151,7 @@ export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
       slug: "foundation",
       monthlyPrice: STANDARD_MONTHLY_PRICES.FOUNDATION,
       currency: "GBP",
-      stripePriceId:
-        process.env.STRIPE_FOUNDATION_PRICE_ID ?? process.env.STRIPE_STANDARD_PRICE_ID ?? "",
+      stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.FOUNDATION.standard.monthly,
       features: FOUNDATION_PLAN_FEATURES
     },
     founding: {
@@ -86,10 +161,7 @@ export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
       slug: "foundation",
       monthlyPrice: DEFAULT_FOUNDING_MONTHLY_PRICES.FOUNDATION,
       currency: "GBP",
-      stripePriceId:
-        process.env.STRIPE_FOUNDING_FOUNDATION_PRICE_ID ??
-        process.env.STRIPE_FOUNDING_STANDARD_PRICE_ID ??
-        "",
+      stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.FOUNDATION.founding.monthly,
       features: FOUNDATION_PLAN_FEATURES
     }
   },
@@ -101,7 +173,7 @@ export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
       slug: "inner-circle",
       monthlyPrice: STANDARD_MONTHLY_PRICES.INNER_CIRCLE,
       currency: "GBP",
-      stripePriceId: process.env.STRIPE_INNER_CIRCLE_PRICE_ID ?? "",
+      stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.INNER_CIRCLE.standard.monthly,
       features: INNER_CIRCLE_PLAN_FEATURES
     },
     founding: {
@@ -111,7 +183,7 @@ export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
       slug: "inner-circle",
       monthlyPrice: DEFAULT_FOUNDING_MONTHLY_PRICES.INNER_CIRCLE,
       currency: "GBP",
-      stripePriceId: process.env.STRIPE_FOUNDING_INNER_CIRCLE_PRICE_ID ?? "",
+      stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.INNER_CIRCLE.founding.monthly,
       features: INNER_CIRCLE_PLAN_FEATURES
     }
   },
@@ -123,7 +195,7 @@ export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
       slug: "core",
       monthlyPrice: STANDARD_MONTHLY_PRICES.CORE,
       currency: "GBP",
-      stripePriceId: process.env.STRIPE_CORE_PRICE_ID ?? "",
+      stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.CORE.standard.monthly,
       features: CORE_PLAN_FEATURES
     },
     founding: {
@@ -133,7 +205,7 @@ export const MEMBERSHIP_PLAN_VARIANTS: MembershipVariantMap = {
       slug: "core",
       monthlyPrice: DEFAULT_FOUNDING_MONTHLY_PRICES.CORE,
       currency: "GBP",
-      stripePriceId: process.env.STRIPE_FOUNDING_CORE_PRICE_ID ?? "",
+      stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS.CORE.founding.monthly,
       features: CORE_PLAN_FEATURES
     }
   }
@@ -166,8 +238,66 @@ export function getMembershipPlanVariant(
   };
 }
 
+export function getMembershipBillingPlan(
+  tier: MembershipTier,
+  billingVariant: MembershipBillingVariant,
+  billingInterval: MembershipBillingInterval,
+  overrides?: Partial<
+    Pick<
+      MembershipBillingPlan,
+      "monthlyPrice" | "annualPrice" | "checkoutPrice" | "monthlyEquivalentPrice"
+    >
+  >
+): MembershipBillingPlan {
+  const plan = MEMBERSHIP_PLAN_VARIANTS[tier][billingVariant];
+  const monthlyPrice = Math.max(0, Math.round(overrides?.monthlyPrice ?? plan.monthlyPrice));
+  const annualPrice = Math.max(
+    0,
+    Math.round(overrides?.annualPrice ?? resolveAnnualPrice(monthlyPrice))
+  );
+  const checkoutPrice = Math.max(
+    0,
+    Math.round(overrides?.checkoutPrice ?? (billingInterval === "annual" ? annualPrice : monthlyPrice))
+  );
+  const monthlyEquivalentPrice = Math.max(
+    0,
+    Math.round(
+      overrides?.monthlyEquivalentPrice ??
+        (billingInterval === "annual" ? annualPrice / 12 : monthlyPrice)
+    )
+  );
+
+  return {
+    ...plan,
+    stripePriceId: MEMBERSHIP_STRIPE_PRICE_IDS[tier][billingVariant][billingInterval],
+    billingInterval,
+    monthlyPrice,
+    annualPrice,
+    checkoutPrice,
+    monthlyEquivalentPrice
+  };
+}
+
+export function getMembershipTierPricing(tier: MembershipTier) {
+  const standardMonthlyPrice = STANDARD_MONTHLY_PRICES[tier];
+  const foundingMonthlyPrice = DEFAULT_FOUNDING_MONTHLY_PRICES[tier];
+
+  return {
+    standardMonthlyPrice,
+    standardAnnualPrice: resolveAnnualPrice(standardMonthlyPrice),
+    foundingMonthlyPrice,
+    foundingAnnualPrice: resolveAnnualPrice(foundingMonthlyPrice)
+  };
+}
+
 export function getMembershipVariantPrices(tier: MembershipTier) {
   return MEMBERSHIP_PLAN_VARIANTS[tier];
+}
+
+export function resolveMembershipBillingInterval(
+  value: string | null | undefined
+): MembershipBillingInterval {
+  return value === "annual" ? "annual" : "monthly";
 }
 
 export function getMembershipTierLabel(tier: MembershipTier): string {
@@ -180,9 +310,18 @@ export function getMembershipTierRank(tier: MembershipTier): number {
 
 export function isMembershipVariantStripeConfigured(
   tier: MembershipTier,
-  variant: MembershipBillingVariant
+  variant: MembershipBillingVariant,
+  interval: MembershipBillingInterval = "monthly"
 ): boolean {
-  return Boolean(MEMBERSHIP_PLAN_VARIANTS[tier][variant].stripePriceId);
+  return Boolean(MEMBERSHIP_STRIPE_PRICE_IDS[tier][variant][interval]);
+}
+
+export function getMembershipStripePriceId(
+  tier: MembershipTier,
+  billingVariant: MembershipBillingVariant,
+  billingInterval: MembershipBillingInterval
+): string {
+  return MEMBERSHIP_STRIPE_PRICE_IDS[tier][billingVariant][billingInterval];
 }
 
 export function resolveTierFromPriceId(priceId: string | null | undefined): MembershipTier {
@@ -191,12 +330,16 @@ export function resolveTierFromPriceId(priceId: string | null | undefined): Memb
   }
 
   for (const tier of MEMBERSHIP_TIER_ORDER) {
-    const variants = MEMBERSHIP_PLAN_VARIANTS[tier];
-    if (
-      priceId === variants.standard.stripePriceId ||
-      priceId === variants.founding.stripePriceId
-    ) {
-      return tier;
+    const variants = MEMBERSHIP_STRIPE_PRICE_IDS[tier];
+
+    for (const variant of Object.keys(variants) as MembershipBillingVariant[]) {
+      for (const interval of Object.keys(
+        variants[variant]
+      ) as MembershipBillingInterval[]) {
+        if (priceId === variants[variant][interval]) {
+          return tier;
+        }
+      }
     }
   }
 
@@ -211,25 +354,70 @@ export function resolveBillingVariantFromPriceId(
   }
 
   for (const tier of MEMBERSHIP_TIER_ORDER) {
-    if (priceId === MEMBERSHIP_PLAN_VARIANTS[tier].founding.stripePriceId) {
-      return "founding";
+    const variants = MEMBERSHIP_STRIPE_PRICE_IDS[tier];
+
+    for (const variant of Object.keys(variants) as MembershipBillingVariant[]) {
+      for (const interval of Object.keys(
+        variants[variant]
+      ) as MembershipBillingInterval[]) {
+        if (priceId === variants[variant][interval]) {
+          return variant;
+        }
+      }
     }
   }
 
   return "standard";
 }
 
+export function resolveBillingIntervalFromPriceId(
+  priceId: string | null | undefined
+): MembershipBillingInterval {
+  if (!priceId) {
+    return "monthly";
+  }
+
+  for (const tier of MEMBERSHIP_TIER_ORDER) {
+    const variants = MEMBERSHIP_STRIPE_PRICE_IDS[tier];
+
+    for (const variant of Object.keys(variants) as MembershipBillingVariant[]) {
+      for (const interval of Object.keys(
+        variants[variant]
+      ) as MembershipBillingInterval[]) {
+        if (priceId === variants[variant][interval]) {
+          return interval;
+        }
+      }
+    }
+  }
+
+  return "monthly";
+}
+
 export function resolveMembershipPriceFromStripePriceId(
   priceId: string | null | undefined
-): MembershipPlanVariant {
+): MembershipBillingPlan {
   const tier = resolveTierFromPriceId(priceId);
   const billingVariant = resolveBillingVariantFromPriceId(priceId);
-  return getMembershipPlanVariant(tier, billingVariant);
+  const billingInterval = resolveBillingIntervalFromPriceId(priceId);
+
+  return getMembershipBillingPlan(tier, billingVariant, billingInterval);
 }
 
 export function getMembershipPriceDifference(params: {
-  currentMonthlyPrice: number;
-  targetMonthlyPrice: number;
+  currentMonthlyEquivalentPrice: number;
+  targetMonthlyEquivalentPrice: number;
 }) {
-  return Math.max(0, params.targetMonthlyPrice - params.currentMonthlyPrice);
+  return Math.max(
+    0,
+    params.targetMonthlyEquivalentPrice - params.currentMonthlyEquivalentPrice
+  );
+}
+
+export function formatMembershipPrice(amount: number) {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+    maximumFractionDigits: 0
+  }).format(amount);
 }
