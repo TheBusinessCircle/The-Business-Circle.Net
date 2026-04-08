@@ -27,7 +27,7 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium">{getMembershipTierLabel(item.tier)}</p>
             <Badge variant={item.available ? getTierBadgeVariant(item.tier) : "muted"}>
-              {item.available ? "Available" : "Closed"}
+              {item.available ? "Available" : item.statusLabel}
             </Badge>
           </div>
           {item.available ? (
@@ -43,7 +43,7 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
           ) : (
             <>
               <p className="mt-3 text-sm text-foreground">
-                Founding Member spots have now been filled
+                {item.launchClosedLabel}
               </p>
               <p className="mt-1 text-xs text-muted">
                 Standard pricing now applies for this tier.

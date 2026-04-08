@@ -27,6 +27,7 @@ type MembershipTierContent = {
   badgeLabel: string;
   supportingBadge: string;
   description: string;
+  bestFitLine: string;
   narrative: string;
   ctaLabel: string;
   emphasisLabel?: string;
@@ -179,6 +180,7 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
       supportingBadge: "Best place to start",
       description:
         "Start here. Build the right base, connect with the right people, and begin moving with more clarity.",
+      bestFitLine: "Best if you are early, refining, or building your base.",
       narrative:
         "A strong entry into the network when you want structure, signal, and a better environment around the work.",
       ctaLabel: "Enter Foundation",
@@ -194,8 +196,8 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
         annual: "foundation-annual"
       },
       founding: {
-        monthly: "foundation-founding-monthly",
-        annual: "foundation-founding-annual"
+        monthly: "foundation-founders-monthly",
+        annual: "foundation-founders-annual"
       }
     }
   },
@@ -215,6 +217,7 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
       supportingBadge: "Smartest next step",
       description:
         "For business owners who want a more focused room, better conversations, and stronger momentum inside the network.",
+      bestFitLine: "Best if you are active and want better conversations and momentum.",
       narrative:
         "This is where the room feels tighter, more useful, and more alive without becoming noisy.",
       ctaLabel: "Join Inner Circle",
@@ -236,8 +239,8 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
         annual: "inner-circle-annual"
       },
       founding: {
-        monthly: "inner-circle-founding-monthly",
-        annual: "inner-circle-founding-annual"
+        monthly: "inner-circle-founders-monthly",
+        annual: "inner-circle-founders-annual"
       }
     }
   },
@@ -257,6 +260,8 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
       supportingBadge: "Highest-value room",
       description:
         "Designed for serious operators already running or scaling a business. A calmer, higher-value environment with stronger strategic context.",
+      bestFitLine:
+        "Best if you are already operating seriously and want stronger strategic proximity.",
       narrative:
         "Protected by design so the room stays useful for operators carrying real decisions and real responsibility.",
       ctaLabel: "Continue to Core",
@@ -273,8 +278,8 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
         annual: "core-annual"
       },
       founding: {
-        monthly: "core-founding-monthly",
-        annual: "core-founding-annual"
+        monthly: "core-founders-monthly",
+        annual: "core-founders-annual"
       }
     }
   }
@@ -479,6 +484,33 @@ export function resolveMembershipBillingInterval(
 
 export function getMembershipTierLabel(tier: MembershipTier): string {
   return MEMBERSHIP_TIER_LABELS[tier];
+}
+
+export function getMembershipTierSlug(tier: MembershipTier): string {
+  return MEMBERSHIP_TIER_DEFINITIONS[tier].slug;
+}
+
+export function resolveMembershipTierInput(
+  value: string | null | undefined
+): MembershipTier {
+  if (!value) {
+    return "FOUNDATION";
+  }
+
+  const normalizedValue = value.trim().toUpperCase().replace(/[\s-]+/g, "_");
+
+  if (normalizedValue === "CORE") {
+    return "CORE";
+  }
+
+  if (
+    normalizedValue === "INNER_CIRCLE" ||
+    normalizedValue === "INNERCIRCLE"
+  ) {
+    return "INNER_CIRCLE";
+  }
+
+  return "FOUNDATION";
 }
 
 export function getMembershipTierRank(tier: MembershipTier): number {

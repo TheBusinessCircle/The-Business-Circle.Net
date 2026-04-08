@@ -630,7 +630,7 @@ export async function createStripeCheckoutSessionForUser(
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: true,
       success_url: absoluteUrl(input.successPath ?? "/dashboard?billing=success"),
-      cancel_url: absoluteUrl(input.cancelPath ?? "/membership?billing=cancelled"),
+      cancel_url: absoluteUrl(input.cancelPath ?? "/join?billing=cancelled"),
       client_reference_id: input.userId,
       metadata: {
         userId: input.userId,

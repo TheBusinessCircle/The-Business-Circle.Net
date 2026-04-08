@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { buildMembershipSelectionRedirect, firstValue } from "@/lib/join/routing";
+import { buildJoinConfirmationRedirect, firstValue } from "@/lib/join/routing";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -17,10 +17,11 @@ type RegisterPageProps = {
 export default async function RegisterPage({ searchParams }: RegisterPageProps) {
   const params = await searchParams;
   redirect(
-    buildMembershipSelectionRedirect({
+    buildJoinConfirmationRedirect({
       from: firstValue(params.from),
       tier: firstValue(params.tier),
       interval: firstValue(params.interval),
+      period: firstValue(params.period),
       billing: firstValue(params.billing),
       invite: firstValue(params.invite),
       auth: "register",

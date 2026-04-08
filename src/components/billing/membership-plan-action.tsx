@@ -32,6 +32,8 @@ type MembershipPlanActionProps = {
   tier: MembershipTier;
   source: CheckoutSource;
   billingInterval?: MembershipBillingInterval;
+  coreAccessConfirmed?: boolean;
+  showCoreConfirmation?: boolean;
   isAuthenticated: boolean;
   isCurrentPlan?: boolean;
   hasActiveSubscription?: boolean;
@@ -96,6 +98,8 @@ export function MembershipPlanAction({
   tier,
   source,
   billingInterval = "monthly",
+  coreAccessConfirmed,
+  showCoreConfirmation = true,
   isAuthenticated,
   isCurrentPlan = false,
   hasActiveSubscription = false,
@@ -107,19 +111,21 @@ export function MembershipPlanAction({
   loginHref
 }: MembershipPlanActionProps) {
   const [notice, setNotice] = useState<string | null>(null);
-  const [coreAccessConfirmed, setCoreAccessConfirmed] = useState(false);
+  const [internalCoreAccessConfirmed, setInternalCoreAccessConfirmed] = useState(false);
   const [isCheckoutPending, startCheckoutTransition] = useTransition();
   const [isPortalPending, startPortalTransition] = useTransition();
 
   const requiresCoreConfirmation = tier === "CORE";
-  const hasConfirmedCoreAccess = !requiresCoreConfirmation || coreAccessConfirmed;
+  const resolvedCoreAccessConfirmed = coreAccessConfirmed ?? internalCoreAccessConfirmed;
+  const hasConfirmedCoreAccess = !requiresCoreConfirmation || resolvedCoreAccessConfirmed;
   const isBusy = isCheckoutPending || isPortalPending;
   const isCurrentActiveSelection =
     isAuthenticated &&
     hasActiveSubscription &&
     isCurrentPlan &&
-    (currentBillingInterval ? currentBillingInterval === billingInterval : true);
-  const showCoreConfirmation = requiresCoreConfirmation && !isCurrentActiveSelection;
+      (currentBillingInterval ? currentBillingInterval === billingInterval : true);
+  const shouldRenderCoreConfirmation =
+    showCoreConfirmation && requiresCoreConfirmation && !isCurrentActiveSelection;
   const tierButtonVariant = buttonVariant ?? getTierButtonVariant(tier);
   const checkoutLabel = useMemo(() => {
     if (isCheckoutPending) {
@@ -132,16 +138,18 @@ export function MembershipPlanAction({
     () =>
       withSelectionParams(joinHref, {
         interval: billingInterval,
-        coreAccessConfirmed: requiresCoreConfirmation ? coreAccessConfirmed : undefined
+        coreAccessConfirmed:
+          requiresCoreConfirmation ? resolvedCoreAccessConfirmed : undefined
       }),
-    [billingInterval, coreAccessConfirmed, joinHref, requiresCoreConfirmation]
+    [billingInterval, joinHref, requiresCoreConfirmation, resolvedCoreAccessConfirmed]
   );
   const resolvedLoginHref = useMemo(
     () =>
       withSelectionParamsInFromParam(loginHref, {
-        coreAccessConfirmed: requiresCoreConfirmation ? coreAccessConfirmed : undefined
+        coreAccessConfirmed:
+          requiresCoreConfirmation ? resolvedCoreAccessConfirmed : undefined
       }),
-    [coreAccessConfirmed, loginHref, requiresCoreConfirmation]
+    [loginHref, requiresCoreConfirmation, resolvedCoreAccessConfirmed]
   );
 
   const startCheckout = () => {
@@ -162,7 +170,7 @@ export function MembershipPlanAction({
       const payload: CheckoutApiPayload = {
         tier,
         billingInterval,
-        coreAccessConfirmed,
+        coreAccessConfirmed: resolvedCoreAccessConfirmed,
         source
       };
 
@@ -206,13 +214,13 @@ export function MembershipPlanAction({
 
   return (
     <div className="space-y-3">
-      {showCoreConfirmation ? (
+      {shouldRenderCoreConfirmation ? (
         <label className="flex items-start gap-3 rounded-2xl border border-gold/25 bg-background/25 px-4 py-3 text-sm text-foreground">
           <input
             type="checkbox"
-            checked={coreAccessConfirmed}
+            checked={resolvedCoreAccessConfirmed}
             onChange={(event) => {
-              setCoreAccessConfirmed(event.target.checked);
+              setInternalCoreAccessConfirmed(event.target.checked);
               if (notice) {
                 setNotice(null);
               }

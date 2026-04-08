@@ -29,12 +29,16 @@ type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
 
 type RegisterFormProps = {
   from?: string;
+  loginFrom?: string;
   defaultTier?: MembershipTier;
   selectedTier?: MembershipTier;
   onTierChange?: (tier: MembershipTier) => void;
   inviteCode?: string;
   billingInterval?: MembershipBillingIntervalValue;
   coreAccessConfirmed?: boolean;
+  showTierSelector?: boolean;
+  showCoreConfirmation?: boolean;
+  submitDisabled?: boolean;
   tierOptions?: Array<{
     value: MembershipTier;
     label: string;
@@ -129,18 +133,26 @@ const tierHeroCopy: Record<
 
 export function RegisterForm({
   from,
+  loginFrom,
   defaultTier = "FOUNDATION",
   selectedTier,
   onTierChange,
   inviteCode,
   billingInterval = "monthly",
   coreAccessConfirmed = false,
+  showTierSelector = true,
+  showCoreConfirmation = true,
+  submitDisabled = false,
   tierOptions = DEFAULT_TIER_OPTIONS
 }: RegisterFormProps) {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const targetPath = useMemo(() => safeRedirectPath(from), [from]);
+  const loginTargetPath = useMemo(
+    () => safeRedirectPath(loginFrom ?? from),
+    [from, loginFrom]
+  );
   const resolvedTierOptions = tierOptions ?? DEFAULT_TIER_OPTIONS;
 
   const form = useForm<RegisterMemberFormInput>({
@@ -258,7 +270,7 @@ export function RegisterForm({
 
       if (signInResult?.error) {
         setNotice("Account created. Please sign in.");
-        router.push(withFrom("/login", from));
+        router.push(withFrom("/login", loginTargetPath));
         router.refresh();
         return;
       }
@@ -404,25 +416,29 @@ export function RegisterForm({
               </span>
             </div>
 
-            <div className="mt-4 space-y-2">
-              <Label htmlFor="register-tier">Membership Tier</Label>
-              <Select
-                id="register-tier"
-                {...tierField}
-                onChange={(event) => {
-                  tierField.onChange(event);
-                  onTierChange?.(event.target.value as MembershipTier);
-                }}
-              >
-                {resolvedTierOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            {showTierSelector ? (
+              <div className="mt-4 space-y-2">
+                <Label htmlFor="register-tier">Membership Tier</Label>
+                <Select
+                  id="register-tier"
+                  {...tierField}
+                  onChange={(event) => {
+                    tierField.onChange(event);
+                    onTierChange?.(event.target.value as MembershipTier);
+                  }}
+                >
+                  {resolvedTierOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : (
+              <input type="hidden" {...tierField} />
+            )}
 
-            {activeTier === "CORE" ? (
+            {showCoreConfirmation && activeTier === "CORE" ? (
               <div className="mt-4 space-y-2 rounded-2xl border border-gold/25 bg-background/35 px-4 py-4">
                 <label
                   htmlFor="register-core-access-confirmed"
@@ -499,17 +515,23 @@ export function RegisterForm({
 
           <input type="hidden" {...form.register("inviteCode")} />
 
-          <Button disabled={isPending} type="submit" className="w-full" size="lg">
+          <Button disabled={isPending || submitDisabled} type="submit" className="w-full" size="lg">
             <span className="inline-flex items-center gap-2">
               {isPending ? "Creating Account..." : "Create Account And Continue"}
               {isPending ? null : <ArrowRight size={16} />}
             </span>
           </Button>
+
+          {submitDisabled ? (
+            <p className="text-xs text-muted">
+              Confirm Core eligibility above to continue.
+            </p>
+          ) : null}
         </form>
 
         <p className="text-sm text-muted">
           Already a member?{" "}
-          <Link href={withFrom("/login", from)} className="text-primary hover:underline">
+          <Link href={withFrom("/login", loginTargetPath)} className="text-primary hover:underline">
             Sign in
           </Link>
         </p>

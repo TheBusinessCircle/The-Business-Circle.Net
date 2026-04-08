@@ -1,20 +1,24 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Join2CinematicEntry } from "@/components/auth/join2-cinematic-entry";
+import { createPageMetadata } from "@/lib/seo";
 import {
   buildAuthModeRedirect,
-  buildMembershipSelectionRedirect,
   firstValue,
+  resolveBillingInterval,
+  resolveTier
 } from "@/lib/join/routing";
-import { createPageMetadata } from "@/lib/seo";
 
 type JoinMobilePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = createPageMetadata({
   title: "Join The Business Circle",
   description:
-    "Enter The Business Circle through a cinematic branded portal and choose whether to explore the world or move straight into membership.",
+    "Enter The Business Circle through the cinematic mobile entry, then continue into guided membership or direct join.",
   keywords: [
     "join business circle",
     "business circle portal",
@@ -35,15 +39,14 @@ export default async function JoinMobilePage({ searchParams }: JoinMobilePagePro
     redirect(buildAuthModeRedirect({ from, error }));
   }
 
-  redirect(
-    buildMembershipSelectionRedirect({
-      from,
-      tier: firstValue(params.tier),
-      interval: firstValue(params.interval),
-      billing: firstValue(params.billing),
-      invite: firstValue(params.invite),
-      auth: firstValue(params.auth),
-      coreAccessConfirmed: firstValue(params.coreAccessConfirmed)
-    })
+  return (
+    <Join2CinematicEntry
+      initialSelectedTier={resolveTier(firstValue(params.tier))}
+      billingInterval={resolveBillingInterval(firstValue(params.period) ?? firstValue(params.interval))}
+      from={from}
+      inviteCode={firstValue(params.invite)}
+      error={error}
+      billing={firstValue(params.billing)}
+    />
   );
 }

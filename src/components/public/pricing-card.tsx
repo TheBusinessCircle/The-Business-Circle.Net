@@ -44,6 +44,7 @@ type PricingCardProps = {
     limit: number;
     remaining: number;
     available: boolean;
+    statusLabel?: string;
     launchClosedLabel: string;
   };
   selected?: boolean;
@@ -162,7 +163,7 @@ export function PricingCard({
               </p>
             </div>
             <p className="text-sm leading-relaxed text-muted">
-              Limited to the first 50 members in this tier
+              Limited to the first {foundingOffer.limit} members in this tier
             </p>
 
             <div className="space-y-3">

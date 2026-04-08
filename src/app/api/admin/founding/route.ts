@@ -1,14 +1,14 @@
-"use server";
-
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { safeRedirectPath } from "@/lib/auth/utils";
-import { requireAdmin } from "@/lib/session";
+import { requireApiUser } from "@/lib/auth/api";
+import { isTrustedOrigin } from "@/lib/security/origin";
 import { updateFoundingOfferSettings } from "@/server/founding";
 
+export const runtime = "nodejs";
+
 const updateFoundingSettingsSchema = z.object({
-  returnPath: z.string().optional(),
   enabled: z.boolean(),
   foundationEnabled: z.boolean(),
   innerCircleEnabled: z.boolean(),
@@ -28,11 +28,29 @@ function resolveReturnPath(path: string | undefined, fallback = "/admin/founding
   return safeRedirectPath(path, fallback);
 }
 
-export async function updateFoundingOfferSettingsAction(formData: FormData) {
-  await requireAdmin();
+function redirectTo(request: Request, path: string) {
+  return NextResponse.redirect(new URL(path, request.url), {
+    status: 303
+  });
+}
 
+export async function POST(request: Request) {
+  if (!isTrustedOrigin(request)) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  const authResult = await requireApiUser({ adminOnly: true, allowUnentitled: true });
+  if ("response" in authResult) {
+    if (authResult.response.status === 401) {
+      return redirectTo(request, "/login?from=%2Fadmin%2Ffounding");
+    }
+
+    return redirectTo(request, "/dashboard");
+  }
+
+  const formData = await request.formData();
+  const returnPath = resolveReturnPath(String(formData.get("returnPath") || ""));
   const parsed = updateFoundingSettingsSchema.safeParse({
-    returnPath: String(formData.get("returnPath") || ""),
     enabled: Boolean(formData.get("enabled")),
     foundationEnabled: Boolean(formData.get("foundationEnabled")),
     innerCircleEnabled: Boolean(formData.get("innerCircleEnabled")),
@@ -42,17 +60,15 @@ export async function updateFoundingOfferSettingsAction(formData: FormData) {
     coreLimit: Number(formData.get("coreLimit") || 0)
   });
 
-  const returnPath = resolveReturnPath(parsed.success ? parsed.data.returnPath : undefined);
-
   if (!parsed.success) {
-    redirect(appendQueryParam(returnPath, "error", "invalid"));
+    return redirectTo(request, appendQueryParam(returnPath, "error", "invalid"));
   }
 
   try {
     await updateFoundingOfferSettings(parsed.data);
   } catch (error) {
     if (error instanceof Error && error.message === "founding-limit-below-claimed") {
-      redirect(appendQueryParam(returnPath, "error", "limit-below-claimed"));
+      return redirectTo(request, appendQueryParam(returnPath, "error", "limit-below-claimed"));
     }
 
     throw error;
@@ -62,5 +78,9 @@ export async function updateFoundingOfferSettingsAction(formData: FormData) {
   revalidatePath("/membership");
   revalidatePath("/join");
   revalidatePath("/");
-  redirect(appendQueryParam(returnPath, "notice", "founding-settings-updated"));
+
+  return redirectTo(
+    request,
+    appendQueryParam(returnPath, "notice", "founding-settings-updated")
+  );
 }

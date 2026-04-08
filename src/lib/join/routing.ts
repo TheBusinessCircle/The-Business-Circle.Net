@@ -1,4 +1,5 @@
 import { safeRedirectPath } from "@/lib/auth/utils";
+import { getMembershipTierSlug, resolveMembershipTierInput } from "@/config/membership";
 
 export type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
 export type MembershipBillingInterval = "monthly" | "annual";
@@ -13,15 +14,7 @@ export function firstValue(value: string | string[] | undefined): string | undef
 }
 
 export function resolveTier(value: string | undefined): MembershipTier {
-  if (value === "CORE") {
-    return "CORE";
-  }
-
-  if (value === "INNER_CIRCLE") {
-    return "INNER_CIRCLE";
-  }
-
-  return "FOUNDATION";
+  return resolveMembershipTierInput(value);
 }
 
 export function resolveBillingInterval(value: string | undefined): MembershipBillingInterval {
@@ -48,10 +41,13 @@ export function buildAuthModeRedirect({
   return search.size ? `/login?${search.toString()}` : "/login";
 }
 
-export function buildMembershipSelectionRedirect(input: {
+function buildSelectionHref(
+  pathname: "/membership" | "/join",
+  input: {
   from?: string;
   tier?: string;
   interval?: string;
+  period?: string;
   billing?: string;
   invite?: string;
   auth?: string;
@@ -60,7 +56,7 @@ export function buildMembershipSelectionRedirect(input: {
   const search = new URLSearchParams();
   const from = input.from ? safeRedirectPath(input.from, "") : "";
   const tier = input.tier ? resolveTier(input.tier) : undefined;
-  const interval = input.interval ? resolveBillingInterval(input.interval) : undefined;
+  const interval = resolveBillingInterval(input.period ?? input.interval);
   const invite = input.invite?.trim().toUpperCase();
   const auth = input.auth === "register" || invite ? "register" : undefined;
 
@@ -69,11 +65,11 @@ export function buildMembershipSelectionRedirect(input: {
   }
 
   if (tier) {
-    search.set("tier", tier);
+    search.set("tier", getMembershipTierSlug(tier));
   }
 
   if (interval) {
-    search.set("interval", interval);
+    search.set("period", interval);
   }
 
   if (input.billing) {
@@ -92,7 +88,46 @@ export function buildMembershipSelectionRedirect(input: {
     search.set("coreAccessConfirmed", "1");
   }
 
-  return search.size ? `/membership?${search.toString()}` : "/membership";
+  return search.size ? `${pathname}?${search.toString()}` : pathname;
+}
+
+export function buildMembershipDecisionHref(input: {
+  from?: string;
+  tier?: string;
+  interval?: string;
+  period?: string;
+  billing?: string;
+  invite?: string;
+  auth?: string;
+  coreAccessConfirmed?: string | boolean;
+}) {
+  return buildSelectionHref("/membership", input);
+}
+
+export function buildJoinConfirmationHref(input: {
+  from?: string;
+  tier?: string;
+  interval?: string;
+  period?: string;
+  billing?: string;
+  invite?: string;
+  auth?: string;
+  coreAccessConfirmed?: string | boolean;
+}) {
+  return buildSelectionHref("/join", input);
+}
+
+export function buildJoinConfirmationRedirect(input: {
+  from?: string;
+  tier?: string;
+  interval?: string;
+  period?: string;
+  billing?: string;
+  invite?: string;
+  auth?: string;
+  coreAccessConfirmed?: string | boolean;
+}) {
+  return buildJoinConfirmationHref(input);
 }
 
 export function toSearchParams(params: Record<string, string | string[] | undefined>) {

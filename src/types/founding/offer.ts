@@ -12,6 +12,7 @@ export interface FoundingOfferTierSnapshot {
   claimed: number;
   remaining: number;
   available: boolean;
+  statusLabel: string;
   launchClosedLabel: string;
 }
 

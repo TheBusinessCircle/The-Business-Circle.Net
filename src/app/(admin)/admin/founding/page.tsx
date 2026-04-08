@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Crown, Download, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { MembershipTier } from "@prisma/client";
 import { answerInnerCircleQuestionAction } from "@/actions/inner-circle/question.actions";
-import { updateFoundingOfferSettingsAction } from "@/actions/admin/founding.actions";
+import { getMembershipBillingPlan, getMembershipTierLabel } from "@/config/membership";
 import { FoundingOfferCounters } from "@/components/public";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
 
 function LaunchSnapshotCard(input: {
   title: string;
+  enabled: boolean;
   claimed: number;
   limit: number;
   price: number;
@@ -64,7 +66,62 @@ function LaunchSnapshotCard(input: {
       <p className={`mt-2 text-2xl font-display ${input.accentClassName}`}>
         {input.claimed} / {input.limit}
       </p>
-      <p className="text-xs text-muted">Current founding price: GBP {input.price}/month</p>
+      <p className="text-xs text-muted">Founders rate: GBP {input.price}/month</p>
+      <p className="mt-1 text-xs text-muted">
+        Status: {input.enabled ? "Active" : "Inactive"} · {Math.max(0, input.limit - input.claimed)} remaining
+      </p>
+    </div>
+  );
+}
+
+function TierLaunchControls(input: {
+  inputNamePrefix: "foundation" | "innerCircle" | "core";
+  title: string;
+  description: string;
+  enabled: boolean;
+  limit: number;
+  claimed: number;
+  monthlyPrice: number;
+  annualPrice: number;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/80 bg-background/30 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium text-foreground">{input.title}</p>
+          <p className="mt-1 text-sm text-muted">{input.description}</p>
+        </div>
+        <span className="rounded-full border border-border/80 bg-background/45 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
+          {input.claimed} claimed
+        </span>
+      </div>
+
+      <p className="mt-3 text-xs text-muted">
+        Founders rate: GBP {input.monthlyPrice}/month or GBP {input.annualPrice}/year
+      </p>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
+        <label className="flex items-center gap-2 rounded-xl border border-border/80 bg-background/35 px-3 py-2 text-sm text-muted">
+          <input
+            name={`${input.inputNamePrefix}Enabled`}
+            type="checkbox"
+            defaultChecked={input.enabled}
+            className="h-4 w-4 rounded border-border bg-background"
+          />
+          Founders offer active for this tier
+        </label>
+
+        <div className="space-y-2">
+          <Label htmlFor={`${input.inputNamePrefix}Limit`}>Founders Capacity</Label>
+          <Input
+            id={`${input.inputNamePrefix}Limit`}
+            name={`${input.inputNamePrefix}Limit`}
+            type="number"
+            min={0}
+            defaultValue={input.limit}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -104,6 +161,20 @@ export default async function AdminFoundingPage({ searchParams }: PageProps) {
     notice: firstValue(params.notice),
     error: firstValue(params.error)
   });
+  const foundingPricing = {
+    foundation: {
+      monthly: getMembershipBillingPlan(MembershipTier.FOUNDATION, "founding", "monthly").checkoutPrice,
+      annual: getMembershipBillingPlan(MembershipTier.FOUNDATION, "founding", "annual").checkoutPrice
+    },
+    innerCircle: {
+      monthly: getMembershipBillingPlan(MembershipTier.INNER_CIRCLE, "founding", "monthly").checkoutPrice,
+      annual: getMembershipBillingPlan(MembershipTier.INNER_CIRCLE, "founding", "annual").checkoutPrice
+    },
+    core: {
+      monthly: getMembershipBillingPlan(MembershipTier.CORE, "founding", "monthly").checkoutPrice,
+      annual: getMembershipBillingPlan(MembershipTier.CORE, "founding", "annual").checkoutPrice
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -147,14 +218,14 @@ export default async function AdminFoundingPage({ searchParams }: PageProps) {
           <CardHeader>
             <CardTitle>Launch Settings</CardTitle>
             <CardDescription>
-              Enable the founding launch and manage slot limits and founding prices by tier.
+              Enable the founding launch and manage slot limits and per-tier availability.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={updateFoundingOfferSettingsAction} className="grid gap-4 md:grid-cols-2">
+            <form action="/api/admin/founding" method="post" className="space-y-4">
               <input type="hidden" name="returnPath" value="/admin/founding" />
 
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label htmlFor="enabled">Launch Status</Label>
                 <label className="flex items-center gap-2 rounded-xl border border-border/80 bg-background/30 px-3 py-2 text-sm text-muted">
                   <input
@@ -168,73 +239,40 @@ export default async function AdminFoundingPage({ searchParams }: PageProps) {
                 </label>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="foundationLimit">Foundation Limit</Label>
-                <Input
-                  id="foundationLimit"
-                  name="foundationLimit"
-                  type="number"
-                  min={0}
-                  defaultValue={foundingData.settings.foundationLimit}
-                />
-              </div>
+              <TierLaunchControls
+                inputNamePrefix="foundation"
+                title={getMembershipTierLabel(MembershipTier.FOUNDATION)}
+                description="Early-stage and base-building entry point."
+                enabled={foundingData.settings.foundationEnabled}
+                limit={foundingData.settings.foundationLimit}
+                claimed={foundingData.settings.foundationClaimed}
+                monthlyPrice={foundingPricing.foundation.monthly}
+                annualPrice={foundingPricing.foundation.annual}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="foundationFoundingPrice">Foundation Founding Price</Label>
-                <Input
-                  id="foundationFoundingPrice"
-                  name="foundationFoundingPrice"
-                  type="number"
-                  min={0}
-                  defaultValue={foundingData.settings.foundationFoundingPrice}
-                />
-              </div>
+              <TierLaunchControls
+                inputNamePrefix="innerCircle"
+                title={getMembershipTierLabel(MembershipTier.INNER_CIRCLE)}
+                description="Focused route for most active members."
+                enabled={foundingData.settings.innerCircleEnabled}
+                limit={foundingData.settings.innerCircleLimit}
+                claimed={foundingData.settings.innerCircleClaimed}
+                monthlyPrice={foundingPricing.innerCircle.monthly}
+                annualPrice={foundingPricing.innerCircle.annual}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="innerCircleLimit">Inner Circle Limit</Label>
-                <Input
-                  id="innerCircleLimit"
-                  name="innerCircleLimit"
-                  type="number"
-                  min={0}
-                  defaultValue={foundingData.settings.innerCircleLimit}
-                />
-              </div>
+              <TierLaunchControls
+                inputNamePrefix="core"
+                title={getMembershipTierLabel(MembershipTier.CORE)}
+                description="Protected room for serious operators."
+                enabled={foundingData.settings.coreEnabled}
+                limit={foundingData.settings.coreLimit}
+                claimed={foundingData.settings.coreClaimed}
+                monthlyPrice={foundingPricing.core.monthly}
+                annualPrice={foundingPricing.core.annual}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="innerCircleFoundingPrice">Inner Circle Founding Price</Label>
-                <Input
-                  id="innerCircleFoundingPrice"
-                  name="innerCircleFoundingPrice"
-                  type="number"
-                  min={0}
-                  defaultValue={foundingData.settings.innerCircleFoundingPrice}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="coreLimit">Core Limit</Label>
-                <Input
-                  id="coreLimit"
-                  name="coreLimit"
-                  type="number"
-                  min={0}
-                  defaultValue={foundingData.settings.coreLimit}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="coreFoundingPrice">Core Founding Price</Label>
-                <Input
-                  id="coreFoundingPrice"
-                  name="coreFoundingPrice"
-                  type="number"
-                  min={0}
-                  defaultValue={foundingData.settings.coreFoundingPrice}
-                />
-              </div>
-
-              <div className="md:col-span-2">
+              <div>
                 <Button type="submit">Save Launch Settings</Button>
               </div>
             </form>
@@ -251,23 +289,26 @@ export default async function AdminFoundingPage({ searchParams }: PageProps) {
           <CardContent className="space-y-3">
             <LaunchSnapshotCard
               title="Founding Foundation"
+              enabled={foundingData.settings.foundationEnabled}
               claimed={foundingData.settings.foundationClaimed}
               limit={foundingData.settings.foundationLimit}
-              price={foundingData.settings.foundationFoundingPrice}
+              price={foundingPricing.foundation.monthly}
               accentClassName="text-silver"
             />
             <LaunchSnapshotCard
               title="Founding Inner Circle"
+              enabled={foundingData.settings.innerCircleEnabled}
               claimed={foundingData.settings.innerCircleClaimed}
               limit={foundingData.settings.innerCircleLimit}
-              price={foundingData.settings.innerCircleFoundingPrice}
+              price={foundingPricing.innerCircle.monthly}
               accentClassName="text-gold"
             />
             <LaunchSnapshotCard
               title="Founding Core"
+              enabled={foundingData.settings.coreEnabled}
               claimed={foundingData.settings.coreClaimed}
               limit={foundingData.settings.coreLimit}
-              price={foundingData.settings.coreFoundingPrice}
+              price={foundingPricing.core.monthly}
               accentClassName="text-primary"
             />
           </CardContent>

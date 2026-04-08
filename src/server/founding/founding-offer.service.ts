@@ -8,7 +8,6 @@ import {
   MEMBERSHIP_FOUNDING_CAPACITY,
   getMembershipBillingPlan,
   getMembershipPlan,
-  getMembershipPlanVariant,
   isMembershipVariantStripeConfigured
 } from "@/config/membership";
 import { isEligibleForDiscountedPricing } from "@/lib/billing-eligibility";
@@ -26,18 +25,32 @@ const DEFAULT_FOUNDATION_LIMIT = MEMBERSHIP_FOUNDING_CAPACITY;
 const DEFAULT_INNER_CIRCLE_LIMIT = MEMBERSHIP_FOUNDING_CAPACITY;
 const DEFAULT_CORE_LIMIT = MEMBERSHIP_FOUNDING_CAPACITY;
 const DEFAULT_FOUNDING_SETTINGS = {
+  id: FOUNDING_SETTINGS_ID,
   enabled: true,
+  foundationEnabled: true,
+  innerCircleEnabled: true,
+  coreEnabled: true,
   foundationLimit: DEFAULT_FOUNDATION_LIMIT,
   innerCircleLimit: DEFAULT_INNER_CIRCLE_LIMIT,
   coreLimit: DEFAULT_CORE_LIMIT,
   foundationClaimed: 0,
   innerCircleClaimed: 0,
   coreClaimed: 0,
-  foundationFoundingPrice: getMembershipPlanVariant(MembershipTier.FOUNDATION, "founding")
-    .monthlyPrice,
-  innerCircleFoundingPrice: getMembershipPlanVariant(MembershipTier.INNER_CIRCLE, "founding")
-    .monthlyPrice,
-  coreFoundingPrice: getMembershipPlanVariant(MembershipTier.CORE, "founding").monthlyPrice,
+  foundationFoundingPrice: getMembershipBillingPlan(
+    MembershipTier.FOUNDATION,
+    "founding",
+    "monthly"
+  ).checkoutPrice,
+  innerCircleFoundingPrice: getMembershipBillingPlan(
+    MembershipTier.INNER_CIRCLE,
+    "founding",
+    "monthly"
+  ).checkoutPrice,
+  coreFoundingPrice: getMembershipBillingPlan(
+    MembershipTier.CORE,
+    "founding",
+    "monthly"
+  ).checkoutPrice,
   updatedAt: new Date()
 };
 
@@ -64,12 +77,12 @@ type ClaimFoundingReservationInput =
 
 type UpdateFoundingOfferSettingsInput = {
   enabled: boolean;
+  foundationEnabled: boolean;
+  innerCircleEnabled: boolean;
+  coreEnabled: boolean;
   foundationLimit: number;
   innerCircleLimit: number;
   coreLimit: number;
-  foundationFoundingPrice?: number;
-  innerCircleFoundingPrice?: number;
-  coreFoundingPrice?: number;
 };
 
 type FoundingReservationResult = {
@@ -80,7 +93,11 @@ type FoundingReservationResult = {
 };
 
 type FoundingSettingsSnapshot = {
+  id: string;
   enabled: boolean;
+  foundationEnabled: boolean;
+  innerCircleEnabled: boolean;
+  coreEnabled: boolean;
   foundationLimit: number;
   innerCircleLimit: number;
   coreLimit: number;
@@ -93,8 +110,97 @@ type FoundingSettingsSnapshot = {
   updatedAt: Date;
 };
 
+const FOUNDING_SETTINGS_LEGACY_SELECT = {
+  id: true,
+  enabled: true,
+  foundationLimit: true,
+  innerCircleLimit: true,
+  coreLimit: true,
+  foundationClaimed: true,
+  innerCircleClaimed: true,
+  coreClaimed: true,
+  foundationFoundingPrice: true,
+  innerCircleFoundingPrice: true,
+  coreFoundingPrice: true,
+  updatedAt: true
+} satisfies Prisma.FoundingOfferSettingsSelect;
+
+const FOUNDING_SETTINGS_SELECT = {
+  ...FOUNDING_SETTINGS_LEGACY_SELECT,
+  foundationEnabled: true,
+  innerCircleEnabled: true,
+  coreEnabled: true
+} satisfies Prisma.FoundingOfferSettingsSelect;
+
+type LegacyFoundingSettingsRow = Prisma.FoundingOfferSettingsGetPayload<{
+  select: typeof FOUNDING_SETTINGS_LEGACY_SELECT;
+}>;
+
+type FoundingSettingsRow = Prisma.FoundingOfferSettingsGetPayload<{
+  select: typeof FOUNDING_SETTINGS_SELECT;
+}>;
+
+const FOUNDING_ENABLED_COLUMN_NAMES = [
+  "foundationEnabled",
+  "innerCircleEnabled",
+  "coreEnabled"
+] as const;
+
+let foundingEnabledColumnsPromise: Promise<boolean> | null = null;
+
 function isSerializableConflictError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
+}
+
+function normalizeFoundingSettings(
+  settings: FoundingSettingsRow | LegacyFoundingSettingsRow
+): FoundingSettingsSnapshot {
+  return {
+    id: settings.id,
+    enabled: settings.enabled,
+    foundationEnabled:
+      "foundationEnabled" in settings ? Boolean(settings.foundationEnabled) : true,
+    innerCircleEnabled:
+      "innerCircleEnabled" in settings ? Boolean(settings.innerCircleEnabled) : true,
+    coreEnabled: "coreEnabled" in settings ? Boolean(settings.coreEnabled) : true,
+    foundationLimit: settings.foundationLimit,
+    innerCircleLimit: settings.innerCircleLimit,
+    coreLimit: settings.coreLimit,
+    foundationClaimed: settings.foundationClaimed,
+    innerCircleClaimed: settings.innerCircleClaimed,
+    coreClaimed: settings.coreClaimed,
+    foundationFoundingPrice: settings.foundationFoundingPrice,
+    innerCircleFoundingPrice: settings.innerCircleFoundingPrice,
+    coreFoundingPrice: settings.coreFoundingPrice,
+    updatedAt: settings.updatedAt
+  };
+}
+
+async function loadFoundingEnabledColumnsSupport(client: FoundingClient) {
+  const rows = await client.$queryRaw<Array<{ column_name: string }>>(Prisma.sql`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = 'FoundingOfferSettings'
+      AND column_name IN (${Prisma.join(FOUNDING_ENABLED_COLUMN_NAMES)})
+  `);
+
+  return FOUNDING_ENABLED_COLUMN_NAMES.every((columnName) =>
+    rows.some((row) => row.column_name === columnName)
+  );
+}
+
+async function supportsPerTierFoundingEnabledColumns(client: FoundingClient) {
+  if (client === db) {
+    foundingEnabledColumnsPromise ??= loadFoundingEnabledColumnsSupport(client).catch((error) => {
+      foundingEnabledColumnsPromise = null;
+      throw error;
+    });
+
+    return foundingEnabledColumnsPromise;
+  }
+
+  return loadFoundingEnabledColumnsSupport(client);
 }
 
 async function runSerializableFoundingTransaction<T>(
@@ -137,14 +243,18 @@ function getLimitCount(settings: FoundingSettingsSnapshot, tier: MembershipTier)
   }
 }
 
-function getFoundingPrice(settings: FoundingSettingsSnapshot, tier: MembershipTier) {
+function getFoundingPrice(tier: MembershipTier) {
+  return getMembershipBillingPlan(tier, "founding", "monthly").checkoutPrice;
+}
+
+function isTierEnabled(settings: FoundingSettingsSnapshot, tier: MembershipTier) {
   switch (tier) {
     case MembershipTier.CORE:
-      return settings.coreFoundingPrice;
+      return settings.coreEnabled;
     case MembershipTier.INNER_CIRCLE:
-      return settings.innerCircleFoundingPrice;
+      return settings.innerCircleEnabled;
     default:
-      return settings.foundationFoundingPrice;
+      return settings.foundationEnabled;
   }
 }
 
@@ -176,23 +286,22 @@ function buildTierSnapshot(input: {
 }): FoundingOfferTierSnapshot {
   const { badgeLabel, offerLabel } = getFoundingLabels(input.tier);
   const standardPrice = getMembershipPlan(input.tier).monthlyPrice;
-  const standardAnnualPrice = getMembershipBillingPlan(
-    input.tier,
-    "standard",
-    "annual"
-  ).checkoutPrice;
-  const foundingPrice = getFoundingPrice(input.settings, input.tier);
-  const foundingAnnualPrice = getMembershipBillingPlan(
-    input.tier,
-    "founding",
-    "annual",
-    {
-      monthlyPrice: foundingPrice
-    }
-  ).checkoutPrice;
+  const standardAnnualPrice = getMembershipBillingPlan(input.tier, "standard", "annual").checkoutPrice;
+  const foundingPrice = getFoundingPrice(input.tier);
+  const foundingAnnualPrice = getMembershipBillingPlan(input.tier, "founding", "annual").checkoutPrice;
   const claimed = getClaimedCount(input.settings, input.tier);
   const limit = getLimitCount(input.settings, input.tier);
   const remaining = Math.max(0, limit - claimed - input.reservedCount);
+  const foundingOfferActive =
+    input.settings.enabled &&
+    isTierEnabled(input.settings, input.tier) &&
+    isMembershipVariantStripeConfigured(input.tier, "founding", "monthly") &&
+    isMembershipVariantStripeConfigured(input.tier, "founding", "annual");
+  const available = foundingOfferActive && remaining > 0;
+  const statusLabel = available ? "Available" : foundingOfferActive ? "Sold out" : "Inactive";
+  const launchClosedLabel = foundingOfferActive
+    ? "Founding Member spots have now been filled"
+    : "Founding Member rate is not currently active";
 
   return {
     tier: input.tier,
@@ -205,12 +314,9 @@ function buildTierSnapshot(input: {
     limit,
     claimed,
     remaining,
-    available:
-      input.settings.enabled &&
-      remaining > 0 &&
-      isMembershipVariantStripeConfigured(input.tier, "founding", "monthly") &&
-      isMembershipVariantStripeConfigured(input.tier, "founding", "annual"),
-    launchClosedLabel: "Founding Member spots have now been filled"
+    available,
+    statusLabel,
+    launchClosedLabel
   };
 }
 
@@ -265,7 +371,8 @@ export function getFoundingBadgeLabel(
 }
 
 export async function getOrCreateFoundingOfferSettings(client: FoundingClient = db) {
-  return client.foundingOfferSettings.upsert({
+  const supportsPerTierColumns = await supportsPerTierFoundingEnabledColumns(client);
+  const baseInput = {
     where: {
       id: FOUNDING_SETTINGS_ID
     },
@@ -273,7 +380,23 @@ export async function getOrCreateFoundingOfferSettings(client: FoundingClient = 
     create: {
       id: FOUNDING_SETTINGS_ID
     }
+  } as const;
+
+  if (supportsPerTierColumns) {
+    const settings = await client.foundingOfferSettings.upsert({
+      ...baseInput,
+      select: FOUNDING_SETTINGS_SELECT
+    });
+
+    return normalizeFoundingSettings(settings);
+  }
+
+  const settings = await client.foundingOfferSettings.upsert({
+    ...baseInput,
+    select: FOUNDING_SETTINGS_LEGACY_SELECT
   });
+
+  return normalizeFoundingSettings(settings);
 }
 
 export async function cleanupExpiredFoundingReservations(client: FoundingClient = db) {
@@ -382,8 +505,10 @@ export async function reserveFoundingSlot(
     await cleanupExpiredFoundingReservations(tx);
 
     const settings = await getOrCreateFoundingOfferSettings(tx);
+    const foundingMonthlyPlan = getMembershipBillingPlan(input.tier, "founding", "monthly");
     if (
       !settings.enabled ||
+      !isTierEnabled(settings, input.tier) ||
       !isMembershipVariantStripeConfigured(input.tier, "founding", "monthly") ||
       !isMembershipVariantStripeConfigured(input.tier, "founding", "annual")
     ) {
@@ -465,7 +590,7 @@ export async function reserveFoundingSlot(
       data: {
         userId: input.userId,
         tier: input.tier,
-        foundingPrice: getFoundingPrice(settings, input.tier),
+        foundingPrice: foundingMonthlyPlan.checkoutPrice,
         source: input.source ?? FoundingReservationSource.CHECKOUT,
         status: FoundingReservationStatus.ACTIVE,
         expiresAt: new Date(
@@ -613,6 +738,9 @@ export async function claimFoundingReservation(input: ClaimFoundingReservationIn
         foundationClaimed: counts.foundationClaimed,
         innerCircleClaimed: counts.innerCircleClaimed,
         coreClaimed: counts.coreClaimed
+      },
+      select: {
+        id: true
       }
     });
 
@@ -682,19 +810,8 @@ export async function updateFoundingOfferSettings(input: UpdateFoundingOfferSett
   const coreLimit = Math.max(input.coreLimit, 0);
 
   return runSerializableFoundingTransaction(async (tx) => {
+    const supportsPerTierColumns = await supportsPerTierFoundingEnabledColumns(tx);
     const existing = await getOrCreateFoundingOfferSettings(tx);
-    const foundationFoundingPrice = Math.max(
-      input.foundationFoundingPrice ?? existing.foundationFoundingPrice,
-      0
-    );
-    const innerCircleFoundingPrice = Math.max(
-      input.innerCircleFoundingPrice ?? existing.innerCircleFoundingPrice,
-      0
-    );
-    const coreFoundingPrice = Math.max(
-      input.coreFoundingPrice ?? existing.coreFoundingPrice,
-      0
-    );
 
     if (
       existing.foundationClaimed > foundationLimit ||
@@ -704,7 +821,27 @@ export async function updateFoundingOfferSettings(input: UpdateFoundingOfferSett
       throw new Error("founding-limit-below-claimed");
     }
 
-    return tx.foundingOfferSettings.update({
+    if (supportsPerTierColumns) {
+      const updated = await tx.foundingOfferSettings.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          enabled: input.enabled,
+          foundationEnabled: input.foundationEnabled,
+          innerCircleEnabled: input.innerCircleEnabled,
+          coreEnabled: input.coreEnabled,
+          foundationLimit,
+          innerCircleLimit,
+          coreLimit
+        },
+        select: FOUNDING_SETTINGS_SELECT
+      });
+
+      return normalizeFoundingSettings(updated);
+    }
+
+    const updated = await tx.foundingOfferSettings.update({
       where: {
         id: existing.id
       },
@@ -712,12 +849,12 @@ export async function updateFoundingOfferSettings(input: UpdateFoundingOfferSett
         enabled: input.enabled,
         foundationLimit,
         innerCircleLimit,
-        coreLimit,
-        foundationFoundingPrice,
-        innerCircleFoundingPrice,
-        coreFoundingPrice
-      }
+        coreLimit
+      },
+      select: FOUNDING_SETTINGS_LEGACY_SELECT
     });
+
+    return normalizeFoundingSettings(updated);
   });
 }
 

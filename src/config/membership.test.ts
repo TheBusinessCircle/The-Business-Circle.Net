@@ -38,6 +38,7 @@ describe("membership pricing", () => {
     expect(getMembershipTierContent(MembershipTier.FOUNDATION)).toMatchObject({
       badgeLabel: "Foundation",
       supportingBadge: "Best place to start",
+      bestFitLine: "Best if you are early, refining, or building your base.",
       ctaLabel: "Enter Foundation"
     });
 
@@ -45,7 +46,7 @@ describe("membership pricing", () => {
       getMembershipPlanKey(MembershipTier.INNER_CIRCLE, "standard", "annual")
     ).toBe("inner-circle-annual");
     expect(getMembershipPlanKey(MembershipTier.CORE, "founding", "annual")).toBe(
-      "core-founding-annual"
+      "core-founders-annual"
     );
   });
 });

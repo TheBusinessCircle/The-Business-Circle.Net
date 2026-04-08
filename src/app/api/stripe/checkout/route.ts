@@ -97,16 +97,16 @@ export async function POST(request: Request) {
 
     const successPath =
       source === "join"
-        ? `/dashboard?billing=success&source=membership&interval=${billingInterval}`
+        ? `/dashboard?billing=success&source=join&interval=${billingInterval}`
         : source === "membership"
           ? `/dashboard?billing=success&source=membership&interval=${billingInterval}`
           : `/dashboard?billing=success&interval=${billingInterval}`;
     const cancelPath =
       source === "join"
-        ? `/membership?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`
+        ? `/join?billing=cancelled&tier=${targetTier}&period=${billingInterval}`
         : source === "dashboard"
           ? `/dashboard?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`
-          : `/membership?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`;
+          : `/join?billing=cancelled&tier=${targetTier}&period=${billingInterval}`;
 
     if (!authResult.user.email) {
       return NextResponse.json(

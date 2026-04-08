@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import {
+  buildJoinConfirmationRedirect,
+  firstValue
+} from "@/lib/join/routing";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -9,6 +13,23 @@ export const metadata: Metadata = createPageMetadata({
   noIndex: true
 });
 
-export default function SignUpPage() {
-  redirect("/membership?auth=register");
+type SignUpPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function SignUpPage({ searchParams }: SignUpPageProps) {
+  const params = await searchParams;
+
+  redirect(
+    buildJoinConfirmationRedirect({
+      from: firstValue(params.from),
+      tier: firstValue(params.tier),
+      interval: firstValue(params.interval),
+      period: firstValue(params.period),
+      billing: firstValue(params.billing),
+      invite: firstValue(params.invite),
+      auth: "register",
+      coreAccessConfirmed: firstValue(params.coreAccessConfirmed)
+    })
+  );
 }

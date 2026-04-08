@@ -1,20 +1,24 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { JoinCinematicEntry } from "@/components/auth/join-cinematic-entry";
+import { createPageMetadata } from "@/lib/seo";
 import {
   buildAuthModeRedirect,
-  buildMembershipSelectionRedirect,
   firstValue,
+  resolveBillingInterval,
+  resolveTier
 } from "@/lib/join/routing";
-import { createPageMetadata } from "@/lib/seo";
 
 type JoinDesktopPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = createPageMetadata({
   title: "Join The Business Circle",
   description:
-    "Step inside The Business Circle, a premium founder-led business ecosystem for serious owners who want a calmer, stronger room to grow inside.",
+    "Step inside The Business Circle through the cinematic entry, then move naturally into membership guidance or direct join.",
   keywords: [
     "join business circle",
     "private business network",
@@ -35,15 +39,14 @@ export default async function JoinDesktopPage({ searchParams }: JoinDesktopPageP
     redirect(buildAuthModeRedirect({ from, error }));
   }
 
-  redirect(
-    buildMembershipSelectionRedirect({
-      from,
-      tier: firstValue(params.tier),
-      interval: firstValue(params.interval),
-      billing: firstValue(params.billing),
-      invite: firstValue(params.invite),
-      auth: firstValue(params.auth),
-      coreAccessConfirmed: firstValue(params.coreAccessConfirmed)
-    })
+  return (
+    <JoinCinematicEntry
+      initialSelectedTier={resolveTier(firstValue(params.tier))}
+      billingInterval={resolveBillingInterval(firstValue(params.period) ?? firstValue(params.interval))}
+      from={from}
+      inviteCode={firstValue(params.invite)}
+      error={error}
+      billing={firstValue(params.billing)}
+    />
   );
 }

@@ -526,6 +526,9 @@ model Subscription {
 model FoundingOfferSettings {
   id                       String   @id @default("default")
   enabled                  Boolean  @default(true)
+  foundationEnabled        Boolean  @default(true)
+  innerCircleEnabled       Boolean  @default(true)
+  coreEnabled              Boolean  @default(true)
   foundationLimit          Int      @default(50)
   innerCircleLimit         Int      @default(50)
   coreLimit                Int      @default(50)
@@ -533,8 +536,8 @@ model FoundingOfferSettings {
   innerCircleClaimed       Int      @default(0)
   coreClaimed              Int      @default(0)
   foundationFoundingPrice  Int      @default(15)
-  innerCircleFoundingPrice Int      @default(40)
-  coreFoundingPrice        Int      @default(80)
+  innerCircleFoundingPrice Int      @default(39)
+  coreFoundingPrice        Int      @default(74)
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 }

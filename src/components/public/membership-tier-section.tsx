@@ -146,7 +146,7 @@ export function MembershipTierSection({
                   Founding Member Rate
                 </p>
                 <p className="text-sm leading-relaxed text-muted">
-                  Limited to the first 50 members in this tier
+                  Limited to the first {foundingOffer.limit} members in this tier
                 </p>
               </div>
 
@@ -196,7 +196,7 @@ export function MembershipTierSection({
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership</p>
                 <p className="text-sm leading-relaxed text-muted">
-                  Founding Member spots have now been filled
+                  {foundingOffer.launchClosedLabel}
                 </p>
               </div>
 

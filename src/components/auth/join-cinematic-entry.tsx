@@ -11,6 +11,7 @@ import {
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { safeRedirectPath } from "@/lib/auth/utils";
+import { buildJoinConfirmationHref } from "@/lib/join/routing";
 import { cn } from "@/lib/utils";
 import styles from "./join-cinematic-entry.module.css";
 
@@ -108,33 +109,26 @@ function writeJoinHandoff(value: JoinHandoff) {
   }
 }
 
-function buildMembershipHref({
+function buildJoinHref({
   tier,
   billingInterval,
   billing,
-  from
+  from,
+  inviteCode
 }: {
   tier: MembershipTier;
   billingInterval: MembershipBillingInterval;
   billing?: string;
   from?: string;
+  inviteCode?: string;
 }) {
-  const url = new URL("/membership", "http://localhost");
-
-  url.searchParams.set("tier", tier);
-  url.searchParams.set("interval", billingInterval);
-
-  if (billing === "cancelled") {
-    url.searchParams.set("billing", billing);
-  }
-
-  const safeFrom = from ? safeRedirectPath(from, "") : "";
-
-  if (safeFrom) {
-    url.searchParams.set("from", safeFrom);
-  }
-
-  return `${url.pathname}${url.search}`;
+  return buildJoinConfirmationHref({
+    tier,
+    period: billingInterval,
+    billing,
+    from,
+    invite: inviteCode
+  });
 }
 
 export function JoinCinematicEntry({
@@ -249,23 +243,22 @@ export function JoinCinematicEntry({
     };
   }, [portalOpened]);
 
-  const membershipHref = useMemo(
+  const publicSiteHref = "/";
+  const joinHref = useMemo(
     () =>
-      buildMembershipHref({
+      buildJoinHref({
         tier: initialSelectedTier,
         billingInterval,
         billing,
-        from: resolvedContext.from
+        from: resolvedContext.from,
+        inviteCode: resolvedContext.inviteCode
       }),
-    [billing, billingInterval, initialSelectedTier, resolvedContext.from]
+    [billing, billingInterval, initialSelectedTier, resolvedContext.from, resolvedContext.inviteCode]
   );
 
   const loginHref = useMemo(() => withFrom("/login", resolvedContext.from), [resolvedContext.from]);
 
-  const joinFootnote = useMemo(
-    () => `Membership opens on the existing page with ${tierLabels[initialSelectedTier]} already in focus.`,
-    [initialSelectedTier]
-  );
+  const joinFootnote = useMemo(() => `Join opens with ${tierLabels[initialSelectedTier]} already selected.`, [initialSelectedTier]);
 
   const notices = useMemo(() => {
     const nextNotices: JoinNotice[] = [];
@@ -485,8 +478,7 @@ export function JoinCinematicEntry({
                 <span className={styles.kicker}>Entry Point</span>
                 <h2 className={styles.choiceTitle}>Choose your path</h2>
                 <p className={styles.choiceCopy}>
-                  Start by exploring the world behind The Business Circle, or move straight into
-                  membership and choose how you join.
+                  Explore the public side of The Business Circle first, or move straight into join if you already know your room.
                 </p>
               </motion.header>
 
@@ -518,7 +510,7 @@ export function JoinCinematicEntry({
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: reduceMotion ? 0 : 0.28, duration: 0.82, ease: portalEase }}
                 >
-                  <Link href="/" className={styles.choicePanel}>
+                  <Link href={publicSiteHref} className={styles.choicePanel}>
                     <span className={styles.choiceIndex}>01</span>
                     <span className={styles.choiceOrbit} aria-hidden="true" />
                     <div className={styles.choiceContent}>
@@ -526,7 +518,7 @@ export function JoinCinematicEntry({
                         <span className={styles.choiceEyebrow}>Public site</span>
                         <h3 className={styles.choiceHeading}>Explore The Business Circle</h3>
                         <p className={styles.choiceDescription}>
-                          See what it is, why it exists, and what it is building.
+                          Enter the non-member side of the site, starting with the homepage and the wider public sections.
                         </p>
                       </div>
 
@@ -547,7 +539,7 @@ export function JoinCinematicEntry({
                   transition={{ delay: reduceMotion ? 0 : 0.38, duration: 0.82, ease: portalEase }}
                 >
                   <Link
-                    href={membershipHref}
+                    href={joinHref}
                     className={cn(styles.choicePanel, styles.joinChoicePanel)}
                     onClick={handleJoinChoice}
                   >
@@ -555,17 +547,17 @@ export function JoinCinematicEntry({
                     <span className={styles.choiceOrbit} aria-hidden="true" />
                     <div className={styles.choiceContent}>
                       <div className={styles.choiceHeadingBlock}>
-                        <span className={styles.choiceEyebrow}>Membership</span>
-                        <h3 className={styles.choiceHeading}>Join The Circle</h3>
+                        <span className={styles.choiceEyebrow}>Direct route</span>
+                        <h3 className={styles.choiceHeading}>Go straight to join</h3>
                         <p className={styles.choiceDescription}>
-                          Go straight to membership and choose the path that fits you best.
+                          Enter the sign-up and pricing confirmation page with your selection already in place.
                         </p>
                       </div>
 
                       <div className={styles.choiceMeta}>
                         <span className={styles.choiceFootnote}>{joinFootnote}</span>
                         <span className={styles.choiceAction}>
-                          Continue to membership
+                          Continue to join
                           <ArrowRight size={15} />
                         </span>
                       </div>
