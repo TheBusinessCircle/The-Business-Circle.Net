@@ -61,7 +61,7 @@ export async function Navbar() {
                 Login
               </Link>
               <Link href="/membership" className={buttonVariants({ size: "sm" })}>
-                Apply / Join
+                Find Your Room
               </Link>
             </>
           )}
@@ -118,7 +118,7 @@ export async function Navbar() {
                       href="/membership"
                       className={cn(buttonVariants({ size: "sm" }), "w-full justify-center")}
                     >
-                      Apply / Join
+                      Find Your Room
                     </Link>
                   </>
                 )}

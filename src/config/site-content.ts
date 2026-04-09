@@ -237,13 +237,13 @@ export const siteContentDefaults: SiteContentValueMap = {
   },
   footer: {
     brandBlurb:
-      "A founder-led business growth ecosystem where ambitious businesses build with better strategy, stronger trust, curated relationships, and more useful momentum.",
+      "A founder-led business network for owners who want a calmer, more structured environment around growth, relationships, and decision-making.",
     supportEmail: SITE_CONFIG.supportEmail,
-    supportLine: "Support, partnerships, member success, and founder enquiries",
-    trustLine: "Private membership. Founder-led standards. Structured growth support.",
-    founderLine: "Led by Trev Newton, Business Growth Architect.",
+    supportLine: "Membership, partnerships, platform support, and serious business enquiries",
+    trustLine: "Private membership. Clear placement. Founder-led standards.",
+    founderLine: "Built and led by Trev Newton.",
     bottomLine:
-      "Built for founders, business owners, startups, local businesses, and established brands."
+      "Structured for active business owners, founders, and operators across the UK."
   }
 };
 

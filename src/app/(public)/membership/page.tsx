@@ -32,9 +32,9 @@ const MEMBERSHIP_KEYWORDS = [
 ] as const;
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Business Membership UK For Owners",
+  title: "Membership For Business Owners",
   description:
-    "Choose the right room inside a founder-led business network for owners. The Business Circle Network is a private business community UK businesses can join for clearer structure, stronger conversation, and real momentum.",
+    "Choose the right room inside a founder-led business network for owners. Compare Foundation, Inner Circle, and Core inside a private business community UK owners can join for clearer structure and stronger momentum.",
   keywords: [...MEMBERSHIP_KEYWORDS],
   path: "/membership"
 });
@@ -68,7 +68,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
     <div className="space-y-8 pb-16">
       <JsonLd
         data={buildCollectionPageSchema({
-          title: "Business Membership UK For Owners",
+          title: "Membership For Business Owners",
           description:
             "Guided membership selection for business owners choosing between Foundation, Inner Circle, and Core.",
           path: "/membership",
@@ -87,8 +87,8 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
 
       {billing === "cancelled" ? (
         <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
-          Stripe checkout was cancelled. You can review the rooms again here, then continue when
-          you are ready.
+          Stripe checkout was cancelled. Your room selection is still here, ready when you want to
+          continue.
         </p>
       ) : null}
 

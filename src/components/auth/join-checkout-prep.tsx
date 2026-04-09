@@ -50,9 +50,9 @@ const tierStageLabels: Record<MembershipTier, string> = {
 };
 
 const tierSwitchLines: Record<MembershipTier, string> = {
-  FOUNDATION: "Access, learning, and exposure.",
-  INNER_CIRCLE: "Deeper discussions, stronger visibility, and positioning.",
-  CORE: "Higher-level operators, proximity, and serious conversations."
+  FOUNDATION: "A steady place to build the base properly.",
+  INNER_CIRCLE: "A tighter room for stronger signal and sharper conversation.",
+  CORE: "A quieter room for operators carrying heavier decisions."
 };
 
 function getAuthenticatedLabel(input: {
@@ -175,7 +175,7 @@ export function JoinCheckoutPrep({
       <section className="space-y-4">
         <div className="flex flex-col gap-4 rounded-[1.8rem] border border-white/10 bg-card/55 p-5 shadow-panel sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Billing</p>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Billing cadence</p>
             <div className="inline-flex rounded-full border border-border/80 bg-background/30 p-1">
               {(["monthly", "annual"] as const).map((period) => (
                 <button
@@ -195,7 +195,9 @@ export function JoinCheckoutPrep({
             </div>
           </div>
 
-          <p className="text-sm text-muted sm:text-right">Annual billing saves 20%</p>
+          <p className="text-sm text-muted sm:text-right">
+            Annual billing saves 20% and carries straight into checkout.
+          </p>
         </div>
 
         <div className="grid gap-3">
@@ -272,6 +274,14 @@ export function JoinCheckoutPrep({
           </div>
 
           <h1 className="mt-5 font-display text-4xl text-foreground">{selectedDefinition.name}</h1>
+          <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
+            {selectedContent.description}
+          </p>
+
+          <div className="mt-5 rounded-[1.4rem] border border-white/10 bg-background/24 p-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Best fit</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{selectedContent.bestFitLine}</p>
+          </div>
 
           <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-background/28 p-5">
             {selectedOffer.available ? (
@@ -373,6 +383,23 @@ export function JoinCheckoutPrep({
                 </p>
               </div>
             )}
+          </div>
+
+          <div className="mt-5 grid gap-2">
+            {[
+              "You can move between tiers later as the business evolves.",
+              selectedOffer.available
+                ? "Founder pricing only applies while this room still has founder allocation available."
+                : "Founder pricing is not active in this room right now.",
+              "Secure checkout is completed in Stripe after account setup."
+            ].map((item) => (
+              <div
+                key={item}
+                className="rounded-[1.2rem] border border-white/8 bg-background/18 px-4 py-3 text-sm leading-relaxed text-muted"
+              >
+                {item}
+              </div>
+            ))}
           </div>
         </article>
 

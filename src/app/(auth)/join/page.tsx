@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { MembershipTier } from "@prisma/client";
+import { ArrowRight, LockKeyhole, RefreshCcw, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { JoinCheckoutPrep } from "@/components/auth/join-checkout-prep";
+import { JourneyRail } from "@/components/public";
+import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
 import { roleToTier } from "@/lib/permissions";
 import { db } from "@/lib/db";
@@ -13,6 +17,7 @@ import {
 } from "@/config/membership";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { buildAuthModeRedirect, firstValue } from "@/lib/join/routing";
+import { cn } from "@/lib/utils";
 
 type JoinPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -23,13 +28,13 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = createPageMetadata({
   title: "Join The Business Circle",
   description:
-    "Confirm your selected membership tier, review current pricing, and continue into secure sign-up or checkout.",
+    "Confirm your selected room, review current pricing, create your account, and continue into secure Stripe checkout.",
   keywords: [
     "join business circle",
-    "business circle pricing",
     "business owner membership checkout",
-    "founders membership offer",
-    "private business network join"
+    "private business network join",
+    "membership for business owners",
+    "founder-led business network"
   ],
   path: "/join"
 });
@@ -81,10 +86,88 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
   } as const;
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="space-y-8 pb-16">
+      <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+        <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
+        <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
+        <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-gold/14 blur-[120px]" />
+
+        <div className="relative space-y-6">
+          <JourneyRail
+            currentStep="join"
+            note="Selection, account setup, and Stripe checkout stay connected in one path."
+            nextAction={{ href: "/membership", label: "Review Membership Again" }}
+          />
+
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.84fr)] xl:items-start">
+            <div className="space-y-5">
+              <div className="space-y-4">
+                <p className="premium-kicker">Join The Business Circle</p>
+                <h1 className="max-w-4xl font-display text-4xl leading-tight text-foreground sm:text-5xl">
+                  Confirm the room, then move into secure setup.
+                </h1>
+                <p className="max-w-3xl text-lg leading-relaxed text-muted">
+                  This page keeps room selection, pricing clarity, account setup, and Stripe
+                  checkout in one calm flow. You can move between tiers as the business evolves, and
+                  founder pricing only applies where it is currently active.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Link
+                  href="/membership"
+                  className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+                >
+                  Review Membership
+                </Link>
+                <Link
+                  href="/about"
+                  className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
+                >
+                  Read Why It Exists
+                  <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              {[
+                {
+                  icon: RefreshCcw,
+                  title: "Move between tiers later",
+                  copy: "Choose the room that fits now. You can adjust later as the business evolves."
+                },
+                {
+                  icon: LockKeyhole,
+                  title: "Billing stays clear",
+                  copy: "Annual billing saves 20%, and the selected billing interval carries straight into checkout."
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "Secure checkout",
+                  copy: "Account setup happens here. Billing is completed securely in Stripe."
+                }
+              ].map((item) => (
+                <article
+                  key={item.title}
+                  className="rounded-[1.55rem] border border-white/10 bg-background/22 p-4"
+                >
+                  <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <item.icon size={16} className="text-gold" />
+                    {item.title}
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{item.copy}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {billing === "cancelled" ? (
         <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
-          Stripe checkout was cancelled. Your selected room is still here and ready when you want to continue.
+          Stripe checkout was cancelled. Your selected room is still here and ready when you want
+          to continue.
         </p>
       ) : null}
 
@@ -102,6 +185,20 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         currentBillingInterval={currentBillingInterval}
         foundingOfferByTier={foundingOfferByTier}
       />
+
+      <section className="rounded-[2rem] border border-white/10 bg-card/52 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
+        <div className="max-w-3xl space-y-4">
+          <p className="premium-kicker">Clarity before checkout</p>
+          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+            Choose the room that fits now. You can adjust later.
+          </h2>
+          <p className="text-base leading-relaxed text-muted">
+            The aim here is a clean decision, not a perfect prediction. Pick the room that matches
+            the business now, move through setup with confidence, and let the membership deepen only
+            when the business genuinely needs it.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }

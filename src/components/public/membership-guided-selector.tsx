@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { FoundingOfferTierSnapshot } from "@/types";
 import { FAQSection } from "@/components/public/faq-section";
+import { JourneyRail } from "@/components/public/journey-rail";
 import { TierBadge } from "@/components/public/tier-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -68,46 +69,46 @@ type TierGuide = {
 const TIER_GUIDES: TierGuide[] = [
   {
     tier: "FOUNDATION",
-    title: "Build the base properly",
-    positioningLine: "A dependable starting room for owners building the structure properly.",
+    title: "Foundation",
+    positioningLine: "A steady room for owners building the structure properly.",
     bestForLine:
-      "Best for earlier-stage businesses that need better clarity, structure, and traction.",
+      "Best when the business needs a stronger base, better context, and clearer next steps.",
     detailSummary:
-      "A dependable starting room for owners building the structure properly.",
+      "Build the base properly before the business needs more depth.",
     whoItsFor:
-      "Designed for owners who are still shaping the foundations of the business, tightening the offer, or building more consistency around how growth happens.",
+      "Designed for owners still tightening the foundations of the business, shaping the offer, or building more consistency around how growth happens.",
     whatYouNeed:
-      "You need clearer structure, better context, and a room where you can connect with business owners who are active without getting buried in noise.",
+      "You need clearer structure, better context, and a room where conversations help the business move without burying you in noise.",
     whyThisFits:
-      "Foundation gives you access, learning, exposure, and a more useful base around the work so momentum can build cleanly.",
+      "Foundation gives you the right base around the work so momentum can build cleanly before you need a tighter room.",
     ctaLabel: "Enter Foundation",
     icon: Compass
   },
   {
     tier: "INNER_CIRCLE",
-    title: "Tighten the room around momentum",
-    positioningLine: "A stronger room for businesses that are already moving.",
+    title: "Inner Circle",
+    positioningLine: "A tighter room for businesses already carrying momentum.",
     bestForLine:
-      "Best for businesses that need deeper conversations, better context, and stronger signal.",
+      "Best when stronger signal, deeper conversation, and more relevant context will help the business move better.",
     detailSummary:
-      "A more focused room for owners who need stronger conversations and better context.",
+      "Tighten the room around momentum, context, and sharper conversation.",
     whoItsFor:
-      "Designed for businesses with traction that want sharper discussion, better positioning, and a more intentional environment around the next stage of growth.",
+      "Designed for businesses with traction that want sharper discussion, stronger positioning, and a more intentional room around the next stage of growth.",
     whatYouNeed:
-      "You need higher-signal conversation, stronger visibility, and a tighter level of context than a wider room can give on its own.",
+      "You need higher-signal conversation, stronger visibility, and more useful context than a wider room can usually hold.",
     whyThisFits:
-      "Inner Circle adds deeper discussion, increased visibility, and more focused movement without turning the page into a status game.",
+      "Inner Circle raises the quality of context and discussion without turning the membership into a status game.",
     ctaLabel: "Enter Inner Circle",
     icon: TrendingUp
   },
   {
     tier: "CORE",
-    title: "Protect decision quality at a higher level",
-    positioningLine: "A quieter room for serious operators carrying heavier decisions.",
+    title: "Core",
+    positioningLine: "A quieter room for operators carrying heavier decisions.",
     bestForLine:
-      "Best for established operators who need stronger proximity, sharper thinking, and less noise.",
+      "Best when proximity, judgement, and the quality of the room matter more than wider access alone.",
     detailSummary:
-      "A protected room for operators who need higher-quality context around serious decisions.",
+      "Protect decision quality with more serious context and less noise.",
     whoItsFor:
       "Designed for established operators and business owners carrying real responsibility who want the calmest room, the best proximity, and more serious conversation.",
     whatYouNeed:
@@ -121,8 +122,8 @@ const TIER_GUIDES: TierGuide[] = [
 
 const FOUNDER_PERSPECTIVE_LINES = [
   "Different stages of business need different environments.",
-  "The goal is not to push everyone into the highest tier. The goal is to help owners enter the right room and keep the business owners network useful.",
-  "That is what makes a private business community UK owners can actually use feel calmer, more trusted, and more relevant."
+  "The goal is not to push everyone into the highest tier. The goal is to help owners enter the right room and keep the whole environment useful.",
+  "That is what keeps the network calmer, more relevant, and more commercially useful over time."
 ] as const;
 
 const REASSURANCE_ITEMS = [
@@ -139,7 +140,7 @@ const REASSURANCE_ITEMS = [
   {
     title: "Move when it makes sense",
     description:
-      "Think of this as business growth membership with clearer placement. You start where the fit is obvious, then deepen only when the business genuinely needs more."
+      "You can start where the fit is obvious, then move deeper only when the business genuinely needs more."
   }
 ] as const;
 
@@ -505,6 +506,12 @@ export function MembershipGuidedSelector({
 
   return (
     <div className="space-y-16 pb-16 sm:space-y-20">
+      <JourneyRail
+        currentStep="membership"
+        note="Use this page to place the business properly. When the fit feels clear, the selected room carries straight into join."
+        nextAction={{ href: selectedJoinHref, label: "Continue To Join" }}
+      />
+
       <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
@@ -518,13 +525,13 @@ export function MembershipGuidedSelector({
                 Choose the room that fits the business now.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-muted">
-                Different businesses need different environments. This page should help owners place
-                themselves clearly, understand what fits their current position, and move forward
+                Different businesses need different environments. This page is here to help owners
+                place themselves clearly, understand the room that fits now, and move toward join
                 with confidence.
               </p>
               <p className="max-w-3xl text-sm leading-relaxed text-silver">
-                This is a founder-led business network and private business community UK owners can
-                use when they want better structure, stronger conversations, and real momentum.
+                Better placement keeps the network useful. That is why the cards stay light, the
+                detail appears after selection, and the decision path stays calm.
               </p>
             </div>
 
@@ -556,7 +563,9 @@ export function MembershipGuidedSelector({
                   </button>
                 ))}
               </div>
-              <p className="mt-3 text-sm text-muted">Annual billing saves 20%.</p>
+              <p className="mt-3 text-sm text-muted">
+                Annual billing saves 20% and carries straight into join.
+              </p>
             </div>
 
             <div className="rounded-[1.55rem] border border-gold/18 bg-gradient-to-br from-gold/10 via-background/20 to-background/10 p-4">
@@ -577,7 +586,7 @@ export function MembershipGuidedSelector({
         <div className="max-w-3xl space-y-3">
           <p className="premium-kicker">Position Selection</p>
           <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            Select the room first, then review the detail with a clear head.
+            Select the room first. Read the depth second.
           </h2>
           <p className="text-base leading-relaxed text-muted">
             This is structured to reduce overload. Cards stay light and scannable. Depth only
@@ -633,9 +642,6 @@ export function MembershipGuidedSelector({
                     </div>
 
                     <div className="relative mt-8 space-y-4">
-                      <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                        {getMembershipTierDefinition(guide.tier).name}
-                      </p>
                       <h3
                         className={cn(
                           "font-display text-[1.9rem] leading-tight transition-colors duration-300",
@@ -704,14 +710,13 @@ export function MembershipGuidedSelector({
 
       <section className="space-y-6">
         <div className="max-w-3xl space-y-3">
-          <p className="premium-kicker">Why Different Rooms Exist</p>
+          <p className="premium-kicker">Reassurance</p>
           <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
             This is based on stage, not status.
           </h2>
           <p className="text-base leading-relaxed text-muted">
-            The point is structured business support, not hierarchy. A broad entrepreneur community
-            UK founders drift through can only do so much. This business growth membership is built
-            around clearer placement so the room stays relevant.
+            The point is structured support, not hierarchy. A room stays useful when the placement
+            is clearer and the environment matches the stage of the business.
           </p>
         </div>
 
@@ -750,13 +755,12 @@ export function MembershipGuidedSelector({
         <div className="relative max-w-3xl space-y-5">
           <p className="premium-kicker">Final Step</p>
           <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            Enter {getMembershipTierDefinition(selectedTier).name} when the fit feels clear.
+            When the fit feels clear, continue to join.
           </h2>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
-            The aim is not to buy the highest tier by default. It is to choose the membership for
-            business owners that matches the current stage of the business, then move into join with
-            confidence. If you are looking for business membership UK owners can actually use, the
-            clearer move is to enter the right room now and deepen later if the business needs it.
+            Your selected room and billing interval carry straight into join. The aim is not to
+            pick the highest tier by default. It is to choose the room that fits the business now,
+            then move forward with confidence.
           </p>
           <div className="space-y-4">
             <Link
@@ -773,6 +777,8 @@ export function MembershipGuidedSelector({
               <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
             </Link>
             <p className="text-sm leading-relaxed text-muted">
+              You can move between tiers later as the business evolves.
+              {" "}
               {selectedOffer.available
                 ? `Founder rate is currently available with ${selectedOffer.remaining} places remaining in this room.`
                 : `${selectedOffer.launchClosedLabel}.`}

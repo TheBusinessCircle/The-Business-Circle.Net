@@ -6,10 +6,12 @@ import { getSiteContentSection } from "@/server/site-content";
 import { nonEmpty } from "@/lib/utils";
 
 const EXPLORE_LINKS = [
+  { label: "Home", href: "/" },
   { label: "About", href: "/about" },
-  { label: "Insights", href: "/insights" },
   { label: "Membership", href: "/membership" },
+  { label: "Join", href: "/join" },
   { label: "Founder", href: "/founder" },
+  { label: "Insights", href: "/insights" },
   { label: "Contact", href: "/contact" },
   { label: "FAQ", href: "/#faq" }
 ];
@@ -111,7 +113,7 @@ export async function Footer() {
             ))}
             <li>
               <Link href="/membership" className="transition-colors hover:text-foreground">
-                Join The Network
+                Find Your Room
               </Link>
             </li>
           </ul>

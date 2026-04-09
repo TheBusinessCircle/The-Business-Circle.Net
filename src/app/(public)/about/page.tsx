@@ -1,22 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Compass,
-  Shield,
-  TrendingUp,
-  Users
-} from "lucide-react";
-import { JsonLd } from "@/components/public";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { ArrowRight, Compass, Shield, TrendingUp, Users } from "lucide-react";
+import { JourneyRail, JsonLd } from "@/components/public";
 import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { TREV_FOUNDER_CONTENT } from "@/config/founder";
 import { createPageMetadata } from "@/lib/seo";
-import {
-  buildBreadcrumbSchema,
-  buildCollectionPageSchema
-} from "@/lib/structured-data";
+import { buildBreadcrumbSchema, buildCollectionPageSchema } from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 import { getSiteContentSection } from "@/server/site-content";
 
@@ -24,69 +14,83 @@ export const dynamic = "force-dynamic";
 
 const ABOUT_KEYWORDS = [
   "business network for owners",
-  "business growth network",
+  "business owners network UK",
   "private business community UK",
-  "business owners network",
-  "entrepreneur community",
-  "business support network",
-  "connect with business owners",
-  "structured business growth"
+  "founder-led business network",
+  "business growth network",
+  "entrepreneur community UK",
+  "structured business support",
+  "connect with business owners"
 ] as const;
 
 export const metadata: Metadata = createPageMetadata({
   title: "About The Business Circle Network",
   description:
-    "The Business Circle Network is a founder-led business network for owners who want clarity, stronger connections, and real momentum inside a private UK business community.",
+    "Why The Business Circle Network exists, what problem it solves, and how it creates a calmer, more structured environment for business owners in the UK.",
   keywords: [...ABOUT_KEYWORDS],
   path: "/about"
 });
 
-const problemLines = [
-  "Too much noise.",
-  "Not enough structure.",
-  "Too much surface interaction.",
-  "Not enough real momentum."
+const problemAreas = [
+  {
+    title: "Noise",
+    description: "Too much activity, not enough clarity."
+  },
+  {
+    title: "Surface-level conversation",
+    description: "People can be visible without ever getting to what matters."
+  },
+  {
+    title: "Poor structure",
+    description: "Access without placement usually creates loose, low-signal environments."
+  },
+  {
+    title: "Information without momentum",
+    description: "Useful ideas mean very little when the room does not support action."
+  },
+  {
+    title: "The wrong context",
+    description: "Different stages of business need different kinds of support and proximity."
+  }
 ] as const;
 
-const experiencePillars = [
+const environmentPillars = [
   {
     title: "Clarity",
     description:
-      "A calmer room to think properly about the business, make better decisions, and see what matters next.",
+      "A calmer room to think properly about the business and the next move that matters most.",
     icon: Compass
   },
   {
     title: "Structure",
     description:
-      "A more intentional environment where discussion, contribution, and standards support better judgement over time.",
+      "A more intentional environment where placement, standards, and conversation quality are protected.",
     icon: Shield
   },
   {
-    title: "Meaningful connections",
+    title: "Relevant people",
     description:
-      "A better way to connect with business owners who are active, thoughtful, and serious about what they are building.",
+      "A better way to connect with business owners who are active, thoughtful, and building for real.",
     icon: Users
   },
   {
     title: "Momentum",
     description:
-      "Ongoing conversation and context that help the business keep moving without drifting back into noise.",
+      "Ongoing context that helps the business keep moving without drifting back into noise or confusion.",
     icon: TrendingUp
   }
 ] as const;
 
 const forAudience = [
-  "Business owners and entrepreneurs who are actively building",
-  "People who want better clarity, stronger connections, and steadier momentum",
-  "Founders who want to connect with business owners in a more useful environment",
-  "Businesses that value standards, structure, and practical conversation"
+  "Active business owners, founders, and operators who want a stronger environment around the work",
+  "People who value clearer placement, better context, and conversations with substance",
+  "Builders who want a business owners network that feels calmer, sharper, and more commercially useful"
 ] as const;
 
 const notForAudience = [
-  "Passive learners looking for something to browse",
-  "Freebie seekers chasing access without commitment",
-  "People who are not currently building or contributing in a real way",
-  "Anyone looking for hype, noise, or surface-level networking"
+  "Passive browsers looking for something to dip in and out of",
+  "People chasing access without intent, contribution, or clarity",
+  "Anyone looking for hype, performance, or surface-level networking"
 ] as const;
 
 export default async function AboutPage() {
@@ -101,7 +105,7 @@ export default async function AboutPage() {
             "Founder-led context on why The Business Circle Network exists and how it creates a calmer, more structured environment for business owners.",
           path: "/about",
           keywords: [...ABOUT_KEYWORDS],
-          itemPaths: ["/membership", "/founder", "/insights"]
+          itemPaths: ["/membership", "/founder", "/contact"]
         })}
       />
       <JsonLd
@@ -111,85 +115,75 @@ export default async function AboutPage() {
         ])}
       />
 
-      <section className="relative overflow-hidden rounded-[2.2rem] border border-border/80 bg-card/55 px-6 py-10 shadow-panel sm:px-10 sm:py-14 lg:px-14 lg:py-16">
+      <section className="relative overflow-hidden rounded-[2.3rem] border border-border/80 bg-card/55 px-6 py-10 shadow-panel sm:px-10 sm:py-14 lg:px-14 lg:py-16">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-12 h-56 w-56 rounded-full bg-silver/10 blur-[90px]" />
         <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
 
         <div className="relative max-w-5xl space-y-6">
-          <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
-            About The Business Circle Network
-          </Badge>
+          <p className="premium-kicker">About The Business Circle Network</p>
           <div className="space-y-5">
-            <h1 className="max-w-4xl font-display text-4xl leading-[0.98] text-foreground sm:text-5xl lg:text-7xl">
-              Built for owners who need a better room around the business.
+            <h1 className="max-w-4xl text-4xl leading-[0.98] text-foreground sm:text-5xl lg:text-7xl">
+              Built for owners who are tired of being visible everywhere and properly supported nowhere.
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-muted sm:text-xl">
-              The Business Circle Network is a business network for owners who want
-              clearer thinking, stronger relationships, and real momentum. It is
-              the kind of private business community UK founders often struggle to
-              find when they want a calmer business growth network with more
-              structure and less noise.
+              The Business Circle Network is a founder-led business network for owners who want a
+              calmer, more structured environment around growth. It was built for people who want
+              better conversations, clearer placement, and stronger momentum inside a private
+              business community UK owners can actually use.
             </p>
           </div>
         </div>
       </section>
+
+      <JourneyRail
+        currentStep="about"
+        note="This page explains the thinking behind the room. The Membership page helps you place yourself properly."
+        nextAction={{ href: "/membership", label: "Continue To Membership" }}
+      />
 
       <section className="mx-auto max-w-3xl space-y-6 px-1">
         <p className="premium-kicker">Founder reality</p>
         <div className="space-y-5 text-lg leading-relaxed text-muted">
           <p>
-            I built this because I know what it feels like to carry a business in
-            real life. The work does not sit in isolation. It sits alongside
-            clients, pressure, family, time, and the constant need to make clear
-            decisions while still moving things forward.
+            I built this because I know what it feels like to carry a business in real life. The
+            work sits alongside clients, pressure, family, time, responsibility, and the constant
+            need to make clear decisions while still moving things forward.
           </p>
           <p>
-            Most business environments do not feel short on activity. They feel
-            short on substance. You can be surrounded by updates, advice, events,
-            and people, yet still have very little space to think properly or work
-            through what actually matters.
+            Most business spaces do not feel short on activity. They feel short on substance. You
+            can be surrounded by updates, events, advice, and people, yet still have very little
+            room to think properly or work through what actually matters.
           </p>
           <p>
-            That gap stayed with me. It made me pay attention to how often owners
-            are visible everywhere and properly supported nowhere.
+            That gap kept standing out to me. Owners were often surrounded by visibility and still
+            short on the kind of environment that helps real progress happen.
           </p>
         </div>
       </section>
 
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-12">
-        <div className="space-y-4">
+      <section className="space-y-8">
+        <div className="max-w-3xl space-y-4">
           <p className="premium-kicker">The problem</p>
-          <h2 className="max-w-xl font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            Too many business communities look active without being useful.
+          <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
+            Too many business communities look active without being genuinely useful.
           </h2>
+          <p className="text-base leading-relaxed text-muted sm:text-lg">
+            A lot of spaces promise access, support, and growth. In practice, they often become
+            noisy rooms with loose standards, surface-level conversations, and very little help
+            around the real work of building a business.
+          </p>
         </div>
 
-        <div className="space-y-5">
-          <div className="space-y-2">
-            {problemLines.map((line) => (
-              <p
-                key={line}
-                className="font-display text-2xl leading-tight text-silver sm:text-[2rem]"
-              >
-                {line}
-              </p>
-            ))}
-          </div>
-          <div className="space-y-4 text-base leading-relaxed text-muted">
-            <p>
-              A lot of spaces call themselves an entrepreneur community or a
-              business support network, but the experience often becomes a stream
-              of surface-level interaction. People show up, post, disappear, and
-              leave with very little to build on.
-            </p>
-            <p>
-              You can technically connect with business owners in those spaces, but
-              that is not the same as building trusted relationships, sharper
-              thinking, or the kind of environment that genuinely supports the next
-              stage of the business.
-            </p>
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {problemAreas.map((item) => (
+            <Card key={item.title} className="border-border/90 bg-card/68 shadow-panel-soft">
+              <CardContent className="space-y-3 p-5 sm:p-6">
+                <h3 className="text-xl text-foreground">{item.title}</h3>
+                <p className="text-sm leading-relaxed text-muted">{item.description}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </section>
 
@@ -197,20 +191,17 @@ export default async function AboutPage() {
         <div className="pointer-events-none absolute -right-16 top-0 h-60 w-60 rounded-full bg-gold/16 blur-[90px]" />
         <div className="relative max-w-4xl space-y-5">
           <p className="premium-kicker">The shift</p>
-          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            So I decided to build the kind of environment I would actually want to
-            walk into.
+          <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
+            So this had to be built differently.
           </h2>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
-            Not louder. Not broader. Not another room built on performance. The
-            aim was to create a more intentional space where owners could think
-            clearly, meet the right people, and build structured business growth
-            without having to fight through noise first.
+            Not louder. Not broader. Not another room built on performance. The aim was to create a
+            more intentional place where owners could think clearly, meet the right people, and
+            build with better structure before the conversation even started.
           </p>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
-            That is why this exists. It was built to feel more grounded, more
-            useful, and more honest about what serious business owners actually
-            need.
+            That is why this exists. It was built to feel calmer, more useful, and more honest
+            about what serious business owners actually need around the work.
           </p>
         </div>
       </section>
@@ -218,38 +209,30 @@ export default async function AboutPage() {
       <section className="space-y-8">
         <div className="max-w-4xl space-y-4">
           <p className="premium-kicker">What this actually is</p>
-          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            A business growth network shaped around clarity, structure, meaningful
-            connection, and momentum.
+          <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
+            A structured business environment shaped around clarity, better conversations, relevant
+            people, and forward movement.
           </h2>
           <div className="space-y-4 text-base leading-relaxed text-muted sm:text-lg">
             <p>{aboutContent.intro}</p>
             <p>
-              In practice, it is a private business community built for owners who
-              want the room around the work to feel better. It is closer to a
-              serious business support network than a content feed, and the point
-              is simple: better conversations, better context, and better movement.
+              In practice, it is a private business community for owners who want the room around
+              the work to feel better. It is closer to a serious business environment than a feed,
+              and the point is simple: better context, better judgement, and better momentum.
             </p>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {experiencePillars.map((item) => (
-            <Card
-              key={item.title}
-              className="border-border/90 bg-card/68 shadow-panel-soft"
-            >
+          {environmentPillars.map((item) => (
+            <Card key={item.title} className="border-border/90 bg-card/68 shadow-panel-soft">
               <CardContent className="space-y-4 p-6 sm:p-7">
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
                   <item.icon size={18} />
                 </span>
                 <div className="space-y-3">
-                  <h3 className="font-display text-2xl text-foreground">
-                    {item.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed text-muted">
-                    {item.description}
-                  </p>
+                  <h3 className="text-2xl text-foreground">{item.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted">{item.description}</p>
                 </div>
               </CardContent>
             </Card>
@@ -260,23 +243,17 @@ export default async function AboutPage() {
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.92fr)]">
         <Card className="border-border/90 bg-card/72 shadow-panel-soft">
           <CardContent className="space-y-5 p-6 sm:p-8">
-            <p className="premium-kicker">Founder positioning</p>
-            <h2 className="max-w-2xl font-display text-3xl leading-tight text-foreground sm:text-4xl">
+            <p className="premium-kicker">How it is led</p>
+            <h2 className="max-w-2xl text-3xl leading-tight text-foreground sm:text-4xl">
               Founder-led does not mean founder-centred.
             </h2>
             <p className="text-base leading-relaxed text-muted sm:text-lg">
               {TREV_FOUNDER_CONTENT.summary}
             </p>
             <p className="text-base leading-relaxed text-muted">
-              My role here is to shape the environment, protect the standard, and
-              keep the room useful. I am not trying to become the centre of
-              attention. I am trying to make sure the space stays calm, trusted,
-              and genuinely valuable for the people building inside it.
-            </p>
-            <p className="text-base leading-relaxed text-muted">
-              A strong business owners network should help people think better, not
-              simply give them somewhere to appear. That is the standard I want
-              this place to hold.
+              My job is to shape the environment, protect the standard, and keep the room useful. I
+              am not trying to become the centre of attention. I am trying to make sure the space
+              stays calm, trusted, and genuinely valuable for the people building inside it.
             </p>
           </CardContent>
         </Card>
@@ -302,23 +279,21 @@ export default async function AboutPage() {
 
       <section className="space-y-8">
         <div className="max-w-3xl space-y-4">
-          <p className="premium-kicker">Who it&rsquo;s for / not for</p>
-          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            The room works best when the fit is clear.
+          <p className="premium-kicker">Who it is for</p>
+          <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
+            The room works better when the fit is clear.
           </h2>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
-            This is for business owners, entrepreneurs, and people building
-            actively. It is not designed to be for everyone, and that is part of
-            what keeps the environment useful.
+            This is for active owners and operators who want a stronger environment around the
+            business. That clarity helps the room stay useful without turning it into a closed or
+            performative space.
           </p>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="border-gold/25 bg-card/70 shadow-panel-soft">
             <CardContent className="space-y-5 p-6 sm:p-8">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                This is for
-              </p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">This is for</p>
               <div className="space-y-3">
                 {forAudience.map((item) => (
                   <div
@@ -334,9 +309,7 @@ export default async function AboutPage() {
 
           <Card className="border-border/90 bg-card/70 shadow-panel-soft">
             <CardContent className="space-y-5 p-6 sm:p-8">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                This is not for
-              </p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">This is not for</p>
               <div className="space-y-3">
                 {notForAudience.map((item) => (
                   <div
@@ -353,29 +326,28 @@ export default async function AboutPage() {
       </section>
 
       <section className="mx-auto max-w-3xl space-y-6 text-center">
-        <p className="premium-kicker mx-auto">Closing</p>
-        <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-          If you have been looking for a calmer, more useful business environment,
-          this is why it exists.
+        <p className="premium-kicker mx-auto">Quiet close</p>
+        <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
+          If you have been looking for a better room around the business, that is the point of
+          this.
         </h2>
         <p className="text-base leading-relaxed text-muted sm:text-lg">
-          No pressure. No performance. Just a more intentional place for owners who
-          want clarity, stronger relationships, and real momentum around the work
-          they are building.
+          No hard sell. Just a more intentional place for owners who want structure, better
+          context, and steadier momentum around the work they are building.
         </p>
         <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
           <Link
             href="/membership"
-            className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
+            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "group w-full sm:w-auto")}
           >
-            Explore Membership
+            See The Membership Rooms
             <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
           </Link>
           <Link
-            href="/founder"
-            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+            href="/contact"
+            className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
           >
-            Meet Trev
+            Start A Conversation
           </Link>
         </div>
       </section>

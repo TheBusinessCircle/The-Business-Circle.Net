@@ -2,10 +2,10 @@
 
 const publicNavigation: NavigationItem[] = [
   { label: "Home", href: "/" },
-  { label: "Insights", href: "/insights" },
+  { label: "About", href: "/about" },
   { label: "Membership", href: "/membership" },
   { label: "Founder", href: "/founder" },
-  { label: "About", href: "/about" },
+  { label: "Insights", href: "/insights" },
   { label: "Contact", href: "/contact" },
 ];
 
@@ -41,7 +41,7 @@ export const SITE_CONFIG: SiteConfig = {
   name: "The Business Circle Network",
   shortName: "Business Circle",
   description:
-    "A founder-led business growth ecosystem for business owners, startups, local businesses, and established companies to grow through strategy, trust, collaboration, and practical momentum.",
+    "A founder-led private business network for owners who want better structure, stronger relationships, and steadier momentum.",
   url: process.env.APP_URL ?? "http://localhost:3000",
   supportEmail: "support@businesscircle.network",
   publicNavigation,
