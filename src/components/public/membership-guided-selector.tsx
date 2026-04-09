@@ -594,8 +594,8 @@ export function MembershipGuidedSelector({
           </p>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.02fr)_minmax(340px,0.98fr)] xl:items-start">
-          <div className="grid gap-4 lg:grid-cols-3 lg:[grid-auto-rows:1fr]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(320px,27rem)_minmax(0,1fr)] lg:items-start xl:grid-cols-[minmax(340px,28rem)_minmax(0,1fr)]">
+          <div className="flex flex-col gap-4 lg:gap-5">
             {TIER_GUIDES.map((guide) => {
               const Icon = guide.icon;
               const selected = guide.tier === selectedTier;
@@ -610,13 +610,13 @@ export function MembershipGuidedSelector({
               });
 
               return (
-                <div key={guide.tier} className="flex h-full flex-col gap-4">
+                <div key={guide.tier} className="space-y-4">
                   <button
                     type="button"
                     aria-pressed={selected}
                     onClick={() => setSelectedTier(guide.tier)}
                     className={cn(
-                      "group relative flex h-full min-h-[245px] flex-col justify-between overflow-hidden rounded-[1.8rem] border p-5 text-left shadow-panel transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/35 focus-visible:ring-offset-0",
+                      "group relative flex w-full min-h-[214px] flex-col justify-between overflow-hidden rounded-[1.8rem] border p-5 text-left shadow-panel transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/35 focus-visible:ring-offset-0 sm:min-h-[224px] sm:p-6",
                       selectionCardClassName,
                       selected
                         ? cn(
@@ -641,7 +641,7 @@ export function MembershipGuidedSelector({
                       ) : null}
                     </div>
 
-                    <div className="relative mt-8 space-y-4">
+                    <div className="relative mt-7 space-y-4">
                       <h3
                         className={cn(
                           "font-display text-[1.9rem] leading-tight transition-colors duration-300",
@@ -650,16 +650,16 @@ export function MembershipGuidedSelector({
                       >
                         {guide.title}
                       </h3>
-                      <p className="text-sm leading-relaxed text-silver">
+                      <p className="max-w-[30rem] text-sm leading-relaxed text-silver">
                         {guide.positioningLine}
                       </p>
-                      <p className="text-sm leading-relaxed text-muted">
+                      <p className="max-w-[30rem] text-sm leading-relaxed text-muted">
                         {guide.bestForLine}
                       </p>
                     </div>
                   </button>
 
-                  <div className="xl:hidden">
+                  <div className="lg:hidden">
                     <AnimatePresence mode="wait" initial={false}>
                       {selected ? (
                         <SelectedPathPanel
@@ -679,7 +679,7 @@ export function MembershipGuidedSelector({
             })}
           </div>
 
-          <aside className="hidden xl:block xl:sticky xl:top-8">
+          <aside className="hidden lg:block lg:sticky lg:top-8">
             <AnimatePresence mode="wait" initial={false}>
               <SelectedPathPanel
                 key={`${selectedTier}-${billingInterval}`}
