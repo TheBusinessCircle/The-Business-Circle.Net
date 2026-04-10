@@ -41,33 +41,12 @@ function toFormPayload(formData: FormData): FounderServiceRequestFormValues & {
     sourceSection: String(formData.get("sourceSection") || ""),
     fullName: String(formData.get("fullName") || ""),
     email: String(formData.get("email") || ""),
-    phone: String(formData.get("phone") || ""),
     businessName: String(formData.get("businessName") || ""),
+    businessStage: String(
+      formData.get("businessStage") || ""
+    ) as FounderServiceRequestFormValues["businessStage"],
     website: String(formData.get("website") || ""),
-    industry: String(formData.get("industry") || ""),
-    location: String(formData.get("location") || ""),
-    yearsInBusiness: String(formData.get("yearsInBusiness") || ""),
-    employeeCount: String(formData.get("employeeCount") || ""),
-    revenueRange: String(formData.get("revenueRange") || "") as FounderServiceRequestFormValues["revenueRange"],
-    instagram: String(formData.get("instagram") || ""),
-    tiktok: String(formData.get("tiktok") || ""),
-    facebook: String(formData.get("facebook") || ""),
-    linkedin: String(formData.get("linkedin") || ""),
-    otherSocial: String(formData.get("otherSocial") || ""),
-    businessDescription: String(formData.get("businessDescription") || ""),
-    targetAudience: String(formData.get("targetAudience") || ""),
-    productsOrServices: String(formData.get("productsOrServices") || ""),
-    offers: String(formData.get("offers") || ""),
-    differentiator: String(formData.get("differentiator") || ""),
-    mainGoal: String(formData.get("mainGoal") || ""),
-    biggestChallenge: String(formData.get("biggestChallenge") || ""),
-    blockers: String(formData.get("blockers") || ""),
-    pastAttempts: String(formData.get("pastAttempts") || ""),
-    successDefinition: String(formData.get("successDefinition") || ""),
-    marketingChannels: formData
-      .getAll("marketingChannels")
-      .map(String) as FounderServiceRequestFormValues["marketingChannels"],
-    whyTrev: String(formData.get("whyTrev") || "")
+    helpSummary: String(formData.get("helpSummary") || "")
   };
 }
 

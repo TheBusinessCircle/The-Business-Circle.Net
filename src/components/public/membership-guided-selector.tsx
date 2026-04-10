@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
+  CheckCircle2,
   Compass,
   Crown,
   Shield,
@@ -34,6 +35,7 @@ import {
   getTierAccentTextClassName,
   getTierButtonVariant,
   getTierCardClassName,
+  getTierIconClassName,
   getTierSelectionRingClassName
 } from "@/lib/tier-styles";
 import { cn } from "@/lib/utils";
@@ -290,6 +292,7 @@ function SelectedPathPanel({
   const selectedStandardPrice = standardPriceForInterval(offer, billingInterval);
   const selectedDefinition = getMembershipTierDefinition(guide.tier);
   const selectedTierAccentClassName = getTierAccentTextClassName(guide.tier);
+  const selectedTierIconClassName = getTierIconClassName(guide.tier);
 
   return (
     <motion.article
@@ -336,6 +339,33 @@ function SelectedPathPanel({
             <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Why This Fits</p>
             <p className="mt-2 text-sm leading-relaxed text-muted">{guide.whyThisFits}</p>
           </div>
+        </div>
+
+        <div className="rounded-[1.5rem] border border-white/8 bg-background/16 p-5">
+          <div className="space-y-1.5">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+              Included In This Room
+            </p>
+            <p className="text-sm text-muted">What you get inside this room.</p>
+          </div>
+
+          <ul className="mt-4 overflow-hidden rounded-[1.2rem] border border-white/6 bg-background/14">
+            {selectedDefinition.content.includedBenefits.map((benefit, index) => (
+              <li
+                key={benefit}
+                className={cn(
+                  "flex items-start gap-3 px-4 py-3.5 text-sm leading-relaxed text-muted",
+                  index > 0 ? "border-t border-white/6" : ""
+                )}
+              >
+                <CheckCircle2
+                  size={16}
+                  className={cn("mt-0.5 shrink-0", selectedTierIconClassName)}
+                />
+                <span className="max-w-[42rem]">{benefit}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="rounded-[1.6rem] border border-gold/18 bg-gradient-to-br from-gold/10 via-background/18 to-background/8 p-5">

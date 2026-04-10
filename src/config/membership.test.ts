@@ -37,8 +37,15 @@ describe("membership pricing", () => {
   it("uses shared tier copy and plan keys as the source of truth", () => {
     expect(getMembershipTierContent(MembershipTier.FOUNDATION)).toMatchObject({
       badgeLabel: "Foundation",
-      supportingBadge: "Best place to start",
-      bestFitLine: "Best if you are early, refining, or building your base.",
+      supportingBadge: "Access, learning, exposure",
+      bestFitLine: "Best if you need access, learning, and a clearer base around the business.",
+      includedBenefits: [
+        "Access to the wider Business Circle network",
+        "A visible member profile so the right people can find your business",
+        "Foundational resources to build traction with more structure",
+        "Core business discussions with practical owner context",
+        "A calmer room to build properly without extra noise"
+      ],
       ctaLabel: "Enter Foundation"
     });
 

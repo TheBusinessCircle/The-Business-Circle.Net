@@ -3,11 +3,11 @@ export const TREV_FOUNDER_CONTENT = {
   alternateName: "Trevor Newton",
   role: "Business Growth Architect",
   title:
-    "Business Growth Architect helping businesses find what is missing, strengthen trust, and move with clearer next steps.",
+    "Trevor Newton works directly with business owners who need clearer structure, better decisions, and a calmer way to move forward.",
   summary:
-    "Trev helps businesses see what is missing, what is being overlooked, and what needs to happen next so growth becomes clearer, calmer, and more intentional.",
+    "Trevor Newton helps business owners get clearer on what matters now, tighten the structure around the business, and move with better judgement.",
   mission:
-    "To help businesses stop guessing, see their real gaps more clearly, and build growth through better visibility, stronger trust, and smarter expansion.",
+    "To help business owners stop guessing, see the real picture properly, and grow with clearer structure and better context.",
   intro: [
     "Trev Newton, also known as Trevor Newton, is the founder of The Business Circle Network and the strategic lead behind its wider ecosystem.",
     "He works with founders, business owners, startups, local businesses, service-led firms, and established companies that need clearer strategic direction.",

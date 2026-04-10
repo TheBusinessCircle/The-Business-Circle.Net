@@ -33,6 +33,7 @@ type MembershipTierContent = {
   emphasisLabel?: string;
   accessNote?: string;
   trustLine: string;
+  includedBenefits: string[];
   homeDescription: string;
   homePositioningLabel: string;
   homeFeaturedLabel?: string;
@@ -80,6 +81,14 @@ const FOUNDATION_PLAN_FEATURES = [
   "Exposure to how other businesses are growing"
 ];
 
+const FOUNDATION_INCLUDED_BENEFITS = [
+  "Access to the wider Business Circle network",
+  "A visible member profile so the right people can find your business",
+  "Foundational resources to build traction with more structure",
+  "Core business discussions with practical owner context",
+  "A calmer room to build properly without extra noise"
+];
+
 const INNER_CIRCLE_PLAN_FEATURES = [
   "Everything in Foundation",
   "Deeper discussion spaces with stronger context",
@@ -89,6 +98,14 @@ const INNER_CIRCLE_PLAN_FEATURES = [
   "More private access and stronger intent"
 ];
 
+const INNER_CIRCLE_INCLUDED_BENEFITS = [
+  "Everything in Foundation",
+  "Access to the tighter Inner Circle environment",
+  "Deeper founder discussion with stronger business context",
+  "Higher-value resources for businesses already moving",
+  "Closer proximity to more relevant conversations"
+];
+
 const CORE_PLAN_FEATURES = [
   "Everything in Inner Circle",
   "Private room for higher-level operators",
@@ -96,6 +113,14 @@ const CORE_PLAN_FEATURES = [
   "Serious growth conversations with stronger context",
   "Quieter space for consequential decisions",
   "Optional deeper strategic support when needed"
+];
+
+const CORE_INCLUDED_BENEFITS = [
+  "Everything in Inner Circle",
+  "Access to the highest-level room inside the network",
+  "Stronger proximity to serious operators carrying bigger decisions",
+  "A quieter environment with higher-value conversation",
+  "Better context for judgement, structure, and momentum"
 ];
 
 function calculateAnnualPrice(monthlyPrice: number): number {
@@ -187,6 +212,7 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
         "A strong entry into the network when you want structure, signal, and business growth without overcomplicating the decision.",
       ctaLabel: "Enter Foundation",
       trustLine: "Built for business owners, not browsers.",
+      includedBenefits: FOUNDATION_INCLUDED_BENEFITS,
       homeDescription:
         "Start here when you want the full structure: resources, community, directory, events, and a better business room around you.",
       homePositioningLabel: "Best place to start"
@@ -226,6 +252,7 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
       ctaLabel: "Join Inner Circle",
       emphasisLabel: "Most active members choose this",
       trustLine: "No noise, just real conversations and growth.",
+      includedBenefits: INNER_CIRCLE_INCLUDED_BENEFITS,
       homeDescription:
         "Choose this when Foundation is already useful and you want stronger signal, more private context, and a room with greater intent.",
       homePositioningLabel: "Smartest next step",
@@ -270,6 +297,7 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<MembershipTier, MembershipTierD
       ctaLabel: "Continue to Core",
       accessNote: "Access may be limited",
       trustLine: "Move at your own pace, or step into something bigger.",
+      includedBenefits: CORE_INCLUDED_BENEFITS,
       homeDescription:
         "Step into Core when proximity, judgement, and the quality of room matter more than wider access alone.",
       homePositioningLabel: "Highest-value room"

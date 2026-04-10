@@ -1,5 +1,8 @@
 import {
+  FounderClientStage,
   FounderServicePaymentStatus,
+  FounderServiceDiscountTag,
+  FounderServiceDiscountType,
   FounderServiceStatus,
   type Prisma
 } from "@prisma/client";
@@ -28,15 +31,39 @@ type CreateFounderServiceRequestInput = FounderServiceRequestFormValues & {
 
 type UpdateFounderServiceRequestInput = {
   requestId: string;
-  paymentStatus: FounderServicePaymentStatus;
-  serviceStatus: FounderServiceStatus;
+  paymentStatus?: FounderServicePaymentStatus;
+  serviceStatus?: FounderServiceStatus;
+  pipelineStage?: FounderClientStage;
   adminNotes?: string;
+  adminDiscountCodeId?: string | null;
+  auditStartAt?: Date | null;
+  auditDueAt?: Date | null;
+  callScheduledAt?: Date | null;
+  checkoutLinkSentAt?: Date | null;
+  taskAuditChecklistComplete?: boolean;
+  taskCallCompleted?: boolean;
+  taskFollowUpSent?: boolean;
 };
 
 type FounderServiceRequestAdminFilters = {
   serviceSlug?: string;
   paymentStatus?: FounderServicePaymentStatus;
   serviceStatus?: FounderServiceStatus;
+  pipelineStage?: FounderClientStage;
+};
+
+type CreateFounderServiceDiscountCodeInput = {
+  code: string;
+  name?: string;
+  type: FounderServiceDiscountType;
+  percentOff?: number | null;
+  amountOff?: number | null;
+  currency?: string;
+  expiresAt?: Date | null;
+  usageLimit?: number | null;
+  tag: FounderServiceDiscountTag;
+  stripeCouponId?: string | null;
+  stripePromotionCodeId?: string | null;
 };
 
 function toNullableText(value: string | null | undefined): string | null {
@@ -56,6 +83,8 @@ function mapFounderService(service: {
   currency: string;
   billingType: FounderServiceModel["billingType"];
   intakeMode: FounderServiceModel["intakeMode"];
+  stripeProductId: string | null;
+  stripePriceId: string | null;
   active: boolean;
 }): FounderServiceModel {
   return {
@@ -70,6 +99,8 @@ function mapFounderService(service: {
     currency: service.currency,
     billingType: service.billingType,
     intakeMode: service.intakeMode,
+    stripeProductId: service.stripeProductId,
+    stripePriceId: service.stripePriceId,
     active: service.active
   };
 }
@@ -90,6 +121,8 @@ export async function listActiveFounderServices(): Promise<FounderServiceModel[]
       currency: true,
       billingType: true,
       intakeMode: true,
+      stripeProductId: true,
+      stripePriceId: true,
       active: true
     }
   });
@@ -117,6 +150,8 @@ export async function getFounderServiceBySlug(
       currency: true,
       billingType: true,
       intakeMode: true,
+      stripeProductId: true,
+      stripePriceId: true,
       active: true
     }
   });
@@ -228,31 +263,33 @@ export async function createFounderServiceRequest(
       sourceSection,
       fullName: input.fullName.trim(),
       email: normalizeEmail(input.email),
-      phone: input.phone.trim(),
+      phone: "",
       businessName: input.businessName.trim(),
+      businessStage: input.businessStage || null,
       website: input.website.trim(),
-      industry: input.industry.trim(),
-      location: input.location.trim(),
-      yearsInBusiness: input.yearsInBusiness.trim(),
-      employeeCount: input.employeeCount.trim(),
-      revenueRange: input.revenueRange,
-      instagram: toNullableText(input.instagram),
-      tiktok: toNullableText(input.tiktok),
-      facebook: toNullableText(input.facebook),
-      linkedin: toNullableText(input.linkedin),
-      otherSocial: toNullableText(input.otherSocial),
-      businessDescription: input.businessDescription.trim(),
-      targetAudience: input.targetAudience.trim(),
-      productsOrServices: input.productsOrServices.trim(),
-      offers: input.offers.trim(),
-      differentiator: input.differentiator.trim(),
-      mainGoal: input.mainGoal.trim(),
-      biggestChallenge: input.biggestChallenge.trim(),
-      blockers: input.blockers.trim(),
-      pastAttempts: input.pastAttempts.trim(),
-      successDefinition: input.successDefinition.trim(),
-      marketingChannels: input.marketingChannels,
-      whyTrev: input.whyTrev.trim(),
+      industry: "",
+      location: "",
+      yearsInBusiness: "",
+      employeeCount: "",
+      revenueRange: "PRE_REVENUE",
+      instagram: null,
+      tiktok: null,
+      facebook: null,
+      linkedin: null,
+      otherSocial: null,
+      businessDescription: "",
+      targetAudience: "",
+      productsOrServices: "",
+      offers: "",
+      differentiator: "",
+      mainGoal: input.helpSummary.trim(),
+      helpSummary: input.helpSummary.trim(),
+      biggestChallenge: "",
+      blockers: "",
+      pastAttempts: "",
+      successDefinition: "",
+      marketingChannels: [],
+      whyTrev: "",
       baseAmount: pricing.baseAmount,
       amount: pricing.finalAmount,
       membershipDiscountPercent: pricing.discountPercent,
@@ -276,6 +313,8 @@ export async function createFounderServiceRequest(
       fullName: true,
       email: true,
       businessName: true,
+      businessStage: true,
+      helpSummary: true,
       serviceOwner: true,
       baseAmount: true,
       amount: true,
@@ -285,6 +324,22 @@ export async function createFounderServiceRequest(
       currency: true,
       paymentStatus: true,
       serviceStatus: true,
+      pipelineStage: true,
+      auditStartAt: true,
+      auditDueAt: true,
+      callScheduledAt: true,
+      checkoutUrl: true,
+      checkoutLinkSentAt: true,
+      taskAuditChecklistComplete: true,
+      taskCallCompleted: true,
+      taskFollowUpSent: true,
+      adminDiscountCode: {
+        select: {
+          id: true,
+          code: true,
+          tag: true
+        }
+      },
       user: {
         select: {
           id: true,
@@ -345,6 +400,10 @@ export async function listFounderServiceRequestsForAdmin(
     where.serviceStatus = filters.serviceStatus;
   }
 
+  if (filters.pipelineStage) {
+    where.pipelineStage = filters.pipelineStage;
+  }
+
   if (filters.serviceSlug) {
     where.service = {
       is: {
@@ -363,6 +422,8 @@ export async function listFounderServiceRequestsForAdmin(
       fullName: true,
       email: true,
       businessName: true,
+      businessStage: true,
+      helpSummary: true,
       serviceOwner: true,
       baseAmount: true,
       amount: true,
@@ -372,6 +433,22 @@ export async function listFounderServiceRequestsForAdmin(
       currency: true,
       paymentStatus: true,
       serviceStatus: true,
+      pipelineStage: true,
+      auditStartAt: true,
+      auditDueAt: true,
+      callScheduledAt: true,
+      checkoutUrl: true,
+      checkoutLinkSentAt: true,
+      taskAuditChecklistComplete: true,
+      taskCallCompleted: true,
+      taskFollowUpSent: true,
+      adminDiscountCode: {
+        select: {
+          id: true,
+          code: true,
+          tag: true
+        }
+      },
       user: {
         select: {
           id: true,
@@ -404,6 +481,7 @@ export async function getFounderServiceRequestDetailsForAdmin(
       fullName: true,
       email: true,
       businessName: true,
+      businessStage: true,
       serviceOwner: true,
       sourcePage: true,
       sourceSection: true,
@@ -415,6 +493,7 @@ export async function getFounderServiceRequestDetailsForAdmin(
       currency: true,
       paymentStatus: true,
       serviceStatus: true,
+      pipelineStage: true,
       phone: true,
       website: true,
       industry: true,
@@ -433,14 +512,30 @@ export async function getFounderServiceRequestDetailsForAdmin(
       offers: true,
       differentiator: true,
       mainGoal: true,
+      helpSummary: true,
       biggestChallenge: true,
       blockers: true,
       pastAttempts: true,
       successDefinition: true,
       marketingChannels: true,
       whyTrev: true,
+      auditStartAt: true,
+      auditDueAt: true,
+      callScheduledAt: true,
+      checkoutLinkSentAt: true,
+      taskAuditChecklistComplete: true,
+      taskCallCompleted: true,
+      taskFollowUpSent: true,
       adminNotes: true,
+      adminDiscountCode: {
+        select: {
+          id: true,
+          code: true,
+          tag: true
+        }
+      },
       stripeCheckoutSessionId: true,
+      checkoutUrl: true,
       stripePaymentIntentId: true,
       stripeSubscriptionId: true,
       stripeInvoiceId: true,
@@ -476,12 +571,123 @@ export async function getFounderServiceRequestDetailsForAdmin(
 export async function updateFounderServiceRequestForAdmin(
   input: UpdateFounderServiceRequestInput
 ) {
+  const data: Prisma.FounderServiceRequestUpdateInput = {};
+
+  if (input.paymentStatus) {
+    data.paymentStatus = input.paymentStatus;
+  }
+
+  if (input.serviceStatus) {
+    data.serviceStatus = input.serviceStatus;
+  }
+
+  if (input.pipelineStage) {
+    data.pipelineStage = input.pipelineStage;
+  }
+
+  if (input.adminDiscountCodeId !== undefined) {
+    data.adminDiscountCode = input.adminDiscountCodeId
+      ? {
+          connect: {
+            id: input.adminDiscountCodeId
+          }
+        }
+      : {
+          disconnect: true
+        };
+  }
+
+  if (input.auditStartAt !== undefined) {
+    data.auditStartAt = input.auditStartAt;
+  }
+
+  if (input.auditDueAt !== undefined) {
+    data.auditDueAt = input.auditDueAt;
+  }
+
+  if (input.callScheduledAt !== undefined) {
+    data.callScheduledAt = input.callScheduledAt;
+  }
+
+  if (input.checkoutLinkSentAt !== undefined) {
+    data.checkoutLinkSentAt = input.checkoutLinkSentAt;
+  }
+
+  if (input.taskAuditChecklistComplete !== undefined) {
+    data.taskAuditChecklistComplete = input.taskAuditChecklistComplete;
+  }
+
+  if (input.taskCallCompleted !== undefined) {
+    data.taskCallCompleted = input.taskCallCompleted;
+  }
+
+  if (input.taskFollowUpSent !== undefined) {
+    data.taskFollowUpSent = input.taskFollowUpSent;
+  }
+
+  if (input.adminNotes !== undefined) {
+    data.adminNotes = toNullableText(input.adminNotes) ?? null;
+  }
+
   return db.founderServiceRequest.update({
     where: { id: input.requestId },
+    data
+  });
+}
+
+export async function listFounderServiceDiscountCodes() {
+  return db.founderServiceDiscountCode.findMany({
+    orderBy: [{ active: "desc" }, { createdAt: "desc" }]
+  });
+}
+
+export async function createFounderServiceDiscountCodeRecord(
+  input: CreateFounderServiceDiscountCodeInput
+) {
+  return db.founderServiceDiscountCode.create({
     data: {
-      paymentStatus: input.paymentStatus,
-      serviceStatus: input.serviceStatus,
-      adminNotes: toNullableText(input.adminNotes) ?? null
+      code: input.code.trim().toUpperCase(),
+      name: toNullableText(input.name),
+      type: input.type,
+      percentOff: input.percentOff ?? null,
+      amountOff: input.amountOff ?? null,
+      currency: input.currency ?? "GBP",
+      expiresAt: input.expiresAt ?? null,
+      usageLimit: input.usageLimit ?? null,
+      tag: input.tag,
+      stripeCouponId: input.stripeCouponId ?? null,
+      stripePromotionCodeId: input.stripePromotionCodeId ?? null
+    }
+  });
+}
+
+export async function getFounderServiceDiscountCodeById(id: string) {
+  return db.founderServiceDiscountCode.findUnique({
+    where: { id }
+  });
+}
+
+export async function incrementFounderServiceDiscountCodeUsage(id: string) {
+  return db.founderServiceDiscountCode.update({
+    where: { id },
+    data: {
+      timesRedeemed: {
+        increment: 1
+      }
+    }
+  });
+}
+
+export async function updateFounderServiceStripeCatalogEntry(input: {
+  serviceId: string;
+  stripeProductId: string | null;
+  stripePriceId: string | null;
+}) {
+  return db.founderService.update({
+    where: { id: input.serviceId },
+    data: {
+      stripeProductId: input.stripeProductId,
+      stripePriceId: input.stripePriceId
     }
   });
 }
@@ -497,6 +703,7 @@ export async function exportFounderServiceRequests() {
       email: true,
       phone: true,
       businessName: true,
+      businessStage: true,
       serviceOwner: true,
       sourcePage: true,
       sourceSection: true,
@@ -514,7 +721,21 @@ export async function exportFounderServiceRequests() {
       currency: true,
       paymentStatus: true,
       serviceStatus: true,
+      pipelineStage: true,
+      helpSummary: true,
+      auditStartAt: true,
+      auditDueAt: true,
+      callScheduledAt: true,
+      checkoutUrl: true,
+      taskAuditChecklistComplete: true,
+      taskCallCompleted: true,
+      taskFollowUpSent: true,
       adminNotes: true,
+      adminDiscountCode: {
+        select: {
+          code: true
+        }
+      },
       service: {
         select: {
           title: true,

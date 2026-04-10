@@ -102,47 +102,36 @@ export default async function FounderServicePage({
 
   return (
     <div className="space-y-8 pb-16">
-      <div className="space-y-4">
-        <Badge variant="outline" className="border-gold/35 bg-gold/12 text-gold">
-          {pricing.isGrowthArchitect ? "Growth Architect Service" : "Founder Service"}
-        </Badge>
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="space-y-3">
-            <h1 className="font-display text-4xl text-foreground sm:text-5xl">
-              {service.title}
-            </h1>
-            <p className="max-w-3xl text-lg leading-relaxed text-muted">
-              {service.fullDescription}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Link href="/founder">
-              <Button variant="outline">Back to Founder Page</Button>
-            </Link>
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-card/56 px-6 py-8 shadow-panel sm:px-8 sm:py-10">
+        <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
+        <div className="pointer-events-none absolute -right-20 top-0 h-64 w-64 rounded-full bg-gold/16 blur-[110px]" />
+
+        <div className="relative space-y-5">
+          <Badge variant="outline" className="border-gold/35 bg-gold/12 text-gold">
+            Founder Service
+          </Badge>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl space-y-3">
+              <h1 className="font-display text-4xl text-foreground sm:text-5xl">
+                {service.title}
+              </h1>
+              <p className="text-lg leading-relaxed text-muted">{service.fullDescription}</p>
+            </div>
+
             <Card className="border-gold/35 bg-gold/10">
-              <CardContent className="px-4 py-3">
+              <CardContent className="px-5 py-4">
                 <p className="text-xs uppercase tracking-[0.08em] text-muted">
-                  {isApplicationOnly
-                    ? "Application Path"
-                    : pricing.discountPercent
-                      ? "Member Price"
-                      : "Service Price"}
+                  Starting price
                 </p>
-                {isApplicationOnly ? (
-                  <div className="mt-2 space-y-1 text-sm text-muted">
-                    <p className="font-display text-2xl text-gold">Application / Enquiry</p>
-                    <p>Scope and pricing are discussed after the business has been reviewed.</p>
-                  </div>
-                ) : (
-                  <p className="font-display text-2xl text-gold">
-                    {formatFounderServicePrice(
-                      pricing.finalAmount,
-                      service.currency,
-                      billingSuffix(service.billingType)
-                    )}
-                  </p>
-                )}
-                {!isApplicationOnly && pricing.discountPercent ? (
+                <p className="mt-2 font-display text-3xl text-gold">
+                  {service.billingType === "MONTHLY_RETAINER" ? "From " : ""}
+                  {formatFounderServicePrice(
+                    pricing.finalAmount,
+                    service.currency,
+                    billingSuffix(service.billingType)
+                  )}
+                </p>
+                {pricing.discountPercent ? (
                   <div className="mt-2 space-y-1 text-xs text-muted">
                     <p>
                       Regular rate{" "}
@@ -153,13 +142,35 @@ export default async function FounderServicePage({
                       )}
                     </p>
                     <p>
-                      {pricing.discountPercent}% off for{" "}
+                      {pricing.discountPercent}% member rate for{" "}
                       {formatFounderMembershipTierLabel(pricing.appliedMembershipTier)}
                     </p>
                   </div>
                 ) : null}
+                <p className="mt-3 text-sm leading-relaxed text-muted">
+                  {isApplicationOnly
+                    ? "No payment is taken at application stage. I review the business first, then confirm the next step manually."
+                    : "This moves into checkout after the application is reviewed."}
+                </p>
               </CardContent>
             </Card>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Link href="/founder">
+              <Button variant="outline">Back to Founder Page</Button>
+            </Link>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {service.includes.map((item) => (
+              <div
+                key={item}
+                className="rounded-[1.2rem] border border-white/8 bg-background/18 px-4 py-3 text-sm text-foreground"
+              >
+                {item}
+              </div>
+            ))}
           </div>
         </div>
         {pricing.appliedMessage ? (
@@ -171,7 +182,7 @@ export default async function FounderServicePage({
             {pricing.memberBenefitMessage}
           </div>
         ) : null}
-      </div>
+      </section>
 
       <FounderServiceRequestForm
         service={service}

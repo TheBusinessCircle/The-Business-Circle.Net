@@ -8,7 +8,6 @@ import {
   formatFounderMembershipTierLabel,
   formatFounderPaymentStatusLabel,
   formatFounderServicePrice,
-  isGrowthArchitectServiceSlug,
   formatFounderServiceStatusLabel
 } from "@/lib/founder";
 import { createPageMetadata } from "@/lib/seo";
@@ -45,7 +44,6 @@ export default async function FounderThanksPage({ searchParams }: PageProps) {
   }
 
   const paid = request.paymentStatus === "PAID";
-  const growthArchitectRequest = isGrowthArchitectServiceSlug(request.service.slug);
   const isApplicationOnly = request.service.intakeMode === "APPLICATION";
 
   return (
@@ -60,14 +58,10 @@ export default async function FounderThanksPage({ searchParams }: PageProps) {
           </CardTitle>
           <CardDescription className="mt-2 text-base">
             {isApplicationOnly
-              ? "Your application has been received. Trev now has the business context he needs to review fit and decide the next conversation."
+              ? "Your application has been received. Trevor now has the business context he needs to review fit, timing, and the right next step."
               : paid
-              ? growthArchitectRequest
-                ? "Your Growth Architect request has been received. The details are now in the pipeline and the next step will be sent to you by email."
-                : "Your payment was confirmed and Trev now has your business information ready for review."
-              : growthArchitectRequest
-                ? "Your Growth Architect request has been received. Payment is still pending, so the work has not moved into review yet."
-                : "Your request has been saved. Payment is still pending, so Trev has not started work yet."}
+              ? "Your payment was confirmed and the work can now move into the next stage."
+              : "Your request has been saved, but payment is still pending."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -123,12 +117,12 @@ export default async function FounderThanksPage({ searchParams }: PageProps) {
                 What happens next
               </p>
               <div className="mt-3 space-y-2 text-sm text-muted">
-                <p>1. Trev reviews the business information you submitted.</p>
-                <p>2. He looks for what is missing, what is being overlooked, and what needs to happen next.</p>
+                <p>1. Trevor reviews the business information you submitted.</p>
+                <p>2. He looks at fit, context, and what should happen next.</p>
                 <p>
                   {isApplicationOnly
-                    ? "3. If the fit is right, the next conversation is arranged with clearer structure."
-                    : "3. The next step arrives with more clarity and less guesswork."}
+                    ? "3. If the fit is right, he confirms availability and sends the right next step manually."
+                    : "3. The next step moves forward with clearer structure."}
                 </p>
               </div>
             </div>
@@ -146,7 +140,7 @@ export default async function FounderThanksPage({ searchParams }: PageProps) {
                 </p>
               ) : isApplicationOnly ? (
                 <p className="mt-2 text-sm text-muted">
-                  No payment is taken at this stage. This route starts with review and fit.
+                  No payment is taken at this stage. This route starts with review, fit, and a manual next step.
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-muted">

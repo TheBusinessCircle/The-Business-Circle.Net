@@ -1,7 +1,6 @@
-import { BusinessStatus, MemberRoleTag } from "@prisma/client";
+import { BusinessStage, BusinessStatus, MemberRoleTag } from "@prisma/client";
 import { z } from "zod";
 import { credentialsSignInSchema, registerMemberSchema } from "@/lib/auth/schemas";
-import { FOUNDER_MARKETING_CHANNEL_OPTIONS } from "@/config/founder";
 
 export const signInSchema = credentialsSignInSchema;
 
@@ -9,7 +8,6 @@ export const registerSchema = registerMemberSchema;
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalUrl = z.string().trim().url().max(2048).optional().or(z.literal(""));
-const optionalFlexibleUrl = z.string().trim().max(2048).optional().or(z.literal(""));
 const requiredText = (min: number, max: number) => z.string().trim().min(min).max(max);
 
 export const contactSchema = z.object({
@@ -98,37 +96,10 @@ export const founderServiceRequestSchema = z.object({
   sourceSection: optionalText(120),
   fullName: requiredText(2, 120),
   email: z.string().trim().email().max(320),
-  phone: requiredText(5, 40),
   businessName: requiredText(2, 140),
+  businessStage: z.nativeEnum(BusinessStage),
   website: requiredText(3, 2048),
-  industry: requiredText(2, 100),
-  location: requiredText(2, 120),
-  yearsInBusiness: requiredText(1, 40),
-  employeeCount: requiredText(1, 40),
-  revenueRange: z.enum([
-    "PRE_REVENUE",
-    "UNDER_2000",
-    "BETWEEN_2000_10000",
-    "BETWEEN_10000_50000",
-    "OVER_50000"
-  ]),
-  instagram: optionalFlexibleUrl,
-  tiktok: optionalFlexibleUrl,
-  facebook: optionalFlexibleUrl,
-  linkedin: optionalFlexibleUrl,
-  otherSocial: optionalFlexibleUrl,
-  businessDescription: requiredText(20, 4000),
-  targetAudience: requiredText(10, 3000),
-  productsOrServices: requiredText(10, 3000),
-  differentiator: requiredText(10, 3000),
-  offers: requiredText(10, 3000),
-  mainGoal: requiredText(10, 3000),
-  biggestChallenge: requiredText(10, 3000),
-  blockers: requiredText(10, 3000),
-  pastAttempts: requiredText(10, 3000),
-  successDefinition: requiredText(10, 3000),
-  marketingChannels: z.array(z.enum(FOUNDER_MARKETING_CHANNEL_OPTIONS)).min(1).max(6),
-  whyTrev: requiredText(10, 3000)
+  helpSummary: requiredText(10, 2000)
 });
 
 export type ProfileFormValues = z.infer<typeof profileSchema>;

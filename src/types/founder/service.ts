@@ -1,5 +1,9 @@
 import type {
+  BusinessStage,
+  FounderClientStage,
   FounderRevenueRange,
+  FounderServiceDiscountTag,
+  FounderServiceDiscountType,
   FounderServiceIntakeMode,
   FounderServiceBillingType,
   FounderServicePaymentStatus,
@@ -20,6 +24,8 @@ export type FounderServiceModel = {
   currency: string;
   billingType: FounderServiceBillingType;
   intakeMode: FounderServiceIntakeMode;
+  stripeProductId: string | null;
+  stripePriceId: string | null;
   active: boolean;
 };
 
@@ -48,6 +54,8 @@ export type FounderServiceRequestListItem = {
   fullName: string;
   email: string;
   businessName: string;
+  businessStage: BusinessStage | null;
+  helpSummary: string;
   serviceOwner: string;
   baseAmount: number;
   amount: number;
@@ -57,6 +65,20 @@ export type FounderServiceRequestListItem = {
   currency: string;
   paymentStatus: FounderServicePaymentStatus;
   serviceStatus: FounderServiceStatus;
+  pipelineStage: FounderClientStage;
+  auditStartAt: Date | null;
+  auditDueAt: Date | null;
+  callScheduledAt: Date | null;
+  checkoutUrl: string | null;
+  checkoutLinkSentAt: Date | null;
+  taskAuditChecklistComplete: boolean;
+  taskCallCompleted: boolean;
+  taskFollowUpSent: boolean;
+  adminDiscountCode: {
+    id: string;
+    code: string;
+    tag: FounderServiceDiscountTag;
+  } | null;
   service: {
     id: string;
     title: string;
@@ -98,6 +120,7 @@ export type FounderServiceRequestDetailModel = FounderServiceRequestListItem & {
   whyTrev: string;
   adminNotes: string | null;
   stripeCheckoutSessionId: string | null;
+  checkoutUrl: string | null;
   stripePaymentIntentId: string | null;
   stripeSubscriptionId: string | null;
   stripeInvoiceId: string | null;
@@ -109,6 +132,25 @@ export type FounderServiceRequestDetailModel = FounderServiceRequestListItem & {
     mimeType: string | null;
     createdAt: Date;
   }>;
+};
+
+export type FounderServiceDiscountCodeModel = {
+  id: string;
+  code: string;
+  name: string | null;
+  type: FounderServiceDiscountType;
+  percentOff: number | null;
+  amountOff: number | null;
+  currency: string;
+  expiresAt: Date | null;
+  usageLimit: number | null;
+  timesRedeemed: number;
+  tag: FounderServiceDiscountTag;
+  active: boolean;
+  stripeCouponId: string | null;
+  stripePromotionCodeId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type FounderServiceRequestFormPrefill = {

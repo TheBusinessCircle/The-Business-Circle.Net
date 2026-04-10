@@ -2,132 +2,59 @@ import { FounderServiceBillingType, FounderServiceIntakeMode, PrismaClient } fro
 
 const FOUNDER_SERVICES = [
   {
-    slug: "business-growth-audit",
-    title: "Business Growth Audit",
-    shortDescription:
-      "A focused strategic audit to show what is working, what is missing, and where your best growth opportunities are.",
-    fullDescription:
-      "A focused strategic audit designed to show what is working, what is missing, and where the biggest growth opportunities are inside your business.",
-    includes: [
-      "Website review",
-      "Visibility review",
-      "Trust and credibility review",
-      "Customer journey review",
-      "Growth opportunity insights",
-      "Actionable recommendations"
-    ],
-    ctaLabel: "Start Growth Audit",
-    price: 14900,
-    billingType: FounderServiceBillingType.ONE_TIME,
-    intakeMode: FounderServiceIntakeMode.CHECKOUT,
-    position: 0
-  },
-  {
-    slug: "vibe-method-growth-strategy",
-    title: "Strategic Growth Plan",
-    shortDescription:
-      "A deeper strategic breakdown to build a clearer growth roadmap and sharper business direction.",
-    fullDescription:
-      "A deeper strategic breakdown for businesses that want more than surface-level advice and need a clearer growth plan.",
-    includes: [
-      "Full strategic review",
-      "Growth architecture",
-      "Revenue opportunity mapping",
-      "Visibility strategy",
-      "Trust-building improvements",
-      "Website and positioning guidance",
-      "Next-step roadmap"
-    ],
-    ctaLabel: "Build My Growth Plan",
-    price: 49900,
-    billingType: FounderServiceBillingType.ONE_TIME,
-    intakeMode: FounderServiceIntakeMode.CHECKOUT,
-    position: 1
-  },
-  {
-    slug: "business-growth-architect-partnership",
-    title: "Business Growth Architect Partnership",
-    shortDescription:
-      "An ongoing strategic partnership for businesses that want Trev involved in growth planning and decision-making.",
-    fullDescription:
-      "A higher-level strategic partnership for businesses that want Trev involved on an ongoing basis.",
-    includes: [
-      "Ongoing strategy input",
-      "Growth planning",
-      "Website direction",
-      "Visibility and positioning advice",
-      "Business development support",
-      "Partnership and expansion thinking",
-      "Hands-on strategic oversight"
-    ],
-    ctaLabel: "Apply For Partnership",
-    price: 120000,
-    billingType: FounderServiceBillingType.MONTHLY_RETAINER,
-    intakeMode: FounderServiceIntakeMode.CHECKOUT,
-    position: 2
-  },
-  {
     slug: "growth-architect-clarity-audit",
     title: "Clarity Audit",
     shortDescription:
-      "Expert clarity on what is holding the business back and what needs to happen next.",
+      "A full review of the business, structure, and positioning so the next move becomes clearer.",
     fullDescription:
-      "For business owners who need expert clarity on what is holding the business back, where trust or positioning may be leaking, and what needs to happen next.",
+      "Every piece of work starts here. I review the business properly, show you what is getting in the way, and give you clear direction before anything deeper is discussed.",
     includes: [
-      "Business, website, and offer review",
-      "Trust and credibility audit",
-      "Customer journey feedback",
-      "Positioning review",
-      "Key opportunity breakdown",
-      "Prioritised next steps"
+      "Full audit",
+      "Structured findings",
+      "Strategy call",
+      "Clear direction"
     ],
-    ctaLabel: "Book Clarity Audit",
-    price: 50000,
+    ctaLabel: "Apply For Clarity Audit",
+    price: 19900,
     billingType: FounderServiceBillingType.ONE_TIME,
-    intakeMode: FounderServiceIntakeMode.CHECKOUT,
-    position: 10
+    intakeMode: FounderServiceIntakeMode.APPLICATION,
+    position: 0
   },
   {
     slug: "growth-architect-growth-strategy",
-    title: "Growth Strategy",
+    title: "Strategy Session",
     shortDescription:
-      "Clearer direction, stronger positioning, and a practical roadmap the business can actually use.",
+      "A focused 1:1 session to solve a specific problem and build a clearer path forward.",
     fullDescription:
-      "For business owners who want stronger positioning, clearer strategic direction, and a practical roadmap that helps the next move feel focused rather than noisy.",
+      "This is for business owners who need direct thinking around a specific commercial issue, decision, or block. It stays focused, practical, and tied to what needs to move next.",
     includes: [
-      "Everything in Clarity Audit",
-      "Deeper strategic review",
-      "Messaging and offer refinement",
-      "Visibility and authority recommendations",
-      "Conversion improvement guidance",
-      "Roadmap with priorities"
+      "Deep dive call",
+      "Problem breakdown",
+      "Clear next steps"
     ],
-    ctaLabel: "Build My Strategy",
-    price: 100000,
+    ctaLabel: "Apply For Strategy Session",
+    price: 40000,
     billingType: FounderServiceBillingType.ONE_TIME,
-    intakeMode: FounderServiceIntakeMode.CHECKOUT,
-    position: 11
+    intakeMode: FounderServiceIntakeMode.APPLICATION,
+    position: 1
   },
   {
     slug: "growth-architect-full-growth-architect",
-    title: "Full Ecosystem Build",
+    title: "Growth Architect",
     shortDescription:
-      "Application-based strategic support for businesses that need a wider ecosystem build, not just a single tactic.",
+      "Ongoing support for business owners who want structure, clarity, and consistent direction.",
     fullDescription:
-      "For founders who need Trev's highest level of strategic input across the wider business ecosystem, with fit and scope agreed after review.",
+      "This is ongoing direct support for a small number of businesses that want me involved across decisions, structure, and momentum over time.",
     includes: [
-      "Everything in Growth Strategy",
-      "Full business ecosystem review",
-      "Deeper brand, website, and trust alignment",
-      "Funnel and service structure recommendations",
-      "Scale-focused growth planning",
-      "Founder-level strategic direction"
+      "Ongoing guidance",
+      "Structured thinking",
+      "Support across decisions and growth"
     ],
-    ctaLabel: "Apply / Enquire",
-    price: 0,
-    billingType: FounderServiceBillingType.ONE_TIME,
+    ctaLabel: "Apply For Growth Architect",
+    price: 100000,
+    billingType: FounderServiceBillingType.MONTHLY_RETAINER,
     intakeMode: FounderServiceIntakeMode.APPLICATION,
-    position: 12
+    position: 2
   }
 ] as const;
 
@@ -162,4 +89,15 @@ export async function seedFounderServices(prisma: PrismaClient): Promise<void> {
       }
     });
   }
+
+  await prisma.founderService.updateMany({
+    where: {
+      slug: {
+        notIn: FOUNDER_SERVICES.map((service) => service.slug)
+      }
+    },
+    data: {
+      active: false
+    }
+  });
 }

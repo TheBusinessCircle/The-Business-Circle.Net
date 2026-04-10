@@ -706,6 +706,8 @@ model FounderService {
   currency         String                    @default("GBP")
   billingType      FounderServiceBillingType @default(ONE_TIME)
   intakeMode       FounderServiceIntakeMode  @default(CHECKOUT)
+  stripeProductId  String?                   @unique
+  stripePriceId    String?                   @unique
   position         Int                       @default(0)
   active           Boolean                   @default(true)
   createdAt        DateTime                  @default(now())
@@ -813,10 +815,12 @@ model FounderServiceRequest {
   id                        String                      @id @default(cuid())
   userId                    String?
   serviceId                 String
+  adminDiscountCodeId       String?
   fullName                  String
   email                     String
   phone                     String
   businessName              String
+  businessStage             BusinessStage?
   website                   String
   industry                  String
   location                  String
@@ -834,6 +838,7 @@ model FounderServiceRequest {
   offers                    String
   differentiator            String
   mainGoal                  String
+  helpSummary               String                      @default("")
   biggestChallenge          String
   blockers                  String
   pastAttempts              String
@@ -846,17 +851,27 @@ model FounderServiceRequest {
   baseAmount                Int
   paymentStatus             FounderServicePaymentStatus @default(PENDING)
   serviceStatus             FounderServiceStatus        @default(NEW)
+  pipelineStage             FounderClientStage         @default(NEW_APPLICATION)
   amount                    Int
   membershipDiscountPercent Int                         @default(0)
   membershipTierApplied     MembershipTier?
   discountLabel             String?
   currency                  String                      @default("GBP")
   stripeCheckoutSessionId   String?                     @unique
+  checkoutUrl              String?
   stripePaymentIntentId     String?                     @unique
   stripeSubscriptionId      String?                     @unique
   stripeInvoiceId           String?
   paidAt                    DateTime?
+  auditStartAt              DateTime?
+  auditDueAt                DateTime?
+  callScheduledAt           DateTime?
+  checkoutLinkSentAt        DateTime?
+  taskAuditChecklistComplete Boolean                    @default(false)
+  taskCallCompleted         Boolean                     @default(false)
+  taskFollowUpSent          Boolean                     @default(false)
   adminNotes                String?
+  adminDiscountCode         FounderServiceDiscountCode? @relation("FounderDiscountCodeRequests", fields: [adminDiscountCodeId], references: [id], onDelete: SetNull)
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime                    @updatedAt
   service                   FounderService              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
@@ -868,6 +883,11 @@ model FounderServiceRequest {
   @@index([userId, createdAt])
   @@index([paymentStatus, createdAt])
   @@index([serviceStatus, createdAt])
+  @@index([pipelineStage, createdAt])
+  @@index([auditStartAt])
+  @@index([auditDueAt])
+  @@index([callScheduledAt])
+  @@index([adminDiscountCodeId])
   @@index([email])
 }
 
@@ -881,6 +901,29 @@ model FounderServiceUpload {
   request   FounderServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@index([requestId, createdAt])
+}
+
+model FounderServiceDiscountCode {
+  id                    String                       @id @default(cuid())
+  code                  String                       @unique
+  name                  String?
+  type                  FounderServiceDiscountType
+  percentOff            Int?
+  amountOff             Int?
+  currency              String                       @default("GBP")
+  expiresAt             DateTime?
+  usageLimit            Int?
+  timesRedeemed         Int                          @default(0)
+  tag                   FounderServiceDiscountTag    @default(MANUAL)
+  active                Boolean                      @default(true)
+  stripeCouponId        String?                      @unique
+  stripePromotionCodeId String?                      @unique
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  requests              FounderServiceRequest[]      @relation("FounderDiscountCodeRequests")
+
+  @@index([active, tag, createdAt])
+  @@index([expiresAt])
 }
 
 model SiteContent {
@@ -1033,6 +1076,27 @@ enum FounderServiceStatus {
   WAITING_ON_CLIENT
   COMPLETED
   CANCELLED
+}
+
+enum FounderClientStage {
+  NEW_APPLICATION
+  APPROVED
+  AUDIT_SCHEDULED
+  AUDIT_IN_PROGRESS
+  CALL_SCHEDULED
+  COMPLETED
+  ONGOING_CLIENT
+}
+
+enum FounderServiceDiscountType {
+  PERCENT
+  FIXED
+}
+
+enum FounderServiceDiscountTag {
+  LOCAL_OUTREACH
+  MEMBER_DISCOUNT
+  MANUAL
 }
 
 enum FounderRevenueRange {

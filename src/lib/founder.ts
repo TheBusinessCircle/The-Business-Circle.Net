@@ -1,5 +1,7 @@
 import type {
   FounderRevenueRange,
+  FounderClientStage,
+  FounderServiceDiscountTag,
   FounderServiceIntakeMode,
   MembershipTier,
   FounderServicePaymentStatus,
@@ -21,8 +23,8 @@ export const GROWTH_ARCHITECT_SERVICE_SLUGS = [
 ] as const;
 
 const GROWTH_ARCHITECT_BASE_PRICES: Record<string, number> = {
-  "growth-architect-clarity-audit": 25_000,
-  "growth-architect-growth-strategy": 50_000,
+  "growth-architect-clarity-audit": 19_900,
+  "growth-architect-growth-strategy": 40_000,
   "growth-architect-full-growth-architect": 100_000
 };
 
@@ -33,7 +35,7 @@ const GROWTH_ARCHITECT_DISCOUNTS: Record<MembershipTier, number> = {
 };
 
 const DEFAULT_MEMBER_BENEFIT_MESSAGE =
-  "Inner Circle members receive 10% off and Core members receive 20% off Growth Architect services.";
+  "Inner Circle members receive 10% off and Core members receive 20% off direct founder work.";
 
 function resolveFounderPricingTier(
   input:
@@ -132,21 +134,6 @@ function buildFounderServicePricing(
   const baseAmount = isGrowthArchitect
     ? getGrowthArchitectBasePrice(service.slug, service.price)
     : service.price;
-
-  if (service.intakeMode === "APPLICATION") {
-    return {
-      isGrowthArchitect,
-      isApplicationOnly: true,
-      baseAmount,
-      finalAmount: baseAmount,
-      discountPercent: 0,
-      appliedMembershipTier: null,
-      discountLabel: null,
-      appliedMessage: null,
-      memberBenefitMessage: null
-    };
-  }
-
   const appliedMembershipTier = isGrowthArchitect ? membershipTier : null;
   const discountPercent = appliedMembershipTier
     ? GROWTH_ARCHITECT_DISCOUNTS[appliedMembershipTier]
@@ -156,7 +143,7 @@ function buildFounderServicePricing(
 
   return {
     isGrowthArchitect,
-    isApplicationOnly: false,
+    isApplicationOnly: service.intakeMode === "APPLICATION",
     baseAmount,
     finalAmount,
     discountPercent,
@@ -236,6 +223,14 @@ export function formatFounderPaymentStatusLabel(
 export function formatFounderServiceStatusLabel(
   value: FounderServiceStatus
 ): string {
+  return toTitleCase(value.replaceAll("_", " "));
+}
+
+export function formatFounderClientStageLabel(value: FounderClientStage): string {
+  return toTitleCase(value.replaceAll("_", " "));
+}
+
+export function formatFounderDiscountTagLabel(value: FounderServiceDiscountTag): string {
   return toTitleCase(value.replaceAll("_", " "));
 }
 
