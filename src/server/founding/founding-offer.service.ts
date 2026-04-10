@@ -7,7 +7,6 @@ import {
 import {
   MEMBERSHIP_FOUNDING_CAPACITY,
   getMembershipBillingPlan,
-  getMembershipPlan,
   isMembershipVariantStripeConfigured
 } from "@/config/membership";
 import { isEligibleForDiscountedPricing } from "@/lib/billing-eligibility";
@@ -16,6 +15,7 @@ import {
   isRecoverableDatabaseError,
   logRecoverableDatabaseFallback
 } from "@/lib/db-errors";
+import { resolveManagedMembershipPlan } from "@/server/products-pricing";
 import type { FoundingOfferSnapshot, FoundingOfferTierSnapshot, FoundingStatusModel } from "@/types";
 
 const FOUNDING_SETTINGS_ID = "default";
@@ -243,10 +243,6 @@ function getLimitCount(settings: FoundingSettingsSnapshot, tier: MembershipTier)
   }
 }
 
-function getFoundingPrice(tier: MembershipTier) {
-  return getMembershipBillingPlan(tier, "founding", "monthly").checkoutPrice;
-}
-
 function isTierEnabled(settings: FoundingSettingsSnapshot, tier: MembershipTier) {
   switch (tier) {
     case MembershipTier.CORE:
@@ -283,12 +279,12 @@ function buildTierSnapshot(input: {
   tier: MembershipTier;
   settings: FoundingSettingsSnapshot;
   reservedCount: number;
+  standardPrice: number;
+  standardAnnualPrice: number;
+  foundingPrice: number;
+  foundingAnnualPrice: number;
 }): FoundingOfferTierSnapshot {
   const { badgeLabel, offerLabel } = getFoundingLabels(input.tier);
-  const standardPrice = getMembershipPlan(input.tier).monthlyPrice;
-  const standardAnnualPrice = getMembershipBillingPlan(input.tier, "standard", "annual").checkoutPrice;
-  const foundingPrice = getFoundingPrice(input.tier);
-  const foundingAnnualPrice = getMembershipBillingPlan(input.tier, "founding", "annual").checkoutPrice;
   const claimed = getClaimedCount(input.settings, input.tier);
   const limit = getLimitCount(input.settings, input.tier);
   const remaining = Math.max(0, limit - claimed - input.reservedCount);
@@ -307,16 +303,33 @@ function buildTierSnapshot(input: {
     tier: input.tier,
     badgeLabel,
     offerLabel,
-    foundingPrice,
-    foundingAnnualPrice,
-    standardPrice,
-    standardAnnualPrice,
+    foundingPrice: input.foundingPrice,
+    foundingAnnualPrice: input.foundingAnnualPrice,
+    standardPrice: input.standardPrice,
+    standardAnnualPrice: input.standardAnnualPrice,
     limit,
     claimed,
     remaining,
     available,
     statusLabel,
     launchClosedLabel
+  };
+}
+
+async function resolveTierPricingSnapshot(tier: MembershipTier) {
+  const [standardMonthly, standardAnnual, foundingMonthly, foundingAnnual] =
+    await Promise.all([
+      resolveManagedMembershipPlan(tier, "standard", "monthly"),
+      resolveManagedMembershipPlan(tier, "standard", "annual"),
+      resolveManagedMembershipPlan(tier, "founding", "monthly"),
+      resolveManagedMembershipPlan(tier, "founding", "annual")
+    ]);
+
+  return {
+    standardPrice: standardMonthly.checkoutPrice,
+    standardAnnualPrice: standardAnnual.checkoutPrice,
+    foundingPrice: foundingMonthly.checkoutPrice,
+    foundingAnnualPrice: foundingAnnual.checkoutPrice
   };
 }
 
@@ -443,11 +456,22 @@ export async function getFoundingOfferSnapshot(): Promise<FoundingOfferSnapshot>
   try {
     await cleanupExpiredFoundingReservations();
 
-    const [settings, foundationReserved, innerReserved, coreReserved] = await Promise.all([
+    const [
+      settings,
+      foundationReserved,
+      innerReserved,
+      coreReserved,
+      foundationPricing,
+      innerCirclePricing,
+      corePricing
+    ] = await Promise.all([
       getOrCreateFoundingOfferSettings(),
       countActiveReservations(db, MembershipTier.FOUNDATION),
       countActiveReservations(db, MembershipTier.INNER_CIRCLE),
-      countActiveReservations(db, MembershipTier.CORE)
+      countActiveReservations(db, MembershipTier.CORE),
+      resolveTierPricingSnapshot(MembershipTier.FOUNDATION),
+      resolveTierPricingSnapshot(MembershipTier.INNER_CIRCLE),
+      resolveTierPricingSnapshot(MembershipTier.CORE)
     ]);
 
     return {
@@ -455,17 +479,20 @@ export async function getFoundingOfferSnapshot(): Promise<FoundingOfferSnapshot>
       foundation: buildTierSnapshot({
         tier: MembershipTier.FOUNDATION,
         settings,
-        reservedCount: foundationReserved
+        reservedCount: foundationReserved,
+        ...foundationPricing
       }),
       innerCircle: buildTierSnapshot({
         tier: MembershipTier.INNER_CIRCLE,
         settings,
-        reservedCount: innerReserved
+        reservedCount: innerReserved,
+        ...innerCirclePricing
       }),
       core: buildTierSnapshot({
         tier: MembershipTier.CORE,
         settings,
-        reservedCount: coreReserved
+        reservedCount: coreReserved,
+        ...corePricing
       }),
       updatedAt: settings.updatedAt
     };
@@ -481,17 +508,29 @@ export async function getFoundingOfferSnapshot(): Promise<FoundingOfferSnapshot>
       foundation: buildTierSnapshot({
         tier: MembershipTier.FOUNDATION,
         settings: DEFAULT_FOUNDING_SETTINGS,
-        reservedCount: 0
+        reservedCount: 0,
+        standardPrice: getMembershipBillingPlan(MembershipTier.FOUNDATION, "standard", "monthly").checkoutPrice,
+        standardAnnualPrice: getMembershipBillingPlan(MembershipTier.FOUNDATION, "standard", "annual").checkoutPrice,
+        foundingPrice: getMembershipBillingPlan(MembershipTier.FOUNDATION, "founding", "monthly").checkoutPrice,
+        foundingAnnualPrice: getMembershipBillingPlan(MembershipTier.FOUNDATION, "founding", "annual").checkoutPrice
       }),
       innerCircle: buildTierSnapshot({
         tier: MembershipTier.INNER_CIRCLE,
         settings: DEFAULT_FOUNDING_SETTINGS,
-        reservedCount: 0
+        reservedCount: 0,
+        standardPrice: getMembershipBillingPlan(MembershipTier.INNER_CIRCLE, "standard", "monthly").checkoutPrice,
+        standardAnnualPrice: getMembershipBillingPlan(MembershipTier.INNER_CIRCLE, "standard", "annual").checkoutPrice,
+        foundingPrice: getMembershipBillingPlan(MembershipTier.INNER_CIRCLE, "founding", "monthly").checkoutPrice,
+        foundingAnnualPrice: getMembershipBillingPlan(MembershipTier.INNER_CIRCLE, "founding", "annual").checkoutPrice
       }),
       core: buildTierSnapshot({
         tier: MembershipTier.CORE,
         settings: DEFAULT_FOUNDING_SETTINGS,
-        reservedCount: 0
+        reservedCount: 0,
+        standardPrice: getMembershipBillingPlan(MembershipTier.CORE, "standard", "monthly").checkoutPrice,
+        standardAnnualPrice: getMembershipBillingPlan(MembershipTier.CORE, "standard", "annual").checkoutPrice,
+        foundingPrice: getMembershipBillingPlan(MembershipTier.CORE, "founding", "monthly").checkoutPrice,
+        foundingAnnualPrice: getMembershipBillingPlan(MembershipTier.CORE, "founding", "annual").checkoutPrice
       }),
       updatedAt: DEFAULT_FOUNDING_SETTINGS.updatedAt
     };
@@ -505,7 +544,11 @@ export async function reserveFoundingSlot(
     await cleanupExpiredFoundingReservations(tx);
 
     const settings = await getOrCreateFoundingOfferSettings(tx);
-    const foundingMonthlyPlan = getMembershipBillingPlan(input.tier, "founding", "monthly");
+    const foundingMonthlyPlan = await resolveManagedMembershipPlan(
+      input.tier,
+      "founding",
+      "monthly"
+    );
     if (
       !settings.enabled ||
       !isTierEnabled(settings, input.tier) ||

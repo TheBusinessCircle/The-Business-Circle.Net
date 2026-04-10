@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Crown, Download, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { MembershipTier } from "@prisma/client";
 import { answerInnerCircleQuestionAction } from "@/actions/inner-circle/question.actions";
-import { getMembershipBillingPlan, getMembershipTierLabel } from "@/config/membership";
+import { getMembershipTierLabel } from "@/config/membership";
 import { FoundingOfferCounters } from "@/components/public";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -163,16 +163,16 @@ export default async function AdminFoundingPage({ searchParams }: PageProps) {
   });
   const foundingPricing = {
     foundation: {
-      monthly: getMembershipBillingPlan(MembershipTier.FOUNDATION, "founding", "monthly").checkoutPrice,
-      annual: getMembershipBillingPlan(MembershipTier.FOUNDATION, "founding", "annual").checkoutPrice
+      monthly: foundingOffer.foundation.foundingPrice,
+      annual: foundingOffer.foundation.foundingAnnualPrice
     },
     innerCircle: {
-      monthly: getMembershipBillingPlan(MembershipTier.INNER_CIRCLE, "founding", "monthly").checkoutPrice,
-      annual: getMembershipBillingPlan(MembershipTier.INNER_CIRCLE, "founding", "annual").checkoutPrice
+      monthly: foundingOffer.innerCircle.foundingPrice,
+      annual: foundingOffer.innerCircle.foundingAnnualPrice
     },
     core: {
-      monthly: getMembershipBillingPlan(MembershipTier.CORE, "founding", "monthly").checkoutPrice,
-      annual: getMembershipBillingPlan(MembershipTier.CORE, "founding", "annual").checkoutPrice
+      monthly: foundingOffer.core.foundingPrice,
+      annual: foundingOffer.core.foundingAnnualPrice
     }
   };
 

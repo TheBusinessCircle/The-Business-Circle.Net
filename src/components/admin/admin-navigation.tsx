@@ -51,6 +51,9 @@ function iconForHref(href: string) {
   if (href.startsWith("/admin/revenue")) {
     return Briefcase;
   }
+  if (href.startsWith("/admin/products-pricing")) {
+    return Briefcase;
+  }
   if (href.startsWith("/admin/security")) {
     return ShieldCheck;
   }

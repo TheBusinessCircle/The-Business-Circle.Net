@@ -82,6 +82,7 @@ export * from "@/types/auth/session";
 export * from "@/types/admin/metrics";
 export * from "@/types/admin/operations";
 export * from "@/types/admin/members";
+export * from "@/types/admin/products-pricing";
 export * from "@/types/resources/resource";
 export * from "@/types/events/event";
 export * from "@/types/community/chat";

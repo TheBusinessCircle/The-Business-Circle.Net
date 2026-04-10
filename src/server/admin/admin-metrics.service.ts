@@ -1,8 +1,8 @@
 import { unstable_cache } from "next/cache";
 import { MembershipTier, SubscriptionStatus } from "@prisma/client";
-import { resolveBillingVariantFromPriceId, resolveMembershipPriceFromStripePriceId } from "@/config/membership";
 import { db } from "@/lib/db";
 import { CACHE_TAGS } from "@/lib/cache";
+import { resolveManagedMembershipPlanFromStripePriceId } from "@/server/products-pricing";
 import type { AdminMetrics } from "@/types";
 import { listPublicInsights } from "@/server/insights/insight.service";
 
@@ -285,16 +285,19 @@ async function loadAdminMetrics(): Promise<AdminMetrics> {
   ]);
 
   const insightsCount = listPublicInsights().length;
-  const discountedActiveMembers = activeSubscriptions.filter((subscription) =>
-    resolveBillingVariantFromPriceId(subscription.stripePriceId) === "founding"
+  const resolvedPlans = await Promise.all(
+    activeSubscriptions.map((subscription) =>
+      resolveManagedMembershipPlanFromStripePriceId(subscription.stripePriceId)
+    )
+  );
+  const discountedActiveMembers = resolvedPlans.filter(
+    (plan) => plan.billingVariant === "founding"
   ).length;
   const fullPriceActiveMembers = activeSubscriptions.length - discountedActiveMembers;
-  const currentMrr = activeSubscriptions.reduce((sum, subscription) => {
-    return (
-      sum +
-      resolveMembershipPriceFromStripePriceId(subscription.stripePriceId).monthlyEquivalentPrice
-    );
-  }, 0);
+  const currentMrr = resolvedPlans.reduce(
+    (sum, plan) => sum + plan.monthlyEquivalentPrice,
+    0
+  );
   const contributorsThisWeek = new Set([
     ...weeklyPostContributors.map((entry) => entry.userId),
     ...weeklyCommentContributors.map((entry) => entry.userId)

@@ -29,6 +29,7 @@ const adminNavigation: NavigationItem[] = [
   { label: "Events", href: "/admin/events" },
   { label: "Calling", href: "/admin/calling" },
   { label: "Revenue", href: "/admin/revenue" },
+  { label: "Products & Pricing", href: "/admin/products-pricing" },
   { label: "Security", href: "/admin/security" },
   { label: "System Health", href: "/admin/system-health" },
   { label: "Founding Launch", href: "/admin/founding" },

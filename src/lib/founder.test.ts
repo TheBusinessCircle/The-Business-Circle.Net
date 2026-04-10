@@ -44,8 +44,8 @@ describe("founder pricing", () => {
     );
 
     expect(pricing.discountPercent).toBe(10);
-    expect(pricing.baseAmount).toBe(100000);
-    expect(pricing.finalAmount).toBe(90000);
+    expect(pricing.baseAmount).toBe(180000);
+    expect(pricing.finalAmount).toBe(162000);
     expect(pricing.appliedMembershipTier).toBe("INNER_CIRCLE");
   });
 

@@ -1,9 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { MembershipTier, SubscriptionStatus } from "@prisma/client";
 import {
-  getMembershipTierLabel,
-  resolveBillingVariantFromPriceId,
-  resolveMembershipPriceFromStripePriceId
+  getMembershipTierLabel
 } from "@/config/membership";
 import { CACHE_TAGS } from "@/lib/cache";
 import { CONNECTION_WIN_TAG } from "@/lib/connection-wins";
@@ -11,6 +9,7 @@ import { buildCommunityPostPath } from "@/lib/community-paths";
 import { db } from "@/lib/db";
 import { getRateLimitStatus } from "@/lib/security/rate-limit";
 import { toTitleCase } from "@/lib/utils";
+import { resolveManagedMembershipPlanFromStripePriceId } from "@/server/products-pricing";
 import { isBillingEnabled } from "@/server/subscriptions/subscription.service";
 import type {
   AdminLiveActivityItem,
@@ -94,15 +93,20 @@ export async function getAdminRevenueSnapshot(): Promise<AdminRevenueSnapshot> {
     (subscription) => subscription.status === SubscriptionStatus.TRIALING
   ).length;
   const subscriptionsByTier = buildTierCountRecord();
+  const resolvedPlans = await Promise.all(
+    activeSubscriptions.map((subscription) =>
+      resolveManagedMembershipPlanFromStripePriceId(subscription.stripePriceId)
+    )
+  );
   let discountedActiveMembers = 0;
   let currentMrr = 0;
 
-  activeSubscriptions.forEach((subscription) => {
+  activeSubscriptions.forEach((subscription, index) => {
+    const resolvedPlan = resolvedPlans[index];
     subscriptionsByTier[subscription.tier] += 1;
-    currentMrr +=
-      resolveMembershipPriceFromStripePriceId(subscription.stripePriceId).monthlyEquivalentPrice;
+    currentMrr += resolvedPlan.monthlyEquivalentPrice;
 
-    if (resolveBillingVariantFromPriceId(subscription.stripePriceId) === "founding") {
+    if (resolvedPlan.billingVariant === "founding") {
       discountedActiveMembers += 1;
     }
   });

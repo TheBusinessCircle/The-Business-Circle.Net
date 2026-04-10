@@ -10,11 +10,8 @@ import type Stripe from "stripe";
 import { BillingReceiptEmail } from "@/emails";
 import {
   getMembershipPlan,
-  getMembershipBillingPlan,
-  getMembershipPlanKey,
   getMembershipPriceDifference,
   getMembershipStripePriceId,
-  resolveMembershipPriceFromStripePriceId,
   resolveTierFromPriceId,
   type MembershipBillingInterval,
   type MembershipBillingVariant
@@ -29,6 +26,11 @@ import {
   releaseFoundingReservation,
   reserveFoundingSlot
 } from "@/server/founding";
+import {
+  resolveManagedMembershipPlan,
+  resolveManagedMembershipPlanFromStripePriceId,
+  resolveManagedMembershipTierFromStripePriceId
+} from "@/server/products-pricing";
 import { requireStripeClient } from "@/server/stripe/client";
 
 const ENTITLED_SUBSCRIPTION_STATUSES = new Set<SubscriptionStatus>([
@@ -284,7 +286,7 @@ async function upsertSubscriptionFromStripeSubscription(
 ) {
   const priceItem = resolvePrimaryPrice(subscription);
   const priceId = priceItem?.price.id ?? null;
-  const billedTier = getTierFromStripePriceId(priceId);
+  const billedTier = await resolveManagedMembershipTierFromStripePriceId(priceId);
   const normalizedStatus = stripeStatusToSubscriptionStatus(subscription.status);
   const grantedTier = resolveGrantedTier(billedTier, normalizedStatus);
   const context = await resolveSubscriptionContext({
@@ -426,9 +428,9 @@ function invoiceAmountAsCurrency(
   }).format(normalizedAmount);
 }
 
-function invoicePlanName(invoice: Stripe.Invoice) {
+async function invoicePlanName(invoice: Stripe.Invoice) {
   const priceId = invoice.lines.data[0]?.price?.id;
-  const tier = getTierFromStripePriceId(priceId);
+  const tier = await resolveManagedMembershipTierFromStripePriceId(priceId);
   return getMembershipPlan(tier).name;
 }
 
@@ -461,7 +463,7 @@ async function sendBillingReceiptForInvoice(invoice: Stripe.Invoice) {
   }
 
   const amount = invoiceAmountAsCurrency(invoice.amount_paid ?? invoice.amount_due, invoice.currency);
-  const planName = invoicePlanName(invoice);
+  const planName = await invoicePlanName(invoice);
   const firstName = invoiceFirstName(invoice);
 
   const sendResult = await sendTransactionalEmail({
@@ -604,22 +606,13 @@ export async function createStripeCheckoutSessionForUser(
           source: FoundingReservationSource.CHECKOUT
         });
   const billingVariant: MembershipBillingVariant = foundingReservation ? "founding" : "standard";
-  const selectedPlan = getMembershipBillingPlan(
-    input.targetTier,
-    billingVariant,
-    input.billingInterval,
-    foundingReservation
-      ? {
-          monthlyPrice: foundingReservation.foundingPrice
-        }
-      : undefined
-  );
-  const priceId = getStripePriceIdForTier(
+  const selectedPlan = await resolveManagedMembershipPlan(
     input.targetTier,
     billingVariant,
     input.billingInterval
   );
-  const planKey = getMembershipPlanKey(input.targetTier, billingVariant, input.billingInterval);
+  const priceId = selectedPlan.stripePriceId;
+  const planKey = selectedPlan.planKey;
 
   let session: Stripe.Checkout.Session;
   try {
@@ -759,19 +752,15 @@ export async function updateStripeSubscriptionPlanForUser(input: {
     throw new Error("Stripe subscription is missing its primary price item.");
   }
 
-  const currentPlan = resolveMembershipPriceFromStripePriceId(primaryPriceItem.price.id);
+  const currentPlan = await resolveManagedMembershipPlanFromStripePriceId(primaryPriceItem.price.id);
   const billingVariant: MembershipBillingVariant =
     currentPlan.tier === input.targetTier ? currentPlan.billingVariant : "standard";
-  const targetPlan = getMembershipBillingPlan(
+  const targetPlan = await resolveManagedMembershipPlan(
     input.targetTier,
     billingVariant,
     input.billingInterval
   );
-  const targetPriceId = getStripePriceIdForTier(
-    input.targetTier,
-    billingVariant,
-    input.billingInterval
-  );
+  const targetPriceId = targetPlan.stripePriceId;
 
   if (primaryPriceItem.price.id === targetPriceId) {
     return {

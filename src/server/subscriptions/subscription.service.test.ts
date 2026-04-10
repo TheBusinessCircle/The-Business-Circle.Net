@@ -39,6 +39,21 @@ vi.mock("@/lib/email/resend", () => ({
   sendTransactionalEmail: vi.fn(async () => ({ sent: true, skipped: false }))
 }));
 
+vi.mock("@/server/products-pricing", () => ({
+  resolveManagedMembershipPlan: vi.fn(),
+  resolveManagedMembershipPlanFromStripePriceId: vi.fn(async () => ({
+    tier: "FOUNDATION",
+    billingVariant: "standard",
+    billingInterval: "monthly",
+    amountMinor: 3000,
+    checkoutPrice: 30,
+    monthlyEquivalentPrice: 30,
+    stripePriceId: "price_foundation_test",
+    planKey: "foundation-monthly"
+  })),
+  resolveManagedMembershipTierFromStripePriceId: vi.fn(async () => "FOUNDATION")
+}));
+
 import {
   getMembershipBillingPlan,
   resolveBillingIntervalFromPriceId

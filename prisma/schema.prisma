@@ -712,6 +712,7 @@ model FounderService {
   active           Boolean                   @default(true)
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @updatedAt
+  billingProduct   BillingProduct?
   requests         FounderServiceRequest[]
 
   @@index([active, position])
@@ -812,71 +813,71 @@ model CommunityPromptEvent {
 }
 
 model FounderServiceRequest {
-  id                        String                      @id @default(cuid())
-  userId                    String?
-  serviceId                 String
-  adminDiscountCodeId       String?
-  fullName                  String
-  email                     String
-  phone                     String
-  businessName              String
-  businessStage             BusinessStage?
-  website                   String
-  industry                  String
-  location                  String
-  yearsInBusiness           String
-  employeeCount             String
-  revenueRange              FounderRevenueRange
-  instagram                 String?
-  tiktok                    String?
-  facebook                  String?
-  linkedin                  String?
-  otherSocial               String?
-  businessDescription       String
-  targetAudience            String
-  productsOrServices        String
-  offers                    String
-  differentiator            String
-  mainGoal                  String
-  helpSummary               String                      @default("")
-  biggestChallenge          String
-  blockers                  String
-  pastAttempts              String
-  successDefinition         String
-  marketingChannels         String[]                    @default([])
-  whyTrev                   String
-  serviceOwner              String                      @default("Trev")
-  sourcePage                String?
-  sourceSection             String?
-  baseAmount                Int
-  paymentStatus             FounderServicePaymentStatus @default(PENDING)
-  serviceStatus             FounderServiceStatus        @default(NEW)
-  pipelineStage             FounderClientStage         @default(NEW_APPLICATION)
-  amount                    Int
-  membershipDiscountPercent Int                         @default(0)
-  membershipTierApplied     MembershipTier?
-  discountLabel             String?
-  currency                  String                      @default("GBP")
-  stripeCheckoutSessionId   String?                     @unique
-  checkoutUrl              String?
-  stripePaymentIntentId     String?                     @unique
-  stripeSubscriptionId      String?                     @unique
-  stripeInvoiceId           String?
-  paidAt                    DateTime?
-  auditStartAt              DateTime?
-  auditDueAt                DateTime?
-  callScheduledAt           DateTime?
-  checkoutLinkSentAt        DateTime?
-  taskAuditChecklistComplete Boolean                    @default(false)
-  taskCallCompleted         Boolean                     @default(false)
-  taskFollowUpSent          Boolean                     @default(false)
-  adminNotes                String?
-  adminDiscountCode         FounderServiceDiscountCode? @relation("FounderDiscountCodeRequests", fields: [adminDiscountCodeId], references: [id], onDelete: SetNull)
-  createdAt                 DateTime                    @default(now())
-  updatedAt                 DateTime                    @updatedAt
-  service                   FounderService              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  uploads                   FounderServiceUpload[]
-  user                      User?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id                         String                      @id @default(cuid())
+  userId                     String?
+  serviceId                  String
+  adminDiscountCodeId        String?
+  fullName                   String
+  email                      String
+  phone                      String
+  businessName               String
+  businessStage              BusinessStage?
+  website                    String
+  industry                   String
+  location                   String
+  yearsInBusiness            String
+  employeeCount              String
+  revenueRange               FounderRevenueRange
+  instagram                  String?
+  tiktok                     String?
+  facebook                   String?
+  linkedin                   String?
+  otherSocial                String?
+  businessDescription        String
+  targetAudience             String
+  productsOrServices         String
+  offers                     String
+  differentiator             String
+  mainGoal                   String
+  helpSummary                String                      @default("")
+  biggestChallenge           String
+  blockers                   String
+  pastAttempts               String
+  successDefinition          String
+  marketingChannels          String[]                    @default([])
+  whyTrev                    String
+  serviceOwner               String                      @default("Trev")
+  sourcePage                 String?
+  sourceSection              String?
+  baseAmount                 Int
+  paymentStatus              FounderServicePaymentStatus @default(PENDING)
+  serviceStatus              FounderServiceStatus        @default(NEW)
+  pipelineStage              FounderClientStage          @default(NEW_APPLICATION)
+  amount                     Int
+  membershipDiscountPercent  Int                         @default(0)
+  membershipTierApplied      MembershipTier?
+  discountLabel              String?
+  currency                   String                      @default("GBP")
+  stripeCheckoutSessionId    String?                     @unique
+  checkoutUrl                String?
+  stripePaymentIntentId      String?                     @unique
+  stripeSubscriptionId       String?                     @unique
+  stripeInvoiceId            String?
+  paidAt                     DateTime?
+  auditStartAt               DateTime?
+  auditDueAt                 DateTime?
+  callScheduledAt            DateTime?
+  checkoutLinkSentAt         DateTime?
+  taskAuditChecklistComplete Boolean                     @default(false)
+  taskCallCompleted          Boolean                     @default(false)
+  taskFollowUpSent           Boolean                     @default(false)
+  adminNotes                 String?
+  adminDiscountCode          FounderServiceDiscountCode? @relation("FounderDiscountCodeRequests", fields: [adminDiscountCodeId], references: [id], onDelete: SetNull)
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  service                    FounderService              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  uploads                    FounderServiceUpload[]
+  user                       User?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([serviceId, createdAt])
@@ -904,26 +905,105 @@ model FounderServiceUpload {
 }
 
 model FounderServiceDiscountCode {
-  id                    String                       @id @default(cuid())
-  code                  String                       @unique
+  id                    String                     @id @default(cuid())
+  code                  String                     @unique
   name                  String?
   type                  FounderServiceDiscountType
   percentOff            Int?
   amountOff             Int?
-  currency              String                       @default("GBP")
+  currency              String                     @default("GBP")
   expiresAt             DateTime?
   usageLimit            Int?
-  timesRedeemed         Int                          @default(0)
-  tag                   FounderServiceDiscountTag    @default(MANUAL)
-  active                Boolean                      @default(true)
-  stripeCouponId        String?                      @unique
-  stripePromotionCodeId String?                      @unique
-  createdAt             DateTime                     @default(now())
-  updatedAt             DateTime                     @updatedAt
-  requests              FounderServiceRequest[]      @relation("FounderDiscountCodeRequests")
+  timesRedeemed         Int                        @default(0)
+  tag                   FounderServiceDiscountTag  @default(MANUAL)
+  active                Boolean                    @default(true)
+  stripeCouponId        String?                    @unique
+  stripePromotionCodeId String?                    @unique
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  requests              FounderServiceRequest[]    @relation("FounderDiscountCodeRequests")
 
   @@index([active, tag, createdAt])
   @@index([expiresAt])
+}
+
+model BillingProduct {
+  id               String                 @id @default(cuid())
+  slug             String                 @unique
+  name             String
+  category         BillingProductCategory
+  membershipTier   MembershipTier?        @unique
+  founderServiceId String?                @unique
+  description      String                 @default("")
+  active           Boolean                @default(true)
+  stripeProductId  String?                @unique
+  syncStatus       BillingSyncStatus      @default(MISSING)
+  syncError        String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  founderService   FounderService?        @relation(fields: [founderServiceId], references: [id], onDelete: SetNull)
+  prices           BillingPrice[]
+  discounts        BillingDiscount[]      @relation("BillingDiscountSpecificProduct")
+  founderSettings  FounderSettings?
+
+  @@index([category, active, createdAt])
+  @@index([active, createdAt])
+}
+
+model BillingPrice {
+  id             String                  @id @default(cuid())
+  productId      String
+  name           String
+  amount         Int
+  currency       String                  @default("GBP")
+  billingType    BillingPriceBillingType
+  interval       BillingInterval?
+  isFounderPrice Boolean                 @default(false)
+  active         Boolean                 @default(true)
+  stripePriceId  String?                 @unique
+  syncStatus     BillingSyncStatus       @default(MISSING)
+  syncError      String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  product        BillingProduct          @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, active, createdAt])
+  @@index([productId, name, createdAt])
+  @@index([productId, interval, isFounderPrice, active])
+}
+
+model BillingDiscount {
+  id                    String                   @id @default(cuid())
+  code                  String                   @unique
+  name                  String?
+  type                  BillingDiscountType
+  value                 Int
+  appliesTo             BillingDiscountAppliesTo
+  specificProductId     String?
+  usageLimit            Int?
+  timesUsed             Int                      @default(0)
+  expiresAt             DateTime?
+  active                Boolean                  @default(true)
+  tag                   BillingDiscountTag       @default(MANUAL)
+  stripeCouponId        String?                  @unique
+  stripePromotionCodeId String?                  @unique
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  specificProduct       BillingProduct?          @relation("BillingDiscountSpecificProduct", fields: [specificProductId], references: [id], onDelete: SetNull)
+
+  @@index([active, appliesTo, createdAt])
+  @@index([expiresAt])
+}
+
+model FounderSettings {
+  id           String         @id @default(cuid())
+  productId    String         @unique
+  founderLimit Int            @default(50)
+  currentCount Int            @default(0)
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  product      BillingProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model SiteContent {
@@ -1097,6 +1177,45 @@ enum FounderServiceDiscountTag {
   LOCAL_OUTREACH
   MEMBER_DISCOUNT
   MANUAL
+}
+
+enum BillingProductCategory {
+  MEMBERSHIP
+  SERVICE
+}
+
+enum BillingPriceBillingType {
+  ONE_TIME
+  RECURRING
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+enum BillingDiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum BillingDiscountAppliesTo {
+  ALL_PRODUCTS
+  MEMBERSHIPS
+  SERVICES
+  SPECIFIC_PRODUCT
+}
+
+enum BillingDiscountTag {
+  LOCAL_OUTREACH
+  MEMBER_DISCOUNT
+  MANUAL
+}
+
+enum BillingSyncStatus {
+  SYNCED
+  MISSING
+  ERROR
 }
 
 enum FounderRevenueRange {

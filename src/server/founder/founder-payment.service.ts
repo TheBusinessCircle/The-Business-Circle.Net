@@ -14,6 +14,10 @@ import {
   updateFounderServiceStripeCatalogEntry
 } from "@/server/founder/founder.service";
 import { GROWTH_ARCHITECT_SERVICE_SLUGS } from "@/lib/founder";
+import {
+  listBillingCatalogProducts,
+  syncBillingCatalogWithStripe
+} from "@/server/products-pricing";
 
 type FounderCheckoutSessionResult = {
   id: string;
@@ -379,27 +383,22 @@ export async function createFounderServiceDiscountCodeWithStripe(
   });
 }
 
-function needsNewStripePrice(input: {
-  billingType: FounderServiceBillingType;
-  amount: number;
-  currentPrice: Stripe.Price | null;
-}) {
-  if (!input.currentPrice) {
-    return true;
-  }
-
-  const recurringInterval =
-    input.billingType === FounderServiceBillingType.MONTHLY_RETAINER ? "month" : null;
-
-  return (
-    input.currentPrice.unit_amount !== input.amount ||
-    (input.currentPrice.recurring?.interval ?? null) !== recurringInterval ||
-    !input.currentPrice.active
-  );
-}
-
 export async function syncFounderServiceStripeCatalog() {
-  const stripe = requireStripeClient();
+  const billingProducts = await listBillingCatalogProducts();
+  const serviceProductIds = billingProducts
+    .filter(
+      (product) =>
+        product.category === "SERVICE" &&
+        product.founderService?.slug &&
+        GROWTH_ARCHITECT_SERVICE_SLUGS.includes(
+          product.founderService.slug as (typeof GROWTH_ARCHITECT_SERVICE_SLUGS)[number]
+        )
+    )
+    .map((product) => product.id);
+
+  const syncedProducts = await syncBillingCatalogWithStripe({
+    productIds: serviceProductIds
+  });
   const services = await db.founderService.findMany({
     where: {
       active: true,
@@ -407,96 +406,32 @@ export async function syncFounderServiceStripeCatalog() {
         in: [...GROWTH_ARCHITECT_SERVICE_SLUGS]
       }
     },
-    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
-      slug: true,
       title: true,
-      shortDescription: true,
-      price: true,
-      currency: true,
-      billingType: true,
       stripeProductId: true,
       stripePriceId: true
     }
   });
 
-  const synced = [];
+  await Promise.all(
+    services.map((service) =>
+      updateFounderServiceStripeCatalogEntry({
+        serviceId: service.id,
+        stripeProductId: service.stripeProductId,
+        stripePriceId: service.stripePriceId
+      })
+    )
+  );
 
-  for (const service of services) {
-    const product = service.stripeProductId
-      ? await stripe.products
-          .update(service.stripeProductId, {
-            name: `Trevor Newton | ${service.title}`,
-            description: service.shortDescription,
-            metadata: {
-              founderServiceId: service.id,
-              founderServiceSlug: service.slug
-            }
-          })
-          .catch(() =>
-            stripe.products.create({
-              name: `Trevor Newton | ${service.title}`,
-              description: service.shortDescription,
-              metadata: {
-                founderServiceId: service.id,
-                founderServiceSlug: service.slug
-              }
-            })
-          )
-      : await stripe.products.create({
-          name: `Trevor Newton | ${service.title}`,
-          description: service.shortDescription,
-          metadata: {
-            founderServiceId: service.id,
-            founderServiceSlug: service.slug
-          }
-        });
+  return syncedProducts.map((product) => {
+    const service = services.find((item) => item.stripeProductId === product.stripeProductId);
 
-    let currentPrice: Stripe.Price | null = null;
-    if (service.stripePriceId) {
-      try {
-        currentPrice = await stripe.prices.retrieve(service.stripePriceId);
-      } catch {
-        currentPrice = null;
-      }
-    }
-
-    const price = needsNewStripePrice({
-      billingType: service.billingType,
-      amount: service.price,
-      currentPrice
-    })
-      ? await stripe.prices.create({
-          currency: service.currency.toLowerCase(),
-          unit_amount: service.price,
-          product: product.id,
-          recurring:
-            service.billingType === FounderServiceBillingType.MONTHLY_RETAINER
-              ? {
-                  interval: "month"
-                }
-              : undefined,
-          metadata: {
-            founderServiceId: service.id,
-            founderServiceSlug: service.slug
-          }
-        })
-      : currentPrice;
-
-    await updateFounderServiceStripeCatalogEntry({
-      serviceId: service.id,
-      stripeProductId: product.id,
-      stripePriceId: price?.id ?? null
-    });
-
-    synced.push({
-      id: service.id,
-      title: service.title,
-      stripeProductId: product.id,
-      stripePriceId: price?.id ?? null
-    });
-  }
-
-  return synced;
+    return {
+      id: service?.id ?? product.id,
+      title: service?.title ?? product.name,
+      stripeProductId: product.stripeProductId,
+      stripePriceId: service?.stripePriceId ?? null
+    };
+  });
 }

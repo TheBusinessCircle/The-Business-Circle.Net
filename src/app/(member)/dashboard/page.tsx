@@ -23,8 +23,7 @@ import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import {
   getMembershipPriceDifference,
   getMembershipTierLabel,
-  getMembershipTierRank,
-  resolveMembershipPriceFromStripePriceId
+  getMembershipTierRank
 } from "@/config/membership";
 import { authorName, buildCommunityPostPreview } from "@/lib/community-helpers";
 import { isConnectionWinTags } from "@/lib/connection-wins";
@@ -58,6 +57,7 @@ import { getCommunityRecognitionForUser, getInviteDashboardForUser } from "@/ser
 import { listUpcomingEventsForTiers } from "@/server/events";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { searchDirectoryMembers } from "@/server/profile";
+import { resolveManagedMembershipPlanFromStripePriceId } from "@/server/products-pricing";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Member Dashboard",
@@ -353,7 +353,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         )
       : null;
 
-  const currentBillingPlan = resolveMembershipPriceFromStripePriceId(subscription?.stripePriceId);
+  const currentBillingPlan = await resolveManagedMembershipPlanFromStripePriceId(
+    subscription?.stripePriceId
+  );
   const upgradeTargetTier =
     effectiveTier === MembershipTier.FOUNDATION
       ? MembershipTier.INNER_CIRCLE

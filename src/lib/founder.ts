@@ -22,12 +22,6 @@ export const GROWTH_ARCHITECT_SERVICE_SLUGS = [
   "growth-architect-full-growth-architect"
 ] as const;
 
-const GROWTH_ARCHITECT_BASE_PRICES: Record<string, number> = {
-  "growth-architect-clarity-audit": 19_900,
-  "growth-architect-growth-strategy": 40_000,
-  "growth-architect-full-growth-architect": 100_000
-};
-
 const GROWTH_ARCHITECT_DISCOUNTS: Record<MembershipTier, number> = {
   FOUNDATION: 0,
   INNER_CIRCLE: 10,
@@ -118,10 +112,6 @@ export function getServicePrice(
   return Math.round(basePrice * (100 - discountPercent) / 100);
 }
 
-function getGrowthArchitectBasePrice(slug: string, fallbackPrice: number): number {
-  return GROWTH_ARCHITECT_BASE_PRICES[slug] ?? fallbackPrice;
-}
-
 function buildFounderServicePricing(
   service: {
     slug: string;
@@ -131,9 +121,7 @@ function buildFounderServicePricing(
   membershipTier: MembershipTier | null
 ): FounderServicePricingSummary {
   const isGrowthArchitect = isGrowthArchitectServiceSlug(service.slug);
-  const baseAmount = isGrowthArchitect
-    ? getGrowthArchitectBasePrice(service.slug, service.price)
-    : service.price;
+  const baseAmount = service.price;
   const appliedMembershipTier = isGrowthArchitect ? membershipTier : null;
   const discountPercent = appliedMembershipTier
     ? GROWTH_ARCHITECT_DISCOUNTS[appliedMembershipTier]

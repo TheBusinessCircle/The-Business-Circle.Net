@@ -10,7 +10,6 @@ import { TierBadge } from "@/components/public/tier-badge";
 import { Button } from "@/components/ui/button";
 import {
   formatMembershipPrice,
-  getMembershipBillingPlan,
   getMembershipTierContent,
   getMembershipTierDefinition,
   getMembershipTierLabel,
@@ -143,7 +142,6 @@ export function JoinCheckoutPrep({
   const selectedOffer = foundingOfferByTier[selectedTier];
   const selectedContent = getMembershipTierContent(selectedTier);
   const selectedDefinition = getMembershipTierDefinition(selectedTier);
-  const selectedPlan = getMembershipBillingPlan(selectedTier, "standard", billingInterval);
   const currentJoinHref = useMemo(
     () =>
       buildJoinConfirmationHref({
@@ -162,7 +160,7 @@ export function JoinCheckoutPrep({
   );
   const selectedDisplayPrice = selectedPriceForInterval(selectedOffer, billingInterval);
   const selectedStandardPrice =
-    billingInterval === "annual" ? selectedPlan.annualPrice : selectedPlan.monthlyPrice;
+    billingInterval === "annual" ? selectedOffer.standardAnnualPrice : selectedOffer.standardPrice;
   const requiresCoreConfirmation = selectedTier === "CORE";
   const canContinueToCore = !requiresCoreConfirmation || coreAccessConfirmed;
 
