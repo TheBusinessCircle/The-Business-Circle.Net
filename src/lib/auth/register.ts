@@ -1,24 +1,39 @@
+import { createElement } from "react";
 import {
   BusinessStage,
   BusinessStatus,
+  FoundingReservationStatus,
   MembershipTier,
+  PendingRegistrationBillingInterval,
+  PendingRegistrationStatus,
   Prisma,
-  Role,
-  SubscriptionStatus
+  Role
 } from "@prisma/client";
-import { createElement } from "react";
-import { prisma } from "@/lib/prisma";
 import { WelcomeMemberEmail } from "@/emails";
-import { getMembershipPlan } from "@/config/membership";
-import { hashPassword } from "@/lib/auth/password";
+import { getMembershipPlan, type MembershipBillingInterval } from "@/config/membership";
 import { sendEmailVerificationForUser } from "@/lib/auth/email-verification";
-import { type RegisterMemberInput, registerMemberSchema } from "@/lib/auth/schemas";
+import { hashPassword } from "@/lib/auth/password";
+import {
+  type MembershipBillingIntervalValue,
+  type RegisterMemberInput,
+  registerMemberSchema
+} from "@/lib/auth/schemas";
 import { normalizeEmail } from "@/lib/auth/utils";
 import { sendTransactionalEmail } from "@/lib/email/resend";
+import { prisma } from "@/lib/prisma";
 import { logServerWarning } from "@/lib/security/logging";
 import { recordInviteReferral } from "@/server/community-recognition";
+import { requireStripeClient } from "@/server/stripe/client";
 
-type RegistrationErrorCode = "INVALID_INPUT" | "EMAIL_IN_USE" | "CREATE_FAILED";
+type RegistrationErrorCode =
+  | "INVALID_INPUT"
+  | "EMAIL_IN_USE"
+  | "PAYMENT_IN_PROGRESS"
+  | "CREATE_FAILED";
+
+const DEFAULT_PENDING_REGISTRATION_TTL_HOURS = 24;
+const MIN_PENDING_REGISTRATION_TTL_HOURS = 1;
+const MAX_PENDING_REGISTRATION_TTL_HOURS = 72;
 
 export class RegistrationServiceError extends Error {
   code: RegistrationErrorCode;
@@ -29,19 +44,37 @@ export class RegistrationServiceError extends Error {
   }
 }
 
-export type CreateMemberAccountOptions = {
-  stripeEnabled: boolean;
+export type CreatePendingRegistrationResult = {
+  pendingRegistration: {
+    id: string;
+    email: string;
+    fullName: string;
+    selectedTier: MembershipTier;
+    billingInterval: MembershipBillingInterval;
+    coreAccessConfirmed: boolean;
+    inviteCode: string | null;
+  };
 };
 
-export type CreateMemberAccountResult = {
+export type ProvisionPendingRegistrationResult = {
+  pendingRegistrationId: string;
   user: {
     id: string;
     email: string;
     name: string | null;
   };
+  fullName: string;
   selectedTier: MembershipTier;
-  assignedTier: MembershipTier;
-  billingInterval: "monthly" | "annual";
+  billingInterval: MembershipBillingInterval;
+  inviteCode: string | null;
+};
+
+export type PendingRegistrationPublicStatus = {
+  status: PendingRegistrationStatus;
+  email: string;
+  fullName: string;
+  selectedTier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
 };
 
 function roleForTier(tier: MembershipTier): Role {
@@ -50,6 +83,110 @@ function roleForTier(tier: MembershipTier): Role {
 
 function isUniqueEmailError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
+
+function resolvePendingRegistrationTtlHours() {
+  const configured = Number(
+    process.env.PENDING_REGISTRATION_TTL_HOURS ?? DEFAULT_PENDING_REGISTRATION_TTL_HOURS
+  );
+
+  if (!Number.isFinite(configured)) {
+    return DEFAULT_PENDING_REGISTRATION_TTL_HOURS;
+  }
+
+  return Math.max(
+    MIN_PENDING_REGISTRATION_TTL_HOURS,
+    Math.min(MAX_PENDING_REGISTRATION_TTL_HOURS, Math.floor(configured))
+  );
+}
+
+function normalizeBusinessStatus(value: RegisterMemberInput["businessStatus"]) {
+  return value && value.length ? (value as BusinessStatus) : null;
+}
+
+function normalizeBusinessStage(value: RegisterMemberInput["businessStage"]) {
+  return value && value.length ? (value as BusinessStage) : null;
+}
+
+function buildProfileCreateData(input: {
+  businessName: string | null;
+  businessStatus: BusinessStatus | null;
+  companyNumber: string | null;
+  businessStage: BusinessStage | null;
+}) {
+  const shouldCreateBusiness =
+    Boolean(input.businessName) ||
+    Boolean(input.businessStatus) ||
+    Boolean(input.companyNumber) ||
+    Boolean(input.businessStage);
+
+  return {
+    collaborationTags: [],
+    ...(shouldCreateBusiness
+      ? {
+          business: {
+            create: {
+              companyName: input.businessName,
+              status: input.businessStatus,
+              companyNumber: input.companyNumber,
+              stage: input.businessStage
+            }
+          }
+        }
+      : {})
+  };
+}
+
+function toPendingRegistrationRecord(
+  input: RegisterMemberInput,
+  email: string,
+  passwordHash: string
+) {
+  return {
+    email,
+    fullName: input.name,
+    passwordHash,
+    selectedTier: input.tier,
+    billingInterval: toPendingRegistrationBillingInterval(input.billingInterval),
+    businessName: input.businessName?.trim() || null,
+    businessStatus: normalizeBusinessStatus(input.businessStatus),
+    businessStage: normalizeBusinessStage(input.businessStage),
+    companyNumber: input.companyNumber?.trim() || null,
+    coreAccessConfirmed: Boolean(input.coreAccessConfirmed),
+    inviteCode: input.inviteCode?.trim().toUpperCase() || null
+  };
+}
+
+function buildPendingRegistrationUpdate(input: {
+  stripeCheckoutSessionId?: string | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  completedUserId?: string | null;
+  status?: PendingRegistrationStatus;
+}) {
+  return {
+    ...(input.status ? { status: input.status } : {}),
+    ...(typeof input.completedUserId === "string"
+      ? {
+          completedUserId: input.completedUserId
+        }
+      : {}),
+    ...(typeof input.stripeCheckoutSessionId === "string"
+      ? {
+          stripeCheckoutSessionId: input.stripeCheckoutSessionId
+        }
+      : {}),
+    ...(typeof input.stripeCustomerId === "string"
+      ? {
+          stripeCustomerId: input.stripeCustomerId
+        }
+      : {}),
+    ...(typeof input.stripeSubscriptionId === "string"
+      ? {
+          stripeSubscriptionId: input.stripeSubscriptionId
+        }
+      : {})
+  };
 }
 
 async function sendWelcomeMemberEmail(input: {
@@ -65,7 +202,7 @@ async function sendWelcomeMemberEmail(input: {
     text: [
       `Hi ${input.firstName},`,
       "",
-      `Welcome to The Business Circle. You are in the right place.`,
+      "Welcome to The Business Circle. You are in the right place.",
       `Your membership tier is ${planName}.`,
       "You can now log in to access your dashboard, resources, and community discussions.",
       "Start with one clear move inside the platform and let the rest build from there."
@@ -85,114 +222,427 @@ async function sendWelcomeMemberEmail(input: {
   }
 }
 
-export async function createMemberAccount(
-  rawInput: unknown,
-  options: CreateMemberAccountOptions
-): Promise<CreateMemberAccountResult> {
+async function cleanupExpiredPendingRegistrations() {
+  await prisma.pendingRegistration.updateMany({
+    where: {
+      status: PendingRegistrationStatus.PENDING,
+      expiresAt: {
+        lt: new Date()
+      }
+    },
+    data: {
+      status: PendingRegistrationStatus.EXPIRED
+    }
+  });
+}
+
+async function cancelSupersededPendingRegistrations(email: string) {
+  const registrations = await prisma.pendingRegistration.findMany({
+    where: {
+      email,
+      status: PendingRegistrationStatus.PENDING
+    },
+    select: {
+      id: true,
+      stripeCheckoutSessionId: true
+    }
+  });
+
+  if (!registrations.length) {
+    return;
+  }
+
+  const stripe =
+    process.env.STRIPE_SECRET_KEY && registrations.some((item) => item.stripeCheckoutSessionId)
+      ? requireStripeClient()
+      : null;
+
+  if (stripe) {
+    await Promise.allSettled(
+      registrations.map(async (registration) => {
+        if (!registration.stripeCheckoutSessionId) {
+          return;
+        }
+
+        await stripe.checkout.sessions.expire(registration.stripeCheckoutSessionId);
+      })
+    );
+  }
+
+  const registrationIds = registrations.map((item) => item.id);
+  const releasedAt = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.pendingRegistration.updateMany({
+      where: {
+        id: {
+          in: registrationIds
+        }
+      },
+      data: {
+        status: PendingRegistrationStatus.CANCELLED
+      }
+    });
+
+    await tx.foundingOfferReservation.updateMany({
+      where: {
+        pendingRegistrationId: {
+          in: registrationIds
+        },
+        status: FoundingReservationStatus.ACTIVE
+      },
+      data: {
+        status: FoundingReservationStatus.RELEASED,
+        releasedAt
+      }
+    });
+  });
+}
+
+export function toPendingRegistrationBillingInterval(
+  interval: MembershipBillingIntervalValue
+): PendingRegistrationBillingInterval {
+  return interval === "annual"
+    ? PendingRegistrationBillingInterval.ANNUAL
+    : PendingRegistrationBillingInterval.MONTHLY;
+}
+
+export function fromPendingRegistrationBillingInterval(
+  interval: PendingRegistrationBillingInterval
+): MembershipBillingInterval {
+  return interval === PendingRegistrationBillingInterval.ANNUAL ? "annual" : "monthly";
+}
+
+export async function createPendingRegistration(
+  rawInput: unknown
+): Promise<CreatePendingRegistrationResult> {
+  await cleanupExpiredPendingRegistrations();
+
   const parsed = registerMemberSchema.safeParse(rawInput);
 
   if (!parsed.success) {
     throw new RegistrationServiceError("INVALID_INPUT", "Invalid registration payload.");
   }
 
-  const input: RegisterMemberInput = parsed.data;
+  const input = parsed.data;
   const email = normalizeEmail(input.email);
-  const existing = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true }
-  });
 
-  if (existing) {
-    throw new RegistrationServiceError("EMAIL_IN_USE", "An account already exists with this email.");
+  const [existingUser, paymentInProgress] = await Promise.all([
+    prisma.user.findUnique({
+      where: { email },
+      select: { id: true }
+    }),
+    prisma.pendingRegistration.findFirst({
+      where: {
+        email,
+        status: PendingRegistrationStatus.PAID
+      },
+      select: {
+        id: true
+      }
+    })
+  ]);
+
+  if (existingUser) {
+    throw new RegistrationServiceError(
+      "EMAIL_IN_USE",
+      "An account already exists with this email."
+    );
   }
 
-  const selectedTier = input.tier;
-  const assignedTier = options.stripeEnabled ? MembershipTier.FOUNDATION : selectedTier;
+  if (paymentInProgress) {
+    throw new RegistrationServiceError(
+      "PAYMENT_IN_PROGRESS",
+      "Payment is already being confirmed for this email. Return to the confirmation page or wait a moment and try signing in."
+    );
+  }
+
   const passwordHash = await hashPassword(input.password);
-  const businessName = input.businessName?.trim() || null;
-  const businessStatus =
-    input.businessStatus && input.businessStatus.length
-      ? (input.businessStatus as BusinessStatus)
-      : null;
-  const companyNumber = input.companyNumber?.trim() || null;
-  const businessStage =
-    input.businessStage && input.businessStage.length
-      ? (input.businessStage as BusinessStage)
-      : null;
-  const shouldCreateBusiness =
-    Boolean(businessName) || Boolean(businessStatus) || Boolean(companyNumber) || Boolean(businessStage);
+  const normalizedRecord = toPendingRegistrationRecord(input, email, passwordHash);
+  const expiresAt = new Date(
+    Date.now() + resolvePendingRegistrationTtlHours() * 60 * 60 * 1000
+  );
 
   try {
-    const user = await prisma.user.create({
+    await cancelSupersededPendingRegistrations(email);
+
+    const pendingRegistration = await prisma.pendingRegistration.create({
       data: {
-        name: input.name,
-        email,
-        passwordHash,
-        role: roleForTier(assignedTier),
-        membershipTier: assignedTier,
-        profile: {
-          create: {
-            collaborationTags: [],
-            ...(shouldCreateBusiness
-              ? {
-                  business: {
-                    create: {
-                      companyName: businessName,
-                      status: businessStatus,
-                      companyNumber,
-                      stage: businessStage
-                    }
-                  }
-                }
-              : {})
-          }
-        },
-        subscription: {
-          create: {
-            tier: selectedTier,
-            status: options.stripeEnabled ? SubscriptionStatus.INCOMPLETE : SubscriptionStatus.ACTIVE
-          }
-        }
+        ...normalizedRecord,
+        expiresAt
       },
       select: {
         id: true,
         email: true,
-        name: true
+        fullName: true,
+        selectedTier: true,
+        billingInterval: true,
+        coreAccessConfirmed: true,
+        inviteCode: true
       }
     });
 
-    const firstName = user.name?.trim() || "Member";
-    await Promise.allSettled([
-      sendWelcomeMemberEmail({
-        email: user.email,
-        firstName,
-        tier: selectedTier
-      }),
-      sendEmailVerificationForUser({
-        userId: user.id,
-        email: user.email,
-        firstName
-      })
-    ]);
-
-    await recordInviteReferral({
-      inviteCode: input.inviteCode ?? null,
-      referredUserId: user.id,
-      subscriptionTier: selectedTier
-    });
-
     return {
-      user,
-      selectedTier,
-      assignedTier,
-      billingInterval: input.billingInterval
+      pendingRegistration: {
+        id: pendingRegistration.id,
+        email: pendingRegistration.email,
+        fullName: pendingRegistration.fullName,
+        selectedTier: pendingRegistration.selectedTier,
+        billingInterval: fromPendingRegistrationBillingInterval(
+          pendingRegistration.billingInterval
+        ),
+        coreAccessConfirmed: pendingRegistration.coreAccessConfirmed,
+        inviteCode: pendingRegistration.inviteCode
+      }
     };
   } catch (error) {
     if (isUniqueEmailError(error)) {
-      throw new RegistrationServiceError("EMAIL_IN_USE", "An account already exists with this email.");
+      throw new RegistrationServiceError(
+        "EMAIL_IN_USE",
+        "An account already exists with this email."
+      );
     }
 
-    throw new RegistrationServiceError("CREATE_FAILED", "Unable to create account.");
+    throw new RegistrationServiceError(
+      "CREATE_FAILED",
+      "Unable to start registration."
+    );
   }
 }
 
+export async function provisionUserFromPendingRegistration(input: {
+  pendingRegistrationId: string;
+  stripeCheckoutSessionId?: string | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+}): Promise<ProvisionPendingRegistrationResult | null> {
+  await cleanupExpiredPendingRegistrations();
+
+  return prisma.$transaction(async (tx) => {
+    const pendingRegistration = await tx.pendingRegistration.findUnique({
+      where: {
+        id: input.pendingRegistrationId
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        passwordHash: true,
+        selectedTier: true,
+        billingInterval: true,
+        businessName: true,
+        businessStatus: true,
+        businessStage: true,
+        companyNumber: true,
+        coreAccessConfirmed: true,
+        inviteCode: true,
+        status: true,
+        completedUserId: true
+      }
+    });
+
+    if (!pendingRegistration) {
+      return null;
+    }
+
+    if (
+      pendingRegistration.status === PendingRegistrationStatus.CANCELLED ||
+      pendingRegistration.status === PendingRegistrationStatus.EXPIRED
+    ) {
+      return null;
+    }
+
+    const existingUser =
+      pendingRegistration.completedUserId
+        ? await tx.user.findUnique({
+            where: {
+              id: pendingRegistration.completedUserId
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true
+            }
+          })
+        : await tx.user.findUnique({
+            where: {
+              email: pendingRegistration.email
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true
+            }
+          });
+
+    const user =
+      existingUser ??
+      (await tx.user.create({
+        data: {
+          name: pendingRegistration.fullName,
+          email: pendingRegistration.email,
+          passwordHash: pendingRegistration.passwordHash,
+          role: roleForTier(pendingRegistration.selectedTier),
+          membershipTier: pendingRegistration.selectedTier,
+          profile: {
+            create: buildProfileCreateData({
+              businessName: pendingRegistration.businessName,
+              businessStatus: pendingRegistration.businessStatus,
+              companyNumber: pendingRegistration.companyNumber,
+              businessStage: pendingRegistration.businessStage
+            })
+          }
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true
+        }
+      }));
+
+    if (
+      pendingRegistration.status === PendingRegistrationStatus.COMPLETED &&
+      existingUser
+    ) {
+      return {
+        pendingRegistrationId: pendingRegistration.id,
+        user,
+        fullName: pendingRegistration.fullName,
+        selectedTier: pendingRegistration.selectedTier,
+        billingInterval: fromPendingRegistrationBillingInterval(
+          pendingRegistration.billingInterval
+        ),
+        inviteCode: pendingRegistration.inviteCode
+      };
+    }
+
+    await tx.pendingRegistration.update({
+      where: {
+        id: pendingRegistration.id
+      },
+      data: buildPendingRegistrationUpdate({
+        status: PendingRegistrationStatus.PAID,
+        completedUserId: user.id,
+        stripeCheckoutSessionId: input.stripeCheckoutSessionId,
+        stripeCustomerId: input.stripeCustomerId,
+        stripeSubscriptionId: input.stripeSubscriptionId
+      })
+    });
+
+    return {
+      pendingRegistrationId: pendingRegistration.id,
+      user,
+      fullName: pendingRegistration.fullName,
+      selectedTier: pendingRegistration.selectedTier,
+      billingInterval: fromPendingRegistrationBillingInterval(
+        pendingRegistration.billingInterval
+      ),
+      inviteCode: pendingRegistration.inviteCode
+    };
+  });
+}
+
+export async function markPendingRegistrationCompleted(input: {
+  pendingRegistrationId: string;
+  userId: string;
+  stripeCheckoutSessionId?: string | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+}) {
+  const result = await prisma.pendingRegistration.updateMany({
+    where: {
+      id: input.pendingRegistrationId,
+      status: {
+        in: [PendingRegistrationStatus.PENDING, PendingRegistrationStatus.PAID]
+      }
+    },
+    data: buildPendingRegistrationUpdate({
+      status: PendingRegistrationStatus.COMPLETED,
+      completedUserId: input.userId,
+      stripeCheckoutSessionId: input.stripeCheckoutSessionId,
+      stripeCustomerId: input.stripeCustomerId,
+      stripeSubscriptionId: input.stripeSubscriptionId
+    })
+  });
+
+  return result.count > 0;
+}
+
+export async function finalizePendingRegistrationAccess(input: {
+  pendingRegistrationId: string;
+  userId: string;
+  email: string;
+  fullName: string;
+  selectedTier: MembershipTier;
+  inviteCode?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+}) {
+  await recordInviteReferral({
+    inviteCode: input.inviteCode ?? null,
+    referredUserId: input.userId,
+    subscriptionTier: input.selectedTier
+  });
+
+  const completed = await markPendingRegistrationCompleted({
+    pendingRegistrationId: input.pendingRegistrationId,
+    userId: input.userId,
+    stripeCheckoutSessionId: input.stripeCheckoutSessionId,
+    stripeCustomerId: input.stripeCustomerId,
+    stripeSubscriptionId: input.stripeSubscriptionId
+  });
+
+  if (!completed) {
+    return false;
+  }
+
+  const firstName = input.fullName.trim().split(/\s+/)[0] || "Member";
+  await Promise.allSettled([
+    sendWelcomeMemberEmail({
+      email: input.email,
+      firstName,
+      tier: input.selectedTier
+    }),
+    sendEmailVerificationForUser({
+      userId: input.userId,
+      email: input.email,
+      firstName
+    })
+  ]);
+
+  return true;
+}
+
+export async function getPendingRegistrationStatusByCheckoutSessionId(
+  checkoutSessionId: string
+): Promise<PendingRegistrationPublicStatus | null> {
+  await cleanupExpiredPendingRegistrations();
+
+  const pendingRegistration = await prisma.pendingRegistration.findUnique({
+    where: {
+      stripeCheckoutSessionId: checkoutSessionId
+    },
+    select: {
+      status: true,
+      email: true,
+      fullName: true,
+      selectedTier: true,
+      billingInterval: true
+    }
+  });
+
+  if (!pendingRegistration) {
+    return null;
+  }
+
+  return {
+    status: pendingRegistration.status,
+    email: pendingRegistration.email,
+    fullName: pendingRegistration.fullName,
+    selectedTier: pendingRegistration.selectedTier,
+    billingInterval: fromPendingRegistrationBillingInterval(
+      pendingRegistration.billingInterval
+    )
+  };
+}

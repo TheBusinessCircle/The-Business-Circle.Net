@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, CheckCircle2, LockKeyhole, Sparkles } from "lucide-react";
-import { signIn } from "next-auth/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,19 +75,6 @@ function withFrom(pathname: string, from?: string) {
   return `${pathname}?${params.toString()}`;
 }
 
-function withJoinWelcome(pathname: string) {
-  const target = safeRedirectPath(pathname);
-  const url = new URL(target, "http://localhost");
-
-  if (url.pathname !== "/dashboard") {
-    return `${url.pathname}${url.search}`;
-  }
-
-  url.searchParams.set("welcome", "1");
-  url.searchParams.set("source", "join");
-  return `${url.pathname}${url.search}`;
-}
-
 const DEFAULT_TIER_OPTIONS: NonNullable<RegisterFormProps["tierOptions"]> = [
   {
     value: "FOUNDATION",
@@ -148,10 +133,8 @@ export function RegisterForm({
   streamlined = false,
   tierOptions = DEFAULT_TIER_OPTIONS
 }: RegisterFormProps) {
-  const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const targetPath = useMemo(() => safeRedirectPath(from), [from]);
   const loginTargetPath = useMemo(
     () => safeRedirectPath(loginFrom ?? from),
     [from, loginFrom]
@@ -250,36 +233,16 @@ export function RegisterForm({
       const data = (await response.json()) as RegisterResponse;
 
       if (!response.ok) {
-        setNotice(data.error ?? "Unable to create account.");
+        setNotice(data.error ?? "Unable to start registration.");
         return;
       }
 
       if (data.checkoutUrl) {
-        await signIn("credentials", {
-          email: values.email,
-          password: values.password,
-          redirect: false
-        });
-
         window.location.assign(data.checkoutUrl);
         return;
       }
 
-      const signInResult = await signIn("credentials", {
-        email: values.email,
-        password: values.password,
-        redirect: false
-      });
-
-      if (signInResult?.error) {
-        setNotice("Account created. Please sign in.");
-        router.push(withFrom("/login", loginTargetPath));
-        router.refresh();
-        return;
-      }
-
-      router.push(withJoinWelcome(targetPath));
-      router.refresh();
+      setNotice("Unable to start secure checkout.");
     });
   });
 
@@ -302,7 +265,7 @@ export function RegisterForm({
               ) : null}
               <Badge variant="outline" className="border-border/80 bg-background/35 text-silver">
                 <LockKeyhole size={12} className="mr-1" />
-                Secure setup
+                Secure checkout
               </Badge>
               {streamlined ? (
                 <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
@@ -311,12 +274,14 @@ export function RegisterForm({
               ) : null}
             </div>
             <CardTitle className="text-2xl sm:text-[2rem]">
-              {streamlined ? "Create your account to continue" : "Create your account and choose your room"}
+              {streamlined
+                ? "Confirm your details before secure checkout"
+                : "Confirm your details and choose your room"}
             </CardTitle>
             <CardDescription className="max-w-xl text-sm">
               {streamlined
-                ? "Your selected tier and billing period are already in place. Finish setup, then continue into secure checkout."
-                : "Start with the room that fits where your business is now, then continue into secure membership setup."}
+                ? "Your selected tier and billing period are already in place. Stripe handles billing next, and member access opens after payment is confirmed."
+                : "Start with the room that fits where your business is now. Billing happens securely in Stripe, and member access is completed after payment confirms."}
             </CardDescription>
           </div>
 
@@ -336,7 +301,7 @@ export function RegisterForm({
             <p className="mt-2 text-sm text-muted">
               Invite code{" "}
               <span className="font-medium tracking-[0.08em] text-foreground">{inviteCode}</span>{" "}
-              will stay attached when you register.
+              will stay attached when payment completes.
             </p>
           </div>
         ) : null}
@@ -356,7 +321,7 @@ export function RegisterForm({
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10.75rem,1fr))]">
             {[
               "Business-first member environment",
-              "Secure membership setup",
+              "Secure Stripe checkout",
               "Clear room progression"
             ].map((item) => (
               <div
@@ -430,7 +395,7 @@ export function RegisterForm({
               <div>
                 <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Membership tier</p>
                 <p className="mt-1 text-sm text-muted">
-                  Choose the room you want your registration and billing flow to continue with.
+                  Choose the room you want your secure checkout and post-payment access setup to continue with.
                 </p>
               </div>
               <span className="rounded-full border border-gold/35 bg-gold/10 px-3 py-1 text-xs text-gold">
@@ -539,7 +504,7 @@ export function RegisterForm({
 
           <Button disabled={isPending || submitDisabled} type="submit" className="w-full" size="lg">
             <span className="inline-flex items-center gap-2">
-              {isPending ? "Creating Account..." : "Create Account And Continue"}
+              {isPending ? "Starting Secure Checkout..." : "Continue To Secure Checkout"}
               {isPending ? null : <ArrowRight size={16} />}
             </span>
           </Button>

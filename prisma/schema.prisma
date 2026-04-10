@@ -38,6 +38,7 @@ model User {
   founderServiceRequests       FounderServiceRequest[]
   foundingMembership           FoundingMember?
   foundingReservations         FoundingOfferReservation[]
+  completedPendingRegistration PendingRegistration?      @relation("PendingRegistrationCompletedUser")
   memberInvite                 MemberInvite?
   inviteReferralsSent          InviteReferral[]           @relation("InviteReferrer")
   inviteReferralReceived       InviteReferral?            @relation("InviteReferred")
@@ -523,6 +524,35 @@ model Subscription {
   @@index([updatedAt])
 }
 
+model PendingRegistration {
+  id                    String                             @id @default(cuid())
+  email                 String
+  fullName              String
+  passwordHash          String
+  selectedTier          MembershipTier
+  billingInterval       PendingRegistrationBillingInterval
+  businessName          String?
+  businessStatus        BusinessStatus?
+  businessStage         BusinessStage?
+  companyNumber         String?
+  coreAccessConfirmed   Boolean                            @default(false)
+  inviteCode            String?
+  status                PendingRegistrationStatus          @default(PENDING)
+  stripeCheckoutSessionId String?                          @unique
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?                            @unique
+  completedUserId       String?                            @unique
+  expiresAt             DateTime
+  createdAt             DateTime                           @default(now())
+  updatedAt             DateTime                           @updatedAt
+  completedUser         User?                              @relation("PendingRegistrationCompletedUser", fields: [completedUserId], references: [id], onDelete: SetNull)
+  foundingReservations  FoundingOfferReservation[]
+
+  @@index([email, createdAt])
+  @@index([status, expiresAt])
+  @@index([stripeCustomerId])
+}
+
 model FoundingOfferSettings {
   id                       String   @id @default("default")
   enabled                  Boolean  @default(true)
@@ -630,7 +660,8 @@ model FoundingMember {
 
 model FoundingOfferReservation {
   id                String                    @id @default(cuid())
-  userId            String
+  userId            String?
+  pendingRegistrationId String?
   tier              MembershipTier
   foundingPrice     Int
   source            FoundingReservationSource @default(CHECKOUT)
@@ -642,11 +673,13 @@ model FoundingOfferReservation {
   releasedAt        DateTime?
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
+  pendingRegistration PendingRegistration?    @relation(fields: [pendingRegistrationId], references: [id], onDelete: Cascade)
   subscription      Subscription?             @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User?                     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tier, status, expiresAt])
   @@index([userId, status, expiresAt])
+  @@index([pendingRegistrationId, status, expiresAt])
   @@index([checkoutSessionId])
   @@index([subscriptionId])
 }
@@ -1104,6 +1137,19 @@ enum SubscriptionStatus {
   CANCELED
   UNPAID
   PAUSED
+}
+
+enum PendingRegistrationStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+  COMPLETED
+}
+
+enum PendingRegistrationBillingInterval {
+  MONTHLY
+  ANNUAL
 }
 
 enum FoundingReservationStatus {

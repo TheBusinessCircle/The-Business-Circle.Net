@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = createPageMetadata({
   title: "Join The Business Circle",
   description:
-    "Confirm your selected room, review current pricing, create your account, and continue into secure Stripe checkout.",
+    "Confirm your selected room, review current pricing, continue into secure Stripe checkout, and complete access after payment is confirmed.",
   keywords: [
     "join business circle",
     "business owner membership checkout",
@@ -95,7 +95,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         <div className="relative space-y-6">
           <JourneyRail
             currentStep="join"
-            note="Selection, account setup, and Stripe checkout stay connected in one path."
+            note="Selection, secure checkout, and post-payment access setup stay connected in one path."
             nextAction={{ href: "/membership", label: "Review Membership Again" }}
           />
 
@@ -104,12 +104,12 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
               <div className="space-y-4">
                 <p className="premium-kicker">Join The Business Circle</p>
                 <h1 className="max-w-4xl font-display text-4xl leading-tight text-foreground sm:text-5xl">
-                  Confirm the room, then move into secure setup.
+                  Confirm the room, then move into secure checkout.
                 </h1>
                 <p className="max-w-3xl text-lg leading-relaxed text-muted">
-                  This page keeps room selection, pricing clarity, account setup, and Stripe
-                  checkout in one calm flow. You can move between tiers as the business evolves, and
-                  founder pricing only applies where it is currently active.
+                  This page keeps room selection, pricing clarity, secure Stripe billing, and
+                  post-payment member access in one calm flow. You can move between tiers as the
+                  business evolves, and founder pricing only applies where it is currently active.
                 </p>
               </div>
 
@@ -145,7 +145,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
                 {
                   icon: ShieldCheck,
                   title: "Secure checkout",
-                  copy: "Account setup happens here. Billing is completed securely in Stripe."
+                  copy: "Your details are confirmed here. Billing is completed securely in Stripe, and access opens after payment is confirmed."
                 }
               ].map((item) => (
                 <article
@@ -166,8 +166,8 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
 
       {billing === "cancelled" ? (
         <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
-          Stripe checkout was cancelled. Your selected room is still here and ready when you want
-          to continue.
+          Stripe checkout was cancelled. No member account was created, and your selected room is
+          still here when you want to continue.
         </p>
       ) : null}
 

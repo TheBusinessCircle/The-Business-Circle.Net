@@ -2,6 +2,7 @@ import {
   FoundingReservationSource,
   FoundingReservationStatus,
   MembershipTier,
+  PendingRegistrationStatus,
   Prisma
 } from "@prisma/client";
 import {
@@ -56,24 +57,35 @@ const DEFAULT_FOUNDING_SETTINGS = {
 
 type FoundingClient = typeof db | Prisma.TransactionClient;
 
-type ReserveFoundingSlotInput = {
-  userId: string;
-  tier: MembershipTier;
-  source?: FoundingReservationSource;
-  expiresInMinutes?: number;
-};
+type ReserveFoundingSlotInput =
+  | {
+      userId: string;
+      pendingRegistrationId?: never;
+      tier: MembershipTier;
+      source?: FoundingReservationSource;
+      expiresInMinutes?: number;
+    }
+  | {
+      userId?: never;
+      pendingRegistrationId: string;
+      tier: MembershipTier;
+      source?: FoundingReservationSource;
+      expiresInMinutes?: number;
+    };
 
-type ClaimFoundingReservationInput =
+type ClaimFoundingReservationInput = (
   | {
       reservationId: string;
       checkoutSessionId?: never;
-      subscriptionId?: string | null;
     }
   | {
       reservationId?: never;
       checkoutSessionId: string;
-      subscriptionId?: string | null;
-    };
+    }
+) & {
+  subscriptionId?: string | null;
+  userId?: string | null;
+};
 
 type UpdateFoundingOfferSettingsInput = {
   enabled: boolean;
@@ -109,6 +121,16 @@ type FoundingSettingsSnapshot = {
   coreFoundingPrice: number;
   updatedAt: Date;
 };
+
+type FoundingReservationOwner =
+  | {
+      userId: string;
+      pendingRegistrationId?: never;
+    }
+  | {
+      userId?: never;
+      pendingRegistrationId: string;
+    };
 
 const FOUNDING_SETTINGS_LEGACY_SELECT = {
   id: true,
@@ -432,7 +454,7 @@ export async function cleanupExpiredFoundingReservations(client: FoundingClient 
 async function countActiveReservations(
   client: FoundingClient,
   tier: MembershipTier,
-  excludeUserId?: string
+  excludeOwner?: FoundingReservationOwner
 ) {
   return client.foundingOfferReservation.count({
     where: {
@@ -441,12 +463,18 @@ async function countActiveReservations(
       expiresAt: {
         gt: new Date()
       },
-      ...(excludeUserId
-        ? {
-            userId: {
-              not: excludeUserId
+      ...(excludeOwner
+        ? "userId" in excludeOwner
+          ? {
+              userId: {
+                not: excludeOwner.userId
+              }
             }
-          }
+          : {
+              pendingRegistrationId: {
+                not: excludeOwner.pendingRegistrationId
+              }
+            }
         : {})
     }
   });
@@ -558,43 +586,67 @@ export async function reserveFoundingSlot(
       return null;
     }
 
-    const user = await tx.user.findUnique({
-      where: {
-        id: input.userId
-      },
-      select: {
-        foundingMember: true,
-        subscription: {
-          select: {
-            status: true,
-            stripeSubscriptionId: true,
-            currentPeriodStart: true,
-            canceledAt: true
+    if ("userId" in input) {
+      const user = await tx.user.findUnique({
+        where: {
+          id: input.userId
+        },
+        select: {
+          foundingMember: true,
+          subscription: {
+            select: {
+              status: true,
+              stripeSubscriptionId: true,
+              currentPeriodStart: true,
+              canceledAt: true
+            }
           }
         }
-      }
-    });
+      });
 
-    if (
-      !user ||
-      !isEligibleForDiscountedPricing({
-        source: input.source,
-        foundingMember: user.foundingMember,
-        subscription: user.subscription
-      })
-    ) {
-      return null;
+      if (
+        !user ||
+        !isEligibleForDiscountedPricing({
+          source: input.source,
+          foundingMember: user.foundingMember,
+          subscription: user.subscription
+        })
+      ) {
+        return null;
+      }
+    } else {
+      const pendingRegistration = await tx.pendingRegistration.findUnique({
+        where: {
+          id: input.pendingRegistrationId
+        },
+        select: {
+          status: true
+        }
+      });
+
+      if (
+        !pendingRegistration ||
+        pendingRegistration.status !== PendingRegistrationStatus.PENDING
+      ) {
+        return null;
+      }
     }
 
     const now = new Date();
     const existingReservation = await tx.foundingOfferReservation.findFirst({
       where: {
-        userId: input.userId,
         tier: input.tier,
         status: FoundingReservationStatus.ACTIVE,
         expiresAt: {
           gt: now
-        }
+        },
+        ...("userId" in input
+          ? {
+              userId: input.userId
+            }
+          : {
+              pendingRegistrationId: input.pendingRegistrationId
+            })
       },
       orderBy: {
         createdAt: "desc"
@@ -612,8 +664,14 @@ export async function reserveFoundingSlot(
 
     await tx.foundingOfferReservation.updateMany({
       where: {
-        userId: input.userId,
-        status: FoundingReservationStatus.ACTIVE
+        status: FoundingReservationStatus.ACTIVE,
+        ...("userId" in input
+          ? {
+              userId: input.userId
+            }
+          : {
+              pendingRegistrationId: input.pendingRegistrationId
+            })
       },
       data: {
         status: FoundingReservationStatus.RELEASED,
@@ -621,7 +679,7 @@ export async function reserveFoundingSlot(
       }
     });
 
-    const reservedCount = await countActiveReservations(tx, input.tier, input.userId);
+    const reservedCount = await countActiveReservations(tx, input.tier, input);
     const claimedCount = getClaimedCount(settings, input.tier);
     const limitCount = getLimitCount(settings, input.tier);
 
@@ -631,11 +689,17 @@ export async function reserveFoundingSlot(
 
     const reservation = await tx.foundingOfferReservation.create({
       data: {
-        userId: input.userId,
         tier: input.tier,
         foundingPrice: foundingMonthlyPlan.checkoutPrice,
         source: input.source ?? FoundingReservationSource.CHECKOUT,
         status: FoundingReservationStatus.ACTIVE,
+        ...("userId" in input
+          ? {
+              userId: input.userId
+            }
+          : {
+              pendingRegistrationId: input.pendingRegistrationId
+            }),
         expiresAt: new Date(
           now.getTime() + (input.expiresInMinutes ?? DEFAULT_RESERVATION_WINDOW_MINUTES) * 60_000
         )
@@ -713,10 +777,15 @@ export async function claimFoundingReservation(input: ClaimFoundingReservationIn
       return null;
     }
 
+    const resolvedUserId = reservation.userId ?? input.userId ?? null;
+    if (!resolvedUserId) {
+      return null;
+    }
+
     const settings = await getOrCreateFoundingOfferSettings(tx);
     const existingMembership = await tx.foundingMember.findUnique({
       where: {
-        userId: reservation.userId
+        userId: resolvedUserId
       }
     });
     const counts = {
@@ -734,7 +803,7 @@ export async function claimFoundingReservation(input: ClaimFoundingReservationIn
 
       await tx.foundingMember.create({
         data: {
-          userId: reservation.userId,
+          userId: resolvedUserId,
           tier: reservation.tier,
           foundingPrice: reservation.foundingPrice,
           claimedAt: now,
@@ -750,7 +819,7 @@ export async function claimFoundingReservation(input: ClaimFoundingReservationIn
 
       await tx.foundingMember.update({
         where: {
-          userId: reservation.userId
+          userId: resolvedUserId
         },
         data: {
           tier: reservation.tier,
@@ -765,7 +834,7 @@ export async function claimFoundingReservation(input: ClaimFoundingReservationIn
 
       await tx.foundingMember.update({
         where: {
-          userId: reservation.userId
+          userId: resolvedUserId
         },
         data: {
           subscriptionId: input.subscriptionId ?? null
@@ -789,7 +858,7 @@ export async function claimFoundingReservation(input: ClaimFoundingReservationIn
 
     await tx.user.update({
       where: {
-        id: reservation.userId
+        id: resolvedUserId
       },
       data: {
         foundingMember: true,
@@ -806,12 +875,13 @@ export async function claimFoundingReservation(input: ClaimFoundingReservationIn
       data: {
         status: FoundingReservationStatus.CLAIMED,
         claimedAt: now,
-        subscriptionId: input.subscriptionId ?? null
+        subscriptionId: input.subscriptionId ?? null,
+        userId: resolvedUserId
       }
     });
 
     return {
-      userId: reservation.userId,
+      userId: resolvedUserId,
       tier: reservation.tier,
       foundingPrice: nextPrice,
       claimedAt: nextClaimedAt

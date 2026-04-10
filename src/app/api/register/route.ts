@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createMemberAccount, RegistrationServiceError } from "@/lib/auth/register";
+import { createPendingRegistration, RegistrationServiceError } from "@/lib/auth/register";
 import {
   clientIpFromHeaders,
   consumeRateLimit,
@@ -8,7 +8,7 @@ import {
 import { logServerError } from "@/lib/security/logging";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import {
-  createStripeCheckoutSessionForUser,
+  createStripeCheckoutSessionForPendingRegistration,
   isBillingEnabled
 } from "@/server/subscriptions";
 
@@ -45,24 +45,24 @@ export async function POST(request: Request) {
   try {
     const payload = await request.json();
     const billingEnabled = isBillingEnabled();
-    const { user, selectedTier, billingInterval } = await createMemberAccount(payload, {
-      stripeEnabled: billingEnabled
-    });
 
     if (!billingEnabled) {
-      return NextResponse.json({ ok: true }, { headers });
+      return NextResponse.json(
+        { error: "Stripe billing is not configured." },
+        { status: 500, headers }
+      );
     }
 
-    const checkoutSession = await createStripeCheckoutSessionForUser({
-      userId: user.id,
-      email: user.email,
-      name: user.name,
-      targetTier: selectedTier,
-      billingInterval,
-      coreAccessConfirmed:
-        typeof payload?.coreAccessConfirmed === "boolean" ? payload.coreAccessConfirmed : false,
-      successPath: "/dashboard?billing=success&source=join",
-      cancelPath: `/join?billing=cancelled&tier=${selectedTier}&period=${billingInterval}`
+    const { pendingRegistration } = await createPendingRegistration(payload);
+    const checkoutSession = await createStripeCheckoutSessionForPendingRegistration({
+      pendingRegistrationId: pendingRegistration.id,
+      email: pendingRegistration.email,
+      name: pendingRegistration.fullName,
+      targetTier: pendingRegistration.selectedTier,
+      billingInterval: pendingRegistration.billingInterval,
+      coreAccessConfirmed: pendingRegistration.coreAccessConfirmed,
+      inviteCode: pendingRegistration.inviteCode,
+      cancelPath: `/join?billing=cancelled&tier=${pendingRegistration.selectedTier}&period=${pendingRegistration.billingInterval}`
     });
 
     return NextResponse.json({ checkoutUrl: checkoutSession.url }, { headers });
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       const status =
         error.code === "INVALID_INPUT"
           ? 400
-          : error.code === "EMAIL_IN_USE"
+          : error.code === "EMAIL_IN_USE" || error.code === "PAYMENT_IN_PROGRESS"
             ? 409
             : 500;
       return NextResponse.json({ error: error.message }, { status, headers });
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
 
     logServerError("register-route-failed", error);
     return NextResponse.json(
-      { error: "Unable to create account." },
+      { error: "Unable to start registration." },
       { status: 500, headers }
     );
   }

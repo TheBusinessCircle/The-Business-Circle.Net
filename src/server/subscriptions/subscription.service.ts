@@ -1,6 +1,7 @@
 import {
   FoundingReservationSource,
   MembershipTier,
+  PendingRegistrationStatus,
   Role,
   SubscriptionStatus,
   type Prisma
@@ -16,6 +17,10 @@ import {
   type MembershipBillingInterval,
   type MembershipBillingVariant
 } from "@/config/membership";
+import {
+  finalizePendingRegistrationAccess,
+  provisionUserFromPendingRegistration
+} from "@/lib/auth/register";
 import { db } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
@@ -45,6 +50,19 @@ type CheckoutSessionInput = {
   targetTier: MembershipTier;
   billingInterval: MembershipBillingInterval;
   coreAccessConfirmed?: boolean;
+  successPath?: string;
+  cancelPath?: string;
+  allowFoundingOffer?: boolean;
+};
+
+type PendingRegistrationCheckoutInput = {
+  pendingRegistrationId: string;
+  email: string;
+  name?: string | null;
+  targetTier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
+  coreAccessConfirmed?: boolean;
+  inviteCode?: string | null;
   successPath?: string;
   cancelPath?: string;
   allowFoundingOffer?: boolean;
@@ -232,6 +250,222 @@ function resolvePrimaryPrice(
   return subscription.items.data[0] ?? null;
 }
 
+async function findPendingRegistrationForStripeReferences(input: {
+  pendingRegistrationId?: string | null;
+  checkoutSessionId?: string | null;
+  customerId?: string | null;
+  subscriptionId?: string | null;
+}) {
+  if (input.pendingRegistrationId) {
+    return db.pendingRegistration.findUnique({
+      where: {
+        id: input.pendingRegistrationId
+      },
+      select: {
+        id: true,
+        stripeCheckoutSessionId: true
+      }
+    });
+  }
+
+  const orFilters: Prisma.PendingRegistrationWhereInput[] = [];
+
+  if (input.subscriptionId) {
+    orFilters.push({
+      stripeSubscriptionId: input.subscriptionId
+    });
+  }
+
+  if (input.checkoutSessionId) {
+    orFilters.push({
+      stripeCheckoutSessionId: input.checkoutSessionId
+    });
+  }
+
+  if (input.customerId) {
+    orFilters.push({
+      stripeCustomerId: input.customerId
+    });
+  }
+
+  if (!orFilters.length) {
+    return null;
+  }
+
+  return db.pendingRegistration.findFirst({
+    where: {
+      OR: orFilters
+    },
+    select: {
+      id: true,
+      stripeCheckoutSessionId: true
+    }
+  });
+}
+
+async function updatePendingRegistrationStripeState(input: {
+  pendingRegistrationId?: string | null;
+  checkoutSessionId?: string | null;
+  customerId?: string | null;
+  subscriptionId?: string | null;
+  status?: PendingRegistrationStatus;
+}) {
+  const pendingRegistration = await findPendingRegistrationForStripeReferences(input);
+
+  if (!pendingRegistration) {
+    return null;
+  }
+
+  const data = {
+    ...(input.status
+      ? {
+          status: input.status
+        }
+      : {}),
+    ...(input.checkoutSessionId
+      ? {
+          stripeCheckoutSessionId: input.checkoutSessionId
+        }
+      : {}),
+    ...(input.customerId
+      ? {
+          stripeCustomerId: input.customerId
+        }
+      : {}),
+    ...(input.subscriptionId
+      ? {
+          stripeSubscriptionId: input.subscriptionId
+        }
+      : {})
+  };
+
+  if (input.status) {
+    await db.pendingRegistration.updateMany({
+      where: {
+        id: pendingRegistration.id,
+        status: {
+          not: PendingRegistrationStatus.COMPLETED
+        }
+      },
+      data
+    });
+  } else if (Object.keys(data).length) {
+    await db.pendingRegistration.update({
+      where: {
+        id: pendingRegistration.id
+      },
+      data
+    });
+  }
+
+  return {
+    id: pendingRegistration.id,
+    checkoutSessionId:
+      input.checkoutSessionId ?? pendingRegistration.stripeCheckoutSessionId ?? null
+  };
+}
+
+async function completePendingRegistrationFromStripeSubscription(
+  subscription: Stripe.Subscription,
+  input: {
+    pendingRegistrationId?: string | null;
+    checkoutSessionId?: string | null;
+  } = {}
+) {
+  const normalizedStatus = stripeStatusToSubscriptionStatus(subscription.status);
+  if (!isSubscriptionEntitled(normalizedStatus)) {
+    return false;
+  }
+
+  const customerId = toStripeObjectId(subscription.customer as string | { id?: string } | null);
+  const pendingRegistration = await updatePendingRegistrationStripeState({
+    pendingRegistrationId:
+      input.pendingRegistrationId ?? subscription.metadata?.pendingRegistrationId ?? null,
+    checkoutSessionId: input.checkoutSessionId ?? null,
+    customerId,
+    subscriptionId: subscription.id
+  });
+
+  if (!pendingRegistration) {
+    return false;
+  }
+
+  const provisioned = await provisionUserFromPendingRegistration({
+    pendingRegistrationId: pendingRegistration.id,
+    stripeCheckoutSessionId: pendingRegistration.checkoutSessionId,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: subscription.id
+  });
+
+  if (!provisioned) {
+    return false;
+  }
+
+  const persistedSubscription = await upsertSubscriptionFromStripeSubscription(
+    subscription,
+    provisioned.user.id
+  );
+
+  if (!persistedSubscription?.id) {
+    return false;
+  }
+
+  const foundingReservationId = subscription.metadata?.foundingReservationId ?? null;
+  if (foundingReservationId) {
+    await claimFoundingReservation({
+      reservationId: foundingReservationId,
+      subscriptionId: persistedSubscription.id,
+      userId: provisioned.user.id
+    });
+  }
+
+  await finalizePendingRegistrationAccess({
+    pendingRegistrationId: provisioned.pendingRegistrationId,
+    userId: provisioned.user.id,
+    email: provisioned.user.email,
+    fullName: provisioned.fullName,
+    selectedTier: provisioned.selectedTier,
+    inviteCode: provisioned.inviteCode,
+    stripeCheckoutSessionId: pendingRegistration.checkoutSessionId,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: subscription.id
+  });
+
+  return true;
+}
+
+async function completePendingRegistrationFromCheckoutSession(
+  session: Stripe.Checkout.Session
+) {
+  const pendingRegistrationId = session.metadata?.pendingRegistrationId ?? null;
+  if (!pendingRegistrationId) {
+    return false;
+  }
+
+  const customerId = toStripeObjectId(session.customer as string | { id?: string } | null);
+  const subscriptionId = toStripeObjectId(
+    session.subscription as string | { id?: string } | null
+  );
+  await updatePendingRegistrationStripeState({
+    pendingRegistrationId,
+    checkoutSessionId: session.id,
+    customerId,
+    subscriptionId
+  });
+
+  if (!subscriptionId) {
+    return false;
+  }
+
+  const stripe = requireStripeClient();
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  return completePendingRegistrationFromStripeSubscription(subscription, {
+    pendingRegistrationId,
+    checkoutSessionId: session.id
+  });
+}
+
 async function resolveSubscriptionContext(
   params: {
     metadataUserId?: string | null;
@@ -354,6 +588,11 @@ async function upsertSubscriptionFromStripeSubscription(
 async function upsertSubscriptionFromCheckoutSession(
   session: Stripe.Checkout.Session
 ) {
+  if (session.metadata?.pendingRegistrationId) {
+    await completePendingRegistrationFromCheckoutSession(session);
+    return;
+  }
+
   const context = await resolveSubscriptionContext({
     metadataUserId: session.metadata?.userId ?? session.client_reference_id ?? null,
     customerId: toStripeObjectId(session.customer as string | { id?: string } | null),
@@ -502,6 +741,13 @@ async function syncSubscriptionFromInvoice(invoice: Stripe.Invoice) {
 
   const stripe = requireStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const completedPendingRegistration =
+    await completePendingRegistrationFromStripeSubscription(subscription);
+
+  if (completedPendingRegistration) {
+    return;
+  }
+
   await upsertSubscriptionFromStripeSubscription(subscription);
 }
 
@@ -519,8 +765,24 @@ const defaultWebhookProcessors: StripeWebhookProcessors = {
       reservationId: session.metadata?.foundingReservationId ?? null,
       checkoutSessionId: session.id
     });
+    await updatePendingRegistrationStripeState({
+      pendingRegistrationId: session.metadata?.pendingRegistrationId ?? null,
+      checkoutSessionId: session.id,
+      customerId: toStripeObjectId(session.customer as string | { id?: string } | null),
+      subscriptionId: toStripeObjectId(
+        session.subscription as string | { id?: string } | null
+      ),
+      status: PendingRegistrationStatus.EXPIRED
+    });
   },
   handleSubscriptionChanged: async (subscription) => {
+    const completedPendingRegistration =
+      await completePendingRegistrationFromStripeSubscription(subscription);
+
+    if (completedPendingRegistration) {
+      return;
+    }
+
     await upsertSubscriptionFromStripeSubscription(subscription);
   },
   handleInvoiceEvent: syncSubscriptionFromInvoice
@@ -691,6 +953,108 @@ export async function createStripeCheckoutSessionForUser(
       status: SubscriptionStatus.INCOMPLETE,
       tier: input.targetTier
     }
+  });
+
+  return {
+    id: session.id,
+    url: session.url,
+    billingVariant,
+    billingInterval: input.billingInterval,
+    checkoutPrice: selectedPlan.checkoutPrice,
+    monthlyEquivalentPrice: selectedPlan.monthlyEquivalentPrice
+  };
+}
+
+export async function createStripeCheckoutSessionForPendingRegistration(
+  input: PendingRegistrationCheckoutInput
+): Promise<CheckoutSessionResult> {
+  assertCoreAccessConfirmed(input);
+
+  const stripe = requireStripeClient();
+  const foundingReservation =
+    input.allowFoundingOffer === false
+      ? null
+      : await reserveFoundingSlot({
+          pendingRegistrationId: input.pendingRegistrationId,
+          tier: input.targetTier,
+          source: FoundingReservationSource.CHECKOUT
+        });
+  const billingVariant: MembershipBillingVariant = foundingReservation ? "founding" : "standard";
+  const selectedPlan = await resolveManagedMembershipPlan(
+    input.targetTier,
+    billingVariant,
+    input.billingInterval
+  );
+  const priceId = selectedPlan.stripePriceId;
+  const planKey = selectedPlan.planKey;
+  const metadata = {
+    checkoutKind: "pending_registration",
+    pendingRegistrationId: input.pendingRegistrationId,
+    targetTier: input.targetTier,
+    billingVariant,
+    billingInterval: input.billingInterval,
+    planKey,
+    coreAccessConfirmed: input.coreAccessConfirmed ? "true" : "false",
+    inviteCode: input.inviteCode ?? "",
+    ...(foundingReservation
+      ? {
+          foundingReservationId: foundingReservation.id
+        }
+      : {})
+  };
+
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      payment_method_types: ["card"],
+      customer_email: input.email,
+      line_items: [{ price: priceId, quantity: 1 }],
+      allow_promotion_codes: true,
+      success_url: absoluteUrl(
+        input.successPath ?? "/join/complete?session_id={CHECKOUT_SESSION_ID}"
+      ),
+      cancel_url: absoluteUrl(
+        input.cancelPath ??
+          `/join?billing=cancelled&tier=${input.targetTier}&period=${input.billingInterval}`
+      ),
+      client_reference_id: input.pendingRegistrationId,
+      metadata,
+      subscription_data: {
+        metadata
+      }
+    });
+  } catch (error) {
+    if (foundingReservation) {
+      await releaseFoundingReservation({
+        reservationId: foundingReservation.id
+      });
+    }
+
+    throw error;
+  }
+
+  if (!session.url) {
+    if (foundingReservation) {
+      await releaseFoundingReservation({
+        reservationId: foundingReservation.id
+      });
+    }
+
+    throw new Error("Stripe checkout session did not return a redirect URL.");
+  }
+
+  if (foundingReservation) {
+    await attachFoundingReservationToCheckoutSession(foundingReservation.id, session.id);
+  }
+
+  await updatePendingRegistrationStripeState({
+    pendingRegistrationId: input.pendingRegistrationId,
+    checkoutSessionId: session.id,
+    customerId: toStripeObjectId(session.customer as string | { id?: string } | null),
+    subscriptionId: toStripeObjectId(
+      session.subscription as string | { id?: string } | null
+    )
   });
 
   return {

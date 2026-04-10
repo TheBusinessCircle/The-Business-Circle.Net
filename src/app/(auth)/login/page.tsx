@@ -41,7 +41,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <p>
             New here?{" "}
             <Link href={withFromParam("/membership", from)} className="text-primary hover:underline">
-              Create your account
+              Start the join flow
             </Link>{" "}
             to join The Business Circle Network.
           </p>

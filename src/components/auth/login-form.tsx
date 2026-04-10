@@ -19,6 +19,7 @@ type LoginFormProps = {
   errorCode?: string;
   errorDetailCode?: string;
   initialNotice?: string;
+  initialEmail?: string;
 };
 
 function withFrom(pathname: string, from?: string) {
@@ -31,7 +32,13 @@ function withFrom(pathname: string, from?: string) {
   return `${pathname}?${params.toString()}`;
 }
 
-export function LoginForm({ from, errorCode, errorDetailCode, initialNotice }: LoginFormProps) {
+export function LoginForm({
+  from,
+  errorCode,
+  errorDetailCode,
+  initialNotice,
+  initialEmail
+}: LoginFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [notice, setNotice] = useState<string | null>(
@@ -42,7 +49,7 @@ export function LoginForm({ from, errorCode, errorDetailCode, initialNotice }: L
   const form = useForm<CredentialsSignInInput>({
     resolver: zodResolver(credentialsSignInSchema),
     defaultValues: {
-      email: "",
+      email: initialEmail ?? "",
       password: ""
     }
   });

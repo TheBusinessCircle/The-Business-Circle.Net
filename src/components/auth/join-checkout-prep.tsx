@@ -371,7 +371,7 @@ export function JoinCheckoutPrep({
                   onClick={() => setShowAccountSetup(true)}
                   disabled={!canContinueToCore}
                 >
-                  Continue To Secure Setup
+                  Continue To Secure Checkout
                 </Button>
                 <p className="text-center text-xs text-muted">
                   Already a member?{" "}
@@ -389,7 +389,7 @@ export function JoinCheckoutPrep({
               selectedOffer.available
                 ? "Founder pricing only applies while this room still has founder allocation available."
                 : "Founder pricing is not active in this room right now.",
-              "Secure checkout is completed in Stripe after account setup."
+              "Billing is completed securely in Stripe, and access is only created after payment confirms."
             ].map((item) => (
               <div
                 key={item}
