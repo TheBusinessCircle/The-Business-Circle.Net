@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MembershipTier, Role } from "@prisma/client";
-import { ArrowLeft, ExternalLink, Link2, ShieldAlert, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ExternalLink, Link2, ShieldAlert, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import {
   assignMemberBadgeAction,
+  deleteMemberAction,
   grantMemberReputationAction,
   resetMemberReputationAction,
   suspendMemberAction,
@@ -60,6 +61,7 @@ function buildFeedbackMessage(input: { error: string; notice: string }) {
     "tier-updated": "Membership tier was updated.",
     "member-suspended": "Member account has been suspended.",
     "member-unsuspended": "Member account has been reactivated.",
+    "member-deleted": "Member account was permanently deleted.",
     "reputation-granted": "Reputation points were granted.",
     "reputation-reset": "Reputation was reset to zero.",
     "badge-assigned": "Badge was assigned to the member."
@@ -69,8 +71,12 @@ function buildFeedbackMessage(input: { error: string; notice: string }) {
     invalid: "The request payload was invalid.",
     "not-found": "That member account no longer exists.",
     "self-role": "You cannot remove your own admin privileges.",
+    "self-delete": "You cannot delete your own admin account.",
     "self-suspend": "You cannot suspend your own account.",
     "last-admin": "At least one active admin must remain on the platform.",
+    "delete-confirmation-mismatch": "Type the exact member email address to confirm deletion.",
+    "delete-active-subscription": "Cancel live membership billing before deleting this account.",
+    "member-delete-failed": "Unable to permanently delete that account right now.",
     "email-exists": "That email address is already used by another account.",
     "badge-not-found": "The selected badge was not found."
   };
@@ -87,7 +93,7 @@ function buildFeedbackMessage(input: { error: string; notice: string }) {
 }
 
 export default async function AdminMemberDetailsPage({ params, searchParams }: PageProps) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const { memberId } = await params;
   const parsedSearchParams = await searchParams;
 
@@ -105,6 +111,7 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
     notice: firstValue(parsedSearchParams.notice)
   });
   const tierLocked = member.role === Role.ADMIN;
+  const deletionLocked = member.id === session.user.id;
 
   return (
     <div className="space-y-6">
@@ -272,6 +279,41 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
               </form>
               {member.suspendedAt ? (
                 <p className="mt-2 text-xs text-muted">Suspended at: {formatDate(member.suspendedAt)}</p>
+              ) : null}
+            </div>
+
+            <div className="rounded-xl border border-red-500/35 bg-red-500/10 p-3">
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-red-100">
+                <Trash2 size={14} />
+                Permanent Account Deletion
+              </p>
+              <p className="mt-1 text-xs text-red-100/80">
+                This permanently removes the member account, sign-in access, profile, and related
+                member-owned data so the same email can register again. Cancel live membership
+                billing before deleting the account.
+              </p>
+              <form action={deleteMemberAction} className="mt-3 space-y-3">
+                <input type="hidden" name="memberId" value={member.id} />
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <div className="space-y-2">
+                  <Label htmlFor="confirmationEmail">Type the member email to confirm</Label>
+                  <Input
+                    id="confirmationEmail"
+                    name="confirmationEmail"
+                    type="email"
+                    placeholder={member.email}
+                    autoComplete="off"
+                    disabled={deletionLocked}
+                  />
+                </div>
+                <Button type="submit" variant="danger" disabled={deletionLocked}>
+                  Delete Account Permanently
+                </Button>
+              </form>
+              {deletionLocked ? (
+                <p className="mt-2 text-xs text-red-100/80">
+                  Use a different admin account if you ever need to remove this one.
+                </p>
               ) : null}
             </div>
           </CardContent>

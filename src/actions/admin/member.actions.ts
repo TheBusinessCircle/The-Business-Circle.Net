@@ -8,6 +8,11 @@ import { db } from "@/lib/db";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import { requireAdmin } from "@/lib/session";
 import {
+  canBypassDeleteConfirmation,
+  isMemberDeletionBlockedBySubscriptionStatus,
+  parseDeleteMemberFormData
+} from "@/actions/admin/member-account-removal";
+import {
   assignBadgeToUser,
   grantReputationToUser,
   resetReputationForUser
@@ -397,6 +402,87 @@ export async function unsuspendMemberAction(formData: FormData) {
 
   revalidateMemberManagerPaths(memberId);
   redirectWithNotice(returnPath, "member-unsuspended");
+}
+
+export async function deleteMemberAction(formData: FormData) {
+  const session = await requireAdmin();
+
+  const fallbackReturnPath = resolveReturnPath(
+    typeof formData.get("returnPath") === "string" ? String(formData.get("returnPath")) : undefined
+  );
+
+  const parsed = parseDeleteMemberFormData(formData);
+
+  if (!parsed.success) {
+    redirectWithError(fallbackReturnPath, "invalid");
+  }
+
+  const { memberId, confirmationEmail } = parsed.data;
+  const returnPath = resolveReturnPath(parsed.data.returnPath, fallbackReturnPath);
+
+  if (memberId === session.user.id) {
+    redirectWithError(returnPath, "self-delete");
+  }
+
+  const target = await db.user.findUnique({
+    where: {
+      id: memberId
+    },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      suspended: true,
+      subscription: {
+        select: {
+          status: true
+        }
+      }
+    }
+  });
+
+  if (!target) {
+    redirectWithError(returnPath, "not-found");
+  }
+
+  if (
+    !canBypassDeleteConfirmation(target.email) &&
+    confirmationEmail !== target.email.trim().toLowerCase()
+  ) {
+    redirectWithError(returnPath, "delete-confirmation-mismatch");
+  }
+
+  try {
+    await ensureAdminDemotionAllowed(memberId);
+  } catch {
+    redirectWithError(returnPath, "last-admin");
+  }
+
+  if (isMemberDeletionBlockedBySubscriptionStatus(target.subscription?.status)) {
+    redirectWithError(returnPath, "delete-active-subscription");
+  }
+
+  try {
+    await db.user.delete({
+      where: {
+        id: memberId
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      redirectWithError(returnPath, "not-found");
+    }
+
+    redirectWithError(returnPath, "member-delete-failed");
+  }
+
+  revalidateMemberManagerPaths(memberId);
+  redirectWithNotice(
+    returnPath === "/admin/members" || returnPath.startsWith("/admin/members?")
+      ? returnPath
+      : "/admin/members",
+    "member-deleted"
+  );
 }
 
 export async function grantMemberReputationAction(formData: FormData) {

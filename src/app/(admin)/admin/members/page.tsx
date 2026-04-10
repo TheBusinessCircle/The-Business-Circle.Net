@@ -3,10 +3,12 @@ import Link from "next/link";
 import { MembershipTier, Role, SubscriptionStatus } from "@prisma/client";
 import { ExternalLink, Filter, Search, ShieldAlert, ShieldCheck, UserCog } from "lucide-react";
 import {
+  deleteMemberAction,
   suspendMemberAction,
   unsuspendMemberAction,
   updateMemberTierAction
 } from "@/actions/admin/member.actions";
+import { AdminMemberDeleteForm } from "@/components/admin/admin-member-delete-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -140,15 +142,20 @@ function buildFeedbackMessage(input: { error: string; notice: string }) {
     "member-updated": "Member details were updated.",
     "tier-updated": "Membership tier was updated.",
     "member-suspended": "Member account has been suspended.",
-    "member-unsuspended": "Member account has been reactivated."
+    "member-unsuspended": "Member account has been reactivated.",
+    "member-deleted": "Member account was permanently deleted."
   };
 
   const errorMap: Record<string, string> = {
     invalid: "The request payload was invalid.",
     "not-found": "That member account no longer exists.",
     "self-role": "You cannot remove your own admin privileges.",
+    "self-delete": "You cannot delete your own admin account.",
     "self-suspend": "You cannot suspend your own account.",
     "last-admin": "At least one active admin must remain on the platform.",
+    "delete-confirmation-mismatch": "Type the exact member email address to confirm deletion.",
+    "delete-active-subscription": "Cancel live membership billing before deleting this account.",
+    "member-delete-failed": "Unable to permanently delete that account right now.",
     "email-exists": "That email address is already used by another account."
   };
 
@@ -429,7 +436,7 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                               </Button>
                             </form>
 
-                            <form action={member.suspended ? unsuspendMemberAction : suspendMemberAction}>
+                            <form action={member.suspended ? unsuspendMemberAction : suspendMemberAction} className="w-full">
                               <input type="hidden" name="memberId" value={member.id} />
                               <input type="hidden" name="returnPath" value={currentPath} />
                               <Button
@@ -437,12 +444,24 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                                 size="sm"
                                 variant={member.suspended ? "outline" : "ghost"}
                                 className={
-                                  member.suspended ? "" : "text-red-300 hover:bg-red-500/10 hover:text-red-200"
+                                  member.suspended
+                                    ? "w-full justify-start"
+                                    : "w-full justify-start text-red-300 hover:bg-red-500/10 hover:text-red-200"
                                 }
                               >
                                 {member.suspended ? "Unsuspend Account" : "Suspend Account"}
                               </Button>
                             </form>
+
+                            <AdminMemberDeleteForm
+                              action={deleteMemberAction}
+                              memberId={member.id}
+                              email={member.email}
+                              returnPath={currentPath}
+                                className={
+                                  "w-full"
+                                }
+                            />
                           </div>
                         </td>
                       </tr>

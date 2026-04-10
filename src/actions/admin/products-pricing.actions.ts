@@ -1,19 +1,16 @@
 "use server";
 
-import {
-  BillingDiscountAppliesTo,
-  BillingDiscountTag,
-  BillingDiscountType,
-  BillingInterval,
-  BillingPriceBillingType,
-  BillingProductCategory,
-  MembershipTier
-} from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import { requireAdmin } from "@/lib/session";
+import {
+  parseBillingDiscountActiveFormData,
+  parseBillingDiscountFormData,
+  parseBillingPriceFormData,
+  parseBillingProductFormData,
+  parseFounderControlFormData
+} from "@/actions/admin/products-pricing.parsers";
 import {
   createBillingDiscountWithStripe,
   syncBillingCatalogWithStripe,
@@ -41,10 +38,6 @@ function redirectWithNotice(path: string, code: string): never {
   redirect(appendQueryParam(path, "notice", code));
 }
 
-function parseBoolean(value: FormDataEntryValue | null) {
-  return value === "on" || value === "true" || value === "1";
-}
-
 function revalidateProductsPricingPaths() {
   revalidatePath("/admin/products-pricing");
   revalidatePath("/admin/founding");
@@ -54,60 +47,6 @@ function revalidateProductsPricingPaths() {
   revalidatePath("/founder");
   revalidatePath("/dashboard");
 }
-
-const productSchema = z.object({
-  productId: z.string().cuid().optional().or(z.literal("")),
-  name: z.string().trim().min(3).max(120),
-  category: z.nativeEnum(BillingProductCategory),
-  description: z.string().trim().max(500),
-  active: z.boolean(),
-  membershipTier: z.nativeEnum(MembershipTier).optional().nullable(),
-  founderServiceId: z.string().cuid().optional().nullable(),
-  returnPath: z.string().optional()
-});
-
-const priceSchema = z.object({
-  priceId: z.string().cuid().optional().or(z.literal("")),
-  productId: z.string().cuid(),
-  name: z.string().trim().min(2).max(80),
-  amount: z.coerce.number().int().min(0).max(10_000_000),
-  currency: z.string().trim().min(3).max(3).default("GBP"),
-  billingType: z.nativeEnum(BillingPriceBillingType),
-  interval: z.nativeEnum(BillingInterval).optional().nullable(),
-  isFounderPrice: z.boolean(),
-  active: z.boolean(),
-  returnPath: z.string().optional()
-});
-
-const discountSchema = z.object({
-  code: z.string().trim().min(3).max(64),
-  name: z.string().trim().max(120).optional().or(z.literal("")),
-  type: z.nativeEnum(BillingDiscountType),
-  value: z.coerce.number().int().min(1).max(10_000_000),
-  appliesTo: z.nativeEnum(BillingDiscountAppliesTo),
-  usageLimit: z.preprocess(
-    (value) => (value === "" || value == null ? undefined : value),
-    z.coerce.number().int().min(1).max(10_000).optional()
-  ),
-  expiresAt: z.string().trim().optional().or(z.literal("")),
-  active: z.boolean(),
-  tag: z.nativeEnum(BillingDiscountTag),
-  specificProductId: z.string().cuid().optional().or(z.literal("")),
-  returnPath: z.string().optional()
-});
-
-const discountActiveSchema = z.object({
-  discountId: z.string().cuid(),
-  active: z.boolean(),
-  returnPath: z.string().optional()
-});
-
-const founderControlSchema = z.object({
-  productId: z.string().cuid(),
-  founderLimit: z.coerce.number().int().min(0).max(10_000),
-  active: z.boolean(),
-  returnPath: z.string().optional()
-});
 
 export async function upsertBillingProductAction(formData: FormData) {
   await requireAdmin();
@@ -119,22 +58,7 @@ export async function upsertBillingProductAction(formData: FormData) {
     "/admin/products-pricing"
   );
 
-  const parsed = productSchema.safeParse({
-    productId: formData.get("productId"),
-    name: formData.get("name"),
-    category: formData.get("category"),
-    description: formData.get("description"),
-    active: parseBoolean(formData.get("active")),
-    membershipTier:
-      typeof formData.get("membershipTier") === "string" && formData.get("membershipTier")
-        ? String(formData.get("membershipTier"))
-        : null,
-    founderServiceId:
-      typeof formData.get("founderServiceId") === "string" && formData.get("founderServiceId")
-        ? String(formData.get("founderServiceId"))
-        : null,
-    returnPath: formData.get("returnPath")
-  });
+  const parsed = parseBillingProductFormData(formData);
 
   if (!parsed.success) {
     redirectWithError(returnPath, "product-invalid");
@@ -147,8 +71,8 @@ export async function upsertBillingProductAction(formData: FormData) {
       category: parsed.data.category,
       description: parsed.data.description,
       active: parsed.data.active,
-      membershipTier: parsed.data.membershipTier ?? null,
-      founderServiceId: parsed.data.founderServiceId || null
+      membershipTier: parsed.data.membershipTier,
+      founderServiceId: parsed.data.founderServiceId
     });
   } catch {
     redirectWithError(returnPath, "product-save-failed");
@@ -168,21 +92,7 @@ export async function upsertBillingPriceAction(formData: FormData) {
     "/admin/products-pricing"
   );
 
-  const parsed = priceSchema.safeParse({
-    priceId: formData.get("priceId"),
-    productId: formData.get("productId"),
-    name: formData.get("name"),
-    amount: formData.get("amount"),
-    currency: formData.get("currency"),
-    billingType: formData.get("billingType"),
-    interval:
-      typeof formData.get("interval") === "string" && formData.get("interval")
-        ? String(formData.get("interval"))
-        : null,
-    isFounderPrice: parseBoolean(formData.get("isFounderPrice")),
-    active: parseBoolean(formData.get("active")),
-    returnPath: formData.get("returnPath")
-  });
+  const parsed = parseBillingPriceFormData(formData);
 
   if (!parsed.success) {
     redirectWithError(returnPath, "price-invalid");
@@ -196,7 +106,7 @@ export async function upsertBillingPriceAction(formData: FormData) {
       amount: parsed.data.amount,
       currency: parsed.data.currency,
       billingType: parsed.data.billingType,
-      interval: parsed.data.interval ?? null,
+      interval: parsed.data.interval,
       isFounderPrice: parsed.data.isFounderPrice,
       active: parsed.data.active
     });
@@ -218,19 +128,7 @@ export async function createBillingDiscountAction(formData: FormData) {
     "/admin/products-pricing"
   );
 
-  const parsed = discountSchema.safeParse({
-    code: formData.get("code"),
-    name: formData.get("name"),
-    type: formData.get("type"),
-    value: formData.get("value"),
-    appliesTo: formData.get("appliesTo"),
-    usageLimit: formData.get("usageLimit"),
-    expiresAt: formData.get("expiresAt"),
-    active: parseBoolean(formData.get("active")),
-    tag: formData.get("tag"),
-    specificProductId: formData.get("specificProductId"),
-    returnPath: formData.get("returnPath")
-  });
+  const parsed = parseBillingDiscountFormData(formData);
 
   if (!parsed.success) {
     redirectWithError(returnPath, "discount-invalid");
@@ -247,7 +145,7 @@ export async function createBillingDiscountAction(formData: FormData) {
       expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null,
       active: parsed.data.active,
       tag: parsed.data.tag,
-      specificProductId: parsed.data.specificProductId || null
+      specificProductId: parsed.data.specificProductId
     });
   } catch {
     redirectWithError(returnPath, "discount-create-failed");
@@ -267,11 +165,7 @@ export async function updateBillingDiscountActiveAction(formData: FormData) {
     "/admin/products-pricing"
   );
 
-  const parsed = discountActiveSchema.safeParse({
-    discountId: formData.get("discountId"),
-    active: parseBoolean(formData.get("active")),
-    returnPath: formData.get("returnPath")
-  });
+  const parsed = parseBillingDiscountActiveFormData(formData);
 
   if (!parsed.success) {
     redirectWithError(returnPath, "discount-update-invalid");
@@ -300,12 +194,7 @@ export async function updateFounderControlAction(formData: FormData) {
     "/admin/products-pricing"
   );
 
-  const parsed = founderControlSchema.safeParse({
-    productId: formData.get("productId"),
-    founderLimit: formData.get("founderLimit"),
-    active: parseBoolean(formData.get("active")),
-    returnPath: formData.get("returnPath")
-  });
+  const parsed = parseFounderControlFormData(formData);
 
   if (!parsed.success) {
     redirectWithError(returnPath, "founder-control-invalid");
