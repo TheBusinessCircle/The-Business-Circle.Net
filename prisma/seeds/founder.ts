@@ -58,8 +58,31 @@ const FOUNDER_SERVICES = [
   }
 ] as const;
 
+function toStripePriceId(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed?.startsWith("price_") ? trimmed : undefined;
+}
+
+function resolveFounderServiceStripePriceId(slug: string): string | undefined {
+  switch (slug) {
+    case "growth-architect-clarity-audit":
+      return toStripePriceId(process.env.STRIPE_FOUNDER_CLARITY_AUDIT_PRICE_ID);
+    case "growth-architect-growth-strategy":
+      return toStripePriceId(process.env.STRIPE_FOUNDER_STRATEGY_SESSION_PRICE_ID);
+    case "growth-architect-full-growth-architect":
+      return (
+        toStripePriceId(process.env.STRIPE_FOUNDER_GROWTH_ARCHITECT_MONTHLY_PRICE_ID) ??
+        toStripePriceId(process.env.STRIPE_FOUNDER_GROWTH_ARCHITECT_PRICE_ID)
+      );
+    default:
+      return undefined;
+  }
+}
+
 export async function seedFounderServices(prisma: PrismaClient): Promise<void> {
   for (const service of FOUNDER_SERVICES) {
+    const stripePriceId = resolveFounderServiceStripePriceId(service.slug);
+
     await prisma.founderService.upsert({
       where: { slug: service.slug },
       update: {
@@ -72,6 +95,7 @@ export async function seedFounderServices(prisma: PrismaClient): Promise<void> {
         billingType: service.billingType,
         intakeMode: service.intakeMode,
         position: service.position,
+        stripePriceId,
         active: true
       },
       create: {
@@ -85,6 +109,7 @@ export async function seedFounderServices(prisma: PrismaClient): Promise<void> {
         billingType: service.billingType,
         intakeMode: service.intakeMode,
         position: service.position,
+        stripePriceId: stripePriceId ?? null,
         active: true
       }
     });

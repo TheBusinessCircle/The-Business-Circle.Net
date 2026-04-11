@@ -9,18 +9,22 @@ export function NavbarBrand() {
   const shine = pathname === "/";
 
   return (
-    <Link href="/" className="group flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:flex-none">
+    <Link
+      href="/"
+      className="group flex min-w-0 max-w-[calc(100%-2.5rem)] flex-1 items-center gap-1.5 overflow-hidden pr-2 sm:max-w-none sm:gap-3 lg:flex-none lg:pr-0"
+    >
       <BrandMark
         placement="navbar"
         priority
         shine={shine}
         className="transition-all group-hover:scale-[1.03]"
       />
-      <div className="min-w-0">
-        <p className="truncate font-display text-xs leading-tight text-foreground min-[420px]:text-sm sm:text-base">
-          The Business Circle Network
+      <div className="min-w-0 max-w-full">
+        <p className="truncate font-display text-[10px] leading-tight text-foreground min-[360px]:text-[11px] sm:text-base">
+          <span className="sm:hidden">The Business Circle</span>
+          <span className="hidden sm:inline">The Business Circle Network</span>
         </p>
-        <p className="hidden text-[10px] tracking-[0.12em] text-muted uppercase min-[420px]:block">
+        <p className="hidden text-[9px] tracking-[0.12em] text-muted uppercase sm:block">
           Founder-Led Growth Ecosystem
         </p>
       </div>

@@ -268,31 +268,38 @@ export function CookieConsent() {
   return (
     <>
       {shouldShowBanner ? (
-        <div className="fixed inset-x-4 bottom-4 z-50 md:left-6 md:right-6">
-          <div className="mx-auto w-full max-w-[72rem] rounded-[2rem] border border-gold/20 bg-[linear-gradient(180deg,rgba(14,24,46,0.96),rgba(10,18,35,0.94))] p-5 shadow-panel backdrop-blur-xl sm:p-6">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-3xl space-y-3">
-                <h2 className="font-display text-2xl text-foreground sm:text-[2rem]">
-                  Your privacy, your choice
+        <div className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-4 sm:bottom-4 md:left-6 md:right-6">
+          <div className="mx-auto w-full max-w-[60rem] rounded-[1.6rem] border border-gold/20 bg-[linear-gradient(180deg,rgba(14,24,46,0.96),rgba(10,18,35,0.94))] p-4 shadow-panel backdrop-blur-xl sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 max-w-3xl space-y-2.5">
+                <h2 className="font-display text-lg text-foreground sm:text-xl">
+                  Cookie choices
                 </h2>
-                <p className="text-sm leading-relaxed text-muted sm:text-[0.95rem]">
-                  We use cookies to keep The Business Circle running properly and to understand how
-                  the site is used. You can accept all cookies, reject non-essential cookies, or
-                  manage your preferences at any time.
+                <p className="text-sm leading-relaxed text-muted">
+                  Essential cookies keep the site secure and working. Optional cookies help us
+                  understand usage and improve the experience.
                 </p>
-                <Link href="/cookie-policy" className="inline-flex text-sm text-primary hover:underline">
-                  Read our Cookie Policy
+                <Link
+                  href="/cookie-policy"
+                  className="inline-flex text-xs text-primary hover:underline sm:text-sm"
+                >
+                  Read the Cookie Policy
                 </Link>
               </div>
 
-              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
-                <Button size="lg" variant="default" onClick={handleAcceptAll}>
+              <div className="grid w-full gap-2 min-[440px]:grid-cols-2 lg:w-auto lg:grid-cols-[repeat(3,max-content)]">
+                <Button size="sm" variant="default" onClick={handleAcceptAll}>
                   Accept all
                 </Button>
-                <Button size="lg" variant="outline" onClick={handleRejectNonEssential}>
+                <Button size="sm" variant="outline" onClick={handleRejectNonEssential}>
                   Reject non-essential
                 </Button>
-                <Button size="lg" variant="ghost" onClick={() => setIsPreferencesOpen(true)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsPreferencesOpen(true)}
+                  className="min-[440px]:col-span-2 lg:col-span-1"
+                >
                   Manage preferences
                 </Button>
               </div>

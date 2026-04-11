@@ -23,19 +23,23 @@ export function SectionHeading({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4",
+        "flex min-w-0 flex-col gap-4",
         isCentered ? "items-center text-center" : "items-start text-left",
         className
       )}
     >
       {label ? (
-        <p className="premium-kicker">
+        <p className="premium-kicker max-w-fit">
           {label}
         </p>
       ) : null}
-      <div className={cn("space-y-3", isCentered ? "max-w-3xl" : "max-w-2xl")}>
-        <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">{title}</h2>
-        {description ? <p className="text-base leading-relaxed text-muted">{description}</p> : null}
+      <div className={cn("min-w-0 space-y-3", isCentered ? "max-w-3xl" : "max-w-2xl")}>
+        <h2 className="font-display text-[clamp(1.95rem,6vw,3rem)] leading-tight text-foreground sm:text-4xl">
+          {title}
+        </h2>
+        {description ? (
+          <p className="text-[0.98rem] leading-relaxed text-muted sm:text-base">{description}</p>
+        ) : null}
       </div>
       {action ? <div>{action}</div> : null}
     </div>

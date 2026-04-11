@@ -29,7 +29,7 @@ export async function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 overflow-x-clip border-b border-border/80 bg-background/78 backdrop-blur-xl">
-      <div className="mx-auto flex h-[4.75rem] w-full max-w-7xl items-center justify-between gap-3 px-4 sm:h-[5.5rem] sm:gap-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-[4.5rem] w-full max-w-7xl items-center justify-between gap-2 px-2.5 sm:h-[5.5rem] sm:gap-6 sm:px-6 lg:px-8">
         <NavbarBrand />
 
         <nav className="hidden min-w-0 items-center gap-1 rounded-xl border border-border/70 bg-card/55 p-1 lg:flex">
@@ -67,14 +67,14 @@ export async function Navbar() {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 lg:hidden">
-          <BackgroundModeToggle showLabel={false} />
+        <div className="flex shrink-0 items-center gap-1.5 min-[420px]:gap-2 lg:hidden">
+          <BackgroundModeToggle showLabel={false} className="hidden min-[420px]:inline-flex" />
           <details className="relative [&_summary::-webkit-details-marker]:hidden">
-            <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl border border-border bg-card/65 text-silver">
+            <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-border bg-card/65 text-silver min-[420px]:h-10 min-[420px]:w-10 min-[420px]:rounded-xl">
               <span className="sr-only">Toggle navigation</span>
               <Menu size={18} />
             </summary>
-            <div className="absolute right-0 top-12 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-border/90 bg-background/95 p-3 shadow-panel backdrop-blur">
+            <div className="absolute right-0 top-11 w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl border border-border/90 bg-background/95 p-3 shadow-panel backdrop-blur min-[420px]:top-12">
               <nav className="flex flex-col gap-1">
                 <NavigationLinks />
               </nav>

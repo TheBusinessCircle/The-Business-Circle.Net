@@ -78,9 +78,9 @@ const TIER_GUIDES: TierGuide[] = [
     detailSummary:
       "Build the base properly before the business needs more depth.",
     whoItsFor:
-      "Designed for owners still tightening the foundations of the business, shaping the offer, or building more consistency around how growth happens.",
+      "Designed for owners still tightening the foundations of the business, shaping the offer, or building more consistency into growth.",
     whatYouNeed:
-      "You need clearer structure, better context, and a room where conversations help the business move without burying you in noise.",
+      "You need clearer structure, better context, and a room where conversation helps the business move without adding noise.",
     whyThisFits:
       "Foundation gives you the right base around the work so momentum can build cleanly before you need a tighter room.",
     ctaLabel: "Enter Foundation",
@@ -97,7 +97,7 @@ const TIER_GUIDES: TierGuide[] = [
     whoItsFor:
       "Designed for businesses with traction that want sharper discussion, stronger positioning, and a more intentional room around the next stage of growth.",
     whatYouNeed:
-      "You need higher-signal conversation, stronger visibility, and more useful context than a wider room can usually hold.",
+      "You need higher-signal conversation, stronger visibility, and more useful context than a wider room usually holds.",
     whyThisFits:
       "Inner Circle raises the quality of context and discussion without turning the membership into a status game.",
     ctaLabel: "Enter Inner Circle",
@@ -112,9 +112,9 @@ const TIER_GUIDES: TierGuide[] = [
     detailSummary:
       "Protect decision quality with more serious context and less noise.",
     whoItsFor:
-      "Designed for established operators and business owners carrying real responsibility who want the calmest room, the best proximity, and more serious conversation.",
+      "Designed for established operators carrying real responsibility who want the calmest room, the best proximity, and more serious conversation.",
     whatYouNeed:
-      "You need a quieter environment where judgement matters, the signal stays high, and the quality of the room supports more consequential decisions.",
+      "You need a quieter environment where judgement matters, the signal stays high, and the room supports more consequential decisions.",
     whyThisFits:
       "Core protects the conversation, raises the level of proximity, and keeps serious growth discussion inside a more controlled environment.",
     ctaLabel: "Enter Core",
@@ -124,7 +124,7 @@ const TIER_GUIDES: TierGuide[] = [
 
 const FOUNDER_PERSPECTIVE_LINES = [
   "Different stages of business need different environments.",
-  "The goal is not to push everyone into the highest tier. The goal is to help owners enter the right room and keep the whole environment useful.",
+  "The goal is not to push everyone into the highest tier. The goal is to help owners enter the right room and keep the environment useful.",
   "That is what keeps the network calmer, more relevant, and more commercially useful over time."
 ] as const;
 
@@ -301,7 +301,7 @@ function SelectedPathPanel({
       exit={reducedMotion ? undefined : { opacity: 0, y: 14 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "overflow-hidden rounded-[1.95rem] border border-white/10 bg-gradient-to-br from-background/36 via-card/82 to-card/72 shadow-panel",
+        "min-w-0 overflow-hidden rounded-[1.95rem] border border-white/10 bg-gradient-to-br from-background/36 via-card/82 to-card/72 shadow-panel",
         compact ? "p-5" : "p-6 sm:p-7"
       )}
     >
@@ -315,7 +315,7 @@ function SelectedPathPanel({
             </span>
           </div>
           <div className="space-y-2">
-            <h2 className="font-display text-3xl text-foreground sm:text-[2.1rem]">
+            <h2 className="font-display text-2xl text-foreground sm:text-[2.1rem]">
               {selectedDefinition.name}
             </h2>
             <p className="max-w-2xl text-base leading-relaxed text-silver">
@@ -398,7 +398,7 @@ function SelectedPathPanel({
                 animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
                 exit={reducedMotion ? undefined : { opacity: 0, y: -6 }}
                 transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                className={cn("font-display text-5xl leading-none", selectedTierAccentClassName)}
+                className={cn("font-display text-4xl leading-none sm:text-5xl", selectedTierAccentClassName)}
               >
                 {formatMembershipPrice(selectedDisplayPrice)}
               </motion.span>
@@ -535,7 +535,7 @@ export function MembershipGuidedSelector({
   );
 
   return (
-    <div className="space-y-16 pb-16 sm:space-y-20">
+    <div className="w-full min-w-0 space-y-14 pb-16 sm:space-y-16 lg:space-y-20">
       <JourneyRail
         currentStep="membership"
         note="Use this page to place the business properly. When the fit feels clear, the selected room carries straight into join."
@@ -547,11 +547,11 @@ export function MembershipGuidedSelector({
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-foundation/14 blur-[120px]" />
 
-        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.36fr)] xl:items-end">
+        <div className="relative grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.36fr)] xl:items-end">
           <div className="space-y-5">
             <div className="space-y-4">
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership</p>
-              <h1 className="max-w-4xl font-display text-4xl leading-tight text-foreground sm:text-5xl">
+              <h1 className="max-w-4xl font-display text-[clamp(2.05rem,7.6vw,4rem)] leading-tight text-foreground sm:text-5xl">
                 Choose the room that fits the business now.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-muted">
@@ -561,13 +561,13 @@ export function MembershipGuidedSelector({
               </p>
               <p className="max-w-3xl text-sm leading-relaxed text-silver">
                 Better placement keeps the network useful. That is why the cards stay light, the
-                detail appears after selection, and the decision path stays calm.
+                detail only appears after selection, and the decision path stays calm.
               </p>
             </div>
 
             <div className="rounded-[1.5rem] border border-white/8 bg-background/18 px-5 py-4">
               <p className="text-sm leading-relaxed text-muted">
-                This was built to help owners place themselves properly, not just buy access.
+                Built to help owners place themselves properly, not just buy access.
               </p>
             </div>
           </div>
@@ -619,8 +619,8 @@ export function MembershipGuidedSelector({
             Select the room first. Read the depth second.
           </h2>
           <p className="text-base leading-relaxed text-muted">
-            This is structured to reduce overload. Cards stay light and scannable. Depth only
-            appears after you choose where the business fits now.
+            This is structured to reduce overload. Cards stay light and scannable. Depth appears
+            after you choose where the business fits now.
           </p>
         </div>
 
@@ -646,7 +646,7 @@ export function MembershipGuidedSelector({
                     aria-pressed={selected}
                     onClick={() => setSelectedTier(guide.tier)}
                     className={cn(
-                      "group relative flex w-full min-h-[214px] flex-col justify-between overflow-hidden rounded-[1.8rem] border p-5 text-left shadow-panel transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/35 focus-visible:ring-offset-0 sm:min-h-[224px] sm:p-6",
+                      "group relative flex w-full min-h-[196px] flex-col justify-between overflow-hidden rounded-[1.8rem] border p-5 text-left shadow-panel transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/35 focus-visible:ring-offset-0 sm:min-h-[224px] sm:p-6",
                       selectionCardClassName,
                       selected
                         ? cn(
@@ -674,7 +674,7 @@ export function MembershipGuidedSelector({
                     <div className="relative mt-7 space-y-4">
                       <h3
                         className={cn(
-                          "font-display text-[1.9rem] leading-tight transition-colors duration-300",
+                          "font-display text-[1.75rem] leading-tight transition-colors duration-300 sm:text-[1.9rem]",
                           selected ? "text-foreground" : "text-silver"
                         )}
                       >
@@ -789,8 +789,8 @@ export function MembershipGuidedSelector({
           </h2>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
             Your selected room and billing interval carry straight into join. The aim is not to
-            pick the highest tier by default. It is to choose the room that fits the business now,
-            then move forward with confidence.
+            pick the highest tier by default. It is to choose the room that fits now, then move
+            forward with confidence.
           </p>
           <div className="space-y-4">
             <Link

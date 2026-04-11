@@ -36,6 +36,56 @@ type CreateFounderServiceDiscountCodeInput = {
   tag: "LOCAL_OUTREACH" | "MEMBER_DISCOUNT" | "MANUAL";
 };
 
+function nonEmptyEnvValue(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function toStripePriceId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed?.startsWith("price_") ? trimmed : null;
+}
+
+function resolveFounderServiceStripePriceId(input: {
+  slug: string;
+  storedPriceId: string | null;
+}) {
+  const envPriceId = (() => {
+    switch (input.slug) {
+      case "growth-architect-clarity-audit":
+        return toStripePriceId(process.env.STRIPE_FOUNDER_CLARITY_AUDIT_PRICE_ID);
+      case "growth-architect-growth-strategy":
+        return toStripePriceId(process.env.STRIPE_FOUNDER_STRATEGY_SESSION_PRICE_ID);
+      case "growth-architect-full-growth-architect":
+        return (
+          toStripePriceId(process.env.STRIPE_FOUNDER_GROWTH_ARCHITECT_MONTHLY_PRICE_ID) ??
+          toStripePriceId(process.env.STRIPE_FOUNDER_GROWTH_ARCHITECT_PRICE_ID)
+        );
+      default:
+        return null;
+    }
+  })();
+
+  return envPriceId ?? toStripePriceId(input.storedPriceId);
+}
+
+function resolveFounderServiceStripeProductId(input: {
+  slug: string;
+  storedProductId: string | null;
+}) {
+  const storedProductId = nonEmptyEnvValue(input.storedProductId ?? undefined);
+
+  switch (input.slug) {
+    case "growth-architect-clarity-audit":
+    case "growth-architect-growth-strategy":
+    case "growth-architect-full-growth-architect":
+      return storedProductId;
+    case "growth-architect-growth-strategy":
+    default:
+      return storedProductId;
+  }
+}
+
 function toStripeObjectId(
   value: string | { id?: string } | null | undefined
 ): string | null {
@@ -106,12 +156,20 @@ export async function createFounderServiceCheckoutSession(
     options.adminDiscountCodeId
       ? await getFounderServiceDiscountCodeById(options.adminDiscountCodeId)
       : null;
+  const effectiveStripePriceId = resolveFounderServiceStripePriceId({
+    slug: request.service.slug,
+    storedPriceId: request.service.stripePriceId
+  });
+  const effectiveStripeProductId = resolveFounderServiceStripeProductId({
+    slug: request.service.slug,
+    storedProductId: request.service.stripeProductId
+  });
   const successUrl = absoluteUrl(`/founder/thanks?request=${request.id}&status=success`);
   const cancelUrl = absoluteUrl(
     `/founder/services/${request.service.slug}?status=cancelled&request=${request.id}`
   );
   const canUseStoredStripePrice =
-    Boolean(request.service.stripePriceId) &&
+    Boolean(effectiveStripePriceId) &&
     request.amount === request.service.price &&
     !adminDiscountCode?.stripePromotionCodeId;
 
@@ -127,7 +185,7 @@ export async function createFounderServiceCheckoutSession(
     line_items: canUseStoredStripePrice
       ? [
           {
-            price: request.service.stripePriceId ?? undefined,
+            price: effectiveStripePriceId ?? undefined,
             quantity: 1
           }
         ]
@@ -178,7 +236,7 @@ export async function createFounderServiceCheckoutSession(
       founderServiceMembershipTier: request.membershipTierApplied ?? "",
       founderServiceAdminDiscountCodeId:
         adminDiscountCode?.id ?? request.adminDiscountCodeId ?? "",
-      founderServiceStripeProductId: request.service.stripeProductId ?? ""
+      founderServiceStripeProductId: effectiveStripeProductId ?? ""
     },
     subscription_data: isMonthlyRetainer
       ? {
@@ -195,7 +253,7 @@ export async function createFounderServiceCheckoutSession(
             founderServiceMembershipTier: request.membershipTierApplied ?? "",
             founderServiceAdminDiscountCodeId:
               adminDiscountCode?.id ?? request.adminDiscountCodeId ?? "",
-            founderServiceStripeProductId: request.service.stripeProductId ?? ""
+            founderServiceStripeProductId: effectiveStripeProductId ?? ""
           }
         }
       : undefined

@@ -53,20 +53,24 @@ export function HeroSection({
 
       <div
         className={cn(
-          "relative grid items-start gap-8 sm:gap-10",
+          "relative grid min-w-0 items-start gap-8 sm:gap-10",
           aside ? "lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch" : "grid-cols-1"
         )}
       >
-        <div className="space-y-7">
+        <div className="min-w-0 space-y-6 sm:space-y-7">
           {eyebrow ? (
-            <p className="premium-kicker">
+            <p className="premium-kicker max-w-fit">
               {eyebrow}
             </p>
           ) : null}
 
           <div className="space-y-5">
-            <h1 className="font-display text-3xl leading-tight text-foreground sm:text-5xl lg:text-6xl">{title}</h1>
-            <p className="max-w-2xl text-base leading-relaxed text-muted sm:text-lg">{description}</p>
+            <h1 className="font-display text-[clamp(2rem,8.5vw,4.5rem)] leading-[0.98] text-foreground lg:text-6xl">
+              {title}
+            </h1>
+            <p className="max-w-2xl text-[0.98rem] leading-relaxed text-muted sm:text-lg">
+              {description}
+            </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -122,7 +126,7 @@ export function HeroSection({
               {metrics.map((metric) => (
                 <div
                   key={metric.label}
-                  className="rounded-2xl border border-border/80 bg-background/35 px-4 py-3 transition-colors hover:border-gold/30"
+                  className="min-w-0 rounded-2xl border border-border/80 bg-background/35 px-4 py-3 transition-colors hover:border-gold/30"
                 >
                   <p className="font-display text-2xl text-silver">{metric.value}</p>
                   <p className="mt-1 text-xs tracking-wide text-muted uppercase">{metric.label}</p>
@@ -132,7 +136,7 @@ export function HeroSection({
           ) : null}
         </div>
 
-        {aside ? <div className="relative min-h-0">{aside}</div> : null}
+        {aside ? <div className="relative min-h-0 min-w-0">{aside}</div> : null}
       </div>
     </section>
   );

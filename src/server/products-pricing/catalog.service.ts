@@ -123,6 +123,27 @@ function founderServiceProductName(input: { slug: string; title: string }) {
   return input.title;
 }
 
+function toStripePriceId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed?.startsWith("price_") ? trimmed : null;
+}
+
+function founderServiceEnvStripePriceId(slug: string): string | null {
+  switch (slug) {
+    case "growth-architect-clarity-audit":
+      return toStripePriceId(process.env.STRIPE_FOUNDER_CLARITY_AUDIT_PRICE_ID);
+    case "growth-architect-growth-strategy":
+      return toStripePriceId(process.env.STRIPE_FOUNDER_STRATEGY_SESSION_PRICE_ID);
+    case "growth-architect-full-growth-architect":
+      return (
+        toStripePriceId(process.env.STRIPE_FOUNDER_GROWTH_ARCHITECT_MONTHLY_PRICE_ID) ??
+        toStripePriceId(process.env.STRIPE_FOUNDER_GROWTH_ARCHITECT_PRICE_ID)
+      );
+    default:
+      return null;
+  }
+}
+
 function founderServicePriceName(
   billingType: FounderServiceBillingType
 ) {
@@ -368,6 +389,19 @@ async function ensureBillingPriceRecord(
     });
   }
 
+  if (input.stripePriceId && activeRow.stripePriceId !== input.stripePriceId) {
+    return client.billingPrice.update({
+      where: {
+        id: activeRow.id
+      },
+      data: {
+        stripePriceId: input.stripePriceId,
+        syncStatus: BillingSyncStatus.SYNCED,
+        syncError: null
+      }
+    });
+  }
+
   return activeRow;
 }
 
@@ -407,6 +441,7 @@ async function ensureFounderServiceCatalog(client: BillingClient) {
   });
 
   for (const service of services) {
+    const envStripePriceId = founderServiceEnvStripePriceId(service.slug);
     const product = await ensureBillingProductRecord(client, {
       slug: `${service.slug}-product`,
       name: founderServiceProductName(service),
@@ -433,8 +468,10 @@ async function ensureFounderServiceCatalog(client: BillingClient) {
           : null,
       isFounderPrice: false,
       active: true,
-      stripePriceId: service.stripePriceId ?? ""
+      stripePriceId: envStripePriceId ?? service.stripePriceId ?? ""
     });
+
+    await updateLinkedFounderServiceFromCatalog(client, product.id);
   }
 }
 

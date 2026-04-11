@@ -58,17 +58,17 @@ const whatThisIsNot = [
   {
     title: "Not just a content platform",
     description:
-      "Useful material matters, but this is not built around passive consumption or a stream of disconnected advice."
+      "Useful material matters, but the point is not passive consumption or disconnected advice."
   },
   {
     title: "Not just a networking group",
     description:
-      "Introductions matter more when the room has context, standards, and a clearer sense of who belongs where."
+      "Introductions matter more when the room has context, standards, and better placement."
   },
   {
     title: "Not just a chat community",
     description:
-      "The point is not constant activity. The point is better conversation, better judgement, and better movement."
+      "The point is not constant activity. The point is better judgement and better movement."
   }
 ] as const;
 
@@ -76,17 +76,17 @@ const whatThisIs = [
   {
     title: "Structured placement",
     description:
-      "Different stages of business need different rooms, so owners can place themselves properly instead of drifting through the wrong environment."
+      "Different stages of business need different rooms, so owners can place themselves properly instead of drifting."
   },
   {
     title: "Better conversations",
     description:
-      "The room is designed to improve context before people speak, which raises the quality of the conversation quickly."
+      "The room improves context before people speak, which raises conversation quality quickly."
   },
   {
     title: "Forward movement",
     description:
-      "Everything is there to support clearer decisions, stronger relationships, and steadier commercial momentum."
+      "Everything is built to support clearer decisions, stronger relationships, and steadier momentum."
   }
 ] as const;
 
@@ -95,19 +95,19 @@ const howItWorksSteps = [
     step: "01",
     title: "Place yourself",
     description:
-      "Look honestly at the stage the business is in and the level of context you need around it now."
+      "Look honestly at the stage the business is in and the level of context it needs now."
   },
   {
     step: "02",
     title: "Enter the right room",
     description:
-      "Choose the membership level that matches the pace, depth, and proximity that fit the business properly."
+      "Choose the membership level that matches the pace, depth, and proximity the business needs."
   },
   {
     step: "03",
     title: "Build with better structure",
     description:
-      "Use the room to think more clearly, connect with better people, and keep momentum moving in a cleaner way."
+      "Use the room to think more clearly, connect with better people, and keep momentum moving."
   }
 ] as const;
 
@@ -178,7 +178,7 @@ export default async function HomePage() {
   });
 
   return (
-    <div className="space-y-16 pb-16 lg:space-y-20">
+    <div className="w-full min-w-0 space-y-14 pb-16 sm:space-y-16 lg:space-y-20">
       <JsonLd
         data={buildCollectionPageSchema({
           title: "The Business Circle Network",
@@ -198,9 +198,9 @@ export default async function HomePage() {
 
       <HeroSection
         eyebrow="Private business community for owners"
-        title="A structured business network for owners who want clearer thinking, better people around them, and stronger momentum."
-        description="The Business Circle Network is a private business community UK owners can use when the usual mix of noise, loose networking, and surface-level advice stops helping. It gives active business owners a calmer room for clearer decisions, stronger relationships, and steadier commercial movement."
-        supportLine="Start here. Understand why it exists. Choose the room that fits. Join with confidence."
+        title="A structured business network for owners who want clearer thinking, stronger relationships, and steadier momentum."
+        description="The Business Circle Network is a private business community UK owners can step into when loose networking and surface-level advice stop helping. It gives active owners a calmer room for clearer decisions, better conversations, and more dependable movement."
+        supportLine="Understand why it exists. Choose the room that fits. Join with confidence."
         callouts={["Founder-led", "Structured placement", "Built for active owners"]}
         primaryAction={{ href: "/about", label: "Read Why It Exists" }}
         secondaryAction={{ href: "/membership", label: "See The Rooms", variant: "outline" }}
@@ -215,7 +215,7 @@ export default async function HomePage() {
               <div className="mt-5 space-y-3">
                 {[
                   "Less noise around the work.",
-                  "Better context before conversations begin.",
+                  "Better context before people speak.",
                   "A room that helps owners move forward."
                 ].map((item) => (
                   <div
@@ -248,7 +248,7 @@ export default async function HomePage() {
 
       <JourneyRail
         currentStep="home"
-        note="The public side of the site is designed to move from orientation to trust, then into placement and join."
+        note="The public site moves from orientation to trust, then into placement and join."
         nextAction={{ href: "/about", label: "Continue To About" }}
       />
 
@@ -256,7 +256,7 @@ export default async function HomePage() {
         <SectionHeading
           label="What This Is"
           title="Not another content platform, networking group, or chat feed."
-          description="This is a structured environment for business owners. The point is to create better conditions for decisions, conversations, and momentum."
+          description="This is a structured environment for business owners. The point is better conditions for decisions, conversations, and momentum."
         />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
@@ -296,7 +296,7 @@ export default async function HomePage() {
         <SectionHeading
           label="How It Works"
           title="A simple path into the right room."
-          description="The public site should make the next step obvious. You understand the environment, place yourself properly, then move forward cleanly."
+          description="The public site should make the next step obvious. Understand the environment, place yourself properly, then move forward cleanly."
         />
 
         <div className="grid gap-4 lg:grid-cols-3">
@@ -414,7 +414,7 @@ export default async function HomePage() {
       />
 
       <CTASection
-        title="When the fit feels clear, choose the room that fits the business now."
+        title="When the fit feels clear, choose the room that fits now."
         description="You can review the membership structure, compare the rooms, and move into join when you are ready."
         primaryAction={{ href: "/membership", label: "Explore Membership" }}
         secondaryAction={{ href: "/join", label: "Go To Join", variant: "outline" }}

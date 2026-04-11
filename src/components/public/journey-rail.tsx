@@ -34,12 +34,12 @@ export function JourneyRail({
   return (
     <div
       className={cn(
-        "rounded-[1.6rem] border border-white/10 bg-background/20 px-4 py-4 shadow-panel-soft sm:px-5",
+        "overflow-hidden rounded-[1.6rem] border border-white/10 bg-background/20 px-4 py-4 shadow-panel-soft sm:px-5 sm:py-5",
         className
       )}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Public journey</p>
           <div className="flex flex-wrap items-center gap-2">
             {JOURNEY_STEPS.map((step, index) => {
@@ -77,7 +77,7 @@ export function JourneyRail({
         </div>
 
         {note || nextAction ? (
-          <div className="flex max-w-xl flex-col gap-2 text-sm leading-relaxed text-muted lg:items-end lg:text-right">
+          <div className="min-w-0 flex max-w-xl flex-col gap-2 text-sm leading-relaxed text-muted lg:items-end lg:text-right">
             {note ? <p>{note}</p> : null}
             {nextAction ? (
               <Link
