@@ -9,6 +9,8 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "env:validate:production": "tsx scripts/validate-production-env.ts",
+    "stripe:webhook:upsert": "tsx scripts/stripe-webhook.ts",
     "deps:check:critical": "npm outdated next-auth @auth/prisma-adapter prisma @prisma/client @prisma/adapter-pg",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

@@ -27,10 +27,11 @@ This repository keeps the new calling stack separate from the existing Ably-powe
 ## TLS and public routing
 
 - Production should expose the app behind HTTPS as usual.
-- `LIVEKIT_URL` should be a public `wss://` endpoint such as `wss://rtc.thebcnet.co.uk`.
-- `TURN_DOMAIN` should resolve publicly, for example `turn.thebcnet.co.uk`.
-- This repo keeps coturn in secure shared-secret mode by default and documents TURN/TLS as the next hardening step.
-- If you add TURN/TLS later, mount certificates into coturn and expose `5349/tcp` or terminate on `443/tcp`.
+- `LIVEKIT_URL` should be a public `wss://` endpoint such as `wss://rtc.thebusinesscircle.net`.
+- `TURN_DOMAIN` should resolve publicly, for example `turn.thebusinesscircle.net`.
+- This repo keeps coturn in secure shared-secret mode and now supports TURN/TLS directly through `TURN_TLS_ENABLED`, `TURN_TLS_PORT`, and the `TURN_TLS_*` certificate path variables.
+- The default Docker deployment expects certificate files at `.secrets/coturn/fullchain.pem` and `.secrets/coturn/privkey.pem` on the server, mounted into coturn as `/etc/coturn/certs/...`.
+- If you terminate TURN/TLS on `443/tcp` instead of `5349/tcp`, update `TURN_TLS_PORT` and the firewall rules to match.
 
 ## Future split-host upgrade
 

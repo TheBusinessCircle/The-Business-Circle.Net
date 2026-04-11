@@ -5,10 +5,12 @@ import {
 } from "@/config/membership";
 import { CACHE_TAGS } from "@/lib/cache";
 import { CONNECTION_WIN_TAG } from "@/lib/connection-wins";
+import { isCloudinaryConfigured } from "@/lib/media/cloudinary";
 import { buildCommunityPostPath } from "@/lib/community-paths";
 import { db } from "@/lib/db";
 import { getRateLimitStatus } from "@/lib/security/rate-limit";
 import { toTitleCase } from "@/lib/utils";
+import { isTurnConfigured, isTurnTlsConfigured } from "@/server/calling/turn";
 import { resolveManagedMembershipPlanFromStripePriceId } from "@/server/products-pricing";
 import { isBillingEnabled } from "@/server/subscriptions/subscription.service";
 import type {
@@ -50,6 +52,15 @@ function authSecretConfigured() {
 
 function billingWebhookConfigured() {
   return Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim());
+}
+
+function liveKitUrl() {
+  return process.env.LIVEKIT_URL?.trim() || "";
+}
+
+function liveKitSecureConfigured() {
+  const url = liveKitUrl();
+  return url.startsWith("wss://") || url.startsWith("https://");
 }
 
 function sortActivity(items: AdminLiveActivityItem[]) {
@@ -212,6 +223,17 @@ export async function getAdminSecuritySnapshot(): Promise<AdminSecuritySnapshot>
   if (paymentRiskMembers > 0) {
     warnings.push("One or more memberships are in a payment-risk state.");
   }
+  if (process.env.NODE_ENV === "production" && !isCloudinaryConfigured()) {
+    warnings.push(
+      "Cloudinary is not configured. Uploaded media will fall back to local disk instead of durable storage."
+    );
+  }
+  if (process.env.NODE_ENV === "production" && isTurnConfigured() && !isTurnTlsConfigured()) {
+    warnings.push("TURN is configured without TLS. Some networks may degrade or block relay connectivity.");
+  }
+  if (process.env.NODE_ENV === "production" && liveKitUrl() && !liveKitSecureConfigured()) {
+    warnings.push("LIVEKIT_URL should use wss:// or https:// in production.");
+  }
 
   return {
     authSecretConfigured: authSecretIsConfigured,
@@ -314,6 +336,15 @@ export async function getAdminSystemHealthSnapshot(): Promise<AdminSystemHealthS
       rateLimitStatus.warning ??
         "Operational rate limiting is using the local fallback instead of shared Redis."
     );
+  }
+  if (process.env.NODE_ENV === "production" && !isCloudinaryConfigured()) {
+    warnings.push("Cloudinary is not configured for durable media uploads.");
+  }
+  if (process.env.NODE_ENV === "production" && isTurnConfigured() && !isTurnTlsConfigured()) {
+    warnings.push("TURN/TLS is not enabled for coturn.");
+  }
+  if (process.env.NODE_ENV === "production" && liveKitUrl() && !liveKitSecureConfigured()) {
+    warnings.push("LiveKit public URL is not configured for secure transport.");
   }
 
   return {

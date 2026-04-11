@@ -4,7 +4,7 @@ This runbook is the production checklist for deploying The Business Circle Netwo
 
 ## 1) Production prerequisites
 
-- Domain configured (example: `thebcnet.co.uk`) with DNS pointing to your server/load balancer.
+- Domain configured (example: `thebusinesscircle.net`) with DNS pointing to your server/load balancer.
 - SSL/TLS enabled (proxy, CDN, or ingress).
 - Docker + Docker Compose installed on the host.
 - PostgreSQL connectivity confirmed from the app container.
@@ -17,12 +17,14 @@ This runbook is the production checklist for deploying The Business Circle Netwo
 
 ## 2) Environment variable checklist
 
+Keep local development in `.env` and deploy with `.env.production`.
+
 Use a production env file (example: `.env.production`) and set:
 
 ### Core app
 
-- `APP_URL=https://thebcnet.co.uk`
-- `NEXTAUTH_URL=https://thebcnet.co.uk`
+- `APP_URL=https://thebusinesscircle.net`
+- `NEXTAUTH_URL=https://thebusinesscircle.net`
 - `AUTH_SECRET=<64+ char random secret>`
 - `NEXTAUTH_SECRET=<64+ char random secret>`
 
@@ -83,10 +85,16 @@ Use a production env file (example: `.env.production`) and set:
 - `TURN_REALM=turn.your-domain`
 - `TURN_SHARED_SECRET=<random secret for TURN REST auth>`
 - `TURN_UDP_PORT=3478`
+- `TURN_TLS_ENABLED=true`
+- `TURN_TLS_PORT=5349`
+- `TURN_TLS_CERTS_DIR=./.secrets/coturn`
+- `TURN_TLS_CERT_FILE=/etc/coturn/certs/fullchain.pem`
+- `TURN_TLS_KEY_FILE=/etc/coturn/certs/privkey.pem`
 - `TURN_MIN_PORT=41000`
 - `TURN_MAX_PORT=41040`
 - Optional:
-  - `TURN_TLS_PORT=5349`
+  - `TURN_TLS_CA_FILE=/etc/coturn/certs/chain.pem`
+  - `TURN_TLS_CIPHER_LIST=DEFAULT:@SECLEVEL=2`
   - `TURN_TTL_SECONDS=3600`
 
 ### Resource media uploads (Cloudinary)
@@ -95,12 +103,14 @@ Use a production env file (example: `.env.production`) and set:
 - `CLOUDINARY_API_KEY=...`
 - `CLOUDINARY_API_SECRET=...`
 - `CLOUDINARY_RESOURCE_FOLDER=business-circle/resources`
+- `CLOUDINARY_PROFILE_FOLDER=business-circle/profiles`
 
 ## 3) Deploy with Docker Compose
 
 From project root on the server:
 
 ```bash
+npm run env:validate:production -- --env-file .env.production
 docker compose --env-file .env.production up -d --build
 ```
 
@@ -112,6 +122,8 @@ docker compose logs -f app
 docker compose logs -f livekit
 docker compose logs -f coturn
 ```
+
+Before the first deploy, place your TURN certificate files at `.secrets/coturn/fullchain.pem` and `.secrets/coturn/privkey.pem` on the server (or adjust the `TURN_TLS_*` paths if you use a different location).
 
 ## 4) Run database migrations (required)
 
@@ -129,15 +141,26 @@ docker compose --env-file .env.production exec app npm run db:seed
 
 In Stripe Dashboard:
 
-1. Create endpoint: `https://thebcnet.co.uk/api/stripe/webhook`
+1. Create endpoint: `https://thebusinesscircle.net/api/stripe/webhook`
 2. Subscribe to events:
    - `checkout.session.completed`
+   - `checkout.session.expired`
+   - `checkout.session.async_payment_failed`
    - `customer.subscription.created`
    - `customer.subscription.updated`
    - `customer.subscription.deleted`
    - `invoice.paid`
    - `invoice.payment_failed`
+   - `charge.refunded`
 3. Copy webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
+
+This single webhook endpoint handles both membership billing updates and founder-service payment updates.
+
+You can also create or update the endpoint from the repo with:
+
+```bash
+npm run stripe:webhook:upsert -- --url https://thebusinesscircle.net
+```
 
 Verify endpoint delivery in Stripe logs after first test payment.
 
@@ -178,8 +201,9 @@ Rules:
 - Open `7881/tcp` for LiveKit WebRTC over TCP.
 - Open `40000-40100/udp` for LiveKit RTP/RTCP media on this controlled v1 deployment.
 - Open `3478/udp` and `3478/tcp` for coturn.
+- Open `5349/tcp` for TURN/TLS.
 - Open `41000-41040/udp` for coturn relay traffic.
-- If you enable TURN/TLS later, also open `5349/tcp` or `443/tcp` for the TURN endpoint and mount valid certificates into coturn.
+- If you later terminate TURN/TLS on `443/tcp` instead, update `TURN_TLS_PORT` and the firewall rules to match.
 
 See [calling-infrastructure.md](./calling-infrastructure.md) for the split-host upgrade path and realtime deployment notes.
 

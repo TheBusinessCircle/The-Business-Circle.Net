@@ -13,6 +13,14 @@ function parseOptionalInteger(value: string | undefined, fallback?: number) {
   return Number.isFinite(parsed) ? parsed : fallback ?? null;
 }
 
+function parseBoolean(value: string | undefined, fallback = false) {
+  if (!value?.trim()) {
+    return fallback;
+  }
+
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
 function getTurnEnvironment() {
   const domain = process.env.TURN_DOMAIN?.trim();
   const realm = process.env.TURN_REALM?.trim();
@@ -20,6 +28,7 @@ function getTurnEnvironment() {
   const udpPort = parseOptionalInteger(process.env.TURN_UDP_PORT, 3478) ?? 3478;
   const tlsPort = parseOptionalInteger(process.env.TURN_TLS_PORT);
   const ttlSeconds = parseOptionalInteger(process.env.TURN_TTL_SECONDS, 3600) ?? 3600;
+  const tlsEnabled = parseBoolean(process.env.TURN_TLS_ENABLED);
 
   return {
     domain,
@@ -27,13 +36,26 @@ function getTurnEnvironment() {
     sharedSecret,
     udpPort,
     tlsPort,
-    ttlSeconds
+    ttlSeconds,
+    tlsEnabled
   };
 }
 
 export function isTurnConfigured() {
   const env = getTurnEnvironment();
   return Boolean(env.domain && env.realm && env.sharedSecret);
+}
+
+export function isTurnTlsConfigured() {
+  const env = getTurnEnvironment();
+  return Boolean(
+    env.domain &&
+      env.realm &&
+      env.sharedSecret &&
+      env.tlsEnabled &&
+      env.tlsPort &&
+      env.tlsPort > 0
+  );
 }
 
 function createTurnCredential(userId: string) {
@@ -65,7 +87,7 @@ export function getCallingRtcConfig(userId: string): CallRtcConfig | null {
     `turn:${credential.domain}:${credential.udpPort}?transport=tcp`
   ];
 
-  if (credential.tlsPort && credential.tlsPort > 0) {
+  if (credential.tlsEnabled && credential.tlsPort && credential.tlsPort > 0) {
     turnUrls.push(`turns:${credential.domain}:${credential.tlsPort}?transport=tcp`);
   }
 

@@ -68,29 +68,27 @@ services:
     image: coturn/coturn:latest
     container_name: business-circle-coturn
     restart: unless-stopped
-    command:
-      - -n
-      - --fingerprint
-      - --lt-cred-mech
-      - --use-auth-secret
-      - --static-auth-secret=${TURN_SHARED_SECRET:-change-this-turn-secret}
-      - --realm=${TURN_REALM:-thebusinesscircle.local}
-      - --server-name=${TURN_DOMAIN:-turn.localhost}
-      - --listening-ip=0.0.0.0
-      - --listening-port=${TURN_UDP_PORT:-3478}
-      - --min-port=${TURN_MIN_PORT:-41000}
-      - --max-port=${TURN_MAX_PORT:-41040}
-      - --stale-nonce=600
-      - --total-quota=200
-      - --no-cli
-      - --no-tls
-      - --no-dtls
-      - --no-multicast-peers
-      - --log-file=stdout
-      - --simple-log
+    environment:
+      TURN_DOMAIN: ${TURN_DOMAIN:-turn.localhost}
+      TURN_MAX_PORT: ${TURN_MAX_PORT:-41040}
+      TURN_MIN_PORT: ${TURN_MIN_PORT:-41000}
+      TURN_REALM: ${TURN_REALM:-thebusinesscircle.local}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:-change-this-turn-secret}
+      TURN_TLS_CA_FILE: ${TURN_TLS_CA_FILE:-}
+      TURN_TLS_CERT_FILE: ${TURN_TLS_CERT_FILE:-/etc/coturn/certs/fullchain.pem}
+      TURN_TLS_CIPHER_LIST: ${TURN_TLS_CIPHER_LIST:-}
+      TURN_TLS_ENABLED: ${TURN_TLS_ENABLED:-false}
+      TURN_TLS_KEY_FILE: ${TURN_TLS_KEY_FILE:-/etc/coturn/certs/privkey.pem}
+      TURN_TLS_PORT: ${TURN_TLS_PORT:-5349}
+      TURN_UDP_PORT: ${TURN_UDP_PORT:-3478}
+    volumes:
+      - ${TURN_TLS_CERTS_DIR:-./.secrets/coturn}:/etc/coturn/certs:ro
+      - ./infra/coturn/entrypoint.sh:/opt/business-circle/coturn-entrypoint.sh:ro
+    command: ["/bin/sh", "/opt/business-circle/coturn-entrypoint.sh"]
     ports:
       - "${TURN_UDP_PORT:-3478}:${TURN_UDP_PORT:-3478}/udp"
       - "${TURN_UDP_PORT:-3478}:${TURN_UDP_PORT:-3478}/tcp"
+      - "${TURN_TLS_PORT:-5349}:${TURN_TLS_PORT:-5349}/tcp"
       - "${TURN_MIN_PORT:-41000}-${TURN_MAX_PORT:-41040}:${TURN_MIN_PORT:-41000}-${TURN_MAX_PORT:-41040}/udp"
 
   app:
@@ -103,7 +101,7 @@ services:
       db:
         condition: service_healthy
     env_file:
-      - .env
+      - ${COMPOSE_APP_ENV_FILE:-.env}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-business_circle}?schema=public
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
