@@ -50,7 +50,7 @@ export default function OpenGraphImage() {
         >
           <div
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
               gap: "10px",
               border: "1px solid rgba(227, 178, 76, 0.45)",

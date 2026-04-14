@@ -1,9 +1,10 @@
-import type { MembershipTier } from "@prisma/client";
+import { SubscriptionStatus, type MembershipTier } from "@prisma/client";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { isAdminRole, userCanAccessTier } from "@/lib/auth/permissions";
+import { prisma } from "@/lib/prisma";
 
 type ApiAuthOptions = {
   adminOnly?: boolean;
@@ -50,6 +51,35 @@ function toSessionUser(session: Session | null): SessionUser | null {
   };
 }
 
+const ENTITLED_SUBSCRIPTION_STATUSES = new Set<SubscriptionStatus>([
+  SubscriptionStatus.ACTIVE,
+  SubscriptionStatus.TRIALING
+]);
+
+function hasEntitledSubscription(status: SubscriptionStatus | null | undefined) {
+  if (!status) {
+    return false;
+  }
+
+  return ENTITLED_SUBSCRIPTION_STATUSES.has(status);
+}
+
+async function refreshUserEntitlement(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      membershipTier: true,
+      suspended: true,
+      subscription: {
+        select: {
+          status: true
+        }
+      }
+    }
+  });
+}
+
 export async function requireApiUser(options: ApiAuthOptions = {}): Promise<ApiAuthSuccess | ApiAuthFailure> {
   const session = (await auth()) as Session | null;
   const user = toSessionUser(session);
@@ -58,21 +88,38 @@ export async function requireApiUser(options: ApiAuthOptions = {}): Promise<ApiA
     return { response: unauthorized() };
   }
 
-  if (user.suspended) {
+  const fresh = await refreshUserEntitlement(user.id);
+  if (!fresh) {
+    return { response: unauthorized() };
+  }
+
+  if (fresh.suspended) {
     return { response: forbidden("Account suspended") };
   }
 
-  if (options.adminOnly && !isAdminRole(user.role)) {
+  const hasActiveSubscription =
+    fresh.role === "ADMIN" ? true : hasEntitledSubscription(fresh.subscription?.status ?? null);
+
+  const resolvedUser: SessionUser = {
+    ...user,
+    role: fresh.role,
+    membershipTier: fresh.membershipTier,
+    subscriptionStatus: fresh.subscription?.status ?? null,
+    hasActiveSubscription,
+    suspended: fresh.suspended
+  };
+
+  if (options.adminOnly && !isAdminRole(resolvedUser.role)) {
     return { response: forbidden() };
   }
 
-  if (!options.allowUnentitled && !isAdminRole(user.role) && !user.hasActiveSubscription) {
+  if (!options.allowUnentitled && !isAdminRole(resolvedUser.role) && !resolvedUser.hasActiveSubscription) {
     return { response: forbidden("Active membership required") };
   }
 
-  if (options.requiredTier && !userCanAccessTier(user, options.requiredTier)) {
+  if (options.requiredTier && !userCanAccessTier(resolvedUser, options.requiredTier)) {
     return { response: forbidden() };
   }
 
-  return { user };
+  return { user: resolvedUser };
 }

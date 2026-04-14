@@ -1,4 +1,4 @@
-export const LEGAL_LAST_UPDATED = "March 14, 2026";
+export const LEGAL_LAST_UPDATED = "14 April 2026";
 
 export const PRIVACY_POLICY_CONTENT = {
   label: "Privacy Policy",
@@ -98,8 +98,12 @@ export const TERMS_OF_SERVICE_CONTENT = {
     {
       title: "Subscriptions, billing, and upgrades",
       paragraphs: [
-        "Membership plans, pricing, and included features may vary by tier. Billing is processed through Stripe or other approved payment providers used by the platform.",
-        "Plan changes, upgrades, or account access are subject to the current subscription status and platform rules in force at the time."
+        "All membership access requires Stripe Checkout. Accounts are only activated after a successful checkout, including when a discount reduces the total to £0.",
+        "Subscriptions renew automatically unless cancelled through the Stripe billing portal or other supported workflow.",
+        "Discounts, coupons, or promotion codes can reduce the price, including to £0. Discounted memberships remain subscriptions and are still tied to Stripe customer and subscription records.",
+        "If a payment fails, is reversed, or a subscription ends, access to member areas is restricted when Stripe marks the subscription as no longer active. If cancellation is set to end at period end, access continues until the current billing period ends.",
+        "Plan changes, upgrades, or account access are subject to the current subscription status and platform rules in force at the time.",
+        "Payments are non-refundable unless otherwise stated in writing. OWNER INPUT REQUIRED: Add any bespoke refund or cancellation promises if they exist."
       ]
     },
     {

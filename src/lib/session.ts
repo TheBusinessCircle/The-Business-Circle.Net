@@ -1,7 +1,37 @@
-import type { MembershipTier } from "@prisma/client";
+import { SubscriptionStatus, type MembershipTier } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { canTierAccess, resolveEffectiveTier } from "@/lib/auth/permissions";
+import { prisma } from "@/lib/prisma";
+
+const ENTITLED_SUBSCRIPTION_STATUSES = new Set<SubscriptionStatus>([
+  SubscriptionStatus.ACTIVE,
+  SubscriptionStatus.TRIALING
+]);
+
+async function getFreshUserEntitlement(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      membershipTier: true,
+      suspended: true,
+      subscription: {
+        select: {
+          status: true
+        }
+      }
+    }
+  });
+}
+
+function hasEntitledSubscription(status: SubscriptionStatus | null | undefined) {
+  if (!status) {
+    return false;
+  }
+
+  return ENTITLED_SUBSCRIPTION_STATUSES.has(status);
+}
 
 export async function requireUser() {
   const session = await auth();
@@ -10,11 +40,26 @@ export async function requireUser() {
     redirect("/login");
   }
 
-  if (session.user.suspended) {
+  const fresh = await getFreshUserEntitlement(session.user.id);
+
+  if (!fresh) {
+    redirect("/login");
+  }
+
+  if (fresh.suspended) {
     redirect("/login?error=suspended");
   }
 
-  if (session.user.role !== "ADMIN" && !session.user.hasActiveSubscription) {
+  const hasActiveSubscription =
+    fresh.role === "ADMIN" ? true : hasEntitledSubscription(fresh.subscription?.status ?? null);
+
+  session.user.role = fresh.role;
+  session.user.membershipTier = fresh.membershipTier;
+  session.user.subscriptionStatus = fresh.subscription?.status ?? null;
+  session.user.hasActiveSubscription = hasActiveSubscription;
+  session.user.suspended = fresh.suspended;
+
+  if (fresh.role !== "ADMIN" && !hasActiveSubscription) {
     redirect("/membership?billing=required");
   }
 
@@ -56,4 +101,3 @@ export async function requireInnerCircle() {
 export function ensureTier(userTier: MembershipTier, requiredTier: MembershipTier) {
   return canTierAccess(userTier, requiredTier);
 }
-
