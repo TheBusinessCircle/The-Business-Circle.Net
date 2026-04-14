@@ -28,8 +28,8 @@ function nullableStringEntry(formData: FormData, key: string) {
   return value ? value : null;
 }
 
-function isIsoDateOnly(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+function isSupportedDateFormat(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) || /^\d{2}\/\d{2}\/\d{4}$/.test(value);
 }
 
 const billingProductFormSchema = z
@@ -92,10 +92,10 @@ const billingDiscountFormSchema = z
       });
     }
 
-    if (value.expiresAt && !isIsoDateOnly(value.expiresAt)) {
+    if (value.expiresAt && !isSupportedDateFormat(value.expiresAt)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Expiry dates must be in YYYY-MM-DD format.",
+        message: "Expiry dates must be YYYY-MM-DD or DD/MM/YYYY.",
         path: ["expiresAt"]
       });
     }

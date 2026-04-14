@@ -53,14 +53,24 @@ function parseExpiryDate(value?: string): Date | null {
     return null;
   }
 
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) {
+  let year: number;
+  let month: number;
+  let day: number;
+
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const slashMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (isoMatch) {
+    year = Number(isoMatch[1]);
+    month = Number(isoMatch[2]);
+    day = Number(isoMatch[3]);
+  } else if (slashMatch) {
+    day = Number(slashMatch[1]);
+    month = Number(slashMatch[2]);
+    year = Number(slashMatch[3]);
+  } else {
     return null;
   }
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
 
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
     return null;
