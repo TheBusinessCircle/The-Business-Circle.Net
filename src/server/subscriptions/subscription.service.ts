@@ -1387,6 +1387,43 @@ export async function reconcilePendingRegistrationFromCheckoutSessionId(
   });
 
   await upsertSubscriptionFromCheckoutSession(session);
+
+  if (!resolvePendingRegistrationIdFromSession(session)) {
+    const email =
+      session.customer_details?.email?.trim().toLowerCase() ??
+      session.customer_email?.trim().toLowerCase() ??
+      null;
+    const subscriptionId = toStripeObjectId(
+      session.subscription as string | { id?: string } | null
+    );
+
+    if (email && subscriptionId) {
+      const pendingRegistration = await db.pendingRegistration.findFirst({
+        where: {
+          email,
+          status: {
+            in: [PendingRegistrationStatus.PENDING, PendingRegistrationStatus.PAID]
+          }
+        },
+        orderBy: [{ createdAt: "desc" }],
+        select: {
+          id: true
+        }
+      });
+
+      if (pendingRegistration) {
+        const subscription =
+          typeof session.subscription === "object" && session.subscription
+            ? (session.subscription as Stripe.Subscription)
+            : await stripe.subscriptions.retrieve(subscriptionId);
+
+        await completePendingRegistrationFromStripeSubscription(subscription, {
+          pendingRegistrationId: pendingRegistration.id,
+          checkoutSessionId: session.id
+        });
+      }
+    }
+  }
   return session;
 }
 
