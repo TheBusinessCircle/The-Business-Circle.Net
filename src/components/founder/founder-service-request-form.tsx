@@ -1,34 +1,66 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { BusinessStage } from "@prisma/client";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Loader2 } from "lucide-react";
-import {
-  founderServiceRequestSchema,
-  type FounderServiceRequestFormValues
-} from "@/lib/validators";
+
 import { formatFounderServicePrice } from "@/lib/founder";
 import type {
   FounderServiceModel,
   FounderServicePricingSummary,
-  FounderServiceRequestFormPrefill
+  FounderServiceRequestFormPrefill,
 } from "@/types";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+
+const BUSINESS_STAGE_VALUES = [
+  "IDEA",
+  "STARTUP",
+  "GROWTH",
+  "SCALE",
+  "ESTABLISHED",
+] as const;
+
+type BusinessStageValue = (typeof BUSINESS_STAGE_VALUES)[number];
+
+const founderServiceRequestSchema = z.object({
+  serviceSlug: z.string().trim().min(3).max(120),
+  sourcePage: z.string().trim().max(120).optional().or(z.literal("")),
+  sourceSection: z.string().trim().max(120).optional().or(z.literal("")),
+  fullName: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(320),
+  businessName: z.string().trim().min(2).max(140),
+  businessStage: z.enum(BUSINESS_STAGE_VALUES),
+  website: z.string().trim().min(3).max(2048),
+  helpSummary: z.string().trim().min(10).max(2000),
+});
+
+type FounderServiceRequestFormValues = z.infer<
+  typeof founderServiceRequestSchema
+>;
 
 type FounderRequestApiResponse = {
   ok?: boolean;
   url?: string;
   requestId?: string;
   error?: string;
-  fieldErrors?: Partial<Record<keyof FounderServiceRequestFormValues, string[]>>;
+  fieldErrors?: Partial<
+    Record<keyof FounderServiceRequestFormValues, string[]>
+  >;
 };
 
 type FounderServiceRequestFormProps = {
@@ -46,18 +78,18 @@ const FOUNDER_FORM_FIELDS: Array<keyof FounderServiceRequestFormValues> = [
   "businessName",
   "businessStage",
   "website",
-  "helpSummary"
-] as const;
+  "helpSummary",
+];
 
 const BUSINESS_STAGE_OPTIONS: Array<{
-  value: BusinessStage;
+  value: BusinessStageValue;
   label: string;
 }> = [
-  { value: BusinessStage.IDEA, label: "Idea" },
-  { value: BusinessStage.STARTUP, label: "Startup" },
-  { value: BusinessStage.GROWTH, label: "Growth" },
-  { value: BusinessStage.SCALE, label: "Scale" },
-  { value: BusinessStage.ESTABLISHED, label: "Established" }
+  { value: "IDEA", label: "Idea" },
+  { value: "STARTUP", label: "Startup" },
+  { value: "GROWTH", label: "Growth" },
+  { value: "SCALE", label: "Scale" },
+  { value: "ESTABLISHED", label: "Established" },
 ];
 
 function billingSuffix(service: FounderServiceModel) {
@@ -70,7 +102,7 @@ export function FounderServiceRequestForm({
   pricing,
   sourcePage,
   sourceSection,
-  notice
+  notice,
 }: FounderServiceRequestFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(notice ?? null);
   const [isPending, startTransition] = useTransition();
@@ -84,10 +116,10 @@ export function FounderServiceRequestForm({
       fullName: prefill.fullName,
       email: prefill.email,
       businessName: prefill.businessName,
-      businessStage: BusinessStage.GROWTH,
+      businessStage: "GROWTH",
       website: prefill.website,
-      helpSummary: ""
-    }
+      helpSummary: "",
+    },
   });
 
   const onSubmit = form.handleSubmit((values) => {
@@ -104,10 +136,11 @@ export function FounderServiceRequestForm({
 
         const response = await fetch("/api/founder-services/requests", {
           method: "POST",
-          body: payload
+          body: payload,
         });
 
         const result = (await response.json().catch(() => ({}))) as FounderRequestApiResponse;
+
         if (!response.ok || !result.ok || !result.url) {
           if (result.fieldErrors) {
             FOUNDER_FORM_FIELDS.forEach((fieldName) => {
@@ -115,13 +148,15 @@ export function FounderServiceRequestForm({
               if (message) {
                 form.setError(fieldName, {
                   type: "server",
-                  message
+                  message,
                 });
               }
             });
           }
 
-          setSubmitError(result.error ?? "Unable to submit your application right now.");
+          setSubmitError(
+            result.error ?? "Unable to submit your application right now.",
+          );
           return;
         }
 
@@ -133,53 +168,61 @@ export function FounderServiceRequestForm({
   });
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-      <Card className="border-border/90 bg-card/78 shadow-panel-soft">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+      <Card className="border-border/90 bg-card/72 shadow-panel-soft">
         <CardHeader>
-          <Badge variant="outline" className="w-fit border-gold/35 bg-gold/12 text-gold">
+          <Badge variant="outline" className="w-fit">
             Apply To Work With Me
           </Badge>
           <CardTitle className="mt-3 font-display text-3xl">
             Start with a clear application
           </CardTitle>
-          <CardDescription className="mt-2 max-w-2xl text-base">
-            I review every application myself. No booking system. No rushed fit call. Just enough
-            context to understand the business properly before I confirm the next step.
+          <CardDescription className="mt-2 text-base">
+            I review every application myself. No booking system. No rushed fit
+            call. Just enough context to understand the business properly before
+            I confirm the next step.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form className="space-y-6" onSubmit={onSubmit}>
-            <input type="hidden" {...form.register("serviceSlug")} />
-            <input type="hidden" {...form.register("sourcePage")} />
-            <input type="hidden" {...form.register("sourceSection")} />
 
-            <div className="grid gap-4 md:grid-cols-2">
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-6">
+            <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="founder-fullName">Name</Label>
-                <Input id="founder-fullName" disabled={isPending} {...form.register("fullName")} />
+                <Label htmlFor="fullName">Name</Label>
+                <Input
+                  id="fullName"
+                  autoComplete="name"
+                  {...form.register("fullName")}
+                />
                 {form.formState.errors.fullName ? (
-                  <p className="text-xs text-destructive">{form.formState.errors.fullName.message}</p>
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.fullName.message}
+                  </p>
                 ) : null}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="founder-email">Email</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="founder-email"
+                  id="email"
                   type="email"
-                  disabled={isPending}
+                  autoComplete="email"
                   {...form.register("email")}
                 />
                 {form.formState.errors.email ? (
-                  <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.email.message}
+                  </p>
                 ) : null}
               </div>
+            </div>
 
+            <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="founder-businessName">Business Name</Label>
+                <Label htmlFor="businessName">Business Name</Label>
                 <Input
-                  id="founder-businessName"
-                  disabled={isPending}
+                  id="businessName"
+                  autoComplete="organization"
                   {...form.register("businessName")}
                 />
                 {form.formState.errors.businessName ? (
@@ -190,12 +233,8 @@ export function FounderServiceRequestForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="founder-businessStage">Business Stage</Label>
-                <Select
-                  id="founder-businessStage"
-                  disabled={isPending}
-                  {...form.register("businessStage")}
-                >
+                <Label htmlFor="businessStage">Business Stage</Label>
+                <Select id="businessStage" {...form.register("businessStage")}>
                   {BUSINESS_STAGE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -211,23 +250,30 @@ export function FounderServiceRequestForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="founder-website">Website Or Best Link</Label>
-              <Input id="founder-website" disabled={isPending} {...form.register("website")} />
-              <p className="text-xs text-muted">
-                This can be your website, LinkedIn, Instagram, or wherever I should start.
+              <Label htmlFor="website">Website Or Best Link</Label>
+              <p className="text-sm text-muted">
+                This can be your website, LinkedIn, Instagram, or wherever I
+                should start.
               </p>
+              <Input
+                id="website"
+                autoComplete="url"
+                placeholder="https://"
+                {...form.register("website")}
+              />
               {form.formState.errors.website ? (
-                <p className="text-xs text-destructive">{form.formState.errors.website.message}</p>
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.website.message}
+                </p>
               ) : null}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="founder-helpSummary">What do you need help with?</Label>
+              <Label htmlFor="helpSummary">What do you need help with?</Label>
               <Textarea
-                id="founder-helpSummary"
-                rows={7}
-                disabled={isPending}
-                placeholder="Tell me what feels unclear, stuck, messy, or commercially important right now."
+                id="helpSummary"
+                rows={6}
+                placeholder="Give me the business context, what you need, and what outcome you want."
                 {...form.register("helpSummary")}
               />
               {form.formState.errors.helpSummary ? (
@@ -260,7 +306,10 @@ export function FounderServiceRequestForm({
                   </>
                 )}
               </Button>
-              <p className="text-sm text-muted">I review the business first, then confirm fit and timing.</p>
+
+              <p className="text-sm text-muted">
+                I review the business first, then confirm fit and timing.
+              </p>
             </div>
           </form>
         </CardContent>
@@ -269,34 +318,58 @@ export function FounderServiceRequestForm({
       <div className="space-y-4">
         <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/85 to-card/72 shadow-panel-soft">
           <CardHeader>
-            <Badge variant="outline" className="w-fit border-gold/35 bg-gold/12 text-gold">
+            <Badge
+              variant="outline"
+              className="w-fit border-gold/35 bg-gold/12 text-gold"
+            >
               Selected Service
             </Badge>
-            <CardTitle className="mt-3 font-display text-3xl">{service.title}</CardTitle>
-            <CardDescription className="mt-2 text-base">{service.shortDescription}</CardDescription>
+            <CardTitle className="mt-3 font-display text-3xl">
+              {service.title}
+            </CardTitle>
+            <CardDescription className="mt-2 text-base">
+              {service.shortDescription}
+            </CardDescription>
           </CardHeader>
+
           <CardContent className="space-y-5">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Starting price</p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                Starting price
+              </p>
+
               <p className="mt-2 font-display text-4xl text-gold">
                 {service.billingType === "MONTHLY_RETAINER" ? "From " : ""}
-                {formatFounderServicePrice(pricing.finalAmount, service.currency, billingSuffix(service))}
+                {formatFounderServicePrice(
+                  pricing.finalAmount,
+                  service.currency,
+                  billingSuffix(service),
+                )}
               </p>
+
               {pricing.discountPercent ? (
                 <p className="mt-2 text-sm text-muted">
                   Member rate applied from{" "}
-                  {formatFounderServicePrice(pricing.baseAmount, service.currency, billingSuffix(service))}
+                  {formatFounderServicePrice(
+                    pricing.baseAmount,
+                    service.currency,
+                    billingSuffix(service),
+                  )}
                   .
                 </p>
               ) : null}
+
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                No payment is taken at this stage. I review the application first, confirm fit,
-                then send the right next step manually.
+                No payment is taken at this stage. I review the application
+                first, confirm fit, then send the right next step manually.
               </p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Included</p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                Included
+              </p>
+
               <ul className="space-y-2">
                 {service.includes.map((item) => (
                   <li
@@ -315,6 +388,7 @@ export function FounderServiceRequestForm({
           <CardHeader>
             <CardTitle>How this works</CardTitle>
           </CardHeader>
+
           <CardContent className="space-y-3 text-sm text-muted">
             <p>1. You apply with the business context I need.</p>
             <p>2. I review the business and the fit.</p>
