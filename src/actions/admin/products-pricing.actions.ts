@@ -59,6 +59,7 @@ function parseExpiryDate(value?: string): Date | null {
 
   const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const slashMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const isoSlashMatch = value.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
 
   if (isoMatch) {
     year = Number(isoMatch[1]);
@@ -68,6 +69,10 @@ function parseExpiryDate(value?: string): Date | null {
     day = Number(slashMatch[1]);
     month = Number(slashMatch[2]);
     year = Number(slashMatch[3]);
+  } else if (isoSlashMatch) {
+    year = Number(isoSlashMatch[1]);
+    month = Number(isoSlashMatch[2]);
+    day = Number(isoSlashMatch[3]);
   } else {
     return null;
   }
@@ -76,7 +81,12 @@ function parseExpiryDate(value?: string): Date | null {
     return null;
   }
 
-  return new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+
+  // Store at midday UTC to avoid timezone shifts when formatting dates.
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
 }
 
 export async function upsertBillingProductAction(formData: FormData) {

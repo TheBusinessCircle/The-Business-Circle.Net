@@ -29,7 +29,11 @@ function nullableStringEntry(formData: FormData, key: string) {
 }
 
 function isSupportedDateFormat(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) || /^\d{2}\/\d{2}\/\d{4}$/.test(value);
+  return (
+    /^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    /^\d{2}\/\d{2}\/\d{4}$/.test(value) ||
+    /^\d{4}\/\d{2}\/\d{2}$/.test(value)
+  );
 }
 
 const billingProductFormSchema = z
@@ -95,7 +99,7 @@ const billingDiscountFormSchema = z
     if (value.expiresAt && !isSupportedDateFormat(value.expiresAt)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Expiry dates must be YYYY-MM-DD or DD/MM/YYYY.",
+        message: "Expiry dates must be YYYY-MM-DD, YYYY/MM/DD, or DD/MM/YYYY.",
         path: ["expiresAt"]
       });
     }
