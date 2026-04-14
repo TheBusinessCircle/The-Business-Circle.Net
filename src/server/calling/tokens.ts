@@ -3,6 +3,7 @@ import { buildCallParticipantIdentity } from "@/lib/calling";
 import type { SafeLogDetails } from "@/lib/security/logging";
 import {
   getLiveKitJoinConfig,
+  normalizeLiveKitClientUrl,
   type LiveKitConfigSummary,
   LiveKitConfigError
 } from "@/server/calling/livekit";
@@ -263,7 +264,7 @@ export async function issueCallRoomToken(input: {
     return {
       token: jwt,
       identity,
-      url: liveKitConfig.publicUrl,
+      url: normalizeLiveKitClientUrl(liveKitConfig.publicUrl),
       rtcConfig: getCallingRtcConfig(input.actor.id),
       room
     };

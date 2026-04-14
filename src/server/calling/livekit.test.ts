@@ -3,7 +3,8 @@ import {
   getLiveKitConfig,
   getLiveKitConfigSummary,
   getLiveKitJoinConfig,
-  LiveKitConfigError
+  LiveKitConfigError,
+  normalizeLiveKitClientUrl
 } from "@/server/calling/livekit";
 
 const LIVEKIT_ENV_KEYS = [
@@ -89,5 +90,11 @@ describe("livekit config", () => {
       apiKeyConfigured: true,
       apiSecretConfigured: false
     });
+  });
+
+  it("normalizes browser-facing https URLs to websocket URLs", () => {
+    expect(normalizeLiveKitClientUrl("https://rtc.example.com")).toBe("wss://rtc.example.com");
+    expect(normalizeLiveKitClientUrl("http://localhost:7880")).toBe("ws://localhost:7880");
+    expect(normalizeLiveKitClientUrl("wss://rtc.example.com")).toBe("wss://rtc.example.com");
   });
 });

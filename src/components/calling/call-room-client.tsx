@@ -69,6 +69,8 @@ type ParticipantSnapshot = {
 type MediaAccessState = "idle" | "granted" | "denied";
 
 const CONNECTION_ERROR_COPY = "Unable to start the call right now. Please try again in a moment.";
+const LIVEKIT_ENDPOINT_ERROR_COPY =
+  "The call service public endpoint is not reachable from your browser right now. Check LIVEKIT_URL and the VPS reverse proxy for the LiveKit realtime endpoint.";
 const DEVICE_FALLBACK_COPY =
   "Camera or microphone access is currently unavailable. You can still join and enable devices when ready, if supported.";
 const DEVICE_PERMISSION_DENIED_COPY =
@@ -287,11 +289,25 @@ function getPreviewErrorCopy(error: unknown) {
 
 function getJoinFailureCopy(error: unknown) {
   if (error instanceof Error) {
+    const message = error.message || "";
+    const normalizedMessage = message.toLowerCase();
+
     if (error.message === "Failed to fetch") {
       return "Unable to reach the call service right now. Please try again in a moment.";
     }
 
-    return error.message || CONNECTION_ERROR_COPY;
+    if (
+      normalizedMessage.includes("/livekit/rtc/v1") ||
+      normalizedMessage.includes("/rtc/v1/validate") ||
+      normalizedMessage.includes("websocket is closed before the connection is established") ||
+      normalizedMessage.includes("could not establish signal connection") ||
+      normalizedMessage.includes("abort handler called") ||
+      normalizedMessage.includes("404")
+    ) {
+      return LIVEKIT_ENDPOINT_ERROR_COPY;
+    }
+
+    return message || CONNECTION_ERROR_COPY;
   }
 
   return CONNECTION_ERROR_COPY;
@@ -1190,6 +1206,7 @@ export function CallRoomClient({
  
     startJoinTransition(async () => {
       let nextRoom: Room | null = null;
+      let liveKitUrl: string | undefined;
 
       try {
         const response = await fetch(`/api/calls/${roomId}/token`, {
@@ -1203,6 +1220,7 @@ export function CallRoomClient({
             iceServers?: RTCIceServer[];
           } | null;
         };
+        liveKitUrl = payload.url;
 
         if (!response.ok || !payload.token || !payload.url) {
           setJoinError(payload.error ?? CONNECTION_ERROR_COPY);
@@ -1303,13 +1321,12 @@ export function CallRoomClient({
         setConnectionState(ConnectionState.Disconnected);
         setJoinError(getJoinFailureCopy(error));
 
-        if (process.env.NODE_ENV !== "production") {
-          console.error("[calling] room-connect-failed", {
-            roomId,
-            error: error instanceof Error ? error.message : "unknown",
-            stack: error instanceof Error ? error.stack : undefined
-          });
-        }
+        console.error("[calling] room-connect-failed", {
+          roomId,
+          liveKitUrl,
+          error: error instanceof Error ? error.message : "unknown",
+          stack: error instanceof Error ? error.stack : undefined
+        });
       }
     });
   };
