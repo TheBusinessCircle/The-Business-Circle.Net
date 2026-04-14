@@ -314,7 +314,7 @@ export default async function AdminProductsPricingPage({ searchParams }: PagePro
             <CardDescription>Create Stripe-backed promo codes for local outreach, member offers, or manual deals.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={createBillingDiscountAction} className="space-y-4">
+            <form action={createBillingDiscountAction} className="space-y-4" noValidate>
               <input type="hidden" name="returnPath" value="/admin/products-pricing#discounts" />
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2"><Label htmlFor="discount-code">Code</Label><Input id="discount-code" name="code" required placeholder="LOCAL50" /></div>
@@ -329,14 +329,13 @@ export default async function AdminProductsPricingPage({ searchParams }: PagePro
                 <div className="space-y-2"><Label>Specific product</Label><select name="specificProductId" className="flex h-10 w-full rounded-xl border border-border/80 bg-background/30 px-3 text-sm"><option value="">No specific product</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></div>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2"><Label>Usage limit</Label><Input name="usageLimit" type="number" min={1} max={1} defaultValue={1} readOnly /></div>
+                <div className="space-y-2"><Label>Usage limit</Label><Input name="usageLimit" type="number" min={1} max={1} defaultValue={1} readOnly className="w-full" /></div>
                 <div className="space-y-2">
                   <Label>Expiry</Label>
-                  <Input name="expiresAt" type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD/MM/YYYY" className="w-full" />
                   <div className="grid grid-cols-3 gap-2">
-                    <Input name="expiresAtDay" type="text" inputMode="numeric" placeholder="DD" maxLength={2} />
-                    <Input name="expiresAtMonth" type="text" inputMode="numeric" placeholder="MM" maxLength={2} />
-                    <Input name="expiresAtYear" type="text" inputMode="numeric" placeholder="YYYY" maxLength={4} />
+                    <Input name="expiresAtDay" type="text" inputMode="numeric" placeholder="DD" maxLength={2} className="w-full text-center" />
+                    <Input name="expiresAtMonth" type="text" inputMode="numeric" placeholder="MM" maxLength={2} className="w-full text-center" />
+                    <Input name="expiresAtYear" type="text" inputMode="numeric" placeholder="YYYY" maxLength={4} className="w-full text-center" />
                   </div>
                 </div>
                 <div className="space-y-2"><Label>Tag</Label><select name="tag" className="flex h-10 w-full rounded-xl border border-border/80 bg-background/30 px-3 text-sm"><option value={BillingDiscountTag.LOCAL_OUTREACH}>Local outreach</option><option value={BillingDiscountTag.MEMBER_DISCOUNT}>Member discount</option><option value={BillingDiscountTag.MANUAL}>Manual</option></select></div>
