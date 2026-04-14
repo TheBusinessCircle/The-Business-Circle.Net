@@ -66,7 +66,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
     "price-invalid": "The price form was incomplete.",
     "price-save-failed": "Unable to save that price.",
     "discount-invalid": "The discount form was incomplete.",
-    "discount-expiry-invalid": "Expiry needs day, month, and year (or leave it blank).",
+    "discount-expiry-invalid": "Expiry must be a full date or leave it blank.",
     "discount-value-invalid": "Discount values must be valid for the selected type.",
     "discount-duplicate": "That discount code already exists.",
     "discount-product-sync-failed": "Unable to sync Stripe products for this discount.",
@@ -332,6 +332,7 @@ export default async function AdminProductsPricingPage({ searchParams }: PagePro
                 <div className="space-y-2"><Label>Usage limit</Label><Input name="usageLimit" type="number" min={1} max={1} defaultValue={1} readOnly /></div>
                 <div className="space-y-2">
                   <Label>Expiry</Label>
+                  <Input name="expiresAt" type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD/MM/YYYY" />
                   <div className="grid grid-cols-3 gap-2">
                     <Input name="expiresAtDay" type="text" inputMode="numeric" placeholder="DD" maxLength={2} />
                     <Input name="expiresAtMonth" type="text" inputMode="numeric" placeholder="MM" maxLength={2} />

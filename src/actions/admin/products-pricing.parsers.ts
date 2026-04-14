@@ -104,6 +104,15 @@ const billingDiscountFormSchema = z
       Boolean(value.expiresAtMonth) ||
       Boolean(value.expiresAtYear);
 
+    if (value.expiresAt && hasSplitExpiry) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Use either the single expiry field or the day/month/year fields.",
+        path: ["expiresAt"]
+      });
+      return;
+    }
+
     if (hasSplitExpiry) {
       if (!value.expiresAtDay || !value.expiresAtMonth || !value.expiresAtYear) {
         ctx.addIssue({
