@@ -239,6 +239,18 @@ export function getLiveKitPublicConfig() {
   };
 }
 
+export function normalizeLiveKitClientUrl(url: string) {
+  if (url.startsWith("https://")) {
+    return `wss://${url.slice("https://".length)}`;
+  }
+
+  if (url.startsWith("http://")) {
+    return `ws://${url.slice("http://".length)}`;
+  }
+
+  return url;
+}
+
 export async function ensureLiveKitRoom(
   room: Pick<CallRoom, "id" | "type" | "status" | "hostUserId" | "livekitRoomName" | "maxParticipants">
 ) {
