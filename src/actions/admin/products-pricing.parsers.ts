@@ -124,7 +124,8 @@ const billingDiscountFormSchema = z
 
       const day = Number(value.expiresAtDay);
       const month = Number(value.expiresAtMonth);
-      const year = Number(value.expiresAtYear);
+      const yearRaw = Number(value.expiresAtYear);
+      const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;
 
       if (
         !Number.isFinite(day) ||
@@ -168,10 +169,18 @@ const billingDiscountFormSchema = z
       Boolean(value.expiresAtMonth) ||
       Boolean(value.expiresAtYear);
 
+    const normalizedYear = hasSplitExpiry
+      ? (() => {
+          const yearRaw = Number(value.expiresAtYear);
+          const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;
+          return String(year).padStart(4, "0");
+        })()
+      : null;
+
     const expiresAt = hasSplitExpiry
-      ? `${String(value.expiresAtYear).padStart(4, "0")}-${String(
-          value.expiresAtMonth
-        ).padStart(2, "0")}-${String(value.expiresAtDay).padStart(2, "0")}`
+      ? `${normalizedYear}-${String(value.expiresAtMonth).padStart(2, "0")}-${String(
+          value.expiresAtDay
+        ).padStart(2, "0")}`
       : value.expiresAt;
 
     return {

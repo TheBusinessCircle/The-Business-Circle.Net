@@ -332,11 +332,14 @@ export default async function AdminProductsPricingPage({ searchParams }: PagePro
                 <div className="space-y-2"><Label>Usage limit</Label><Input name="usageLimit" type="number" min={1} max={1} defaultValue={1} readOnly className="w-full" /></div>
                 <div className="space-y-2">
                   <Label>Expiry</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-[1fr_auto_1fr_auto_1.4fr] items-center gap-2">
                     <Input name="expiresAtDay" type="text" inputMode="numeric" placeholder="DD" maxLength={2} className="w-full text-center" />
+                    <span className="text-sm text-muted">/</span>
                     <Input name="expiresAtMonth" type="text" inputMode="numeric" placeholder="MM" maxLength={2} className="w-full text-center" />
+                    <span className="text-sm text-muted">/</span>
                     <Input name="expiresAtYear" type="text" inputMode="numeric" placeholder="YYYY" maxLength={4} className="w-full text-center" />
                   </div>
+                  <p className="text-xs text-muted">Enter DD / MM / YYYY. Leave blank for no expiry.</p>
                 </div>
                 <div className="space-y-2"><Label>Tag</Label><select name="tag" className="flex h-10 w-full rounded-xl border border-border/80 bg-background/30 px-3 text-sm"><option value={BillingDiscountTag.LOCAL_OUTREACH}>Local outreach</option><option value={BillingDiscountTag.MEMBER_DISCOUNT}>Member discount</option><option value={BillingDiscountTag.MANUAL}>Manual</option></select></div>
               </div>

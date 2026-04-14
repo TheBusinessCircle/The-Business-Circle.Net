@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { safeRedirectPath } from "@/lib/auth/utils";
+import { logServerError } from "@/lib/security/logging";
 import { requireAdmin } from "@/lib/session";
 import {
   parseBillingDiscountActiveFormData,
@@ -58,7 +59,7 @@ function parseExpiryDate(value?: string): Date | null {
   let day: number;
 
   const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const slashMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const slashMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);
   const isoSlashMatch = value.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
 
   if (isoMatch) {
@@ -68,7 +69,8 @@ function parseExpiryDate(value?: string): Date | null {
   } else if (slashMatch) {
     day = Number(slashMatch[1]);
     month = Number(slashMatch[2]);
-    year = Number(slashMatch[3]);
+    const yearRaw = Number(slashMatch[3]);
+    year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;
   } else if (isoSlashMatch) {
     year = Number(isoSlashMatch[1]);
     month = Number(isoSlashMatch[2]);
@@ -206,7 +208,14 @@ export async function createBillingDiscountAction(formData: FormData) {
       specificProductId: parsed.data.specificProductId
     });
   } catch (error) {
+    logServerError("billing-discount-create-failed", error);
     if (error instanceof Error) {
+      if (
+        /promotion code/i.test(error.message) &&
+        /already exists|exists/i.test(error.message)
+      ) {
+        redirectWithError(returnPath, "discount-duplicate");
+      }
       if (error.message === "discount-code-exists") {
         redirectWithError(returnPath, "discount-duplicate");
       }
