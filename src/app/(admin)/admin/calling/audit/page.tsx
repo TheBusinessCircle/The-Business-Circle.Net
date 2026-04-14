@@ -13,6 +13,8 @@ export const metadata: Metadata = createPageMetadata({
   path: "/admin/calling/audit"
 });
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminCallingAuditPage() {
   const logs = await listCallAuditLogs(80);
 

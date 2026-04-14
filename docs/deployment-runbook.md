@@ -6,8 +6,7 @@ This runbook is the production checklist for deploying The Business Circle Netwo
 
 - Domain configured (example: `thebusinesscircle.net`) with DNS pointing to your server/load balancer.
 - SSL/TLS enabled (proxy, CDN, or ingress).
-- Docker + Docker Compose installed on the host.
-- PostgreSQL connectivity confirmed from the app container.
+- PostgreSQL connectivity confirmed from the app process.
 - Shared Redis configured for production rate limiting (Upstash Redis recommended).
 - Stripe products/prices created for:
   - Standard (`£30/month`)
@@ -17,9 +16,7 @@ This runbook is the production checklist for deploying The Business Circle Netwo
 
 ## 2) Environment variable checklist
 
-Keep local development in `.env` and deploy with `.env.production`.
-
-Use a production env file (example: `.env.production`) and set:
+Use a production environment (systemd, PM2, or host-level env manager) and set:
 
 ### Core app
 
@@ -105,36 +102,32 @@ Use a production env file (example: `.env.production`) and set:
 - `CLOUDINARY_RESOURCE_FOLDER=business-circle/resources`
 - `CLOUDINARY_PROFILE_FOLDER=business-circle/profiles`
 
-## 3) Deploy with Docker Compose
+## 3) Deploy on VPS (no Docker)
 
 From project root on the server:
 
 ```bash
-npm run env:validate:production -- --env-file .env.production
-docker compose --env-file .env.production up -d --build
+npm ci
+npx prisma generate
+npm run db:migrate:prod
+npm run build
+npm run start
 ```
 
-Confirm services:
-
-```bash
-docker compose ps
-docker compose logs -f app
-docker compose logs -f livekit
-docker compose logs -f coturn
-```
+Recommended: run `npm run env:validate:production` locally (it requires dev dependencies).
 
 Before the first deploy, place your TURN certificate files at `.secrets/coturn/fullchain.pem` and `.secrets/coturn/privkey.pem` on the server (or adjust the `TURN_TLS_*` paths if you use a different location).
 
 ## 4) Run database migrations (required)
 
 ```bash
-docker compose --env-file .env.production exec app npx prisma migrate deploy
+npm run db:migrate:prod
 ```
 
 Optional seed for initial environments only:
 
 ```bash
-docker compose --env-file .env.production exec app npm run db:seed
+npm run db:seed
 ```
 
 ## 5) Stripe webhook setup
@@ -214,5 +207,14 @@ If deploy fails:
 1. Roll back to previous image/tag.
 2. Restore previous env file if variables changed.
 3. If migration caused issues, restore DB backup.
-4. Restart stack:
-   - `docker compose --env-file .env.production up -d`
+4. Restart the app process (systemd/PM2) after rollback.
+
+## Docker (local/dev only)
+
+If you prefer Docker for local development, use:
+
+```bash
+docker compose up -d --build
+docker compose exec app npx prisma migrate deploy
+docker compose exec app npm run db:seed
+```

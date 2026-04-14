@@ -120,7 +120,7 @@ Prisma models:
 
 Route guards are enforced by `middleware.ts` and server-side checks in admin actions/APIs.
 
-## Docker setup (recommended)
+## Docker setup (local/dev)
 
 1. Copy environment file:
    ```powershell
@@ -175,7 +175,17 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f app
 docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 ```
 
-## Production deployment
+## Production deployment (VPS, no Docker)
+
+This project is deployed directly on a VPS. The production flow is:
+
+```bash
+npm ci
+npx prisma generate
+npm run db:migrate:prod
+npm run build
+npm run start
+```
 
 Use the full runbook for production deploys:
 
@@ -193,14 +203,6 @@ Important:
 - the running app still needs a real deployment host, database, and environment variables
 - use the deployment runbook for the live environment
 
-Quick production commands:
-
-```bash
-docker compose --env-file .env.production up -d --build
-docker compose --env-file .env.production exec app npx prisma migrate deploy
-docker compose --env-file .env.production logs -f app
-```
-
 The runbook includes:
 
 - full production env var checklist
@@ -209,7 +211,7 @@ The runbook includes:
 - migration strategy (`migrate deploy` workflow)
 - post-deploy smoke test and rollback steps
 
-## Docker helper scripts
+## Docker helper scripts (local/dev)
 
 ```bash
 npm run docker:up

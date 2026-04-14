@@ -45,6 +45,8 @@ export const metadata: Metadata = createPageMetadata({
   noIndex: true
 });
 
+export const dynamic = "force-dynamic";
+
 function firstValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
