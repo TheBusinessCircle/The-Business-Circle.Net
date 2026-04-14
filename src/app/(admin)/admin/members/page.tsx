@@ -4,6 +4,7 @@ import { MembershipTier, Role, SubscriptionStatus } from "@prisma/client";
 import { ExternalLink, Filter, Search, ShieldAlert, ShieldCheck, UserCog } from "lucide-react";
 import {
   deleteMemberAction,
+  reconcileCheckoutAction,
   suspendMemberAction,
   unsuspendMemberAction,
   updateMemberTierAction
@@ -143,7 +144,8 @@ function buildFeedbackMessage(input: { error: string; notice: string }) {
     "tier-updated": "Membership tier was updated.",
     "member-suspended": "Member account has been suspended.",
     "member-unsuspended": "Member account has been reactivated.",
-    "member-deleted": "Member account was permanently deleted."
+    "member-deleted": "Member account was permanently deleted.",
+    "reconcile-success": "Checkout reconciliation completed."
   };
 
   const errorMap: Record<string, string> = {
@@ -156,7 +158,9 @@ function buildFeedbackMessage(input: { error: string; notice: string }) {
     "delete-confirmation-mismatch": "Type the exact member email address to confirm deletion.",
     "delete-active-subscription": "Cancel live membership billing before deleting this account.",
     "member-delete-failed": "Unable to permanently delete that account right now.",
-    "email-exists": "That email address is already used by another account."
+    "email-exists": "That email address is already used by another account.",
+    "reconcile-invalid": "Enter a checkout session, subscription ID, customer ID, or email.",
+    "reconcile-failed": "Unable to reconcile that checkout right now."
   };
 
   if (input.notice && noticeMap[input.notice]) {
@@ -329,6 +333,29 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                 </Link>
               ) : null}
             </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Reconcile Checkout</CardTitle>
+          <CardDescription>
+            Use this if Stripe shows a subscription but the member is not finalised.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={reconcileCheckoutAction} className="flex flex-col gap-3 md:flex-row md:items-end">
+            <input type="hidden" name="returnPath" value={currentPath} />
+            <div className="w-full space-y-2 md:max-w-md">
+              <Label htmlFor="reconcile-reference">Checkout/session/customer/email</Label>
+              <Input
+                id="reconcile-reference"
+                name="reference"
+                placeholder="cs_..., sub_..., cus_..., or email"
+              />
+            </div>
+            <Button type="submit">Reconcile</Button>
           </form>
         </CardContent>
       </Card>
@@ -530,4 +557,3 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
     </div>
   );
 }
-

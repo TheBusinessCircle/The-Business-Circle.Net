@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPendingRegistrationStatusByCheckoutSessionId } from "@/lib/auth/register";
+import { logServerError } from "@/lib/security/logging";
+import { reconcilePendingRegistrationFromCheckoutSessionId } from "@/server/subscriptions";
 
 export const runtime = "nodejs";
 
@@ -14,8 +16,21 @@ export async function GET(request: Request) {
     );
   }
 
-  const pendingRegistration =
+  let pendingRegistration =
     await getPendingRegistrationStatusByCheckoutSessionId(sessionId);
+
+  if (!pendingRegistration || pendingRegistration.status === "PENDING" || pendingRegistration.status === "PAID") {
+    try {
+      await reconcilePendingRegistrationFromCheckoutSessionId(sessionId);
+    } catch (error) {
+      logServerError("register-status-reconcile-failed", error, {
+        checkoutSessionId: sessionId
+      });
+    }
+
+    pendingRegistration =
+      await getPendingRegistrationStatusByCheckoutSessionId(sessionId);
+  }
 
   if (!pendingRegistration) {
     return NextResponse.json(

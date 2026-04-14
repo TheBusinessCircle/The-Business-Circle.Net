@@ -131,6 +131,17 @@ function toStripeObjectId(
   return null;
 }
 
+function resolvePendingRegistrationIdFromSession(
+  session: Stripe.Checkout.Session
+): string | null {
+  const fromMetadata = session.metadata?.pendingRegistrationId ?? null;
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+
+  return session.client_reference_id ?? null;
+}
+
 function isCheckoutPaymentSuccessful(session: Stripe.Checkout.Session) {
   return session.payment_status === "paid" || session.payment_status === "no_payment_required";
 }
@@ -554,7 +565,7 @@ async function completePendingRegistrationFromStripeSubscription(
 async function completePendingRegistrationFromCheckoutSession(
   session: Stripe.Checkout.Session
 ) {
-  const pendingRegistrationId = session.metadata?.pendingRegistrationId ?? null;
+  const pendingRegistrationId = resolvePendingRegistrationIdFromSession(session);
   if (!pendingRegistrationId) {
     return false;
   }
@@ -705,7 +716,7 @@ async function upsertSubscriptionFromStripeSubscription(
 async function upsertSubscriptionFromCheckoutSession(
   session: Stripe.Checkout.Session
 ) {
-  if (session.metadata?.pendingRegistrationId) {
+  if (resolvePendingRegistrationIdFromSession(session)) {
     await completePendingRegistrationFromCheckoutSession(session);
     await redeemBillingDiscountFromCheckoutSession(session);
     return;
@@ -886,7 +897,7 @@ const defaultWebhookProcessors: StripeWebhookProcessors = {
       checkoutSessionId: session.id
     });
     await updatePendingRegistrationStripeState({
-      pendingRegistrationId: session.metadata?.pendingRegistrationId ?? null,
+      pendingRegistrationId: resolvePendingRegistrationIdFromSession(session),
       checkoutSessionId: session.id,
       customerId: toStripeObjectId(session.customer as string | { id?: string } | null),
       subscriptionId: toStripeObjectId(
@@ -1365,4 +1376,105 @@ export async function processStripeWebhookEvent(
     default:
       break;
   }
+}
+
+export async function reconcilePendingRegistrationFromCheckoutSessionId(
+  checkoutSessionId: string
+) {
+  const stripe = requireStripeClient();
+  const session = await stripe.checkout.sessions.retrieve(checkoutSessionId, {
+    expand: ["subscription", "customer", "discounts", "discounts.promotion_code"]
+  });
+
+  await upsertSubscriptionFromCheckoutSession(session);
+  return session;
+}
+
+export async function reconcilePendingRegistrationFromStripeReference(input: {
+  checkoutSessionId?: string | null;
+  subscriptionId?: string | null;
+  customerId?: string | null;
+  email?: string | null;
+  pendingRegistrationId?: string | null;
+}) {
+  const stripe = requireStripeClient();
+
+  if (input.checkoutSessionId) {
+    await reconcilePendingRegistrationFromCheckoutSessionId(input.checkoutSessionId);
+    return;
+  }
+
+  const pendingRegistrationId = input.pendingRegistrationId ?? null;
+  const pendingRegistration = pendingRegistrationId
+    ? await db.pendingRegistration.findUnique({
+        where: { id: pendingRegistrationId },
+        select: {
+          id: true,
+          stripeCheckoutSessionId: true,
+          stripeCustomerId: true,
+          stripeSubscriptionId: true,
+          email: true
+        }
+      })
+    : input.email
+      ? await db.pendingRegistration.findFirst({
+          where: {
+            email: input.email,
+            status: {
+              in: [PendingRegistrationStatus.PENDING, PendingRegistrationStatus.PAID]
+            }
+          },
+          orderBy: [{ createdAt: "desc" }],
+          select: {
+            id: true,
+            stripeCheckoutSessionId: true,
+            stripeCustomerId: true,
+            stripeSubscriptionId: true,
+            email: true
+          }
+        })
+      : null;
+
+  if (pendingRegistration?.stripeCheckoutSessionId) {
+    await reconcilePendingRegistrationFromCheckoutSessionId(
+      pendingRegistration.stripeCheckoutSessionId
+    );
+    return;
+  }
+
+  const subscriptionId = input.subscriptionId ?? pendingRegistration?.stripeSubscriptionId ?? null;
+  const customerId = input.customerId ?? pendingRegistration?.stripeCustomerId ?? null;
+  const email = input.email ?? pendingRegistration?.email ?? null;
+
+  if (subscriptionId) {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    await completePendingRegistrationFromStripeSubscription(subscription, {
+      pendingRegistrationId: pendingRegistration?.id ?? null
+    });
+    return;
+  }
+
+  let resolvedCustomerId = customerId;
+  if (!resolvedCustomerId && email) {
+    const customers = await stripe.customers.list({ email, limit: 1 });
+    resolvedCustomerId = customers.data[0]?.id ?? null;
+  }
+
+  if (!resolvedCustomerId) {
+    return;
+  }
+
+  const subscriptions = await stripe.subscriptions.list({
+    customer: resolvedCustomerId,
+    status: "all",
+    limit: 1
+  });
+  const subscription = subscriptions.data[0] ?? null;
+  if (!subscription) {
+    return;
+  }
+
+  await completePendingRegistrationFromStripeSubscription(subscription, {
+    pendingRegistrationId: pendingRegistration?.id ?? null
+  });
 }

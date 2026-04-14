@@ -17,6 +17,8 @@ import {
   grantReputationToUser,
   resetReputationForUser
 } from "@/server/community-recognition";
+import { reconcilePendingRegistrationFromStripeReference } from "@/server/subscriptions";
+import { logServerError } from "@/lib/security/logging";
 
 const updateMemberBasicsSchema = z.object({
   memberId: z.string().cuid(),
@@ -47,6 +49,11 @@ const assignBadgeSchema = z.object({
   memberId: z.string().cuid(),
   returnPath: z.string().optional(),
   badgeSlug: z.string().trim().min(1).max(120)
+});
+
+const reconcileCheckoutSchema = z.object({
+  reference: z.string().trim().min(3).max(200),
+  returnPath: z.string().optional()
 });
 
 function appendQueryParam(path: string, key: string, value: string): string {
@@ -88,6 +95,25 @@ function revalidateMemberManagerPaths(memberId: string) {
   revalidatePath("/community");
   revalidatePath("/inner-circle");
   revalidatePath(`/members/${memberId}`);
+}
+
+function normalizeStripeReference(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("cs_")) {
+    return { checkoutSessionId: trimmed };
+  }
+  if (trimmed.startsWith("sub_")) {
+    return { subscriptionId: trimmed };
+  }
+  if (trimmed.startsWith("cus_")) {
+    return { customerId: trimmed };
+  }
+
+  return { email: trimmed.toLowerCase() };
 }
 
 async function ensureMemberExists(memberId: string) {
@@ -589,4 +615,38 @@ export async function assignMemberBadgeAction(formData: FormData) {
 
   revalidateMemberManagerPaths(memberId);
   redirectWithNotice(returnPath, "badge-assigned");
+}
+
+export async function reconcileCheckoutAction(formData: FormData) {
+  await requireAdmin();
+
+  const fallbackReturnPath = resolveReturnPath(
+    typeof formData.get("returnPath") === "string" ? String(formData.get("returnPath")) : undefined
+  );
+
+  const parsed = reconcileCheckoutSchema.safeParse({
+    reference: formData.get("reference"),
+    returnPath: formData.get("returnPath")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(fallbackReturnPath, "reconcile-invalid");
+  }
+
+  const returnPath = resolveReturnPath(parsed.data.returnPath, fallbackReturnPath);
+  const reference = normalizeStripeReference(parsed.data.reference);
+  if (!reference) {
+    redirectWithError(returnPath, "reconcile-invalid");
+  }
+
+  try {
+    await reconcilePendingRegistrationFromStripeReference(reference);
+  } catch (error) {
+    logServerError("admin-reconcile-checkout-failed", error, reference);
+    redirectWithError(returnPath, "reconcile-failed");
+  }
+
+  revalidatePath("/admin/members");
+  revalidatePath("/admin");
+  redirectWithNotice(returnPath, "reconcile-success");
 }
