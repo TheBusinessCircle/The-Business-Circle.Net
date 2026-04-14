@@ -332,7 +332,7 @@ export default async function AdminProductsPricingPage({ searchParams }: PagePro
                 <div className="space-y-2"><Label>Usage limit</Label><Input name="usageLimit" type="number" min={1} max={1} defaultValue={1} readOnly /></div>
                 <div className="space-y-2">
                   <Label>Expiry</Label>
-                  <Input name="expiresAt" type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD/MM/YYYY" />
+                  <Input name="expiresAt" type="text" inputMode="numeric" placeholder="YYYY-MM-DD or DD/MM/YYYY" className="w-full" />
                   <div className="grid grid-cols-3 gap-2">
                     <Input name="expiresAtDay" type="text" inputMode="numeric" placeholder="DD" maxLength={2} />
                     <Input name="expiresAtMonth" type="text" inputMode="numeric" placeholder="MM" maxLength={2} />
