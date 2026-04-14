@@ -67,13 +67,22 @@ export type BillingCatalogDiscountModel = {
   type: BillingDiscountType;
   value: number;
   appliesTo: BillingDiscountAppliesTo;
-  usageLimit: number | null;
+  usageLimit: number;
   timesUsed: number;
   expiresAt: Date | null;
   active: boolean;
   tag: BillingDiscountTag;
   stripeCouponId: string | null;
   stripePromotionCodeId: string | null;
+  redeemedAt: Date | null;
+  redeemedCheckoutSessionId: string | null;
+  redeemedSubscriptionId: string | null;
+  redeemedCustomerId: string | null;
+  redeemedBy: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
   specificProduct: {

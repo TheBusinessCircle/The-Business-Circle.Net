@@ -34,7 +34,8 @@ import {
 import {
   resolveManagedMembershipPlan,
   resolveManagedMembershipPlanFromStripePriceId,
-  resolveManagedMembershipTierFromStripePriceId
+  resolveManagedMembershipTierFromStripePriceId,
+  recordBillingDiscountRedemption
 } from "@/server/products-pricing";
 import { requireStripeClient } from "@/server/stripe/client";
 
@@ -128,6 +129,122 @@ function toStripeObjectId(
   }
 
   return null;
+}
+
+function isCheckoutPaymentSuccessful(session: Stripe.Checkout.Session) {
+  return session.payment_status === "paid" || session.payment_status === "no_payment_required";
+}
+
+function extractPromotionCodeIdFromSession(
+  session: Stripe.Checkout.Session
+): string | null {
+  if (!Array.isArray(session.discounts) || !session.discounts.length) {
+    return null;
+  }
+
+  const promotionCode =
+    session.discounts[0]?.promotion_code ?? null;
+  return toStripeObjectId(promotionCode as string | { id?: string } | null);
+}
+
+async function resolvePromotionCodeIdFromSession(
+  session: Stripe.Checkout.Session
+) {
+  const direct = extractPromotionCodeIdFromSession(session);
+  if (direct) {
+    return direct;
+  }
+
+  const stripe = requireStripeClient();
+  const expanded = await stripe.checkout.sessions.retrieve(session.id, {
+    expand: ["discounts", "discounts.promotion_code"]
+  });
+
+  return extractPromotionCodeIdFromSession(expanded);
+}
+
+async function resolveUserIdFromCheckoutSession(
+  session: Stripe.Checkout.Session
+): Promise<string | null> {
+  const metadataUserId = session.metadata?.userId ?? null;
+  if (metadataUserId) {
+    return metadataUserId;
+  }
+
+  const pendingRegistrationId = session.metadata?.pendingRegistrationId ?? null;
+  if (pendingRegistrationId) {
+    const pendingRegistration = await db.pendingRegistration.findUnique({
+      where: {
+        id: pendingRegistrationId
+      },
+      select: {
+        completedUserId: true
+      }
+    });
+
+    return pendingRegistration?.completedUserId ?? null;
+  }
+
+  const subscriptionId = toStripeObjectId(
+    session.subscription as string | { id?: string } | null
+  );
+  const customerId = toStripeObjectId(
+    session.customer as string | { id?: string } | null
+  );
+
+  const orFilters: Prisma.SubscriptionWhereInput[] = [];
+  if (subscriptionId) {
+    orFilters.push({ stripeSubscriptionId: subscriptionId });
+  }
+  if (customerId) {
+    orFilters.push({ stripeCustomerId: customerId });
+  }
+
+  if (!orFilters.length) {
+    return null;
+  }
+
+  const subscription = await db.subscription.findFirst({
+    where: {
+      OR: orFilters
+    },
+    select: {
+      userId: true
+    }
+  });
+
+  return subscription?.userId ?? null;
+}
+
+async function redeemBillingDiscountFromCheckoutSession(
+  session: Stripe.Checkout.Session
+) {
+  if (!isCheckoutPaymentSuccessful(session)) {
+    return;
+  }
+
+  try {
+    const promotionCodeId = await resolvePromotionCodeIdFromSession(session);
+    if (!promotionCodeId) {
+      return;
+    }
+
+    const userId = await resolveUserIdFromCheckoutSession(session);
+
+    await recordBillingDiscountRedemption({
+      promotionCodeId,
+      checkoutSessionId: session.id,
+      subscriptionId: toStripeObjectId(
+        session.subscription as string | { id?: string } | null
+      ),
+      customerId: toStripeObjectId(
+        session.customer as string | { id?: string } | null
+      ),
+      userId
+    });
+  } catch (error) {
+    logServerWarning("billing-discount-redemption-failed", error);
+  }
 }
 
 function toDateFromStripeTimestamp(timestamp?: number | null): Date | null {
@@ -590,6 +707,7 @@ async function upsertSubscriptionFromCheckoutSession(
 ) {
   if (session.metadata?.pendingRegistrationId) {
     await completePendingRegistrationFromCheckoutSession(session);
+    await redeemBillingDiscountFromCheckoutSession(session);
     return;
   }
 
@@ -619,6 +737,7 @@ async function upsertSubscriptionFromCheckoutSession(
       });
     }
 
+    await redeemBillingDiscountFromCheckoutSession(session);
     return;
   }
 
@@ -650,6 +769,7 @@ async function upsertSubscriptionFromCheckoutSession(
   }
 
   await syncUserMembershipTier(context.userId, MembershipTier.FOUNDATION);
+  await redeemBillingDiscountFromCheckoutSession(session);
 }
 
 function invoiceAmountAsCurrency(
@@ -1246,4 +1366,3 @@ export async function processStripeWebhookEvent(
       break;
   }
 }
-

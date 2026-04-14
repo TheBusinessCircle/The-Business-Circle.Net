@@ -611,6 +611,13 @@ export async function listBillingCatalogDiscounts(): Promise<BillingCatalogDisco
 
   const discounts = await db.billingDiscount.findMany({
     include: {
+      redeemedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
       specificProduct: {
         select: {
           id: true,
@@ -1035,55 +1042,142 @@ function stripePromotionExpiry(value: Date | null | undefined) {
   return value ? Math.floor(value.getTime() / 1000) : undefined;
 }
 
-export async function createBillingDiscountWithStripe(input: CreateBillingDiscountInput) {
-  await ensureBillingCatalogSeeded();
+function normalizeDiscountCode(value: string) {
+  return value.trim().toUpperCase();
+}
 
-  const stripe = requireStripeClient();
-  const specificProduct = input.specificProductId
-    ? await db.billingProduct.findUnique({
-        where: {
-          id: input.specificProductId
-        },
-        select: {
-          id: true,
-          stripeProductId: true
-        }
-      })
-    : null;
-
-  if (input.specificProductId && !specificProduct?.stripeProductId) {
-    await syncBillingCatalogWithStripe({
-      productIds: [input.specificProductId]
-    });
+async function resolveDiscountStripeProductIds(input: {
+  appliesTo: BillingDiscountAppliesTo;
+  specificProductId?: string | null;
+}) {
+  if (input.appliesTo === BillingDiscountAppliesTo.ALL_PRODUCTS) {
+    return null;
   }
 
-  const refreshedSpecificProduct =
-    input.specificProductId && !specificProduct?.stripeProductId
-      ? await db.billingProduct.findUnique({
+  if (input.appliesTo === BillingDiscountAppliesTo.SPECIFIC_PRODUCT) {
+    if (!input.specificProductId) {
+      throw new Error("discount-missing-product");
+    }
+
+    const product = await db.billingProduct.findUnique({
+      where: {
+        id: input.specificProductId
+      },
+      select: {
+        id: true,
+        stripeProductId: true
+      }
+    });
+
+    if (!product?.stripeProductId) {
+      await syncBillingCatalogWithStripe({
+        productIds: [input.specificProductId]
+      });
+    }
+
+    const refreshed = product?.stripeProductId
+      ? product
+      : await db.billingProduct.findUnique({
           where: {
             id: input.specificProductId
           },
           select: {
             stripeProductId: true
           }
-        })
-      : specificProduct;
+        });
+
+    if (!refreshed?.stripeProductId) {
+      throw new Error("discount-product-sync-failed");
+    }
+
+    return [refreshed.stripeProductId];
+  }
+
+  const category =
+    input.appliesTo === BillingDiscountAppliesTo.MEMBERSHIPS
+      ? BillingProductCategory.MEMBERSHIP
+      : BillingProductCategory.SERVICE;
+
+  const products = await db.billingProduct.findMany({
+    where: {
+      category,
+      active: true
+    },
+    select: {
+      id: true,
+      stripeProductId: true
+    }
+  });
+
+  const missingIds = products.filter((product) => !product.stripeProductId).map((product) => product.id);
+  if (missingIds.length) {
+    await syncBillingCatalogWithStripe({
+      productIds: missingIds
+    });
+  }
+
+  const refreshed = missingIds.length
+    ? await db.billingProduct.findMany({
+        where: {
+          id: {
+            in: products.map((product) => product.id)
+          }
+        },
+        select: {
+          stripeProductId: true
+        }
+      })
+    : products;
+
+  const stripeProductIds = refreshed
+    .map((product) => product.stripeProductId)
+    .filter((id): id is string => Boolean(id));
+
+  if (!stripeProductIds.length) {
+    throw new Error("discount-product-sync-failed");
+  }
+
+  return stripeProductIds;
+}
+
+export async function createBillingDiscountWithStripe(input: CreateBillingDiscountInput) {
+  await ensureBillingCatalogSeeded();
+
+  const stripe = requireStripeClient();
+  const normalizedCode = normalizeDiscountCode(input.code);
+
+  if (input.type === BillingDiscountType.PERCENTAGE && input.value > 100) {
+    throw new Error("discount-percent-out-of-range");
+  }
+
+  const existing = await db.billingDiscount.findUnique({
+    where: {
+      code: normalizedCode
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (existing) {
+    throw new Error("discount-code-exists");
+  }
+
+  const usageLimit = 1;
+  const stripeProductIds = await resolveDiscountStripeProductIds({
+    appliesTo: input.appliesTo,
+    specificProductId: input.specificProductId ?? null
+  });
 
   const coupon = await stripe.coupons.create({
     duration: "forever",
     percent_off: input.type === BillingDiscountType.PERCENTAGE ? input.value : undefined,
     amount_off: input.type === BillingDiscountType.FIXED ? input.value : undefined,
     currency: input.type === BillingDiscountType.FIXED ? DEFAULT_CURRENCY.toLowerCase() : undefined,
-    name: input.name?.trim() || input.code.trim().toUpperCase(),
-    applies_to:
-      input.appliesTo === BillingDiscountAppliesTo.SPECIFIC_PRODUCT &&
-      refreshedSpecificProduct?.stripeProductId
-        ? {
-            products: [refreshedSpecificProduct.stripeProductId]
-          }
-        : undefined,
+    name: input.name?.trim() || normalizedCode,
+    applies_to: stripeProductIds ? { products: stripeProductIds } : undefined,
     metadata: {
-      code: input.code.trim().toUpperCase(),
+      code: normalizedCode,
       appliesTo: input.appliesTo,
       tag: input.tag ?? BillingDiscountTag.MANUAL
     }
@@ -1091,21 +1185,21 @@ export async function createBillingDiscountWithStripe(input: CreateBillingDiscou
 
   const promotionCode = await stripe.promotionCodes.create({
     coupon: coupon.id,
-    code: input.code.trim().toUpperCase(),
+    code: normalizedCode,
     active: input.active ?? true,
-    max_redemptions: input.usageLimit ?? undefined,
+    max_redemptions: usageLimit,
     expires_at: stripePromotionExpiry(input.expiresAt)
   });
 
   return db.billingDiscount.create({
     data: {
-      code: input.code.trim().toUpperCase(),
+      code: normalizedCode,
       name: input.name?.trim() || null,
       type: input.type,
       value: input.value,
       appliesTo: input.appliesTo,
       specificProductId: input.specificProductId ?? null,
-      usageLimit: input.usageLimit ?? null,
+      usageLimit,
       expiresAt: input.expiresAt ?? null,
       active: input.active ?? true,
       tag: input.tag ?? BillingDiscountTag.MANUAL,
@@ -1129,6 +1223,10 @@ export async function updateBillingDiscountActiveState(input: {
     throw new Error("discount-not-found");
   }
 
+  if (input.active && discount.timesUsed >= discount.usageLimit) {
+    throw new Error("discount-already-redeemed");
+  }
+
   if (discount.stripePromotionCodeId) {
     const stripe = requireStripeClient();
     await stripe.promotionCodes.update(discount.stripePromotionCodeId, {
@@ -1144,6 +1242,46 @@ export async function updateBillingDiscountActiveState(input: {
       active: input.active
     }
   });
+}
+
+export async function recordBillingDiscountRedemption(input: {
+  promotionCodeId: string;
+  checkoutSessionId?: string | null;
+  subscriptionId?: string | null;
+  customerId?: string | null;
+  userId?: string | null;
+}) {
+  const discount = await db.billingDiscount.findUnique({
+    where: {
+      stripePromotionCodeId: input.promotionCodeId
+    }
+  });
+
+  if (!discount) {
+    return false;
+  }
+
+  const nextTimesUsed = Math.min(discount.timesUsed + 1, discount.usageLimit);
+  const shouldDeactivate = nextTimesUsed >= discount.usageLimit;
+  const updated = await db.billingDiscount.updateMany({
+    where: {
+      id: discount.id,
+      active: true,
+      redeemedAt: null,
+      timesUsed: discount.timesUsed
+    },
+    data: {
+      timesUsed: nextTimesUsed,
+      redeemedAt: new Date(),
+      redeemedById: input.userId ?? undefined,
+      redeemedCheckoutSessionId: input.checkoutSessionId ?? undefined,
+      redeemedSubscriptionId: input.subscriptionId ?? undefined,
+      redeemedCustomerId: input.customerId ?? undefined,
+      active: shouldDeactivate ? false : discount.active
+    }
+  });
+
+  return updated.count > 0;
 }
 
 export async function updateFounderControl(input: UpdateFounderControlInput) {

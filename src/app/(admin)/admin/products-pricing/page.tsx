@@ -66,8 +66,13 @@ function feedbackMessage(input: { notice: string; error: string }) {
     "price-invalid": "The price form was incomplete.",
     "price-save-failed": "Unable to save that price.",
     "discount-invalid": "The discount form was incomplete.",
+    "discount-expiry-invalid": "Expiry dates must be in YYYY-MM-DD format.",
+    "discount-value-invalid": "Discount values must be valid for the selected type.",
+    "discount-duplicate": "That discount code already exists.",
+    "discount-product-sync-failed": "Unable to sync Stripe products for this discount.",
     "discount-create-failed": "Unable to create that Stripe-backed discount code.",
     "discount-update-invalid": "The discount update request was invalid.",
+    "discount-already-redeemed": "This discount was already redeemed and cannot be reactivated.",
     "discount-update-failed": "Unable to update that discount code.",
     "founder-control-invalid": "The founder control form was incomplete.",
     "founder-limit-below-claimed": "Founder limit cannot be set below the number already claimed.",
@@ -324,8 +329,8 @@ export default async function AdminProductsPricingPage({ searchParams }: PagePro
                 <div className="space-y-2"><Label>Specific product</Label><select name="specificProductId" className="flex h-10 w-full rounded-xl border border-border/80 bg-background/30 px-3 text-sm"><option value="">No specific product</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></div>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2"><Label>Usage limit</Label><Input name="usageLimit" type="number" min={1} placeholder="25" /></div>
-                <div className="space-y-2"><Label>Expiry</Label><Input name="expiresAt" type="datetime-local" /></div>
+                <div className="space-y-2"><Label>Usage limit</Label><Input name="usageLimit" type="number" min={1} max={1} defaultValue={1} readOnly /></div>
+                <div className="space-y-2"><Label>Expiry</Label><Input name="expiresAt" type="date" /></div>
                 <div className="space-y-2"><Label>Tag</Label><select name="tag" className="flex h-10 w-full rounded-xl border border-border/80 bg-background/30 px-3 text-sm"><option value={BillingDiscountTag.LOCAL_OUTREACH}>Local outreach</option><option value={BillingDiscountTag.MEMBER_DISCOUNT}>Member discount</option><option value={BillingDiscountTag.MANUAL}>Manual</option></select></div>
               </div>
               <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" name="active" defaultChecked className="h-4 w-4 rounded border-border bg-background" />Active</label>
@@ -349,7 +354,10 @@ export default async function AdminProductsPricingPage({ searchParams }: PagePro
                   </div>
                   <span className="rounded-full border border-border/80 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">{discount.active ? "active" : "inactive"}</span>
                 </div>
-                <p className="mt-3 text-sm text-muted">{discount.type === BillingDiscountType.PERCENTAGE ? `${discount.value}% off` : `${formatMinorCurrency(discount.value)} off`} · Used {discount.timesUsed}{discount.usageLimit ? `/${discount.usageLimit}` : ""}{discount.expiresAt ? ` · Expires ${new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(discount.expiresAt)}` : ""}</p>
+                <p className="mt-3 text-sm text-muted">{discount.type === BillingDiscountType.PERCENTAGE ? `${discount.value}% off` : `${formatMinorCurrency(discount.value)} off`} · Used {discount.timesUsed}/{discount.usageLimit}{discount.expiresAt ? ` · Expires ${new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(discount.expiresAt)}` : ""}</p>
+                {discount.redeemedAt ? (
+                  <p className="mt-2 text-xs text-muted">Redeemed {new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(discount.redeemedAt)}{discount.redeemedBy ? ` by ${discount.redeemedBy.name || discount.redeemedBy.email}` : ""}</p>
+                ) : null}
                 <p className="mt-2 text-xs text-muted">Coupon: {discount.stripeCouponId ?? "Not linked"} · Promo code: {discount.stripePromotionCodeId ?? "Not linked"}</p>
                 <form action={updateBillingDiscountActiveAction} className="mt-4 flex flex-wrap items-center gap-3">
                   <input type="hidden" name="discountId" value={discount.id} />

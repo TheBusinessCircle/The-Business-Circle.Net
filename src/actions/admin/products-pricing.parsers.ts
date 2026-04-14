@@ -28,6 +28,10 @@ function nullableStringEntry(formData: FormData, key: string) {
   return value ? value : null;
 }
 
+function isIsoDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 const billingProductFormSchema = z
   .object({
     productId: z.string().cuid().optional(),
@@ -71,7 +75,7 @@ const billingDiscountFormSchema = z
       .coerce.number()
       .int()
       .min(1)
-      .max(10_000)
+      .max(1)
       .optional(),
     expiresAt: z.string().trim().optional(),
     active: z.boolean(),
@@ -80,6 +84,22 @@ const billingDiscountFormSchema = z
     returnPath: z.string().optional()
   })
   .superRefine((value, ctx) => {
+    if (value.type === BillingDiscountType.PERCENTAGE && value.value > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Percentage discounts must be between 1 and 100.",
+        path: ["value"]
+      });
+    }
+
+    if (value.expiresAt && !isIsoDateOnly(value.expiresAt)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Expiry dates must be in YYYY-MM-DD format.",
+        path: ["expiresAt"]
+      });
+    }
+
     if (
       value.appliesTo === BillingDiscountAppliesTo.SPECIFIC_PRODUCT &&
       !value.specificProductId

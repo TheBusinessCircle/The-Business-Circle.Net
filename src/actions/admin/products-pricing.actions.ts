@@ -48,6 +48,27 @@ function revalidateProductsPricingPaths() {
   revalidatePath("/dashboard");
 }
 
+function parseExpiryDate(value?: string): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  return new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+}
+
 export async function upsertBillingProductAction(formData: FormData) {
   await requireAdmin();
 
@@ -131,23 +152,52 @@ export async function createBillingDiscountAction(formData: FormData) {
   const parsed = parseBillingDiscountFormData(formData);
 
   if (!parsed.success) {
+    const expiresAtError = parsed.error.issues.find((issue) =>
+      issue.path.includes("expiresAt")
+    );
+    if (expiresAtError) {
+      redirectWithError(returnPath, "discount-expiry-invalid");
+    }
+
+    const valueError = parsed.error.issues.find((issue) => issue.path.includes("value"));
+    if (valueError) {
+      redirectWithError(returnPath, "discount-value-invalid");
+    }
+
     redirectWithError(returnPath, "discount-invalid");
   }
 
   try {
+    const expiresAt = parseExpiryDate(parsed.data.expiresAt);
+    if (parsed.data.expiresAt && !expiresAt) {
+      redirectWithError(returnPath, "discount-expiry-invalid");
+    }
+
     await createBillingDiscountWithStripe({
       code: parsed.data.code,
       name: parsed.data.name || undefined,
       type: parsed.data.type,
       value: parsed.data.value,
       appliesTo: parsed.data.appliesTo,
-      usageLimit: parsed.data.usageLimit ?? null,
-      expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null,
+      usageLimit: 1,
+      expiresAt,
       active: parsed.data.active,
       tag: parsed.data.tag,
       specificProductId: parsed.data.specificProductId
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "discount-code-exists") {
+        redirectWithError(returnPath, "discount-duplicate");
+      }
+      if (error.message === "discount-percent-out-of-range") {
+        redirectWithError(returnPath, "discount-value-invalid");
+      }
+      if (error.message === "discount-product-sync-failed") {
+        redirectWithError(returnPath, "discount-product-sync-failed");
+      }
+    }
+
     redirectWithError(returnPath, "discount-create-failed");
   }
 
@@ -176,7 +226,11 @@ export async function updateBillingDiscountActiveAction(formData: FormData) {
       discountId: parsed.data.discountId,
       active: parsed.data.active
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "discount-already-redeemed") {
+      redirectWithError(returnPath, "discount-already-redeemed");
+    }
+
     redirectWithError(returnPath, "discount-update-failed");
   }
 

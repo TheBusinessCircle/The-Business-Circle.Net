@@ -62,6 +62,7 @@ model User {
   hostedCallSchedules          CallSchedule[]             @relation("CallScheduleHost")
   callAuditLogs                CallAuditLog[]             @relation("CallAuditActor")
   targetedCallAuditLogs        CallAuditLog[]             @relation("CallAuditTarget")
+  redeemedDiscounts            BillingDiscount[]          @relation("BillingDiscountRedeemer")
 
   @@index([role])
   @@index([memberRoleTag])
@@ -1013,19 +1014,29 @@ model BillingDiscount {
   value                 Int
   appliesTo             BillingDiscountAppliesTo
   specificProductId     String?
-  usageLimit            Int?
+  usageLimit            Int                      @default(1)
   timesUsed             Int                      @default(0)
   expiresAt             DateTime?
   active                Boolean                  @default(true)
   tag                   BillingDiscountTag       @default(MANUAL)
   stripeCouponId        String?                  @unique
   stripePromotionCodeId String?                  @unique
+  redeemedAt            DateTime?
+  redeemedById          String?
+  redeemedCheckoutSessionId String?
+  redeemedSubscriptionId String?
+  redeemedCustomerId    String?
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
   specificProduct       BillingProduct?          @relation("BillingDiscountSpecificProduct", fields: [specificProductId], references: [id], onDelete: SetNull)
+  redeemedBy            User?                    @relation("BillingDiscountRedeemer", fields: [redeemedById], references: [id], onDelete: SetNull)
 
   @@index([active, appliesTo, createdAt])
   @@index([expiresAt])
+  @@index([redeemedById])
+  @@index([redeemedCheckoutSessionId])
+  @@index([redeemedSubscriptionId])
+  @@index([redeemedCustomerId])
 }
 
 model FounderSettings {
