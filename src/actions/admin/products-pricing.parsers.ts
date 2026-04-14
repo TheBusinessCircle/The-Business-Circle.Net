@@ -82,6 +82,9 @@ const billingDiscountFormSchema = z
       .max(1)
       .optional(),
     expiresAt: z.string().trim().optional(),
+    expiresAtDay: z.string().trim().optional(),
+    expiresAtMonth: z.string().trim().optional(),
+    expiresAtYear: z.string().trim().optional(),
     active: z.boolean(),
     tag: z.nativeEnum(BillingDiscountTag),
     specificProductId: z.string().cuid().nullable(),
@@ -96,10 +99,45 @@ const billingDiscountFormSchema = z
       });
     }
 
-    if (value.expiresAt && !isSupportedDateFormat(value.expiresAt)) {
+    const hasSplitExpiry =
+      Boolean(value.expiresAtDay) ||
+      Boolean(value.expiresAtMonth) ||
+      Boolean(value.expiresAtYear);
+
+    if (hasSplitExpiry) {
+      if (!value.expiresAtDay || !value.expiresAtMonth || !value.expiresAtYear) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Expiry day, month, and year must all be provided.",
+          path: ["expiresAt"]
+        });
+      }
+
+      const day = Number(value.expiresAtDay);
+      const month = Number(value.expiresAtMonth);
+      const year = Number(value.expiresAtYear);
+
+      if (
+        !Number.isFinite(day) ||
+        !Number.isFinite(month) ||
+        !Number.isFinite(year) ||
+        day < 1 ||
+        day > 31 ||
+        month < 1 ||
+        month > 12 ||
+        year < 2000 ||
+        year > 2100
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Expiry date is invalid.",
+          path: ["expiresAt"]
+        });
+      }
+    } else if (value.expiresAt && !isSupportedDateFormat(value.expiresAt)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Expiry dates must be YYYY-MM-DD, YYYY/MM/DD, or DD/MM/YYYY.",
+        message: "Expiry dates must be YYYY-MM-DD, YYYY/MM/DD, DD/MM/YYYY, or use the split fields.",
         path: ["expiresAt"]
       });
     }
@@ -115,13 +153,27 @@ const billingDiscountFormSchema = z
       });
     }
   })
-  .transform((value) => ({
-    ...value,
-    specificProductId:
-      value.appliesTo === BillingDiscountAppliesTo.SPECIFIC_PRODUCT
-        ? value.specificProductId
-        : null
-  }));
+  .transform((value) => {
+    const hasSplitExpiry =
+      Boolean(value.expiresAtDay) ||
+      Boolean(value.expiresAtMonth) ||
+      Boolean(value.expiresAtYear);
+
+    const expiresAt = hasSplitExpiry
+      ? `${String(value.expiresAtYear).padStart(4, "0")}-${String(
+          value.expiresAtMonth
+        ).padStart(2, "0")}-${String(value.expiresAtDay).padStart(2, "0")}`
+      : value.expiresAt;
+
+    return {
+      ...value,
+      expiresAt,
+      specificProductId:
+        value.appliesTo === BillingDiscountAppliesTo.SPECIFIC_PRODUCT
+          ? value.specificProductId
+          : null
+    };
+  });
 
 const billingDiscountActiveFormSchema = z.object({
   discountId: z.string().cuid(),
@@ -173,6 +225,9 @@ export function parseBillingDiscountFormData(formData: FormData) {
     appliesTo: stringEntry(formData, "appliesTo"),
     usageLimit: optionalStringEntry(formData, "usageLimit"),
     expiresAt: optionalStringEntry(formData, "expiresAt"),
+    expiresAtDay: optionalStringEntry(formData, "expiresAtDay"),
+    expiresAtMonth: optionalStringEntry(formData, "expiresAtMonth"),
+    expiresAtYear: optionalStringEntry(formData, "expiresAtYear"),
     active: parseBoolean(formData.get("active")),
     tag: stringEntry(formData, "tag"),
     specificProductId: nullableStringEntry(formData, "specificProductId"),

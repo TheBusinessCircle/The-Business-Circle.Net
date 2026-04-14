@@ -66,7 +66,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
     "price-invalid": "The price form was incomplete.",
     "price-save-failed": "Unable to save that price.",
     "discount-invalid": "The discount form was incomplete.",
-    "discount-expiry-invalid": "Expiry dates must be YYYY-MM-DD, YYYY/MM/DD, or DD/MM/YYYY.",
+    "discount-expiry-invalid": "Expiry needs day, month, and year (or leave it blank).",
     "discount-value-invalid": "Discount values must be valid for the selected type.",
     "discount-duplicate": "That discount code already exists.",
     "discount-product-sync-failed": "Unable to sync Stripe products for this discount.",
@@ -332,7 +332,11 @@ export default async function AdminProductsPricingPage({ searchParams }: PagePro
                 <div className="space-y-2"><Label>Usage limit</Label><Input name="usageLimit" type="number" min={1} max={1} defaultValue={1} readOnly /></div>
                 <div className="space-y-2">
                   <Label>Expiry</Label>
-                  <Input name="expiresAt" type="date" />
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input name="expiresAtDay" type="text" inputMode="numeric" placeholder="DD" maxLength={2} />
+                    <Input name="expiresAtMonth" type="text" inputMode="numeric" placeholder="MM" maxLength={2} />
+                    <Input name="expiresAtYear" type="text" inputMode="numeric" placeholder="YYYY" maxLength={4} />
+                  </div>
                 </div>
                 <div className="space-y-2"><Label>Tag</Label><select name="tag" className="flex h-10 w-full rounded-xl border border-border/80 bg-background/30 px-3 text-sm"><option value={BillingDiscountTag.LOCAL_OUTREACH}>Local outreach</option><option value={BillingDiscountTag.MEMBER_DISCOUNT}>Member discount</option><option value={BillingDiscountTag.MANUAL}>Manual</option></select></div>
               </div>
