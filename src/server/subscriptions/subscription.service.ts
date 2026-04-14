@@ -254,7 +254,9 @@ async function redeemBillingDiscountFromCheckoutSession(
       userId
     });
   } catch (error) {
-    logServerWarning("billing-discount-redemption-failed", error);
+    logServerWarning("billing-discount-redemption-failed", {
+      errorMessage: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 }
 
