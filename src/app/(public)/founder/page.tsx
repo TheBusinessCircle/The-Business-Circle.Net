@@ -46,7 +46,10 @@ function billingSuffix(billingType: "ONE_TIME" | "MONTHLY_RETAINER") {
 }
 
 export default async function FounderPage() {
-  const [session, allServices] = await Promise.all([auth(), listActiveFounderServices()]);
+  const [session, allServices] = await Promise.all([
+    auth(),
+    listActiveFounderServices().catch(() => [])
+  ]);
   const viewer = session?.user
     ? {
         role: session.user.role,
@@ -198,6 +201,8 @@ export default async function FounderPage() {
           {services.map((service, index) => {
             const pricing = getFounderServicePricing(service, viewer);
             const startsWithAudit = service.slug !== "growth-architect-clarity-audit";
+            const currency = service.currency || "GBP";
+            const hasPrice = typeof pricing.finalAmount === "number" && !Number.isNaN(pricing.finalAmount);
 
             return (
               <Card
@@ -224,12 +229,12 @@ export default async function FounderPage() {
                     <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Price</p>
                     <p className="font-display text-4xl text-foreground">
                       {service.billingType === "MONTHLY_RETAINER" ? "From " : ""}
-                      {pricing.finalAmount
+                      {hasPrice
                         ? new Intl.NumberFormat("en-GB", {
                             style: "currency",
-                            currency: service.currency
+                            currency
                           }).format(pricing.finalAmount / 100)
-                        : ""}
+                        : "Pricing unavailable"}
                       <span className="ml-1 text-base text-silver">{billingSuffix(service.billingType)}</span>
                     </p>
                     {pricing.discountPercent ? (
@@ -237,7 +242,7 @@ export default async function FounderPage() {
                         Member rate applied from{" "}
                         {new Intl.NumberFormat("en-GB", {
                           style: "currency",
-                          currency: service.currency
+                          currency
                         }).format(pricing.baseAmount / 100)}
                         {billingSuffix(service.billingType)}.
                       </p>
