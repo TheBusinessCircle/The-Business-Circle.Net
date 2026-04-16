@@ -106,6 +106,7 @@ describe("createPendingRegistration", () => {
   it("allows a dormant account email to restart through paid activation", async () => {
     mocks.userFindUnique.mockResolvedValueOnce({
       id: "user_123",
+      passwordHash: null,
       role: Role.MEMBER,
       suspended: false,
       subscription: {
@@ -132,6 +133,30 @@ describe("createPendingRegistration", () => {
 
     expect(result.pendingRegistration.id).toBe("pending_456");
     expect(mocks.pendingRegistrationCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an existing account email when the user already has a password", async () => {
+    mocks.userFindUnique.mockResolvedValueOnce({
+      id: "user_123",
+      passwordHash: "hashed-existing-password",
+      role: Role.MEMBER,
+      suspended: false,
+      subscription: {
+        status: SubscriptionStatus.CANCELED
+      }
+    });
+
+    await expect(
+      createPendingRegistration({
+        name: "Trevor Newton",
+        email: "trev@example.com",
+        password: "ValidPassword1!",
+        tier: "FOUNDATION",
+        billingInterval: "monthly"
+      })
+    ).rejects.toMatchObject<Partial<RegistrationServiceError>>({
+      code: "EMAIL_IN_USE"
+    });
   });
 
   it("rejects when payment is already being confirmed for the same email", async () => {

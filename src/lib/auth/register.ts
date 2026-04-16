@@ -424,6 +424,7 @@ export async function createPendingRegistration(
       where: { email },
       select: {
         id: true,
+        passwordHash: true,
         role: true,
         suspended: true,
         subscription: {
@@ -447,12 +448,13 @@ export async function createPendingRegistration(
   if (
     existingUser &&
     (existingUser.suspended ||
+      Boolean(existingUser.passwordHash) ||
       existingUser.role === Role.ADMIN ||
       hasEntitledSubscription(existingUser.subscription?.status))
   ) {
     throw new RegistrationServiceError(
       "EMAIL_IN_USE",
-      "An account already exists with this email."
+      "An account already exists with this email. Sign in or reset your password to continue."
     );
   }
 
@@ -505,7 +507,7 @@ export async function createPendingRegistration(
     if (isUniqueEmailError(error)) {
       throw new RegistrationServiceError(
         "EMAIL_IN_USE",
-        "An account already exists with this email."
+        "An account already exists with this email. Sign in or reset your password to continue."
       );
     }
 

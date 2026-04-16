@@ -901,6 +901,23 @@ export async function createCommunityComment(input: {
     throw new Error("community-post-forbidden");
   }
 
+  if (input.parentCommentId) {
+    const parentComment = await db.communityComment.findUnique({
+      where: {
+        id: input.parentCommentId
+      },
+      select: {
+        id: true,
+        postId: true,
+        deletedAt: true
+      }
+    });
+
+    if (!parentComment || parentComment.deletedAt || parentComment.postId !== post.id) {
+      throw new Error("community-comment-forbidden");
+    }
+  }
+
   assertNoBlockedProfanity(input.content);
 
   return db.communityComment.create({

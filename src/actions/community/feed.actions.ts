@@ -174,6 +174,10 @@ export async function createCommunityCommentAction(formData: FormData) {
       redirectWithError(returnPath, "post-forbidden");
     }
 
+    if (error instanceof Error && error.message === "community-comment-forbidden") {
+      redirectWithError(returnPath, "comment-forbidden");
+    }
+
     if (error instanceof Error && error.message === "community-content-blocked") {
       redirectWithError(returnPath, "comment-blocked");
     }
