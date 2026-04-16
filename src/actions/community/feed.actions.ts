@@ -123,6 +123,10 @@ export async function createCommunityPostAction(formData: FormData) {
       redirectWithError(returnPath, "channel-forbidden");
     }
 
+    if (error instanceof Error && error.message === "community-content-blocked") {
+      redirectWithError(returnPath, "post-blocked");
+    }
+
     throw error;
   }
 
@@ -168,6 +172,10 @@ export async function createCommunityCommentAction(formData: FormData) {
   } catch (error) {
     if (error instanceof Error && error.message === "community-post-forbidden") {
       redirectWithError(returnPath, "post-forbidden");
+    }
+
+    if (error instanceof Error && error.message === "community-content-blocked") {
+      redirectWithError(returnPath, "comment-blocked");
     }
 
     throw error;

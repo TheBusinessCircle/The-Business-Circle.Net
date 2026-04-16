@@ -7,7 +7,8 @@ import {
   PendingRegistrationBillingInterval,
   PendingRegistrationStatus,
   Prisma,
-  Role
+  Role,
+  SubscriptionStatus
 } from "@prisma/client";
 import { WelcomeMemberEmail } from "@/emails";
 import { getMembershipPlan, type MembershipBillingInterval } from "@/config/membership";
@@ -34,6 +35,10 @@ type RegistrationErrorCode =
 const DEFAULT_PENDING_REGISTRATION_TTL_HOURS = 24;
 const MIN_PENDING_REGISTRATION_TTL_HOURS = 1;
 const MAX_PENDING_REGISTRATION_TTL_HOURS = 72;
+const ENTITLED_SUBSCRIPTION_STATUSES = new Set<SubscriptionStatus>([
+  SubscriptionStatus.ACTIVE,
+  SubscriptionStatus.TRIALING
+]);
 
 export class RegistrationServiceError extends Error {
   code: RegistrationErrorCode;
@@ -108,6 +113,46 @@ function normalizeBusinessStage(value: RegisterMemberInput["businessStage"]) {
   return value && value.length ? (value as BusinessStage) : null;
 }
 
+function hasEntitledSubscription(status: SubscriptionStatus | null | undefined) {
+  if (!status) {
+    return false;
+  }
+
+  return ENTITLED_SUBSCRIPTION_STATUSES.has(status);
+}
+
+function buildBusinessUpdateData(input: {
+  businessName: string | null;
+  businessStatus: BusinessStatus | null;
+  companyNumber: string | null;
+  businessStage: BusinessStage | null;
+}) {
+  const data: {
+    companyName?: string;
+    status?: BusinessStatus;
+    companyNumber?: string;
+    stage?: BusinessStage;
+  } = {};
+
+  if (input.businessName) {
+    data.companyName = input.businessName;
+  }
+
+  if (input.businessStatus) {
+    data.status = input.businessStatus;
+  }
+
+  if (input.companyNumber) {
+    data.companyNumber = input.companyNumber;
+  }
+
+  if (input.businessStage) {
+    data.stage = input.businessStage;
+  }
+
+  return data;
+}
+
 function buildProfileCreateData(input: {
   businessName: string | null;
   businessStatus: BusinessStatus | null;
@@ -130,6 +175,53 @@ function buildProfileCreateData(input: {
               status: input.businessStatus,
               companyNumber: input.companyNumber,
               stage: input.businessStage
+            }
+          }
+        }
+      : {})
+  };
+}
+
+function buildExistingUserUpdateData(input: {
+  fullName: string;
+  passwordHash: string;
+  selectedTier: MembershipTier;
+  businessName: string | null;
+  businessStatus: BusinessStatus | null;
+  companyNumber: string | null;
+  businessStage: BusinessStage | null;
+}) {
+  const businessData = buildBusinessUpdateData({
+    businessName: input.businessName,
+    businessStatus: input.businessStatus,
+    companyNumber: input.companyNumber,
+    businessStage: input.businessStage
+  });
+  const shouldUpdateBusiness = Object.keys(businessData).length > 0;
+
+  return {
+    name: input.fullName,
+    passwordHash: input.passwordHash,
+    role: roleForTier(input.selectedTier),
+    membershipTier: input.selectedTier,
+    ...(shouldUpdateBusiness
+      ? {
+          profile: {
+            upsert: {
+              create: buildProfileCreateData({
+                businessName: input.businessName,
+                businessStatus: input.businessStatus,
+                companyNumber: input.companyNumber,
+                businessStage: input.businessStage
+              }),
+              update: {
+                business: {
+                  upsert: {
+                    create: businessData,
+                    update: businessData
+                  }
+                }
+              }
             }
           }
         }
@@ -330,7 +422,16 @@ export async function createPendingRegistration(
   const [existingUser, paymentInProgress] = await Promise.all([
     prisma.user.findUnique({
       where: { email },
-      select: { id: true }
+      select: {
+        id: true,
+        role: true,
+        suspended: true,
+        subscription: {
+          select: {
+            status: true
+          }
+        }
+      }
     }),
     prisma.pendingRegistration.findFirst({
       where: {
@@ -343,7 +444,12 @@ export async function createPendingRegistration(
     })
   ]);
 
-  if (existingUser) {
+  if (
+    existingUser &&
+    (existingUser.suspended ||
+      existingUser.role === Role.ADMIN ||
+      hasEntitledSubscription(existingUser.subscription?.status))
+  ) {
     throw new RegistrationServiceError(
       "EMAIL_IN_USE",
       "An account already exists with this email."
@@ -476,29 +582,48 @@ export async function provisionUserFromPendingRegistration(input: {
           });
 
     const user =
-      existingUser ??
-      (await tx.user.create({
-        data: {
-          name: pendingRegistration.fullName,
-          email: pendingRegistration.email,
-          passwordHash: pendingRegistration.passwordHash,
-          role: roleForTier(pendingRegistration.selectedTier),
-          membershipTier: pendingRegistration.selectedTier,
-          profile: {
-            create: buildProfileCreateData({
+      existingUser
+        ? await tx.user.update({
+            where: {
+              id: existingUser.id
+            },
+            data: buildExistingUserUpdateData({
+              fullName: pendingRegistration.fullName,
+              passwordHash: pendingRegistration.passwordHash,
+              selectedTier: pendingRegistration.selectedTier,
               businessName: pendingRegistration.businessName,
               businessStatus: pendingRegistration.businessStatus,
               companyNumber: pendingRegistration.companyNumber,
               businessStage: pendingRegistration.businessStage
-            })
-          }
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true
-        }
-      }));
+            }),
+            select: {
+              id: true,
+              email: true,
+              name: true
+            }
+          })
+        : await tx.user.create({
+            data: {
+              name: pendingRegistration.fullName,
+              email: pendingRegistration.email,
+              passwordHash: pendingRegistration.passwordHash,
+              role: roleForTier(pendingRegistration.selectedTier),
+              membershipTier: pendingRegistration.selectedTier,
+              profile: {
+                create: buildProfileCreateData({
+                  businessName: pendingRegistration.businessName,
+                  businessStatus: pendingRegistration.businessStatus,
+                  companyNumber: pendingRegistration.companyNumber,
+                  businessStage: pendingRegistration.businessStage
+                })
+              }
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true
+            }
+          });
 
     if (
       pendingRegistration.status === PendingRegistrationStatus.COMPLETED &&

@@ -94,13 +94,15 @@ export default function InsightsPage() {
                 Clarity, strategy, and better decisions for founders
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted">
-                This layer is organised around real founder problems, so it is easier to scan by topic before you read deeper.
+                This layer is organised around real business pressure, so it is easier to scan by
+                topic before you read deeper.
               </p>
             </article>
             <article className="rounded-[1.75rem] border border-border/80 bg-background/22 p-5">
               <p className="premium-kicker">Most relevant right now</p>
               <p className="mt-3 text-sm leading-relaxed text-muted">
-                {topicClusters.length} structured topic clusters connect free business growth insights to the deeper membership layer without turning the site into SEO noise.
+                {topicClusters.length} topic paths connect the public insight layer to the deeper
+                membership library without turning the site into SEO noise.
               </p>
             </article>
           </div>
@@ -121,7 +123,7 @@ export default function InsightsPage() {
       <section className="space-y-6">
         <SectionHeading
           label="Browse Topics"
-          title="Business growth topics built around real founder search intent"
+          title="Business growth topics organised around real business pressure"
           description="Choose the topic that matches the business pressure you are dealing with right now, then follow the supporting articles underneath it."
         />
         <div className="grid gap-4 lg:grid-cols-3">
@@ -134,9 +136,8 @@ export default function InsightsPage() {
               <p className="mt-3 text-sm leading-relaxed text-muted">{cluster.description}</p>
               <p className="mt-3 text-sm leading-relaxed text-muted">{cluster.supportLine}</p>
               <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.08em] text-silver">
-                <span>Pillar page</span>
+                <span>Topic guide</span>
                 <span>{cluster.articleCount} supporting article{cluster.articleCount === 1 ? "" : "s"}</span>
-                <span>{cluster.keyword}</span>
               </div>
               <div className="mt-5 space-y-2">
                 {cluster.supportingInsights.slice(0, 2).map((insight) => (

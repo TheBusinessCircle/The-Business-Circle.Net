@@ -5,6 +5,7 @@ import type { MembershipBillingInterval } from "@/config/membership";
 import { formatMembershipPrice } from "@/config/membership";
 import { buttonVariants } from "@/components/ui/button";
 import { TierBadge } from "@/components/public/tier-badge";
+import { getFounderRoomPricingNote } from "@/lib/founding-offer-copy";
 import {
   getTierAccentTextClassName,
   getTierButtonVariant,
@@ -158,12 +159,9 @@ export function PricingCard({
               <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
                 Founding access
               </p>
-              <p className="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.08em] text-silver/90">
-                Limited to {foundingOffer.limit}
-              </p>
             </div>
             <p className="text-sm leading-relaxed text-muted">
-              Early access pricing for the first {foundingOffer.limit} members in this tier.
+              Founder pricing is currently active in this tier for a limited founder allocation.
             </p>
 
             <div className="space-y-3">
@@ -207,8 +205,7 @@ export function PricingCard({
             </div>
 
             <div className="border-t border-white/8 pt-4 text-xs leading-relaxed text-muted">
-              <p>{foundingOffer.remaining} of {foundingOffer.limit} founding places remaining.</p>
-              <p>When these places are filled, pricing moves to the standard rate.</p>
+              <p>When the founder allocation is filled, pricing moves to the standard rate.</p>
               <p>Founding rates stay locked while membership remains active.</p>
             </div>
           </div>
@@ -247,7 +244,7 @@ export function PricingCard({
             </div>
             {foundingOffer ? (
               <p className="border-t border-white/8 pt-4 text-xs leading-relaxed text-muted">
-                {foundingOffer.launchClosedLabel}
+                {getFounderRoomPricingNote(foundingOffer)}
               </p>
             ) : null}
           </div>

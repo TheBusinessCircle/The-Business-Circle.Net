@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Mail, MessageSquare, ShieldCheck } from "lucide-react";
+import { formatCompanyTrustLine } from "@/config/company";
 import { ContactForm } from "@/components/platform/contact-form";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
@@ -73,6 +74,7 @@ export default async function ContactPage() {
               Share a little context and the right person will come back to you with the best next
               step.
             </p>
+            <p className="mt-4 text-xs leading-relaxed text-muted">{formatCompanyTrustLine()}</p>
           </aside>
         </div>
       </section>
@@ -109,6 +111,13 @@ export default async function ContactPage() {
                 <p className="mt-1 text-sm leading-relaxed text-muted">{item.copy}</p>
               </div>
             ))}
+          </div>
+          <div className="rounded-2xl border border-gold/20 bg-gold/10 p-4">
+            <p className="text-sm font-medium text-foreground">What happens after you send this</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              A Business Circle team member reviews the enquiry, routes it to the right person,
+              and replies with the clearest next step. Billing or access issues are prioritised.
+            </p>
           </div>
         </aside>
 

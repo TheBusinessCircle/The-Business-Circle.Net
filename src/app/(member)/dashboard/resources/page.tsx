@@ -18,7 +18,11 @@ import { requireUser } from "@/lib/session";
 import { getTierAccentTextClassName, getTierCardClassName } from "@/lib/tier-styles";
 import { formatDate } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
-import { listLatestPublishedResources, searchResourceLibrary } from "@/server/resources";
+import {
+  listLatestPublishedResources,
+  normalizeResourceLibraryView,
+  searchResourceLibrary
+} from "@/server/resources";
 import { maybePublishDueResources } from "@/server/resources/resource-publishing.service";
 
 type PageProps = {
@@ -54,11 +58,37 @@ function parsePage(value: string): number {
   return parsed;
 }
 
+function getViewCopy(view: "unread" | "read" | "all") {
+  if (view === "read") {
+    return {
+      title: "Read archive",
+      description: "Resources you have already finished and can revisit whenever useful.",
+      emptyDescription: "Nothing has been marked as read yet."
+    };
+  }
+
+  if (view === "all") {
+    return {
+      title: "Full library",
+      description: "Every resource available on your current membership, whether read or unread.",
+      emptyDescription: "No resources matched your filters."
+    };
+  }
+
+  return {
+    title: "Unread resources",
+    description:
+      "The default view keeps finished resources tucked away so the next useful read stays easier to spot.",
+    emptyDescription: "Everything available to you has already been marked as read."
+  };
+}
+
 function buildResourceHref(input: {
   q: string;
   tier: string;
   category: string;
   type: string;
+  view: string;
   page: number;
 }) {
   const params = new URLSearchParams();
@@ -67,6 +97,7 @@ function buildResourceHref(input: {
   if (input.tier) params.set("tier", input.tier);
   if (input.category) params.set("category", input.category);
   if (input.type) params.set("type", input.type);
+  if (input.view && input.view !== "unread") params.set("view", input.view);
   if (input.page > 1) params.set("page", String(input.page));
 
   const query = params.toString();
@@ -82,9 +113,11 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
   const tier = firstValue(params.tier).toUpperCase().trim();
   const category = firstValue(params.category).trim();
   const type = firstValue(params.type).toUpperCase().trim();
+  const view = normalizeResourceLibraryView(firstValue(params.view).trim() || undefined);
   const page = parsePage(firstValue(params.page));
   const error = firstValue(params.error).trim();
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
+  const viewCopy = getViewCopy(view);
   const [results, latestResources, latestMemberPost, latestMemberComment, memberProfile] = await Promise.all([
     searchResourceLibrary(
       {
@@ -92,12 +125,17 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
         tier,
         category,
         type,
+        view,
+        userId: session.user.id,
         page,
         pageSize: PAGE_SIZE
       },
       effectiveTier
     ),
-    listLatestPublishedResources(effectiveTier, 4),
+    listLatestPublishedResources(effectiveTier, 4, {
+      userId: session.user.id,
+      view
+    }),
     prisma.communityPost.findFirst({
       where: {
         userId: session.user.id,
@@ -152,7 +190,7 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
   const selectedCategory = results.categoryOptions.find((item) => item.value === category);
   const selectedTier = results.tierOptions.find((item) => item.value === tier);
   const selectedType = results.typeOptions.find((item) => item.value === type);
-  const paginationBase = { q, tier, category, type };
+  const paginationBase = { q, tier, category, type, view };
   const highestVisibleTier =
     results.tierOptions[results.tierOptions.length - 1]?.value ?? ResourceTier.FOUNDATION;
   const recommendedNextRead = results.items[0] ?? latestResources[0] ?? null;
@@ -224,13 +262,13 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
                 Clear thinking for the stage you are actually in.
               </CardTitle>
               <CardDescription className="max-w-3xl text-base">
-                This library sits inside your dashboard and only shows the material included in your current membership.
+                {viewCopy.description}
               </CardDescription>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
               <div className="rounded-2xl border border-silver/14 bg-background/30 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Available now</p>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{viewCopy.title}</p>
                 <p className="mt-2 text-3xl font-semibold text-foreground">{results.total}</p>
               </div>
               <div className="rounded-2xl border border-silver/14 bg-background/30 px-4 py-4">
@@ -242,12 +280,35 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
               <div className="rounded-2xl border border-silver/14 bg-background/30 px-4 py-4">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-silver">How it works</p>
                 <p className="mt-2 text-sm text-muted">
-                  Search, filter, and read only the resources available on your current tier.
+                  {view === "read"
+                    ? "Revisit what you have already finished without losing access."
+                    : view === "all"
+                      ? "Search, filter, and review the full library inside your current tier."
+                      : "Mark finished resources as read to keep this default view focused on what is still left to explore."}
                 </p>
               </div>
             </div>
           </div>
         </CardHeader>
+        <CardContent className="pt-0">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard/resources">
+              <Button variant={view === "unread" ? "default" : "outline"} size="sm">
+                Unread
+              </Button>
+            </Link>
+            <Link href="/dashboard/resources?view=read">
+              <Button variant={view === "read" ? "default" : "outline"} size="sm">
+                Read Archive
+              </Button>
+            </Link>
+            <Link href="/dashboard/resources?view=all">
+              <Button variant={view === "all" ? "default" : "outline"} size="sm">
+                All Resources
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
@@ -401,6 +462,7 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
         </CardHeader>
         <CardContent className="space-y-4">
           <form method="GET" className="grid gap-3 lg:grid-cols-5">
+            {view !== "unread" ? <input type="hidden" name="view" value={view} /> : null}
             <div className="space-y-2 lg:col-span-2">
               <label htmlFor="q" className="text-sm text-muted">
                 Search
@@ -477,7 +539,7 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
             <div className="flex flex-wrap gap-2 lg:col-span-5">
               <Button type="submit">Apply Filters</Button>
               {hasFilters ? (
-                <Link href="/dashboard/resources">
+                <Link href={view === "unread" ? "/dashboard/resources" : `/dashboard/resources?view=${view}`}>
                   <Button type="button" variant="outline">
                     Clear
                   </Button>
@@ -523,7 +585,11 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
             <EmptyState
               icon={Sparkles}
               title="No resources matched your filters"
-              description="Try a broader search or remove one of the filters."
+              description={
+                hasFilters
+                  ? "Try a broader search or remove one of the filters."
+                  : viewCopy.emptyDescription
+              }
             />
           </div>
         )}

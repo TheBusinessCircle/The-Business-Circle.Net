@@ -1,3 +1,4 @@
+import { Role, SubscriptionStatus } from "@prisma/client";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { RegistrationServiceError, createPendingRegistration } from "@/lib/auth/register";
 
@@ -79,8 +80,15 @@ describe("createPendingRegistration", () => {
     });
   });
 
-  it("rejects when the email already belongs to a real user", async () => {
-    mocks.userFindUnique.mockResolvedValueOnce({ id: "user_123" });
+  it("rejects when the email already belongs to an entitled member", async () => {
+    mocks.userFindUnique.mockResolvedValueOnce({
+      id: "user_123",
+      role: Role.MEMBER,
+      suspended: false,
+      subscription: {
+        status: SubscriptionStatus.ACTIVE
+      }
+    });
 
     await expect(
       createPendingRegistration({
@@ -93,6 +101,37 @@ describe("createPendingRegistration", () => {
     ).rejects.toMatchObject<Partial<RegistrationServiceError>>({
       code: "EMAIL_IN_USE"
     });
+  });
+
+  it("allows a dormant account email to restart through paid activation", async () => {
+    mocks.userFindUnique.mockResolvedValueOnce({
+      id: "user_123",
+      role: Role.MEMBER,
+      suspended: false,
+      subscription: {
+        status: SubscriptionStatus.CANCELED
+      }
+    });
+    mocks.pendingRegistrationCreate.mockResolvedValueOnce({
+      id: "pending_456",
+      email: "trev@example.com",
+      fullName: "Trevor Newton",
+      selectedTier: "FOUNDATION",
+      billingInterval: "MONTHLY",
+      coreAccessConfirmed: false,
+      inviteCode: null
+    });
+
+    const result = await createPendingRegistration({
+      name: "Trevor Newton",
+      email: "trev@example.com",
+      password: "ValidPassword1!",
+      tier: "FOUNDATION",
+      billingInterval: "monthly"
+    });
+
+    expect(result.pendingRegistration.id).toBe("pending_456");
+    expect(mocks.pendingRegistrationCreate).toHaveBeenCalledTimes(1);
   });
 
   it("rejects when payment is already being confirmed for the same email", async () => {

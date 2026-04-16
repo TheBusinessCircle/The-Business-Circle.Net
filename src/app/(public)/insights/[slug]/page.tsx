@@ -169,7 +169,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
             <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.08em] text-silver">
               <span>{formatInsightDate(insight.publishedAt)}</span>
               <span>{insight.readMinutes} min read</span>
-              <span>Target topic: {insight.keyword}</span>
+              <span>Topic focus: {insight.keyword}</span>
             </div>
           </div>
         </section>
@@ -298,7 +298,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
                 >
                   <p className="premium-kicker">Topic cluster</p>
                   <h3 className="mt-4 font-display text-2xl text-foreground">
-                    {topicCluster ? `Open the ${topicCluster.title} pillar page` : "Browse topic clusters"}
+                    {topicCluster ? `Open the full ${topicCluster.title} topic guide` : "Browse topic guides"}
                   </h3>
                   <p className="mt-3 text-sm leading-relaxed text-muted">
                     See the wider problem, the supporting angles, and the structured links around this topic.
@@ -392,18 +392,11 @@ export default async function InsightArticlePage({ params }: PageProps) {
                     Go deeper inside membership
                   </Link>
                   <Link
-                    href={insight.recommendedMembershipHref}
-                    className="inline-flex items-center gap-2 text-foreground transition-colors hover:text-silver"
-                  >
-                    <Compass size={15} />
-                    Go deeper inside membership
-                  </Link>
-                  <Link
                     href={topicCluster?.href ?? "/insights"}
                     className="inline-flex items-center gap-2 transition-colors hover:text-foreground"
                   >
                     <Compass size={15} />
-                    {topicCluster ? `Explore the ${topicCluster.title} topic` : "Browse topic clusters"}
+                    {topicCluster ? `Explore the ${topicCluster.title} topic` : "Browse topic guides"}
                   </Link>
                   <Link
                     href="/founder"

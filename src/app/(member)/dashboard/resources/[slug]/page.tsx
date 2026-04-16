@@ -3,6 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MoveLeft, NotebookTabs, Sparkles } from "lucide-react";
 import { auth } from "@/auth";
+import {
+  markResourceAsReadAction,
+  markResourceAsUnreadAction
+} from "@/actions/resources/resource-progress.actions";
 import { ResourceMarkdown, ResourceTierBadge } from "@/components/resources";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,10 +19,11 @@ import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 import {
+  getResourceReadStateForUser,
   getPublishedResourceBySlug,
   getRelatedPublishedResources,
   listLatestPublishedResources
-} from "@/server/resources/resource.service";
+} from "@/server/resources";
 import { maybePublishDueResources } from "@/server/resources/resource-publishing.service";
 
 type PageProps = {
@@ -77,8 +82,15 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
 
   const [relatedResources, latestResources] = await Promise.all([
     getRelatedPublishedResources(resource, effectiveTier, 3),
-    listLatestPublishedResources(effectiveTier, 4)
+    listLatestPublishedResources(effectiveTier, 4, {
+      userId: session.user.id,
+      view: "all"
+    })
   ]);
+  const readState = await getResourceReadStateForUser({
+    userId: session.user.id,
+    resourceId: resource.id
+  });
   const recentlyAdded = latestResources.filter((item) => item.id !== resource.id).slice(0, 3);
   const parsed = splitResourceContentSections(resource.content);
   const discussionLink = getResourceDiscussionLink({
@@ -184,6 +196,37 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
         </div>
 
         <aside className="space-y-4">
+          <Card className="border-silver/16 bg-card/62">
+            <CardHeader>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Library status</p>
+              <CardTitle className="text-base">
+                {readState ? "Marked as read" : "Keep this in your unread view"}
+              </CardTitle>
+              <CardDescription>
+                {readState
+                  ? "This resource now lives in your read archive, but you can open it again any time."
+                  : "Mark this as read when you have finished with it and want the main view to stay focused on unread resources."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {readState ? (
+                <form action={markResourceAsUnreadAction}>
+                  <input type="hidden" name="slug" value={resource.slug} />
+                  <input type="hidden" name="returnPath" value={`/dashboard/resources/${resource.slug}`} />
+                  <Button variant="outline" className="w-full border-silver/16 hover:border-silver/28">
+                    Move back to unread
+                  </Button>
+                </form>
+              ) : (
+                <form action={markResourceAsReadAction}>
+                  <input type="hidden" name="slug" value={resource.slug} />
+                  <input type="hidden" name="returnPath" value={`/dashboard/resources/${resource.slug}`} />
+                  <Button className="w-full">Mark as read</Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="sticky top-24 border-silver/16 bg-card/62">
             <CardHeader>
               <CardTitle className="inline-flex items-center gap-2 text-base">

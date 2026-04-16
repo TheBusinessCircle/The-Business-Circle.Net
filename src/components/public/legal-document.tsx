@@ -1,3 +1,4 @@
+import { formatCompanyTrustLine } from "@/config/company";
 import { SectionHeading } from "@/components/public/section-heading";
 
 export type LegalDocumentSection = {
@@ -29,7 +30,7 @@ export function LegalDocument({
         <SectionHeading label={label} title={title} description={intro} />
         <div className="gold-divider my-6" />
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-          <span>Last updated {updatedAt}</span>
+          <span>Last updated: {updatedAt}</span>
           <span className="hidden text-border sm:inline">/</span>
           <a
             href={`mailto:${supportEmail}`}
@@ -37,6 +38,8 @@ export function LegalDocument({
           >
             {supportEmail}
           </a>
+          <span className="hidden text-border sm:inline">/</span>
+          <span>{formatCompanyTrustLine()}</span>
         </div>
       </section>
 

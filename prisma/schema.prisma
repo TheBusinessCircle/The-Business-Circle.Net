@@ -49,6 +49,7 @@ model User {
   answeredInnerCircleQuestions InnerCircleQuestion[]      @relation("InnerCircleQuestionAnswerer")
   profile                      Profile?
   resourcesAuthored            Resource[]                 @relation("ResourceAuthor")
+  resourceReads               ResourceRead[]
   passwordResetTokens          PasswordResetToken[]
   sessions                     Session[]
   subscription                 Subscription?
@@ -229,6 +230,7 @@ model Resource {
   author               User?             @relation("ResourceAuthor", fields: [authorId], references: [id])
   catalogCategory      Category?         @relation(fields: [categoryId], references: [id])
   blocks               ResourceBlock[]
+  readStates           ResourceRead[]
   tags                 ResourceTag[]
 
   @@index([tier])
@@ -241,6 +243,20 @@ model Resource {
   @@index([publishedAt])
   @@index([status, publishedAt])
   @@index([createdAt])
+}
+
+model ResourceRead {
+  id         String   @id @default(cuid())
+  userId     String
+  resourceId String
+  readAt     DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, resourceId])
+  @@index([userId, readAt])
+  @@index([resourceId, readAt])
 }
 
 model ResourceBlock {

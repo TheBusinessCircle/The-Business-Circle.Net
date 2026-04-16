@@ -49,6 +49,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
 
   const errorMap: Record<string, string> = {
     "comment-invalid": "Please add a little more detail before posting that comment.",
+    "comment-blocked": "Please rewrite that before posting. We block profanity and abusive language to keep the community useful for everyone.",
     "comment-forbidden": "That comment is no longer available in this discussion.",
     "post-forbidden": "That discussion is no longer available at your access level."
   };

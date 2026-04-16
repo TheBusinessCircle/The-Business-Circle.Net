@@ -18,6 +18,7 @@ import {
   MEMBERSHIP_TIER_ORDER,
   type MembershipBillingInterval
 } from "@/config/membership";
+import { getFounderRoomPricingNote } from "@/lib/founding-offer-copy";
 import { buildJoinConfirmationHref } from "@/lib/join/routing";
 import {
   getTierAccentTextClassName,
@@ -246,7 +247,7 @@ export function JoinCheckoutPrep({
                     </div>
                     <p className="text-xs text-muted">
                       {offer.available
-                        ? `${offer.remaining} of ${offer.limit} founding places remaining`
+                        ? "Founder pricing currently available"
                         : offer.launchClosedLabel}
                     </p>
                   </div>
@@ -286,7 +287,7 @@ export function JoinCheckoutPrep({
               <div className="space-y-3">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Founding access</p>
                 <p className="text-sm text-muted">
-                  Limited to the first {selectedOffer.limit} members in this tier.
+                  Founder pricing is still available in this room for a limited founder allocation.
                 </p>
                 <div className="flex flex-wrap items-end gap-2">
                   <span
@@ -303,11 +304,9 @@ export function JoinCheckoutPrep({
                     {periodLabel(billingInterval)}
                   </span>
                 </p>
-                <p className="text-sm text-foreground">
-                  {selectedOffer.remaining} of {selectedOffer.limit} founding places remaining
-                </p>
                 <p className="text-sm text-muted">
-                  When these places are filled, pricing moves to the standard rate.
+                  Founder pricing moves to the standard rate once this room&apos;s founder allocation is
+                  filled.
                 </p>
               </div>
             ) : (
@@ -388,7 +387,7 @@ export function JoinCheckoutPrep({
               "You can move between tiers later as the business evolves.",
               selectedOffer.available
                 ? "Founder pricing only applies while this room still has founder allocation available."
-                : "Founder pricing is not active in this room right now.",
+                : getFounderRoomPricingNote(selectedOffer),
               "Billing is completed securely in Stripe, and access is only created after payment confirms."
             ].map((item) => (
               <div

@@ -34,7 +34,11 @@ export function formatCurrency(amount: number, currency = "GBP"): string {
 }
 
 export function getBaseUrl(): string {
-  return process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  return (
+    process.env.APP_URL?.trim() ||
+    process.env.NEXTAUTH_URL?.trim() ||
+    "http://localhost:3000"
+  );
 }
 
 export function absoluteUrl(path: string): string {

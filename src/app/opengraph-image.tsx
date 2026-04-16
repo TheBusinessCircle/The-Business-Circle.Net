@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { SITE_CONFIG } from "@/config/site";
 
 export const runtime = "edge";
 export const size = {
@@ -10,7 +11,7 @@ export const alt = "The Business Circle Network";
 
 const logoSrc = new URL(
   "/branding/the-business-circle-logo.png",
-  process.env.APP_URL ?? "http://localhost:3000"
+  SITE_CONFIG.url
 ).toString();
 
 export default function OpenGraphImage() {

@@ -32,6 +32,10 @@ import {
   buildMembershipDecisionHref
 } from "@/lib/join/routing";
 import {
+  getFounderRoomAvailabilitySummary,
+  getFounderRoomPricingNote
+} from "@/lib/founding-offer-copy";
+import {
   getTierAccentTextClassName,
   getTierButtonVariant,
   getTierCardClassName,
@@ -150,10 +154,6 @@ function findTierGuide(tier: MembershipTier) {
   return TIER_GUIDES.find((guide) => guide.tier === tier) ?? TIER_GUIDES[0];
 }
 
-function pluralizeRoom(count: number) {
-  return count === 1 ? "room" : "rooms";
-}
-
 function updateMembershipUrl(href: string) {
   if (typeof window === "undefined") {
     return;
@@ -191,40 +191,16 @@ function FounderRateSummary({
   selectedOffer: FoundingOfferTierSnapshot;
   activeFounderTierCount: number;
 }) {
-  if (selectedOffer.available) {
-    return (
-      <>
-        <p className="text-sm text-foreground">
-          Founder rate currently available for {getMembershipTierDefinition(selectedGuide.tier).name}.
-        </p>
-        <p className="text-xs leading-relaxed text-muted">
-          {selectedOffer.remaining} of {selectedOffer.limit} founder places remain in this room.
-          Pricing returns to standard when that allocation is filled.
-        </p>
-      </>
-    );
-  }
-
-  if (activeFounderTierCount > 0) {
-    return (
-      <>
-        <p className="text-sm text-foreground">
-          Founder rate is still active in {activeFounderTierCount} {pluralizeRoom(activeFounderTierCount)}.
-        </p>
-        <p className="text-xs leading-relaxed text-muted">
-          This room is currently on standard pricing. Founder pricing ends room by room as each
-          allocation is filled.
-        </p>
-      </>
-    );
-  }
+  const summary = getFounderRoomAvailabilitySummary({
+    offer: selectedOffer,
+    tierName: getMembershipTierDefinition(selectedGuide.tier).name,
+    hasFounderRateElsewhere: !selectedOffer.available && activeFounderTierCount > 0
+  });
 
   return (
     <>
-      <p className="text-sm text-foreground">Founder allocation has been filled.</p>
-      <p className="text-xs leading-relaxed text-muted">
-        Standard pricing is now active across the membership.
-      </p>
+      <p className="text-sm text-foreground">{summary.title}</p>
+      <p className="text-xs leading-relaxed text-muted">{summary.description}</p>
     </>
   );
 }
@@ -376,8 +352,8 @@ function SelectedPathPanel({
               <>
                 <p className="text-sm text-foreground">Founder rate currently available</p>
                 <p className="text-sm leading-relaxed text-muted">
-                  Limited founder places remain. Founder pricing ends when the allocation for this
-                  room is filled.
+                  Founder pricing stays available only while this room still has founder allocation
+                  open.
                 </p>
               </>
             ) : (
@@ -439,15 +415,14 @@ function SelectedPathPanel({
             <motion.p
               initial={reducedMotion ? false : { opacity: 0 }}
               animate={reducedMotion ? undefined : { opacity: 1 }}
-              transition={{ duration: 0.26 }}
-              className="mt-4 rounded-[1.2rem] border border-white/10 bg-background/24 px-4 py-3 text-sm leading-relaxed text-muted"
-            >
-              {offer.remaining} of {offer.limit} founder places remaining. Founder pricing is
-              removed when the allocation is filled.
+            transition={{ duration: 0.26 }}
+            className="mt-4 rounded-[1.2rem] border border-white/10 bg-background/24 px-4 py-3 text-sm leading-relaxed text-muted"
+          >
+              Founder pricing is removed when this room&apos;s founder allocation is filled.
             </motion.p>
           ) : (
             <p className="mt-4 rounded-[1.2rem] border border-white/10 bg-background/24 px-4 py-3 text-sm leading-relaxed text-muted">
-              {offer.launchClosedLabel}
+              {getFounderRoomPricingNote(offer)}
             </p>
           )}
         </div>
@@ -809,9 +784,7 @@ export function MembershipGuidedSelector({
             <p className="text-sm leading-relaxed text-muted">
               You can move between tiers later as the business evolves.
               {" "}
-              {selectedOffer.available
-                ? `Founder rate is currently available with ${selectedOffer.remaining} places remaining in this room.`
-                : `${selectedOffer.launchClosedLabel}.`}
+              {getFounderRoomPricingNote(selectedOffer)}
             </p>
           </div>
         </div>

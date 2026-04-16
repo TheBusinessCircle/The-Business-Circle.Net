@@ -17,6 +17,7 @@ import { canTierAccess } from "@/lib/auth/permissions";
 import { sortPromptsByRhythm } from "@/lib/community-rhythm";
 import { CONNECTION_WIN_TAG } from "@/lib/connection-wins";
 import { db } from "@/lib/db";
+import { assertNoBlockedProfanity } from "@/lib/moderation/profanity";
 import { logServerWarning } from "@/lib/security/logging";
 import { getCommunityRecognitionForUsers } from "@/server/community-recognition";
 import { listUpcomingEventsForTiers } from "@/server/events";
@@ -860,6 +861,7 @@ export async function createCommunityPost(input: {
   kind?: CommunityPostKind;
 }) {
   const channel = await getAccessibleChannelBySlug(input.channelSlug, input.userTier);
+  assertNoBlockedProfanity(`${input.title} ${input.content}`);
 
   return db.communityPost.create({
     data: {
@@ -898,6 +900,8 @@ export async function createCommunityComment(input: {
   if (!post || post.deletedAt || !canTierAccess(input.userTier, post.channel.accessTier)) {
     throw new Error("community-post-forbidden");
   }
+
+  assertNoBlockedProfanity(input.content);
 
   return db.communityComment.create({
     data: {

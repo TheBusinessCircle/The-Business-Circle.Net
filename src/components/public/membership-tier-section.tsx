@@ -8,6 +8,7 @@ import {
   getTierCardClassName,
   getTierSelectionRingClassName
 } from "@/lib/tier-styles";
+import { getFounderRoomPricingNote } from "@/lib/founding-offer-copy";
 import { cn } from "@/lib/utils";
 import type { FoundingOfferTierSnapshot } from "@/types";
 
@@ -146,7 +147,7 @@ export function MembershipTierSection({
                   Founding Member Rate
                 </p>
                 <p className="text-sm leading-relaxed text-muted">
-                  Limited to the first {foundingOffer.limit} members in this tier
+                  Founder pricing is currently active in this tier for a limited founder allocation.
                 </p>
               </div>
 
@@ -183,10 +184,7 @@ export function MembershipTierSection({
               </div>
 
               <div className="space-y-1.5 border-t border-white/8 pt-4 text-sm text-muted">
-                <p>
-                  {foundingOffer.remaining} of {foundingOffer.limit} founding places remaining
-                </p>
-                <p>Once these are gone, standard pricing applies.</p>
+                <p>Once the founder allocation is filled, standard pricing applies.</p>
                 <p>Founding rates stay locked while membership remains active.</p>
                 <p>If membership is cancelled and later restarted, standard pricing applies.</p>
               </div>
@@ -196,7 +194,7 @@ export function MembershipTierSection({
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership</p>
                 <p className="text-sm leading-relaxed text-muted">
-                  {foundingOffer.launchClosedLabel}
+                  {getFounderRoomPricingNote(foundingOffer)}
                 </p>
               </div>
 

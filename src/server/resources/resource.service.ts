@@ -1,6 +1,7 @@
 import { MembershipTier, ResourceTier, ResourceType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getAccessibleResourceTiers } from "@/server/resources/resource-policy";
+import { buildResourceReadFilter, type ResourceLibraryView } from "@/server/resources/resource-read.service";
 
 export type PublishedResourceSummary = {
   id: string;
@@ -12,20 +13,26 @@ export type PublishedResourceSummary = {
   type: ResourceType;
   publishedAt: Date | null;
   updatedAt: Date;
+  isRead: boolean;
 };
 
 export async function listLatestPublishedResources(
   membershipTier: MembershipTier,
-  take = 6
+  take = 6,
+  options?: {
+    userId?: string;
+    view?: ResourceLibraryView;
+  }
 ): Promise<PublishedResourceSummary[]> {
   const visibleTiers = getAccessibleResourceTiers(membershipTier);
 
-  return db.resource.findMany({
+  const resources = await db.resource.findMany({
     where: {
       status: "PUBLISHED",
       tier: {
         in: visibleTiers
-      }
+      },
+      ...(options?.userId ? buildResourceReadFilter(options.userId, options.view ?? "unread") : {})
     },
     orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
     take,
@@ -38,9 +45,35 @@ export async function listLatestPublishedResources(
       category: true,
       type: true,
       publishedAt: true,
-      updatedAt: true
+      updatedAt: true,
+      ...(options?.userId
+        ? {
+            readStates: {
+              where: {
+                userId: options.userId
+              },
+              select: {
+                id: true
+              },
+              take: 1
+            }
+          }
+        : {})
     }
   });
+
+  return resources.map((resource) => ({
+    id: resource.id,
+    title: resource.title,
+    slug: resource.slug,
+    excerpt: resource.excerpt,
+    tier: resource.tier,
+    category: resource.category,
+    type: resource.type,
+    publishedAt: resource.publishedAt,
+    updatedAt: resource.updatedAt,
+    isRead: "readStates" in resource ? resource.readStates.length > 0 : false
+  }));
 }
 
 export async function getPublishedResourceBySlug(slug: string, membershipTier: MembershipTier) {

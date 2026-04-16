@@ -25,6 +25,7 @@ type ResourceLibraryCardProps = {
     type: ResourceType;
     tier: ResourceTier;
     publishedAt: Date | null;
+    isRead?: boolean;
   };
   isLocked?: boolean;
 };
@@ -52,6 +53,10 @@ export function ResourceLibraryCard({
             <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
               <Lock size={11} className="mr-1" />
               Preview
+            </Badge>
+          ) : resource.isRead ? (
+            <Badge variant="outline" className="border-silver/18 bg-silver/10 text-silver">
+              Read
             </Badge>
           ) : null}
         </div>

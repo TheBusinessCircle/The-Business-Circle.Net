@@ -126,9 +126,9 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
               </p>
             ))}
             <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.08em] text-silver">
-              <span>Pillar page</span>
-              <span>{cluster.articleCount} supporting article{cluster.articleCount === 1 ? "" : "s"}</span>
-              <span>Target topic: {cluster.keyword}</span>
+              <span>Topic guide</span>
+              <span>{cluster.articleCount} related article{cluster.articleCount === 1 ? "" : "s"}</span>
+              <span>Topic focus: {cluster.keyword}</span>
             </div>
           </div>
         </section>
@@ -160,7 +160,7 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
                         href={`/insights/${insight.slug}`}
                         className="rounded-[1.5rem] border border-border/80 bg-background/22 px-5 py-4 transition-colors hover:border-silver/22 hover:bg-background/30"
                       >
-                        <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Supporting insight</p>
+                        <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Related article</p>
                         <p className="mt-2 text-base font-medium text-foreground">{insight.title}</p>
                         <p className="mt-2 text-sm leading-relaxed text-muted">{insight.summary}</p>
                       </Link>
@@ -195,7 +195,8 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
               <p className="premium-kicker">Browse related topics</p>
               <h2 className="font-display text-3xl text-foreground">Keep exploring connected business growth topics</h2>
               <p className="max-w-3xl text-sm leading-relaxed text-muted">
-                Strong topic coverage works better when connected problems are easy to continue into, not left as isolated articles.
+                Strong topic coverage works better when connected problems are easy to continue
+                into, not left as isolated articles.
               </p>
             </div>
             <div className="grid gap-4 lg:grid-cols-3">

@@ -45,7 +45,9 @@ function feedbackMessage(input: { notice: string; error: string }) {
 
   const errorMap: Record<string, string> = {
     "post-invalid": "Please give the post a clearer title and a little more detail.",
+    "post-blocked": "Please rewrite that before posting. We block profanity and abusive language to keep the community useful for everyone.",
     "comment-invalid": "Please add a little more detail before posting that comment.",
+    "comment-blocked": "Please rewrite that before posting. We block profanity and abusive language to keep the community useful for everyone.",
     "comment-forbidden": "That comment is no longer available in this discussion.",
     "channel-forbidden": "You do not currently have access to that category.",
     "post-forbidden": "That discussion is no longer available at your access level."

@@ -7,6 +7,7 @@ import {
 } from "@/config/resources";
 import { db } from "@/lib/db";
 import { getAccessibleResourceTiers } from "@/server/resources/resource-policy";
+import { buildResourceReadFilter, type ResourceLibraryView } from "@/server/resources/resource-read.service";
 
 const DEFAULT_PAGE_SIZE = 12;
 const MAX_PAGE_SIZE = 24;
@@ -16,6 +17,8 @@ export type ResourceLibraryFilters = {
   tier?: ResourceTier | string | "";
   category?: string;
   type?: ResourceType | string | "";
+  view?: ResourceLibraryView;
+  userId?: string;
   page?: number;
   pageSize?: number;
 };
@@ -30,6 +33,7 @@ export type ResourceLibraryCardItem = {
   type: ResourceType;
   publishedAt: Date | null;
   updatedAt: Date;
+  isRead: boolean;
 };
 
 export type ResourceLibraryResult = {
@@ -101,6 +105,7 @@ export async function searchResourceLibrary(
   const tier = requestedTier && visibleTiers.includes(requestedTier) ? requestedTier : undefined;
   const type = normalizeType(filters.type);
   const category = normalizeCategory(filters.category);
+  const view = filters.view ?? "unread";
   const page = normalizePage(filters.page);
   const pageSize = normalizePageSize(filters.pageSize);
 
@@ -108,7 +113,8 @@ export async function searchResourceLibrary(
     status: "PUBLISHED",
     ...(tier ? { tier } : { tier: { in: visibleTiers } }),
     ...(type ? { type } : {}),
-    ...(category ? { category } : {})
+    ...(category ? { category } : {}),
+    ...(filters.userId ? buildResourceReadFilter(filters.userId, view) : {})
   };
 
   if (query) {
@@ -163,12 +169,36 @@ export async function searchResourceLibrary(
       category: true,
       type: true,
       publishedAt: true,
-      updatedAt: true
+      updatedAt: true,
+      ...(filters.userId
+        ? {
+            readStates: {
+              where: {
+                userId: filters.userId
+              },
+              select: {
+                id: true
+              },
+              take: 1
+            }
+          }
+        : {})
     }
   });
 
   return {
-    items: resources,
+    items: resources.map((resource) => ({
+      id: resource.id,
+      slug: resource.slug,
+      title: resource.title,
+      excerpt: resource.excerpt,
+      tier: resource.tier,
+      category: resource.category,
+      type: resource.type,
+      publishedAt: resource.publishedAt,
+      updatedAt: resource.updatedAt,
+      isRead: "readStates" in resource ? resource.readStates.length > 0 : false
+    })),
     total,
     page: safePage,
     pageSize,

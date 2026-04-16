@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatCompanyTrustLine } from "@/config/company";
 import { SITE_CONFIG } from "@/config/site";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { CookieSettingsButton } from "@/components/privacy/cookie-settings-button";
@@ -13,7 +14,7 @@ const EXPLORE_LINKS = [
   { label: "Founder", href: "/founder" },
   { label: "Insights", href: "/insights" },
   { label: "Contact", href: "/contact" },
-  { label: "FAQ", href: "/#faq" }
+  { label: "FAQ", href: "/faq" }
 ];
 
 type TrustLinkItem =
@@ -157,6 +158,7 @@ export async function Footer() {
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-5 text-xs text-muted sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <p>&copy; {new Date().getFullYear()} {SITE_CONFIG.name}. All rights reserved.</p>
           <p>{footerContent.bottomLine}</p>
+          <p>{formatCompanyTrustLine()}</p>
         </div>
       </div>
     </footer>

@@ -1,4 +1,12 @@
-﻿import type { NavigationItem, SiteConfig } from "@/types";
+import type { NavigationItem, SiteConfig } from "@/types";
+
+function resolveSiteUrl() {
+  return (
+    process.env.APP_URL?.trim() ||
+    process.env.NEXTAUTH_URL?.trim() ||
+    "http://localhost:3000"
+  );
+}
 
 const publicNavigation: NavigationItem[] = [
   { label: "Home", href: "/" },
@@ -6,7 +14,7 @@ const publicNavigation: NavigationItem[] = [
   { label: "Membership", href: "/membership" },
   { label: "Founder", href: "/founder" },
   { label: "Insights", href: "/insights" },
-  { label: "Contact", href: "/contact" },
+  { label: "Contact", href: "/contact" }
 ];
 
 const memberNavigation: NavigationItem[] = [
@@ -43,7 +51,7 @@ export const SITE_CONFIG: SiteConfig = {
   shortName: "Business Circle",
   description:
     "A founder-led private business network for owners who want better structure, stronger relationships, and steadier momentum.",
-  url: process.env.APP_URL ?? "http://localhost:3000",
+  url: resolveSiteUrl(),
   supportEmail: "support@businesscircle.network",
   publicNavigation,
   memberNavigation,
