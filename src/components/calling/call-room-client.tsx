@@ -433,11 +433,17 @@ function MediaTrackView({
     }
 
     track.attach(element);
+    element.muted = muted;
+    element.defaultMuted = muted;
+    if ("volume" in element) {
+      element.volume = muted ? 0 : 1;
+    }
     void element.play().catch(() => undefined);
+
     return () => {
       track.detach(element);
     };
-  }, [track]);
+  }, [track, muted]);
 
   if (!track) {
     return null;
@@ -469,6 +475,9 @@ function PreviewStreamView({ stream }: { stream: MediaStream | null }) {
     }
 
     element.srcObject = stream;
+    element.muted = true;
+    element.defaultMuted = true;
+    element.volume = 0;
     void element.play().catch(() => undefined);
 
     return () => {
