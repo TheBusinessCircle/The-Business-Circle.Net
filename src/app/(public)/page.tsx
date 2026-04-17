@@ -28,6 +28,7 @@ import { createPageMetadata } from "@/lib/seo";
 import { buildBreadcrumbSchema, buildCollectionPageSchema } from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 import { buildPublicTrustDisplay, getPublicTrustSnapshot } from "@/server/public-site";
+import { getFoundingOfferSnapshot } from "@/server/founding";
 import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
@@ -157,12 +158,19 @@ const membershipPathwayContent = {
 } as const;
 
 export default async function HomePage() {
-  const [homeContent, publicTrustSnapshot] = await Promise.all([
+  const [homeContent, publicTrustSnapshot, foundingOffer] = await Promise.all([
     getSiteContentSection("home"),
-    getPublicTrustSnapshot()
+    getPublicTrustSnapshot(),
+    getFoundingOfferSnapshot()
   ]);
 
   const trustDisplay = buildPublicTrustDisplay(publicTrustSnapshot);
+  const founderRoomsOpen = [
+    foundingOffer.foundation,
+    foundingOffer.innerCircle,
+    foundingOffer.core
+  ].filter((item) => item.available);
+  const founderPlacesRemaining = founderRoomsOpen.reduce((total, item) => total + item.remaining, 0);
   const membershipPreview = MEMBERSHIP_TIER_ORDER.map((tier) => {
     const definition = getMembershipTierDefinition(tier);
     const content = membershipPathwayContent[tier];
@@ -226,6 +234,21 @@ export default async function HomePage() {
                   </div>
                 ))}
               </div>
+              {founderRoomsOpen.length ? (
+                <div className="mt-4 rounded-2xl border border-gold/24 bg-gold/10 px-4 py-4">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                    Founder entry currently open
+                  </p>
+                  <p className="mt-2 text-sm text-foreground">
+                    {founderPlacesRemaining} founder place
+                    {founderPlacesRemaining === 1 ? "" : "s"} currently remain across{" "}
+                    {founderRoomsOpen.length} room{founderRoomsOpen.length === 1 ? "" : "s"}.
+                  </p>
+                  <p className="mt-2 text-xs leading-relaxed text-muted">
+                    Pricing steps up room by room as each founder allocation is filled.
+                  </p>
+                </div>
+              ) : null}
             </article>
 
             <figure className="relative flex min-h-[20rem] flex-1 overflow-hidden rounded-[2.6rem] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02),transparent_62%)] sm:min-h-[23rem] lg:min-h-[28rem]">
@@ -363,7 +386,7 @@ export default async function HomePage() {
         <SectionHeading
           label="Membership Pathway"
           title="Different stages of business need different rooms."
-          description="Foundation, Inner Circle, and Core exist to place owners properly. The membership page helps you see where the business fits now and what to do next."
+          description="Foundation, Inner Circle, and Core create progression inside the ecosystem. The membership page helps you see where the business fits now and what to do next."
           action={
             <Link
               href="/membership"
@@ -415,7 +438,7 @@ export default async function HomePage() {
 
       <CTASection
         title="When the fit feels clear, choose the room that fits now."
-        description="Review the rooms, compare the current pricing clearly, and move into the join path when the decision feels straightforward."
+        description="Review the rooms, compare the current pricing clearly, and move into the join path when the decision feels straightforward. Early entry matters most while founder allocation is still open."
         primaryAction={{ href: "/membership", label: "Find Your Room" }}
         secondaryAction={{ href: "/join", label: "Go To Join", variant: "outline" }}
       />

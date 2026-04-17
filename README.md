@@ -1,32 +1,65 @@
-﻿# The Business Circle Network
+# The Business Circle Network
 
-Production-ready full-stack platform built with Next.js App Router, TypeScript, Tailwind, Prisma/PostgreSQL, Auth.js, Stripe, Zod, React Hook Form, and shadcn-style UI components.
+Production-ready full-stack platform for The Business Circle Network: a founder-led business brand built around a controlled member environment and a growing ecosystem for serious business owners.
+
+The product is designed to feel structured from the first screen. Public pages clarify the room, the join flow leads into secure paid entry, and the member experience stays focused on useful discussion, stronger context, and steady business progress rather than noise.
+
+## Positioning
+
+The platform operates across three layers:
+
+1. `Network` is the brand identity.
+2. `Environment` is what members actually enter.
+3. `Ecosystem` is what grows from the right people being inside it.
+
+That order matters throughout the product:
+
+- `Environment` first
+- `Ecosystem` second
+- `Network` as identity
 
 ## What is included
 
-- Premium public marketing website (`/`, `/about`, `/membership`, `/join`, `/contact`)
-- Authenticated member platform (`/dashboard`, `/dashboard/resources`, `/directory`, `/community`, `/profile`)
-- Block-based resource CMS with draft/publish workflow and Cloudinary image uploads
-- Discord-style community channels with tier-based chat access, realtime transport, and threaded replies
-- Inner Circle premium channels and premium resources
-- Event system with tier visibility
-- Password reset flow (`/forgot-password`, `/reset-password`)
-- Email verification flow (`/api/auth/verify-email`) with verified-email gating on community/directory
-- Admin community moderation view (`/admin/community`) for message removal
-- Transactional email wiring for welcome, verification, and billing receipt notifications
-- Full admin backend (`/admin`) for:
-  - metrics dashboard
-  - site content pages (`/admin/site-content`)
-  - resource management (`/admin/resources`)
-  - channel management (`/admin/channels`)
-  - community moderation (`/admin/community`)
-  - event management (`/admin/events`)
-  - member/subscription management (`/admin/members`)
-- Stripe subscription integration (checkout + portal + webhook sync)
+- Premium public website for positioning, founder context, membership guidance, join, contact, and FAQ
+- Secure join flow with payment-first activation for paid memberships
+- Authenticated member environment across dashboard, resources, directory, community, events, and profile areas
+- Tier progression across Foundation, Inner Circle, and Core
+- Structured discussion rooms with tier-based access, threaded replies, and realtime transport
+- Resource CMS with draft and publish workflow plus Cloudinary uploads
+- Events with tier visibility and member-only access
+- Founder pricing, annual billing, Stripe Checkout, billing portal access, and webhook sync
+- Email verification gating where required for higher-trust member areas
+- Full admin backend for content, rooms, events, moderation, members, and subscription visibility
+
+## Access model
+
+- Public: brand, positioning, founder context, insights, contact, FAQ, and membership guidance
+- Foundation: the core member environment with resources, events, directory visibility, and wider discussion rooms
+- Inner Circle: a tighter layer inside the ecosystem with stronger context, deeper rooms, and more selective access
+- Core: the highest-level protected room for operators carrying heavier decisions and wanting a calmer, more serious environment
+- Admin: full operational control across site content, members, billing visibility, moderation, and platform management
+
+Route protection is enforced in `middleware.ts` and backed up by server-side checks in actions, loaders, and APIs.
+
+## Membership and billing
+
+Standard pricing currently maps to:
+
+- Foundation: `GBP30/month` or `GBP288/year`
+- Inner Circle: `GBP79/month` or `GBP756/year`
+- Core: `GBP149/month` or `GBP1428/year`
+
+Founder pricing is supported per tier:
+
+- Foundation founder: `GBP15/month` or `GBP144/year`
+- Inner Circle founder: `GBP39/month` or `GBP372/year`
+- Core founder: `GBP74/month` or `GBP708/year`
+
+Paid membership access is granted only after trusted server-side Stripe confirmation. A user does not receive live paid-member access from the initial account form alone.
 
 ## Tech stack
 
-- Next.js (App Router)
+- Next.js App Router
 - TypeScript
 - Tailwind CSS
 - PostgreSQL
@@ -35,139 +68,134 @@ Production-ready full-stack platform built with Next.js App Router, TypeScript, 
 - Stripe
 - Zod
 - React Hook Form
-- shadcn-style reusable UI components
+- Reusable shadcn-style UI components
 
 ## Project structure
 
 ```text
 .
-├─ prisma/
-│  ├─ schema.prisma
-│  └─ seed.ts
-├─ src/
-│  ├─ app/
-│  │  ├─ (public)/
-│  │  │  ├─ page.tsx
-│  │  │  ├─ about/page.tsx
-│  │  │  ├─ membership/page.tsx
-│  │  │  └─ contact/page.tsx
-│  │  ├─ (auth)/
-│  │  │  ├─ login/page.tsx
-│  │  │  ├─ join/page.tsx
-│  │  │  ├─ forgot-password/page.tsx
-│  │  │  └─ reset-password/page.tsx
-│  │  ├─ (member)/
-│  │  │  ├─ dashboard/page.tsx
-│  │  │  ├─ dashboard/resources/page.tsx
-│  │  │  ├─ dashboard/resources/[slug]/page.tsx
-│  │  │  ├─ directory/page.tsx
-│  │  │  ├─ community/page.tsx
-│  │  │  ├─ events/page.tsx
-│  │  │  ├─ profile/page.tsx
-│  │  │  └─ inner-circle/page.tsx
-│  │  ├─ (admin)/admin/
-│  │  │  ├─ page.tsx
-│  │  │  ├─ site-content/page.tsx
-│  │  │  ├─ resources/page.tsx
-│  │  │  ├─ resources/[id]/page.tsx
-│  │  │  ├─ resources/new/page.tsx
-│  │  │  ├─ channels/page.tsx
-│  │  │  ├─ community/page.tsx
-│  │  │  ├─ events/page.tsx
-│  │  │  └─ members/page.tsx
-│  │  └─ api/
-│  │     ├─ auth/[...nextauth]/route.ts
-│  │     ├─ auth/verify-email/route.ts
-│  │     ├─ register/route.ts
-│  │     ├─ contact/route.ts
-│  │     ├─ profile/route.ts
-│  │     ├─ channels/[slug]/messages/route.ts
-│  │     ├─ community/realtime/token/route.ts
-│  │     └─ stripe/
-│  │        ├─ checkout/route.ts
-│  │        ├─ portal/route.ts
-│  │        └─ webhook/route.ts
-│  ├─ auth.ts
-│  ├─ components/
-│  └─ lib/
-├─ middleware.ts
-└─ .env.example
+|-- prisma/
+|   |-- schema.prisma
+|   `-- seed.ts
+|-- src/
+|   |-- app/
+|   |   |-- (public)/
+|   |   |-- (auth)/
+|   |   |-- (member)/
+|   |   |-- (admin)/admin/
+|   |   `-- api/
+|   |-- auth.ts
+|   |-- components/
+|   |-- config/
+|   |-- lib/
+|   |-- server/
+|   `-- types/
+|-- middleware.ts
+`-- .env.example
 ```
 
-## Database architecture
+## Stripe setup
 
-Prisma models:
+Add Stripe price IDs in `.env` for standard, annual, and founder variants:
 
-- `User`
-- `Profile`
-- `Business`
-- `Resource`
-- `ResourceBlock`
-- `Category`
-- `Channel`
-- `Message`
-- `Event`
-- `Subscription`
-- `SiteContent`
-- Auth.js adapter models (`Account`, `Session`, `VerificationToken`)
+- `STRIPE_FOUNDATION_MONTHLY_PRICE_ID`
+- `STRIPE_FOUNDATION_ANNUAL_PRICE_ID`
+- `STRIPE_INNER_CIRCLE_MONTHLY_PRICE_ID`
+- `STRIPE_INNER_CIRCLE_ANNUAL_PRICE_ID`
+- `STRIPE_CORE_MONTHLY_PRICE_ID`
+- `STRIPE_CORE_ANNUAL_PRICE_ID`
+- `STRIPE_FOUNDING_FOUNDATION_MONTHLY_PRICE_ID`
+- `STRIPE_FOUNDING_FOUNDATION_ANNUAL_PRICE_ID`
+- `STRIPE_FOUNDING_INNER_CIRCLE_MONTHLY_PRICE_ID`
+- `STRIPE_FOUNDING_INNER_CIRCLE_ANNUAL_PRICE_ID`
+- `STRIPE_FOUNDING_CORE_MONTHLY_PRICE_ID`
+- `STRIPE_FOUNDING_CORE_ANNUAL_PRICE_ID`
 
-## Access model
+Register the webhook endpoint:
 
-- Public: marketing pages only
-- Foundation Member: dashboard, Foundation resources, directory, standard channels, standard events
-- Inner Circle: all standard features + premium resources/channels/events
-- Admin: full admin backend and all member access
+- `POST /api/stripe/webhook`
 
-Route guards are enforced by `middleware.ts` and server-side checks in admin actions/APIs.
+Subscribe Stripe to these events:
 
-## Docker setup (local/dev)
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.paid`
+- `invoice.payment_failed`
 
-1. Copy environment file:
-   ```powershell
-   Copy-Item .env.example .env
+The checkout and webhook flow is designed to stay idempotent and to keep paid access tied to trusted Stripe state.
+
+## Local setup
+
+### Without Docker
+
+1. Install Node.js 20+ and npm.
+2. Install dependencies:
+
+   ```bash
+   npm install
    ```
+
+3. Copy the environment file:
+
    ```bash
    cp .env.example .env
    ```
-2. Edit `.env` and set real secrets:
+
+4. Ensure PostgreSQL is running and `DATABASE_URL` is correct.
+5. Run migrations and seed data:
+
+   ```bash
+   npm run db:migrate
+   npm run db:seed
+   ```
+
+6. Start the app:
+
+   ```bash
+   npm run dev
+   ```
+
+### With Docker
+
+1. Copy environment file:
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Set real secrets in `.env`, including:
    - `NEXTAUTH_SECRET`
    - `AUTH_SECRET`
-   - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for shared production rate limiting
+   - `UPSTASH_REDIS_REST_URL`
+   - `UPSTASH_REDIS_REST_TOKEN`
    - Stripe keys if billing is enabled
-3. Start the full stack:
+3. Start the stack:
+
    ```bash
    docker compose up -d --build
    ```
-4. Confirm containers are healthy:
-   ```bash
-   docker compose ps
-   ```
-5. Run Prisma migrations:
+
+4. Run migrations:
+
    ```bash
    docker compose exec app npx prisma migrate deploy
    ```
-6. Seed baseline data:
+
+5. Seed baseline data:
+
    ```bash
    docker compose exec app npm run db:seed
    ```
-7. Open the app:
-   - `http://localhost:3000`
-8. Tail logs:
-   ```bash
-   docker compose logs -f app
-   ```
-9. Stop the stack:
-   ```bash
-   docker compose down
-   ```
 
-Notes:
-- Default `docker compose up` now runs the app in production mode (`npm run start`).
-- Prisma Client is generated during Docker image build.
-- PostgreSQL data persists in Docker volume `postgres_data`.
-- If your machine uses the legacy binary, replace `docker compose` with `docker-compose`.
+6. Open the app at `http://localhost:3000`.
 
-Development mode with live reload (optional):
+Development mode with live reload:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
@@ -175,9 +203,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f app
 docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 ```
 
-## Production deployment (VPS, no Docker)
+## Production deployment
 
-This project is deployed directly on a VPS. The production flow is:
+For a VPS deployment without Docker:
 
 ```bash
 npm ci
@@ -187,31 +215,19 @@ npm run build
 npm run start
 ```
 
-Use the full runbook for production deploys:
+Use the full production runbook:
 
 - [docs/deployment-runbook.md](docs/deployment-runbook.md)
 
-## GitHub publishing
+The runbook covers:
 
-If you want to publish this project with GitHub Desktop first, use:
-
-- [docs/github-desktop-publish.md](docs/github-desktop-publish.md)
-
-Important:
-
-- GitHub is the source-control layer for this project
-- the running app still needs a real deployment host, database, and environment variables
-- use the deployment runbook for the live environment
-
-The runbook includes:
-
-- full production env var checklist
+- production environment variable checklist
 - shared Redis rate-limiting setup
 - Stripe webhook endpoint setup
-- migration strategy (`migrate deploy` workflow)
-- post-deploy smoke test and rollback steps
+- migration strategy with `migrate deploy`
+- post-deploy smoke testing and rollback guidance
 
-## Docker helper scripts (local/dev)
+## Docker helper scripts
 
 ```bash
 npm run docker:up
@@ -225,113 +241,50 @@ npm run docker:down
 npm run docker:down:dev
 ```
 
-## Full reset (clean database)
-
-```bash
-docker compose down -v
-docker compose up -d --build
-docker compose exec app npx prisma migrate deploy
-docker compose exec app npm run db:seed
-```
-
-## Local setup (without Docker)
-
-1. Install Node.js 20+ and npm.
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Copy env file:
-   ```bash
-   cp .env.example .env
-   ```
-4. Ensure PostgreSQL is running locally and `DATABASE_URL` is correct.
-5. Run migrations + seed:
-   ```bash
-   npm run db:migrate
-   npm run db:seed
-   ```
-6. Start app:
-   ```bash
-   npm run dev
-   ```
-
 ## Testing
 
-- Run unit tests:
-  - `npm run test`
-- Watch mode:
-  - `npm run test:watch`
-- Included baseline tests:
-  - subscription service status/tier/webhook dispatch logic
-  - password reset token hashing and replay prevention
-  - auth permission policy helpers
+- Run the full test suite with `npm run test`
+- Run watch mode with `npm run test:watch`
 
-## Email setup (Resend)
+Current baseline coverage includes:
+
+- subscription service status, tier, webhook, and provisioning logic
+- password reset token hashing and replay prevention
+- auth permission and membership access helpers
+
+## Email setup
+
+Using Resend:
 
 1. Add these values in `.env`:
    - `RESEND_API_KEY`
-   - `RESEND_FROM_EMAIL` (for example `The Business Circle Network <noreply@thebcnet.co.uk>`)
-   - `CONTACT_NOTIFY_EMAIL` (where contact form notifications should go)
+   - `RESEND_FROM_EMAIL`
+   - `CONTACT_NOTIFY_EMAIL`
 2. Send a direct test email:
+
    ```bash
    npm run email:test -- delivered@resend.dev
    ```
+
 3. If running in Docker:
+
    ```bash
    docker compose exec app npm run email:test -- delivered@resend.dev
    ```
-4. Contact form emails are now enabled:
-   - Admin notification is sent to `CONTACT_NOTIFY_EMAIL` (fallback `ADMIN_EMAIL`)
-   - Auto-reply is sent to the submitter
 
-## Password reset flow
+## Security and resilience notes
 
-- User-facing pages:
-  - `/forgot-password`
-  - `/reset-password`
-- API routes:
-  - `POST /api/auth/forgot-password`
-  - `POST /api/auth/reset-password`
-- Configuration:
-  - `PASSWORD_RESET_TOKEN_TTL_MINUTES` (default `60`, bounded to `15-180`)
-- Notes:
-  - Reset requests are rate-limited and origin-checked.
-  - Responses are account-enumeration safe (same success message for existing/non-existing emails).
-  - Tokens are stored hashed in the database and invalidated after use.
-
-## Stripe setup
-
-- Configure products/prices in Stripe dashboard:
-  - Standard £30/month
-  - Inner Circle £79/month
-- Put price IDs in `.env`:
-  - `STRIPE_STANDARD_PRICE_ID`
-  - `STRIPE_INNER_CIRCLE_PRICE_ID`
-- Register webhook endpoint:
-  - `POST /api/stripe/webhook`
-- Subscribe to events:
-  - `checkout.session.completed`
-  - `customer.subscription.created`
-  - `customer.subscription.updated`
-  - `customer.subscription.deleted`
-  - `invoice.paid`
-  - `invoice.payment_failed`
-
-## Security and scalability notes
-
-- Passwords are hashed with `bcryptjs`.
-- Tier/role checks are enforced server-side for APIs and pages.
-- Stripe webhook is signature-verified.
-- Rate limiting supports shared Redis via Upstash or KV-compatible env aliases for multi-instance production.
-- Prisma relations and indexes support growth in resource/chat/event data.
-- Architecture is modular (`lib`, `components`, grouped routes) for future extraction into service layers.
+- Passwords are hashed with `bcryptjs`
+- Role and tier checks are enforced server-side for pages and APIs
+- Stripe webhook requests are signature-verified
+- Paid access is granted from trusted Stripe confirmation, not client-side assumptions
+- Rate limiting supports shared Redis via Upstash or compatible KV aliases
+- Prisma relations and indexes are structured for growth in resources, events, discussions, and members
+- Application logic is organised across `lib`, `server`, `components`, and grouped routes to keep the codebase maintainable as the ecosystem expands
 
 ## Dependency stability policy
 
 Auth.js and Prisma critical packages are pinned to exact versions to reduce breaking changes from automatic updates.
 
-- Upgrade workflow and monitoring guidance:
-  - [docs/dependency-upgrade-policy.md](docs/dependency-upgrade-policy.md)
-- Weekly version check command:
-  - `npm run deps:check:critical`
+- Upgrade workflow and monitoring guidance: [docs/dependency-upgrade-policy.md](docs/dependency-upgrade-policy.md)
+- Weekly version check command: `npm run deps:check:critical`

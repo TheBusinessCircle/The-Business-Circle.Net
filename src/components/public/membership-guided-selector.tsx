@@ -541,7 +541,7 @@ export function MembershipGuidedSelector({
             <div className="space-y-4">
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership</p>
               <h1 className="max-w-4xl font-display text-[clamp(2.05rem,7.6vw,4rem)] leading-tight text-foreground sm:text-5xl">
-                Choose the room that matches the business now.
+                Choose the environment that matches the business now.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-muted">
                 Different businesses need different environments. This page is here to help owners
@@ -549,8 +549,9 @@ export function MembershipGuidedSelector({
                 with confidence.
               </p>
               <p className="max-w-3xl text-sm leading-relaxed text-silver">
-                Better placement keeps the network useful. That is why the cards stay light, the
-                depth only appears after selection, and the decision path stays calm.
+                Better placement keeps the environment useful and lets the wider ecosystem grow
+                properly. That is why the cards stay light, the depth only appears after selection,
+                and the decision path stays calm.
               </p>
             </div>
 
@@ -744,7 +745,7 @@ export function MembershipGuidedSelector({
           </h2>
           <p className="text-base leading-relaxed text-muted">
             The point is structured support, not hierarchy. A room stays useful when the placement
-            is clearer and the environment matches the stage of the business.
+            is clearer, and the ecosystem grows properly when each business enters the right layer.
           </p>
         </div>
 
@@ -800,7 +801,7 @@ export function MembershipGuidedSelector({
                 "group w-full sm:w-auto"
               )}
             >
-              {selectedGuide.ctaLabel}
+              Secure your place in {selectedGuide.title}
               <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
             </Link>
             <p className="text-sm leading-relaxed text-muted">

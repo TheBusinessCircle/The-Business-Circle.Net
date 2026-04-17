@@ -33,7 +33,7 @@ export function FAQSection({
         {items.map((item) => (
           <details
             key={item.question}
-            className="group public-panel overflow-hidden p-0"
+            className="group public-panel overflow-hidden p-0 transition-colors group-open:border-gold/20"
           >
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-5 text-left sm:px-6">
               <span className="font-medium text-foreground">{item.question}</span>

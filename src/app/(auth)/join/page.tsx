@@ -109,8 +109,8 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
                 </h1>
                 <p className="max-w-3xl text-lg leading-relaxed text-muted">
                   This page keeps room selection, pricing clarity, secure Stripe billing, and
-                  post-payment member access in one calm flow. You can still move between tiers as
-                  the business evolves, and founder pricing only applies where it is currently active.
+                  post-payment member access in one calm flow. Founder pricing only applies while
+                  allocation remains open in that room.
                 </p>
               </div>
 
@@ -195,7 +195,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
           </h2>
           <p className="text-base leading-relaxed text-muted">
             The aim here is a clean decision, not a perfect prediction. Pick the room that matches
-            the business now, move through setup with confidence, and let the membership deepen only
+            the business now, move through setup with confidence, and let the ecosystem deepen only
             when the business genuinely needs it.
           </p>
         </div>
