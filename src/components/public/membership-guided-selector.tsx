@@ -129,7 +129,7 @@ const TIER_GUIDES: TierGuide[] = [
 const FOUNDER_PERSPECTIVE_LINES = [
   "Different stages of business need different environments.",
   "The goal is not to push everyone into the highest tier. The goal is to help owners enter the right room and keep the environment useful.",
-  "That is what keeps the network calmer, more relevant, and more commercially useful over time."
+  "That is what keeps the environment calmer and the ecosystem more commercially useful over time."
 ] as const;
 
 const REASSURANCE_ITEMS = [
@@ -141,7 +141,7 @@ const REASSURANCE_ITEMS = [
   {
     title: "Protected by design",
     description:
-      "A founder-led business network stays useful when each room keeps the right level of context, pace, and conversation quality."
+      "A founder-led private business environment stays useful when each room keeps the right level of context, pace, and conversation quality."
   },
   {
     title: "Move when it makes sense",
@@ -184,6 +184,10 @@ function standardPriceForInterval(
 
 function founderAvailabilityLine(offer: FoundingOfferTierSnapshot) {
   if (offer.available) {
+    if (offer.remaining === offer.limit) {
+      return `${offer.limit} founder place${offer.limit === 1 ? "" : "s"} currently available.`;
+    }
+
     return `${offer.remaining} founder place${offer.remaining === 1 ? "" : "s"} remaining of ${offer.limit}.`;
   }
 
@@ -744,8 +748,9 @@ export function MembershipGuidedSelector({
             This is based on stage, not status.
           </h2>
           <p className="text-base leading-relaxed text-muted">
-            The point is structured support, not hierarchy. A room stays useful when the placement
-            is clearer, and the ecosystem grows properly when each business enters the right layer.
+            The point is structured progression, not hierarchy. A room stays useful when placement
+            is clear, and the ecosystem grows properly when each business moves deeper only when it
+            genuinely needs to.
           </p>
         </div>
 

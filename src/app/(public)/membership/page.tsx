@@ -34,7 +34,7 @@ const MEMBERSHIP_KEYWORDS = [
 export const metadata: Metadata = createPageMetadata({
   title: "Membership For Business Owners",
   description:
-    "Choose the right room inside a founder-led business network for owners. Compare Foundation, Inner Circle, and Core inside a private business community UK owners can join for clearer structure and stronger momentum.",
+    "Choose the right room inside a founder-led private business environment for owners. Compare Foundation, Inner Circle, and Core for clearer structure, stronger context, and more controlled momentum.",
   keywords: [...MEMBERSHIP_KEYWORDS],
   path: "/membership"
 });

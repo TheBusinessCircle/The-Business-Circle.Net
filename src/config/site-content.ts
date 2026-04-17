@@ -90,25 +90,25 @@ export const SITE_CONTENT_TITLES: Record<SiteContentSlug, string> = {
 
 export const siteContentDefaults: SiteContentValueMap = {
   home: {
-    heroSupportLine: "Founder-led membership. Calm structure. Clearer business growth for founders who want a better room around the business.",
-    heroTitle: "A private business environment where founders can think clearly, feel they belong, and grow with more certainty",
+    heroSupportLine: "Founder-led membership. Calm structure. A better room for business owners building with intent.",
+    heroTitle: "A private business environment where owners can think clearly, place themselves properly, and move with more certainty",
     heroSubtitle:
-      "The Business Circle Network is a live, structured environment for business owners who want stronger context, better people around them, and a calmer route to momentum. If you have outgrown noisy founder spaces, you are in the right place here.",
+      "The Business Circle Network is a structured private business environment for business owners who want stronger context, better people around them, and a calmer route to momentum. If you have outgrown noisy founder spaces, you are in the right place here.",
     whyTitle: "Why The Business Circle Network exists",
     whyDescription:
-      "Too many businesses are trying to grow inside fragmented advice, shallow networking, and noisy communities. The Business Circle Network was created to bring structure, trust, founder-led thinking, and better business relationships into one serious environment.",
-    vibeTitle: "The network is shaped by a clear strategic lens",
+      "Too many businesses are trying to grow inside fragmented advice, shallow networking, and noisy spaces. The Business Circle Network was created to bring structure, trust, founder-led thinking, and better business relationships into one serious environment.",
+    vibeTitle: "The environment is shaped by a clear strategic lens",
     vibeDescription:
       "Trev's work focuses on how businesses are seen, how they are trusted, and how they expand with more intention.",
-    audienceTitle: "Who The Network is built for",
+    audienceTitle: "Who the environment is built for",
     audienceDescription:
-      "This ecosystem is designed for growth-ready businesses that want sharper thinking, better relationships, and a stronger environment around their next phase.",
+      "This is for business owners building with intent who want sharper thinking, better relationships, and a stronger environment around the next phase.",
     benefitsTitle: "What members actually get",
     benefitsDescription:
-      "Membership is not just access to a community. It is access to a better business environment built around practical support, trusted people, and meaningful growth tools.",
-    differenceTitle: "More than networking. More than content. More than community.",
+      "Membership is not just access to another member area. It is entry into a better business environment built around practical support, trusted people, and meaningful growth tools.",
+    differenceTitle: "More than networking. More than content. More than activity.",
     differenceDescription:
-      "The Business Circle Network combines founder-led direction, curated relationships, practical resources, and clear progression in one working environment.",
+      "The Business Circle Network combines founder-led direction, curated relationships, practical resources, and clear progression inside one working environment.",
     proofTitle: "Proof, wins, and member outcomes",
     proofDescription:
       "This section is designed for verified testimonials, founder results, collaboration stories, and member wins managed through the admin content system.",
@@ -134,116 +134,116 @@ export const siteContentDefaults: SiteContentValueMap = {
     ],
     faqTitle: "Questions founders usually ask before joining",
     faqDescription:
-      "Straight answers about fit, membership, collaboration, Inner Circle, and how the network works.",
+      "Short answers about fit, rooms, pricing, collaboration, and what happens after joining.",
     faqs: [
       {
         question: "Who is The Business Circle Network for?",
         answer:
-          "It is built for founders, business owners, startups, local businesses, service-led firms, community-led businesses, and established companies that want better strategy, stronger trust, and more useful growth relationships."
+          "It is built for business owners building with intent who want a calmer, more structured environment around growth, decisions, and relationships."
       },
       {
         question: "Is this just another networking group?",
         answer:
-          "No. Networking is part of the value, but the network is designed as a broader growth ecosystem with strategy, resources, accountability, community, collaboration opportunities, and founder-led direction."
+          "No. The point is not broad access or constant activity. It is a private business environment with clearer placement, better conversation, and more useful progression over time."
       },
       {
         question: "Can members collaborate with each other?",
         answer:
-          "Yes. Collaboration is a core part of the experience. Members can build partnerships, referrals, introductions, support exchanges, and aligned opportunities through the directory, community, and events."
+          "Yes. Collaboration happens through the environment when fit, trust, and context are clear. That can include introductions, referrals, partnerships, and commercially useful conversations."
       },
       {
         question: "Is it only for online businesses?",
         answer:
-          "No. The network is intentionally broader than that. It supports local businesses, founder-led companies, service providers, startups, and established businesses that want stronger visibility, trust, and expansion."
+          "No. It suits business owners across service, local, online, and established businesses, provided they want a more structured room around the work."
       },
       {
         question: "What makes Inner Circle different?",
         answer:
-          "Inner Circle adds private strategic access, deeper founder-level conversation, premium resources, and a more focused environment for businesses that want more depth and proximity."
+          "Inner Circle is a tighter room with stronger context, deeper discussion, and more selective access for businesses that need more depth than Foundation."
       },
       {
         question: "Can I start at one level and move up later?",
         answer:
-          "Yes. Many members begin with Foundation to access the core ecosystem, then move into Inner Circle or Core when they want more strategic depth and closer access."
+          "Yes. Many members start in Foundation, then move into Inner Circle or Core when the business needs a tighter room, stronger proximity, or more protected discussion."
       }
     ],
-    ctaTitle: "Join a business network built for clearer thinking and stronger momentum",
+    ctaTitle: "Enter a private business environment built for clearer thinking and stronger momentum",
     ctaDescription:
       "Enter at the level that fits your stage and build inside a more trusted, structured environment."
   },
   about: {
     intro:
-      "The Business Circle Network exists to give business owners a calmer, more useful environment for growth through clearer strategy, stronger relationships, better trust, and more consistent momentum."
+      "The Business Circle Network exists to give business owners building with intent a calmer, more useful private business environment for clearer strategy, stronger relationships, better trust, and more consistent momentum."
   },
   membership: {
     intro:
-      "Choose the level that fits your current stage. Foundation gives you the structure. Inner Circle adds focus. Core adds the closest strategic layer. The aim is to choose the right room now, not the deepest room by default.",
+      "Choose the room that fits the business now. Foundation gives you the base environment. Inner Circle tightens the room. Core protects the highest-context layer. The aim is the right fit now, not the deepest tier by default.",
     standardCopy:
-      "Foundation is for business owners who want the full network, practical resources, and a better room around the next phase without overcomplicating the decision.",
+      "Foundation is for business owners who want the full base environment, practical resources, and a better room around the next phase without overcomplicating the decision.",
     innerCircleCopy:
-      "Inner Circle is for founders who want stronger signal, more private context, and a more focused environment than Foundation alone. It is the smartest next step when Foundation is already useful.",
+      "Inner Circle is for owners who want stronger signal, more protected context, and a tighter environment than Foundation alone. It is the natural next step when Foundation is already useful.",
     standard: {
       whoItsFor:
-        "Best for businesses that want structure, community, visibility, and practical growth support without overcomplicating the journey.",
+        "Best for businesses that want structure, visibility, and practical support without overcomplicating the journey.",
       outcomes:
-        "Build sharper foundations through resources, relationships, events, and everyday collaboration inside the wider ecosystem.",
+        "Build sharper foundations through resources, relationships, events, and structured interaction inside the wider environment.",
       whyChoose:
-        "Choose Foundation when you want the full core environment, strong value, and an easy place to start with room to upgrade later."
+        "Choose Foundation when you want the full base environment, strong value, and a clear place to start with room to move deeper later."
     },
     innerCircle: {
       whoItsFor:
-        "Best for founders and operators who want deeper strategic conversation, private access, and a more focused growth environment.",
+        "Best for founders and operators who want deeper strategic conversation, more protected access, and a more focused environment.",
       outcomes:
-        "Gain premium support through private channels, advanced resources, exclusive sessions, and higher-trust founder proximity.",
+        "Gain stronger support through protected spaces, advanced resources, exclusive sessions, and closer founder proximity.",
       whyChoose:
-        "Businesses move into Inner Circle when they want more focus, more private depth, and more useful context around what comes next. It should feel like a natural progression, not a leap."
+        "Businesses move into Inner Circle when they want a tighter room, stronger context, and more useful depth around what comes next. It should feel like progression, not a leap."
     },
     comparisonTitle: "Compare the depth, not just the features",
     comparisonDescription:
-      "Both plans connect you to the ecosystem. Inner Circle adds private strategic depth for businesses that want a more premium layer of access and support.",
+      "Each tier sits inside the same environment. Inner Circle and Core add tighter access, stronger context, and more protected discussion when the business needs it.",
     faqTitle: "Membership questions, answered clearly",
     faqDescription:
-      "Everything you need to understand plan fit, flexibility, collaboration, and future upgrades.",
+      "Clear answers on room fit, flexibility, progression, and what changes as you move deeper.",
     faqs: [
       {
         question: "How do I know which membership level is right for me?",
         answer:
-          "Foundation is the right starting point if you want the full core network and a strong business environment. Inner Circle is for businesses that want deeper strategic access, and Core is for businesses that want the highest level of proximity and discussion depth."
+          "Foundation is the right start when the business needs a stronger base environment. Inner Circle suits businesses wanting a tighter room and deeper discussion. Core is for operators who need the calmest room and the strongest context."
       },
       {
         question: "Can I move up later?",
         answer:
-          "Yes. You can start with Foundation, build inside the ecosystem, and move into Inner Circle or Core later when you want more strategic depth and private access."
+          "Yes. You can start with Foundation, then move into Inner Circle or Core later when the business needs more protected access, stronger context, or deeper discussion."
       },
       {
         question: "Do both plans include collaboration opportunities?",
         answer:
-          "Yes. Both tiers include access to collaboration pathways across the network. Inner Circle adds more private and premium strategic spaces on top."
+          "Yes. Collaboration sits inside the wider environment. Deeper tiers add more protected access and stronger context around those relationships."
       },
       {
         question: "Is Inner Circle only for large or established businesses?",
         answer:
-          "No. Inner Circle is about the depth of support you want, not just size. It suits founders and operators who value more focused conversation, private access, and premium strategic guidance."
+          "No. It is not about size alone. It is for businesses that need a tighter room, stronger signal, and more focused discussion than Foundation."
       },
       {
         question: "What gives the membership long-term value?",
         answer:
-          "The value comes from being inside a stronger environment over time: better decisions, stronger trust, better people around you, structured resources, and access that can deepen as the business grows."
+          "Long-term value comes from being in a better environment over time: clearer decisions, stronger relationships, better context, and access that can deepen as the business grows."
       }
     ],
-    ctaTitle: "Choose the membership depth that matches your next phase",
+    ctaTitle: "Choose the room depth that matches your next phase",
     ctaDescription:
-      "Start with the level that fits your stage today and move deeper when your business needs more strategic access."
+      "Start with the room that fits your stage today and move deeper when the business needs more protected access."
   },
   footer: {
     brandBlurb:
-      "A founder-led business network for owners who want a calmer, more structured environment around growth, relationships, and decision-making.",
+      "A founder-led private business environment for owners who want clearer structure, stronger relationships, and steadier momentum.",
     supportEmail: SITE_CONFIG.supportEmail,
-    supportLine: "Membership, partnerships, platform support, and serious business enquiries",
-    trustLine: "Private membership. Clear placement. Founder-led standards.",
+    supportLine: "Membership, billing, partnerships, and serious business enquiries",
+    trustLine: "Private Business Environment. Clear placement. Founder-led standards.",
     founderLine: "Built and led by Trev Newton.",
     bottomLine:
-      "Structured for active business owners, founders, and operators across the UK."
+      "Built for business owners building with intent across the UK."
   }
 };
 

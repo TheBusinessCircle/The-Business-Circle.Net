@@ -1,8 +1,8 @@
 # The Business Circle Network
 
-Production-ready full-stack platform for The Business Circle Network: a founder-led business brand built around a controlled member environment and a growing ecosystem for serious business owners.
+Production-ready full-stack platform for The Business Circle Network: a founder-led business brand built around a Private Business Environment and a growing ecosystem for serious business owners.
 
-The product is designed to feel structured from the first screen. Public pages clarify the room, the join flow leads into secure paid entry, and the member experience stays focused on useful discussion, stronger context, and steady business progress rather than noise.
+The product is designed to feel structured from the first screen. Public pages clarify the room, the join flow leads into secure paid entry, and the member experience stays focused on controlled interaction spaces, stronger context, and steady business progress rather than noise.
 
 ## Positioning
 
@@ -22,9 +22,9 @@ That order matters throughout the product:
 
 - Premium public website for positioning, founder context, membership guidance, join, contact, and FAQ
 - Secure join flow with payment-first activation for paid memberships
-- Authenticated member environment across dashboard, resources, directory, community, events, and profile areas
+- Authenticated Private Business Environment across dashboard, resources, directory, discussion rooms, events, and profile areas
 - Tier progression across Foundation, Inner Circle, and Core
-- Structured discussion rooms with tier-based access, threaded replies, and realtime transport
+- Structured business environment with controlled interaction spaces, tier-based access, threaded replies, and realtime transport
 - Resource CMS with draft and publish workflow plus Cloudinary uploads
 - Events with tier visibility and member-only access
 - Founder pricing, annual billing, Stripe Checkout, billing portal access, and webhook sync
@@ -34,7 +34,7 @@ That order matters throughout the product:
 ## Access model
 
 - Public: brand, positioning, founder context, insights, contact, FAQ, and membership guidance
-- Foundation: the core member environment with resources, events, directory visibility, and wider discussion rooms
+- Foundation: the core environment layer with resources, events, directory visibility, and wider discussion rooms
 - Inner Circle: a tighter layer inside the ecosystem with stronger context, deeper rooms, and more selective access
 - Core: the highest-level protected room for operators carrying heavier decisions and wanting a calmer, more serious environment
 - Admin: full operational control across site content, members, billing visibility, moderation, and platform management

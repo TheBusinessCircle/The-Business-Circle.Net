@@ -32,9 +32,9 @@ import { getFoundingOfferSnapshot } from "@/server/founding";
 import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Business Network For Owners In The UK",
+  title: "Private Business Environment For Owners In The UK",
   description:
-    "The Business Circle Network is a private business community UK owners use for clearer thinking, better conversations, and stronger momentum inside a structured founder-led environment.",
+    "The Business Circle Network is a private business environment for UK business owners who want clearer thinking, better conversations, and more controlled momentum.",
   path: "/",
   keywords: [
     "business network for owners",
@@ -191,7 +191,7 @@ export default async function HomePage() {
         data={buildCollectionPageSchema({
           title: "The Business Circle Network",
           description:
-            "A structured founder-led business network for owners moving from first impression to membership fit and confident join.",
+            "A structured founder-led private business environment for owners moving from first impression to membership fit and confident join.",
           path: "/",
           keywords: [
             "business network for owners",
@@ -207,7 +207,7 @@ export default async function HomePage() {
       <HeroSection
         eyebrow="Private business environment for owners"
         title="A more serious room for business owners who want clearer thinking, stronger relationships, and more controlled momentum."
-        description="The Business Circle Network is built for active owners who have outgrown loose networking, surface-level advice, and generic community spaces. It gives the business a calmer environment, stronger commercial context, and a more deliberate path forward."
+        description="The Business Circle Network is built for business owners building with intent who have outgrown loose networking, surface-level advice, and generic social spaces. It gives the business a calmer environment, stronger commercial context, and a more deliberate path forward."
         supportLine="Start with the environment. Place the business properly. Then move into the right room with confidence."
         callouts={["For business owners", "Founder-led", "Structured rooms"]}
         primaryAction={{ href: "/membership", label: "Find Your Room" }}
@@ -279,7 +279,7 @@ export default async function HomePage() {
         <SectionHeading
           label="What This Is"
           title="Not another content platform, networking group, or chat feed."
-          description="This is a structured private environment for business owners. The point is better conditions for decisions, conversations, and momentum."
+          description="This is a structured private business environment for owners. The point is better conditions for decisions, conversations, and momentum."
         />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
@@ -351,7 +351,7 @@ export default async function HomePage() {
         <SectionHeading
           label="The Environment"
           title="The value comes from the room itself."
-          description="The Business Circle works because the environment changes the quality of context, conversation, and movement around the business."
+          description="The environment changes the quality of context, conversation, and movement around the business."
         />
 
         <FeatureGrid columns={4} items={environmentItems} />
@@ -431,14 +431,14 @@ export default async function HomePage() {
       <FAQSection
         id="faq"
         label="Questions"
-        title="Questions owners ask before stepping inside."
-        description="Clear answers on fit, rooms, pricing, and what happens next."
+        title="Questions business owners building with intent ask before stepping inside."
+        description="Clear answers on fit, rooms, pricing, and access."
         items={homeContent.faqs}
       />
 
       <CTASection
         title="When the fit feels clear, choose the room that fits now."
-        description="Review the rooms, compare the current pricing clearly, and move into the join path when the decision feels straightforward. Early entry matters most while founder allocation is still open."
+        description="Review the rooms, compare current pricing clearly, and move into the join path when the decision feels straightforward. Early entry matters most while founder allocation remains open."
         primaryAction={{ href: "/membership", label: "Find Your Room" }}
         secondaryAction={{ href: "/join", label: "Go To Join", variant: "outline" }}
       />

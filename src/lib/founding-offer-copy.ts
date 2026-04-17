@@ -14,7 +14,7 @@ export function getFounderRoomAvailabilitySummary(input: {
     return {
       title: `Founder rate currently available for ${input.tierName}.`,
       description:
-        "A limited founder allocation is still open in this room. Pricing returns to the standard rate when that allocation is filled."
+        "A founder allocation is currently open in this room. Pricing returns to the standard rate when that allocation is filled."
     };
   }
 
@@ -34,7 +34,7 @@ export function getFounderRoomAvailabilitySummary(input: {
 
 export function getFounderRoomPricingNote(offer: FoundingOfferMessagingInput) {
   if (offer.available) {
-    return "Founder pricing is currently active in this room for a limited founder allocation.";
+    return "Founder pricing is currently active in this room while founder allocation remains open.";
   }
 
   return `${offer.launchClosedLabel}. Standard pricing is currently active for this room.`;

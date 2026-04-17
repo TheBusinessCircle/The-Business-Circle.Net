@@ -98,6 +98,10 @@ function selectedPriceForInterval(
 
 function founderAvailabilityLine(offer: FoundingOfferTierSnapshot) {
   if (offer.available) {
+    if (offer.remaining === offer.limit) {
+      return `${offer.limit} founder place${offer.limit === 1 ? "" : "s"} currently available.`;
+    }
+
     return `${offer.remaining} founder place${offer.remaining === 1 ? "" : "s"} remaining of ${offer.limit}.`;
   }
 

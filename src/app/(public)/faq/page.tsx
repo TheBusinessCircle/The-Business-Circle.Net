@@ -7,7 +7,7 @@ import { getSiteContentSection } from "@/server/site-content";
 export const metadata: Metadata = createPageMetadata({
   title: "Frequently Asked Questions",
   description:
-    "Direct answers about membership fit, secure checkout, access, and what happens after you enter The Business Circle environment.",
+    "Direct answers for business owners building with intent about membership fit, secure checkout, access, and what happens after you enter the environment.",
   path: "/faq"
 });
 
@@ -48,14 +48,14 @@ export default async function FaqPage() {
           Questions worth settling before you enter.
         </h1>
         <p className="max-w-3xl text-base leading-relaxed text-muted">
-          This page covers the most useful questions around membership fit, secure Stripe checkout,
-          account access, upgrades, and how the environment works once you are inside.
+          Direct answers for business owners building with intent on room fit, secure Stripe
+          checkout, account access, upgrades, and how the environment works once you are inside.
         </p>
       </section>
 
       <FAQSection
         title="Direct answers before you step inside"
-        description="Short answers designed to make the next decision clearer and faster."
+        description="Short answers designed to make the next decision clearer, faster, and more confident."
         items={faqItems}
       />
     </div>

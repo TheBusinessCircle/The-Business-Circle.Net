@@ -26,7 +26,7 @@ const ABOUT_KEYWORDS = [
 export const metadata: Metadata = createPageMetadata({
   title: "About The Business Circle Network",
   description:
-    "Why The Business Circle Network exists, what problem it solves, and how it creates a calmer, more structured environment for business owners in the UK.",
+    "Why The Business Circle Network exists, what problem it solves, and how it creates a calmer, more structured private business environment for owners in the UK.",
   keywords: [...ABOUT_KEYWORDS],
   path: "/about"
 });
@@ -84,7 +84,7 @@ const environmentPillars = [
 const forAudience = [
   "Active business owners, founders, and operators who want a stronger environment around the work",
   "People who value clearer placement, better context, and conversations with substance",
-  "Builders who want a business owners network that feels calmer, sharper, and more commercially useful"
+  "Business owners building with intent who want the room around the work to feel calmer, sharper, and more commercially useful"
 ] as const;
 
 const notForAudience = [
@@ -102,7 +102,7 @@ export default async function AboutPage() {
         data={buildCollectionPageSchema({
           title: "About The Business Circle Network",
           description:
-            "Founder-led context on why The Business Circle Network exists and how it creates a calmer, more structured environment for business owners.",
+            "Founder-led context on why The Business Circle Network exists and how it creates a calmer, more structured private business environment for business owners.",
           path: "/about",
           keywords: [...ABOUT_KEYWORDS],
           itemPaths: ["/membership", "/founder", "/contact"]
@@ -127,10 +127,10 @@ export default async function AboutPage() {
               Built for owners who are tired of being visible everywhere and properly supported nowhere.
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-muted sm:text-xl">
-              The Business Circle Network is a founder-led business network for owners who want a
-              calmer, more structured environment around growth. It was built for people who want
-              better conversations, clearer placement, and stronger momentum inside a private
-              business community UK owners can actually use.
+              The Business Circle Network is a founder-led private business environment for owners
+              who want a calmer, more structured room around growth. It was built for people who
+              want better conversations, clearer placement, and stronger momentum in a room they
+              can actually use.
             </p>
           </div>
         </div>
@@ -166,7 +166,7 @@ export default async function AboutPage() {
         <div className="max-w-3xl space-y-4">
           <p className="premium-kicker">The problem</p>
           <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
-            Too many business communities look active without being genuinely useful.
+            Too many business spaces look active without being genuinely useful.
           </h2>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
             A lot of spaces promise access, support, and growth. In practice, they often become
@@ -196,8 +196,8 @@ export default async function AboutPage() {
           </h2>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
             Not louder. Not broader. Not another room built on performance. The aim was to create a
-            more intentional place where owners could think clearly, meet the right people, and
-            build with better structure before the conversation even started.
+            more intentional private business environment where owners could think clearly, meet the
+            right people, and build with better structure before the conversation even started.
           </p>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
             That is why this exists. It was built to feel calmer, more useful, and more honest
@@ -216,7 +216,7 @@ export default async function AboutPage() {
           <div className="space-y-4 text-base leading-relaxed text-muted sm:text-lg">
             <p>{aboutContent.intro}</p>
             <p>
-              In practice, it is a private business community for owners who want the room around
+              In practice, it is a private business environment for owners who want the room around
               the work to feel better. It is closer to a serious business environment than a feed,
               and the point is simple: better context, better judgement, and better momentum.
             </p>
@@ -284,9 +284,9 @@ export default async function AboutPage() {
             The room works better when the fit is clear.
           </h2>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
-            This is for active owners and operators who want a stronger environment around the
-            business. That clarity helps the room stay useful without turning it into a closed or
-            performative space.
+            This is for business owners building with intent who want a stronger environment around
+            the business. That clarity helps the room stay useful without turning it into a closed
+            or performative space.
           </p>
         </div>
 
@@ -332,8 +332,8 @@ export default async function AboutPage() {
           this.
         </h2>
         <p className="text-base leading-relaxed text-muted sm:text-lg">
-          No hard sell. Just a more intentional place for owners who want structure, better
-          context, and steadier momentum around the work they are building.
+          No hard sell. Just a more intentional environment for business owners building with
+          intent who want structure, better context, and steadier momentum around the work.
         </p>
         <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
           <Link

@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = createPageMetadata({
   title: "Join The Business Circle",
   description:
-    "Confirm your selected room, review current pricing, continue into secure Stripe checkout, and complete access after payment is confirmed.",
+    "Confirm your selected room, review current pricing, continue into secure Stripe checkout, and complete access once payment is confirmed.",
   keywords: [
     "join business circle",
     "business owner membership checkout",
@@ -108,9 +108,9 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
                   Confirm the room, then complete secure checkout.
                 </h1>
                 <p className="max-w-3xl text-lg leading-relaxed text-muted">
-                  This page keeps room selection, pricing clarity, secure Stripe billing, and
-                  post-payment member access in one calm flow. Founder pricing only applies while
-                  allocation remains open in that room.
+                  This page keeps room selection, pricing clarity, secure Stripe billing, and paid
+                  access setup in one calm flow. Founder pricing only applies while allocation
+                  remains open in that room.
                 </p>
               </div>
 
@@ -167,7 +167,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
 
       {billing === "cancelled" ? (
         <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
-          Stripe checkout was cancelled. No member account was created, and your selected room is
+          Stripe checkout was cancelled. No paid access was opened, and your selected room is
           still here when you want to continue.
         </p>
       ) : null}
@@ -196,7 +196,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
           <p className="text-base leading-relaxed text-muted">
             The aim here is a clean decision, not a perfect prediction. Pick the room that matches
             the business now, move through setup with confidence, and let the ecosystem deepen only
-            when the business genuinely needs it.
+            when the business genuinely needs another layer.
           </p>
         </div>
       </section>

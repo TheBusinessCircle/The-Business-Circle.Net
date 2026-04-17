@@ -72,9 +72,7 @@ export async function Footer() {
               </p>
             </div>
           </div>
-          <p className="max-w-md text-sm leading-relaxed text-muted">
-            {footerContent.brandBlurb}
-          </p>
+          <p className="max-w-md text-sm leading-relaxed text-muted">{footerContent.brandBlurb}</p>
           <div className="space-y-3 rounded-3xl border border-border/80 bg-card/55 p-4">
             <p className="text-xs uppercase tracking-[0.08em] text-gold">Why owners trust the room</p>
             <p className="text-sm text-muted">{footerContent.trustLine}</p>
@@ -83,7 +81,7 @@ export async function Footer() {
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.1em] text-silver">Explore the Circle</p>
+          <p className="text-xs uppercase tracking-[0.1em] text-silver">Explore</p>
           <ul className="space-y-2 text-sm text-muted">
             {EXPLORE_LINKS.map((link) => (
               <li key={link.href}>
@@ -129,9 +127,7 @@ export async function Footer() {
               {footerContent.supportEmail}
             </a>
             <p className="text-sm text-muted">{footerContent.supportLine}</p>
-            <p className="text-sm text-muted">
-              Questions about membership, access, billing, or fit are handled directly and clearly.
-            </p>
+            <p className="text-sm text-muted">Questions on membership, access, billing, or fit are handled directly.</p>
           </div>
 
           {socialLinks.length ? (

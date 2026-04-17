@@ -64,7 +64,7 @@ export const SITE_CONFIG: SiteConfig = {
   name: "The Business Circle Network",
   shortName: "Business Circle",
   description:
-    "A founder-led private business network for owners who want better structure, stronger relationships, and steadier momentum.",
+    "A founder-led private business environment for owners who want better structure, stronger relationships, and steadier momentum.",
   url: resolveSiteUrl(),
   supportEmail: "support@businesscircle.network",
   publicNavigation,
