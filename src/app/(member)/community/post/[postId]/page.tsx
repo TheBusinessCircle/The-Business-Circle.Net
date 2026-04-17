@@ -168,7 +168,12 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
           </CardHeader>
 
           <CardContent>
-            <CommunityPostDiscussion post={post} returnPath={returnPath} />
+            <CommunityPostDiscussion
+              post={post}
+              returnPath={returnPath}
+              currentUserId={session.user.id}
+              viewerCanContinuePrivately={Boolean(session.user.emailVerified)}
+            />
           </CardContent>
         </Card>
 

@@ -8,6 +8,7 @@ export interface NavigationItem {
   description?: string;
   requiresRole?: Role;
   requiresTier?: MembershipTier;
+  badgeCount?: number;
 }
 
 export interface SiteConfig {
@@ -92,3 +93,5 @@ export * from "@/types/profile/profile";
 export * from "@/types/founder/service";
 export * from "@/types/founding/offer";
 export * from "@/types/insights";
+export * from "@/types/messages";
+export * from "@/types/wins";

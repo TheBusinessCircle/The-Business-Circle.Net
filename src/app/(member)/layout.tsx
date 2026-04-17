@@ -19,6 +19,7 @@ import { signOutAction } from "@/lib/actions/auth-actions";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
 import { requireUser } from "@/lib/session";
+import { getDirectMessageNavCounts } from "@/server/messages";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_CONFIG.url)
@@ -27,11 +28,28 @@ export const metadata: Metadata = {
 export default async function MemberLayout({ children }: { children: ReactNode }) {
   const session = await requireUser();
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
+  const messageCounts = await getDirectMessageNavCounts(session.user.id);
 
   const visibleNavItems = PLATFORM_NAV.filter((item) => {
     const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
     const tierAllowed = item.requiresTier ? canAccessTier(effectiveTier, item.requiresTier) : true;
     return roleAllowed && tierAllowed;
+  }).map((item) => {
+    if (item.href === "/messages") {
+      return {
+        ...item,
+        badgeCount: messageCounts.unreadCount + messageCounts.pendingRequestCount
+      };
+    }
+
+    if (item.href === "/wins") {
+      return {
+        ...item,
+        badgeCount: messageCounts.pendingWinCredits
+      };
+    }
+
+    return item;
   });
 
   const membershipBadge = `${getMembershipTierLabel(effectiveTier)} Active`;

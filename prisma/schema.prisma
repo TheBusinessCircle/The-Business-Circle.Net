@@ -34,6 +34,18 @@ model User {
   communityPostLikes           CommunityPostLike[]
   communityPosts               CommunityPost[]
   communityPromptEvents        CommunityPromptEvent[]     @relation("CommunityPromptActor")
+  directMessageRequestsSent    DirectMessageRequest[]     @relation("DirectMessageRequestsSent")
+  directMessageRequestsReceived DirectMessageRequest[]    @relation("DirectMessageRequestsReceived")
+  directMessageThreads         DirectMessageParticipant[]
+  directMessagesSent           DirectMessage[]            @relation("DirectMessagesSent")
+  directMessageBlocksCreated   DirectMessageBlock[]       @relation("DirectMessageBlocksCreated")
+  directMessageBlocksReceived  DirectMessageBlock[]       @relation("DirectMessageBlocksReceived")
+  directMessageReportsFiled    DirectMessageReport[]      @relation("DirectMessageReportsFiled")
+  directMessageReportsTargetUser DirectMessageReport[]    @relation("DirectMessageReportsTargetUser")
+  directMessageReportsResolvedBy DirectMessageReport[]    @relation("DirectMessageReportsResolvedBy")
+  winsAuthored                 Win[]                      @relation("WinsAuthored")
+  winParticipations            WinParticipant[]
+  moderationActionsByAdmin     ModerationAuditLog[]       @relation("ModerationActionsByAdmin")
   messages                     Message[]
   founderServiceRequests       FounderServiceRequest[]
   foundingMembership           FoundingMember?
@@ -806,6 +818,8 @@ model CommunityPost {
   comments     CommunityComment[]
   likes        CommunityPostLike[]
   promptEvents CommunityPromptEvent[]
+  directMessageRequests DirectMessageRequest[]           @relation("DirectMessageOriginPost")
+  directMessageThreads  DirectMessageThread[]            @relation("DirectMessageSourcePost")
   user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([channelId, createdAt])
@@ -829,6 +843,8 @@ model CommunityComment {
   parentComment   CommunityComment?      @relation("CommunityCommentReplies", fields: [parentCommentId], references: [id])
   post            CommunityPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
   replies         CommunityComment[]     @relation("CommunityCommentReplies")
+  directMessageRequests DirectMessageRequest[]           @relation("DirectMessageOriginComment")
+  directMessageThreads  DirectMessageThread[]            @relation("DirectMessageSourceComment")
   user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([postId, createdAt])
@@ -881,6 +897,226 @@ model CommunityPromptEvent {
   @@index([promptId, createdAt])
   @@index([status, createdAt])
   @@index([createdAt])
+}
+
+model DirectMessageRequest {
+  id              String                     @id @default(cuid())
+  requesterId     String
+  recipientId     String
+  originPostId    String?
+  originCommentId String?
+  introMessage    String?
+  status          DirectMessageRequestStatus @default(PENDING)
+  threadId        String?
+  respondedAt     DateTime?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+  originComment   CommunityComment?          @relation("DirectMessageOriginComment", fields: [originCommentId], references: [id], onDelete: SetNull)
+  originPost      CommunityPost?             @relation("DirectMessageOriginPost", fields: [originPostId], references: [id], onDelete: SetNull)
+  recipient       User                       @relation("DirectMessageRequestsReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+  requester       User                       @relation("DirectMessageRequestsSent", fields: [requesterId], references: [id], onDelete: Cascade)
+  thread          DirectMessageThread?       @relation(fields: [threadId], references: [id], onDelete: SetNull)
+
+  @@index([requesterId, status, createdAt])
+  @@index([recipientId, status, createdAt])
+  @@index([originPostId])
+  @@index([originCommentId])
+  @@index([threadId])
+}
+
+model DirectMessageThread {
+  id                  String                @id @default(cuid())
+  pairKey             String                @unique
+  sourcePostId        String?
+  sourceCommentId     String?
+  collaborationStatus CollaborationStatus   @default(EXPLORING)
+  collaborationNotes  String?
+  pinnedSummary       String?
+  lastMessageAt       DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  sourceComment       CommunityComment?     @relation("DirectMessageSourceComment", fields: [sourceCommentId], references: [id], onDelete: SetNull)
+  sourcePost          CommunityPost?        @relation("DirectMessageSourcePost", fields: [sourcePostId], references: [id], onDelete: SetNull)
+  messages            DirectMessage[]
+  participants        DirectMessageParticipant[]
+  reports             DirectMessageReport[]
+  requests            DirectMessageRequest[]
+  wins                Win[]
+
+  @@index([lastMessageAt])
+  @@index([collaborationStatus, updatedAt])
+  @@index([sourcePostId])
+  @@index([sourceCommentId])
+}
+
+model DirectMessageParticipant {
+  id                String            @id @default(cuid())
+  threadId          String
+  userId            String
+  isArchived        Boolean           @default(false)
+  archivedAt        DateTime?
+  isMuted           Boolean           @default(false)
+  mutedAt           DateTime?
+  lastReadMessageId String?
+  lastReadAt        DateTime?
+  joinedAt          DateTime          @default(now())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  lastReadMessage   DirectMessage?    @relation("DirectMessageLastRead", fields: [lastReadMessageId], references: [id], onDelete: SetNull)
+  thread            DirectMessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+  @@index([userId, isArchived, updatedAt])
+  @@index([threadId, lastReadAt])
+  @@index([lastReadMessageId])
+}
+
+model DirectMessage {
+  id              String                    @id @default(cuid())
+  threadId        String
+  senderId        String
+  content         String                    @default("")
+  messageType     DirectMessageType         @default(TEXT)
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  attachments     DirectMessageAttachment[]
+  readByParticipants DirectMessageParticipant[] @relation("DirectMessageLastRead")
+  reports         DirectMessageReport[]
+  sender          User                      @relation("DirectMessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  thread          DirectMessageThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([deletedAt])
+}
+
+model DirectMessageAttachment {
+  id         String                      @id @default(cuid())
+  messageId  String
+  storageKey String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  kind       DirectMessageAttachmentKind
+  createdAt  DateTime                    @default(now())
+  message    DirectMessage               @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, createdAt])
+}
+
+model DirectMessageBlock {
+  id            String   @id @default(cuid())
+  blockerId     String
+  blockedUserId String
+  reason        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  blockedUser   User     @relation("DirectMessageBlocksReceived", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  blocker       User     @relation("DirectMessageBlocksCreated", fields: [blockerId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedUserId])
+  @@index([blockedUserId, createdAt])
+}
+
+model DirectMessageReport {
+  id             String                  @id @default(cuid())
+  reporterId     String
+  reportedUserId String?
+  threadId       String?
+  messageId      String?
+  reason         DirectMessageReportReason
+  detail         String?
+  status         ModerationStatus        @default(PENDING)
+  resolvedAt     DateTime?
+  resolvedById   String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  message        DirectMessage?          @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  reportedUser   User?                   @relation("DirectMessageReportsTargetUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reporter       User                    @relation("DirectMessageReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy     User?                   @relation("DirectMessageReportsResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  thread         DirectMessageThread?    @relation(fields: [threadId], references: [id], onDelete: SetNull)
+
+  @@index([reporterId, createdAt])
+  @@index([reportedUserId, createdAt])
+  @@index([status, createdAt])
+  @@index([threadId])
+  @@index([messageId])
+}
+
+model Win {
+  id                 String        @id @default(cuid())
+  title              String
+  slug               String        @unique
+  summary            String
+  category           WinCategory
+  tags               String[]      @default([])
+  quote              String?
+  status             WinStatus     @default(DRAFT)
+  featured           Boolean       @default(false)
+  authorId           String
+  sourceThreadId     String?
+  publishedAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  attachments        WinAttachment[]
+  author             User          @relation("WinsAuthored", fields: [authorId], references: [id], onDelete: Cascade)
+  participants       WinParticipant[]
+  sourceThread       DirectMessageThread? @relation(fields: [sourceThreadId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+  @@index([authorId, createdAt])
+  @@index([category, publishedAt])
+  @@index([featured, publishedAt])
+  @@index([sourceThreadId])
+}
+
+model WinParticipant {
+  id          String               @id @default(cuid())
+  winId        String
+  userId       String
+  role         WinParticipantRole  @default(CREDITED)
+  status       WinParticipantStatus @default(PENDING)
+  respondedAt  DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  win          Win                 @relation(fields: [winId], references: [id], onDelete: Cascade)
+
+  @@unique([winId, userId])
+  @@index([userId, status, createdAt])
+}
+
+model WinAttachment {
+  id         String                      @id @default(cuid())
+  winId       String
+  storageKey  String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  kind        DirectMessageAttachmentKind
+  createdAt   DateTime                   @default(now())
+  win         Win                        @relation(fields: [winId], references: [id], onDelete: Cascade)
+
+  @@index([winId, createdAt])
+}
+
+model ModerationAuditLog {
+  id         String               @id @default(cuid())
+  adminUserId String
+  entityType ModerationEntityType
+  entityId   String
+  action     ModerationActionType
+  notes      String?
+  createdAt  DateTime             @default(now())
+  adminUser  User                 @relation("ModerationActionsByAdmin", fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, createdAt])
+  @@index([entityType, createdAt])
+  @@index([entityId, createdAt])
 }
 
 model FounderServiceRequest {
@@ -1356,6 +1592,90 @@ enum CommunityPromptTriggerSource {
   OPPORTUNISTIC
   ADMIN_MANUAL
   CRON
+}
+
+enum DirectMessageRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum DirectMessageType {
+  TEXT
+  SYSTEM
+}
+
+enum DirectMessageAttachmentKind {
+  IMAGE
+  FILE
+}
+
+enum DirectMessageReportReason {
+  SPAM
+  ABUSE
+  HARASSMENT
+  INAPPROPRIATE_FILE
+  OTHER
+}
+
+enum CollaborationStatus {
+  EXPLORING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ModerationStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+enum WinStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PUBLISHED
+  CHANGES_REQUESTED
+  ARCHIVED
+}
+
+enum WinCategory {
+  REFERRAL
+  PARTNERSHIP
+  SALE
+  SUPPORT
+  BREAKTHROUGH
+  CONNECTION
+  COLLABORATION
+  CLARITY
+  OPPORTUNITY
+  MILESTONE
+}
+
+enum WinParticipantRole {
+  AUTHOR
+  CREDITED
+}
+
+enum WinParticipantStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+enum ModerationEntityType {
+  DIRECT_MESSAGE_THREAD
+  DIRECT_MESSAGE_MESSAGE
+  DIRECT_MESSAGE_ATTACHMENT
+  WIN
+}
+
+enum ModerationActionType {
+  RESOLVE_REPORT
+  DISMISS_REPORT
+  REMOVE_ATTACHMENT
+  CHANGE_WIN_STATUS
+  FLAG_USER
 }
 
 enum CallRoomType {

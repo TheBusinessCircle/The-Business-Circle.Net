@@ -7,6 +7,7 @@ import {
   Crown,
   LayoutGrid,
   MessageSquare,
+  Trophy,
   Search,
   UserCircle2,
   Video
@@ -32,6 +33,12 @@ function iconForHref(href: string) {
   }
   if (href.startsWith("/directory")) {
     return UserCircle2;
+  }
+  if (href.startsWith("/messages")) {
+    return MessageSquare;
+  }
+  if (href.startsWith("/wins")) {
+    return Trophy;
   }
   if (href.startsWith("/calls")) {
     return Video;
@@ -83,6 +90,11 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
           >
             <Icon size={16} />
             <span>{item.label}</span>
+            {item.badgeCount ? (
+              <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[11px] text-gold">
+                {item.badgeCount}
+              </span>
+            ) : null}
           </Link>
         );
       })}

@@ -152,6 +152,8 @@ export default async function CommunityPage({ searchParams }: PageProps) {
         upcomingEvents={upcomingEvents}
         membershipTier={effectiveTier}
         currentUserName={session.user.name}
+        currentUserId={session.user.id}
+        viewerCanContinuePrivately={Boolean(session.user.emailVerified)}
         initialExpandedPostId={expandedPostId}
         featuredConnectionWin={recentConnectionWins[0] ?? null}
       />

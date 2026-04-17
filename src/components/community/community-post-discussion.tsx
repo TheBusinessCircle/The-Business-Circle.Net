@@ -17,6 +17,7 @@ import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { FeedSubmitButton } from "@/components/community/feed-submit-button";
 import { CommunityUserSignals } from "@/components/community/community-user-signals";
+import { ContinuePrivatelyButton } from "@/components/messages";
 import { authorName } from "@/lib/community-helpers";
 import {
   CONNECTION_WIN_INTERNAL_TAGS,
@@ -214,12 +215,16 @@ function CommentEngagementBar({
 function CommentThread({
   comments,
   returnPath,
+  currentUserId,
+  viewerCanContinuePrivately,
   depth = 0,
   activeReplyId,
   onToggleReply
 }: {
   comments: CommunityCommentModel[];
   returnPath: string;
+  currentUserId: string;
+  viewerCanContinuePrivately: boolean;
   depth?: number;
   activeReplyId: string | null;
   onToggleReply: (commentId: string | null) => void;
@@ -257,6 +262,17 @@ function CommentThread({
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                   {comment.content}
                 </p>
+                {viewerCanContinuePrivately && comment.user.id !== currentUserId ? (
+                  <div className="mt-3">
+                    <ContinuePrivatelyButton
+                      recipientId={comment.user.id}
+                      recipientName={displayName}
+                      originCommentId={comment.id}
+                      compact
+                      variant="ghost"
+                    />
+                  </div>
+                ) : null}
                 <CommentEngagementBar
                   comment={comment}
                   isReplyOpen={isReplyOpen}
@@ -280,6 +296,8 @@ function CommentThread({
             <CommentThread
               comments={comment.replies}
               returnPath={returnPath}
+              currentUserId={currentUserId}
+              viewerCanContinuePrivately={viewerCanContinuePrivately}
               depth={depth + 1}
               activeReplyId={activeReplyId}
               onToggleReply={onToggleReply}
@@ -350,6 +368,8 @@ export function CommunityPostBody({
 
 export function CommunityPostEngagementBar({
   post,
+  currentUserId,
+  viewerCanContinuePrivately,
   discussionHref,
   discussionLabel = "View discussion",
   replyHref,
@@ -357,6 +377,8 @@ export function CommunityPostEngagementBar({
   onReplyClick
 }: {
   post: CommunityPostSummaryModel;
+  currentUserId: string;
+  viewerCanContinuePrivately: boolean;
   discussionHref?: string;
   discussionLabel?: string;
   replyHref?: string;
@@ -449,16 +471,28 @@ export function CommunityPostEngagementBar({
           </Button>
         </Link>
       ) : null}
+
+      {viewerCanContinuePrivately && post.user.id !== currentUserId ? (
+        <ContinuePrivatelyButton
+          recipientId={post.user.id}
+          recipientName={authorName(post.user)}
+          originPostId={post.id}
+        />
+      ) : null}
     </div>
   );
 }
 
 export function CommunityPostCommentsSection({
   post,
-  returnPath
+  returnPath,
+  currentUserId,
+  viewerCanContinuePrivately
 }: {
   post: CommunityPostDetailModel;
   returnPath: string;
+  currentUserId: string;
+  viewerCanContinuePrivately: boolean;
 }) {
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
 
@@ -468,6 +502,8 @@ export function CommunityPostCommentsSection({
         <CommentThread
           comments={post.comments}
           returnPath={returnPath}
+          currentUserId={currentUserId}
+          viewerCanContinuePrivately={viewerCanContinuePrivately}
           activeReplyId={activeReplyId}
           onToggleReply={setActiveReplyId}
         />
@@ -488,12 +524,16 @@ export function CommunityPostCommentsSection({
 export function CommunityPostDiscussion({
   post,
   returnPath,
+  currentUserId,
+  viewerCanContinuePrivately,
   discussionHref,
   discussionLabel = "Open post",
   showTags = true
 }: {
   post: CommunityPostDetailModel;
   returnPath: string;
+  currentUserId: string;
+  viewerCanContinuePrivately: boolean;
   discussionHref?: string;
   discussionLabel?: string;
   showTags?: boolean;
@@ -503,12 +543,19 @@ export function CommunityPostDiscussion({
       <CommunityPostBody post={post} showTags={showTags} />
       <CommunityPostEngagementBar
         post={post}
+        currentUserId={currentUserId}
+        viewerCanContinuePrivately={viewerCanContinuePrivately}
         discussionHref={discussionHref}
         discussionLabel={discussionLabel}
         replyHref="#discussion-reply"
         replyLabel="Reply below"
       />
-      <CommunityPostCommentsSection post={post} returnPath={returnPath} />
+      <CommunityPostCommentsSection
+        post={post}
+        returnPath={returnPath}
+        currentUserId={currentUserId}
+        viewerCanContinuePrivately={viewerCanContinuePrivately}
+      />
     </div>
   );
 }

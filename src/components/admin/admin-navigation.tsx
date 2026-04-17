@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Sparkles,
   Settings,
+  Trophy,
   UsersRound,
   Video
 } from "lucide-react";
@@ -41,6 +42,12 @@ function iconForHref(href: string) {
   }
   if (href.startsWith("/admin/community")) {
     return MessageSquare;
+  }
+  if (href.startsWith("/admin/messages")) {
+    return MessageSquare;
+  }
+  if (href.startsWith("/admin/wins")) {
+    return Trophy;
   }
   if (href.startsWith("/admin/events")) {
     return CalendarDays;
@@ -102,6 +109,11 @@ export function AdminNavigation({ items, orientation = "vertical" }: AdminNaviga
           >
             <Icon size={16} />
             <span>{item.label}</span>
+            {item.badgeCount ? (
+              <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[11px] text-gold">
+                {item.badgeCount}
+              </span>
+            ) : null}
           </Link>
         );
       })}

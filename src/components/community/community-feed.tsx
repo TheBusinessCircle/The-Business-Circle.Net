@@ -38,6 +38,8 @@ type CommunityFeedProps = {
   upcomingEvents: PlatformEventModel[];
   membershipTier: MembershipTier;
   currentUserName?: string | null;
+  currentUserId: string;
+  viewerCanContinuePrivately: boolean;
   initialExpandedPostId?: string | null;
   featuredConnectionWin?: CommunityRecentPostModel | null;
 };
@@ -123,6 +125,8 @@ export function CommunityFeed({
   upcomingEvents,
   membershipTier,
   currentUserName,
+  currentUserId,
+  viewerCanContinuePrivately,
   initialExpandedPostId,
   featuredConnectionWin
 }: CommunityFeedProps) {
@@ -237,6 +241,8 @@ export function CommunityFeed({
           <CommunityPostFeedList
             posts={feed.posts}
             channelSlug={selectedChannel.slug}
+            currentUserId={currentUserId}
+            viewerCanContinuePrivately={viewerCanContinuePrivately}
             initialExpandedPostId={initialExpandedPostId}
           />
         ) : (
