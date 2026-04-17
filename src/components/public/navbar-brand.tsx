@@ -11,7 +11,7 @@ export function NavbarBrand() {
   return (
     <Link
       href="/"
-      className="group flex min-w-0 max-w-[calc(100%-2.5rem)] flex-1 items-center gap-1.5 overflow-hidden pr-2 sm:max-w-none sm:gap-3 lg:flex-none lg:pr-0"
+      className="group flex min-w-0 max-w-[calc(100%-2.5rem)] flex-1 items-center gap-1.5 overflow-hidden pr-2 sm:max-w-none sm:gap-3 lg:max-w-[18rem] lg:flex-none lg:pr-0 xl:max-w-[19rem]"
     >
       <BrandMark
         placement="navbar"
@@ -25,7 +25,7 @@ export function NavbarBrand() {
           <span className="hidden sm:inline">The Business Circle Network</span>
         </p>
         <p className="hidden text-[9px] tracking-[0.12em] text-muted uppercase sm:block">
-          Founder-Led Growth Ecosystem
+          Private Founder-Led Environment
         </p>
       </div>
     </Link>

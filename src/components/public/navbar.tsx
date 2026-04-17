@@ -2,10 +2,10 @@ import Link from "next/link";
 import { Menu } from "lucide-react";
 import { auth } from "@/auth";
 import { BackgroundModeToggle } from "@/components/background-mode/background-mode-toggle";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { NavbarBrand } from "@/components/public/navbar-brand";
-import { PUBLIC_NAV } from "@/lib/constants";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { signOutAction } from "@/lib/actions/auth-actions";
+import { PUBLIC_NAV } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 function NavigationLinks() {
@@ -15,7 +15,7 @@ function NavigationLinks() {
         <Link
           key={item.href}
           href={item.href}
-          className="rounded-xl px-3 py-2 text-sm text-muted transition-all hover:bg-background/55 hover:text-foreground"
+          className="rounded-xl px-2.5 py-2 text-sm text-muted transition-all hover:bg-background/55 hover:text-foreground xl:px-3"
         >
           {item.label}
         </Link>
@@ -29,18 +29,18 @@ export async function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 overflow-x-clip border-b border-border/80 bg-background/82 backdrop-blur-xl">
-      <div className="mx-auto flex h-[4.5rem] w-full max-w-7xl items-center justify-between gap-2 px-2.5 sm:h-[5.5rem] sm:gap-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-[4.5rem] w-full max-w-7xl items-center justify-between gap-3 px-2.5 sm:h-[5.5rem] sm:gap-6 sm:px-6 lg:px-8">
         <NavbarBrand />
 
-        <nav className="hidden min-w-0 items-center gap-1 rounded-2xl border border-border/70 bg-card/60 p-1.5 shadow-panel-soft lg:flex">
-          <NavigationLinks />
+        <nav className="hidden flex-1 items-center justify-center px-3 lg:flex">
+          <div className="flex min-w-0 max-w-[36rem] items-center gap-1 rounded-2xl border border-border/70 bg-card/60 p-1.5 shadow-panel-soft">
+            <NavigationLinks />
+          </div>
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
-          <span className="rounded-full border border-gold/24 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
-            For business owners
-          </span>
+        <div className="hidden flex-none items-center gap-2 lg:flex">
           <BackgroundModeToggle />
+          <div className="h-7 w-px bg-border/70" />
           {session?.user ? (
             <>
               <Link
@@ -61,7 +61,7 @@ export async function Navbar() {
                 href="/login"
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
-                Member sign in
+                Sign in
               </Link>
               <Link href="/membership" className={buttonVariants({ size: "sm" })}>
                 Find Your Room
@@ -86,7 +86,7 @@ export async function Navbar() {
                   Built for business owners who value clearer rooms and better signal.
                 </p>
               </div>
-              <nav className="flex flex-col gap-1">
+              <nav className="mt-3 flex flex-col gap-1">
                 <NavigationLinks />
               </nav>
               <div className="gold-divider my-3" />
@@ -123,7 +123,7 @@ export async function Navbar() {
                         "w-full justify-center"
                       )}
                     >
-                      Member sign in
+                      Sign in
                     </Link>
                     <Link
                       href="/membership"
