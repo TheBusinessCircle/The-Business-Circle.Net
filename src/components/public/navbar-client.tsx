@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { startTransition, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import type { NavigationItem } from "@/types";
 import { BackgroundModeToggle } from "@/components/background-mode/background-mode-toggle";
@@ -18,18 +18,16 @@ type NavbarClientProps = {
 
 type NavigationLinksProps = {
   items: readonly NavigationItem[];
-  onNavigate?: () => void;
   className?: string;
 };
 
-function NavigationLinks({ items, onNavigate, className }: NavigationLinksProps) {
+function NavigationLinks({ items, className }: NavigationLinksProps) {
   return (
     <>
       {items.map((item) => (
         <Link
           key={item.href}
           href={item.href}
-          onClick={onNavigate}
           className={cn(
             "rounded-xl px-2.5 py-2 text-sm text-muted transition-all hover:bg-background/55 hover:text-foreground xl:px-3",
             className
@@ -45,10 +43,22 @@ function NavigationLinks({ items, onNavigate, className }: NavigationLinksProps)
 export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
+
+  function closeMobileMenu() {
+    setMobileMenuOpen(false);
+  }
+
+  function handleMobileNavigation(href: string) {
+    closeMobileMenu();
+    startTransition(() => {
+      router.push(href);
+    });
+  }
 
   return (
     <header className="sticky top-0 z-50 overflow-x-clip border-b border-border/80 bg-background/82 backdrop-blur-xl">
@@ -121,29 +131,35 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                 </p>
               </div>
               <nav className="mt-3 flex flex-col gap-1">
-                <NavigationLinks
-                  items={PUBLIC_NAV}
-                  onNavigate={() => setMobileMenuOpen(false)}
-                />
+                {PUBLIC_NAV.map((item) => (
+                  <button
+                    key={item.href}
+                    type="button"
+                    onClick={() => handleMobileNavigation(item.href)}
+                    className="rounded-xl px-2.5 py-2 text-left text-sm text-muted transition-all hover:bg-background/55 hover:text-foreground"
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </nav>
               <div className="gold-divider my-3" />
               <BackgroundModeToggle fullWidth />
               <div className="mt-3 flex flex-col gap-2">
                 {isAuthenticated ? (
                   <>
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setMobileMenuOpen(false)}
+                    <button
+                      type="button"
+                      onClick={() => handleMobileNavigation("/dashboard")}
                       className={cn(
                         buttonVariants({ variant: "outline", size: "sm" }),
                         "w-full justify-center"
                       )}
                     >
                       Member home
-                    </Link>
+                    </button>
                     <form
                       action={signOutAction}
-                      onSubmit={() => setMobileMenuOpen(false)}
+                      onSubmit={closeMobileMenu}
                     >
                       <Button
                         type="submit"
@@ -157,23 +173,23 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                   </>
                 ) : (
                   <>
-                    <Link
-                      href="/login"
-                      onClick={() => setMobileMenuOpen(false)}
+                    <button
+                      type="button"
+                      onClick={() => handleMobileNavigation("/login")}
                       className={cn(
                         buttonVariants({ variant: "outline", size: "sm" }),
                         "w-full justify-center"
                       )}
                     >
                       Sign in
-                    </Link>
-                    <Link
-                      href="/membership"
-                      onClick={() => setMobileMenuOpen(false)}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMobileNavigation("/membership")}
                       className={cn(buttonVariants({ size: "sm" }), "w-full justify-center")}
                     >
                       Find Your Room
-                    </Link>
+                    </button>
                   </>
                 )}
               </div>
