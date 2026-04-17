@@ -18,23 +18,15 @@ const baseInput = {
 };
 
 describe("community private messaging reply rules", () => {
-  it("does not allow the main post action row to start a private chat", () => {
-    const state = getPrivateReplyActionState({
-      ...baseInput,
-      isNestedReply: false
-    });
-
-    expect(state).toEqual({
-      kind: "hidden",
-      reason: "not-nested-reply"
-    });
-  });
-
-  it("does not allow the first reply to a post to start a private chat", () => {
+  it("does not allow the first reply to a post to start a private chat before discussion begins", () => {
     expect(
       canStartPrivateFromReply({
         ...baseInput,
-        isNestedReply: false
+        isNestedReply: false,
+        replyThread: {
+          participantCount: 1,
+          hasReplyToReplyEvent: false
+        }
       })
     ).toBe(false);
   });
@@ -68,6 +60,17 @@ describe("community private messaging reply rules", () => {
     expect(oneParticipant).toEqual({
       kind: "hidden",
       reason: "discussion-threshold"
+    });
+  });
+
+  it("allows the first reply to a post once that reply thread has a real back-and-forth", () => {
+    expect(
+      getPrivateReplyActionState({
+        ...baseInput,
+        isNestedReply: false
+      })
+    ).toEqual({
+      kind: "request"
     });
   });
 

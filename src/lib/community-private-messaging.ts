@@ -6,7 +6,6 @@ import type {
 type HiddenReason =
   | "viewer-not-eligible"
   | "self"
-  | "not-nested-reply"
   | "discussion-threshold"
   | "blocked";
 
@@ -63,17 +62,10 @@ export function getPrivateReplyActionState(input: {
     };
   }
 
-  if (!input.isNestedReply) {
-    return {
-      kind: "hidden",
-      reason: "not-nested-reply"
-    };
-  }
+  const hasDiscussionThreshold =
+    input.replyThread.hasReplyToReplyEvent && input.replyThread.participantCount >= 2;
 
-  if (
-    !input.replyThread.hasReplyToReplyEvent ||
-    input.replyThread.participantCount < 2
-  ) {
+  if (!hasDiscussionThreshold) {
     return {
       kind: "hidden",
       reason: "discussion-threshold"
