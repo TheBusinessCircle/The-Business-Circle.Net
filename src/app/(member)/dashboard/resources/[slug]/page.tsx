@@ -7,14 +7,25 @@ import {
   markResourceAsReadAction,
   markResourceAsUnreadAction
 } from "@/actions/resources/resource-progress.actions";
-import { ResourceMarkdown, ResourceTierBadge } from "@/components/resources";
+import {
+  ResourceMarkdown,
+  ResourceNarratorCard,
+  ResourceNarratorPrimaryControls,
+  ResourceNarratorProvider,
+  ResourceNarratorSectionButton,
+  ResourceTierBadge,
+  type ResourceNarrationItem
+} from "@/components/resources";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SITE_CONFIG } from "@/config/site";
 import { getResourceTypeLabel } from "@/config/resources";
 import { getResourceDiscussionLink } from "@/lib/resource-community";
-import { splitResourceContentSections } from "@/lib/resources/markdown";
+import {
+  resourceMarkdownToPlainText,
+  splitResourceContentSections
+} from "@/lib/resources/markdown";
 import { roleToTier } from "@/lib/permissions";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
@@ -100,6 +111,20 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
   });
   const recentlyAdded = latestResources.filter((item) => item.id !== resource.id).slice(0, 3);
   const parsed = splitResourceContentSections(resource.content);
+  const narrationItems: ResourceNarrationItem[] = [
+    {
+      id: "opening",
+      label: "Opening",
+      type: "opening",
+      plainText: [resource.title, resourceMarkdownToPlainText(parsed.intro)].filter(Boolean).join(". ")
+    },
+    ...parsed.sections.map((section) => ({
+      id: section.id,
+      label: section.heading,
+      type: "section" as const,
+      plainText: [section.heading, resourceMarkdownToPlainText(section.body)].filter(Boolean).join(". ")
+    }))
+  ];
   const discussionLink = getResourceDiscussionLink({
     category: resource.category,
     type: resource.type,
@@ -144,26 +169,39 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-6">
-          <Card id="opening" className="scroll-mt-28 border-silver/16 bg-card/68">
-            <CardHeader>
-              <CardTitle>Opening</CardTitle>
-              <CardDescription>The central idea in one direct pass.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResourceMarkdown content={parsed.intro} />
-            </CardContent>
-          </Card>
-
-          {parsed.sections.map((section) => (
-            <Card key={section.id} id={section.id} className="scroll-mt-28 border-silver/16 bg-card/68">
-              <CardHeader>
-                <CardTitle>{section.heading}</CardTitle>
+          <ResourceNarratorProvider items={narrationItems}>
+            <ResourceNarratorCard sectionId="opening">
+              <CardHeader className="gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <CardTitle>Opening</CardTitle>
+                    <CardDescription>The central idea in one direct pass.</CardDescription>
+                  </div>
+                  <ResourceNarratorPrimaryControls />
+                </div>
               </CardHeader>
               <CardContent>
-                <ResourceMarkdown content={section.body} />
+                <ResourceMarkdown content={parsed.intro} />
               </CardContent>
-            </Card>
-          ))}
+            </ResourceNarratorCard>
+
+            {parsed.sections.map((section) => (
+              <ResourceNarratorCard key={section.id} sectionId={section.id}>
+                <CardHeader className="gap-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <CardTitle className="pr-3">{section.heading}</CardTitle>
+                    <ResourceNarratorSectionButton
+                      sectionId={section.id}
+                      label={section.heading}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ResourceMarkdown content={section.body} />
+                </CardContent>
+              </ResourceNarratorCard>
+            ))}
+          </ResourceNarratorProvider>
 
           <Card className="border-silver/16 bg-card/62">
             <CardHeader>

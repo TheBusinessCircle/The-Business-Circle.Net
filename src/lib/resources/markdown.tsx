@@ -67,6 +67,16 @@ export function splitResourceContentSections(content: string) {
   };
 }
 
+function stripInlineMarkdown(text: string) {
+  return text
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/[_~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function parseMarkdownBlocks(content: string): MarkdownBlock[] {
   const normalized = content.replace(/\r\n/g, "\n").trim();
   if (!normalized) {
@@ -237,6 +247,32 @@ export function renderResourceMarkdown(content: string): ReactNode[] {
       </p>
     );
   });
+}
+
+export function resourceMarkdownToPlainText(content: string) {
+  const blocks = parseMarkdownBlocks(content);
+
+  return blocks
+    .map((block) => {
+      if (block.type === "heading") {
+        return stripInlineMarkdown(block.text);
+      }
+
+      if (block.type === "ordered-list") {
+        return block.items
+          .map((item, index) => `${index + 1}. ${stripInlineMarkdown(item)}`)
+          .join("\n");
+      }
+
+      if (block.type === "unordered-list") {
+        return block.items.map((item) => stripInlineMarkdown(item)).join("\n");
+      }
+
+      return stripInlineMarkdown(block.text);
+    })
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
 }
 
 export function extractResourcePreview(content: string) {
