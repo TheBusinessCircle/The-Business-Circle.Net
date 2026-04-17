@@ -153,7 +153,9 @@ export default async function CommunityPage({ searchParams }: PageProps) {
         membershipTier={effectiveTier}
         currentUserName={session.user.name}
         currentUserId={session.user.id}
-        viewerCanContinuePrivately={Boolean(session.user.emailVerified)}
+        viewerCanContinuePrivately={
+          Boolean(session.user.emailVerified) || session.user.role === "ADMIN"
+        }
         initialExpandedPostId={expandedPostId}
         featuredConnectionWin={recentConnectionWins[0] ?? null}
       />

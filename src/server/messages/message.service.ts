@@ -32,6 +32,7 @@ const directMessageMemberSelect = {
   name: true,
   email: true,
   image: true,
+  role: true,
   membershipTier: true,
   memberRoleTag: true,
   foundingTier: true,
@@ -305,6 +306,13 @@ async function getEligibleMember(userId: string) {
       ...directMessageMemberSelect
     }
   });
+}
+
+function canUseDirectMessages(user: {
+  emailVerified: Date | null;
+  role: Prisma.UserGetPayload<{ select: { role: true } }>["role"];
+}) {
+  return Boolean(user.emailVerified) || user.role === "ADMIN";
 }
 
 async function resolveRequestOrigin(input: {
@@ -753,11 +761,11 @@ export async function createDirectMessageRequest(input: {
     throw new Error("member-unavailable");
   }
 
-  if (!requester.emailVerified) {
+  if (!canUseDirectMessages(requester)) {
     throw new Error("email-verification-required");
   }
 
-  if (!recipient.emailVerified) {
+  if (!canUseDirectMessages(recipient)) {
     throw new Error("recipient-not-verified");
   }
 

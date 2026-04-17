@@ -172,7 +172,9 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
               post={post}
               returnPath={returnPath}
               currentUserId={session.user.id}
-              viewerCanContinuePrivately={Boolean(session.user.emailVerified)}
+              viewerCanContinuePrivately={
+                Boolean(session.user.emailVerified) || session.user.role === "ADMIN"
+              }
             />
           </CardContent>
         </Card>

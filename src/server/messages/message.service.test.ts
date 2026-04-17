@@ -51,12 +51,14 @@ describe("message service", () => {
       .mockResolvedValueOnce({
         id: "user_requester",
         emailVerified: new Date(),
+        role: "MEMBER",
         suspended: false,
         email: "requester@example.com"
       })
       .mockResolvedValueOnce({
         id: "user_recipient",
         emailVerified: new Date(),
+        role: "MEMBER",
         suspended: false,
         email: "recipient@example.com"
       });
@@ -143,6 +145,54 @@ describe("message service", () => {
         })
       })
     );
+  });
+
+  it("allows an admin without email verification to create a request", async () => {
+    dbMock.user.findUnique
+      .mockResolvedValueOnce({
+        id: "user_admin",
+        emailVerified: null,
+        role: "ADMIN",
+        suspended: false,
+        email: "admin@example.com"
+      })
+      .mockResolvedValueOnce({
+        id: "user_recipient",
+        emailVerified: new Date(),
+        role: "MEMBER",
+        suspended: false,
+        email: "recipient@example.com"
+      });
+    dbMock.directMessageBlock.findFirst.mockResolvedValue(null);
+    dbMock.communityPost.findUnique.mockResolvedValue({
+      id: "post_1",
+      title: "Post",
+      userId: "user_recipient",
+      deletedAt: null,
+      channel: {
+        slug: "strategy",
+        name: "Strategy"
+      }
+    });
+    dbMock.directMessageThread.findUnique.mockResolvedValue(null);
+    dbMock.directMessageRequest.findFirst.mockResolvedValue(null);
+    dbMock.directMessageRequest.create.mockResolvedValue({
+      id: "request_1"
+    });
+
+    const result = await createDirectMessageRequest({
+      requesterId: "user_admin",
+      recipientId: "user_recipient",
+      originPostId: "post_1",
+      introMessage: "Could we continue this privately?"
+    });
+
+    expect(result).toEqual({
+      status: "created",
+      requestId: "request_1",
+      requesterId: "user_admin",
+      recipientId: "user_recipient"
+    });
   });
 
   it("maps existing threads, pending requests, and blocks for visible community participants", async () => {
