@@ -510,8 +510,12 @@ export function ResourceNarratorSectionButton({
   const {
     activeSectionId,
     hasPlayableSection,
+    isPaused,
+    isPlaying,
     isSupported,
-    startFromSection
+    startFromSection,
+    stopPlayback,
+    togglePlayback
   } = useResourceNarratorContext();
 
   if (!isSupported) {
@@ -522,21 +526,65 @@ export function ResourceNarratorSectionButton({
   const active = activeSectionId === sectionId;
 
   return (
-    <Button
-      type="button"
-      variant={active ? "secondary" : "ghost"}
-      size="sm"
-      onClick={() => startFromSection(sectionId)}
-      disabled={!playable}
-      aria-label={playable ? `Narrate from ${label}` : `Narration unavailable for ${label}`}
-      aria-pressed={active}
-      className={cn(
-        "h-8 w-8 rounded-lg p-0 text-silver hover:bg-background/24 hover:text-foreground",
-        active ? "border border-gold/22 bg-gold/10 text-foreground" : ""
-      )}
-    >
-      <Volume2 size={14} />
-      <span className="sr-only">{active ? `Narrating ${label}` : `Narrate ${label}`}</span>
-    </Button>
+    <div className="flex items-center gap-1">
+      <Button
+        type="button"
+        variant={active ? "secondary" : "ghost"}
+        size="sm"
+        onClick={() => startFromSection(sectionId)}
+        disabled={!playable}
+        aria-label={playable ? `Narrate from ${label}` : `Narration unavailable for ${label}`}
+        aria-pressed={active}
+        className={cn(
+          "h-8 w-8 rounded-lg p-0 text-silver hover:bg-background/24 hover:text-foreground",
+          active ? "border border-gold/22 bg-gold/10 text-foreground" : ""
+        )}
+      >
+        <Volume2 size={14} />
+        <span className="sr-only">{active ? `Narrating ${label}` : `Narrate ${label}`}</span>
+      </Button>
+
+      <Button
+        type="button"
+        variant={active ? "secondary" : "ghost"}
+        size="sm"
+        onClick={togglePlayback}
+        disabled={!active || !isPlaying}
+        aria-label={
+          active
+            ? isPaused
+              ? `Resume narration for ${label}`
+              : `Pause narration for ${label}`
+            : `Pause narration unavailable for ${label}`
+        }
+        className={cn(
+          "h-8 w-8 rounded-lg p-0 text-silver hover:bg-background/24 hover:text-foreground",
+          active ? "border border-silver/16 bg-background/24 text-foreground" : ""
+        )}
+      >
+        {active && isPlaying && !isPaused ? <Pause size={14} /> : <Play size={14} />}
+        <span className="sr-only">
+          {active ? (isPaused ? `Resume ${label}` : `Pause ${label}`) : `Pause unavailable for ${label}`}
+        </span>
+      </Button>
+
+      <Button
+        type="button"
+        variant={active ? "secondary" : "ghost"}
+        size="sm"
+        onClick={stopPlayback}
+        disabled={!active || (!isPlaying && !isPaused)}
+        aria-label={active ? `Stop narration for ${label}` : `Stop narration unavailable for ${label}`}
+        className={cn(
+          "h-8 w-8 rounded-lg p-0 text-silver hover:bg-background/24 hover:text-foreground",
+          active ? "border border-silver/16 bg-background/24 text-foreground" : ""
+        )}
+      >
+        <Square size={14} />
+        <span className="sr-only">
+          {active ? `Stop ${label}` : `Stop unavailable for ${label}`}
+        </span>
+      </Button>
+    </div>
   );
 }
