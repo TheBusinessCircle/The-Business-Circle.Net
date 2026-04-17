@@ -39,17 +39,17 @@ function firstValue(value: string | string[] | undefined) {
 
 function feedbackMessage(input: { notice: string; error: string }) {
   const noticeMap: Record<string, string> = {
-    "post-created": "Your post is now live in the community.",
-    "comment-created": "Your comment has been added."
+    "post-created": "Your discussion is now live in the room.",
+    "comment-created": "Your reply has been added."
   };
 
   const errorMap: Record<string, string> = {
-    "post-invalid": "Please give the post a clearer title and a little more detail.",
-    "post-blocked": "Please rewrite that before posting. We block profanity and abusive language to keep the community useful for everyone.",
-    "comment-invalid": "Please add a little more detail before posting that comment.",
-    "comment-blocked": "Please rewrite that before posting. We block profanity and abusive language to keep the community useful for everyone.",
-    "comment-forbidden": "That comment is no longer available in this discussion.",
-    "channel-forbidden": "You do not currently have access to that category.",
+    "post-invalid": "Please give the discussion a clearer title and enough detail for useful replies.",
+    "post-blocked": "Please rewrite that before posting. Profanity and abusive language are blocked to keep the rooms commercially useful.",
+    "comment-invalid": "Please add enough detail for the reply to be useful.",
+    "comment-blocked": "Please rewrite that before posting. Profanity and abusive language are blocked to keep the rooms commercially useful.",
+    "comment-forbidden": "That reply is no longer available in this discussion.",
+    "channel-forbidden": "You do not currently have access to that room.",
     "post-forbidden": "That discussion is no longer available at your access level."
   };
 
@@ -97,8 +97,8 @@ export default async function CommunityPage({ searchParams }: PageProps) {
     return (
       <EmptyState
         icon={MessageSquareText}
-        title="Community categories are not available yet"
-        description="Admins can configure categories from the control panel. Refresh after categories are added."
+        title="Community rooms are not available yet"
+        description="Admins can configure the discussion rooms from the control panel. Refresh once the rooms are in place."
       />
     );
   }
@@ -113,10 +113,10 @@ export default async function CommunityPage({ searchParams }: PageProps) {
       <Card className="border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
         <CardHeader>
           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Member discussions</p>
-          <CardTitle className="font-display text-3xl">Community</CardTitle>
+          <CardTitle className="font-display text-3xl">Structured discussions</CardTitle>
           <p className="max-w-4xl text-sm leading-relaxed text-muted">
-            A calmer discussion space for business owners who want visible conversations, better context,
-            and less noise than live chat. Choose a room, expand a post inline, or open the full discussion when you need the whole thread.
+            A calmer discussion space for business owners who want stronger context, more useful replies,
+            and less noise than live chat. Choose a room, open the strongest thread, or start a discussion when you have something worth placing in front of the group.
           </p>
         </CardHeader>
         <CardContent className="pt-0">

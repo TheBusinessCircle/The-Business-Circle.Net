@@ -130,8 +130,8 @@ export function CommunityFeed({
     return (
       <EmptyState
         icon={MessageSquareText}
-        title="Community categories are not available yet"
-        description="Admins can configure categories from the control panel, then the feed will appear here."
+        title="Community rooms are not available yet"
+        description="Admins can configure the discussion rooms from the control panel, then the feed will appear here."
       />
     );
   }
@@ -191,7 +191,7 @@ export function CommunityFeed({
                   ) : null}
                 </div>
                 <CardDescription className="max-w-3xl text-base">
-                  {selectedChannel.description || selectedChannel.topic || "Business discussion area"}
+                  {selectedChannel.description || selectedChannel.topic || "Business discussion room"}
                 </CardDescription>
               </div>
 
@@ -242,8 +242,8 @@ export function CommunityFeed({
         ) : (
           <EmptyState
             icon={MessagesSquare}
-            title="Nothing has been posted here yet"
-            description="This room is ready for thoughtful discussion. Start the first post and give people something useful to respond to."
+            title="This room is quiet so far"
+            description="Start with a clear question, lesson, or decision so the first replies have something useful to build on."
           />
         )}
       </div>
@@ -272,7 +272,7 @@ export function CommunityFeed({
             <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Next step</p>
               <p className="mt-3 text-sm text-muted">
-                Keep titles clear, reply where you can add real context, and let the best discussions stay easy to revisit later.
+                Keep titles clear, reply where you can add real context, and let the strongest discussions stay easy to revisit later.
               </p>
             </div>
           </CardContent>

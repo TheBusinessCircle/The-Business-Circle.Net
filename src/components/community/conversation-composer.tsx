@@ -37,10 +37,10 @@ export function ConversationComposer({
         <div className="space-y-2">
           <CardTitle className="flex items-center gap-2 text-2xl">
             <PencilLine size={18} className="text-gold" />
-            Start a conversation
+            Start a useful thread
           </CardTitle>
           <CardDescription>
-            Keep it clear and useful. Use one of the prompts below if you want a cleaner place to begin in {channelName}.
+            Keep it clear and commercially useful. Use one of the prompts below if you want a cleaner place to begin in {channelName}.
           </CardDescription>
         </div>
 
@@ -49,10 +49,10 @@ export function ConversationComposer({
             Clear title
           </Badge>
           <Badge variant="muted" className="normal-case tracking-normal">
-            Useful detail
+            Real context
           </Badge>
           <Badge variant="muted" className="normal-case tracking-normal">
-            Better replies
+            Useful replies
           </Badge>
         </div>
 
@@ -79,7 +79,7 @@ export function ConversationComposer({
                 >
                   <p className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-silver">
                     <Sparkles size={12} />
-                    Prompt
+                    Room prompt
                   </p>
                   <p className="mt-3 text-sm font-medium text-foreground">{prompt.title}</p>
                   <p className="mt-2 line-clamp-3 text-sm text-muted">{prompt.prompt}</p>
@@ -98,7 +98,7 @@ export function ConversationComposer({
           <div className="space-y-2">
             <Input
               name="title"
-              placeholder="Post title"
+              placeholder="Clear discussion title"
               aria-label="Post title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -112,8 +112,8 @@ export function ConversationComposer({
               rows={5}
               placeholder={
                 currentUserName
-                  ? `${currentUserName}, what is worth discussing right now?`
-                  : "What is worth discussing right now?"
+                  ? `${currentUserName}, what decision, question, or lesson is worth putting in front of this room?`
+                  : "What decision, question, or lesson is worth putting in front of this room?"
               }
               value={content}
               onChange={(event) => setContent(event.target.value)}
@@ -124,7 +124,7 @@ export function ConversationComposer({
             <div className="space-y-2">
               <Input
                 name="tags"
-                placeholder="Optional tags, separated by commas"
+                placeholder="Optional tags if they genuinely help"
                 aria-label="Optional tags"
                 defaultValue=""
               />
@@ -150,7 +150,7 @@ export function ConversationComposer({
               ) : null}
               <FeedSubmitButton type="submit" size="lg" pendingLabel="Publishing...">
                 <Send size={14} className="mr-2" />
-                Start discussion
+                Publish thread
               </FeedSubmitButton>
             </div>
           </div>

@@ -25,7 +25,7 @@ export function CommunityFeedNav({
               key={channel.id}
               href={buildCommunityChannelPath(channel.slug)}
               className={cn(
-                "group min-w-[240px] rounded-2xl border px-4 py-3 transition-all duration-200",
+                "group min-w-[252px] rounded-2xl border px-4 py-3 transition-all duration-200",
                 isActive
                   ? "border-silver/28 bg-gradient-to-br from-silver/12 via-card/88 to-card/72 shadow-panel-soft"
                   : "border-silver/14 bg-card/55 hover:border-silver/24 hover:bg-card/72"
@@ -35,7 +35,7 @@ export function CommunityFeedNav({
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{channel.name}</p>
                   <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
-                    {channel.description || channel.topic || "Member discussion area"}
+                    {channel.description || channel.topic || "Structured member discussion room"}
                   </p>
                 </div>
                 {channel.isPrivate ? (
@@ -52,7 +52,7 @@ export function CommunityFeedNav({
                 </span>
                 {channel.lastActivityAt ? (
                   <span className="text-[11px] text-muted">
-                    Active {formatDate(channel.lastActivityAt)}
+                    Latest movement {formatDate(channel.lastActivityAt)}
                   </span>
                 ) : null}
               </div>

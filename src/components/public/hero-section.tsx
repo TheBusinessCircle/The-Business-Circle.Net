@@ -43,7 +43,7 @@ export function HeroSection({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-[2rem] border border-border/70 bg-card/50 p-6 shadow-panel sm:p-8 lg:p-12",
+        "relative overflow-hidden rounded-[2.2rem] border border-border/70 bg-card/56 p-6 shadow-panel backdrop-blur sm:p-9 lg:p-14",
         className
       )}
     >
@@ -53,11 +53,11 @@ export function HeroSection({
 
       <div
         className={cn(
-          "relative grid min-w-0 items-start gap-8 sm:gap-10",
+          "relative grid min-w-0 items-start gap-8 sm:gap-10 lg:gap-12",
           aside ? "lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch" : "grid-cols-1"
         )}
       >
-        <div className="min-w-0 space-y-6 sm:space-y-7">
+        <div className="min-w-0 space-y-6 sm:space-y-8">
           {eyebrow ? (
             <p className="premium-kicker max-w-fit">
               {eyebrow}
@@ -65,10 +65,10 @@ export function HeroSection({
           ) : null}
 
           <div className="space-y-5">
-            <h1 className="font-display text-[clamp(2rem,8.5vw,4.5rem)] leading-[0.98] text-foreground lg:text-6xl">
+            <h1 className="max-w-4xl font-display text-[clamp(2rem,8.5vw,4.5rem)] leading-[0.98] text-foreground lg:text-6xl">
               {title}
             </h1>
-            <p className="max-w-2xl text-[0.98rem] leading-relaxed text-muted sm:text-lg">
+            <p className="max-w-3xl text-[0.98rem] leading-relaxed text-muted sm:text-lg">
               {description}
             </p>
           </div>
@@ -105,11 +105,11 @@ export function HeroSection({
           </div>
 
           {callouts?.length ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2.5">
               {callouts.map((callout) => (
                 <span
                   key={callout}
-                  className="rounded-full border border-border/80 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver"
+                  className="rounded-full border border-border/80 bg-background/40 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.08em] text-silver"
                 >
                   {callout}
                 </span>
@@ -118,7 +118,7 @@ export function HeroSection({
           ) : null}
 
           {supportLine ? (
-            <p className="max-w-2xl text-sm leading-relaxed text-muted">{supportLine}</p>
+            <p className="max-w-3xl text-sm leading-relaxed text-silver">{supportLine}</p>
           ) : null}
 
           {metrics?.length ? (
@@ -126,7 +126,7 @@ export function HeroSection({
               {metrics.map((metric) => (
                 <div
                   key={metric.label}
-                  className="min-w-0 rounded-2xl border border-border/80 bg-background/35 px-4 py-3 transition-colors hover:border-gold/30"
+                  className="min-w-0 rounded-[1.35rem] border border-border/80 bg-background/35 px-4 py-3.5 transition-colors hover:border-gold/30"
                 >
                   <p className="font-display text-2xl text-silver">{metric.value}</p>
                   <p className="mt-1 text-xs tracking-wide text-muted uppercase">{metric.label}</p>

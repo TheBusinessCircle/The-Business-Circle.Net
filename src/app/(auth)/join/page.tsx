@@ -105,12 +105,12 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
               <div className="space-y-4">
                 <p className="premium-kicker">Join The Business Circle</p>
                 <h1 className="max-w-4xl font-display text-4xl leading-tight text-foreground sm:text-5xl">
-                  Confirm the room, then move into secure checkout.
+                  Confirm the room, then complete secure checkout.
                 </h1>
                 <p className="max-w-3xl text-lg leading-relaxed text-muted">
                   This page keeps room selection, pricing clarity, secure Stripe billing, and
-                  post-payment member access in one calm flow. You can move between tiers as the
-                  business evolves, and founder pricing only applies where it is currently active.
+                  post-payment member access in one calm flow. You can still move between tiers as
+                  the business evolves, and founder pricing only applies where it is currently active.
                 </p>
               </div>
 
@@ -135,18 +135,18 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
               {[
                 {
                   icon: RefreshCcw,
-                  title: "Move between tiers later",
-                  copy: "Choose the room that fits now. You can adjust later as the business evolves."
+                  title: "Choose for the current stage",
+                  copy: "Pick the room that fits now. You can adjust later as the business evolves."
                 },
                 {
                   icon: LockKeyhole,
-                  title: "Billing stays clear",
+                  title: "Pricing stays clear",
                   copy: "Annual billing saves 20%, and the selected billing interval carries straight into checkout."
                 },
                 {
                   icon: ShieldCheck,
-                  title: "Secure checkout",
-                  copy: "Your details are confirmed here. Billing is completed securely in Stripe, and access opens after payment is confirmed."
+                  title: "Access opens after payment",
+                  copy: "Billing is completed securely in Stripe, and member access only opens after payment is confirmed."
                 }
               ].map((item) => (
                 <article
@@ -191,7 +191,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         <div className="max-w-3xl space-y-4">
           <p className="premium-kicker">Clarity before checkout</p>
           <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            Choose the room that fits now. You can adjust later.
+            A clean route from room selection to access.
           </h2>
           <p className="text-base leading-relaxed text-muted">
             The aim here is a clean decision, not a perfect prediction. Pick the room that matches

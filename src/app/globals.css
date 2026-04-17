@@ -189,7 +189,7 @@ a:hover {
   }
 
   .empty-state-panel {
-    @apply rounded-2xl border border-silver/10 bg-gradient-to-br from-background/60 via-card/45 to-background/25 p-6 text-center shadow-panel-soft;
+    @apply rounded-[1.75rem] border border-silver/10 bg-card/60 p-7 text-center shadow-panel-soft backdrop-blur;
   }
 
   .premium-kicker {

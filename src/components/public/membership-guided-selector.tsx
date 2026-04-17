@@ -429,9 +429,9 @@ function SelectedPathPanel({
             <motion.p
               initial={reducedMotion ? false : { opacity: 0 }}
               animate={reducedMotion ? undefined : { opacity: 1 }}
-            transition={{ duration: 0.26 }}
-            className="mt-4 rounded-[1.2rem] border border-white/10 bg-background/24 px-4 py-3 text-sm leading-relaxed text-muted"
-          >
+              transition={{ duration: 0.26 }}
+              className="mt-4 rounded-[1.2rem] border border-white/10 bg-background/24 px-4 py-3 text-sm leading-relaxed text-muted"
+            >
               Founder pricing is removed when this room&apos;s founder allocation is filled.
             </motion.p>
           ) : (
@@ -456,7 +456,7 @@ function SelectedPathPanel({
             <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
           </Link>
           <p className="text-sm leading-relaxed text-muted">
-            You can switch rooms before checkout if another level fits more clearly.
+            Secure Stripe checkout is next. Access only opens after payment is confirmed, and you can still switch rooms before that if another level fits more clearly.
           </p>
         </div>
       </div>
@@ -541,7 +541,7 @@ export function MembershipGuidedSelector({
             <div className="space-y-4">
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership</p>
               <h1 className="max-w-4xl font-display text-[clamp(2.05rem,7.6vw,4rem)] leading-tight text-foreground sm:text-5xl">
-                Choose the room that fits the business now.
+                Choose the room that matches the business now.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-muted">
                 Different businesses need different environments. This page is here to help owners
@@ -550,14 +550,23 @@ export function MembershipGuidedSelector({
               </p>
               <p className="max-w-3xl text-sm leading-relaxed text-silver">
                 Better placement keeps the network useful. That is why the cards stay light, the
-                detail only appears after selection, and the decision path stays calm.
+                depth only appears after selection, and the decision path stays calm.
               </p>
             </div>
 
-            <div className="rounded-[1.5rem] border border-white/8 bg-background/18 px-5 py-4">
-              <p className="text-sm leading-relaxed text-muted">
-                Built to help owners place themselves properly, not just buy access.
-              </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                "Select the room that fits now.",
+                "Carry that choice into join.",
+                "Complete secure Stripe checkout."
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-[1.4rem] border border-white/8 bg-background/18 px-4 py-4 text-sm leading-relaxed text-muted"
+                >
+                  {item}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -583,12 +592,12 @@ export function MembershipGuidedSelector({
                 ))}
               </div>
               <p className="mt-3 text-sm text-muted">
-                Annual billing saves 20% and carries straight into join.
+                Annual billing saves 20% and carries straight into join and checkout.
               </p>
             </div>
 
             <div className="rounded-[1.55rem] border border-gold/18 bg-gradient-to-br from-gold/10 via-background/20 to-background/10 p-4">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Founder Rate</p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Founder allocation</p>
               <div className="mt-3 space-y-2">
                 <FounderRateSummary
                   selectedGuide={selectedGuide}
@@ -777,9 +786,8 @@ export function MembershipGuidedSelector({
             When the fit feels clear, continue to join.
           </h2>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
-            Your selected room and billing interval carry straight into join. The aim is not to
-            pick the highest tier by default. It is to choose the room that fits now, then move
-            forward with confidence.
+            Your selected room and billing interval carry straight into join. The next page keeps
+            account setup, pricing confirmation, and secure Stripe checkout in one clear flow.
           </p>
           <div className="space-y-4">
             <Link
@@ -796,9 +804,7 @@ export function MembershipGuidedSelector({
               <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
             </Link>
             <p className="text-sm leading-relaxed text-muted">
-              You can move between tiers later as the business evolves.
-              {" "}
-              {getFounderRoomPricingNote(selectedOffer)}
+              You can move between tiers later as the business evolves. {getFounderRoomPricingNote(selectedOffer)}
             </p>
           </div>
         </div>

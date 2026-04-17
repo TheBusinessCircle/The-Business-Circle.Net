@@ -68,23 +68,22 @@ export async function Footer() {
             <div>
               <p className="font-display text-lg text-foreground">{SITE_CONFIG.name}</p>
               <p className="text-[11px] uppercase tracking-[0.1em] text-muted">
-                Founder-Led Growth Ecosystem
+                Private founder-led business environment
               </p>
             </div>
           </div>
           <p className="max-w-md text-sm leading-relaxed text-muted">
             {footerContent.brandBlurb}
           </p>
-          <div className="space-y-2 rounded-3xl border border-border/80 bg-card/55 p-4">
-            <p className="text-xs uppercase tracking-[0.08em] text-gold">
-              {footerContent.trustLine}
-            </p>
+          <div className="space-y-3 rounded-3xl border border-border/80 bg-card/55 p-4">
+            <p className="text-xs uppercase tracking-[0.08em] text-gold">Why owners trust the room</p>
+            <p className="text-sm text-muted">{footerContent.trustLine}</p>
             <p className="text-sm text-muted">{footerContent.founderLine}</p>
           </div>
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.1em] text-silver">Explore</p>
+          <p className="text-xs uppercase tracking-[0.1em] text-silver">Explore the Circle</p>
           <ul className="space-y-2 text-sm text-muted">
             {EXPLORE_LINKS.map((link) => (
               <li key={link.href}>
@@ -97,7 +96,7 @@ export async function Footer() {
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.1em] text-silver">Trust</p>
+          <p className="text-xs uppercase tracking-[0.1em] text-silver">Trust & legal</p>
           <ul className="space-y-2 text-sm text-muted">
             {TRUST_LINKS.map((link) => (
               <li key={link.label}>
@@ -130,6 +129,9 @@ export async function Footer() {
               {footerContent.supportEmail}
             </a>
             <p className="text-sm text-muted">{footerContent.supportLine}</p>
+            <p className="text-sm text-muted">
+              Questions about membership, access, billing, or fit are handled directly and clearly.
+            </p>
           </div>
 
           {socialLinks.length ? (

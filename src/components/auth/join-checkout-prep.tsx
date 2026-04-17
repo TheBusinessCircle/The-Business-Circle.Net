@@ -203,7 +203,7 @@ export function JoinCheckoutPrep({
           </div>
 
           <p className="text-sm text-muted sm:text-right">
-            Annual billing saves 20% and carries straight into checkout.
+            Annual billing saves 20% and carries straight into secure checkout.
           </p>
         </div>
 
@@ -243,6 +243,13 @@ export function JoinCheckoutPrep({
                         {getMembershipTierLabel(tier)}
                       </h2>
                       <p className="text-sm leading-relaxed text-muted">{tierSwitchLines[tier]}</p>
+                      <p className="text-xs uppercase tracking-[0.08em] text-silver">
+                        {offer.available
+                          ? founderAvailabilityLine(offer)
+                          : billingInterval === "annual"
+                            ? "Annual billing saves 20%."
+                            : "Annual billing available."}
+                      </p>
                     </div>
                   </div>
 
@@ -286,7 +293,7 @@ export function JoinCheckoutPrep({
           </p>
 
           <div className="mt-5 rounded-[1.4rem] border border-white/10 bg-background/24 p-4">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Best fit</p>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Right for the business when</p>
             <p className="mt-2 text-sm leading-relaxed text-muted">{selectedContent.bestFitLine}</p>
           </div>
 
@@ -384,7 +391,7 @@ export function JoinCheckoutPrep({
                   onClick={() => setShowAccountSetup(true)}
                   disabled={!canContinueToCore}
                 >
-                  Continue To Secure Checkout
+                  Continue To Account Setup
                 </Button>
                 <p className="text-center text-xs text-muted">
                   Already a member?{" "}

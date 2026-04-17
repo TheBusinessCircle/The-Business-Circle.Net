@@ -455,9 +455,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
           Billing update received. Your membership access is active.{" "}
           {billingSource === "membership"
-            ? "Thanks for updating your plan from the membership page."
+            ? "Your updated plan is now reflected across the platform."
             : billingSource === "join"
-              ? "Welcome to The Business Circle. You are in the right place. Start with the first few minutes below."
+              ? "Welcome to The Business Circle. Start with the first few minutes below."
               : "You can manage billing any time from your dashboard."}
         </p>
       ) : null}
@@ -718,7 +718,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             Welcome back, {session.user.name ?? "Member"}
           </CardTitle>
           <CardDescription className="max-w-3xl text-base text-muted">
-            You are inside the Circle, and you are in the right place. Use this space to think clearly, connect with intent, and move your business forward.
+            Use this space to get oriented quickly, open the right discussion, and keep the business moving without adding noise.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -1020,7 +1020,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               ) : (
                 <EmptyState
                   title="No resources yet"
-                  description="New material will appear here as soon as it is published for your tier."
+                  description="New material will appear here as soon as it is published for your membership tier."
                   icon={Sparkles}
                 />
               )}
@@ -1170,7 +1170,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               ) : (
                 <EmptyState
                   title="No recent wins yet"
-                  description="Wins will appear here as members share outcomes from useful conversations and introductions."
+                  description="Wins will appear here as members share specific outcomes from useful conversations and introductions."
                   icon={Sparkles}
                   action={
                     <Link href={buildCommunityChannelPath("wins-and-progress")}>
@@ -1280,7 +1280,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               ) : (
                 <EmptyState
                   title="No discussion selected yet"
-                  description="The next useful thread will appear here once the community starts moving."
+                  description="When discussion activity picks up, the strongest thread will surface here first."
                   icon={MessageSquare}
                 />
               )}

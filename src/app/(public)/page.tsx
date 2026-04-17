@@ -56,17 +56,17 @@ const heroImageBlendStyle: CSSProperties = {
 
 const whatThisIsNot = [
   {
-    title: "Not just a content platform",
+    title: "Not a passive content library",
     description:
       "Useful material matters, but the point is not passive consumption or disconnected advice."
   },
   {
-    title: "Not just a networking group",
+    title: "Not a loose networking group",
     description:
       "Introductions matter more when the room has context, standards, and better placement."
   },
   {
-    title: "Not just a chat community",
+    title: "Not a noisy chat community",
     description:
       "The point is not constant activity. The point is better judgement and better movement."
   }
@@ -79,12 +79,12 @@ const whatThisIs = [
       "Different stages of business need different rooms, so owners can place themselves properly instead of drifting."
   },
   {
-    title: "Better conversations",
+    title: "Higher-quality conversation",
     description:
       "The room improves context before people speak, which raises conversation quality quickly."
   },
   {
-    title: "Forward movement",
+    title: "Controlled momentum",
     description:
       "Everything is built to support clearer decisions, stronger relationships, and steadier momentum."
   }
@@ -93,7 +93,7 @@ const whatThisIs = [
 const howItWorksSteps = [
   {
     step: "01",
-    title: "Place yourself",
+    title: "Place the business properly",
     description:
       "Look honestly at the stage the business is in and the level of context it needs now."
   },
@@ -105,7 +105,7 @@ const howItWorksSteps = [
   },
   {
     step: "03",
-    title: "Build with better structure",
+    title: "Move with better structure",
     description:
       "Use the room to think more clearly, connect with better people, and keep momentum moving."
   }
@@ -197,26 +197,26 @@ export default async function HomePage() {
       <JsonLd data={buildBreadcrumbSchema([{ name: "Home", path: "/" }])} />
 
       <HeroSection
-        eyebrow="Private business community for owners"
-        title="A structured business network for owners who want clearer thinking, stronger relationships, and steadier momentum."
-        description="The Business Circle Network is a private business community UK owners can step into when loose networking and surface-level advice stop helping. It gives active owners a calmer room for clearer decisions, better conversations, and more dependable movement."
-        supportLine="Understand why it exists. Choose the room that fits. Join with confidence."
-        callouts={["Founder-led", "Structured placement", "Built for active owners"]}
-        primaryAction={{ href: "/about", label: "Read Why It Exists" }}
-        secondaryAction={{ href: "/membership", label: "See The Rooms", variant: "outline" }}
+        eyebrow="Private business environment for owners"
+        title="A more serious room for business owners who want clearer thinking, stronger relationships, and more controlled momentum."
+        description="The Business Circle Network is built for active owners who have outgrown loose networking, surface-level advice, and generic community spaces. It gives the business a calmer environment, stronger commercial context, and a more deliberate path forward."
+        supportLine="Start with the environment. Place the business properly. Then move into the right room with confidence."
+        callouts={["For business owners", "Founder-led", "Structured rooms"]}
+        primaryAction={{ href: "/membership", label: "Find Your Room" }}
+        secondaryAction={{ href: "/about", label: "Read Why It Exists", variant: "outline" }}
         metrics={trustDisplay.items}
         aside={
           <div className="flex h-full flex-col gap-5 lg:min-h-[34rem]">
             <article className="public-panel p-6 sm:p-7">
               <p className="premium-kicker inline-flex items-center gap-2">
                 <Sparkles size={14} />
-                What this feels like
+                What the room changes
               </p>
               <div className="mt-5 space-y-3">
                 {[
-                  "Less noise around the work.",
+                  "Less noise around serious work.",
                   "Better context before people speak.",
-                  "A room that helps owners move forward."
+                  "A stronger room around the next decision."
                 ].map((item) => (
                   <div
                     key={item}
@@ -249,14 +249,14 @@ export default async function HomePage() {
       <JourneyRail
         currentStep="home"
         note="The public site moves from orientation to trust, then into placement and join."
-        nextAction={{ href: "/about", label: "Continue To About" }}
+        nextAction={{ href: "/membership", label: "Go To Membership" }}
       />
 
       <section className="space-y-8">
         <SectionHeading
           label="What This Is"
           title="Not another content platform, networking group, or chat feed."
-          description="This is a structured environment for business owners. The point is better conditions for decisions, conversations, and momentum."
+          description="This is a structured private environment for business owners. The point is better conditions for decisions, conversations, and momentum."
         />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
@@ -295,8 +295,8 @@ export default async function HomePage() {
       <section className="space-y-8">
         <SectionHeading
           label="How It Works"
-          title="A simple path into the right room."
-          description="The public site should make the next step obvious. Understand the environment, place yourself properly, then move forward cleanly."
+          title="A controlled path into the right room."
+          description="The public site should make the next step obvious. Understand the environment, place the business properly, then move forward cleanly."
         />
 
         <div className="grid gap-4 lg:grid-cols-3">
@@ -341,7 +341,7 @@ export default async function HomePage() {
                 Why that matters
               </p>
               <h2 className="max-w-md text-3xl leading-tight text-foreground">
-                Better environments create better momentum.
+                Better rooms create better movement.
               </h2>
             </div>
             <div className="space-y-4 text-base leading-relaxed text-muted">
@@ -351,7 +351,7 @@ export default async function HomePage() {
                 more relevant. Decisions feel less crowded.
               </p>
               <p>
-                That is what gives a serious business network value over time. Not more noise.
+                That is what gives a serious business environment value over time. Not more noise.
                 Better conditions for movement.
               </p>
             </div>
@@ -363,13 +363,13 @@ export default async function HomePage() {
         <SectionHeading
           label="Membership Pathway"
           title="Different stages of business need different rooms."
-          description="Foundation, Inner Circle, and Core exist to place owners properly. The Membership page helps you see where the business fits now and what to do next."
+          description="Foundation, Inner Circle, and Core exist to place owners properly. The membership page helps you see where the business fits now and what to do next."
           action={
             <Link
               href="/membership"
               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
             >
-              Explore Membership
+              Review Membership
             </Link>
           }
         />
@@ -398,7 +398,7 @@ export default async function HomePage() {
                 href={item.href}
                 className={cn(buttonVariants({ size: "lg", variant: "outline" }), "mt-6 w-full")}
               >
-                See {item.name}
+                Review {item.name}
               </Link>
             </article>
           ))}
@@ -415,8 +415,8 @@ export default async function HomePage() {
 
       <CTASection
         title="When the fit feels clear, choose the room that fits now."
-        description="You can review the membership structure, compare the rooms, and move into join when you are ready."
-        primaryAction={{ href: "/membership", label: "Explore Membership" }}
+        description="Review the rooms, compare the current pricing clearly, and move into the join path when the decision feels straightforward."
+        primaryAction={{ href: "/membership", label: "Find Your Room" }}
         secondaryAction={{ href: "/join", label: "Go To Join", variant: "outline" }}
       />
     </div>
