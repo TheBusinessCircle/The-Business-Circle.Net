@@ -67,6 +67,13 @@ export interface DirectMessageThreadSummaryModel {
   origin: DirectMessageOriginSummary | null;
 }
 
+export interface DirectMessageRelationshipStateModel {
+  existingThreadId: string | null;
+  pendingRequestId: string | null;
+  pendingRequestDirection: "incoming" | "outgoing" | null;
+  isBlocked: boolean;
+}
+
 export interface DirectMessageRequestModel {
   id: string;
   status: DirectMessageRequestStatus;

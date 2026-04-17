@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { assertNoBlockedProfanity } from "@/lib/moderation/profanity";
 import { buildCommunityPostPath } from "@/lib/community-paths";
 import type {
+  DirectMessageRelationshipStateModel,
   DirectMessageAdminStats,
   DirectMessageAttachmentModel,
   DirectMessageModerationReportModel,
@@ -99,6 +100,114 @@ function toAttachmentModel(
 
 function pairKeyForUsers(firstUserId: string, secondUserId: string) {
   return [firstUserId, secondUserId].sort().join(":");
+}
+
+export async function getDirectMessageRelationshipStateMap(input: {
+  viewerUserId: string;
+  targetUserIds: string[];
+}): Promise<Map<string, DirectMessageRelationshipStateModel>> {
+  const targetUserIds = Array.from(
+    new Set(input.targetUserIds.filter((userId) => userId && userId !== input.viewerUserId))
+  );
+
+  if (!targetUserIds.length) {
+    return new Map();
+  }
+
+  const [blocks, threads, pendingRequests] = await Promise.all([
+    db.directMessageBlock.findMany({
+      where: {
+        OR: [
+          {
+            blockerId: input.viewerUserId,
+            blockedUserId: {
+              in: targetUserIds
+            }
+          },
+          {
+            blockerId: {
+              in: targetUserIds
+            },
+            blockedUserId: input.viewerUserId
+          }
+        ]
+      },
+      select: {
+        blockerId: true,
+        blockedUserId: true
+      }
+    }),
+    db.directMessageThread.findMany({
+      where: {
+        pairKey: {
+          in: targetUserIds.map((targetUserId) => pairKeyForUsers(input.viewerUserId, targetUserId))
+        }
+      },
+      select: {
+        id: true,
+        pairKey: true
+      }
+    }),
+    db.directMessageRequest.findMany({
+      where: {
+        status: DirectMessageRequestStatus.PENDING,
+        OR: [
+          {
+            requesterId: input.viewerUserId,
+            recipientId: {
+              in: targetUserIds
+            }
+          },
+          {
+            requesterId: {
+              in: targetUserIds
+            },
+            recipientId: input.viewerUserId
+          }
+        ]
+      },
+      select: {
+        id: true,
+        requesterId: true,
+        recipientId: true
+      }
+    })
+  ]);
+
+  const threadIdByPairKey = new Map(
+    threads.map((thread) => [thread.pairKey, thread.id] as const)
+  );
+  const blockedUserIds = new Set(
+    blocks.map((block) =>
+      block.blockerId === input.viewerUserId ? block.blockedUserId : block.blockerId
+    )
+  );
+  const pendingRequestByTargetUserId = new Map(
+    pendingRequests.map((request) => [
+      request.requesterId === input.viewerUserId ? request.recipientId : request.requesterId,
+      {
+        requestId: request.id,
+        direction:
+          request.requesterId === input.viewerUserId
+            ? ("outgoing" as const)
+            : ("incoming" as const)
+      }
+    ])
+  );
+
+  return new Map(
+    targetUserIds.map((targetUserId) => [
+      targetUserId,
+      {
+        existingThreadId:
+          threadIdByPairKey.get(pairKeyForUsers(input.viewerUserId, targetUserId)) ?? null,
+        pendingRequestId: pendingRequestByTargetUserId.get(targetUserId)?.requestId ?? null,
+        pendingRequestDirection:
+          pendingRequestByTargetUserId.get(targetUserId)?.direction ?? null,
+        isBlocked: blockedUserIds.has(targetUserId)
+      } satisfies DirectMessageRelationshipStateModel
+    ])
+  );
 }
 
 function previewText(value: string | null | undefined, maxLength = 140) {

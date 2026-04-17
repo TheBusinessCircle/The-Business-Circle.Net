@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, MessageSquareLock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type ContinuePrivatelyButtonProps = {
   recipientId: string;
@@ -15,6 +16,7 @@ type ContinuePrivatelyButtonProps = {
   size?: "sm" | "default";
   compact?: boolean;
   disabled?: boolean;
+  className?: string;
 };
 
 type CreateRequestPayload =
@@ -41,7 +43,8 @@ export function ContinuePrivatelyButton({
   variant = "outline",
   size = "sm",
   compact = false,
-  disabled = false
+  disabled = false,
+  className
 }: ContinuePrivatelyButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -107,7 +110,7 @@ export function ContinuePrivatelyButton({
         variant={variant}
         size={size === "default" ? "default" : "sm"}
         disabled={disabled}
-        className={compact ? "h-7 gap-1.5 px-2 text-xs" : "gap-2"}
+        className={cn(compact ? "h-7 gap-1.5 px-2 text-xs" : "gap-2", className)}
         onClick={() => setOpen(true)}
       >
         <MessageSquareLock size={compact ? 12 : 14} />

@@ -6,18 +6,21 @@ const dbMock = vi.hoisted(() => ({
     findUnique: vi.fn()
   },
   directMessageBlock: {
-    findFirst: vi.fn()
+    findFirst: vi.fn(),
+    findMany: vi.fn()
   },
   communityPost: {
     findUnique: vi.fn()
   },
   directMessageThread: {
-    findUnique: vi.fn()
+    findUnique: vi.fn(),
+    findMany: vi.fn()
   },
   directMessageRequest: {
     create: vi.fn(),
     findFirst: vi.fn(),
-    findUnique: vi.fn()
+    findUnique: vi.fn(),
+    findMany: vi.fn()
   },
   $transaction: vi.fn()
 }));
@@ -32,7 +35,11 @@ vi.mock("@/lib/moderation/profanity", () => ({
   assertNoBlockedProfanity: vi.fn()
 }));
 
-import { createDirectMessageRequest, respondToDirectMessageRequest } from "@/server/messages/message.service";
+import {
+  createDirectMessageRequest,
+  getDirectMessageRelationshipStateMap,
+  respondToDirectMessageRequest
+} from "@/server/messages/message.service";
 
 describe("message service", () => {
   beforeEach(() => {
@@ -136,5 +143,52 @@ describe("message service", () => {
         })
       })
     );
+  });
+
+  it("maps existing threads, pending requests, and blocks for visible community participants", async () => {
+    dbMock.directMessageBlock.findMany.mockResolvedValue([
+      {
+        blockerId: "user_viewer",
+        blockedUserId: "user_blocked"
+      }
+    ]);
+    dbMock.directMessageThread.findMany.mockResolvedValue([
+      {
+        id: "thread_1",
+        pairKey: "user_thread:user_viewer"
+      }
+    ]);
+    dbMock.directMessageRequest.findMany.mockResolvedValue([
+      {
+        id: "request_1",
+        requesterId: "user_viewer",
+        recipientId: "user_pending"
+      }
+    ]);
+
+    const relationshipState = await getDirectMessageRelationshipStateMap({
+      viewerUserId: "user_viewer",
+      targetUserIds: ["user_thread", "user_pending", "user_blocked", "user_viewer"]
+    });
+
+    expect(relationshipState.get("user_thread")).toEqual({
+      existingThreadId: "thread_1",
+      pendingRequestId: null,
+      pendingRequestDirection: null,
+      isBlocked: false
+    });
+    expect(relationshipState.get("user_pending")).toEqual({
+      existingThreadId: null,
+      pendingRequestId: "request_1",
+      pendingRequestDirection: "outgoing",
+      isBlocked: false
+    });
+    expect(relationshipState.get("user_blocked")).toEqual({
+      existingThreadId: null,
+      pendingRequestId: null,
+      pendingRequestDirection: null,
+      isBlocked: true
+    });
+    expect(relationshipState.has("user_viewer")).toBe(false);
   });
 });

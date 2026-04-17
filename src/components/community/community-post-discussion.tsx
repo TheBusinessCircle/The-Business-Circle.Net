@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { ExternalLink, Heart, MessageSquareReply, MessagesSquare } from "lucide-react";
 import { createCommunityCommentAction } from "@/actions/community/feed.actions";
@@ -24,6 +24,7 @@ import {
   isConnectionWinTags,
   parseConnectionWin
 } from "@/lib/connection-wins";
+import { getPrivateReplyActionState } from "@/lib/community-private-messaging";
 import { cn, formatDate } from "@/lib/utils";
 
 type LikeMutationResult = {
@@ -135,11 +136,13 @@ function CommentComposer({
 function CommentEngagementBar({
   comment,
   isReplyOpen,
-  onToggleReply
+  onToggleReply,
+  privateAction
 }: {
   comment: CommunityCommentModel;
   isReplyOpen: boolean;
   onToggleReply: (commentId: string | null) => void;
+  privateAction?: ReactNode;
 }) {
   const [viewerHasLiked, setViewerHasLiked] = useState(comment.viewerHasLiked);
   const [likeCount, setLikeCount] = useState(comment.likeCount);
@@ -208,6 +211,8 @@ function CommentEngagementBar({
         <MessageSquareReply size={12} className="mr-1" />
         Reply
       </Button>
+
+      {privateAction}
     </div>
   );
 }
@@ -238,6 +243,47 @@ function CommentThread({
       {comments.map((comment) => {
         const displayName = authorName(comment.user);
         const isReplyOpen = activeReplyId === comment.id;
+        const privateReplyActionState = getPrivateReplyActionState({
+          isAuthenticated: Boolean(currentUserId),
+          viewerCanUsePrivateMessaging: viewerCanContinuePrivately,
+          currentUserId,
+          targetUserId: comment.user.id,
+          isNestedReply: depth > 0,
+          replyThread: comment.replyThread,
+          relation: comment.directMessageContext
+        });
+        const privateReplyAction =
+          privateReplyActionState.kind === "request" ? (
+            <ContinuePrivatelyButton
+              recipientId={comment.user.id}
+              recipientName={displayName}
+              originCommentId={comment.id}
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-xs shadow-none text-muted hover:text-foreground"
+            />
+          ) : privateReplyActionState.kind === "thread" ? (
+            <Link href={`/messages/${privateReplyActionState.threadId}`} className="inline-flex">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs shadow-none text-muted hover:text-foreground"
+              >
+                Open private chat
+              </Button>
+            </Link>
+          ) : privateReplyActionState.kind === "pending" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled
+              className="h-7 px-2 text-xs shadow-none text-muted"
+            >
+              Request sent
+            </Button>
+          ) : null;
 
         return (
           <div
@@ -262,21 +308,11 @@ function CommentThread({
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                   {comment.content}
                 </p>
-                {viewerCanContinuePrivately && comment.user.id !== currentUserId ? (
-                  <div className="mt-3">
-                    <ContinuePrivatelyButton
-                      recipientId={comment.user.id}
-                      recipientName={displayName}
-                      originCommentId={comment.id}
-                      compact
-                      variant="ghost"
-                    />
-                  </div>
-                ) : null}
                 <CommentEngagementBar
                   comment={comment}
                   isReplyOpen={isReplyOpen}
                   onToggleReply={onToggleReply}
+                  privateAction={privateReplyAction}
                 />
               </div>
             </div>
@@ -368,8 +404,6 @@ export function CommunityPostBody({
 
 export function CommunityPostEngagementBar({
   post,
-  currentUserId,
-  viewerCanContinuePrivately,
   discussionHref,
   discussionLabel = "View discussion",
   replyHref,
@@ -377,8 +411,6 @@ export function CommunityPostEngagementBar({
   onReplyClick
 }: {
   post: CommunityPostSummaryModel;
-  currentUserId: string;
-  viewerCanContinuePrivately: boolean;
   discussionHref?: string;
   discussionLabel?: string;
   replyHref?: string;
@@ -471,14 +503,6 @@ export function CommunityPostEngagementBar({
           </Button>
         </Link>
       ) : null}
-
-      {viewerCanContinuePrivately && post.user.id !== currentUserId ? (
-        <ContinuePrivatelyButton
-          recipientId={post.user.id}
-          recipientName={authorName(post.user)}
-          originPostId={post.id}
-        />
-      ) : null}
     </div>
   );
 }
@@ -543,8 +567,6 @@ export function CommunityPostDiscussion({
       <CommunityPostBody post={post} showTags={showTags} />
       <CommunityPostEngagementBar
         post={post}
-        currentUserId={currentUserId}
-        viewerCanContinuePrivately={viewerCanContinuePrivately}
         discussionHref={discussionHref}
         discussionLabel={discussionLabel}
         replyHref="#discussion-reply"

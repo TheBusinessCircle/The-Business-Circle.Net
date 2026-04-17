@@ -1,9 +1,15 @@
 import type { CommunityPostKind, MembershipTier } from "@prisma/client";
 import type { CommunityChannelModel, CommunityUserSummaryModel } from "@/types/community/chat";
+import type { DirectMessageRelationshipStateModel } from "@/types/messages";
 
 export interface CommunityFeedChannelModel extends CommunityChannelModel {
   postCount: number;
   lastActivityAt: string | null;
+}
+
+export interface CommunityReplyThreadMetaModel {
+  participantCount: number;
+  hasReplyToReplyEvent: boolean;
 }
 
 export interface CommunityCommentModel {
@@ -16,6 +22,8 @@ export interface CommunityCommentModel {
   likeCount: number;
   viewerHasLiked: boolean;
   user: CommunityUserSummaryModel;
+  replyThread: CommunityReplyThreadMetaModel;
+  directMessageContext: DirectMessageRelationshipStateModel | null;
   replies: CommunityCommentModel[];
 }
 

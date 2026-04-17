@@ -21,6 +21,7 @@ import { assertNoBlockedProfanity } from "@/lib/moderation/profanity";
 import { logServerWarning } from "@/lib/security/logging";
 import { getCommunityRecognitionForUsers } from "@/server/community-recognition";
 import { listUpcomingEventsForTiers } from "@/server/events";
+import { getDirectMessageRelationshipStateMap } from "@/server/messages";
 import type {
   ChannelMessageModel,
   CommunityChannelModel,
@@ -31,7 +32,8 @@ import type {
   CommunityPostDetailModel,
   CommunityRecentPostModel,
   CommunityPostSummaryModel,
-  CommunityUserSummaryModel
+  CommunityUserSummaryModel,
+  DirectMessageRelationshipStateModel
 } from "@/types";
 
 const COMMUNITY_POST_PAGE_SIZE = 18;
@@ -148,7 +150,8 @@ function mapCommunityUser(
 
 function buildCommentTree(
   comments: FeedCommentRecord[],
-  recognitionByUserId: Awaited<ReturnType<typeof buildRecognitionMap>>
+  recognitionByUserId: Awaited<ReturnType<typeof buildRecognitionMap>>,
+  directMessageStateByUserId: Map<string, DirectMessageRelationshipStateModel>
 ): CommunityCommentModel[] {
   const byParentId = new Map<string | null, FeedCommentRecord[]>();
 
@@ -171,11 +174,50 @@ function buildCommentTree(
       likeCount: comment._count?.likes ?? 0,
       viewerHasLiked: (comment.likes?.length ?? 0) > 0,
       user: mapCommunityUser(comment.user, recognitionByUserId),
+      replyThread: {
+        participantCount: 1,
+        hasReplyToReplyEvent: false
+      },
+      directMessageContext: directMessageStateByUserId.get(comment.user.id) ?? null,
       replies: mapBranch(comment.id)
     }));
   };
 
-  return mapBranch(null);
+  const topLevelComments = mapBranch(null);
+
+  const collectReplyThreadMeta = (comment: CommunityCommentModel) => {
+    const participantIds = new Set([comment.user.id]);
+    let hasReplyToReplyEvent = comment.replies.length > 0;
+
+    for (const reply of comment.replies) {
+      const replyMeta = collectReplyThreadMeta(reply);
+      replyMeta.participantIds.forEach((participantId) => participantIds.add(participantId));
+      hasReplyToReplyEvent ||= replyMeta.hasReplyToReplyEvent;
+    }
+
+    return {
+      participantIds,
+      hasReplyToReplyEvent
+    };
+  };
+
+  const applyReplyThreadMeta = (
+    comment: CommunityCommentModel,
+    replyThread: CommunityCommentModel["replyThread"]
+  ): CommunityCommentModel => ({
+    ...comment,
+    replyThread,
+    replies: comment.replies.map((reply) => applyReplyThreadMeta(reply, replyThread))
+  });
+
+  return topLevelComments.map((comment) => {
+    const replyThreadMeta = collectReplyThreadMeta(comment);
+
+    return applyReplyThreadMeta(comment, {
+      participantCount: replyThreadMeta.participantIds.size,
+      hasReplyToReplyEvent: replyThreadMeta.hasReplyToReplyEvent
+    });
+  });
 }
 
 function isCommentLikeMetadataUnavailableError(error: unknown) {
@@ -824,6 +866,10 @@ export async function getCommunityPostDetail(input: {
     postId: post.id,
     viewerUserId: input.viewerUserId
   });
+  const directMessageStateByUserId = await getDirectMessageRelationshipStateMap({
+    viewerUserId: input.viewerUserId,
+    targetUserIds: comments.map((comment) => comment.user.id)
+  });
 
   const recognitionByUserId = await buildRecognitionMap([
     post.user.id,
@@ -845,7 +891,7 @@ export async function getCommunityPostDetail(input: {
     commentCount: post._count.comments,
     viewerHasLiked: post.likes.length > 0,
     user: mapCommunityUser(post.user, recognitionByUserId),
-    comments: buildCommentTree(comments, recognitionByUserId),
+    comments: buildCommentTree(comments, recognitionByUserId, directMessageStateByUserId),
     channel: mapChannelBase(post.channel)
   };
 }

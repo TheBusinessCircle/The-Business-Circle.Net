@@ -224,8 +224,6 @@ export function CommunityPostFeedList({
               {!isExpanded ? (
                 <CommunityPostEngagementBar
                   post={post}
-                  currentUserId={currentUserId}
-                  viewerCanContinuePrivately={viewerCanContinuePrivately}
                   discussionHref={detailPath}
                   discussionLabel="Open full discussion"
                   onReplyClick={() => {
@@ -246,8 +244,6 @@ export function CommunityPostFeedList({
                       <CommunityPostBody post={detail} />
                       <CommunityPostEngagementBar
                         post={engagementPost}
-                        currentUserId={currentUserId}
-                        viewerCanContinuePrivately={viewerCanContinuePrivately}
                         discussionHref={detailPath}
                         discussionLabel="Open full discussion"
                         onReplyClick={() => {
@@ -262,8 +258,6 @@ export function CommunityPostFeedList({
                   ) : (
                     <CommunityPostEngagementBar
                       post={engagementPost}
-                      currentUserId={currentUserId}
-                      viewerCanContinuePrivately={viewerCanContinuePrivately}
                       discussionHref={detailPath}
                       discussionLabel="Open full discussion"
                       onReplyClick={() => {

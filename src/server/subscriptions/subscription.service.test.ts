@@ -177,8 +177,15 @@ describe("subscription service", () => {
       code: "P2002"
     });
     vi.mocked(db.stripeWebhookEvent.findUnique).mockResolvedValueOnce({
+      id: "evt_completed",
+      type: "checkout.session.completed",
       status: "PROCESSED",
-      processingStartedAt: new Date()
+      processingStartedAt: new Date(),
+      processedAt: new Date(),
+      attemptCount: 1,
+      lastError: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
 
     const processors = {

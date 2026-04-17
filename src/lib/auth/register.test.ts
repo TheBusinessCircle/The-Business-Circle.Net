@@ -98,9 +98,9 @@ describe("createPendingRegistration", () => {
         tier: "FOUNDATION",
         billingInterval: "monthly"
       })
-    ).rejects.toMatchObject<Partial<RegistrationServiceError>>({
+    ).rejects.toMatchObject({
       code: "EMAIL_IN_USE"
-    });
+    } satisfies Partial<RegistrationServiceError>);
   });
 
   it("allows a dormant account email to restart through paid activation", async () => {
@@ -154,9 +154,9 @@ describe("createPendingRegistration", () => {
         tier: "FOUNDATION",
         billingInterval: "monthly"
       })
-    ).rejects.toMatchObject<Partial<RegistrationServiceError>>({
+    ).rejects.toMatchObject({
       code: "EMAIL_IN_USE"
-    });
+    } satisfies Partial<RegistrationServiceError>);
   });
 
   it("rejects when payment is already being confirmed for the same email", async () => {
@@ -170,9 +170,9 @@ describe("createPendingRegistration", () => {
         tier: "FOUNDATION",
         billingInterval: "monthly"
       })
-    ).rejects.toMatchObject<Partial<RegistrationServiceError>>({
+    ).rejects.toMatchObject({
       code: "PAYMENT_IN_PROGRESS"
-    });
+    } satisfies Partial<RegistrationServiceError>);
   });
 
   it("stores a normalized pending registration instead of creating a real user", async () => {
