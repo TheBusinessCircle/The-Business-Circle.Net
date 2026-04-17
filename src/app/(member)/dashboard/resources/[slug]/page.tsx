@@ -11,6 +11,7 @@ import { ResourceMarkdown, ResourceTierBadge } from "@/components/resources";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SITE_CONFIG } from "@/config/site";
 import { getResourceTypeLabel } from "@/config/resources";
 import { getResourceDiscussionLink } from "@/lib/resource-community";
 import { splitResourceContentSections } from "@/lib/resources/markdown";
@@ -31,12 +32,15 @@ type PageProps = {
 };
 
 function createFallbackMetadata(slug: string): Metadata {
-  return createPageMetadata({
-    title: "Resources",
-    description: "Member-only Business Circle resources.",
-    path: `/dashboard/resources/${slug}`,
-    noIndex: true
-  });
+  return {
+    ...createPageMetadata({
+      title: "Resources",
+      description: "Member-only Business Circle resources.",
+      path: `/dashboard/resources/${slug}`,
+      noIndex: true
+    }),
+    metadataBase: new URL(SITE_CONFIG.url)
+  };
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -58,12 +62,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return createFallbackMetadata(slug);
   }
 
-  return createPageMetadata({
-    title: resource.title,
-    description: resource.excerpt,
-    path: `/dashboard/resources/${resource.slug}`,
-    noIndex: true
-  });
+  return {
+    ...createPageMetadata({
+      title: resource.title,
+      description: resource.excerpt,
+      path: `/dashboard/resources/${resource.slug}`,
+      noIndex: true
+    }),
+    metadataBase: new URL(SITE_CONFIG.url)
+  };
 }
 
 export const dynamic = "force-dynamic";

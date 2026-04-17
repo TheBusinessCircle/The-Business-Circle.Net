@@ -1,6 +1,15 @@
-import type { Prisma } from "@prisma/client";
+import {
+  PendingRegistrationStatus,
+  type Prisma
+} from "@prisma/client";
+import { fromPendingRegistrationBillingInterval } from "@/lib/auth/register";
 import { db } from "@/lib/db";
-import type { AdminMemberDetails, AdminMembersListResult, AdminMembersQueryInput } from "@/types";
+import type {
+  AdminMemberDetails,
+  AdminMembersListResult,
+  AdminMembersQueryInput,
+  AdminPendingRegistrationsOverview
+} from "@/types";
 import {
   getCommunityRecognitionForUser,
   getInviteDashboardForUser
@@ -110,7 +119,9 @@ export async function listAdminMembers(filters: AdminMembersQueryInput): Promise
       suspended: true,
       subscription: {
         select: {
-          status: true
+          status: true,
+          billingInterval: true,
+          billingVariant: true
         }
       },
       profile: {
@@ -134,6 +145,8 @@ export async function listAdminMembers(filters: AdminMembersQueryInput): Promise
       membershipTier: user.membershipTier,
       foundingTier: user.foundingTier,
       subscriptionStatus: user.subscription?.status ?? "NONE",
+      subscriptionBillingInterval: user.subscription?.billingInterval ?? null,
+      subscriptionBillingVariant: user.subscription?.billingVariant ?? null,
       createdAt: user.createdAt,
       suspended: user.suspended,
       companyName: user.profile?.business?.companyName ?? null
@@ -167,7 +180,11 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
         updatedAt: true,
         subscription: {
           select: {
-            status: true
+            status: true,
+            billingInterval: true,
+            billingVariant: true,
+            currentPeriodEnd: true,
+            cancelAtPeriodEnd: true
           }
         },
         profile: {
@@ -222,6 +239,10 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     subscriptionStatus: user.subscription?.status ?? "NONE",
+    subscriptionBillingInterval: user.subscription?.billingInterval ?? null,
+    subscriptionBillingVariant: user.subscription?.billingVariant ?? null,
+    subscriptionCurrentPeriodEnd: user.subscription?.currentPeriodEnd ?? null,
+    subscriptionCancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd ?? false,
     companyName: user.profile?.business?.companyName ?? null,
     businessIndustry: user.profile?.business?.industry ?? null,
     location: user.profile?.location ?? null,
@@ -237,5 +258,49 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
           subscriptionTier: user.inviteReferralReceived.subscriptionTier
         }
       : null
+  };
+}
+
+export async function getAdminPendingRegistrationsOverview(
+  limit = 8
+): Promise<AdminPendingRegistrationsOverview> {
+  const items = await db.pendingRegistration.findMany({
+    orderBy: [{ createdAt: "desc" }],
+    take: Math.max(1, Math.min(limit, 20)),
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      selectedTier: true,
+      billingInterval: true,
+      status: true,
+      createdAt: true,
+      expiresAt: true,
+      completedUserId: true,
+      stripeCheckoutSessionId: true,
+      stripeCustomerId: true,
+      stripeSubscriptionId: true
+    }
+  });
+
+  const statuses = Object.values(PendingRegistrationStatus);
+  const counts = await Promise.all(
+    statuses.map((status) =>
+      db.pendingRegistration.count({
+        where: {
+          status
+        }
+      })
+    )
+  );
+
+  return {
+    summary: Object.fromEntries(
+      statuses.map((status, index) => [status, counts[index] ?? 0])
+    ) as Record<PendingRegistrationStatus, number>,
+    items: items.map((item) => ({
+      ...item,
+      billingInterval: fromPendingRegistrationBillingInterval(item.billingInterval)
+    }))
   };
 }

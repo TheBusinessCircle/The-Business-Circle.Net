@@ -36,6 +36,9 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
               <p className="mt-3 text-sm text-foreground">
                 Early access from {formatMembershipPrice(item.foundingPrice)}/month
               </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.08em] text-gold/90">
+                {item.remaining} founder place{item.remaining === 1 ? "" : "s"} remaining of {item.limit}
+              </p>
               <p className="mt-1 text-xs text-muted">
                 Founder pricing stays active only while this room still has founder allocation
                 available. Standard pricing then returns at {formatMembershipPrice(item.standardPrice)}/month.
@@ -45,6 +48,9 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
             <>
               <p className="mt-3 text-sm text-foreground">
                 Standard access from {formatMembershipPrice(item.standardPrice)}/month
+              </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.08em] text-silver">
+                {item.claimed} of {item.limit} founder places taken
               </p>
               <p className="mt-1 text-xs text-muted">
                 {getFounderRoomPricingNote(item)}

@@ -182,6 +182,14 @@ function standardPriceForInterval(
   return billingInterval === "annual" ? offer.standardAnnualPrice : offer.standardPrice;
 }
 
+function founderAvailabilityLine(offer: FoundingOfferTierSnapshot) {
+  if (offer.available) {
+    return `${offer.remaining} founder place${offer.remaining === 1 ? "" : "s"} remaining of ${offer.limit}.`;
+  }
+
+  return `${offer.claimed} of ${offer.limit} founder places already taken.`;
+}
+
 function FounderRateSummary({
   selectedGuide,
   selectedOffer,
@@ -355,12 +363,18 @@ function SelectedPathPanel({
                   Founder pricing stays available only while this room still has founder allocation
                   open.
                 </p>
+                <p className="text-xs uppercase tracking-[0.08em] text-gold/90">
+                  {founderAvailabilityLine(offer)}
+                </p>
               </>
             ) : (
               <>
                 <p className="text-sm text-foreground">{offer.launchClosedLabel}</p>
                 <p className="text-sm leading-relaxed text-muted">
                   Standard pricing is currently active for this room.
+                </p>
+                <p className="text-xs uppercase tracking-[0.08em] text-silver">
+                  {founderAvailabilityLine(offer)}
                 </p>
               </>
             )}

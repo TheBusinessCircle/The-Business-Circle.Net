@@ -1,13 +1,12 @@
-import { SubscriptionStatus, type MembershipTier } from "@prisma/client";
+import type { MembershipTier } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { canTierAccess, resolveEffectiveTier } from "@/lib/auth/permissions";
+import {
+  hasEntitledSubscription,
+  membershipAccessBillingQuery
+} from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
-
-const ENTITLED_SUBSCRIPTION_STATUSES = new Set<SubscriptionStatus>([
-  SubscriptionStatus.ACTIVE,
-  SubscriptionStatus.TRIALING
-]);
 
 async function getFreshUserEntitlement(userId: string) {
   return prisma.user.findUnique({
@@ -23,14 +22,6 @@ async function getFreshUserEntitlement(userId: string) {
       }
     }
   });
-}
-
-function hasEntitledSubscription(status: SubscriptionStatus | null | undefined) {
-  if (!status) {
-    return false;
-  }
-
-  return ENTITLED_SUBSCRIPTION_STATUSES.has(status);
 }
 
 export async function requireUser() {
@@ -60,7 +51,11 @@ export async function requireUser() {
   session.user.suspended = fresh.suspended;
 
   if (fresh.role !== "ADMIN" && !hasActiveSubscription) {
-    redirect("/membership?billing=required");
+    redirect(
+      `/membership?billing=${membershipAccessBillingQuery(
+        fresh.subscription?.status ?? null
+      )}`
+    );
   }
 
   return session;

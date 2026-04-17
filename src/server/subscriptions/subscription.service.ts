@@ -1,10 +1,13 @@
 import {
+  BillingInterval,
   FoundingReservationSource,
   MembershipTier,
   PendingRegistrationStatus,
+  Prisma,
+  StripeWebhookEventStatus,
   Role,
-  SubscriptionStatus,
-  type Prisma
+  SubscriptionBillingVariant,
+  SubscriptionStatus
 } from "@prisma/client";
 import { createElement } from "react";
 import type Stripe from "stripe";
@@ -23,6 +26,7 @@ import {
 } from "@/lib/auth/register";
 import { db } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email/resend";
+import { hasEntitledSubscription } from "@/lib/membership/access";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
 import { absoluteUrl } from "@/lib/utils";
 import {
@@ -39,10 +43,7 @@ import {
 } from "@/server/products-pricing";
 import { requireStripeClient } from "@/server/stripe/client";
 
-const ENTITLED_SUBSCRIPTION_STATUSES = new Set<SubscriptionStatus>([
-  SubscriptionStatus.ACTIVE,
-  SubscriptionStatus.TRIALING
-]);
+const WEBHOOK_PROCESSING_STALE_MS = 10 * 60 * 1000;
 
 type CheckoutSessionInput = {
   userId: string;
@@ -104,6 +105,14 @@ type ResolvedStripeSubscriptionContext = {
   subscriptionId: string | null;
 };
 
+type ResolvedSubscriptionPlanState = {
+  tier: MembershipTier;
+  billingInterval: BillingInterval | null;
+  billingVariant: SubscriptionBillingVariant | null;
+  stripePriceId: string | null;
+  stripeProductId: string | null;
+};
+
 function assertCoreAccessConfirmed(input: {
   targetTier: MembershipTier;
   coreAccessConfirmed?: boolean;
@@ -129,6 +138,46 @@ function toStripeObjectId(
   }
 
   return null;
+}
+
+function toBillingInterval(
+  interval: MembershipBillingInterval | null | undefined
+): BillingInterval | null {
+  if (!interval) {
+    return null;
+  }
+
+  return interval === "annual" ? BillingInterval.YEAR : BillingInterval.MONTH;
+}
+
+function toSubscriptionBillingVariant(
+  variant: MembershipBillingVariant | null | undefined
+): SubscriptionBillingVariant | null {
+  if (!variant) {
+    return null;
+  }
+
+  return variant === "founding"
+    ? SubscriptionBillingVariant.FOUNDING
+    : SubscriptionBillingVariant.STANDARD;
+}
+
+async function resolveSubscriptionPlanStateFromPriceId(
+  priceId: string | null | undefined
+): Promise<ResolvedSubscriptionPlanState> {
+  const plan = await resolveManagedMembershipPlanFromStripePriceId(priceId);
+
+  return {
+    tier: plan.tier,
+    billingInterval: toBillingInterval(plan.billingInterval),
+    billingVariant: toSubscriptionBillingVariant(plan.billingVariant),
+    stripePriceId: plan.stripePriceId,
+    stripeProductId: null
+  };
+}
+
+function webhookErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message.slice(0, 1000) : "Unknown webhook error";
 }
 
 function resolvePendingRegistrationIdFromSession(
@@ -286,6 +335,17 @@ function resolveStripeProductId(
   return null;
 }
 
+async function findStripeCustomerIdByEmail(email: string) {
+  const stripe = requireStripeClient();
+  const customers = await stripe.customers.list({
+    email,
+    limit: 10
+  });
+
+  const exactMatch = customers.data.find((customer) => customer.email?.trim().toLowerCase() === email);
+  return exactMatch?.id ?? null;
+}
+
 async function ensureStripeCustomerId(input: {
   userId: string;
   email: string;
@@ -301,13 +361,22 @@ async function ensureStripeCustomerId(input: {
   }
 
   const stripe = requireStripeClient();
-  const customer = await stripe.customers.create({
-    email: input.email,
-    name: input.name ?? undefined,
-    metadata: {
-      userId: input.userId
-    }
-  });
+  const matchedCustomerId = await findStripeCustomerIdByEmail(input.email);
+  const customer = matchedCustomerId
+    ? await stripe.customers.update(matchedCustomerId, {
+        email: input.email,
+        name: input.name ?? undefined,
+        metadata: {
+          userId: input.userId
+        }
+      })
+    : await stripe.customers.create({
+        email: input.email,
+        name: input.name ?? undefined,
+        metadata: {
+          userId: input.userId
+        }
+      });
 
   await db.subscription.upsert({
     where: { userId: input.userId },
@@ -318,6 +387,54 @@ async function ensureStripeCustomerId(input: {
       tier: MembershipTier.FOUNDATION
     },
     update: {
+      stripeCustomerId: customer.id
+    }
+  });
+
+  return customer.id;
+}
+
+async function ensureStripeCustomerIdForPendingRegistration(input: {
+  pendingRegistrationId: string;
+  email: string;
+  name?: string | null;
+}): Promise<string> {
+  const existing = await db.pendingRegistration.findUnique({
+    where: {
+      id: input.pendingRegistrationId
+    },
+    select: {
+      stripeCustomerId: true
+    }
+  });
+
+  if (existing?.stripeCustomerId) {
+    return existing.stripeCustomerId;
+  }
+
+  const stripe = requireStripeClient();
+  const matchedCustomerId = await findStripeCustomerIdByEmail(input.email);
+  const customer = matchedCustomerId
+    ? await stripe.customers.update(matchedCustomerId, {
+        email: input.email,
+        name: input.name ?? undefined,
+        metadata: {
+          pendingRegistrationId: input.pendingRegistrationId
+        }
+      })
+    : await stripe.customers.create({
+        email: input.email,
+        name: input.name ?? undefined,
+        metadata: {
+          pendingRegistrationId: input.pendingRegistrationId
+        }
+      });
+
+  await db.pendingRegistration.update({
+    where: {
+      id: input.pendingRegistrationId
+    },
+    data: {
       stripeCustomerId: customer.id
     }
   });
@@ -540,6 +657,17 @@ async function completePendingRegistrationFromStripeSubscription(
     return false;
   }
 
+  if (input.checkoutSessionId) {
+    await db.subscription.update({
+      where: {
+        id: persistedSubscription.id
+      },
+      data: {
+        stripeCheckoutSessionId: input.checkoutSessionId
+      }
+    });
+  }
+
   const foundingReservationId = subscription.metadata?.foundingReservationId ?? null;
   if (foundingReservationId) {
     await claimFoundingReservation({
@@ -650,7 +778,8 @@ async function upsertSubscriptionFromStripeSubscription(
 ) {
   const priceItem = resolvePrimaryPrice(subscription);
   const priceId = priceItem?.price.id ?? null;
-  const billedTier = await resolveManagedMembershipTierFromStripePriceId(priceId);
+  const planState = await resolveSubscriptionPlanStateFromPriceId(priceId);
+  const billedTier = planState.tier;
   const normalizedStatus = stripeStatusToSubscriptionStatus(subscription.status);
   const grantedTier = resolveGrantedTier(billedTier, normalizedStatus);
   const context = await resolveSubscriptionContext({
@@ -671,10 +800,13 @@ async function upsertSubscriptionFromStripeSubscription(
       userId: context.userId,
       stripeCustomerId: context.customerId ?? undefined,
       stripeSubscriptionId: context.subscriptionId ?? undefined,
-      stripeProductId: resolveStripeProductId(priceItem?.price.product),
-      stripePriceId: priceId ?? undefined,
+      stripeProductId:
+        resolveStripeProductId(priceItem?.price.product) ?? planState.stripeProductId ?? undefined,
+      stripePriceId: planState.stripePriceId ?? undefined,
       status: normalizedStatus,
       tier: billedTier,
+      billingInterval: planState.billingInterval,
+      billingVariant: planState.billingVariant,
       currentPeriodStart: toDateFromStripeTimestamp(subscription.current_period_start),
       currentPeriodEnd: toDateFromStripeTimestamp(subscription.current_period_end),
       trialStart: toDateFromStripeTimestamp(subscription.trial_start),
@@ -688,10 +820,13 @@ async function upsertSubscriptionFromStripeSubscription(
     update: {
       stripeCustomerId: context.customerId ?? undefined,
       stripeSubscriptionId: context.subscriptionId ?? undefined,
-      stripeProductId: resolveStripeProductId(priceItem?.price.product),
-      stripePriceId: priceId ?? undefined,
+      stripeProductId:
+        resolveStripeProductId(priceItem?.price.product) ?? planState.stripeProductId ?? undefined,
+      stripePriceId: planState.stripePriceId ?? undefined,
       status: normalizedStatus,
       tier: billedTier,
+      billingInterval: planState.billingInterval,
+      billingVariant: planState.billingVariant,
       currentPeriodStart: toDateFromStripeTimestamp(subscription.current_period_start),
       currentPeriodEnd: toDateFromStripeTimestamp(subscription.current_period_end),
       trialStart: toDateFromStripeTimestamp(subscription.trial_start),
@@ -743,6 +878,17 @@ async function upsertSubscriptionFromCheckoutSession(
     const subscription = await stripe.subscriptions.retrieve(context.subscriptionId);
     const persisted = await upsertSubscriptionFromStripeSubscription(subscription, context.userId);
 
+    if (persisted?.id) {
+      await db.subscription.update({
+        where: {
+          id: persisted.id
+        },
+        data: {
+          stripeCheckoutSessionId: session.id
+        }
+      });
+    }
+
     if (foundingReservationId && persisted?.id) {
       await claimFoundingReservation({
         reservationId: foundingReservationId,
@@ -755,19 +901,31 @@ async function upsertSubscriptionFromCheckoutSession(
   }
 
   const requestedTier = resolveRequestedTier(session.metadata?.targetTier);
+  const requestedBillingInterval = toBillingInterval(
+    session.metadata?.billingInterval === "annual" ? "annual" : "monthly"
+  );
+  const requestedBillingVariant = toSubscriptionBillingVariant(
+    session.metadata?.billingVariant === "founding" ? "founding" : "standard"
+  );
 
   const persisted = await db.subscription.upsert({
     where: { userId: context.userId },
     create: {
       userId: context.userId,
       stripeCustomerId: context.customerId ?? undefined,
+      stripeCheckoutSessionId: session.id,
       status: SubscriptionStatus.INCOMPLETE,
-      tier: requestedTier
+      tier: requestedTier,
+      billingInterval: requestedBillingInterval,
+      billingVariant: requestedBillingVariant
     },
     update: {
       stripeCustomerId: context.customerId ?? undefined,
+      stripeCheckoutSessionId: session.id,
       status: SubscriptionStatus.INCOMPLETE,
-      tier: requestedTier
+      tier: requestedTier,
+      billingInterval: requestedBillingInterval,
+      billingVariant: requestedBillingVariant
     },
     select: {
       id: true
@@ -863,6 +1021,48 @@ async function sendBillingReceiptForInvoice(invoice: Stripe.Invoice) {
   }
 }
 
+async function recordInvoiceSyncState(
+  invoice: Stripe.Invoice,
+  outcome: "paid" | "failed"
+) {
+  const subscriptionId = toStripeObjectId(
+    invoice.subscription as string | { id?: string } | null
+  );
+  const customerId = toStripeObjectId(invoice.customer as string | { id?: string } | null);
+  const where: Prisma.SubscriptionWhereInput[] = [];
+
+  if (subscriptionId) {
+    where.push({
+      stripeSubscriptionId: subscriptionId
+    });
+  }
+
+  if (customerId) {
+    where.push({
+      stripeCustomerId: customerId
+    });
+  }
+
+  if (!where.length) {
+    return;
+  }
+
+  await db.subscription.updateMany({
+    where: {
+      OR: where
+    },
+    data:
+      outcome === "paid"
+        ? {
+            lastInvoicePaidAt: new Date(),
+            lastInvoiceFailedAt: null
+          }
+        : {
+            lastInvoiceFailedAt: new Date()
+          }
+  });
+}
+
 async function syncSubscriptionFromInvoice(invoice: Stripe.Invoice) {
   const subscriptionId = toStripeObjectId(
     invoice.subscription as string | { id?: string } | null
@@ -878,10 +1078,12 @@ async function syncSubscriptionFromInvoice(invoice: Stripe.Invoice) {
     await completePendingRegistrationFromStripeSubscription(subscription);
 
   if (completedPendingRegistration) {
+    await recordInvoiceSyncState(invoice, invoice.paid ? "paid" : "failed");
     return;
   }
 
   await upsertSubscriptionFromStripeSubscription(subscription);
+  await recordInvoiceSyncState(invoice, invoice.paid ? "paid" : "failed");
 }
 
 type StripeWebhookProcessors = {
@@ -974,11 +1176,7 @@ export function stripeStatusToSubscriptionStatus(
 export function isSubscriptionEntitled(
   status: SubscriptionStatus | null | undefined
 ): boolean {
-  if (!status) {
-    return false;
-  }
-
-  return ENTITLED_SUBSCRIPTION_STATUSES.has(status);
+  return hasEntitledSubscription(status);
 }
 
 export async function createStripeCheckoutSessionForUser(
@@ -1076,15 +1274,21 @@ export async function createStripeCheckoutSessionForUser(
     create: {
       userId: input.userId,
       stripeCustomerId: customerId,
+      stripeCheckoutSessionId: session.id,
       stripePriceId: priceId,
       status: SubscriptionStatus.INCOMPLETE,
-      tier: input.targetTier
+      tier: input.targetTier,
+      billingInterval: toBillingInterval(input.billingInterval),
+      billingVariant: toSubscriptionBillingVariant(billingVariant)
     },
     update: {
       stripeCustomerId: customerId,
+      stripeCheckoutSessionId: session.id,
       stripePriceId: priceId,
       status: SubscriptionStatus.INCOMPLETE,
-      tier: input.targetTier
+      tier: input.targetTier,
+      billingInterval: toBillingInterval(input.billingInterval),
+      billingVariant: toSubscriptionBillingVariant(billingVariant)
     }
   });
 
@@ -1104,6 +1308,11 @@ export async function createStripeCheckoutSessionForPendingRegistration(
   assertCoreAccessConfirmed(input);
 
   const stripe = requireStripeClient();
+  const customerId = await ensureStripeCustomerIdForPendingRegistration({
+    pendingRegistrationId: input.pendingRegistrationId,
+    email: input.email,
+    name: input.name
+  });
   const foundingReservation =
     input.allowFoundingOffer === false
       ? null
@@ -1141,7 +1350,7 @@ export async function createStripeCheckoutSessionForPendingRegistration(
     session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
-      customer_email: input.email,
+      customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: true,
       success_url: absoluteUrl(
@@ -1184,7 +1393,8 @@ export async function createStripeCheckoutSessionForPendingRegistration(
   await updatePendingRegistrationStripeState({
     pendingRegistrationId: input.pendingRegistrationId,
     checkoutSessionId: session.id,
-    customerId: toStripeObjectId(session.customer as string | { id?: string } | null),
+    customerId:
+      toStripeObjectId(session.customer as string | { id?: string } | null) ?? customerId,
     subscriptionId: toStripeObjectId(
       session.subscription as string | { id?: string } | null
     )
@@ -1330,53 +1540,161 @@ export async function createStripeBillingPortalSessionForUser(
   };
 }
 
+async function acquireWebhookProcessingLease(event: Stripe.Event) {
+  const now = new Date();
+
+  try {
+    await db.stripeWebhookEvent.create({
+      data: {
+        id: event.id,
+        type: event.type,
+        status: StripeWebhookEventStatus.PROCESSING,
+        processingStartedAt: now
+      }
+    });
+
+    return true;
+  } catch (error) {
+    if (
+      !(error instanceof Prisma.PrismaClientKnownRequestError) &&
+      (!error || typeof error !== "object" || !("code" in error) || error.code !== "P2002")
+    ) {
+      throw error;
+    }
+  }
+
+  const existing = await db.stripeWebhookEvent.findUnique({
+    where: {
+      id: event.id
+    },
+    select: {
+      status: true,
+      processingStartedAt: true
+    }
+  });
+
+  if (!existing) {
+    return false;
+  }
+
+  if (existing.status === StripeWebhookEventStatus.PROCESSED) {
+    return false;
+  }
+
+  const staleBefore = new Date(now.getTime() - WEBHOOK_PROCESSING_STALE_MS);
+  const claimed = await db.stripeWebhookEvent.updateMany({
+    where: {
+      id: event.id,
+      OR: [
+        {
+          status: StripeWebhookEventStatus.FAILED
+        },
+        {
+          status: StripeWebhookEventStatus.PROCESSING,
+          processingStartedAt: {
+            lt: staleBefore
+          }
+        }
+      ]
+    },
+    data: {
+      status: StripeWebhookEventStatus.PROCESSING,
+      processingStartedAt: now,
+      processedAt: null,
+      lastError: null,
+      attemptCount: {
+        increment: 1
+      }
+    }
+  });
+
+  return claimed.count > 0;
+}
+
+async function markWebhookProcessed(eventId: string) {
+  await db.stripeWebhookEvent.update({
+    where: {
+      id: eventId
+    },
+    data: {
+      status: StripeWebhookEventStatus.PROCESSED,
+      processedAt: new Date(),
+      lastError: null
+    }
+  });
+}
+
+async function markWebhookFailed(eventId: string, error: unknown) {
+  await db.stripeWebhookEvent.update({
+    where: {
+      id: eventId
+    },
+    data: {
+      status: StripeWebhookEventStatus.FAILED,
+      lastError: webhookErrorMessage(error)
+    }
+  });
+}
+
 export async function processStripeWebhookEvent(
   event: Stripe.Event,
   processors: Partial<StripeWebhookProcessors> = {}
 ) {
+  const shouldProcess = await acquireWebhookProcessingLease(event);
+  if (!shouldProcess) {
+    return;
+  }
+
   const resolvedProcessors: StripeWebhookProcessors = {
     ...defaultWebhookProcessors,
     ...processors
   };
 
-  switch (event.type) {
-    case "checkout.session.completed": {
-      await resolvedProcessors.handleCheckoutSessionCompleted(
-        event.data.object as Stripe.Checkout.Session
-      );
-      break;
-    }
-    case "checkout.session.expired":
-    case "checkout.session.async_payment_failed": {
-      await resolvedProcessors.handleCheckoutSessionExpired(
-        event.data.object as Stripe.Checkout.Session
-      );
-      break;
-    }
-    case "customer.subscription.created":
-    case "customer.subscription.updated":
-    case "customer.subscription.deleted": {
-      await resolvedProcessors.handleSubscriptionChanged(
-        event.data.object as Stripe.Subscription
-      );
-      break;
-    }
-    case "invoice.payment_failed": {
-      await resolvedProcessors.handleInvoiceEvent(event.data.object as Stripe.Invoice);
-      break;
-    }
-    case "invoice.paid": {
-      const invoice = event.data.object as Stripe.Invoice;
-      await resolvedProcessors.handleInvoiceEvent(invoice);
-      try {
-        await sendBillingReceiptForInvoice(invoice);
-      } catch (error) {
-        logServerError("billing-receipt-email-send-failed", error);
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        await resolvedProcessors.handleCheckoutSessionCompleted(
+          event.data.object as Stripe.Checkout.Session
+        );
+        break;
       }
-      break;
+      case "checkout.session.expired":
+      case "checkout.session.async_payment_failed": {
+        await resolvedProcessors.handleCheckoutSessionExpired(
+          event.data.object as Stripe.Checkout.Session
+        );
+        break;
+      }
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        await resolvedProcessors.handleSubscriptionChanged(
+          event.data.object as Stripe.Subscription
+        );
+        break;
+      }
+      case "invoice.payment_failed": {
+        await resolvedProcessors.handleInvoiceEvent(event.data.object as Stripe.Invoice);
+        break;
+      }
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await resolvedProcessors.handleInvoiceEvent(invoice);
+        try {
+          await sendBillingReceiptForInvoice(invoice);
+        } catch (error) {
+          logServerError("billing-receipt-email-send-failed", error);
+        }
+        break;
+      }
+      default:
+        break;
     }
-    default:
-      break;
+
+    await markWebhookProcessed(event.id);
+  } catch (error) {
+    await markWebhookFailed(event.id, error);
+    throw error;
   }
 }
 

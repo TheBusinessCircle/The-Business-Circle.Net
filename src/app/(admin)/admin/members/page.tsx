@@ -27,7 +27,7 @@ import type {
   AdminMemberSuspensionFilter,
   AdminMembersQueryInput
 } from "@/types";
-import { listAdminMembers } from "@/server/admin";
+import { getAdminPendingRegistrationsOverview, listAdminMembers } from "@/server/admin";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -66,6 +66,14 @@ function parsePage(value: string): number {
 
 function formatEnumLabel(value: string): string {
   return toTitleCase(value.replaceAll("_", " "));
+}
+
+function formatBillingInterval(value: "MONTH" | "YEAR" | null) {
+  if (!value) {
+    return null;
+  }
+
+  return value === "YEAR" ? "Annual" : "Monthly";
 }
 
 function parseRole(value: string): Role | "" {
@@ -195,7 +203,10 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
     pageSize: PAGE_SIZE
   };
 
-  const result = await listAdminMembers(filters);
+  const [result, pendingRegistrations] = await Promise.all([
+    listAdminMembers(filters),
+    getAdminPendingRegistrationsOverview()
+  ]);
   const hasFilters = Boolean(
     query || role || membershipTier || subscriptionStatus !== "ANY" || suspension !== "ANY"
   );
@@ -339,6 +350,78 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
 
       <Card>
         <CardHeader>
+          <CardTitle>Pending Join & Billing States</CardTitle>
+          <CardDescription>
+            Pending registrations stay here until Stripe confirms payment and member provisioning is completed server-side.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-5">
+            {Object.entries(pendingRegistrations.summary).map(([status, count]) => (
+              <div
+                key={status}
+                className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3"
+              >
+                <p className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                  {formatEnumLabel(status)}
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-foreground">{count}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-border bg-background/25 text-xs uppercase tracking-[0.06em] text-muted">
+                  <th className="px-3 py-2 font-medium">Member</th>
+                  <th className="px-3 py-2 font-medium">Selected</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Created</th>
+                  <th className="px-3 py-2 font-medium">Expires</th>
+                  <th className="px-3 py-2 font-medium">Stripe</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingRegistrations.items.length ? (
+                  pendingRegistrations.items.map((item) => (
+                    <tr key={item.id} className="border-b border-border/70 align-top">
+                      <td className="px-3 py-3">
+                        <p className="font-medium text-foreground">{item.fullName}</p>
+                        <p className="mt-1 text-xs text-muted">{item.email}</p>
+                      </td>
+                      <td className="px-3 py-3 text-muted">
+                        {formatEnumLabel(item.selectedTier)} -{" "}
+                        {item.billingInterval === "annual" ? "Annual" : "Monthly"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <Badge variant="outline" className="text-muted normal-case tracking-normal">
+                          {formatEnumLabel(item.status)}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-3 text-muted">{formatDate(item.createdAt)}</td>
+                      <td className="px-3 py-3 text-muted">{formatDate(item.expiresAt)}</td>
+                      <td className="px-3 py-3 text-xs text-muted">
+                        <p>{item.stripeCheckoutSessionId ?? "No checkout session yet"}</p>
+                        {item.stripeSubscriptionId ? <p className="mt-1">{item.stripeSubscriptionId}</p> : null}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-8 text-center text-muted">
+                      No pending join records right now.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Reconcile Checkout</CardTitle>
           <CardDescription>
             Use this if Stripe shows a subscription but the member is not finalised.
@@ -409,6 +492,16 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                           <Badge variant="outline" className="text-muted normal-case tracking-normal">
                             {formatEnumLabel(member.subscriptionStatus)}
                           </Badge>
+                          {member.subscriptionBillingInterval || member.subscriptionBillingVariant ? (
+                            <p className="mt-1 text-xs text-muted">
+                              {member.subscriptionBillingVariant
+                                ? formatEnumLabel(member.subscriptionBillingVariant)
+                                : "Standard"}
+                              {member.subscriptionBillingInterval
+                                ? ` - ${formatBillingInterval(member.subscriptionBillingInterval)}`
+                                : ""}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-3 py-3 text-muted">{formatDate(member.createdAt)}</td>
                         <td className="px-3 py-3">

@@ -36,7 +36,8 @@ export const metadata: Metadata = createPageMetadata({
     "membership for business owners",
     "founder-led business network"
   ],
-  path: "/join"
+  path: "/join",
+  noIndex: true
 });
 
 export default async function JoinPage({ searchParams }: JoinPageProps) {

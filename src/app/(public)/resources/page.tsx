@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import { createPageMetadata } from "@/lib/seo";
+import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Resources",
@@ -20,13 +21,7 @@ export default async function ResourcesPage() {
     redirect(`/login?from=${encodeURIComponent(safeRedirectPath("/dashboard/resources"))}`);
   }
 
-  if (session.user.suspended) {
-    redirect("/login?error=suspended");
-  }
-
-  if (session.user.role !== "ADMIN" && !session.user.hasActiveSubscription) {
-    redirect("/membership?billing=required");
-  }
+  await requireUser();
 
   redirect("/dashboard/resources");
 }

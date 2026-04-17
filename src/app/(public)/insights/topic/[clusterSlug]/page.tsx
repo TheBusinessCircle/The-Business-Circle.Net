@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { InsightCard, JsonLd } from "@/components/public";
 import { Button } from "@/components/ui/button";
 import { INSIGHT_TOPIC_PILLARS } from "@/config/insight-pillars";
+import { SITE_CONFIG } from "@/config/site";
 import { createPageMetadata } from "@/lib/seo";
 import {
   buildBreadcrumbSchema,
@@ -23,12 +24,15 @@ type PageProps = {
 export const dynamicParams = false;
 
 function createFallbackMetadata(clusterSlug: string): Metadata {
-  return createPageMetadata({
-    title: "Insights Topic",
-    description: "Business insight topic area from The Business Circle.",
-    path: `/insights/topic/${clusterSlug}`,
-    noIndex: true
-  });
+  return {
+    ...createPageMetadata({
+      title: "Insights Topic",
+      description: "Business insight topic area from The Business Circle.",
+      path: `/insights/topic/${clusterSlug}`,
+      noIndex: true
+    }),
+    metadataBase: new URL(SITE_CONFIG.url)
+  };
 }
 
 export function generateStaticParams() {
@@ -45,11 +49,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const pillar = INSIGHT_TOPIC_PILLARS[cluster.slug];
 
-  return createPageMetadata({
-    title: pillar.headline,
-    description: cluster.description,
-    path: cluster.href
-  });
+  return {
+    ...createPageMetadata({
+      title: pillar.headline,
+      description: cluster.description,
+      path: cluster.href
+    }),
+    metadataBase: new URL(SITE_CONFIG.url)
+  };
 }
 
 export default async function InsightTopicClusterPage({ params }: PageProps) {

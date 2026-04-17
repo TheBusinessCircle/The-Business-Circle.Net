@@ -1,27 +1,15 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { SubscriptionStatus, type MembershipTier, type Role } from "@prisma/client";
+import type { MembershipTier, Role, SubscriptionStatus } from "@prisma/client";
 import type { NextAuthConfig } from "next-auth";
+import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { buildAuthProviders } from "@/lib/auth/providers";
 import { normalizeEmail } from "@/lib/auth/utils";
-
-const ENTITLED_SUBSCRIPTION_STATUSES = new Set<SubscriptionStatus>([
-  SubscriptionStatus.ACTIVE,
-  SubscriptionStatus.TRIALING
-]);
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
 if (process.env.NODE_ENV === "production" && !authSecret) {
   throw new Error("AUTH_SECRET (or NEXTAUTH_SECRET) must be set in production.");
-}
-
-function hasEntitledSubscription(status: SubscriptionStatus | null | undefined) {
-  if (!status) {
-    return false;
-  }
-
-  return ENTITLED_SUBSCRIPTION_STATUSES.has(status);
 }
 
 export const authConfig = {
@@ -188,4 +176,3 @@ export const authConfig = {
     }
   }
 } satisfies NextAuthConfig;
-

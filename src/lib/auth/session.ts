@@ -3,6 +3,7 @@ import type { MembershipTier } from "@prisma/client";
 import { redirect } from "next/navigation";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
+import { membershipAccessBillingQuery } from "@/lib/membership/access";
 import type { SessionUser } from "@/types";
 import { canTierAccess, isAdminRole, resolveEffectiveTier, userCanAccessTier } from "@/lib/auth/permissions";
 
@@ -50,7 +51,7 @@ export async function requireCurrentUser(): Promise<SessionUser> {
   }
 
   if (user.role !== "ADMIN" && !user.hasActiveSubscription) {
-    redirect("/membership?billing=required");
+    redirect(`/membership?billing=${membershipAccessBillingQuery(user.subscriptionStatus)}`);
   }
 
   return user;
@@ -93,4 +94,3 @@ export function hasRequiredTier(
 ): boolean {
   return userCanAccessTier(user, requiredTier);
 }
-

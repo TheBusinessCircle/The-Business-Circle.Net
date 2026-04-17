@@ -96,6 +96,14 @@ function selectedPriceForInterval(
       : offer.standardPrice;
 }
 
+function founderAvailabilityLine(offer: FoundingOfferTierSnapshot) {
+  if (offer.available) {
+    return `${offer.remaining} founder place${offer.remaining === 1 ? "" : "s"} remaining of ${offer.limit}.`;
+  }
+
+  return `${offer.claimed} of ${offer.limit} founder places already taken.`;
+}
+
 function updateJoinUrl(href: string) {
   if (typeof window === "undefined") {
     return;
@@ -289,6 +297,9 @@ export function JoinCheckoutPrep({
                 <p className="text-sm text-muted">
                   Founder pricing is still available in this room for a limited founder allocation.
                 </p>
+                <p className="text-xs uppercase tracking-[0.08em] text-gold/90">
+                  {founderAvailabilityLine(selectedOffer)}
+                </p>
                 <div className="flex flex-wrap items-end gap-2">
                   <span
                     className={cn("font-display text-5xl", getTierAccentTextClassName(selectedTier))}
@@ -320,6 +331,9 @@ export function JoinCheckoutPrep({
                   </span>
                   <span className="pb-1 text-sm text-silver">{periodLabel(billingInterval)}</span>
                 </div>
+                <p className="text-xs uppercase tracking-[0.08em] text-silver">
+                  {founderAvailabilityLine(selectedOffer)}
+                </p>
                 <p className="text-sm text-muted">{selectedOffer.launchClosedLabel}</p>
               </div>
             )}

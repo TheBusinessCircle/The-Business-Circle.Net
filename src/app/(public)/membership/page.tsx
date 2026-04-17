@@ -85,6 +85,28 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         </p>
       ) : null}
 
+      {billing === "pending" ? (
+        <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
+          Your membership is still pending payment confirmation. Complete checkout again if the
+          session expired, or return to your join confirmation page if Stripe has already charged
+          you.
+        </p>
+      ) : null}
+
+      {billing === "past-due" ? (
+        <p className="rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          Your last payment did not complete, so premium access is currently on hold. Update
+          billing to restore full member access.
+        </p>
+      ) : null}
+
+      {billing === "cancelled-access" ? (
+        <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
+          Your previous membership is no longer active. Review the rooms again, then restart secure
+          checkout when you want to come back in properly.
+        </p>
+      ) : null}
+
       {billing === "cancelled" ? (
         <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
           Stripe checkout was cancelled. Your room selection is still here, ready when you want to

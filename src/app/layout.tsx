@@ -53,7 +53,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en-GB" suppressHydrationWarning>
       <body
         suppressHydrationWarning
         className={`${display.variable} ${sans.variable} font-sans bg-background text-foreground`}

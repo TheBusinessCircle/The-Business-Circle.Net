@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ReactNode } from "react";
 import { MembershipTier } from "@prisma/client";
@@ -12,11 +13,16 @@ import { Button } from "@/components/ui/button";
 import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Separator } from "@/components/ui/separator";
+import { SITE_CONFIG } from "@/config/site";
 import { getMembershipTierLabel } from "@/config/membership";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
 import { requireUser } from "@/lib/session";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_CONFIG.url)
+};
 
 export default async function MemberLayout({ children }: { children: ReactNode }) {
   const session = await requireUser();

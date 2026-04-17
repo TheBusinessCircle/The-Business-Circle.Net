@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ArrowUpRight, ShieldCheck, Sparkles } from "lucide-react";
 import { AdminLivePanel, AdminNavigation } from "@/components/admin";
@@ -8,9 +9,14 @@ import { AppShell } from "@/components/shell/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { SITE_CONFIG } from "@/config/site";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { ADMIN_NAV } from "@/lib/constants";
 import { requireAdmin } from "@/lib/session";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_CONFIG.url)
+};
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await requireAdmin();

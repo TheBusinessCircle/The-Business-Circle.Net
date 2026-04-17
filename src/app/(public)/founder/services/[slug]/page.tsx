@@ -4,6 +4,7 @@ import { FounderServiceRequestForm } from "@/components/founder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SITE_CONFIG } from "@/config/site";
 import {
   formatFounderMembershipTierLabel,
   formatFounderServicePrice,
@@ -46,18 +47,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const service = await getFounderServiceBySlug(slug);
 
   if (!service) {
-    return createPageMetadata({
-      title: "Founder Service",
-      description: "Founder services from Trev Newton.",
-      path: `/founder/services/${slug}`
-    });
+    return {
+      ...createPageMetadata({
+        title: "Founder Service",
+        description: "Founder services from Trev Newton.",
+        path: `/founder/services/${slug}`
+      }),
+      metadataBase: new URL(SITE_CONFIG.url)
+    };
   }
 
-  return createPageMetadata({
-    title: service.title,
-    description: service.shortDescription,
-    path: `/founder/services/${service.slug}`
-  });
+  return {
+    ...createPageMetadata({
+      title: service.title,
+      description: service.shortDescription,
+      path: `/founder/services/${service.slug}`
+    }),
+    metadataBase: new URL(SITE_CONFIG.url)
+  };
 }
 
 export default async function FounderServicePage({

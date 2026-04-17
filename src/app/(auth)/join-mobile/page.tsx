@@ -26,7 +26,8 @@ export const metadata: Metadata = createPageMetadata({
     "founder network membership",
     "private business network"
   ],
-  path: "/join-mobile"
+  path: "/join-mobile",
+  noIndex: true
 });
 
 export default async function JoinMobilePage({ searchParams }: JoinMobilePageProps) {

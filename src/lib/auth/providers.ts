@@ -1,7 +1,7 @@
-import { SubscriptionStatus } from "@prisma/client";
 import { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { isRecoverableDatabaseError } from "@/lib/db-errors";
+import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { verifyPasswordWithTimingSafeFallback } from "@/lib/auth/password";
 import { credentialsSignInSchema } from "@/lib/auth/schemas";
@@ -9,10 +9,6 @@ import { normalizeEmail } from "@/lib/auth/utils";
 import { clientIpFromHeaders, consumeRateLimit } from "@/lib/security/rate-limit";
 import { logServerError } from "@/lib/security/logging";
 
-const ENTITLED_SUBSCRIPTION_STATUSES = new Set<SubscriptionStatus>([
-  SubscriptionStatus.ACTIVE,
-  SubscriptionStatus.TRIALING
-]);
 const AUTH_IP_LIMIT = {
   limit: 40,
   windowMs: 15 * 60 * 1000
@@ -98,10 +94,7 @@ function credentialsProvider() {
         const hasActiveSubscription =
           user.role === "ADMIN"
             ? true
-            : Boolean(
-                subscriptionStatus &&
-                  ENTITLED_SUBSCRIPTION_STATUSES.has(subscriptionStatus)
-              );
+            : hasEntitledSubscription(subscriptionStatus);
 
         return {
           id: user.id,

@@ -55,6 +55,14 @@ function formatEnumLabel(value: string): string {
   return toTitleCase(value.replaceAll("_", " "));
 }
 
+function formatBillingInterval(value: "MONTH" | "YEAR" | null) {
+  if (!value) {
+    return null;
+  }
+
+  return value === "YEAR" ? "Annual" : "Monthly";
+}
+
 function buildFeedbackMessage(input: { error: string; notice: string }) {
   const noticeMap: Record<string, string> = {
     "member-updated": "Member details were updated.",
@@ -161,6 +169,14 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
           <Badge variant="outline" className="border-border text-muted">
             Subscription: {formatEnumLabel(member.subscriptionStatus)}
           </Badge>
+          {member.subscriptionBillingVariant ? (
+            <Badge variant="outline" className="border-border text-muted">
+              Pricing: {formatEnumLabel(member.subscriptionBillingVariant)}
+              {member.subscriptionBillingInterval
+                ? ` · ${formatBillingInterval(member.subscriptionBillingInterval)}`
+                : ""}
+            </Badge>
+          ) : null}
           {member.suspended ? (
             <Badge className="bg-red-600/20 text-red-200 hover:bg-red-600/20">
               <ShieldAlert size={12} className="mr-1" />
@@ -260,6 +276,50 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
                 Update Tier
               </Button>
             </form>
+
+            <div className="rounded-xl border border-border p-3">
+              <p className="text-sm font-medium text-foreground">Current subscription state</p>
+              <p className="mt-1 text-xs text-muted">
+                Stripe remains the source of truth for status, billing cadence, and cancellation timing.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Status</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {formatEnumLabel(member.subscriptionStatus)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Cadence</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {member.subscriptionBillingInterval
+                      ? formatBillingInterval(member.subscriptionBillingInterval)
+                      : "Not yet synced"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Variant</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {member.subscriptionBillingVariant
+                      ? formatEnumLabel(member.subscriptionBillingVariant)
+                      : "Standard"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Period end</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {member.subscriptionCurrentPeriodEnd
+                      ? formatDate(member.subscriptionCurrentPeriodEnd)
+                      : "No active billing period"}
+                  </p>
+                </div>
+              </div>
+              {member.subscriptionCancelAtPeriodEnd ? (
+                <p className="mt-3 text-xs text-gold">
+                  This subscription is set to cancel at the end of the current billing period.
+                </p>
+              ) : null}
+            </div>
 
             <div className="rounded-xl border border-border p-3">
               <p className="text-sm font-medium text-foreground">Account Suspension</p>

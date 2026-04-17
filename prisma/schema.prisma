@@ -516,17 +516,22 @@ model Subscription {
   id                   String                     @id @default(cuid())
   userId               String                     @unique
   stripeCustomerId     String?                    @unique
+  stripeCheckoutSessionId String?                 @unique
   stripeSubscriptionId String?                    @unique
   stripeProductId      String?
   stripePriceId        String?
   status               SubscriptionStatus         @default(INCOMPLETE)
   tier                 MembershipTier             @default(FOUNDATION)
+  billingInterval      BillingInterval?
+  billingVariant       SubscriptionBillingVariant?
   currentPeriodStart   DateTime?
   currentPeriodEnd     DateTime?
   trialStart           DateTime?
   trialEnd             DateTime?
   cancelAtPeriodEnd    Boolean                    @default(false)
   canceledAt           DateTime?
+  lastInvoicePaidAt    DateTime?
+  lastInvoiceFailedAt  DateTime?
   metadata             Json?
   createdAt            DateTime                   @default(now())
   updatedAt            DateTime                   @updatedAt
@@ -537,8 +542,24 @@ model Subscription {
   @@index([status])
   @@index([tier])
   @@index([status, tier])
+  @@index([billingInterval, billingVariant])
   @@index([currentPeriodEnd])
   @@index([updatedAt])
+}
+
+model StripeWebhookEvent {
+  id                String                  @id
+  type              String
+  status            StripeWebhookEventStatus @default(PROCESSING)
+  processingStartedAt DateTime?
+  processedAt       DateTime?
+  attemptCount      Int                     @default(1)
+  lastError         String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([type, createdAt])
 }
 
 model PendingRegistration {
@@ -1265,6 +1286,17 @@ enum BillingPriceBillingType {
 enum BillingInterval {
   MONTH
   YEAR
+}
+
+enum SubscriptionBillingVariant {
+  STANDARD
+  FOUNDING
+}
+
+enum StripeWebhookEventStatus {
+  PROCESSING
+  PROCESSED
+  FAILED
 }
 
 enum BillingDiscountType {

@@ -1,9 +1,10 @@
-import { SubscriptionStatus, type MembershipTier } from "@prisma/client";
+import type { MembershipTier } from "@prisma/client";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import type { SessionUser } from "@/types";
 import { isAdminRole, userCanAccessTier } from "@/lib/auth/permissions";
+import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 
 type ApiAuthOptions = {
@@ -49,19 +50,6 @@ function toSessionUser(session: Session | null): SessionUser | null {
     suspended: session.user.suspended,
     emailVerified: session.user.emailVerified ?? null
   };
-}
-
-const ENTITLED_SUBSCRIPTION_STATUSES = new Set<SubscriptionStatus>([
-  SubscriptionStatus.ACTIVE,
-  SubscriptionStatus.TRIALING
-]);
-
-function hasEntitledSubscription(status: SubscriptionStatus | null | undefined) {
-  if (!status) {
-    return false;
-  }
-
-  return ENTITLED_SUBSCRIPTION_STATUSES.has(status);
 }
 
 async function refreshUserEntitlement(userId: string) {

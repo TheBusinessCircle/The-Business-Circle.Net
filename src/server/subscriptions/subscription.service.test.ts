@@ -28,7 +28,14 @@ vi.hoisted(() => {
 });
 
 vi.mock("@/lib/db", () => ({
-  db: {}
+  db: {
+    stripeWebhookEvent: {
+      create: vi.fn(async () => ({})),
+      findUnique: vi.fn(async () => null),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+      update: vi.fn(async () => ({}))
+    }
+  }
 }));
 
 vi.mock("@/server/stripe/client", () => ({
@@ -64,6 +71,7 @@ import {
   processStripeWebhookEvent,
   stripeStatusToSubscriptionStatus
 } from "@/server/subscriptions/subscription.service";
+import { db } from "@/lib/db";
 
 describe("subscription service", () => {
   it("maps Stripe price IDs to membership tiers", () => {
@@ -163,5 +171,31 @@ describe("subscription service", () => {
     expect(processors.handleSubscriptionChanged).toHaveBeenCalledTimes(1);
     expect(processors.handleInvoiceEvent).toHaveBeenCalledTimes(1);
   });
-});
 
+  it("does not reprocess an already completed webhook event", async () => {
+    vi.mocked(db.stripeWebhookEvent.create).mockRejectedValueOnce({
+      code: "P2002"
+    });
+    vi.mocked(db.stripeWebhookEvent.findUnique).mockResolvedValueOnce({
+      status: "PROCESSED",
+      processingStartedAt: new Date()
+    });
+
+    const processors = {
+      handleCheckoutSessionCompleted: vi.fn(async () => {})
+    };
+
+    await processStripeWebhookEvent(
+      {
+        id: "evt_completed",
+        type: "checkout.session.completed",
+        data: {
+          object: { id: "cs_completed" }
+        }
+      } as unknown as Stripe.Event,
+      processors
+    );
+
+    expect(processors.handleCheckoutSessionCompleted).not.toHaveBeenCalled();
+  });
+});

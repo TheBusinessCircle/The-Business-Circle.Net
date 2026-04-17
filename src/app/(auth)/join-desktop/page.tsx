@@ -26,7 +26,8 @@ export const metadata: Metadata = createPageMetadata({
     "business owner membership",
     "inner circle membership"
   ],
-  path: "/join-desktop"
+  path: "/join-desktop",
+  noIndex: true
 });
 
 export default async function JoinDesktopPage({ searchParams }: JoinDesktopPageProps) {

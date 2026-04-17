@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { SITE_CONFIG } from "@/config/site";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import { createPageMetadata } from "@/lib/seo";
+import { requireUser } from "@/lib/session";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -11,12 +13,15 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
 
-  return createPageMetadata({
-    title: "Resources",
-    description: "Business Circle resources are available inside the member dashboard.",
-    path: `/resources/${slug}`,
-    noIndex: true
-  });
+  return {
+    ...createPageMetadata({
+      title: "Resources",
+      description: "Business Circle resources are available inside the member dashboard.",
+      path: `/resources/${slug}`,
+      noIndex: true
+    }),
+    metadataBase: new URL(SITE_CONFIG.url)
+  };
 }
 
 export const dynamic = "force-dynamic";
@@ -29,13 +34,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
     redirect(`/login?from=${encodeURIComponent(safeRedirectPath(`/dashboard/resources/${slug}`))}`);
   }
 
-  if (session.user.suspended) {
-    redirect("/login?error=suspended");
-  }
-
-  if (session.user.role !== "ADMIN" && !session.user.hasActiveSubscription) {
-    redirect("/membership?billing=required");
-  }
+  await requireUser();
 
   redirect(`/dashboard/resources/${slug}`);
 }

@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth/utils";
+import { membershipAccessBillingQuery } from "@/lib/membership/access";
 import { NextResponse, type NextRequest } from "next/server";
 
 const AUTH_ROUTES = [
@@ -81,7 +82,14 @@ export default auth((req) => {
     }
 
     if (session.user.role !== "ADMIN" && !session.user.hasActiveSubscription) {
-      return NextResponse.redirect(new URL("/membership?billing=required", nextUrl));
+      return NextResponse.redirect(
+        new URL(
+          `/membership?billing=${membershipAccessBillingQuery(
+            session.user.subscriptionStatus ?? null
+          )}`,
+          nextUrl
+        )
+      );
     }
 
     return NextResponse.redirect(new URL("/dashboard", nextUrl));
@@ -100,7 +108,14 @@ export default auth((req) => {
   }
 
   if (isMemberAreaRoute && session.user.role !== "ADMIN" && !session.user.hasActiveSubscription) {
-    return NextResponse.redirect(new URL("/membership?billing=required", nextUrl));
+    return NextResponse.redirect(
+      new URL(
+        `/membership?billing=${membershipAccessBillingQuery(
+          session.user.subscriptionStatus ?? null
+        )}`,
+        nextUrl
+      )
+    );
   }
 
   if (isVerifiedRoute && session.user.role !== "ADMIN" && !session.user.emailVerified) {
