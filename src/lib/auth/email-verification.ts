@@ -24,7 +24,10 @@ function verificationIdentifier(userId: string) {
 }
 
 function resolveVerificationTokenTtlHours() {
-  const configured = Number(process.env.EMAIL_VERIFICATION_TOKEN_TTL_HOURS ?? DEFAULT_VERIFICATION_TOKEN_TTL_HOURS);
+  const configured = Number(
+    process.env.EMAIL_VERIFICATION_TOKEN_TTL_HOURS ??
+      DEFAULT_VERIFICATION_TOKEN_TTL_HOURS
+  );
   if (!Number.isFinite(configured)) {
     return DEFAULT_VERIFICATION_TOKEN_TTL_HOURS;
   }
@@ -47,7 +50,9 @@ function buildVerificationUrl(userId: string, token: string) {
   return url.toString();
 }
 
-export async function sendEmailVerificationForUser(input: SendVerificationEmailInput) {
+export async function sendEmailVerificationForUser(
+  input: SendVerificationEmailInput
+) {
   const rawToken = createVerificationToken();
   const tokenHash = hashEmailVerificationToken(rawToken);
   const ttlHours = resolveVerificationTokenTtlHours();
