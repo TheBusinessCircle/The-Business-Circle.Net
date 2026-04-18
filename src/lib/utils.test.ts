@@ -6,7 +6,7 @@ const originalAppUrl = process.env.APP_URL;
 const originalNextAuthUrl = process.env.NEXTAUTH_URL;
 
 function setNodeEnv(value: string) {
-  process.env.NODE_ENV = value;
+  (process.env as Record<string, string | undefined>).NODE_ENV = value;
 }
 
 describe("base url resolution", () => {

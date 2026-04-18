@@ -18,6 +18,7 @@ Safeguards:
 Environment:
 
 - `COMMUNITY_AUTOMATION_SECRET` secures the internal route.
+- `CRON_SECRET` can secure Vercel cron requests across internal scheduled routes.
 - `COMMUNITY_AUTOMATION_AUTHOR_ID` can pin the author account used for automated community publishing. If omitted, the oldest active admin account is used.
 - `COMMUNITY_PROMPT_AUTHOR_ID` still works as a fallback for quiet prompts.
 - `BCN_COMMUNITY_AUTOMATION_ENABLED` toggles the BCN curated updates lane on or off.
@@ -29,3 +30,8 @@ Cron example:
 - `GET /api/internal/community/prompts/run?secret=YOUR_SECRET`
 - or send `Authorization: Bearer YOUR_SECRET`
 - `GET /api/internal/community/bcn-updates/run?secret=YOUR_SECRET`
+
+Vercel:
+
+- `vercel.json` schedules the internal automation routes directly.
+- If `CRON_SECRET` is set in Vercel, cron requests are authorized via `Authorization: Bearer $CRON_SECRET`.

@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/resources/publish/run",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/internal/community/bcn-updates/run",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/internal/community/prompts/run",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

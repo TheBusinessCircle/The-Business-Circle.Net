@@ -1,23 +1,27 @@
 import { NextResponse } from "next/server";
+import { isAuthorizedInternalAutomationRequest } from "@/lib/internal-route-auth";
 import { publishBcnCuratedPosts } from "@/server/community/community-curation.service";
 
 function isAuthorized(request: Request): boolean {
   const secret = process.env.COMMUNITY_AUTOMATION_SECRET?.trim();
+  const cronSecret = process.env.CRON_SECRET?.trim();
 
-  if (!secret) {
+  if (!secret && !cronSecret) {
     return false;
   }
 
-  const url = new URL(request.url);
-  const authorization = request.headers.get("authorization")?.trim();
-  const headerSecret = request.headers.get("x-community-secret")?.trim();
-  const querySecret = url.searchParams.get("secret")?.trim();
-
-  return (
-    authorization === `Bearer ${secret}` ||
-    headerSecret === secret ||
-    querySecret === secret
-  );
+  return isAuthorizedInternalAutomationRequest(request, {
+    bearerSecrets: [secret ?? "", cronSecret ?? ""],
+    headerSecrets: secret
+      ? [
+          {
+            headerName: "x-community-secret",
+            secret
+          }
+        ]
+      : [],
+    allowQuerySecret: true
+  });
 }
 
 async function runBcnCuration(request: Request) {
