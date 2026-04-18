@@ -141,6 +141,7 @@ export function CommunityFeed({
   }
 
   const selectedChannel = feed.selectedChannel;
+  const showComposer = selectedChannel.allowMemberPosts;
   const roomPromptSuggestions = getSuggestedConversationPrompts({
     membershipTier,
     channelSlug: selectedChannel.slug,
@@ -228,12 +229,29 @@ export function CommunityFeed({
           </CardHeader>
         </Card>
 
-        <ConversationComposer
-          channelName={selectedChannel.name}
-          channelSlug={selectedChannel.slug}
-          currentUserName={currentUserName}
-          prompts={roomPromptSuggestions}
-        />
+        {showComposer ? (
+          <ConversationComposer
+            channelName={selectedChannel.name}
+            channelSlug={selectedChannel.slug}
+            currentUserName={currentUserName}
+            prompts={roomPromptSuggestions}
+          />
+        ) : (
+          <Card className="border-silver/22 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
+            <CardHeader>
+              <CardTitle className="text-2xl">
+                {selectedChannel.isAutomatedFeed
+                  ? "Curated BCN updates"
+                  : "Posting is handled centrally here"}
+              </CardTitle>
+              <CardDescription className="max-w-3xl text-sm leading-relaxed">
+                {selectedChannel.isAutomatedFeed
+                  ? "This room publishes BCN-curated updates automatically. Members across every tier can still comment, reply, and build a real public discussion underneath each update."
+                  : "Top-level threads are managed centrally in this room, but comments and replies still work normally on the discussions already here."}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
         <FeedActivitySnapshot channelSlug={selectedChannel.slug} posts={feed.posts} />
 

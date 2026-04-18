@@ -123,6 +123,10 @@ export async function createCommunityPostAction(formData: FormData) {
       redirectWithError(returnPath, "channel-forbidden");
     }
 
+    if (error instanceof Error && error.message === "community-channel-readonly") {
+      redirectWithError(returnPath, "channel-readonly");
+    }
+
     if (error instanceof Error && error.message === "community-content-blocked") {
       redirectWithError(returnPath, "post-blocked");
     }

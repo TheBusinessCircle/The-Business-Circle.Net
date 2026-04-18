@@ -10,7 +10,11 @@ export type CommunityChannelBlueprint = {
   accessLevel: ChannelAccessLevel;
   isPrivate: boolean;
   allowAutomatedPrompts?: boolean;
+  allowMemberPosts?: boolean;
+  isAutomatedFeed?: boolean;
 };
+
+export const BCN_UPDATES_CHANNEL_SLUG = "bcn-updates";
 
 export const FOUNDATION_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
   {
@@ -24,11 +28,24 @@ export const FOUNDATION_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
     isPrivate: false
   },
   {
+    name: "BCN Updates",
+    slug: BCN_UPDATES_CHANNEL_SLUG,
+    description: "Automatically curated business updates reframed for BCN members, with public discussion underneath each post.",
+    topic: "BCN updates",
+    position: 1,
+    accessTier: MembershipTier.FOUNDATION,
+    accessLevel: ChannelAccessLevel.MEMBERS,
+    isPrivate: false,
+    allowAutomatedPrompts: false,
+    allowMemberPosts: false,
+    isAutomatedFeed: true
+  },
+  {
     name: "Business Conversations",
     slug: "general-chat",
     description: "Broader business discussion, decision points, and everyday founder thinking.",
     topic: "Business conversations",
-    position: 1,
+    position: 2,
     accessTier: MembershipTier.FOUNDATION,
     accessLevel: ChannelAccessLevel.MEMBERS,
     isPrivate: false
@@ -38,7 +55,7 @@ export const FOUNDATION_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
     slug: "collaboration",
     description: "Partnerships, introductions, referrals, and aligned opportunities.",
     topic: "Connections and collaboration",
-    position: 2,
+    position: 3,
     accessTier: MembershipTier.FOUNDATION,
     accessLevel: ChannelAccessLevel.MEMBERS,
     isPrivate: false
@@ -48,7 +65,7 @@ export const FOUNDATION_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
     slug: "wins-and-progress",
     description: "Momentum updates, progress, and useful lessons from what is working.",
     topic: "Wins and movement",
-    position: 3,
+    position: 4,
     accessTier: MembershipTier.FOUNDATION,
     accessLevel: ChannelAccessLevel.MEMBERS,
     isPrivate: false
@@ -58,7 +75,7 @@ export const FOUNDATION_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
     slug: "marketing",
     description: "Positioning, demand, messaging, and visibility work.",
     topic: "Marketing and visibility",
-    position: 4,
+    position: 5,
     accessTier: MembershipTier.FOUNDATION,
     accessLevel: ChannelAccessLevel.MEMBERS,
     isPrivate: false
@@ -68,7 +85,7 @@ export const FOUNDATION_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
     slug: "business-support",
     description: "Operational questions, systems, delivery, and practical support.",
     topic: "Business support and operations",
-    position: 5,
+    position: 6,
     accessTier: MembershipTier.FOUNDATION,
     accessLevel: ChannelAccessLevel.MEMBERS,
     isPrivate: false
@@ -81,7 +98,7 @@ export const INNER_CIRCLE_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
     slug: "inner-circle-chat",
     description: "A more focused room for higher-intent conversation and deeper discussion.",
     topic: "Inner Circle",
-    position: 6,
+    position: 7,
     accessTier: MembershipTier.INNER_CIRCLE,
     accessLevel: ChannelAccessLevel.INNER_CIRCLE,
     isPrivate: true
@@ -91,7 +108,7 @@ export const INNER_CIRCLE_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
     slug: "founder-strategy",
     description: "Higher-level strategic discussion, trade-offs, and decision-led thinking.",
     topic: "Founder strategy",
-    position: 7,
+    position: 8,
     accessTier: MembershipTier.INNER_CIRCLE,
     accessLevel: ChannelAccessLevel.INNER_CIRCLE,
     isPrivate: true
@@ -104,7 +121,7 @@ export const CORE_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
     slug: "premium-discussions",
     description: "The calmest room for higher-level discussion, sharper decisions, and founder proximity.",
     topic: "Core discussion",
-    position: 8,
+    position: 9,
     accessTier: MembershipTier.CORE,
     accessLevel: ChannelAccessLevel.INNER_CIRCLE,
     isPrivate: true
@@ -116,6 +133,10 @@ export const COMMUNITY_CHANNEL_BLUEPRINTS: CommunityChannelBlueprint[] = [
   ...INNER_CIRCLE_COMMUNITY_CHANNELS,
   ...CORE_COMMUNITY_CHANNELS
 ];
+
+export function getCommunityChannelBlueprintBySlug(slug: string) {
+  return COMMUNITY_CHANNEL_BLUEPRINTS.find((channel) => channel.slug === slug) ?? null;
+}
 
 export const DEFAULT_COMMUNITY_CHANNEL_SLUG = FOUNDATION_COMMUNITY_CHANNELS[0]?.slug ?? "introductions";
 export const COMMUNITY_POLL_INTERVAL_MS = 3500;

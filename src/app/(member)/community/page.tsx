@@ -15,6 +15,7 @@ import {
   getCommunityFeedPage,
   listRecentConnectionWinsForTiers,
   listUpcomingEventsForTier,
+  maybePublishBcnCuratedPosts,
   maybePublishQuietCommunityPrompt
 } from "@/server/community";
 
@@ -46,6 +47,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
   const errorMap: Record<string, string> = {
     "post-invalid": "Please give the discussion a clearer title and enough detail for useful replies.",
     "post-blocked": "Please rewrite that before posting. Profanity and abusive language are blocked to keep the rooms commercially useful.",
+    "channel-readonly": "That room is curated automatically. Add your perspective in the comments underneath the published updates instead.",
     "comment-invalid": "Please add enough detail for the reply to be useful.",
     "comment-blocked": "Please rewrite that before posting. Profanity and abusive language are blocked to keep the rooms commercially useful.",
     "comment-forbidden": "That reply is no longer available in this discussion.",
@@ -76,6 +78,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
   await maybePublishQuietCommunityPrompt({
     actorUserId: session.user.id
   });
+  await maybePublishBcnCuratedPosts();
 
   const selectedSlugRaw = typeof params.channel === "string" ? params.channel : undefined;
   const expandedPostId = typeof params.post === "string" ? params.post : null;

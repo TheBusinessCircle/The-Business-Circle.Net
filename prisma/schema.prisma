@@ -811,6 +811,10 @@ model CommunityPost {
   kind         CommunityPostKind      @default(MEMBER_POST)
   promptId     String?
   promptTier   MembershipTier?
+  automationSource     String?
+  automationExternalId String?
+  automationChecksum   String?        @unique
+  automatedAt          DateTime?
   deletedAt    DateTime?
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
@@ -826,6 +830,7 @@ model CommunityPost {
   @@index([channelId, deletedAt, createdAt])
   @@index([userId, createdAt])
   @@index([kind, createdAt])
+  @@index([automationSource, automationExternalId])
   @@index([deletedAt])
   @@index([deletedAt, createdAt])
 }

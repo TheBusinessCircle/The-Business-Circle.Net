@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 import type { CommunityFeedChannelModel } from "@/types";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { buildCommunityChannelPath } from "@/lib/community-paths";
@@ -47,6 +47,12 @@ export function CommunityFeedNav({
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <MembershipTierBadge tier={channel.accessTier} className="shrink-0" />
+                {channel.isAutomatedFeed ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-gold/24 bg-gold/10 px-2 py-0.5 text-[11px] text-gold">
+                    <Sparkles size={11} />
+                    Curated
+                  </span>
+                ) : null}
                 <span className="text-[11px] text-muted">
                   {channel.postCount} {channel.postCount === 1 ? "post" : "posts"}
                 </span>

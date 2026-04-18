@@ -5,7 +5,7 @@ import {
   Prisma,
   Role
 } from "@prisma/client";
-import { COMMUNITY_CHANNEL_BLUEPRINTS } from "@/config/community";
+import { COMMUNITY_CHANNEL_BLUEPRINTS, getCommunityChannelBlueprintBySlug } from "@/config/community";
 import {
   COMMUNITY_PROMPT_INACTIVITY_HOURS_BY_TIER,
   COMMUNITY_PROMPT_MIN_HOURS_BETWEEN_POSTS,
@@ -106,9 +106,13 @@ function mapChannelBase(
     "id" | "slug" | "name" | "description" | "topic" | "accessTier" | "accessLevel" | "position" | "isPrivate"
   >
 ): CommunityChannelModel {
+  const blueprint = getCommunityChannelBlueprintBySlug(channel.slug);
+
   return {
     ...channel,
-    isPremiumChannel: channel.accessTier !== MembershipTier.FOUNDATION
+    isPremiumChannel: channel.accessTier !== MembershipTier.FOUNDATION,
+    allowMemberPosts: blueprint?.allowMemberPosts ?? true,
+    isAutomatedFeed: blueprint?.isAutomatedFeed ?? false
   };
 }
 
@@ -305,19 +309,25 @@ function inactivityCutoffForTier(tier: MembershipTier) {
   return new Date(Date.now() - hours * 60 * 60 * 1000);
 }
 
-async function resolvePromptAuthorId(): Promise<string | null> {
-  const configuredPromptAuthorId = process.env.COMMUNITY_PROMPT_AUTHOR_ID?.trim();
-  if (configuredPromptAuthorId) {
+export async function resolveCommunityAutomationAuthorId(): Promise<string | null> {
+  const configuredAuthorIds = [
+    process.env.COMMUNITY_AUTOMATION_AUTHOR_ID?.trim(),
+    process.env.COMMUNITY_PROMPT_AUTHOR_ID?.trim()
+  ].filter(Boolean) as string[];
+
+  for (const configuredAuthorId of configuredAuthorIds) {
     const configuredUser = await db.user.findUnique({
       where: {
-        id: configuredPromptAuthorId
+        id: configuredAuthorId
       },
       select: {
         id: true
       }
     });
 
-    return configuredUser?.id ?? null;
+    if (configuredUser?.id) {
+      return configuredUser.id;
+    }
   }
 
   const firstAdmin = await db.user.findFirst({
@@ -889,6 +899,12 @@ export async function createCommunityPost(input: {
   kind?: CommunityPostKind;
 }) {
   const channel = await getAccessibleChannelBySlug(input.channelSlug, input.userTier);
+  const blueprint = getCommunityChannelBlueprintBySlug(channel.slug);
+
+  if (blueprint?.allowMemberPosts === false) {
+    throw new Error("community-channel-readonly");
+  }
+
   assertNoBlockedProfanity(`${input.title} ${input.content}`);
 
   return db.communityPost.create({
@@ -1260,7 +1276,7 @@ export async function maybePublishQuietCommunityPrompt(input: {
     return null;
   }
 
-  const promptAuthorId = await resolvePromptAuthorId();
+  const promptAuthorId = await resolveCommunityAutomationAuthorId();
   if (!promptAuthorId) {
     return null;
   }

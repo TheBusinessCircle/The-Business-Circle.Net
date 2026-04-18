@@ -21,6 +21,8 @@ export interface CommunityChannelModel {
   position: number;
   isPrivate: boolean;
   isPremiumChannel: boolean;
+  allowMemberPosts: boolean;
+  isAutomatedFeed: boolean;
 }
 
 export interface CommunityUserSummaryModel {
