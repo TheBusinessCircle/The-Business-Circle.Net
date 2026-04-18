@@ -9,6 +9,7 @@ import {
 } from "@/lib/security/rate-limit";
 import { directMessageRequestSchema } from "@/lib/messages/validators";
 import { publishMessagesUserRefresh } from "@/lib/messages/ably-publisher";
+import { logServerWarning } from "@/lib/security/logging";
 import { createDirectMessageRequest, listDirectMessageRequests } from "@/server/messages";
 
 export const runtime = "nodejs";
@@ -81,9 +82,31 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result, { headers });
   } catch (error) {
-    const code = error instanceof Error ? error.message : "request-failed";
+    const typedError =
+      error instanceof Error
+        ? (error as Error & { code?: string; blockReason?: string })
+        : null;
+    const code = typedError?.code ?? typedError?.message ?? "request-failed";
+    const blockReason = typedError?.blockReason ?? null;
+
+    if (
+      process.env.NODE_ENV !== "production" &&
+      (code === "recipient-not-verified" ||
+        code === "member-unavailable" ||
+        code === "direct-message-blocked" ||
+        code === "email-verification-required")
+    ) {
+      logServerWarning("direct-message-request-rejected", {
+        code,
+        reason: blockReason,
+        requesterId: authResult.user.id,
+        recipientId: parsed.data.recipientId
+      });
+    }
+
     const status =
       code === "email-verification-required" ||
+      code === "member-unavailable" ||
       code === "recipient-not-verified" ||
       code === "direct-message-blocked"
         ? 403
@@ -96,7 +119,7 @@ export async function POST(request: Request) {
         error:
           code === "email-verification-required"
             ? "Verify your email before sending private chat requests."
-            : code === "recipient-not-verified"
+            : code === "recipient-not-verified" || code === "member-unavailable"
               ? "That member is not available for private chat yet."
               : code === "direct-message-blocked"
                 ? "Private chat is not available between these members."

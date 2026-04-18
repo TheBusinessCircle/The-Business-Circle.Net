@@ -10,6 +10,7 @@ import {
   UserCheck
 } from "lucide-react";
 import { ConnectionWinComposer } from "@/components/community";
+import { FeedSubmitButton } from "@/components/community/feed-submit-button";
 import { CommunityBadge } from "@/components/ui/community-badge";
 import { CommunityRecognitionPanel } from "@/components/profile";
 import { ResourceTierBadge } from "@/components/resources";
@@ -49,6 +50,7 @@ import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
 import { getTierAccentTextClassName, getTierCardClassName } from "@/lib/tier-styles";
 import { formatDate } from "@/lib/utils";
+import { resendEmailVerificationAction } from "@/actions/member";
 import {
   listRecentCommunityPostsForTiers,
   listRecentConnectionWinsForTiers
@@ -133,6 +135,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const welcome = firstValue(params.welcome);
   const notice = firstValue(params.notice);
   const error = firstValue(params.error);
+  const needsEmailVerification =
+    session.user.role !== "ADMIN" && !Boolean(session.user.emailVerified);
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
   const effectiveTierRank = getMembershipTierRank(effectiveTier);
   const tiers = allowedResourceTiers(effectiveTier);
@@ -479,9 +483,51 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </p>
       ) : null}
 
-      {error === "verify-email" ? (
+      {notice === "verification-email-sent" ? (
         <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
-          Verify your email address to unlock community and directory access. Check your inbox for the verification link.
+          Verification email sent. Check your inbox and spam folder for the activation link.
+        </p>
+      ) : null}
+
+      {notice === "verification-already-complete" ? (
+        <p className="rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-muted">
+          Your email address is already verified.
+        </p>
+      ) : null}
+
+      {error === "verification-email-unavailable" ? (
+        <p className="rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          We could not send a verification email right now. Please try again shortly.
+        </p>
+      ) : null}
+
+      {needsEmailVerification ? (
+        <div className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
+          <p>
+            Verify your email address to unlock community, directory, and private chat access.
+            Check your inbox for the verification link.
+          </p>
+          <form
+            action={resendEmailVerificationAction}
+            className="mt-3 flex flex-wrap items-center gap-3"
+          >
+            <input type="hidden" name="returnPath" value="/dashboard" />
+            <FeedSubmitButton
+              type="submit"
+              size="sm"
+              variant="outline"
+              pendingLabel="Sending..."
+            >
+              Resend verification email
+            </FeedSubmitButton>
+            <span className="text-xs text-gold/90">
+              Use the most recent email we sent. Older links expire automatically.
+            </span>
+          </form>
+        </div>
+      ) : error === "verify-email" ? (
+        <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
+          Verify your email address to unlock community, directory, and private chat access.
         </p>
       ) : null}
 

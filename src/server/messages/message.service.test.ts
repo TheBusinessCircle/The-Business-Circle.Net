@@ -35,6 +35,12 @@ vi.mock("@/lib/moderation/profanity", () => ({
   assertNoBlockedProfanity: vi.fn()
 }));
 
+const loggingMock = vi.hoisted(() => ({
+  logServerWarning: vi.fn()
+}));
+
+vi.mock("@/lib/security/logging", () => loggingMock);
+
 import {
   createDirectMessageRequest,
   getDirectMessageRelationshipStateMap,
@@ -44,6 +50,7 @@ import {
 describe("message service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.PRIVATE_MESSAGING_ENABLED;
   });
 
   it("returns an existing thread instead of creating a duplicate request", async () => {
@@ -53,6 +60,9 @@ describe("message service", () => {
         emailVerified: new Date(),
         role: "MEMBER",
         suspended: false,
+        subscription: {
+          status: "ACTIVE"
+        },
         email: "requester@example.com"
       })
       .mockResolvedValueOnce({
@@ -60,6 +70,9 @@ describe("message service", () => {
         emailVerified: new Date(),
         role: "MEMBER",
         suspended: false,
+        subscription: {
+          status: "ACTIVE"
+        },
         email: "recipient@example.com"
       });
     dbMock.directMessageBlock.findFirst.mockResolvedValue(null);
@@ -154,6 +167,9 @@ describe("message service", () => {
         emailVerified: null,
         role: "ADMIN",
         suspended: false,
+        subscription: {
+          status: null
+        },
         email: "admin@example.com"
       })
       .mockResolvedValueOnce({
@@ -161,6 +177,9 @@ describe("message service", () => {
         emailVerified: new Date(),
         role: "MEMBER",
         suspended: false,
+        subscription: {
+          status: "ACTIVE"
+        },
         email: "recipient@example.com"
       });
     dbMock.directMessageBlock.findFirst.mockResolvedValue(null);
@@ -193,6 +212,149 @@ describe("message service", () => {
       requesterId: "user_admin",
       recipientId: "user_recipient"
     });
+  });
+
+  it("logs EMAIL_NOT_VERIFIED when the recipient cannot use private messaging yet", async () => {
+    dbMock.user.findUnique
+      .mockResolvedValueOnce({
+        id: "user_requester",
+        emailVerified: new Date(),
+        role: "MEMBER",
+        suspended: false,
+        subscription: {
+          status: "ACTIVE"
+        },
+        email: "requester@example.com"
+      })
+      .mockResolvedValueOnce({
+        id: "user_recipient",
+        emailVerified: null,
+        role: "MEMBER",
+        suspended: false,
+        membershipTier: "FOUNDATION",
+        subscription: {
+          status: "ACTIVE"
+        },
+        email: "recipient@example.com"
+      });
+
+    await expect(
+      createDirectMessageRequest({
+        requesterId: "user_requester",
+        recipientId: "user_recipient",
+        originPostId: "post_1",
+        introMessage: "Could we continue this privately?"
+      })
+    ).rejects.toMatchObject({
+      message: "recipient-not-verified",
+      blockReason: "EMAIL_NOT_VERIFIED"
+    });
+
+    expect(loggingMock.logServerWarning).toHaveBeenCalledWith(
+      "direct-message-request-blocked",
+      expect.objectContaining({
+        code: "recipient-not-verified",
+        reason: "EMAIL_NOT_VERIFIED",
+        actor: "recipient",
+        requesterId: "user_requester",
+        recipientId: "user_recipient"
+      })
+    );
+  });
+
+  it("logs MEMBERSHIP_INACTIVE when the recipient no longer has active membership", async () => {
+    dbMock.user.findUnique
+      .mockResolvedValueOnce({
+        id: "user_requester",
+        emailVerified: new Date(),
+        role: "MEMBER",
+        suspended: false,
+        subscription: {
+          status: "ACTIVE"
+        },
+        email: "requester@example.com"
+      })
+      .mockResolvedValueOnce({
+        id: "user_recipient",
+        emailVerified: new Date(),
+        role: "MEMBER",
+        suspended: false,
+        membershipTier: "FOUNDATION",
+        subscription: {
+          status: "CANCELED"
+        },
+        email: "recipient@example.com"
+      });
+
+    await expect(
+      createDirectMessageRequest({
+        requesterId: "user_requester",
+        recipientId: "user_recipient",
+        originPostId: "post_1",
+        introMessage: "Could we continue this privately?"
+      })
+    ).rejects.toMatchObject({
+      message: "recipient-not-verified",
+      blockReason: "MEMBERSHIP_INACTIVE"
+    });
+
+    expect(loggingMock.logServerWarning).toHaveBeenCalledWith(
+      "direct-message-request-blocked",
+      expect.objectContaining({
+        code: "recipient-not-verified",
+        reason: "MEMBERSHIP_INACTIVE",
+        actor: "recipient"
+      })
+    );
+  });
+
+  it("logs BLOCKED when a blocking relationship prevents the request", async () => {
+    dbMock.user.findUnique
+      .mockResolvedValueOnce({
+        id: "user_requester",
+        emailVerified: new Date(),
+        role: "MEMBER",
+        suspended: false,
+        subscription: {
+          status: "ACTIVE"
+        },
+        email: "requester@example.com"
+      })
+      .mockResolvedValueOnce({
+        id: "user_recipient",
+        emailVerified: new Date(),
+        role: "MEMBER",
+        suspended: false,
+        subscription: {
+          status: "ACTIVE"
+        },
+        email: "recipient@example.com"
+      });
+    dbMock.directMessageBlock.findFirst.mockResolvedValue({
+      blockerId: "user_recipient",
+      blockedUserId: "user_requester"
+    });
+
+    await expect(
+      createDirectMessageRequest({
+        requesterId: "user_requester",
+        recipientId: "user_recipient",
+        originPostId: "post_1",
+        introMessage: "Could we continue this privately?"
+      })
+    ).rejects.toMatchObject({
+      message: "direct-message-blocked",
+      blockReason: "BLOCKED"
+    });
+
+    expect(loggingMock.logServerWarning).toHaveBeenCalledWith(
+      "direct-message-request-blocked",
+      expect.objectContaining({
+        code: "direct-message-blocked",
+        reason: "BLOCKED",
+        actor: "pair"
+      })
+    );
   });
 
   it("maps existing threads, pending requests, and blocks for visible community participants", async () => {

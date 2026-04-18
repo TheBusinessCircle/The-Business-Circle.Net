@@ -9,11 +9,14 @@ import {
   ModerationActionType,
   ModerationEntityType,
   ModerationStatus,
-  Prisma
+  Prisma,
+  SubscriptionStatus
 } from "@prisma/client";
 import { db } from "@/lib/db";
+import { hasEntitledSubscription } from "@/lib/membership/access";
 import { assertNoBlockedProfanity } from "@/lib/moderation/profanity";
 import { buildCommunityPostPath } from "@/lib/community-paths";
+import { logServerWarning } from "@/lib/security/logging";
 import type {
   DirectMessageRelationshipStateModel,
   DirectMessageAdminStats,
@@ -65,6 +68,15 @@ type DirectMessageMemberRecord = Prisma.UserGetPayload<{
 type DirectMessageAttachmentRecord = Prisma.DirectMessageAttachmentGetPayload<{
   select: typeof directMessageAttachmentSelect;
 }>;
+
+type PrivateMessagingBlockReason =
+  | "EMAIL_NOT_VERIFIED"
+  | "MEMBERSHIP_INACTIVE"
+  | "FEATURE_DISABLED"
+  | "BLOCKED"
+  | "USER_NOT_ELIGIBLE";
+
+type EligibleDirectMessageUser = Awaited<ReturnType<typeof getEligibleMember>>;
 
 function toDirectMessageMemberSummary(user: DirectMessageMemberRecord): DirectMessageMemberSummary {
   return {
@@ -303,6 +315,11 @@ async function getEligibleMember(userId: string) {
     select: {
       emailVerified: true,
       suspended: true,
+      subscription: {
+        select: {
+          status: true
+        }
+      },
       ...directMessageMemberSelect
     }
   });
@@ -313,6 +330,76 @@ function canUseDirectMessages(user: {
   role: Prisma.UserGetPayload<{ select: { role: true } }>["role"];
 }) {
   return Boolean(user.emailVerified) || user.role === "ADMIN";
+}
+
+function isPrivateMessagingFeatureEnabled() {
+  return process.env.PRIVATE_MESSAGING_ENABLED !== "false";
+}
+
+function resolvePrivateMessagingBlockReason(
+  user: EligibleDirectMessageUser
+): PrivateMessagingBlockReason | null {
+  if (!user || user.suspended) {
+    return "USER_NOT_ELIGIBLE";
+  }
+
+  if (!isPrivateMessagingFeatureEnabled()) {
+    return "FEATURE_DISABLED";
+  }
+
+  if (!canUseDirectMessages(user)) {
+    return "EMAIL_NOT_VERIFIED";
+  }
+
+  if (user.role !== "ADMIN" && !hasEntitledSubscription(user.subscription?.status ?? null)) {
+    return "MEMBERSHIP_INACTIVE";
+  }
+
+  return null;
+}
+
+function createDirectMessageRequestError(
+  code: string,
+  options?: {
+    blockReason?: PrivateMessagingBlockReason;
+  }
+) {
+  const error = new Error(code) as Error & {
+    code?: string;
+    blockReason?: PrivateMessagingBlockReason;
+  };
+
+  error.code = code;
+  error.blockReason = options?.blockReason;
+
+  return error;
+}
+
+function logPrivateMessagingBlock(input: {
+  code: string;
+  reason: PrivateMessagingBlockReason;
+  requesterId: string;
+  recipientId: string;
+  actor: "requester" | "recipient" | "pair";
+  user?: EligibleDirectMessageUser;
+}) {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
+  logServerWarning("direct-message-request-blocked", {
+    code: input.code,
+    reason: input.reason,
+    actor: input.actor,
+    requesterId: input.requesterId,
+    recipientId: input.recipientId,
+    userId: input.user?.id,
+    userRole: input.user?.role,
+    membershipTier: input.user?.membershipTier,
+    subscriptionStatus: (input.user?.subscription?.status ?? null) as SubscriptionStatus | null,
+    emailVerified: Boolean(input.user?.emailVerified),
+    suspended: input.user?.suspended ?? false
+  });
 }
 
 async function resolveRequestOrigin(input: {
@@ -757,21 +844,67 @@ export async function createDirectMessageRequest(input: {
     getEligibleMember(input.recipientId)
   ]);
 
-  if (!requester || !recipient || requester.suspended || recipient.suspended) {
-    throw new Error("member-unavailable");
+  const requesterBlockReason = resolvePrivateMessagingBlockReason(requester);
+  if (requesterBlockReason) {
+    logPrivateMessagingBlock({
+      code:
+        requesterBlockReason === "EMAIL_NOT_VERIFIED"
+          ? "email-verification-required"
+          : "member-unavailable",
+      reason: requesterBlockReason,
+      requesterId: input.requesterId,
+      recipientId: input.recipientId,
+      actor: "requester",
+      user: requester
+    });
+
+    throw createDirectMessageRequestError(
+      requesterBlockReason === "EMAIL_NOT_VERIFIED"
+        ? "email-verification-required"
+        : "member-unavailable",
+      {
+        blockReason: requesterBlockReason
+      }
+    );
   }
 
-  if (!canUseDirectMessages(requester)) {
-    throw new Error("email-verification-required");
-  }
+  const recipientBlockReason = resolvePrivateMessagingBlockReason(recipient);
+  if (recipientBlockReason) {
+    logPrivateMessagingBlock({
+      code:
+        recipientBlockReason === "USER_NOT_ELIGIBLE"
+          ? "member-unavailable"
+          : "recipient-not-verified",
+      reason: recipientBlockReason,
+      requesterId: input.requesterId,
+      recipientId: input.recipientId,
+      actor: "recipient",
+      user: recipient
+    });
 
-  if (!canUseDirectMessages(recipient)) {
-    throw new Error("recipient-not-verified");
+    throw createDirectMessageRequestError(
+      recipientBlockReason === "USER_NOT_ELIGIBLE"
+        ? "member-unavailable"
+        : "recipient-not-verified",
+      {
+        blockReason: recipientBlockReason
+      }
+    );
   }
 
   const block = await getBlockingRelationship(input.requesterId, input.recipientId);
   if (block) {
-    throw new Error("direct-message-blocked");
+    logPrivateMessagingBlock({
+      code: "direct-message-blocked",
+      reason: "BLOCKED",
+      requesterId: input.requesterId,
+      recipientId: input.recipientId,
+      actor: "pair"
+    });
+
+    throw createDirectMessageRequestError("direct-message-blocked", {
+      blockReason: "BLOCKED"
+    });
   }
 
   const origin = await resolveRequestOrigin({
