@@ -47,12 +47,36 @@ function normalizeConfiguredUrl(value: string | undefined) {
   }
 }
 
+function isLoopbackHost(value: string) {
+  try {
+    const { hostname } = new URL(value);
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function getBaseUrl(): string {
-  return (
-    normalizeConfiguredUrl(process.env.APP_URL) ||
-    normalizeConfiguredUrl(process.env.NEXTAUTH_URL) ||
-    "http://localhost:3000"
-  );
+  const appUrl = normalizeConfiguredUrl(process.env.APP_URL);
+  const authUrl = normalizeConfiguredUrl(process.env.NEXTAUTH_URL);
+  const configuredUrl = appUrl || authUrl;
+
+  if (
+    configuredUrl &&
+    (process.env.NODE_ENV !== "production" || !isLoopbackHost(configuredUrl))
+  ) {
+    return configuredUrl;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return "https://thebusinesscircle.net";
+  }
+
+  return configuredUrl || "http://localhost:3000";
 }
 
 export function absoluteUrl(path: string): string {

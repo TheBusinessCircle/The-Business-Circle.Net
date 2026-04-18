@@ -4,6 +4,7 @@ import { sendTransactionalEmail } from "@/lib/email/resend";
 import { hashPassword } from "@/lib/auth/password";
 import { normalizeEmail } from "@/lib/auth/utils";
 import { logServerWarning } from "@/lib/security/logging";
+import { getBaseUrl } from "@/lib/utils";
 
 const DEFAULT_RESET_TOKEN_TTL_MINUTES = 60;
 const MIN_RESET_TOKEN_TTL_MINUTES = 15;
@@ -27,10 +28,6 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function resolveAppUrl() {
-  return process.env.APP_URL?.trim() || process.env.NEXTAUTH_URL?.trim() || "http://localhost:3000";
 }
 
 function resolveResetTokenTtlMinutes() {
@@ -69,7 +66,7 @@ export function createPasswordResetTokenPair(now = new Date()) {
 }
 
 function buildResetUrl(email: string, token: string) {
-  const url = new URL("/reset-password", resolveAppUrl());
+  const url = new URL("/reset-password", getBaseUrl());
   url.searchParams.set("email", email);
   url.searchParams.set("token", token);
   return url.toString();
@@ -213,7 +210,7 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
 
   const recipientName = user.name?.trim() || "Member";
   const safeName = escapeHtml(recipientName);
-  const loginUrl = new URL("/login", resolveAppUrl()).toString();
+  const loginUrl = new URL("/login", getBaseUrl()).toString();
 
   const sendResult = await sendTransactionalEmail({
     to: user.email,

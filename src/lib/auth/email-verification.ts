@@ -4,6 +4,7 @@ import { VerifyEmailAddressEmail } from "@/emails";
 import { db } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 import { logServerWarning } from "@/lib/security/logging";
+import { getBaseUrl } from "@/lib/utils";
 
 const DEFAULT_VERIFICATION_TOKEN_TTL_HOURS = 48;
 
@@ -17,10 +18,6 @@ type VerifyEmailTokenInput = {
   userId: string;
   token: string;
 };
-
-function resolveAppUrl() {
-  return process.env.APP_URL?.trim() || process.env.NEXTAUTH_URL?.trim() || "http://localhost:3000";
-}
 
 function verificationIdentifier(userId: string) {
   return `verify-email:${userId}`;
@@ -44,7 +41,7 @@ export function hashEmailVerificationToken(token: string) {
 }
 
 function buildVerificationUrl(userId: string, token: string) {
-  const url = new URL("/api/auth/verify-email", resolveAppUrl());
+  const url = new URL("/api/auth/verify-email", getBaseUrl());
   url.searchParams.set("uid", userId);
   url.searchParams.set("token", token);
   return url.toString();
