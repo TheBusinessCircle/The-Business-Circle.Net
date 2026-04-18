@@ -14,6 +14,7 @@ import {
   COMMUNITY_QUIET_PROMPTS
 } from "@/config/community-prompts";
 import { canTierAccess } from "@/lib/auth/permissions";
+import { buildReplyThreadMeta } from "@/lib/community-reply-thread";
 import { sortPromptsByRhythm } from "@/lib/community-rhythm";
 import { CONNECTION_WIN_TAG } from "@/lib/connection-wins";
 import { db } from "@/lib/db";
@@ -176,7 +177,9 @@ function buildCommentTree(
       user: mapCommunityUser(comment.user, recognitionByUserId),
       replyThread: {
         participantCount: 1,
-        hasReplyToReplyEvent: false
+        hasReplyToReplyEvent: false,
+        maxDepth: 0,
+        nestedReplyCount: 0
       },
       directMessageContext: directMessageStateByUserId.get(comment.user.id) ?? null,
       replies: mapBranch(comment.id)
@@ -184,22 +187,6 @@ function buildCommentTree(
   };
 
   const topLevelComments = mapBranch(null);
-
-  const collectReplyThreadMeta = (comment: CommunityCommentModel) => {
-    const participantIds = new Set([comment.user.id]);
-    let hasReplyToReplyEvent = comment.replies.length > 0;
-
-    for (const reply of comment.replies) {
-      const replyMeta = collectReplyThreadMeta(reply);
-      replyMeta.participantIds.forEach((participantId) => participantIds.add(participantId));
-      hasReplyToReplyEvent ||= replyMeta.hasReplyToReplyEvent;
-    }
-
-    return {
-      participantIds,
-      hasReplyToReplyEvent
-    };
-  };
 
   const applyReplyThreadMeta = (
     comment: CommunityCommentModel,
@@ -211,12 +198,7 @@ function buildCommentTree(
   });
 
   return topLevelComments.map((comment) => {
-    const replyThreadMeta = collectReplyThreadMeta(comment);
-
-    return applyReplyThreadMeta(comment, {
-      participantCount: replyThreadMeta.participantIds.size,
-      hasReplyToReplyEvent: replyThreadMeta.hasReplyToReplyEvent
-    });
+    return applyReplyThreadMeta(comment, buildReplyThreadMeta(comment));
   });
 }
 

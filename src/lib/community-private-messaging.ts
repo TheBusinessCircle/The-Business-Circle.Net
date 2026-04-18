@@ -63,7 +63,9 @@ export function getPrivateReplyActionState(input: {
   }
 
   const hasDiscussionThreshold =
-    input.replyThread.hasReplyToReplyEvent && input.replyThread.participantCount >= 2;
+    input.isNestedReply &&
+    input.replyThread.hasReplyToReplyEvent &&
+    input.replyThread.participantCount >= 2;
 
   if (!hasDiscussionThreshold) {
     return {

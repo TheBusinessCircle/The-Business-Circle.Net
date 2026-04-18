@@ -10,6 +10,8 @@ export interface CommunityFeedChannelModel extends CommunityChannelModel {
 export interface CommunityReplyThreadMetaModel {
   participantCount: number;
   hasReplyToReplyEvent: boolean;
+  maxDepth: number;
+  nestedReplyCount: number;
 }
 
 export interface CommunityCommentModel {

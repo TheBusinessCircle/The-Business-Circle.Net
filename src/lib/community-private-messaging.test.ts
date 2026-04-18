@@ -12,7 +12,9 @@ const baseInput = {
   isNestedReply: true,
   replyThread: {
     participantCount: 2,
-    hasReplyToReplyEvent: true
+    hasReplyToReplyEvent: true,
+    maxDepth: 2,
+    nestedReplyCount: 1
   },
   relation: null
 };
@@ -25,7 +27,9 @@ describe("community private messaging reply rules", () => {
         isNestedReply: false,
         replyThread: {
           participantCount: 1,
-          hasReplyToReplyEvent: false
+          hasReplyToReplyEvent: false,
+          maxDepth: 0,
+          nestedReplyCount: 0
         }
       })
     ).toBe(false);
@@ -42,14 +46,18 @@ describe("community private messaging reply rules", () => {
       ...baseInput,
       replyThread: {
         participantCount: 2,
-        hasReplyToReplyEvent: false
+        hasReplyToReplyEvent: false,
+        maxDepth: 1,
+        nestedReplyCount: 0
       }
     });
     const oneParticipant = getPrivateReplyActionState({
       ...baseInput,
       replyThread: {
         participantCount: 1,
-        hasReplyToReplyEvent: true
+        hasReplyToReplyEvent: true,
+        maxDepth: 2,
+        nestedReplyCount: 1
       }
     });
 
@@ -63,14 +71,15 @@ describe("community private messaging reply rules", () => {
     });
   });
 
-  it("allows the first reply to a post once that reply thread has a real back-and-forth", () => {
+  it("keeps the first direct reply to a post hidden even once nested discussion exists", () => {
     expect(
       getPrivateReplyActionState({
         ...baseInput,
         isNestedReply: false
       })
     ).toEqual({
-      kind: "request"
+      kind: "hidden",
+      reason: "discussion-threshold"
     });
   });
 
