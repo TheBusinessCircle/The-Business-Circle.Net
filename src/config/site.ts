@@ -22,6 +22,7 @@ const memberNavigation: NavigationItem[] = [
   { label: "Wins", href: "/wins" },
   { label: "Calls", href: "/calls" },
   { label: "Community", href: "/community" },
+  { label: "BCN Updates", href: "/member/bcn-updates" },
   { label: "Events", href: "/events" },
   { label: "Profile", href: "/profile" },
   { label: "Inner Circle", href: "/inner-circle", requiresTier: "INNER_CIRCLE" },

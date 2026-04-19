@@ -10,6 +10,7 @@ import {
   buildConnectionWinTitle,
   serializeConnectionWin
 } from "@/lib/connection-wins";
+import { buildCommunityPostPath } from "@/lib/community-paths";
 import { roleToTier } from "@/lib/permissions";
 import { requireUser } from "@/lib/session";
 import {
@@ -139,7 +140,7 @@ export async function createCommunityPostAction(formData: FormData) {
     redirectWithNotice(returnPath, "post-created");
   }
 
-  const postPath = `/community/post/${createdPostId}`;
+  const postPath = buildCommunityPostPath(createdPostId, parsed.data.channelSlug);
   revalidateCommunitySurfaces([postPath]);
   redirectWithNotice(postPath, "post-created");
 }

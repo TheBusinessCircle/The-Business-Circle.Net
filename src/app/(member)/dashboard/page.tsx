@@ -322,7 +322,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     ) ?? null;
   const quickActions = [
     {
-      href: featuredDiscussion ? buildCommunityPostPath(featuredDiscussion.id) : "/community",
+      href: featuredDiscussion
+        ? buildCommunityPostPath(featuredDiscussion.id, featuredDiscussion.channel.slug)
+        : "/community",
       title: "Join a discussion",
       description: featuredDiscussion
         ? "Step into the discussion already carrying the strongest signal."
@@ -420,7 +422,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       : null,
     featuredDiscussionTitle: featuredDiscussion?.title ?? null,
     featuredDiscussionHref: featuredDiscussion
-      ? buildCommunityPostPath(featuredDiscussion.id)
+      ? buildCommunityPostPath(featuredDiscussion.id, featuredDiscussion.channel.slug)
       : null,
     featuredResourceTitle: featuredResource?.title ?? null,
     featuredResourceHref: featuredResource
@@ -445,7 +447,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         contributingMemberCount,
         recentWinCount: recentConnectionWins.length,
         featuredDiscussionHref: featuredDiscussion
-          ? buildCommunityPostPath(featuredDiscussion.id)
+          ? buildCommunityPostPath(featuredDiscussion.id, featuredDiscussion.channel.slug)
           : "/community",
         featuredResourceHref: featuredResource
           ? `/dashboard/resources/${featuredResource.slug}`
@@ -685,7 +687,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <CardContent className="space-y-3">
                   {featuredDiscussion ? (
                     <Link
-                      href={buildCommunityPostPath(featuredDiscussion.id)}
+                      href={buildCommunityPostPath(
+                        featuredDiscussion.id,
+                        featuredDiscussion.channel.slug
+                      )}
                       className="block rounded-2xl border border-silver/14 bg-background/18 px-4 py-4 transition-colors hover:border-silver/28 hover:bg-background/28"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -937,7 +942,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   return (
                     <Link
                       key={post.id}
-                      href={buildCommunityPostPath(post.id)}
+                      href={buildCommunityPostPath(post.id, post.channel.slug)}
                       className="block rounded-2xl border border-silver/14 bg-background/20 px-4 py-4 transition-colors hover:border-silver/28 hover:bg-background/32"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1081,7 +1086,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <CardContent className="space-y-4">
               {memberContribution ? (
                 <Link
-                  href={buildCommunityPostPath(memberContribution.id)}
+                  href={buildCommunityPostPath(
+                    memberContribution.id,
+                    memberContribution.channel.slug
+                  )}
                   className="block rounded-2xl border border-silver/14 bg-background/20 px-4 py-4 transition-colors hover:border-silver/28 hover:bg-background/32"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1184,7 +1192,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   return (
                     <Link
                       key={win.id}
-                      href={buildCommunityPostPath(win.id)}
+                      href={buildCommunityPostPath(win.id, win.channel.slug)}
                       className="block rounded-2xl border border-silver/14 bg-background/20 px-4 py-4 transition-colors hover:border-silver/28 hover:bg-background/32"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">

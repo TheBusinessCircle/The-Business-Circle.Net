@@ -14,8 +14,16 @@ const AUTH_ROUTES = [
   "/forgot-password",
   "/reset-password"
 ];
-const MEMBER_ROUTE_PREFIXES = ["/dashboard", "/directory", "/community", "/profile", "/events", "/calls"];
-const VERIFIED_MEMBER_ROUTE_PREFIXES = ["/community", "/directory"];
+const MEMBER_ROUTE_PREFIXES = [
+  "/dashboard",
+  "/directory",
+  "/community",
+  "/member/bcn-updates",
+  "/profile",
+  "/events",
+  "/calls"
+];
+const VERIFIED_MEMBER_ROUTE_PREFIXES = ["/community", "/member/bcn-updates", "/directory"];
 const ADMIN_ROUTE_PREFIX = "/admin";
 const INNER_CIRCLE_ROUTE_PREFIXES = ["/inner-circle"];
 
@@ -143,6 +151,8 @@ export const config = {
     "/dashboard/:path*",
     "/directory/:path*",
     "/community/:path*",
+    "/member/bcn-updates",
+    "/member/bcn-updates/:path*",
     "/profile/:path*",
     "/events/:path*",
     "/calls/:path*",

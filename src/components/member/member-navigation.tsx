@@ -7,6 +7,7 @@ import {
   Crown,
   LayoutGrid,
   MessageSquare,
+  Sparkles,
   Trophy,
   Search,
   UserCircle2,
@@ -42,6 +43,9 @@ function iconForHref(href: string) {
   }
   if (href.startsWith("/calls")) {
     return Video;
+  }
+  if (href.startsWith("/member/bcn-updates")) {
+    return Sparkles;
   }
   if (href.startsWith("/community")) {
     return MessageSquare;

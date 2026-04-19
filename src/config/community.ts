@@ -12,9 +12,11 @@ export type CommunityChannelBlueprint = {
   allowAutomatedPrompts?: boolean;
   allowMemberPosts?: boolean;
   isAutomatedFeed?: boolean;
+  standalonePath?: string;
 };
 
 export const BCN_UPDATES_CHANNEL_SLUG = "bcn-updates";
+export const BCN_UPDATES_MEMBER_ROUTE = "/member/bcn-updates";
 
 export const FOUNDATION_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
   {
@@ -38,7 +40,8 @@ export const FOUNDATION_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
     isPrivate: false,
     allowAutomatedPrompts: false,
     allowMemberPosts: false,
-    isAutomatedFeed: true
+    isAutomatedFeed: true,
+    standalonePath: BCN_UPDATES_MEMBER_ROUTE
   },
   {
     name: "Business Conversations",
@@ -136,6 +139,14 @@ export const COMMUNITY_CHANNEL_BLUEPRINTS: CommunityChannelBlueprint[] = [
 
 export function getCommunityChannelBlueprintBySlug(slug: string) {
   return COMMUNITY_CHANNEL_BLUEPRINTS.find((channel) => channel.slug === slug) ?? null;
+}
+
+export function getStandaloneCommunityChannelPath(slug: string) {
+  return getCommunityChannelBlueprintBySlug(slug)?.standalonePath ?? null;
+}
+
+export function isStandaloneCommunityChannelSlug(slug: string) {
+  return Boolean(getStandaloneCommunityChannelPath(slug));
 }
 
 export const DEFAULT_COMMUNITY_CHANNEL_SLUG = FOUNDATION_COMMUNITY_CHANNELS[0]?.slug ?? "introductions";

@@ -23,6 +23,7 @@ export interface CommunityChannelModel {
   isPremiumChannel: boolean;
   allowMemberPosts: boolean;
   isAutomatedFeed: boolean;
+  isStandaloneDestination: boolean;
 }
 
 export interface CommunityUserSummaryModel {

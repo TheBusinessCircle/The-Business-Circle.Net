@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { MessageSquareText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -6,6 +7,8 @@ import {
   CommunityFeed,
   CommunityFeedNav
 } from "@/components/community";
+import { isStandaloneCommunityChannelSlug } from "@/config/community";
+import { buildCommunityChannelPath, buildCommunityFeedPostPath } from "@/lib/community-paths";
 import { roleToTier } from "@/lib/permissions";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
@@ -82,6 +85,23 @@ export default async function CommunityPage({ searchParams }: PageProps) {
 
   const selectedSlugRaw = typeof params.channel === "string" ? params.channel : undefined;
   const expandedPostId = typeof params.post === "string" ? params.post : null;
+
+  if (selectedSlugRaw && isStandaloneCommunityChannelSlug(selectedSlugRaw)) {
+    const redirectedPath = expandedPostId
+      ? buildCommunityFeedPostPath(selectedSlugRaw, expandedPostId)
+      : buildCommunityChannelPath(selectedSlugRaw);
+    const redirectUrl = new URL(redirectedPath, "http://localhost");
+
+    for (const key of ["notice", "error"]) {
+      const value = params[key];
+      if (typeof value === "string" && value) {
+        redirectUrl.searchParams.set(key, value);
+      }
+    }
+
+    redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
+  }
+
   const [feed, upcomingEvents, recentConnectionWins] = await Promise.all([
     getCommunityFeedPage({
       tiers,

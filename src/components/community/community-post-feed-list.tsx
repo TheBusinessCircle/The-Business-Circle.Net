@@ -161,7 +161,7 @@ export function CommunityPostFeedList({
         const displayName = authorName(post.user);
         const preview = buildCommunityPostPreview(post.content, post.tags);
         const feedReturnPath = buildCommunityFeedPostPath(channelSlug, post.id);
-        const detailPath = buildCommunityPostPath(post.id);
+        const detailPath = buildCommunityPostPath(post.id, channelSlug);
         const engagementPost = detail ?? post;
 
         return (

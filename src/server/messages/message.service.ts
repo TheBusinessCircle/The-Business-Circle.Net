@@ -273,7 +273,10 @@ function buildOriginSummary(input: {
       channelName: input.sourceComment.post.channel.name,
       postTitle: input.sourceComment.post.title,
       commentPreview: previewText(input.sourceComment.content, 180),
-      href: `${buildCommunityPostPath(input.sourceComment.post.id)}#comment-${input.sourceComment.id}`
+      href: `${buildCommunityPostPath(
+        input.sourceComment.post.id,
+        input.sourceComment.post.channel.slug
+      )}#comment-${input.sourceComment.id}`
     };
   }
 
@@ -285,7 +288,7 @@ function buildOriginSummary(input: {
       channelName: input.sourcePost.channel.name,
       postTitle: input.sourcePost.title,
       commentPreview: null,
-      href: buildCommunityPostPath(input.sourcePost.id)
+      href: buildCommunityPostPath(input.sourcePost.id, input.sourcePost.channel.slug)
     };
   }
 

@@ -391,7 +391,10 @@ export function CommunityFeed({
                   <span>{formatDate(featuredConnectionWin.createdAt)}</span>
                 </div>
                 <Link
-                  href={buildCommunityPostPath(featuredConnectionWin.id)}
+                  href={buildCommunityPostPath(
+                    featuredConnectionWin.id,
+                    featuredConnectionWin.channel.slug
+                  )}
                   className="mt-4 inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
                 >
                   Read the full win

@@ -1,23 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { MoveLeft, NotebookText } from "lucide-react";
-import type { MembershipTier } from "@prisma/client";
-import { BCN_UPDATES_CHANNEL_SLUG } from "@/config/community";
-import { authorName, postKindBadge } from "@/lib/community-helpers";
-import { roleToTier } from "@/lib/permissions";
+import { MoveLeft, NotebookText, Sparkles } from "lucide-react";
+import { authorName } from "@/lib/community-helpers";
 import { buildCommunityChannelPath, buildCommunityPostPath } from "@/lib/community-paths";
 import { buildMemberProfilePath } from "@/lib/member-paths";
+import { roleToTier } from "@/lib/permissions";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
-import { CommunityUserSignals } from "@/components/community/community-user-signals";
+import { formatDate } from "@/lib/utils";
+import {
+  BCN_UPDATES_CHANNEL_SLUG,
+  BCN_UPDATES_MEMBER_ROUTE
+} from "@/config/community";
 import { CommunityPostDiscussion } from "@/components/community/community-post-discussion";
+import { CommunityUserSignals } from "@/components/community/community-user-signals";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
-import { formatDate } from "@/lib/utils";
 import { getCommunityPostDetail } from "@/server/community";
 
 type PageProps = {
@@ -26,13 +28,11 @@ type PageProps = {
 };
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Community discussion",
-  description: "Member discussion thread inside Business Circle community.",
-  path: "/community/post",
+  title: "BCN Update",
+  description: "Curated BCN update with member discussion underneath.",
+  path: `${BCN_UPDATES_MEMBER_ROUTE}/post`,
   noIndex: true
 });
-
-export const dynamic = "force-dynamic";
 
 function firstValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
@@ -44,15 +44,14 @@ function firstValue(value: string | string[] | undefined) {
 
 function feedbackMessage(input: { notice: string; error: string }) {
   const noticeMap: Record<string, string> = {
-    "post-created": "Your post is now live in the community.",
     "comment-created": "Your comment has been added."
   };
 
   const errorMap: Record<string, string> = {
     "comment-invalid": "Please add a little more detail before posting that comment.",
-    "comment-blocked": "Please rewrite that before posting. We block profanity and abusive language to keep the community useful for everyone.",
+    "comment-blocked": "Please rewrite that before posting. We block profanity and abusive language to keep this space useful.",
     "comment-forbidden": "That comment is no longer available in this discussion.",
-    "post-forbidden": "That discussion is no longer available at your access level."
+    "post-forbidden": "That update is no longer available at your access level."
   };
 
   if (input.notice && noticeMap[input.notice]) {
@@ -66,19 +65,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
   return null;
 }
 
-function roomTierLabel(tier: MembershipTier) {
-  if (tier === "CORE") {
-    return "Core room";
-  }
-
-  if (tier === "INNER_CIRCLE") {
-    return "Inner Circle room";
-  }
-
-  return "Foundation room";
-}
-
-export default async function CommunityPostPage({ params, searchParams }: PageProps) {
+export default async function BcnUpdatesPostPage({ params, searchParams }: PageProps) {
   const session = await requireUser();
   const { postId } = await params;
   const resolvedSearchParams = await searchParams;
@@ -90,27 +77,17 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
   });
 
   if (!post) {
-    redirect("/community?error=post-forbidden");
+    redirect(`${BCN_UPDATES_MEMBER_ROUTE}?error=post-forbidden`);
+  }
+
+  if (post.channel.slug !== BCN_UPDATES_CHANNEL_SLUG) {
+    redirect(buildCommunityPostPath(post.id, post.channel.slug));
   }
 
   const feedback = feedbackMessage({
     notice: firstValue(resolvedSearchParams.notice),
     error: firstValue(resolvedSearchParams.error)
   });
-
-  if (post.channel.slug === BCN_UPDATES_CHANNEL_SLUG) {
-    const redirectUrl = new URL(buildCommunityPostPath(post.id, post.channel.slug), "http://localhost");
-
-    for (const [key, value] of Object.entries(resolvedSearchParams)) {
-      const first = Array.isArray(value) ? value[0] : value;
-      if (first) {
-        redirectUrl.searchParams.set(key, first);
-      }
-    }
-
-    redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
-  }
-
   const returnPath = buildCommunityPostPath(post.id, post.channel.slug);
   const channelPath = buildCommunityChannelPath(post.channel.slug);
   const displayName = authorName(post.user);
@@ -123,7 +100,7 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
           className="inline-flex items-center gap-1 text-sm text-muted transition-colors hover:text-foreground"
         >
           <MoveLeft size={14} />
-          Back to community
+          Back to BCN Updates
         </Link>
       </div>
 
@@ -136,9 +113,7 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
           }
         >
           <CardContent className="py-3">
-            <p
-              className={feedback.type === "error" ? "text-sm text-red-100" : "text-sm text-gold"}
-            >
+            <p className={feedback.type === "error" ? "text-sm text-red-100" : "text-sm text-gold"}>
               {feedback.message}
             </p>
           </CardContent>
@@ -158,7 +133,10 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
                   <p className="text-base font-medium text-foreground">{displayName}</p>
                   <MembershipTierBadge tier={post.user.membershipTier} className="shrink-0" />
                   <FoundingBadge tier={post.user.foundingTier} />
-                  {postKindBadge(post.kind, post.tags)}
+                  <Badge variant="outline" className="border-gold/24 bg-gold/10 text-gold">
+                    <Sparkles size={11} className="mr-1" />
+                    BCN Update
+                  </Badge>
                 </div>
                 <CommunityUserSignals user={post.user} />
                 <p className="mt-1 text-xs text-muted">{formatDate(post.createdAt)}</p>
@@ -167,17 +145,17 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
 
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="normal-case tracking-normal text-muted">
-                {post.channel.name}
+                BCN Updates
               </Badge>
               <Badge variant="outline" className="normal-case tracking-normal text-muted">
-                {roomTierLabel(post.channel.accessTier)}
+                Curated member discussion
               </Badge>
             </div>
 
             <div className="space-y-2">
               <CardTitle className="max-w-4xl text-4xl leading-tight">{post.title}</CardTitle>
               <CardDescription className="max-w-3xl text-base">
-                A focused discussion view for deeper reading and better replies.
+                A curated BCN business development with member discussion underneath.
               </CardDescription>
             </div>
           </CardHeader>
@@ -199,18 +177,18 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
             <CardHeader>
               <CardTitle className="inline-flex items-center gap-2 text-base">
                 <NotebookText size={16} />
-                Discussion context
+                Update context
               </CardTitle>
               <CardDescription>
-                Keep replies clear, useful, and easy for the next person to follow.
+                Read the development first, then add perspective that is useful to the next member.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted">
               <div className="rounded-2xl border border-border/70 bg-background/20 p-4">
-                <p className="text-xs uppercase tracking-[0.08em] text-muted">Room</p>
-                <p className="mt-2 text-sm font-medium text-foreground">{post.channel.name}</p>
+                <p className="text-xs uppercase tracking-[0.08em] text-muted">Section</p>
+                <p className="mt-2 text-sm font-medium text-foreground">BCN Updates</p>
                 <p className="mt-2 leading-relaxed">
-                  {post.channel.description || post.channel.topic || "Member discussion area."}
+                  Curated business developments structured for Business Circle members, with replies underneath each update.
                 </p>
               </div>
 
@@ -221,13 +199,13 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
                     href={channelPath}
                     className="block rounded-xl border border-border/70 bg-background/20 px-3 py-2 text-sm text-foreground transition-colors hover:border-gold/35"
                   >
-                    Return to {post.channel.name}
+                    Return to BCN Updates
                   </Link>
                   <Link
                     href="/community"
                     className="block rounded-xl border border-border/70 bg-background/20 px-3 py-2 text-sm text-foreground transition-colors hover:border-gold/35"
                   >
-                    View all community rooms
+                    Open Community rooms
                   </Link>
                 </div>
               </div>

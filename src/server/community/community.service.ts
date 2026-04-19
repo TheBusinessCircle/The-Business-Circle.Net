@@ -5,7 +5,11 @@ import {
   Prisma,
   Role
 } from "@prisma/client";
-import { COMMUNITY_CHANNEL_BLUEPRINTS, getCommunityChannelBlueprintBySlug } from "@/config/community";
+import {
+  COMMUNITY_CHANNEL_BLUEPRINTS,
+  getCommunityChannelBlueprintBySlug,
+  isStandaloneCommunityChannelSlug
+} from "@/config/community";
 import {
   COMMUNITY_PROMPT_INACTIVITY_HOURS_BY_TIER,
   COMMUNITY_PROMPT_MIN_HOURS_BETWEEN_POSTS,
@@ -112,7 +116,8 @@ function mapChannelBase(
     ...channel,
     isPremiumChannel: channel.accessTier !== MembershipTier.FOUNDATION,
     allowMemberPosts: blueprint?.allowMemberPosts ?? true,
-    isAutomatedFeed: blueprint?.isAutomatedFeed ?? false
+    isAutomatedFeed: blueprint?.isAutomatedFeed ?? false,
+    isStandaloneDestination: Boolean(blueprint?.standalonePath)
   };
 }
 
@@ -472,7 +477,8 @@ export async function listChannelsForTier(tiers: MembershipTier[]): Promise<Comm
 }
 
 export async function listCommunityFeedChannels(
-  tiers: MembershipTier[]
+  tiers: MembershipTier[],
+  options?: { includeStandalone?: boolean }
 ): Promise<CommunityFeedChannelModel[]> {
   const channels = await db.channel.findMany({
     where: {
@@ -523,15 +529,20 @@ export async function listCommunityFeedChannels(
     }
   });
 
-  return channels.map(mapFeedChannel);
+  return channels
+    .map(mapFeedChannel)
+    .filter((channel) => options?.includeStandalone || !isStandaloneCommunityChannelSlug(channel.slug));
 }
 
 export async function getCommunityFeedPage(input: {
   tiers: MembershipTier[];
   selectedSlug?: string;
   viewerUserId: string;
+  includeStandalone?: boolean;
 }): Promise<CommunityFeedPageModel> {
-  const channels = await listCommunityFeedChannels(input.tiers);
+  const channels = await listCommunityFeedChannels(input.tiers, {
+    includeStandalone: input.includeStandalone
+  });
   const selectedChannel =
     channels.find((channel) => channel.slug === input.selectedSlug) ?? channels[0] ?? null;
 
