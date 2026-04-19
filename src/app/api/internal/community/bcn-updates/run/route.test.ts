@@ -38,13 +38,18 @@ describe("BCN automation route", () => {
   it("returns a clear JSON summary for configuration failures", async () => {
     authMock.mockReturnValue(true);
     process.env.BCN_COMMUNITY_SOURCE_URL = "";
+    process.env.BCN_COMMUNITY_SOURCE_URLS = "";
     publishMock.mockResolvedValue({
       status: "missing-source",
+      sourceCount: 0,
+      fetchedCount: 0,
+      candidateCount: 0,
       publishedCount: 0,
       duplicateCount: 0,
       skippedCount: 0,
-      fetchedItemCount: 0,
+      rejectedNonEnglishCount: 0,
       publishedPostIds: [],
+      errors: [],
       message: "BCN_COMMUNITY_SOURCE_URL is blank."
     });
 
@@ -61,14 +66,20 @@ describe("BCN automation route", () => {
 
   it("returns publish details when a BCN update is created", async () => {
     authMock.mockReturnValue(true);
-    process.env.BCN_COMMUNITY_SOURCE_URL = "https://example.com/feed";
+    process.env.BCN_COMMUNITY_SOURCE_URL = "";
+    process.env.BCN_COMMUNITY_SOURCE_URLS =
+      "https://example.com/feed,https://example.com/feed-2";
     publishMock.mockResolvedValue({
       status: "completed",
+      sourceCount: 2,
+      fetchedCount: 3,
+      candidateCount: 2,
       publishedCount: 1,
       duplicateCount: 0,
       skippedCount: 0,
-      fetchedItemCount: 3,
+      rejectedNonEnglishCount: 1,
       publishedPostIds: ["post_bcn_1"],
+      errors: [],
       message: "Published 1 BCN update into the dedicated BCN Updates feed."
     });
 
@@ -79,8 +90,11 @@ describe("BCN automation route", () => {
     expect(payload).toMatchObject({
       ok: true,
       status: "completed",
+      sourceCount: 2,
+      fetchedCount: 3,
+      candidateCount: 2,
       publishedCount: 1,
-      fetchedItemCount: 3,
+      rejectedNonEnglishCount: 1,
       publishedPostIds: ["post_bcn_1"]
     });
   });

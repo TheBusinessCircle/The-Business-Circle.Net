@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBcnCuratedCandidate,
+  isLikelyEnglishCurationItem,
   parseCommunityCurationSource
 } from "@/lib/community-curation";
 
@@ -150,5 +151,35 @@ describe("community curation parsing and formatting", () => {
 
     expect(celebrityItem).toBeNull();
     expect(thinBusinessItem).toBeNull();
+  });
+
+  it("flags likely non-English items so only English BCN updates are shown", () => {
+    expect(
+      isLikelyEnglishCurationItem({
+        sourceId: "item-en",
+        title: "Retail businesses adjust hiring after consumer demand cools",
+        summary:
+          "Operators are reworking staffing plans, margin expectations, and inventory discipline.",
+        content:
+          "Operators are reworking staffing plans, margin expectations, and inventory discipline.",
+        url: "https://example.com/english-story",
+        sourceName: "Example Feed",
+        publishedAt: "2026-04-18T08:00:00.000Z"
+      })
+    ).toBe(true);
+
+    expect(
+      isLikelyEnglishCurationItem({
+        sourceId: "item-es",
+        title: "Las empresas ajustan precios y contratacion por la presion de costos",
+        summary:
+          "Las empresas revisan operaciones y contratacion para proteger margenes en un entorno mas debil.",
+        content:
+          "Las empresas revisan operaciones y contratacion para proteger margenes en un entorno mas debil.",
+        url: "https://example.com/spanish-story",
+        sourceName: "Example Feed",
+        publishedAt: "2026-04-18T08:00:00.000Z"
+      })
+    ).toBe(false);
   });
 });

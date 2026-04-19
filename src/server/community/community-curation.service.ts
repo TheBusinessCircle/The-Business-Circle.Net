@@ -2,7 +2,12 @@ import { revalidatePath } from "next/cache";
 import { CommunityPostKind } from "@prisma/client";
 import { BCN_UPDATES_CHANNEL_SLUG, BCN_UPDATES_MEMBER_ROUTE } from "@/config/community";
 import { buildCommunityPostPath } from "@/lib/community-paths";
-import { buildBcnCuratedCandidate, parseCommunityCurationSource } from "@/lib/community-curation";
+import {
+  buildBcnCuratedCandidate,
+  buildBcnCurationSourceLabel,
+  isLikelyEnglishCurationItem,
+  parseCommunityCurationSource
+} from "@/lib/community-curation";
 import { db } from "@/lib/db";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
 import { ensureCommunityChannels, resolveCommunityAutomationAuthorId } from "@/server/community/community.service";
@@ -23,11 +28,15 @@ export type PublishBcnCuratedPostsResult = {
     | "no-items"
     | "completed"
     | "throttled";
+  sourceCount: number;
+  fetchedCount: number;
+  candidateCount: number;
   publishedCount: number;
   duplicateCount: number;
   skippedCount: number;
+  rejectedNonEnglishCount: number;
   publishedPostIds: string[];
-  fetchedItemCount: number;
+  errors: string[];
   message: string;
 };
 
@@ -39,8 +48,44 @@ function bcnSourceUrl() {
   return process.env.BCN_COMMUNITY_SOURCE_URL?.trim() || "";
 }
 
+function bcnSourceUrls() {
+  return (process.env.BCN_COMMUNITY_SOURCE_URLS ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function bcnSourceName() {
   return process.env.BCN_COMMUNITY_SOURCE_NAME?.trim() || "BCN Source";
+}
+
+function resolveBcnSources() {
+  const legacyUrl = bcnSourceUrl();
+  const legacyLabel = bcnSourceName();
+  const configured = [
+    ...bcnSourceUrls().map((url) => ({
+      url,
+      label: buildBcnCurationSourceLabel(url)
+    })),
+    ...(legacyUrl
+      ? [
+          {
+            url: legacyUrl,
+            label: buildBcnCurationSourceLabel(legacyUrl, legacyLabel)
+          }
+        ]
+      : [])
+  ];
+
+  const seen = new Set<string>();
+  return configured.filter((source) => {
+    if (seen.has(source.url)) {
+      return false;
+    }
+
+    seen.add(source.url);
+    return true;
+  });
 }
 
 function bcnCurationThrottleMs() {
@@ -88,11 +133,15 @@ function baseResult(
   return {
     status,
     message,
+    sourceCount: 0,
+    fetchedCount: 0,
+    candidateCount: 0,
     publishedCount: 0,
     duplicateCount: 0,
     skippedCount: 0,
+    rejectedNonEnglishCount: 0,
     publishedPostIds: [],
-    fetchedItemCount: 0,
+    errors: [],
     ...overrides
   };
 }
@@ -113,11 +162,11 @@ export async function publishBcnCuratedPosts(options?: {
     return baseResult("disabled", "BCN Updates automation is disabled by configuration.");
   }
 
-  const sourceUrl = bcnSourceUrl();
-  if (!sourceUrl) {
+  const sources = resolveBcnSources();
+  if (!sources.length) {
     return baseResult(
       "missing-source",
-      "BCN_COMMUNITY_SOURCE_URL is blank, so there is no source feed to fetch."
+      "No BCN source feeds are configured. Set BCN_COMMUNITY_SOURCE_URLS or BCN_COMMUNITY_SOURCE_URL."
     );
   }
 
@@ -149,131 +198,172 @@ export async function publishBcnCuratedPosts(options?: {
     );
   }
 
-  const sourceName = bcnSourceName();
-
-  let payload: string;
-  try {
-    payload = await fetchSourcePayload(sourceUrl, options?.fetchImpl ?? fetch);
-  } catch (error) {
-    logServerError("bcn-curation-source-fetch-failed", error, {
-      sourceUrl
-    });
-
-    return baseResult(
-      "source-unavailable",
-      `The configured BCN source could not be fetched from ${sourceUrl}.`
-    );
-  }
-
-  let items: ReturnType<typeof parseCommunityCurationSource>;
-  try {
-    items = parseCommunityCurationSource(payload);
-  } catch (error) {
-    logServerError("bcn-curation-parse-failed", error, {
-      sourceUrl,
-      sourceName
-    });
-
-    return baseResult(
-      "source-invalid",
-      "The configured BCN source payload could not be parsed as a supported RSS, Atom, or JSON feed."
-    );
-  }
-
-  if (!items.length) {
-    logServerWarning("bcn-curation-no-source-items", {
-      sourceUrl
-    });
-
-    return baseResult(
-      "no-items",
-      "The source responded, but no valid feed items could be normalized from the payload.",
-      {
-        fetchedItemCount: 0
-      }
-    );
-  }
-
   const publishedPostIds: string[] = [];
+  const errors: string[] = [];
   let duplicateCount = 0;
   let skippedCount = 0;
+  let fetchedCount = 0;
+  let candidateCount = 0;
+  let rejectedNonEnglishCount = 0;
+  const maxPostsPerRun = bcnMaxPostsPerRun();
   const seenExternalIds = new Set<string>();
+  const seenChecksums = new Set<string>();
 
-  for (const item of items.slice(0, 12)) {
-    if (publishedPostIds.length >= bcnMaxPostsPerRun()) {
+  for (const source of sources) {
+    if (publishedPostIds.length >= maxPostsPerRun) {
       break;
     }
 
-    const candidate = buildBcnCuratedCandidate(item, sourceName);
-    if (!candidate) {
-      skippedCount += 1;
-      logServerWarning("bcn-curation-item-skipped", {
-        reason: "not-relevant",
-        sourceId: item.sourceId
+    let payload: string;
+    try {
+      payload = await fetchSourcePayload(source.url, options?.fetchImpl ?? fetch);
+    } catch (error) {
+      logServerError("bcn-curation-source-fetch-failed", error, {
+        sourceUrl: source.url
       });
+      errors.push(`Fetch failed for ${source.label}: ${source.url}`);
       continue;
     }
 
-    if (seenExternalIds.has(candidate.externalId)) {
-      duplicateCount += 1;
-      logServerWarning("bcn-curation-item-skipped", {
-        reason: "duplicate-in-feed",
-        sourceId: item.sourceId
+    let items: ReturnType<typeof parseCommunityCurationSource>;
+    try {
+      items = parseCommunityCurationSource(payload);
+    } catch (error) {
+      logServerError("bcn-curation-parse-failed", error, {
+        sourceUrl: source.url,
+        sourceName: source.label
       });
+      errors.push(`Unsupported payload from ${source.label}: ${source.url}`);
       continue;
     }
 
-    seenExternalIds.add(candidate.externalId);
+    if (!items.length) {
+      logServerWarning("bcn-curation-no-source-items", {
+        sourceUrl: source.url
+      });
+      errors.push(`No valid feed items were found in ${source.label}: ${source.url}`);
+      continue;
+    }
 
-    const existingPost = await db.communityPost.findFirst({
-      where: {
-        OR: [
-          {
-            automationChecksum: candidate.checksum
-          },
-          {
-            automationSource: sourceName,
-            automationExternalId: candidate.externalId
-          }
-        ]
-      },
-      select: {
-        id: true
+    fetchedCount += items.length;
+
+    for (const item of items) {
+      if (publishedPostIds.length >= maxPostsPerRun) {
+        break;
       }
-    });
 
-    if (existingPost?.id) {
-      duplicateCount += 1;
-      logServerWarning("bcn-curation-item-skipped", {
-        reason: "duplicate",
-        sourceId: item.sourceId
-      });
-      continue;
-    }
-
-    const createdPost = await db.communityPost.create({
-      data: {
-        channelId: channel.id,
-        userId: authorId,
-        title: candidate.title,
-        content: candidate.content,
-        tags: candidate.tags,
-        kind: CommunityPostKind.FOUNDER_POST,
-        automationSource: sourceName,
-        automationExternalId: candidate.externalId,
-        automationChecksum: candidate.checksum,
-        automatedAt: new Date()
-      },
-      select: {
-        id: true
+      if (!isLikelyEnglishCurationItem(item)) {
+        rejectedNonEnglishCount += 1;
+        logServerWarning("bcn-curation-item-skipped", {
+          reason: "non-english",
+          sourceId: item.sourceId,
+          sourceName: source.label
+        });
+        continue;
       }
-    });
 
-    publishedPostIds.push(createdPost.id);
+      const candidate = buildBcnCuratedCandidate(item, source.label);
+      if (!candidate) {
+        skippedCount += 1;
+        logServerWarning("bcn-curation-item-skipped", {
+          reason: "not-relevant",
+          sourceId: item.sourceId,
+          sourceName: source.label
+        });
+        continue;
+      }
+
+      candidateCount += 1;
+
+      if (seenExternalIds.has(`${source.label}:${candidate.externalId}`) || seenChecksums.has(candidate.checksum)) {
+        duplicateCount += 1;
+        logServerWarning("bcn-curation-item-skipped", {
+          reason: "duplicate-in-run",
+          sourceId: item.sourceId,
+          sourceName: source.label
+        });
+        continue;
+      }
+
+      seenExternalIds.add(`${source.label}:${candidate.externalId}`);
+      seenChecksums.add(candidate.checksum);
+
+      const existingPost = await db.communityPost.findFirst({
+        where: {
+          OR: [
+            {
+              automationChecksum: candidate.checksum
+            },
+            {
+              automationSource: source.label,
+              automationExternalId: candidate.externalId
+            }
+          ]
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (existingPost?.id) {
+        duplicateCount += 1;
+        logServerWarning("bcn-curation-item-skipped", {
+          reason: "duplicate",
+          sourceId: item.sourceId,
+          sourceName: source.label
+        });
+        continue;
+      }
+
+      const createdPost = await db.communityPost.create({
+        data: {
+          channelId: channel.id,
+          userId: authorId,
+          title: candidate.title,
+          content: candidate.content,
+          tags: candidate.tags,
+          kind: CommunityPostKind.FOUNDER_POST,
+          automationSource: source.label,
+          automationExternalId: candidate.externalId,
+          automationChecksum: candidate.checksum,
+          automatedAt: new Date()
+        },
+        select: {
+          id: true
+        }
+      });
+
+      publishedPostIds.push(createdPost.id);
+    }
   }
 
   if (publishedPostIds.length) {
     revalidateBcnUpdateSurfaces(publishedPostIds);
+  }
+
+  if (!fetchedCount && errors.length === sources.length) {
+    const upstreamFailure = errors.some((error) => error.startsWith("Fetch failed"));
+    return baseResult(
+      upstreamFailure ? "source-unavailable" : "source-invalid",
+      upstreamFailure
+        ? "None of the configured BCN sources could be fetched successfully."
+        : "None of the configured BCN source payloads could be parsed into valid feed items.",
+      {
+        sourceCount: sources.length,
+        errors
+      }
+    );
+  }
+
+  if (!fetchedCount) {
+    return baseResult(
+      "no-items",
+      "The configured BCN sources responded, but no valid feed items could be normalized from them.",
+      {
+        sourceCount: sources.length,
+        errors
+      }
+    );
   }
 
   return baseResult(
@@ -282,11 +372,15 @@ export async function publishBcnCuratedPosts(options?: {
       ? `Published ${publishedPostIds.length} BCN update${publishedPostIds.length === 1 ? "" : "s"} into the dedicated BCN Updates feed.`
       : "The run completed, but everything was skipped as duplicate, irrelevant, or too thin to publish.",
     {
+      sourceCount: sources.length,
+      fetchedCount,
+      candidateCount,
       publishedCount: publishedPostIds.length,
       duplicateCount,
       skippedCount,
+      rejectedNonEnglishCount,
       publishedPostIds,
-      fetchedItemCount: items.length
+      errors
     }
   );
 }

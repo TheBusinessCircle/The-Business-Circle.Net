@@ -229,6 +229,7 @@ export type CommunityCurationSourceItem = {
 export type CommunityCurationCandidate = {
   externalId: string;
   checksum: string;
+  dedupeKey: string;
   title: string;
   content: string;
   tags: string[];
@@ -236,6 +237,53 @@ export type CommunityCurationCandidate = {
   sourceUrl: string | null;
   sourceName: string;
 };
+
+const ENGLISH_SIGNAL_WORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "from",
+  "this",
+  "that",
+  "after",
+  "into",
+  "business",
+  "company",
+  "companies",
+  "market",
+  "markets",
+  "global",
+  "world",
+  "growth",
+  "hiring",
+  "trade",
+  "economy",
+  "founders",
+  "retail",
+  "technology"
+]);
+
+const NON_ENGLISH_SIGNAL_WORDS = new Set([
+  " el ",
+  " la ",
+  " los ",
+  " las ",
+  " una ",
+  " para ",
+  " con ",
+  " sobre ",
+  " le ",
+  " les ",
+  " des ",
+  " avec ",
+  " pour ",
+  " und ",
+  " der ",
+  " die ",
+  " das ",
+  " mit "
+]);
 
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
@@ -276,6 +324,14 @@ function truncateText(value: string, maxLength: number) {
   }
 
   return `${value.slice(0, maxLength - 1).trimEnd()}.`;
+}
+
+function normalizeTitleForDeduplication(value: string) {
+  return normalizeWhitespace(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function coerceText(value: unknown): string {
@@ -362,6 +418,29 @@ function canonicalizeUrl(rawValue: string | null | undefined) {
   }
 }
 
+function hasNonLatinScript(value: string) {
+  return /[\u0400-\u04ff\u0590-\u05ff\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff]/.test(
+    value
+  );
+}
+
+function countEnglishSignals(value: string) {
+  const tokens = value
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((token) => token.length >= 2);
+
+  return tokens.reduce((count, token) => count + (ENGLISH_SIGNAL_WORDS.has(token) ? 1 : 0), 0);
+}
+
+function countNonEnglishSignals(value: string) {
+  const haystack = ` ${value.toLowerCase()} `;
+  return Array.from(NON_ENGLISH_SIGNAL_WORDS).reduce(
+    (count, signal) => count + (haystack.includes(signal) ? 1 : 0),
+    0
+  );
+}
+
 function normalizeSourceName(value: string | null | undefined) {
   const normalized = normalizeWhitespace(value ?? "");
   return normalized || null;
@@ -375,6 +454,20 @@ function deriveSourceId(
     canonicalizeUrl(item.url) ||
     `${normalizeWhitespace(item.title).toLowerCase()}:${item.publishedAt ?? "undated"}`;
   return createHash("sha256").update(baseValue).digest("hex");
+}
+
+function deriveDeduplicationKey(item: CommunityCurationSourceItem) {
+  const canonicalUrl = canonicalizeUrl(item.url);
+  if (canonicalUrl) {
+    return canonicalUrl;
+  }
+
+  const normalizedTitle = normalizeTitleForDeduplication(item.title);
+  if (normalizedTitle) {
+    return normalizedTitle;
+  }
+
+  return deriveSourceId(item);
 }
 
 function extractSentences(value: string) {
@@ -700,6 +793,83 @@ export function parseCommunityCurationSource(payload: string) {
   });
 }
 
+export function isLikelyEnglishCurationItem(item: CommunityCurationSourceItem) {
+  const sample = normalizeWhitespace(`${item.title} ${item.summary} ${item.content}`).slice(0, 500);
+  if (!sample) {
+    return false;
+  }
+
+  if (hasNonLatinScript(sample)) {
+    return false;
+  }
+
+  const englishSignals = countEnglishSignals(sample);
+  const nonEnglishSignals = countNonEnglishSignals(sample);
+  const diacriticCount = (sample.match(/[^\u0000-\u007f]/g) ?? []).length;
+
+  if (englishSignals >= 2) {
+    return true;
+  }
+
+  if (nonEnglishSignals >= 2) {
+    return false;
+  }
+
+  if (diacriticCount >= 4 && englishSignals === 0) {
+    return false;
+  }
+
+  return /[a-z]/i.test(sample);
+}
+
+export function buildBcnCurationSourceLabel(sourceUrl: string, sourceName?: string | null) {
+  const explicitName = normalizeSourceName(sourceName);
+  if (explicitName) {
+    return explicitName;
+  }
+
+  try {
+    const url = new URL(sourceUrl);
+    const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+
+    if (host.includes("bbc")) {
+      if (url.pathname.includes("/business/")) {
+        return "BBC Business";
+      }
+
+      if (url.pathname.includes("/world/")) {
+        return "BBC World";
+      }
+
+      if (url.pathname.includes("/technology/")) {
+        return "BBC Technology";
+      }
+
+      return "BBC News";
+    }
+
+    if (host.includes("reuters")) {
+      return "Reuters";
+    }
+
+    if (host.includes("apnews")) {
+      return "AP News";
+    }
+
+    if (host.includes("aljazeera")) {
+      return "Al Jazeera";
+    }
+
+    const brand = host.split(".")[0] ?? host;
+    return brand
+      .split(/[-_]/)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  } catch {
+    return "BCN Source";
+  }
+}
+
 export function buildBcnCuratedCandidate(
   item: CommunityCurationSourceItem,
   defaultSourceName: string
@@ -727,22 +897,15 @@ export function buildBcnCuratedCandidate(
     ? `Published: ${new Date(item.publishedAt).toISOString().slice(0, 10)}`
     : null;
   const externalId = deriveSourceId(item);
+  const dedupeKey = deriveDeduplicationKey(item);
   const checksum = createHash("sha256")
-    .update(
-      [
-        sourceName,
-        externalId,
-        item.title,
-        item.summary,
-        item.content,
-        canonicalizeUrl(item.url) ?? ""
-      ].join("|")
-    )
+    .update(dedupeKey)
     .digest("hex");
 
   return {
     externalId,
     checksum,
+    dedupeKey,
     title: cleanHeadline(item.title),
     content: [
       "What happened:",

@@ -46,6 +46,7 @@ describe("community curation service", () => {
     vi.clearAllMocks();
     process.env.BCN_COMMUNITY_AUTOMATION_ENABLED = "true";
     process.env.BCN_COMMUNITY_SOURCE_URL = "https://example.com/feed.json";
+    process.env.BCN_COMMUNITY_SOURCE_URLS = "";
     process.env.BCN_COMMUNITY_SOURCE_NAME = "BCN Source";
     process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "2";
     process.env.BCN_COMMUNITY_AUTOMATION_THROTTLE_MS = "900000";
@@ -86,9 +87,12 @@ describe("community curation service", () => {
 
     expect(result).toMatchObject({
       status: "completed",
+      sourceCount: 1,
       publishedCount: 1,
       duplicateCount: 0,
-      fetchedItemCount: 1
+      fetchedCount: 1,
+      candidateCount: 1,
+      rejectedNonEnglishCount: 0
     });
     expect(dbMock.communityPost.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -138,15 +142,104 @@ describe("community curation service", () => {
     expect(dbMock.communityPost.create).not.toHaveBeenCalled();
   });
 
+  it("dedupes overlapping stories across multiple configured sources", async () => {
+    process.env.BCN_COMMUNITY_SOURCE_URL = "";
+    process.env.BCN_COMMUNITY_SOURCE_URLS =
+      "https://example.com/feed-a.xml, https://example.com/feed-b.xml";
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      return {
+        ok: true,
+        text: vi.fn().mockResolvedValue(
+          url.includes("feed-a")
+            ? `
+                <rss>
+                  <channel>
+                    <title>Feed A</title>
+                    <item>
+                      <guid>feed-a-1</guid>
+                      <title>Retail operators rethink staffing as consumer demand shifts</title>
+                      <description>Retail businesses are adjusting staffing, inventory, and store planning as demand patterns move across regions.</description>
+                      <link>https://example.com/shared-story?utm_source=feed-a</link>
+                    </item>
+                  </channel>
+                </rss>
+              `
+            : `
+                <rss>
+                  <channel>
+                    <title>Feed B</title>
+                    <item>
+                      <guid>feed-b-1</guid>
+                      <title>Retail operators rethink staffing as consumer demand shifts</title>
+                      <description>Retail businesses are adjusting staffing, inventory, and store planning as demand patterns move across regions.</description>
+                      <link>https://example.com/shared-story?utm_source=feed-b</link>
+                    </item>
+                  </channel>
+                </rss>
+              `
+        )
+      } as Response;
+    });
+
+    const result = await publishBcnCuratedPosts({
+      fetchImpl: fetchImpl as typeof fetch
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      sourceCount: 2,
+      publishedCount: 1,
+      duplicateCount: 1,
+      fetchedCount: 2,
+      candidateCount: 2
+    });
+    expect(dbMock.communityPost.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips likely non-English items to keep BCN updates in English", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      text: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          items: [
+            {
+              id: "item-es",
+              title: "Las empresas ajustan precios y contratacion por la presion de costos",
+              summary:
+                "Las empresas revisan operaciones y contratacion para proteger margenes en un entorno mas debil.",
+              url: "https://example.com/spanish-story",
+              publishedAt: "2026-04-18T10:00:00.000Z"
+            }
+          ]
+        })
+      )
+    });
+
+    const result = await publishBcnCuratedPosts({
+      fetchImpl
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      publishedCount: 0,
+      rejectedNonEnglishCount: 1
+    });
+    expect(dbMock.communityPost.create).not.toHaveBeenCalled();
+  });
+
   it("handles a missing source URL clearly", async () => {
     process.env.BCN_COMMUNITY_SOURCE_URL = "";
+    process.env.BCN_COMMUNITY_SOURCE_URLS = "";
 
     const result = await publishBcnCuratedPosts();
 
     expect(result).toMatchObject({
       status: "missing-source",
       publishedCount: 0,
-      message: expect.stringContaining("BCN_COMMUNITY_SOURCE_URL")
+      message: expect.stringContaining("BCN_COMMUNITY_SOURCE_URLS")
     });
   });
 

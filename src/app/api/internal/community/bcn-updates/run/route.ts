@@ -51,14 +51,20 @@ async function runBcnCuration(request: Request) {
   return NextResponse.json({
     ok,
     status: result.status,
+    sourceCount: result.sourceCount,
+    fetchedCount: result.fetchedCount,
+    candidateCount: result.candidateCount,
     publishedCount: result.publishedCount,
     duplicateCount: result.duplicateCount,
     skippedCount: result.skippedCount,
-    fetchedItemCount: result.fetchedItemCount,
+    rejectedNonEnglishCount: result.rejectedNonEnglishCount,
     publishedPostIds: result.publishedPostIds,
+    errors: result.errors,
     message: result.message,
     sourceName: process.env.BCN_COMMUNITY_SOURCE_NAME?.trim() || "BCN Source",
-    sourceConfigured: Boolean(process.env.BCN_COMMUNITY_SOURCE_URL?.trim())
+    sourceConfigured: Boolean(
+      process.env.BCN_COMMUNITY_SOURCE_URL?.trim() || process.env.BCN_COMMUNITY_SOURCE_URLS?.trim()
+    )
   }, { status: statusCode });
 }
 
