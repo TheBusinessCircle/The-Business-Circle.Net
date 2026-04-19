@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const revalidatePathMock = vi.hoisted(() => vi.fn());
+
 const dbMock = vi.hoisted(() => ({
   channel: {
     findUnique: vi.fn()
@@ -21,6 +23,10 @@ const loggingMock = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: revalidatePathMock
+}));
 
 vi.mock("@/lib/db", () => ({
   db: dbMock
@@ -65,7 +71,7 @@ describe("community curation service", () => {
               id: "item-1",
               title: "AI workflow changes are reshaping service delivery",
               summary:
-                "Operators are redesigning internal processes around automation, pricing, and team capacity.",
+                "Operators are redesigning internal processes around automation, pricing, and team capacity as service businesses adapt.",
               url: "https://example.com/ai-workflows",
               publishedAt: "2026-04-18T10:00:00.000Z"
             }
@@ -81,7 +87,8 @@ describe("community curation service", () => {
     expect(result).toMatchObject({
       status: "completed",
       publishedCount: 1,
-      duplicateCount: 0
+      duplicateCount: 0,
+      fetchedItemCount: 1
     });
     expect(dbMock.communityPost.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -93,6 +100,7 @@ describe("community curation service", () => {
         })
       })
     );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/member/bcn-updates");
   });
 
   it("does not repost duplicate source items", async () => {
@@ -109,7 +117,7 @@ describe("community curation service", () => {
               id: "item-1",
               title: "AI workflow changes are reshaping service delivery",
               summary:
-                "Operators are redesigning internal processes around automation, pricing, and team capacity.",
+                "Operators are redesigning internal processes around automation, pricing, and team capacity as service businesses adapt.",
               url: "https://example.com/ai-workflows",
               publishedAt: "2026-04-18T10:00:00.000Z"
             }
@@ -130,6 +138,18 @@ describe("community curation service", () => {
     expect(dbMock.communityPost.create).not.toHaveBeenCalled();
   });
 
+  it("handles a missing source URL clearly", async () => {
+    process.env.BCN_COMMUNITY_SOURCE_URL = "";
+
+    const result = await publishBcnCuratedPosts();
+
+    expect(result).toMatchObject({
+      status: "missing-source",
+      publishedCount: 0,
+      message: expect.stringContaining("BCN_COMMUNITY_SOURCE_URL")
+    });
+  });
+
   it("throttles opportunistic publishing checks between runs", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
@@ -140,7 +160,7 @@ describe("community curation service", () => {
               id: "item-1",
               title: "AI workflow changes are reshaping service delivery",
               summary:
-                "Operators are redesigning internal processes around automation, pricing, and team capacity.",
+                "Operators are redesigning internal processes around automation, pricing, and team capacity as service businesses adapt.",
               url: "https://example.com/ai-workflows",
               publishedAt: "2026-04-18T10:00:00.000Z"
             }

@@ -1,5 +1,7 @@
+import { revalidatePath } from "next/cache";
 import { CommunityPostKind } from "@prisma/client";
-import { BCN_UPDATES_CHANNEL_SLUG } from "@/config/community";
+import { BCN_UPDATES_CHANNEL_SLUG, BCN_UPDATES_MEMBER_ROUTE } from "@/config/community";
+import { buildCommunityPostPath } from "@/lib/community-paths";
 import { buildBcnCuratedCandidate, parseCommunityCurationSource } from "@/lib/community-curation";
 import { db } from "@/lib/db";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
@@ -17,6 +19,7 @@ export type PublishBcnCuratedPostsResult = {
     | "missing-author"
     | "missing-channel"
     | "source-unavailable"
+    | "source-invalid"
     | "no-items"
     | "completed"
     | "throttled";
@@ -24,6 +27,8 @@ export type PublishBcnCuratedPostsResult = {
   duplicateCount: number;
   skippedCount: number;
   publishedPostIds: string[];
+  fetchedItemCount: number;
+  message: string;
 };
 
 function bcnCurationEnabled() {
@@ -75,28 +80,45 @@ async function fetchSourcePayload(sourceUrl: string, fetchImpl: typeof fetch) {
   return response.text();
 }
 
+function baseResult(
+  status: PublishBcnCuratedPostsResult["status"],
+  message: string,
+  overrides?: Partial<PublishBcnCuratedPostsResult>
+): PublishBcnCuratedPostsResult {
+  return {
+    status,
+    message,
+    publishedCount: 0,
+    duplicateCount: 0,
+    skippedCount: 0,
+    publishedPostIds: [],
+    fetchedItemCount: 0,
+    ...overrides
+  };
+}
+
+function revalidateBcnUpdateSurfaces(postIds: string[]) {
+  revalidatePath(BCN_UPDATES_MEMBER_ROUTE);
+  revalidatePath("/dashboard");
+
+  for (const postId of postIds) {
+    revalidatePath(buildCommunityPostPath(postId, BCN_UPDATES_CHANNEL_SLUG));
+  }
+}
+
 export async function publishBcnCuratedPosts(options?: {
   fetchImpl?: typeof fetch;
 }): Promise<PublishBcnCuratedPostsResult> {
   if (!bcnCurationEnabled()) {
-    return {
-      status: "disabled",
-      publishedCount: 0,
-      duplicateCount: 0,
-      skippedCount: 0,
-      publishedPostIds: []
-    };
+    return baseResult("disabled", "BCN Updates automation is disabled by configuration.");
   }
 
   const sourceUrl = bcnSourceUrl();
   if (!sourceUrl) {
-    return {
-      status: "missing-source",
-      publishedCount: 0,
-      duplicateCount: 0,
-      skippedCount: 0,
-      publishedPostIds: []
-    };
+    return baseResult(
+      "missing-source",
+      "BCN_COMMUNITY_SOURCE_URL is blank, so there is no source feed to fetch."
+    );
   }
 
   await ensureCommunityChannels();
@@ -114,23 +136,17 @@ export async function publishBcnCuratedPosts(options?: {
   ]);
 
   if (!authorId) {
-    return {
-      status: "missing-author",
-      publishedCount: 0,
-      duplicateCount: 0,
-      skippedCount: 0,
-      publishedPostIds: []
-    };
+    return baseResult(
+      "missing-author",
+      "No automation author could be resolved. Set COMMUNITY_AUTOMATION_AUTHOR_ID or ensure at least one active admin exists."
+    );
   }
 
   if (!channel?.id) {
-    return {
-      status: "missing-channel",
-      publishedCount: 0,
-      duplicateCount: 0,
-      skippedCount: 0,
-      publishedPostIds: []
-    };
+    return baseResult(
+      "missing-channel",
+      `The BCN Updates channel (${BCN_UPDATES_CHANNEL_SLUG}) could not be found.`
+    );
   }
 
   const sourceName = bcnSourceName();
@@ -143,33 +159,45 @@ export async function publishBcnCuratedPosts(options?: {
       sourceUrl
     });
 
-    return {
-      status: "source-unavailable",
-      publishedCount: 0,
-      duplicateCount: 0,
-      skippedCount: 0,
-      publishedPostIds: []
-    };
+    return baseResult(
+      "source-unavailable",
+      `The configured BCN source could not be fetched from ${sourceUrl}.`
+    );
   }
 
-  const items = parseCommunityCurationSource(payload);
+  let items: ReturnType<typeof parseCommunityCurationSource>;
+  try {
+    items = parseCommunityCurationSource(payload);
+  } catch (error) {
+    logServerError("bcn-curation-parse-failed", error, {
+      sourceUrl,
+      sourceName
+    });
+
+    return baseResult(
+      "source-invalid",
+      "The configured BCN source payload could not be parsed as a supported RSS, Atom, or JSON feed."
+    );
+  }
+
   if (!items.length) {
     logServerWarning("bcn-curation-no-source-items", {
       sourceUrl
     });
 
-    return {
-      status: "no-items",
-      publishedCount: 0,
-      duplicateCount: 0,
-      skippedCount: 0,
-      publishedPostIds: []
-    };
+    return baseResult(
+      "no-items",
+      "The source responded, but no valid feed items could be normalized from the payload.",
+      {
+        fetchedItemCount: 0
+      }
+    );
   }
 
   const publishedPostIds: string[] = [];
   let duplicateCount = 0;
   let skippedCount = 0;
+  const seenExternalIds = new Set<string>();
 
   for (const item of items.slice(0, 12)) {
     if (publishedPostIds.length >= bcnMaxPostsPerRun()) {
@@ -185,6 +213,17 @@ export async function publishBcnCuratedPosts(options?: {
       });
       continue;
     }
+
+    if (seenExternalIds.has(candidate.externalId)) {
+      duplicateCount += 1;
+      logServerWarning("bcn-curation-item-skipped", {
+        reason: "duplicate-in-feed",
+        sourceId: item.sourceId
+      });
+      continue;
+    }
+
+    seenExternalIds.add(candidate.externalId);
 
     const existingPost = await db.communityPost.findFirst({
       where: {
@@ -233,13 +272,23 @@ export async function publishBcnCuratedPosts(options?: {
     publishedPostIds.push(createdPost.id);
   }
 
-  return {
-    status: "completed",
-    publishedCount: publishedPostIds.length,
-    duplicateCount,
-    skippedCount,
-    publishedPostIds
-  };
+  if (publishedPostIds.length) {
+    revalidateBcnUpdateSurfaces(publishedPostIds);
+  }
+
+  return baseResult(
+    "completed",
+    publishedPostIds.length
+      ? `Published ${publishedPostIds.length} BCN update${publishedPostIds.length === 1 ? "" : "s"} into the dedicated BCN Updates feed.`
+      : "The run completed, but everything was skipped as duplicate, irrelevant, or too thin to publish.",
+    {
+      publishedCount: publishedPostIds.length,
+      duplicateCount,
+      skippedCount,
+      publishedPostIds,
+      fetchedItemCount: items.length
+    }
+  );
 }
 
 export async function maybePublishBcnCuratedPosts(
@@ -249,13 +298,10 @@ export async function maybePublishBcnCuratedPosts(
   }
 ): Promise<PublishBcnCuratedPostsResult> {
   if (now.getTime() - lastBcnCurationSweepAt < bcnCurationThrottleMs()) {
-    return {
-      status: "throttled",
-      publishedCount: 0,
-      duplicateCount: 0,
-      skippedCount: 0,
-      publishedPostIds: []
-    };
+    return baseResult(
+      "throttled",
+      `BCN Updates automation was checked too recently. Waiting for the ${bcnCurationThrottleMs()}ms throttle window to pass.`
+    );
   }
 
   lastBcnCurationSweepAt = now.getTime();
