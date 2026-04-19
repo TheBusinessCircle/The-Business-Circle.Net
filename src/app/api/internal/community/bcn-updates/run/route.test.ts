@@ -48,6 +48,7 @@ describe("BCN automation route", () => {
       duplicateCount: 0,
       skippedCount: 0,
       rejectedNonEnglishCount: 0,
+      rejectedStaleCount: 0,
       publishedPostIds: [],
       errors: [],
       message: "BCN_COMMUNITY_SOURCE_URL is blank."
@@ -78,6 +79,7 @@ describe("BCN automation route", () => {
       duplicateCount: 0,
       skippedCount: 0,
       rejectedNonEnglishCount: 1,
+      rejectedStaleCount: 0,
       publishedPostIds: ["post_bcn_1"],
       errors: [],
       message: "Published 1 BCN update into the dedicated BCN Updates feed."

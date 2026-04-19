@@ -35,6 +35,7 @@ export type PublishBcnCuratedPostsResult = {
   duplicateCount: number;
   skippedCount: number;
   rejectedNonEnglishCount: number;
+  rejectedStaleCount: number;
   publishedPostIds: string[];
   errors: string[];
   message: string;
@@ -110,6 +111,29 @@ function bcnMaxPostsPerRun() {
   return Math.max(1, Math.min(5, Math.floor(value)));
 }
 
+function bcnLookbackHours() {
+  const value = Number(process.env.BCN_COMMUNITY_LOOKBACK_HOURS ?? 24);
+  if (!Number.isFinite(value)) {
+    return 24;
+  }
+
+  return Math.max(1, Math.min(168, Math.floor(value)));
+}
+
+function isWithinLookbackWindow(publishedAt: string | null, now: Date) {
+  if (!publishedAt) {
+    return false;
+  }
+
+  const publishedDate = new Date(publishedAt);
+  if (Number.isNaN(publishedDate.getTime())) {
+    return false;
+  }
+
+  const cutoff = now.getTime() - bcnLookbackHours() * 60 * 60 * 1000;
+  return publishedDate.getTime() >= cutoff;
+}
+
 async function fetchSourcePayload(sourceUrl: string, fetchImpl: typeof fetch) {
   const response = await fetchImpl(sourceUrl, {
     headers: {
@@ -140,6 +164,7 @@ function baseResult(
     duplicateCount: 0,
     skippedCount: 0,
     rejectedNonEnglishCount: 0,
+    rejectedStaleCount: 0,
     publishedPostIds: [],
     errors: [],
     ...overrides
@@ -205,7 +230,9 @@ export async function publishBcnCuratedPosts(options?: {
   let fetchedCount = 0;
   let candidateCount = 0;
   let rejectedNonEnglishCount = 0;
+  let rejectedStaleCount = 0;
   const maxPostsPerRun = bcnMaxPostsPerRun();
+  const now = new Date();
   const seenExternalIds = new Set<string>();
   const seenChecksums = new Set<string>();
 
@@ -250,6 +277,18 @@ export async function publishBcnCuratedPosts(options?: {
     for (const item of items) {
       if (publishedPostIds.length >= maxPostsPerRun) {
         break;
+      }
+
+      if (!isWithinLookbackWindow(item.publishedAt, now)) {
+        rejectedStaleCount += 1;
+        logServerWarning("bcn-curation-item-skipped", {
+          reason: "outside-lookback-window",
+          sourceId: item.sourceId,
+          sourceName: source.label,
+          publishedAt: item.publishedAt,
+          lookbackHours: bcnLookbackHours()
+        });
+        continue;
       }
 
       if (!isLikelyEnglishCurationItem(item)) {
@@ -379,6 +418,7 @@ export async function publishBcnCuratedPosts(options?: {
       duplicateCount,
       skippedCount,
       rejectedNonEnglishCount,
+      rejectedStaleCount,
       publishedPostIds,
       errors
     }

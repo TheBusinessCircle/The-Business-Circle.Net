@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const revalidatePathMock = vi.hoisted(() => vi.fn());
 
@@ -44,10 +44,13 @@ import {
 describe("community curation service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-18T12:00:00.000Z"));
     process.env.BCN_COMMUNITY_AUTOMATION_ENABLED = "true";
     process.env.BCN_COMMUNITY_SOURCE_URL = "https://example.com/feed.json";
     process.env.BCN_COMMUNITY_SOURCE_URLS = "";
     process.env.BCN_COMMUNITY_SOURCE_NAME = "BCN Source";
+    process.env.BCN_COMMUNITY_LOOKBACK_HOURS = "24";
     process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "2";
     process.env.BCN_COMMUNITY_AUTOMATION_THROTTLE_MS = "900000";
 
@@ -60,6 +63,10 @@ describe("community curation service", () => {
     dbMock.communityPost.create.mockResolvedValue({
       id: "post_bcn_1"
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("publishes a new BCN curated post into the dedicated community channel", async () => {
@@ -92,7 +99,8 @@ describe("community curation service", () => {
       duplicateCount: 0,
       fetchedCount: 1,
       candidateCount: 1,
-      rejectedNonEnglishCount: 0
+      rejectedNonEnglishCount: 0,
+      rejectedStaleCount: 0
     });
     expect(dbMock.communityPost.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -163,6 +171,7 @@ describe("community curation service", () => {
                       <title>Retail operators rethink staffing as consumer demand shifts</title>
                       <description>Retail businesses are adjusting staffing, inventory, and store planning as demand patterns move across regions.</description>
                       <link>https://example.com/shared-story?utm_source=feed-a</link>
+                      <pubDate>Fri, 18 Apr 2026 10:00:00 GMT</pubDate>
                     </item>
                   </channel>
                 </rss>
@@ -176,6 +185,7 @@ describe("community curation service", () => {
                       <title>Retail operators rethink staffing as consumer demand shifts</title>
                       <description>Retail businesses are adjusting staffing, inventory, and store planning as demand patterns move across regions.</description>
                       <link>https://example.com/shared-story?utm_source=feed-b</link>
+                      <pubDate>Fri, 18 Apr 2026 10:05:00 GMT</pubDate>
                     </item>
                   </channel>
                 </rss>
@@ -225,7 +235,41 @@ describe("community curation service", () => {
     expect(result).toMatchObject({
       status: "completed",
       publishedCount: 0,
-      rejectedNonEnglishCount: 1
+      rejectedNonEnglishCount: 1,
+      rejectedStaleCount: 0
+    });
+    expect(dbMock.communityPost.create).not.toHaveBeenCalled();
+  });
+
+  it("only publishes items from the last 24 hours by default", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      text: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          items: [
+            {
+              id: "item-old",
+              title: "Businesses adapt pricing after global shipping costs rise",
+              summary:
+                "Operators are adjusting delivery, pricing, and margin planning after another rise in shipping costs across regions.",
+              url: "https://example.com/old-story",
+              publishedAt: "2026-04-16T10:00:00.000Z"
+            }
+          ]
+        })
+      )
+    });
+
+    vi.setSystemTime(new Date("2026-04-18T12:00:00.000Z"));
+
+    const result = await publishBcnCuratedPosts({
+      fetchImpl
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      publishedCount: 0,
+      rejectedStaleCount: 1
     });
     expect(dbMock.communityPost.create).not.toHaveBeenCalled();
   });

@@ -58,6 +58,7 @@ async function runBcnCuration(request: Request) {
     duplicateCount: result.duplicateCount,
     skippedCount: result.skippedCount,
     rejectedNonEnglishCount: result.rejectedNonEnglishCount,
+    rejectedStaleCount: result.rejectedStaleCount,
     publishedPostIds: result.publishedPostIds,
     errors: result.errors,
     message: result.message,
