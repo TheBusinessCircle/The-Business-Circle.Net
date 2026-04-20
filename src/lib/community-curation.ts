@@ -298,7 +298,7 @@ const TRACKING_QUERY_PARAMS = new Set([
   "mc_eid"
 ]);
 
-const MAX_CURATION_TAKEAWAYS = 2;
+const MAX_CURATION_TAKEAWAYS = 4;
 const MIN_DISCUSSION_WORTHY_LENGTH = 70;
 const MIN_SUMMARY_LENGTH_FOR_COMPACT_UPDATES = 48;
 
@@ -586,6 +586,21 @@ function buildTakeaways(item: CommunityCurationSourceItem) {
   return [truncateText(item.title, 180)];
 }
 
+function isNearDuplicateText(left: string, right: string) {
+  const normalizedLeft = normalizeTitleForDeduplication(left);
+  const normalizedRight = normalizeTitleForDeduplication(right);
+
+  if (!normalizedLeft || !normalizedRight) {
+    return false;
+  }
+
+  return (
+    normalizedLeft === normalizedRight ||
+    normalizedLeft.includes(normalizedRight) ||
+    normalizedRight.includes(normalizedLeft)
+  );
+}
+
 function cleanHeadline(value: string) {
   const normalized = normalizeWhitespace(value);
   if (!normalized) {
@@ -712,12 +727,33 @@ function buildWhyThisMatters(
 }
 
 function buildArticleDetail(item: CommunityCurationSourceItem, takeaways: string[]) {
-  const detailParts = [takeaways[0] ?? item.summary, takeaways[1] ?? item.content]
+  const detailParts = [item.title, ...takeaways, item.summary]
     .map((value) => normalizeWhitespace(value))
+    .filter(Boolean)
+    .filter((value, index, values) => {
+      return !values.slice(0, index).some((existingValue) => isNearDuplicateText(existingValue, value));
+    })
+    .slice(0, 3);
+
+  const detail = detailParts.join(" ");
+  return truncateText(detail || item.summary || item.title, 420);
+}
+
+function buildWhatHappened(
+  item: CommunityCurationSourceItem,
+  takeaways: string[],
+  articleDetail: string
+) {
+  const candidates = [takeaways[0], item.summary, item.title]
+    .map((value) => normalizeWhitespace(value ?? ""))
     .filter(Boolean);
 
-  const detail = Array.from(new Set(detailParts)).join(" ");
-  return truncateText(detail || item.summary || item.title, 420);
+  const distinctCandidate =
+    candidates.find((candidate) => !isNearDuplicateText(candidate, articleDetail)) ??
+    candidates[0] ??
+    item.title;
+
+  return truncateText(distinctCandidate, 260);
 }
 
 function buildWhoThisAffects(matchedThemes: BcnMatchedTheme[]) {
@@ -829,13 +865,16 @@ function parseXmlFeed(payload: string): CommunityCurationSourceItem[] {
         const rawContent = extractXmlTagRawValue(block, [
           "content:encoded",
           "content",
+          "media:description",
           "description",
           "summary"
         ]);
         const item = buildSourceItem({
           sourceId: extractXmlTagValue(block, ["guid", "id"]) || `${feedTitle}:${index}`,
           title: extractXmlTagValue(block, ["title"]),
-          summary: extractXmlTagValue(block, ["description", "summary"]) || stripHtml(rawContent),
+          summary:
+            extractXmlTagValue(block, ["description", "summary", "media:description"]) ||
+            stripHtml(rawContent),
           content: rawContent,
           url: extractXmlLink(block),
           sourceName: extractXmlTagValue(payload, ["title"]),
@@ -927,17 +966,25 @@ function parseJsonFeed(payload: string): CommunityCurationSourceItem[] {
             "description",
             "excerpt",
             "dek",
+            "standfirst",
+            "subtitle",
+            "summary_text",
+            "contentSnippet",
             "content_text",
             "content.plain",
             "content"
           ]),
           content: readObjectValue(record, [
+            "full_text",
+            "fullText",
             "content_text",
             "content",
             "body",
             "summary",
             "description",
-            "content_html"
+            "content_html",
+            "contentRendered",
+            "description_text"
           ]),
           url:
             canonicalizeUrl(
@@ -1103,7 +1150,7 @@ export function buildBcnCuratedCandidate(
   const relevanceReasons = primaryThemes.map((theme) => theme.label);
   const sourceName = item.sourceName ?? defaultSourceName;
   const articleDetail = buildArticleDetail(item, takeaways);
-  const whatHappened = truncateText(takeaways[0] ?? item.summary, 260);
+  const whatHappened = buildWhatHappened(item, takeaways, articleDetail);
   const whyThisMatters = buildWhyThisMatters(takeaways, primaryThemes);
   const whoThisAffects = buildWhoThisAffects(primaryThemes);
   const bcnAngle = buildBcnAngle(primaryThemes);

@@ -40,6 +40,35 @@ describe("BCN intelligence helpers", () => {
     });
   });
 
+  it("keeps article detail separate from the BCN breakdown when both are present", () => {
+    const parsed = parseBcnStructuredContent(
+      [
+        "Article detail:",
+        "The source says online merchants are reviewing acquisition costs, stock discipline, and paid spend after weaker conversion performance.",
+        "",
+        "What happened:",
+        "Marketplace sellers are cutting ad spend after conversion rates weakened.",
+        "",
+        "Why this matters:",
+        "This changes acquisition planning and short-term margin decisions.",
+        "",
+        "Who this affects:",
+        "E-commerce operators and growth leads.",
+        "",
+        "BCN angle:",
+        "Worth watching for what it says about real demand quality rather than vanity traffic.",
+        "",
+        "Source:",
+        "Commerce Desk - https://example.com/story"
+      ].join("\n")
+    );
+
+    expect(parsed?.articleDetail).toContain("reviewing acquisition costs");
+    expect(parsed?.whatHappened).toBe(
+      "Marketplace sellers are cutting ad spend after conversion rates weakened."
+    );
+  });
+
   it("hides BCN meta tags while keeping visible intelligence categories", () => {
     expect(getVisibleCommunityTags(["bcn-update", "curated", "marketing", "growth"])).toEqual([
       "marketing",

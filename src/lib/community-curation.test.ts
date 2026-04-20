@@ -160,6 +160,40 @@ describe("community curation parsing and formatting", () => {
     ]);
   });
 
+  it("parses extra feed detail fields so richer BCN article detail can be generated", () => {
+    const payload = JSON.stringify({
+      items: [
+        {
+          id: "item-json-2",
+          title: "Marketplace sellers cut ad spend after conversion rates weaken",
+          standfirst:
+            "Online merchants are reviewing acquisition costs and margin targets as conversion rates stay soft.",
+          fullText:
+            "Online merchants are reviewing acquisition costs and margin targets as conversion rates stay soft. Teams are shifting budget toward higher-intent channels and tighter stock control.",
+          canonicalUrl: "https://example.com/marketplace-conversion",
+          datePublished: "2026-04-18T14:00:00Z",
+          publisher: {
+            name: "Commerce Desk"
+          }
+        }
+      ]
+    });
+
+    expect(parseCommunityCurationSource(payload)).toEqual([
+      {
+        sourceId: "item-json-2",
+        title: "Marketplace sellers cut ad spend after conversion rates weaken",
+        summary:
+          "Online merchants are reviewing acquisition costs and margin targets as conversion rates stay soft.",
+        content:
+          "Online merchants are reviewing acquisition costs and margin targets as conversion rates stay soft. Teams are shifting budget toward higher-intent channels and tighter stock control.",
+        url: "https://example.com/marketplace-conversion",
+        sourceName: "Commerce Desk",
+        publishedAt: "2026-04-18T14:00:00.000Z"
+      }
+    ]);
+  });
+
   it("formats relevant items into BCN-style update posts", () => {
     const candidate = buildBcnCuratedCandidate(
       {
@@ -184,6 +218,9 @@ describe("community curation parsing and formatting", () => {
     expect(candidate?.content).toContain("BCN angle:");
     expect(candidate?.content).toContain("Source:");
     expect(candidate?.content).toContain("Reuters - https://example.com/margin-pressure");
+    expect(candidate?.content).toContain(
+      "Businesses are revisiting pricing, operations, and customer positioning as margins tighten."
+    );
     expect(candidate?.tags).toEqual(
       expect.arrayContaining(["bcn-update", "curated", "growth", "operations", "leadership"])
     );

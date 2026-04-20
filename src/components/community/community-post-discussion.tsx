@@ -431,6 +431,11 @@ export function CommunityPostBody({
             {parsedBcnContent.articleDetail || parsedBcnContent.whatHappened}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex rounded-full border border-silver/16 bg-silver/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
+            BCN Intelligence Breakdown
+          </span>
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
           {sections.map((section) => (
             <div
