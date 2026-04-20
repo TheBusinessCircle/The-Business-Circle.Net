@@ -6,14 +6,15 @@ import {
   buildBcnCuratedCandidate,
   buildBcnCurationSourceLabel,
   isLikelyEnglishCurationItem,
-  parseCommunityCurationSource
+  parseCommunityCurationSource,
+  type CommunityCurationSourceItem
 } from "@/lib/community-curation";
 import { db } from "@/lib/db";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
 import { ensureCommunityChannels, resolveCommunityAutomationAuthorId } from "@/server/community/community.service";
 
-const DEFAULT_BCN_CURATION_THROTTLE_MS = 15 * 60 * 1000;
-const DEFAULT_BCN_CURATION_MAX_POSTS_PER_RUN = 2;
+const DEFAULT_BCN_CURATION_THROTTLE_MS = 5 * 60 * 1000;
+const DEFAULT_BCN_CURATION_MAX_POSTS_PER_RUN = 5;
 
 let lastBcnCurationSweepAt = 0;
 
@@ -29,16 +30,29 @@ export type PublishBcnCuratedPostsResult = {
     | "completed"
     | "throttled";
   sourceCount: number;
+  sourceConfigured: boolean;
+  authorResolved: boolean | null;
   fetchedCount: number;
   candidateCount: number;
   publishedCount: number;
   duplicateCount: number;
   skippedCount: number;
   rejectedNonEnglishCount: number;
+  rejectedNotRelevantCount: number;
   rejectedStaleCount: number;
+  lookbackHours: number;
+  maxPostsPerRun: number;
+  throttleMs: number;
   publishedPostIds: string[];
   errors: string[];
   message: string;
+};
+
+type ResolvedBcnSource = ReturnType<typeof resolveBcnSources>[number];
+
+type QueuedBcnSourceItem = {
+  item: CommunityCurationSourceItem;
+  source: ResolvedBcnSource;
 };
 
 function bcnCurationEnabled() {
@@ -158,17 +172,61 @@ function baseResult(
     status,
     message,
     sourceCount: 0,
+    sourceConfigured: false,
+    authorResolved: null,
     fetchedCount: 0,
     candidateCount: 0,
     publishedCount: 0,
     duplicateCount: 0,
     skippedCount: 0,
     rejectedNonEnglishCount: 0,
+    rejectedNotRelevantCount: 0,
     rejectedStaleCount: 0,
+    lookbackHours: bcnLookbackHours(),
+    maxPostsPerRun: bcnMaxPostsPerRun(),
+    throttleMs: bcnCurationThrottleMs(),
     publishedPostIds: [],
     errors: [],
     ...overrides
   };
+}
+
+function itemPublishedAtTime(item: CommunityCurationSourceItem) {
+  if (!item.publishedAt) {
+    return 0;
+  }
+
+  const publishedAt = new Date(item.publishedAt).getTime();
+  return Number.isNaN(publishedAt) ? 0 : publishedAt;
+}
+
+function buildCompletedRunMessage(result: {
+  sourceCount: number;
+  fetchedCount: number;
+  publishedCount: number;
+  duplicateCount: number;
+  rejectedNonEnglishCount: number;
+  rejectedNotRelevantCount: number;
+  rejectedStaleCount: number;
+  errors: string[];
+}) {
+  const itemLabel = result.fetchedCount === 1 ? "item" : "items";
+  const sourceLabel = result.sourceCount === 1 ? "source" : "sources";
+  const updateLabel = result.publishedCount === 1 ? "update" : "updates";
+  const summary =
+    `Fetched ${result.fetchedCount} ${itemLabel} from ${result.sourceCount} ${sourceLabel}. ` +
+    `Skipped ${result.rejectedStaleCount} stale, ${result.rejectedNonEnglishCount} non-English, ` +
+    `${result.rejectedNotRelevantCount} not relevant, and ${result.duplicateCount} duplicate items.`;
+
+  if (result.publishedCount) {
+    return `Published ${result.publishedCount} BCN ${updateLabel}. ${summary}`;
+  }
+
+  const sourceIssueSummary = result.errors.length
+    ? ` ${result.errors.length} source issue${result.errors.length === 1 ? "" : "s"} were also reported.`
+    : "";
+
+  return `No BCN updates were published. ${summary}${sourceIssueSummary}`;
 }
 
 function revalidateBcnUpdateSurfaces(postIds: string[]) {
@@ -183,15 +241,33 @@ function revalidateBcnUpdateSurfaces(postIds: string[]) {
 export async function publishBcnCuratedPosts(options?: {
   fetchImpl?: typeof fetch;
 }): Promise<PublishBcnCuratedPostsResult> {
+  const sources = resolveBcnSources();
+  const sourceConfigured = sources.length > 0;
+  const lookbackHours = bcnLookbackHours();
+  const maxPostsPerRun = bcnMaxPostsPerRun();
+  const throttleMs = bcnCurationThrottleMs();
+
   if (!bcnCurationEnabled()) {
-    return baseResult("disabled", "BCN Updates automation is disabled by configuration.");
+    return baseResult("disabled", "BCN Updates automation is disabled by configuration.", {
+      sourceCount: sources.length,
+      sourceConfigured,
+      lookbackHours,
+      maxPostsPerRun,
+      throttleMs
+    });
   }
 
-  const sources = resolveBcnSources();
   if (!sources.length) {
     return baseResult(
       "missing-source",
-      "No BCN source feeds are configured. Set BCN_COMMUNITY_SOURCE_URLS or BCN_COMMUNITY_SOURCE_URL."
+      "No BCN source feeds are configured. Set BCN_COMMUNITY_SOURCE_URLS or BCN_COMMUNITY_SOURCE_URL.",
+      {
+        sourceCount: 0,
+        sourceConfigured,
+        lookbackHours,
+        maxPostsPerRun,
+        throttleMs
+      }
     );
   }
 
@@ -212,14 +288,30 @@ export async function publishBcnCuratedPosts(options?: {
   if (!authorId) {
     return baseResult(
       "missing-author",
-      "No automation author could be resolved. Set COMMUNITY_AUTOMATION_AUTHOR_ID or ensure at least one active admin exists."
+      "No automation author could be resolved. Set COMMUNITY_AUTOMATION_AUTHOR_ID or ensure at least one active admin exists.",
+      {
+        sourceCount: sources.length,
+        sourceConfigured,
+        authorResolved: false,
+        lookbackHours,
+        maxPostsPerRun,
+        throttleMs
+      }
     );
   }
 
   if (!channel?.id) {
     return baseResult(
       "missing-channel",
-      `The BCN Updates channel (${BCN_UPDATES_CHANNEL_SLUG}) could not be found.`
+      `The BCN Updates channel (${BCN_UPDATES_CHANNEL_SLUG}) could not be found.`,
+      {
+        sourceCount: sources.length,
+        sourceConfigured,
+        authorResolved: true,
+        lookbackHours,
+        maxPostsPerRun,
+        throttleMs
+      }
     );
   }
 
@@ -230,17 +322,14 @@ export async function publishBcnCuratedPosts(options?: {
   let fetchedCount = 0;
   let candidateCount = 0;
   let rejectedNonEnglishCount = 0;
+  let rejectedNotRelevantCount = 0;
   let rejectedStaleCount = 0;
-  const maxPostsPerRun = bcnMaxPostsPerRun();
   const now = new Date();
   const seenExternalIds = new Set<string>();
   const seenChecksums = new Set<string>();
+  const queuedItems: QueuedBcnSourceItem[] = [];
 
   for (const source of sources) {
-    if (publishedPostIds.length >= maxPostsPerRun) {
-      break;
-    }
-
     let payload: string;
     try {
       payload = await fetchSourcePayload(source.url, options?.fetchImpl ?? fetch);
@@ -273,107 +362,123 @@ export async function publishBcnCuratedPosts(options?: {
     }
 
     fetchedCount += items.length;
+    queuedItems.push(...items.map((item) => ({ item, source })));
+  }
 
-    for (const item of items) {
-      if (publishedPostIds.length >= maxPostsPerRun) {
-        break;
-      }
-
-      if (!isWithinLookbackWindow(item.publishedAt, now)) {
-        rejectedStaleCount += 1;
-        logServerWarning("bcn-curation-item-skipped", {
-          reason: "outside-lookback-window",
-          sourceId: item.sourceId,
-          sourceName: source.label,
-          publishedAt: item.publishedAt,
-          lookbackHours: bcnLookbackHours()
-        });
-        continue;
-      }
-
-      if (!isLikelyEnglishCurationItem(item)) {
-        rejectedNonEnglishCount += 1;
-        logServerWarning("bcn-curation-item-skipped", {
-          reason: "non-english",
-          sourceId: item.sourceId,
-          sourceName: source.label
-        });
-        continue;
-      }
-
-      const candidate = buildBcnCuratedCandidate(item, source.label);
-      if (!candidate) {
-        skippedCount += 1;
-        logServerWarning("bcn-curation-item-skipped", {
-          reason: "not-relevant",
-          sourceId: item.sourceId,
-          sourceName: source.label
-        });
-        continue;
-      }
-
-      candidateCount += 1;
-
-      if (seenExternalIds.has(`${source.label}:${candidate.externalId}`) || seenChecksums.has(candidate.checksum)) {
-        duplicateCount += 1;
-        logServerWarning("bcn-curation-item-skipped", {
-          reason: "duplicate-in-run",
-          sourceId: item.sourceId,
-          sourceName: source.label
-        });
-        continue;
-      }
-
-      seenExternalIds.add(`${source.label}:${candidate.externalId}`);
-      seenChecksums.add(candidate.checksum);
-
-      const existingPost = await db.communityPost.findFirst({
-        where: {
-          OR: [
-            {
-              automationChecksum: candidate.checksum
-            },
-            {
-              automationSource: source.label,
-              automationExternalId: candidate.externalId
-            }
-          ]
-        },
-        select: {
-          id: true
-        }
-      });
-
-      if (existingPost?.id) {
-        duplicateCount += 1;
-        logServerWarning("bcn-curation-item-skipped", {
-          reason: "duplicate",
-          sourceId: item.sourceId,
-          sourceName: source.label
-        });
-        continue;
-      }
-
-      const createdPost = await db.communityPost.create({
-        data: {
-          channelId: channel.id,
-          userId: authorId,
-          title: candidate.title,
-          content: candidate.content,
-          tags: candidate.tags,
-          kind: CommunityPostKind.FOUNDER_POST,
-          automationSource: source.label,
-          automationExternalId: candidate.externalId,
-          automationChecksum: candidate.checksum,
-          automatedAt: new Date()
-        },
-        select: {
-          id: true
-        }
-      });
-
-      publishedPostIds.push(createdPost.id);
+  queuedItems.sort((left, right) => {
+    const publishedTimeDelta = itemPublishedAtTime(right.item) - itemPublishedAtTime(left.item);
+    if (publishedTimeDelta !== 0) {
+      return publishedTimeDelta;
     }
+
+    return left.item.title.localeCompare(right.item.title);
+  });
+
+  for (const queuedItem of queuedItems) {
+    if (publishedPostIds.length >= maxPostsPerRun) {
+      break;
+    }
+
+    const { item, source } = queuedItem;
+
+    if (!isWithinLookbackWindow(item.publishedAt, now)) {
+      rejectedStaleCount += 1;
+      logServerWarning("bcn-curation-item-skipped", {
+        reason: "outside-lookback-window",
+        sourceId: item.sourceId,
+        sourceName: source.label,
+        publishedAt: item.publishedAt,
+        lookbackHours
+      });
+      continue;
+    }
+
+    if (!isLikelyEnglishCurationItem(item)) {
+      rejectedNonEnglishCount += 1;
+      logServerWarning("bcn-curation-item-skipped", {
+        reason: "non-english",
+        sourceId: item.sourceId,
+        sourceName: source.label
+      });
+      continue;
+    }
+
+    const candidate = buildBcnCuratedCandidate(item, source.label);
+    if (!candidate) {
+      skippedCount += 1;
+      rejectedNotRelevantCount += 1;
+      logServerWarning("bcn-curation-item-skipped", {
+        reason: "not-relevant",
+        sourceId: item.sourceId,
+        sourceName: source.label
+      });
+      continue;
+    }
+
+    candidateCount += 1;
+
+    if (
+      seenExternalIds.has(`${source.label}:${candidate.externalId}`) ||
+      seenChecksums.has(candidate.checksum)
+    ) {
+      duplicateCount += 1;
+      logServerWarning("bcn-curation-item-skipped", {
+        reason: "duplicate-in-run",
+        sourceId: item.sourceId,
+        sourceName: source.label
+      });
+      continue;
+    }
+
+    seenExternalIds.add(`${source.label}:${candidate.externalId}`);
+    seenChecksums.add(candidate.checksum);
+
+    const existingPost = await db.communityPost.findFirst({
+      where: {
+        OR: [
+          {
+            automationChecksum: candidate.checksum
+          },
+          {
+            automationSource: source.label,
+            automationExternalId: candidate.externalId
+          }
+        ]
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (existingPost?.id) {
+      duplicateCount += 1;
+      logServerWarning("bcn-curation-item-skipped", {
+        reason: "duplicate",
+        sourceId: item.sourceId,
+        sourceName: source.label
+      });
+      continue;
+    }
+
+    const createdPost = await db.communityPost.create({
+      data: {
+        channelId: channel.id,
+        userId: authorId,
+        title: candidate.title,
+        content: candidate.content,
+        tags: candidate.tags,
+        kind: CommunityPostKind.FOUNDER_POST,
+        automationSource: source.label,
+        automationExternalId: candidate.externalId,
+        automationChecksum: candidate.checksum,
+        automatedAt: new Date()
+      },
+      select: {
+        id: true
+      }
+    });
+
+    publishedPostIds.push(createdPost.id);
   }
 
   if (publishedPostIds.length) {
@@ -389,7 +494,12 @@ export async function publishBcnCuratedPosts(options?: {
         : "None of the configured BCN source payloads could be parsed into valid feed items.",
       {
         sourceCount: sources.length,
-        errors
+        sourceConfigured,
+        authorResolved: true,
+        errors,
+        lookbackHours,
+        maxPostsPerRun,
+        throttleMs
       }
     );
   }
@@ -400,29 +510,43 @@ export async function publishBcnCuratedPosts(options?: {
       "The configured BCN sources responded, but no valid feed items could be normalized from them.",
       {
         sourceCount: sources.length,
-        errors
+        sourceConfigured,
+        authorResolved: true,
+        errors,
+        lookbackHours,
+        maxPostsPerRun,
+        throttleMs
       }
     );
   }
 
-  return baseResult(
-    "completed",
-    publishedPostIds.length
-      ? `Published ${publishedPostIds.length} BCN update${publishedPostIds.length === 1 ? "" : "s"} into the dedicated BCN Updates feed.`
-      : "The run completed, but everything was skipped as duplicate, irrelevant, or too thin to publish.",
-    {
-      sourceCount: sources.length,
-      fetchedCount,
-      candidateCount,
-      publishedCount: publishedPostIds.length,
-      duplicateCount,
-      skippedCount,
-      rejectedNonEnglishCount,
-      rejectedStaleCount,
-      publishedPostIds,
-      errors
-    }
-  );
+  return baseResult("completed", buildCompletedRunMessage({
+    sourceCount: sources.length,
+    fetchedCount,
+    publishedCount: publishedPostIds.length,
+    duplicateCount,
+    rejectedNonEnglishCount,
+    rejectedNotRelevantCount,
+    rejectedStaleCount,
+    errors
+  }), {
+    sourceCount: sources.length,
+    sourceConfigured,
+    authorResolved: true,
+    fetchedCount,
+    candidateCount,
+    publishedCount: publishedPostIds.length,
+    duplicateCount,
+    skippedCount,
+    rejectedNonEnglishCount,
+    rejectedNotRelevantCount,
+    rejectedStaleCount,
+    lookbackHours,
+    maxPostsPerRun,
+    throttleMs,
+    publishedPostIds,
+    errors
+  });
 }
 
 export async function maybePublishBcnCuratedPosts(

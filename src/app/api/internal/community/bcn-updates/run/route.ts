@@ -52,20 +52,28 @@ async function runBcnCuration(request: Request) {
     ok,
     status: result.status,
     sourceCount: result.sourceCount,
+    sourceConfigured: result.sourceConfigured,
+    authorResolved: result.authorResolved,
     fetchedCount: result.fetchedCount,
     candidateCount: result.candidateCount,
     publishedCount: result.publishedCount,
     duplicateCount: result.duplicateCount,
     skippedCount: result.skippedCount,
     rejectedNonEnglishCount: result.rejectedNonEnglishCount,
+    rejectedNotRelevantCount: result.rejectedNotRelevantCount,
     rejectedStaleCount: result.rejectedStaleCount,
+    lookbackHours: result.lookbackHours,
+    maxPostsPerRun: result.maxPostsPerRun,
+    throttleMs: result.throttleMs,
     publishedPostIds: result.publishedPostIds,
     errors: result.errors,
     message: result.message,
     sourceName: process.env.BCN_COMMUNITY_SOURCE_NAME?.trim() || "BCN Source",
-    sourceConfigured: Boolean(
-      process.env.BCN_COMMUNITY_SOURCE_URL?.trim() || process.env.BCN_COMMUNITY_SOURCE_URLS?.trim()
-    )
+    sourceMode: process.env.BCN_COMMUNITY_SOURCE_URLS?.trim()
+      ? "multi-source"
+      : process.env.BCN_COMMUNITY_SOURCE_URL?.trim()
+        ? "single-source"
+        : "unconfigured"
   }, { status: statusCode });
 }
 

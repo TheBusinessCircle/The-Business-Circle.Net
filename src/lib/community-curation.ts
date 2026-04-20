@@ -29,6 +29,11 @@ const BCN_RELEVANCE_THEMES = [
       "interest rate",
       "rates",
       "recession",
+      "gdp",
+      "output",
+      "jobs",
+      "employment",
+      "wages",
       "consumer spending",
       "demand"
     ]
@@ -44,6 +49,9 @@ const BCN_RELEVANCE_THEMES = [
       "sales",
       "marketing",
       "pipeline",
+      "advertising",
+      "bookings",
+      "orders",
       "customer",
       "customers",
       "conversion",
@@ -59,11 +67,15 @@ const BCN_RELEVANCE_THEMES = [
       "operations",
       "workflow",
       "supply chain",
+      "sourcing",
       "logistics",
       "delivery",
       "process",
       "system",
       "execution",
+      "manufacturing",
+      "factory",
+      "shipping",
       "productivity"
     ]
   },
@@ -81,6 +93,10 @@ const BCN_RELEVANCE_THEMES = [
       "funding",
       "investment",
       "earnings",
+      "forecast",
+      "merger",
+      "acquisition",
+      "buyout",
       "valuation",
       "debt"
     ]
@@ -95,6 +111,9 @@ const BCN_RELEVANCE_THEMES = [
       "markets",
       "shares",
       "stocks",
+      "bonds",
+      "currency",
+      "currencies",
       "listed",
       "public company",
       "sector",
@@ -117,6 +136,7 @@ const BCN_RELEVANCE_THEMES = [
       "antitrust",
       "tax",
       "tariff",
+      "sanctions",
       "employment rule"
     ]
   },
@@ -133,6 +153,10 @@ const BCN_RELEVANCE_THEMES = [
       "saas",
       "platform",
       "tool",
+      "cloud",
+      "chip",
+      "chips",
+      "semiconductor",
       "productivity",
       "digital transformation"
     ]
@@ -152,7 +176,8 @@ const BCN_RELEVANCE_THEMES = [
       "chief executive",
       "ceo",
       "management",
-      "hiring"
+      "hiring",
+      "layoffs"
     ]
   },
   {
@@ -200,6 +225,38 @@ const BCN_CLICKBAIT_PATTERNS = [
   /what happened next/i
 ] as const;
 
+const BCN_BUSINESS_IMPACT_SIGNALS = [
+  "pricing",
+  "cost",
+  "costs",
+  "demand",
+  "jobs",
+  "employment",
+  "wages",
+  "margin",
+  "margins",
+  "earnings",
+  "forecast",
+  "exports",
+  "imports",
+  "tariff",
+  "tariffs",
+  "manufacturing",
+  "factory",
+  "shipping",
+  "supply",
+  "investment",
+  "acquisition",
+  "merger",
+  "buyout",
+  "funding",
+  "credit",
+  "consumer spending",
+  "advertising",
+  "semiconductor",
+  "cloud"
+] as const;
+
 const TRACKING_QUERY_PARAMS = new Set([
   "utm_source",
   "utm_medium",
@@ -214,7 +271,8 @@ const TRACKING_QUERY_PARAMS = new Set([
 ]);
 
 const MAX_CURATION_TAKEAWAYS = 2;
-const MIN_DISCUSSION_WORTHY_LENGTH = 90;
+const MIN_DISCUSSION_WORTHY_LENGTH = 70;
+const MIN_SUMMARY_LENGTH_FOR_COMPACT_UPDATES = 48;
 
 export type CommunityCurationSourceItem = {
   sourceId: string;
@@ -532,6 +590,16 @@ function hasClickbaitSignal(item: CommunityCurationSourceItem) {
 function hasDiscussionValue(item: CommunityCurationSourceItem) {
   const haystack = normalizeWhitespace(`${item.summary} ${item.content}`);
   return haystack.length >= MIN_DISCUSSION_WORTHY_LENGTH;
+}
+
+function hasBusinessImpactSignal(item: CommunityCurationSourceItem) {
+  const haystack = `${item.title} ${item.summary} ${item.content}`.toLowerCase();
+  return BCN_BUSINESS_IMPACT_SIGNALS.some((keyword) => haystack.includes(keyword));
+}
+
+function hasCompellingCompactSummary(item: CommunityCurationSourceItem, matchedThemes: readonly unknown[]) {
+  const summary = normalizeWhitespace(`${item.summary} ${item.content}`);
+  return matchedThemes.length >= 2 && summary.length >= MIN_SUMMARY_LENGTH_FOR_COMPACT_UPDATES;
 }
 
 function extractXmlBlocks(payload: string, tagName: string) {
@@ -875,7 +943,17 @@ export function buildBcnCuratedCandidate(
   defaultSourceName: string
 ): CommunityCurationCandidate | null {
   const matchedThemes = matchRelevanceThemes(item);
-  if (!matchedThemes.length || hasNegativeSignal(item) || hasClickbaitSignal(item) || !hasDiscussionValue(item)) {
+  const hasEnoughContext =
+    hasDiscussionValue(item) ||
+    hasCompellingCompactSummary(item, matchedThemes) ||
+    hasBusinessImpactSignal(item);
+
+  if (
+    !matchedThemes.length ||
+    hasNegativeSignal(item) ||
+    hasClickbaitSignal(item) ||
+    !hasEnoughContext
+  ) {
     return null;
   }
 

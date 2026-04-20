@@ -51,8 +51,8 @@ describe("community curation service", () => {
     process.env.BCN_COMMUNITY_SOURCE_URLS = "";
     process.env.BCN_COMMUNITY_SOURCE_NAME = "BCN Source";
     process.env.BCN_COMMUNITY_LOOKBACK_HOURS = "24";
-    process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "2";
-    process.env.BCN_COMMUNITY_AUTOMATION_THROTTLE_MS = "900000";
+    process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "5";
+    process.env.BCN_COMMUNITY_AUTOMATION_THROTTLE_MS = "300000";
 
     automationMock.ensureCommunityChannels.mockResolvedValue(undefined);
     automationMock.resolveCommunityAutomationAuthorId.mockResolvedValue("user_admin");
@@ -95,12 +95,18 @@ describe("community curation service", () => {
     expect(result).toMatchObject({
       status: "completed",
       sourceCount: 1,
+      sourceConfigured: true,
+      authorResolved: true,
       publishedCount: 1,
       duplicateCount: 0,
       fetchedCount: 1,
       candidateCount: 1,
       rejectedNonEnglishCount: 0,
-      rejectedStaleCount: 0
+      rejectedNotRelevantCount: 0,
+      rejectedStaleCount: 0,
+      lookbackHours: 24,
+      maxPostsPerRun: 5,
+      throttleMs: 300000
     });
     expect(dbMock.communityPost.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -209,6 +215,92 @@ describe("community curation service", () => {
     expect(dbMock.communityPost.create).toHaveBeenCalledTimes(1);
   });
 
+  it("prefers the newest stories across all configured sources before hitting the run cap", async () => {
+    process.env.BCN_COMMUNITY_SOURCE_URL = "";
+    process.env.BCN_COMMUNITY_SOURCE_URLS =
+      "https://example.com/feed-a.xml, https://example.com/feed-b.xml";
+    process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "2";
+    dbMock.communityPost.create
+      .mockResolvedValueOnce({ id: "post_bcn_newest" })
+      .mockResolvedValueOnce({ id: "post_bcn_second" });
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      return {
+        ok: true,
+        text: vi.fn().mockResolvedValue(
+          url.includes("feed-a")
+            ? `
+                <rss>
+                  <channel>
+                    <title>Feed A</title>
+                    <item>
+                      <guid>feed-a-older</guid>
+                      <title>Manufacturers rethink pricing after freight costs rise</title>
+                      <description>Exporters are revising pricing and delivery windows after another jump in freight costs.</description>
+                      <link>https://example.com/feed-a-older</link>
+                      <pubDate>Fri, 18 Apr 2026 08:00:00 GMT</pubDate>
+                    </item>
+                  </channel>
+                </rss>
+              `
+            : `
+                <rss>
+                  <channel>
+                    <title>Feed B</title>
+                    <item>
+                      <guid>feed-b-newest</guid>
+                      <title>Chip suppliers raise investment plans as demand improves</title>
+                      <description>Semiconductor suppliers are expanding investment plans as enterprise demand and cloud orders improve.</description>
+                      <link>https://example.com/feed-b-newest</link>
+                      <pubDate>Fri, 18 Apr 2026 11:30:00 GMT</pubDate>
+                    </item>
+                    <item>
+                      <guid>feed-b-second</guid>
+                      <title>Retail groups trim hiring targets as consumer demand softens</title>
+                      <description>Retail operators are reviewing hiring, inventory, and promotions as consumer demand stays uneven.</description>
+                      <link>https://example.com/feed-b-second</link>
+                      <pubDate>Fri, 18 Apr 2026 10:45:00 GMT</pubDate>
+                    </item>
+                  </channel>
+                </rss>
+              `
+        )
+      } as Response;
+    });
+
+    const result = await publishBcnCuratedPosts({
+      fetchImpl: fetchImpl as typeof fetch
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      sourceCount: 2,
+      publishedCount: 2,
+      fetchedCount: 3,
+      maxPostsPerRun: 2
+    });
+    expect(dbMock.communityPost.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title: "Chip suppliers raise investment plans as demand improves",
+          automationSource: "Example"
+        })
+      })
+    );
+    expect(dbMock.communityPost.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title: "Retail groups trim hiring targets as consumer demand softens",
+          automationSource: "Example"
+        })
+      })
+    );
+  });
+
   it("skips likely non-English items to keep BCN updates in English", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
@@ -236,6 +328,7 @@ describe("community curation service", () => {
       status: "completed",
       publishedCount: 0,
       rejectedNonEnglishCount: 1,
+      rejectedNotRelevantCount: 0,
       rejectedStaleCount: 0
     });
     expect(dbMock.communityPost.create).not.toHaveBeenCalled();
@@ -283,6 +376,7 @@ describe("community curation service", () => {
     expect(result).toMatchObject({
       status: "missing-source",
       publishedCount: 0,
+      sourceConfigured: false,
       message: expect.stringContaining("BCN_COMMUNITY_SOURCE_URLS")
     });
   });
