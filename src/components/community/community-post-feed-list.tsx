@@ -24,6 +24,7 @@ import {
   postKindBadge
 } from "@/lib/community-helpers";
 import {
+  getBcnFreshnessLabel,
   getBcnTagLabel,
   getVisibleCommunityTags,
   parseBcnStructuredContent
@@ -174,6 +175,7 @@ export function CommunityPostFeedList({
         const parsedBcn = isBcnUpdatesFeed ? parseBcnStructuredContent(post.content) : null;
         const visibleTags = getVisibleCommunityTags(post.tags);
         const visiblePrimaryTag = visibleTags[0] ? getBcnTagLabel(visibleTags[0]) : null;
+        const freshnessLabel = isBcnUpdatesFeed ? getBcnFreshnessLabel(post.createdAt) : null;
         const feedReturnPath = buildCommunityFeedPostPath(channelSlug, post.id);
         const detailPath = buildCommunityPostPath(post.id, channelSlug);
         const engagementPost = detail ?? post;
@@ -242,6 +244,14 @@ export function CommunityPostFeedList({
                           {visiblePrimaryTag}
                         </Badge>
                       ) : null}
+                      {freshnessLabel ? (
+                        <Badge
+                          variant="outline"
+                          className="border-silver/14 bg-background/16 normal-case tracking-normal text-muted"
+                        >
+                          {freshnessLabel}
+                        </Badge>
+                      ) : null}
                     </div>
                   ) : null}
                   <CardTitle className="text-2xl leading-tight">{post.title}</CardTitle>
@@ -255,7 +265,15 @@ export function CommunityPostFeedList({
                           {parsedBcn.articleDetail || parsedBcn.whatHappened}
                         </p>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-2">
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="rounded-2xl border border-silver/12 bg-background/18 px-4 py-3">
+                          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                            Key detail
+                          </p>
+                          <p className="mt-2 line-clamp-3 text-sm leading-7 text-foreground/85">
+                            {parsedBcn.keyDetail}
+                          </p>
+                        </div>
                         <div className="rounded-2xl border border-silver/12 bg-background/18 px-4 py-3">
                           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
                             Why this matters
@@ -273,6 +291,9 @@ export function CommunityPostFeedList({
                           </p>
                         </div>
                       </div>
+                      <p className="text-sm leading-7 text-gold/85">
+                        {parsedBcn.whatToWatchNext}
+                      </p>
                     </div>
                   ) : (
                     <p className="line-clamp-3 text-sm leading-7 text-foreground/85">{preview}</p>

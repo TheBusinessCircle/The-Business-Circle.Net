@@ -213,9 +213,11 @@ describe("community curation parsing and formatting", () => {
     expect(candidate).not.toBeNull();
     expect(candidate?.content).toContain("Article detail:");
     expect(candidate?.content).toContain("What happened:");
+    expect(candidate?.content).toContain("Key detail:");
     expect(candidate?.content).toContain("Why this matters:");
     expect(candidate?.content).toContain("Who this affects:");
-    expect(candidate?.content).toContain("BCN angle:");
+    expect(candidate?.content).toContain("BCN view:");
+    expect(candidate?.content).toContain("What to watch next:");
     expect(candidate?.content).toContain("Source:");
     expect(candidate?.content).toContain("Reuters - https://example.com/margin-pressure");
     expect(candidate?.content).toContain(
@@ -268,6 +270,54 @@ describe("community curation parsing and formatting", () => {
     expect(candidate?.tags).toEqual(
       expect.arrayContaining(["bcn-update", "curated", "ai", "operations"])
     );
+  });
+
+  it("retains recall detail such as company, model, scale, and defect in richer BCN output", () => {
+    const candidate = buildBcnCuratedCandidate(
+      {
+        sourceId: "item-8",
+        title: "Volvo recalls 48,000 hybrid SUVs across Europe over battery fire risk",
+        summary:
+          "Volvo is recalling 48,000 hybrid SUVs across Europe after identifying a battery defect linked to overheating and potential fire risk.",
+        content:
+          "The recall covers selected XC60 and XC90 hybrid model years sold across multiple European markets. Dealers have been told to inspect and replace affected battery modules where needed.",
+        url: "https://example.com/volvo-recall",
+        sourceName: "Reuters",
+        publishedAt: "2026-04-18T10:45:00.000Z"
+      },
+      "BCN Source"
+    );
+
+    expect(candidate).not.toBeNull();
+    expect(candidate?.title).toContain("Volvo recalls 48,000 hybrid SUVs");
+    expect(candidate?.content).toContain("XC60");
+    expect(candidate?.content).toContain("XC90");
+    expect(candidate?.content).toContain("battery defect");
+    expect(candidate?.content).toContain("Europe");
+  });
+
+  it("retains regulation and tool detail so AI operator stories do not become vague rewrites", () => {
+    const candidate = buildBcnCuratedCandidate(
+      {
+        sourceId: "item-9",
+        title: "EU AI Act disclosure rules push Adobe and Microsoft to update enterprise copilots",
+        summary:
+          "Adobe and Microsoft are updating enterprise AI product messaging and compliance workflows ahead of new EU AI Act disclosure expectations.",
+        content:
+          "The change affects enterprise copilot and generative design tools sold into European markets, with product, legal, and sales teams revising rollout timelines and customer language.",
+        url: "https://example.com/eu-ai-act-tools",
+        sourceName: "Business Desk",
+        publishedAt: "2026-04-18T11:00:00.000Z"
+      },
+      "BCN Source"
+    );
+
+    expect(candidate).not.toBeNull();
+    expect(candidate?.content).toContain("EU AI Act");
+    expect(candidate?.content).toContain("Adobe");
+    expect(candidate?.content).toContain("Microsoft");
+    expect(candidate?.content).toContain("enterprise");
+    expect(candidate?.content).toContain("European markets");
   });
 
   it("skips weak or off-topic items that are not useful for BCN discussion", () => {

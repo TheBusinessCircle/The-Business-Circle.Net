@@ -410,6 +410,10 @@ export function CommunityPostBody({
         content: parsedBcnContent.whatHappened
       },
       {
+        title: "Key detail",
+        content: parsedBcnContent.keyDetail
+      },
+      {
         title: "Why this matters",
         content: parsedBcnContent.whyThisMatters
       },
@@ -418,8 +422,12 @@ export function CommunityPostBody({
         content: parsedBcnContent.whoThisAffects
       },
       {
-        title: "BCN angle",
-        content: parsedBcnContent.bcnAngle
+        title: "BCN view",
+        content: parsedBcnContent.bcnView
+      },
+      {
+        title: "What to watch next",
+        content: parsedBcnContent.whatToWatchNext
       }
     ];
 

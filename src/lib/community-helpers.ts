@@ -84,7 +84,7 @@ export function buildCommunityPostPreview(
 ) {
   const parsedBcnContent = parseBcnStructuredContent(content);
   if (parsedBcnContent) {
-    return parsedBcnContent.articleDetail || parsedBcnContent.whyThisMatters;
+    return parsedBcnContent.articleDetail || parsedBcnContent.keyDetail || parsedBcnContent.whyThisMatters;
   }
 
   const connectionWinPreview = buildConnectionWinPreview(content, tags);

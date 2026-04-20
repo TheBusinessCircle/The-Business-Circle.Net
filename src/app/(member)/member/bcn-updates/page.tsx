@@ -10,7 +10,13 @@ import {
   BCN_UPDATES_CHANNEL_SLUG,
   BCN_UPDATES_MEMBER_ROUTE
 } from "@/config/community";
-import { getBcnTagLabel, getVisibleCommunityTags, parseBcnStructuredContent } from "@/lib/bcn-intelligence";
+import {
+  getBcnFreshnessLabel,
+  getBcnTagLabel,
+  getVisibleCommunityTags,
+  parseBcnStructuredContent,
+  sortBcnSignals
+} from "@/lib/bcn-intelligence";
 import { buildCommunityFeedPostPath, buildCommunityPostPath } from "@/lib/community-paths";
 import { allowedResourceTiers } from "@/lib/db/access";
 import { roleToTier } from "@/lib/permissions";
@@ -28,12 +34,12 @@ type PageProps = {
 };
 
 export const metadata: Metadata = createPageMetadata({
-  title: "BCN Updates",
+  title: "BCN Intelligence",
   description:
-    "Latest world business news updates curated through the Business Circle lens, giving members a cleaner read on the developments, signals, and shifts worth paying attention to now.",
+    "Premium BCN Intelligence for members: the clearest founder-facing read on the business developments, operator signals, and market shifts worth checking first.",
   path: BCN_UPDATES_MEMBER_ROUTE,
   keywords: [
-    "BCN updates",
+    "BCN Intelligence",
     "world business news",
     "latest business updates",
     "business circle news",
@@ -105,17 +111,18 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
     notice: firstValue(params.notice),
     error: firstValue(params.error)
   });
+  const rankedPosts = sortBcnSignals(feed.posts);
   const selectedChannel = feed.selectedChannel;
-  const discussionReadyCount = feed.posts.filter((post) => post.commentCount > 0).length;
-  const latestSignal = feed.posts[0] ?? null;
+  const discussionReadyCount = rankedPosts.filter((post) => post.commentCount > 0).length;
+  const latestSignal = rankedPosts[0] ?? null;
   const mostDiscussedSignal =
-    [...feed.posts].sort(
+    [...rankedPosts].sort(
       (left, right) =>
         right.commentCount - left.commentCount ||
         right.likeCount - left.likeCount ||
         right.createdAt.localeCompare(left.createdAt)
     )[0] ?? null;
-  const categoryCounts = feed.posts.reduce<Map<string, number>>((counts, post) => {
+  const categoryCounts = rankedPosts.reduce<Map<string, number>>((counts, post) => {
     for (const tag of getVisibleCommunityTags(post.tags)) {
       counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
@@ -126,6 +133,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
     .slice(0, 4);
   const latestSignalPreview = latestSignal ? parseBcnStructuredContent(latestSignal.content) : null;
+  const latestSignalFreshness = latestSignal ? getBcnFreshnessLabel(latestSignal.createdAt) : null;
 
   return (
     <div className="space-y-6">
@@ -140,36 +148,38 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
           </div>
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-              BCN intelligence layer
+              Morning signal board
             </p>
-            <CardTitle className="font-display text-3xl">BCN Updates</CardTitle>
+            <CardTitle className="font-display text-3xl">BCN Intelligence</CardTitle>
             <CardDescription className="max-w-4xl text-base leading-relaxed">
-              The latest world business news updates, curated in a clearer BCN format so members can track the developments, commercial signals, and market shifts most worth paying attention to, with discussion underneath each update.
+              Start here before the wider news cycle. BCN Intelligence is built to give founders and operators the fastest read on what matters this morning, why it matters commercially, and what deserves a member conversation underneath.
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
           <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Format</p>
-            <p className="mt-2 text-base font-semibold text-foreground">Automated, member-facing feed</p>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Signal quality</p>
+            <p className="mt-2 text-base font-semibold text-foreground">Ranked for operator relevance first</p>
             <p className="mt-2 text-sm text-muted">
-              Updates publish in a cleaner curated format rather than as open room threads.
+              The strongest commercial movement lands first instead of letting pure recency decide what members see.
             </p>
           </div>
           <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Discussion</p>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Briefing depth</p>
             <p className="mt-2 text-base font-semibold text-foreground">
-              {discussionReadyCount} update{discussionReadyCount === 1 ? "" : "s"} with replies
+              Fuller article detail before the BCN breakdown
             </p>
             <p className="mt-2 text-sm text-muted">
-              Members can still comment and reply beneath every update using the standard discussion stack.
+              The source detail now carries more of the company, product, region, scale, and timing context before BCN interpretation starts.
             </p>
           </div>
           <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Access</p>
-            <p className="mt-2 text-base font-semibold text-foreground">Available to eligible paid members</p>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Discussion pulse</p>
+            <p className="mt-2 text-base font-semibold text-foreground">
+              {discussionReadyCount} signal{discussionReadyCount === 1 ? "" : "s"} already drawing replies
+            </p>
             <p className="mt-2 text-sm text-muted">
-              Access follows the existing member auth, paid-tier gating, and moderation rules already used across the dashboard.
+              Comments and replies still sit underneath every intelligence item using the existing member discussion stack.
             </p>
           </div>
         </CardContent>
@@ -195,11 +205,9 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
         <div className="space-y-5">
           <Card className="border-silver/18 bg-card/68">
             <CardHeader>
-              <CardTitle className="text-2xl">
-                Business movement, filtered into BCN signals
-              </CardTitle>
+              <CardTitle className="text-2xl">What matters this morning</CardTitle>
               <CardDescription className="max-w-3xl text-sm leading-relaxed">
-                This page is built to feel closer to a founder intelligence layer than a rolling news feed. Each item is selected for operator relevance first, then structured so members can scan the signal and add useful discussion underneath it.
+                The page is ordered to help members catch the highest commercial signal fast, then drop into the detail only where it is genuinely worth their attention.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -210,8 +218,16 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="border-gold/28 bg-gold/10 text-gold">
                     <Sparkles size={12} className="mr-1" />
-                    Featured signal
+                    Today&apos;s signal
                   </Badge>
+                  {latestSignalFreshness ? (
+                    <Badge
+                      variant="outline"
+                      className="border-silver/16 bg-background/16 normal-case tracking-normal text-muted"
+                    >
+                      {latestSignalFreshness}
+                    </Badge>
+                  ) : null}
                   {getVisibleCommunityTags(latestSignal.tags).slice(0, 2).map((tag) => (
                     <Badge
                       key={tag}
@@ -224,25 +240,40 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                 </div>
                 <div className="space-y-2">
                   <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                    Most relevant now
+                    Biggest founder signal in the last 24 hours
                   </p>
                   <CardTitle className="max-w-4xl text-3xl leading-tight">
                     {latestSignal.title}
                   </CardTitle>
                   <CardDescription className="max-w-4xl text-sm leading-relaxed text-foreground/80">
                     {latestSignalPreview?.articleDetail ??
-                      latestSignalPreview?.whyThisMatters ??
+                      latestSignalPreview?.keyDetail ??
                       "Selected because it has a direct operator angle for founders, leaders, and owner-led teams."}
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-                <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-silver">BCN angle</p>
-                  <p className="mt-2 text-sm leading-7 text-foreground/88">
-                    {latestSignalPreview?.bcnAngle ??
-                      "Worth discussing when the signal changes pricing, demand, staffing, execution, or strategic timing."}
-                  </p>
+              <CardContent className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Key detail</p>
+                    <p className="mt-2 text-sm leading-7 text-foreground/88">
+                      {latestSignalPreview?.keyDetail ?? latestSignalPreview?.whatHappened}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Why this matters</p>
+                    <p className="mt-2 text-sm leading-7 text-foreground/88">
+                      {latestSignalPreview?.whyThisMatters ??
+                        "Worth discussing when the signal changes pricing, demand, staffing, execution, or strategic timing."}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4 md:col-span-2">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">What to watch next</p>
+                    <p className="mt-2 text-sm leading-7 text-foreground/88">
+                      {latestSignalPreview?.whatToWatchNext ??
+                        "Watch for whether the next updates show a wider operating shift rather than a single headline."}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex flex-col justify-between gap-3 rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
                   <div className="space-y-2 text-sm text-muted">
@@ -264,7 +295,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
 
           {feed.posts.length ? (
             <CommunityPostFeedList
-              posts={feed.posts}
+              posts={rankedPosts}
               channelSlug={BCN_UPDATES_CHANNEL_SLUG}
               currentUserId={session.user.id}
               viewerCanContinuePrivately={
@@ -292,7 +323,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted">
               <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
-                BCN Updates is curated centrally, so members do not open top-level posts here.
+                BCN Intelligence is curated centrally, so members do not open top-level posts here.
               </div>
               <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
                 Comments and replies stay enabled so each update can still become a useful member discussion.
@@ -347,7 +378,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                 </div>
               </div>
 
-              {feed.posts.slice(0, 3).map((post) => (
+              {rankedPosts.slice(0, 3).map((post) => (
                 <Link
                   key={post.id}
                   href={buildCommunityFeedPostPath(BCN_UPDATES_CHANNEL_SLUG, post.id)}
@@ -366,6 +397,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                   </div>
                   <p className="mt-2 text-sm font-medium text-foreground">{post.title}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted">
+                    <span>{getBcnFreshnessLabel(post.createdAt)}</span>
                     <span>{post.commentCount} comment{post.commentCount === 1 ? "" : "s"}</span>
                     <span>{post.likeCount} like{post.likeCount === 1 ? "" : "s"}</span>
                     <span>{formatDate(post.createdAt)}</span>

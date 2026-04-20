@@ -44,7 +44,11 @@ const BCN_RELEVANCE_THEMES = [
       "shipping",
       "inventory",
       "fulfilment",
-      "fulfillment"
+      "fulfillment",
+      "recall",
+      "defect",
+      "safety warning",
+      "product safety"
     ]
   },
   {
@@ -282,7 +286,12 @@ const BCN_BUSINESS_IMPACT_SIGNALS = [
   "conversion",
   "inventory",
   "fulfilment",
-  "fulfillment"
+  "fulfillment",
+  "recall",
+  "defect",
+  "safety",
+  "fire risk",
+  "battery"
 ] as const;
 
 const TRACKING_QUERY_PARAMS = new Set([
@@ -301,6 +310,43 @@ const TRACKING_QUERY_PARAMS = new Set([
 const MAX_CURATION_TAKEAWAYS = 4;
 const MIN_DISCUSSION_WORTHY_LENGTH = 70;
 const MIN_SUMMARY_LENGTH_FOR_COMPACT_UPDATES = 48;
+const BCN_TITLE_SUFFIX_PATTERN =
+  /\s(?:\||-)\s(?:bbc(?:\snews|\sbusiness|\stechnology)?|reuters|ap(?:\snews)?|ft|financial times|cnbc|bloomberg|sky news|business desk|markets desk|commerce desk)$/i;
+const BCN_DETAIL_SIGNAL_KEYWORDS = [
+  "recall",
+  "warning",
+  "defect",
+  "model",
+  "models",
+  "product",
+  "products",
+  "jurisdiction",
+  "regulator",
+  "regulation",
+  "law",
+  "tariff",
+  "fine",
+  "probe",
+  "investigation",
+  "layoff",
+  "layoffs",
+  "jobs",
+  "hiring",
+  "forecast",
+  "guidance",
+  "market",
+  "region",
+  "europe",
+  "uk",
+  "us",
+  "china",
+  "year",
+  "202",
+  "$",
+  "%",
+  "million",
+  "billion"
+] as const;
 
 export type CommunityCurationSourceItem = {
   sourceId: string;
@@ -572,8 +618,7 @@ function extractSentences(value: string) {
 
 function buildTakeaways(item: CommunityCurationSourceItem) {
   const sentences = extractSentences(`${item.summary} ${item.content}`);
-  const unique = Array.from(new Set(sentences));
-  const takeaways = unique.slice(0, MAX_CURATION_TAKEAWAYS);
+  const takeaways = selectDistinctSentences(sentences, MAX_CURATION_TAKEAWAYS);
 
   if (takeaways.length) {
     return takeaways.map((takeaway) => truncateText(takeaway, 220));
@@ -584,6 +629,46 @@ function buildTakeaways(item: CommunityCurationSourceItem) {
   }
 
   return [truncateText(item.title, 180)];
+}
+
+function sentenceSpecificityScore(value: string) {
+  const normalized = normalizeWhitespace(value);
+  const lowerValue = normalized.toLowerCase();
+  const numberSignals = (normalized.match(/\b\d+(?:,\d{3})*(?:\.\d+)?%?\b/g) ?? []).length;
+  const yearSignals = (normalized.match(/\b(?:19|20)\d{2}\b/g) ?? []).length;
+  const properNounSignals = (normalized.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z0-9&.-]+){0,3}\b/g) ?? [])
+    .filter((match) => match.length > 3).length;
+  const keywordSignals = BCN_DETAIL_SIGNAL_KEYWORDS.reduce(
+    (count, keyword) => count + (lowerValue.includes(keyword) ? 1 : 0),
+    0
+  );
+
+  return normalized.length / 120 + numberSignals * 1.1 + yearSignals * 0.7 + properNounSignals * 0.35 + keywordSignals * 0.8;
+}
+
+function selectDistinctSentences(sentences: string[], limit: number) {
+  const unique = Array.from(new Set(sentences.map((sentence) => normalizeWhitespace(sentence)).filter(Boolean)));
+  const ranked = unique
+    .map((sentence, index) => ({
+      sentence,
+      index,
+      score: sentenceSpecificityScore(sentence)
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index);
+
+  const selected: string[] = [];
+  for (const candidate of ranked) {
+    if (selected.some((existing) => isNearDuplicateText(existing, candidate.sentence))) {
+      continue;
+    }
+
+    selected.push(candidate.sentence);
+    if (selected.length >= limit) {
+      break;
+    }
+  }
+
+  return selected;
 }
 
 function isNearDuplicateText(left: string, right: string) {
@@ -607,17 +692,7 @@ function cleanHeadline(value: string) {
     return "";
   }
 
-  const parts = normalized.split(/\s[|:-]\s/);
-  if (parts.length <= 1) {
-    return truncateText(normalized, 140);
-  }
-
-  const lastPart = parts[parts.length - 1] ?? "";
-  if (lastPart.length <= 28) {
-    return truncateText(parts.slice(0, -1).join(" - "), 140);
-  }
-
-  return truncateText(normalized, 140);
+  return truncateText(normalized.replace(BCN_TITLE_SUFFIX_PATTERN, ""), 160);
 }
 
 function matchRelevanceThemes(item: CommunityCurationSourceItem) {
@@ -708,9 +783,10 @@ function buildWhyThisMatters(
   takeaways: string[],
   matchedThemes: BcnMatchedTheme[]
 ) {
-  const secondTakeaway = takeaways[1] ?? "";
-  if (secondTakeaway.length >= 72) {
-    return truncateText(secondTakeaway, 220);
+  const strongestSupportingTakeaway =
+    takeaways.find((takeaway, index) => index > 0 && takeaway.length >= 88) ?? "";
+  if (strongestSupportingTakeaway) {
+    return truncateText(strongestSupportingTakeaway, 240);
   }
 
   const primaryTheme = matchedThemes[0];
@@ -722,21 +798,23 @@ function buildWhyThisMatters(
 
   return truncateText(
     `This matters because it affects ${focus}${secondaryFocus}, which can change how founder-led businesses plan demand, execution, or team decisions.`,
-    220
+    240
   );
 }
 
 function buildArticleDetail(item: CommunityCurationSourceItem, takeaways: string[]) {
-  const detailParts = [item.title, ...takeaways, item.summary]
+  const detailParts = [item.summary, item.content, ...takeaways, item.title]
+    .flatMap((value) => extractSentences(value))
     .map((value) => normalizeWhitespace(value))
     .filter(Boolean)
     .filter((value, index, values) => {
       return !values.slice(0, index).some((existingValue) => isNearDuplicateText(existingValue, value));
     })
-    .slice(0, 3);
+    .sort((left, right) => sentenceSpecificityScore(right) - sentenceSpecificityScore(left))
+    .slice(0, 4);
 
   const detail = detailParts.join(" ");
-  return truncateText(detail || item.summary || item.title, 420);
+  return truncateText(detail || item.summary || item.title, 560);
 }
 
 function buildWhatHappened(
@@ -744,7 +822,7 @@ function buildWhatHappened(
   takeaways: string[],
   articleDetail: string
 ) {
-  const candidates = [takeaways[0], item.summary, item.title]
+  const candidates = [item.summary, takeaways[0], item.title]
     .map((value) => normalizeWhitespace(value ?? ""))
     .filter(Boolean);
 
@@ -753,7 +831,25 @@ function buildWhatHappened(
     candidates[0] ??
     item.title;
 
-  return truncateText(distinctCandidate, 260);
+  return truncateText(distinctCandidate, 280);
+}
+
+function buildKeyDetail(
+  item: CommunityCurationSourceItem,
+  takeaways: string[],
+  articleDetail: string,
+  whatHappened: string
+) {
+  const candidates = selectDistinctSentences(
+    extractSentences(`${item.summary} ${item.content}`),
+    MAX_CURATION_TAKEAWAYS
+  ).filter(
+    (candidate) =>
+      !isNearDuplicateText(candidate, articleDetail) && !isNearDuplicateText(candidate, whatHappened)
+  );
+
+  const bestCandidate = candidates[0] ?? takeaways[1] ?? item.summary ?? item.title;
+  return truncateText(bestCandidate, 280);
 }
 
 function buildWhoThisAffects(matchedThemes: BcnMatchedTheme[]) {
@@ -763,13 +859,27 @@ function buildWhoThisAffects(matchedThemes: BcnMatchedTheme[]) {
   );
 }
 
-function buildBcnAngle(matchedThemes: BcnMatchedTheme[]) {
+function buildBcnView(matchedThemes: BcnMatchedTheme[]) {
   const leadTheme = matchedThemes[0];
   if (!leadTheme) {
     return "The BCN discussion is usually less about the headline and more about what it changes inside a real business.";
   }
 
   return truncateText(leadTheme.angle, 220);
+}
+
+function buildWhatToWatchNext(
+  item: CommunityCurationSourceItem,
+  matchedThemes: BcnMatchedTheme[]
+) {
+  const leadTheme = matchedThemes[0];
+  const sourceName = item.sourceName ?? "the source";
+  const leadKeyword = leadTheme?.matchedKeywords[0] ?? "commercial conditions";
+
+  return truncateText(
+    `Watch for what ${sourceName} reports next on ${leadKeyword}, and whether this moves from headline noise into a clearer shift in demand, cost, compliance, or operating behaviour.`,
+    220
+  );
 }
 
 function buildBcnCandidateTags(matchedThemes: BcnMatchedTheme[]) {
@@ -1153,7 +1263,9 @@ export function buildBcnCuratedCandidate(
   const whatHappened = buildWhatHappened(item, takeaways, articleDetail);
   const whyThisMatters = buildWhyThisMatters(takeaways, primaryThemes);
   const whoThisAffects = buildWhoThisAffects(primaryThemes);
-  const bcnAngle = buildBcnAngle(primaryThemes);
+  const keyDetail = buildKeyDetail(item, takeaways, articleDetail, whatHappened);
+  const bcnView = buildBcnView(primaryThemes);
+  const whatToWatchNext = buildWhatToWatchNext(item, primaryThemes);
   const sourceLine = item.url ? `${sourceName} - ${item.url}` : sourceName;
   const publishedLine = item.publishedAt
     ? `Published: ${new Date(item.publishedAt).toISOString().slice(0, 10)}`
@@ -1176,14 +1288,20 @@ export function buildBcnCuratedCandidate(
       "What happened:",
       whatHappened,
       "",
+      "Key detail:",
+      keyDetail,
+      "",
       "Why this matters:",
       whyThisMatters,
       "",
       "Who this affects:",
       whoThisAffects,
       "",
-      "BCN angle:",
-      bcnAngle,
+      "BCN view:",
+      bcnView,
+      "",
+      "What to watch next:",
+      whatToWatchNext,
       "",
       "Source:",
       sourceLine,

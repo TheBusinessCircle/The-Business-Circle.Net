@@ -31,8 +31,8 @@ type PageProps = {
 };
 
 export const metadata: Metadata = createPageMetadata({
-  title: "BCN Update",
-  description: "Curated BCN update with member discussion underneath.",
+  title: "BCN Intelligence Signal",
+  description: "Curated BCN intelligence signal with member discussion underneath.",
   path: `${BCN_UPDATES_MEMBER_ROUTE}/post`,
   noIndex: true
 });
@@ -103,7 +103,7 @@ export default async function BcnUpdatesPostPage({ params, searchParams }: PageP
           className="inline-flex items-center gap-1 text-sm text-muted transition-colors hover:text-foreground"
         >
           <MoveLeft size={14} />
-          Back to BCN Updates
+          Back to BCN Intelligence
         </Link>
       </div>
 
@@ -138,7 +138,7 @@ export default async function BcnUpdatesPostPage({ params, searchParams }: PageP
                   <FoundingBadge tier={post.user.foundingTier} />
                   <Badge variant="outline" className="border-gold/24 bg-gold/10 text-gold">
                     <Sparkles size={11} className="mr-1" />
-                    BCN Update
+                    BCN Intelligence
                   </Badge>
                 </div>
                 <CommunityUserSignals user={post.user} />
@@ -148,7 +148,7 @@ export default async function BcnUpdatesPostPage({ params, searchParams }: PageP
 
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="normal-case tracking-normal text-muted">
-                BCN Updates
+                BCN Intelligence
               </Badge>
               <Badge variant="outline" className="normal-case tracking-normal text-muted">
                 Curated member discussion
@@ -158,7 +158,7 @@ export default async function BcnUpdatesPostPage({ params, searchParams }: PageP
             <div className="space-y-2">
               <CardTitle className="max-w-4xl text-4xl leading-tight">{post.title}</CardTitle>
               <CardDescription className="max-w-3xl text-base">
-                A curated BCN business development with member discussion underneath.
+                A structured BCN Intelligence signal with source detail first, commercial meaning second, and member discussion underneath.
               </CardDescription>
             </div>
             <CommunityPostTags tags={post.tags} />
@@ -191,9 +191,9 @@ export default async function BcnUpdatesPostPage({ params, searchParams }: PageP
             <CardContent className="space-y-3 text-sm text-muted">
               <div className="rounded-2xl border border-border/70 bg-background/20 p-4">
                 <p className="text-xs uppercase tracking-[0.08em] text-muted">Section</p>
-                <p className="mt-2 text-sm font-medium text-foreground">BCN Updates</p>
+                <p className="mt-2 text-sm font-medium text-foreground">BCN Intelligence</p>
                 <p className="mt-2 leading-relaxed">
-                  Curated business developments structured for Business Circle members, with replies underneath each update.
+                  Curated business developments structured for Business Circle members, with fuller source detail and replies underneath each signal.
                 </p>
               </div>
 
@@ -204,7 +204,7 @@ export default async function BcnUpdatesPostPage({ params, searchParams }: PageP
                     href={channelPath}
                     className="block rounded-xl border border-border/70 bg-background/20 px-3 py-2 text-sm text-foreground transition-colors hover:border-gold/35"
                   >
-                    Return to BCN Updates
+                    Return to BCN Intelligence
                   </Link>
                   <Link
                     href="/community"
