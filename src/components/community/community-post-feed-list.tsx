@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import type { CommunityPostDetailModel, CommunityPostSummaryModel } from "@/types";
 import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
@@ -23,11 +24,17 @@ import {
   postKindBadge
 } from "@/lib/community-helpers";
 import {
+  getBcnTagLabel,
+  getVisibleCommunityTags,
+  parseBcnStructuredContent
+} from "@/lib/bcn-intelligence";
+import {
   buildCommunityFeedPostPath,
   buildCommunityPostPath
 } from "@/lib/community-paths";
 import { buildMemberProfilePath } from "@/lib/member-paths";
 import { cn, formatDate } from "@/lib/utils";
+import { BCN_UPDATES_CHANNEL_SLUG } from "@/config/community";
 
 type CommunityPostFeedListProps = {
   posts: CommunityPostSummaryModel[];
@@ -35,6 +42,7 @@ type CommunityPostFeedListProps = {
   currentUserId: string;
   viewerCanContinuePrivately: boolean;
   initialExpandedPostId?: string | null;
+  featuredPostId?: string | null;
 };
 
 export function CommunityPostFeedList({
@@ -42,7 +50,8 @@ export function CommunityPostFeedList({
   channelSlug,
   currentUserId,
   viewerCanContinuePrivately,
-  initialExpandedPostId
+  initialExpandedPostId,
+  featuredPostId
 }: CommunityPostFeedListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -153,16 +162,23 @@ export function CommunityPostFeedList({
     []
   );
 
+  const isBcnUpdatesFeed = channelSlug === BCN_UPDATES_CHANNEL_SLUG;
+
   return (
     <div className="space-y-5">
-      {posts.map((post) => {
+      {posts.map((post, index) => {
         const isExpanded = expandedPostId === post.id;
         const detail = detailsById[post.id];
         const displayName = authorName(post.user);
         const preview = buildCommunityPostPreview(post.content, post.tags);
+        const parsedBcn = isBcnUpdatesFeed ? parseBcnStructuredContent(post.content) : null;
+        const visibleTags = getVisibleCommunityTags(post.tags);
+        const visiblePrimaryTag = visibleTags[0] ? getBcnTagLabel(visibleTags[0]) : null;
         const feedReturnPath = buildCommunityFeedPostPath(channelSlug, post.id);
         const detailPath = buildCommunityPostPath(post.id, channelSlug);
         const engagementPost = detail ?? post;
+        const isFeaturedSignal =
+          Boolean(featuredPostId && post.id === featuredPostId) || (isBcnUpdatesFeed && index === 0);
 
         return (
           <Card
@@ -170,7 +186,10 @@ export function CommunityPostFeedList({
             className={cn(
               "border-silver/14 bg-card/68 shadow-panel-soft transition-all duration-200",
               "hover:border-silver/24 hover:bg-card/74",
-              isExpanded ? "border-silver/26" : ""
+              isExpanded ? "border-silver/26" : "",
+              isFeaturedSignal
+                ? "border-gold/28 bg-gradient-to-br from-gold/10 via-card/76 to-card/70"
+                : ""
             )}
           >
             <CardHeader className="space-y-4">
@@ -208,8 +227,56 @@ export function CommunityPostFeedList({
                 aria-controls={`community-post-panel-${post.id}`}
               >
                 <div className="space-y-3">
+                  {isBcnUpdatesFeed ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isFeaturedSignal ? (
+                        <Badge variant="outline" className="border-gold/24 bg-gold/10 text-gold">
+                          Most relevant now
+                        </Badge>
+                      ) : null}
+                      {visiblePrimaryTag ? (
+                        <Badge
+                          variant="outline"
+                          className="border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
+                        >
+                          {visiblePrimaryTag}
+                        </Badge>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <CardTitle className="text-2xl leading-tight">{post.title}</CardTitle>
-                  <p className="line-clamp-3 text-sm leading-7 text-foreground/85">{preview}</p>
+                  {parsedBcn ? (
+                    <div className="space-y-3">
+                      <div className="rounded-2xl border border-gold/18 bg-gold/10 px-4 py-3">
+                        <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                          Article detail
+                        </p>
+                        <p className="mt-2 line-clamp-4 text-sm leading-7 text-foreground/88">
+                          {parsedBcn.articleDetail || parsedBcn.whatHappened}
+                        </p>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-2xl border border-silver/12 bg-background/18 px-4 py-3">
+                          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                            Why this matters
+                          </p>
+                          <p className="mt-2 line-clamp-3 text-sm leading-7 text-foreground/85">
+                            {parsedBcn.whyThisMatters}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-silver/12 bg-background/18 px-4 py-3">
+                          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                            Who this affects
+                          </p>
+                          <p className="mt-2 line-clamp-3 text-sm leading-7 text-foreground/85">
+                            {parsedBcn.whoThisAffects}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="line-clamp-3 text-sm leading-7 text-foreground/85">{preview}</p>
+                  )}
                   <div className="flex items-center justify-between gap-3 text-sm text-muted">
                     <span>{isExpanded ? "Collapse inline view" : "Read inline"}</span>
                     {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

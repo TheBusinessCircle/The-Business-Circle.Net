@@ -20,6 +20,11 @@ import { CommunityUserSignals } from "@/components/community/community-user-sign
 import { ContinuePrivatelyButton } from "@/components/messages";
 import { authorName } from "@/lib/community-helpers";
 import {
+  getBcnTagLabel,
+  getVisibleCommunityTags,
+  parseBcnStructuredContent
+} from "@/lib/bcn-intelligence";
+import {
   CONNECTION_WIN_INTERNAL_TAGS,
   isConnectionWinTags,
   parseConnectionWin
@@ -65,7 +70,9 @@ async function toggleCommentLike(commentId: string): Promise<LikeMutationResult>
 }
 
 export function CommunityPostTags({ tags }: { tags: string[] }) {
-  const visibleTags = tags.filter((tag) => !CONNECTION_WIN_INTERNAL_TAGS.has(tag));
+  const visibleTags = getVisibleCommunityTags(
+    tags.filter((tag) => !CONNECTION_WIN_INTERNAL_TAGS.has(tag))
+  );
   const showConnectionWin = isConnectionWinTags(tags);
 
   if (!visibleTags.length && !showConnectionWin) {
@@ -88,7 +95,7 @@ export function CommunityPostTags({ tags }: { tags: string[] }) {
           variant="outline"
           className="border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
         >
-          #{tag}
+          {getBcnTagLabel(tag)}
         </Badge>
       ))}
     </div>
@@ -389,6 +396,62 @@ export function CommunityPostBody({
             </div>
           ))}
         </div>
+        {showTags ? <CommunityPostTags tags={post.tags} /> : null}
+      </div>
+    );
+  }
+
+  const parsedBcnContent = parseBcnStructuredContent(post.content);
+
+  if (parsedBcnContent) {
+    const sections = [
+      {
+        title: "What happened",
+        content: parsedBcnContent.whatHappened
+      },
+      {
+        title: "Why this matters",
+        content: parsedBcnContent.whyThisMatters
+      },
+      {
+        title: "Who this affects",
+        content: parsedBcnContent.whoThisAffects
+      },
+      {
+        title: "BCN angle",
+        content: parsedBcnContent.bcnAngle
+      }
+    ];
+
+    return (
+      <div className="space-y-5">
+        <div className="rounded-2xl border border-gold/22 bg-gold/10 px-4 py-4">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Article detail</p>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+            {parsedBcnContent.articleDetail || parsedBcnContent.whatHappened}
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {sections.map((section) => (
+            <div
+              key={section.title}
+              className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4"
+            >
+              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{section.title}</p>
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+                {section.content}
+              </p>
+            </div>
+          ))}
+        </div>
+        {parsedBcnContent.source ? (
+          <div className="rounded-2xl border border-gold/22 bg-gold/10 px-4 py-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Source</p>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+              {parsedBcnContent.source}
+            </p>
+          </div>
+        ) : null}
         {showTags ? <CommunityPostTags tags={post.tags} /> : null}
       </div>
     );

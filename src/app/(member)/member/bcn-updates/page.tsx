@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { MessagesSquare, Sparkles, Workflow } from "lucide-react";
+import { ArrowUpRight, MessagesSquare, Sparkles, Workflow } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
@@ -10,7 +10,8 @@ import {
   BCN_UPDATES_CHANNEL_SLUG,
   BCN_UPDATES_MEMBER_ROUTE
 } from "@/config/community";
-import { buildCommunityFeedPostPath } from "@/lib/community-paths";
+import { getBcnTagLabel, getVisibleCommunityTags, parseBcnStructuredContent } from "@/lib/bcn-intelligence";
+import { buildCommunityFeedPostPath, buildCommunityPostPath } from "@/lib/community-paths";
 import { allowedResourceTiers } from "@/lib/db/access";
 import { roleToTier } from "@/lib/permissions";
 import { createPageMetadata } from "@/lib/seo";
@@ -106,6 +107,25 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
   });
   const selectedChannel = feed.selectedChannel;
   const discussionReadyCount = feed.posts.filter((post) => post.commentCount > 0).length;
+  const latestSignal = feed.posts[0] ?? null;
+  const mostDiscussedSignal =
+    [...feed.posts].sort(
+      (left, right) =>
+        right.commentCount - left.commentCount ||
+        right.likeCount - left.likeCount ||
+        right.createdAt.localeCompare(left.createdAt)
+    )[0] ?? null;
+  const categoryCounts = feed.posts.reduce<Map<string, number>>((counts, post) => {
+    for (const tag of getVisibleCommunityTags(post.tags)) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+
+    return counts;
+  }, new Map());
+  const topCategories = Array.from(categoryCounts.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 4);
+  const latestSignalPreview = latestSignal ? parseBcnStructuredContent(latestSignal.content) : null;
 
   return (
     <div className="space-y-6">
@@ -176,13 +196,71 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
           <Card className="border-silver/18 bg-card/68">
             <CardHeader>
               <CardTitle className="text-2xl">
-                Global business movement, filtered for BCN members
+                Business movement, filtered into BCN signals
               </CardTitle>
               <CardDescription className="max-w-3xl text-sm leading-relaxed">
-                This page is designed to feel more like a premium business intelligence layer than a chat room. Each update is selected and structured first, then members can add context, replies, and perspective beneath it.
+                This page is built to feel closer to a founder intelligence layer than a rolling news feed. Each item is selected for operator relevance first, then structured so members can scan the signal and add useful discussion underneath it.
               </CardDescription>
             </CardHeader>
           </Card>
+
+          {latestSignal ? (
+            <Card className="overflow-hidden border-gold/32 bg-gradient-to-br from-gold/12 via-card/82 to-card/74 shadow-gold-soft">
+              <CardHeader className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="border-gold/28 bg-gold/10 text-gold">
+                    <Sparkles size={12} className="mr-1" />
+                    Featured signal
+                  </Badge>
+                  {getVisibleCommunityTags(latestSignal.tags).slice(0, 2).map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="outline"
+                      className="border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
+                    >
+                      {getBcnTagLabel(tag)}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                    Most relevant now
+                  </p>
+                  <CardTitle className="max-w-4xl text-3xl leading-tight">
+                    {latestSignal.title}
+                  </CardTitle>
+                  <CardDescription className="max-w-4xl text-sm leading-relaxed text-foreground/80">
+                    {latestSignalPreview?.articleDetail ??
+                      latestSignalPreview?.whyThisMatters ??
+                      "Selected because it has a direct operator angle for founders, leaders, and owner-led teams."}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-silver">BCN angle</p>
+                  <p className="mt-2 text-sm leading-7 text-foreground/88">
+                    {latestSignalPreview?.bcnAngle ??
+                      "Worth discussing when the signal changes pricing, demand, staffing, execution, or strategic timing."}
+                  </p>
+                </div>
+                <div className="flex flex-col justify-between gap-3 rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
+                  <div className="space-y-2 text-sm text-muted">
+                    <p>{latestSignal.commentCount} comment{latestSignal.commentCount === 1 ? "" : "s"}</p>
+                    <p>{latestSignal.likeCount} like{latestSignal.likeCount === 1 ? "" : "s"}</p>
+                    <p>{formatDate(latestSignal.createdAt)}</p>
+                  </div>
+                  <Link
+                    href={buildCommunityPostPath(latestSignal.id, BCN_UPDATES_CHANNEL_SLUG)}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-gold transition-colors hover:text-gold/80"
+                  >
+                    Open full signal
+                    <ArrowUpRight size={14} />
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           {feed.posts.length ? (
             <CommunityPostFeedList
@@ -193,12 +271,13 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                 Boolean(session.user.emailVerified) || session.user.role === "ADMIN"
               }
               initialExpandedPostId={expandedPostId}
+              featuredPostId={latestSignal?.id ?? null}
             />
           ) : (
             <EmptyState
               icon={MessagesSquare}
-              title="No BCN Updates yet"
-              description="Curated business developments will appear here as the automation feed publishes them."
+              title="No BCN Signals yet"
+              description="Once the BCN automation catches relevant stories inside the last 24 hours, they will appear here as clean discussion-ready intelligence items."
             />
           )}
         </div>
@@ -228,17 +307,64 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
             <CardHeader>
               <CardTitle className="inline-flex items-center gap-2 text-xl">
                 <Sparkles size={16} className="text-silver" />
-                Latest movement
+                Signal board
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {mostDiscussedSignal ? (
+                <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Most discussed</p>
+                  <Link
+                    href={buildCommunityFeedPostPath(BCN_UPDATES_CHANNEL_SLUG, mostDiscussedSignal.id)}
+                    className="mt-2 block text-sm font-medium text-foreground transition-colors hover:text-gold"
+                  >
+                    {mostDiscussedSignal.title}
+                  </Link>
+                  <p className="mt-2 text-xs text-muted">
+                    {mostDiscussedSignal.commentCount} comment
+                    {mostDiscussedSignal.commentCount === 1 ? "" : "s"} and {mostDiscussedSignal.likeCount} like
+                    {mostDiscussedSignal.likeCount === 1 ? "" : "s"}
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Active categories</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {topCategories.length ? (
+                    topCategories.map(([tag, count]) => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
+                      >
+                        {getBcnTagLabel(tag)} {count}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted">Category signals will appear once posts publish.</span>
+                  )}
+                </div>
+              </div>
+
               {feed.posts.slice(0, 3).map((post) => (
                 <Link
                   key={post.id}
                   href={buildCommunityFeedPostPath(BCN_UPDATES_CHANNEL_SLUG, post.id)}
                   className="block rounded-2xl border border-silver/14 bg-background/18 px-4 py-4 transition-colors hover:border-silver/26 hover:bg-background/28"
                 >
-                  <p className="text-sm font-medium text-foreground">{post.title}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {getVisibleCommunityTags(post.tags).slice(0, 1).map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
+                      >
+                        {getBcnTagLabel(tag)}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-sm font-medium text-foreground">{post.title}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted">
                     <span>{post.commentCount} comment{post.commentCount === 1 ? "" : "s"}</span>
                     <span>{post.likeCount} like{post.likeCount === 1 ? "" : "s"}</span>

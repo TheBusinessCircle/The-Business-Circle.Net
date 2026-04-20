@@ -177,6 +177,7 @@ describe("community curation parsing and formatting", () => {
     );
 
     expect(candidate).not.toBeNull();
+    expect(candidate?.content).toContain("Article detail:");
     expect(candidate?.content).toContain("What happened:");
     expect(candidate?.content).toContain("Why this matters:");
     expect(candidate?.content).toContain("Who this affects:");
@@ -184,7 +185,51 @@ describe("community curation parsing and formatting", () => {
     expect(candidate?.content).toContain("Source:");
     expect(candidate?.content).toContain("Reuters - https://example.com/margin-pressure");
     expect(candidate?.tags).toEqual(
-      expect.arrayContaining(["bcn-update", "curated", "growth", "operations", "finance"])
+      expect.arrayContaining(["bcn-update", "curated", "growth", "operations", "leadership"])
+    );
+  });
+
+  it("accepts platform and marketing shifts when they affect reach or conversion", () => {
+    const candidate = buildBcnCuratedCandidate(
+      {
+        sourceId: "item-5",
+        title: "Google search changes push brands to rethink acquisition and conversion",
+        summary:
+          "Operators are adjusting content, landing pages, and paid acquisition plans after another search update affected reach and conversion.",
+        content:
+          "Operators are adjusting content, landing pages, and paid acquisition plans after another search update affected reach and conversion.",
+        url: "https://example.com/search-shift",
+        sourceName: "Business Desk",
+        publishedAt: "2026-04-18T08:30:00.000Z"
+      },
+      "BCN Source"
+    );
+
+    expect(candidate).not.toBeNull();
+    expect(candidate?.tags).toEqual(
+      expect.arrayContaining(["bcn-update", "curated", "marketing", "growth"])
+    );
+  });
+
+  it("accepts AI stories only when they carry clear operational business relevance", () => {
+    const candidate = buildBcnCuratedCandidate(
+      {
+        sourceId: "item-6",
+        title: "Service firms redesign delivery teams as AI automation cuts turnaround times",
+        summary:
+          "Service operators are redesigning workflows, pricing, and team capacity after AI automation improved turnaround times.",
+        content:
+          "Service operators are redesigning workflows, pricing, and team capacity after AI automation improved turnaround times.",
+        url: "https://example.com/ai-delivery",
+        sourceName: "Tech Desk",
+        publishedAt: "2026-04-18T09:30:00.000Z"
+      },
+      "BCN Source"
+    );
+
+    expect(candidate).not.toBeNull();
+    expect(candidate?.tags).toEqual(
+      expect.arrayContaining(["bcn-update", "curated", "ai", "operations"])
     );
   });
 
@@ -217,6 +262,25 @@ describe("community curation parsing and formatting", () => {
 
     expect(celebrityItem).toBeNull();
     expect(thinBusinessItem).toBeNull();
+  });
+
+  it("rejects generic politics without a clear operator angle", () => {
+    const candidate = buildBcnCuratedCandidate(
+      {
+        sourceId: "item-7",
+        title: "Prime minister reshuffles cabinet after a difficult week in parliament",
+        summary:
+          "The reshuffle comes after another tense week in parliament and is expected to dominate the political conversation.",
+        content:
+          "The reshuffle comes after another tense week in parliament and is expected to dominate the political conversation.",
+        url: "https://example.com/cabinet",
+        sourceName: "World Desk",
+        publishedAt: "2026-04-18T07:00:00.000Z"
+      },
+      "BCN Source"
+    );
+
+    expect(candidate).toBeNull();
   });
 
   it("flags likely non-English items so only English BCN updates are shown", () => {

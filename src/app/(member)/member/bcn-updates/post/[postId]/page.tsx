@@ -13,7 +13,10 @@ import {
   BCN_UPDATES_CHANNEL_SLUG,
   BCN_UPDATES_MEMBER_ROUTE
 } from "@/config/community";
-import { CommunityPostDiscussion } from "@/components/community/community-post-discussion";
+import {
+  CommunityPostDiscussion,
+  CommunityPostTags
+} from "@/components/community/community-post-discussion";
 import { CommunityUserSignals } from "@/components/community/community-user-signals";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -158,6 +161,7 @@ export default async function BcnUpdatesPostPage({ params, searchParams }: PageP
                 A curated BCN business development with member discussion underneath.
               </CardDescription>
             </div>
+            <CommunityPostTags tags={post.tags} />
           </CardHeader>
 
           <CardContent>
@@ -168,6 +172,7 @@ export default async function BcnUpdatesPostPage({ params, searchParams }: PageP
               viewerCanContinuePrivately={
                 Boolean(session.user.emailVerified) || session.user.role === "ADMIN"
               }
+              showTags={false}
             />
           </CardContent>
         </Card>

@@ -2,130 +2,156 @@ import { createHash } from "node:crypto";
 
 const BCN_RELEVANCE_THEMES = [
   {
-    slug: "business",
-    label: "business operations and commercial decisions",
-    audience: "Founders, operators, and owner-led teams",
-    angle: "Useful for discussing what changes inside a real business, not just what happened in the headline.",
-    keywords: [
-      "business",
-      "company",
-      "companies",
-      "enterprise",
-      "operator",
-      "operators",
-      "owner",
-      "owners"
-    ]
-  },
-  {
-    slug: "economy",
-    label: "economic conditions affecting trading decisions",
-    audience: "Business owners watching demand, costs, and market timing",
-    angle: "Helpful when members need to translate macro movement into pricing, demand, or cash decisions.",
-    keywords: [
-      "economy",
-      "economic",
-      "inflation",
-      "interest rate",
-      "rates",
-      "recession",
-      "gdp",
-      "output",
-      "jobs",
-      "employment",
-      "wages",
-      "consumer spending",
-      "demand"
-    ]
-  },
-  {
     slug: "growth",
-    label: "growth, demand, and customer movement",
-    audience: "Members responsible for revenue, positioning, and pipeline",
-    angle: "Strong discussion material for what is changing around growth, messaging, and commercial traction.",
+    label: "growth, demand, and commercial movement",
+    audience: "Founders, commercial leads, and owner-led teams",
+    angle: "Strong BCN material when the story changes demand, pricing power, conversion, or revenue planning.",
+    priority: 5,
     keywords: [
       "growth",
       "revenue",
       "sales",
-      "marketing",
-      "pipeline",
-      "advertising",
-      "bookings",
+      "pricing",
+      "price rise",
+      "price cut",
+      "demand",
       "orders",
+      "bookings",
       "customer",
       "customers",
       "conversion",
-      "retention"
+      "retention",
+      "margin",
+      "margins"
     ]
   },
   {
     slug: "operations",
     label: "operations, delivery, and execution",
-    audience: "Operators managing systems, teams, and delivery quality",
-    angle: "Relevant when members need to decide how to adapt workflows, delivery, or execution standards.",
+    audience: "Operators managing systems, fulfilment, and delivery quality",
+    angle: "Useful when members may need to adapt workflow, fulfilment, cost control, or execution standards.",
+    priority: 5,
     keywords: [
       "operations",
       "workflow",
       "supply chain",
-      "sourcing",
       "logistics",
       "delivery",
       "process",
-      "system",
-      "execution",
+      "productivity",
       "manufacturing",
       "factory",
       "shipping",
-      "productivity"
+      "inventory",
+      "fulfilment",
+      "fulfillment"
     ]
   },
   {
-    slug: "finance",
-    label: "finance, margins, and commercial pressure",
-    audience: "Members making cash, margin, and investment decisions",
-    angle: "Useful for BCN discussion when finance news has a direct operating or decision-making consequence.",
+    slug: "ai",
+    label: "AI and technology shifts with business consequences",
+    audience: "Leaders adapting tooling, team design, and service delivery",
+    angle: "Relevant when AI or platform technology changes how businesses operate, compete, or deliver work.",
+    priority: 5,
     keywords: [
-      "finance",
-      "financial",
-      "profit",
-      "margin",
-      "cash",
-      "funding",
-      "investment",
+      "ai",
+      "artificial intelligence",
+      "automation",
+      "software",
+      "saas",
+      "platform",
+      "cloud",
+      "semiconductor",
+      "chip",
+      "chips",
+      "productivity",
+      "digital transformation"
+    ]
+  },
+  {
+    slug: "retail",
+    label: "retail and consumer trading movement",
+    audience: "Businesses selling into live consumer demand",
+    angle: "Good BCN material when retail movement says something useful about customer behaviour, demand, or trading conditions.",
+    priority: 4,
+    keywords: [
+      "retail",
+      "shopping",
+      "consumer",
+      "store",
+      "stores",
+      "merchant",
+      "merchants",
+      "high street"
+    ]
+  },
+  {
+    slug: "hiring",
+    label: "hiring, workforce, and team structure",
+    audience: "Founders making team design, hiring, or cost decisions",
+    angle: "Best used when the story changes staffing confidence, wage pressure, or how teams are being structured.",
+    priority: 4,
+    keywords: [
+      "hiring",
+      "recruitment",
+      "staffing",
+      "workforce",
+      "employment",
+      "jobs",
+      "wages",
+      "layoffs",
+      "headcount",
+      "talent"
+    ]
+  },
+  {
+    slug: "economy",
+    label: "economic movement with direct operator consequences",
+    audience: "Business owners watching costs, demand, and timing decisions",
+    angle: "Useful when macro movement translates into real pricing, demand, or cash-flow implications for operators.",
+    priority: 4,
+    keywords: [
+      "economy",
+      "economic",
+      "inflation",
+      "interest rate",
+      "interest rates",
+      "rates",
+      "recession",
+      "gdp",
+      "consumer spending",
+      "output",
       "earnings",
       "forecast",
-      "merger",
-      "acquisition",
-      "buyout",
-      "valuation",
-      "debt"
+      "debt",
+      "credit"
     ]
   },
   {
-    slug: "markets",
-    label: "market movement with direct business relevance",
-    audience: "Members exposed to market sentiment, pricing pressure, or sector movement",
-    angle: "Relevant when markets matter because they influence business confidence, spend, pricing, or sector behaviour.",
+    slug: "leadership",
+    label: "leadership, founder judgement, and company direction",
+    audience: "Founders and senior decision-makers",
+    angle: "Helpful when the story reveals something about leadership choices, company direction, or founder judgement.",
+    priority: 4,
     keywords: [
-      "market",
-      "markets",
-      "shares",
-      "stocks",
-      "bonds",
-      "currency",
-      "currencies",
-      "listed",
-      "public company",
-      "sector",
-      "trade",
-      "trading"
+      "leadership",
+      "chief executive",
+      "ceo",
+      "management",
+      "founder",
+      "founders",
+      "board",
+      "executive",
+      "strategy shift",
+      "turnaround"
     ]
   },
   {
     slug: "regulation",
     label: "regulation and policy with business impact",
     audience: "Business owners affected by compliance, cost, employment, or trading rules",
-    angle: "Best used when regulation meaningfully changes risk, compliance, costs, or how members operate.",
+    angle: "Strong BCN discussion material when policy changes create real compliance, cost, or operating implications.",
+    priority: 4,
     keywords: [
       "regulation",
       "regulatory",
@@ -136,65 +162,48 @@ const BCN_RELEVANCE_THEMES = [
       "antitrust",
       "tax",
       "tariff",
-      "sanctions",
-      "employment rule"
+      "tariffs",
+      "sanctions"
     ]
   },
   {
-    slug: "technology",
-    label: "technology and AI shifts affecting business execution",
-    audience: "Members adapting delivery, workflow, or service models around tools and automation",
-    angle: "Valuable when technology news changes how businesses market, operate, or compete.",
+    slug: "marketing",
+    label: "platform, marketing, and distribution shifts",
+    audience: "Teams responsible for reach, conversion, and demand generation",
+    angle: "Useful when platform or marketing changes affect discoverability, conversion, or customer acquisition.",
+    priority: 4,
     keywords: [
-      "ai",
-      "artificial intelligence",
-      "automation",
-      "software",
-      "saas",
-      "platform",
-      "tool",
-      "cloud",
-      "chip",
-      "chips",
-      "semiconductor",
-      "productivity",
-      "digital transformation"
+      "marketing",
+      "advertising",
+      "advertiser",
+      "algorithm",
+      "reach",
+      "traffic",
+      "acquisition",
+      "conversion",
+      "search",
+      "google",
+      "meta",
+      "instagram",
+      "facebook",
+      "tiktok"
     ]
   },
   {
-    slug: "founders",
-    label: "founder, startup, and leadership judgement",
-    audience: "Founders and senior decision-makers inside growing businesses",
-    angle: "Useful when the story says something about founder behaviour, startup movement, or leadership judgement.",
+    slug: "e-commerce",
+    label: "e-commerce and digital selling",
+    audience: "Merchants and operators selling online",
+    angle: "Best used when the story affects online trade, marketplaces, checkout flow, or digital retail margins.",
+    priority: 4,
     keywords: [
-      "founder",
-      "founders",
-      "startup",
-      "start-up",
-      "venture",
-      "leadership",
-      "chief executive",
-      "ceo",
-      "management",
-      "hiring",
-      "layoffs"
-    ]
-  },
-  {
-    slug: "commerce",
-    label: "retail, e-commerce, and customer buying behaviour",
-    audience: "Members selling products or services into live markets",
-    angle: "Good BCN material when customer behaviour or commerce shifts affect how members sell and fulfil.",
-    keywords: [
-      "retail",
       "e-commerce",
       "ecommerce",
-      "consumer",
-      "shopping",
-      "store",
-      "stores",
+      "marketplace",
+      "online retail",
+      "online sales",
+      "checkout",
       "merchant",
-      "merchants"
+      "merchant fees"
     ]
   }
 ] as const;
@@ -214,6 +223,19 @@ const BCN_NEGATIVE_KEYWORDS = [
   "horoscope",
   "lottery",
   "dating rumor"
+] as const;
+
+const BCN_GENERIC_WORLD_NEWS_KEYWORDS = [
+  "election",
+  "campaign trail",
+  "cabinet reshuffle",
+  "military strike",
+  "peace talks",
+  "royal visit",
+  "foreign minister",
+  "prime minister",
+  "president",
+  "diplomatic"
 ] as const;
 
 const BCN_CLICKBAIT_PATTERNS = [
@@ -254,7 +276,13 @@ const BCN_BUSINESS_IMPACT_SIGNALS = [
   "consumer spending",
   "advertising",
   "semiconductor",
-  "cloud"
+  "cloud",
+  "reach",
+  "traffic",
+  "conversion",
+  "inventory",
+  "fulfilment",
+  "fulfillment"
 ] as const;
 
 const TRACKING_QUERY_PARAMS = new Set([
@@ -294,6 +322,13 @@ export type CommunityCurationCandidate = {
   relevanceReasons: string[];
   sourceUrl: string | null;
   sourceName: string;
+};
+
+type BcnRelevanceTheme = (typeof BCN_RELEVANCE_THEMES)[number];
+
+type BcnMatchedTheme = BcnRelevanceTheme & {
+  matchedKeywords: string[];
+  score: number;
 };
 
 const ENGLISH_SIGNAL_WORDS = new Set([
@@ -572,9 +607,17 @@ function cleanHeadline(value: string) {
 
 function matchRelevanceThemes(item: CommunityCurationSourceItem) {
   const haystack = `${item.title} ${item.summary} ${item.content}`.toLowerCase();
-  return BCN_RELEVANCE_THEMES.filter((theme) =>
-    theme.keywords.some((keyword) => haystack.includes(keyword))
-  );
+  return BCN_RELEVANCE_THEMES
+    .map((theme) => {
+      const matchedKeywords = theme.keywords.filter((keyword) => haystack.includes(keyword));
+      return {
+        ...theme,
+        matchedKeywords,
+        score: theme.priority * 2 + Math.min(matchedKeywords.length, 4)
+      };
+    })
+    .filter((theme) => theme.matchedKeywords.length > 0)
+    .sort((left, right) => right.score - left.score);
 }
 
 function hasNegativeSignal(item: CommunityCurationSourceItem) {
@@ -585,6 +628,11 @@ function hasNegativeSignal(item: CommunityCurationSourceItem) {
 function hasClickbaitSignal(item: CommunityCurationSourceItem) {
   const haystack = `${item.title} ${item.summary}`;
   return BCN_CLICKBAIT_PATTERNS.some((pattern) => pattern.test(haystack));
+}
+
+function hasGenericWorldNewsSignal(item: CommunityCurationSourceItem) {
+  const haystack = `${item.title} ${item.summary} ${item.content}`.toLowerCase();
+  return BCN_GENERIC_WORLD_NEWS_KEYWORDS.some((keyword) => haystack.includes(keyword));
 }
 
 function hasDiscussionValue(item: CommunityCurationSourceItem) {
@@ -600,6 +648,98 @@ function hasBusinessImpactSignal(item: CommunityCurationSourceItem) {
 function hasCompellingCompactSummary(item: CommunityCurationSourceItem, matchedThemes: readonly unknown[]) {
   const summary = normalizeWhitespace(`${item.summary} ${item.content}`);
   return matchedThemes.length >= 2 && summary.length >= MIN_SUMMARY_LENGTH_FOR_COMPACT_UPDATES;
+}
+
+function hasMeaningfulLeadTheme(matchedThemes: BcnMatchedTheme[]) {
+  const leadTheme = matchedThemes[0];
+  if (!leadTheme) {
+    return false;
+  }
+
+  if (leadTheme.slug === "economy" && matchedThemes.length === 1) {
+    return false;
+  }
+
+  return true;
+}
+
+function shouldRejectBcnItem(item: CommunityCurationSourceItem, matchedThemes: BcnMatchedTheme[]) {
+  if (!matchedThemes.length) {
+    return true;
+  }
+
+  const businessImpact = hasBusinessImpactSignal(item);
+  const genericWorldNews = hasGenericWorldNewsSignal(item);
+  const lowSignalAi = matchedThemes[0]?.slug === "ai" && matchedThemes.length === 1 && !businessImpact;
+  const lowSignalEconomy =
+    matchedThemes.every((theme) => theme.slug === "economy") && !businessImpact;
+
+  if (genericWorldNews && !businessImpact && matchedThemes[0]?.priority <= 4) {
+    return true;
+  }
+
+  if (lowSignalAi || lowSignalEconomy) {
+    return true;
+  }
+
+  if (!hasMeaningfulLeadTheme(matchedThemes) && !businessImpact) {
+    return true;
+  }
+
+  return false;
+}
+
+function buildWhyThisMatters(
+  takeaways: string[],
+  matchedThemes: BcnMatchedTheme[]
+) {
+  const secondTakeaway = takeaways[1] ?? "";
+  if (secondTakeaway.length >= 72) {
+    return truncateText(secondTakeaway, 220);
+  }
+
+  const primaryTheme = matchedThemes[0];
+  const secondaryTheme = matchedThemes[1];
+  const focus = primaryTheme?.label ?? "commercial decision-making";
+  const secondaryFocus = secondaryTheme?.label
+    ? ` and ${secondaryTheme.label}`
+    : "";
+
+  return truncateText(
+    `This matters because it affects ${focus}${secondaryFocus}, which can change how founder-led businesses plan demand, execution, or team decisions.`,
+    220
+  );
+}
+
+function buildArticleDetail(item: CommunityCurationSourceItem, takeaways: string[]) {
+  const detailParts = [takeaways[0] ?? item.summary, takeaways[1] ?? item.content]
+    .map((value) => normalizeWhitespace(value))
+    .filter(Boolean);
+
+  const detail = Array.from(new Set(detailParts)).join(" ");
+  return truncateText(detail || item.summary || item.title, 420);
+}
+
+function buildWhoThisAffects(matchedThemes: BcnMatchedTheme[]) {
+  return truncateText(
+    Array.from(new Set(matchedThemes.slice(0, 2).map((theme) => theme.audience))).join(" and "),
+    180
+  );
+}
+
+function buildBcnAngle(matchedThemes: BcnMatchedTheme[]) {
+  const leadTheme = matchedThemes[0];
+  if (!leadTheme) {
+    return "The BCN discussion is usually less about the headline and more about what it changes inside a real business.";
+  }
+
+  return truncateText(leadTheme.angle, 220);
+}
+
+function buildBcnCandidateTags(matchedThemes: BcnMatchedTheme[]) {
+  return Array.from(
+    new Set(["bcn-update", "curated", ...matchedThemes.map((theme) => theme.slug)])
+  ).slice(0, 5);
 }
 
 function extractXmlBlocks(payload: string, tagName: string) {
@@ -952,7 +1092,8 @@ export function buildBcnCuratedCandidate(
     !matchedThemes.length ||
     hasNegativeSignal(item) ||
     hasClickbaitSignal(item) ||
-    !hasEnoughContext
+    !hasEnoughContext ||
+    shouldRejectBcnItem(item, matchedThemes)
   ) {
     return null;
   }
@@ -960,16 +1101,12 @@ export function buildBcnCuratedCandidate(
   const takeaways = buildTakeaways(item);
   const primaryThemes = matchedThemes.slice(0, 2);
   const relevanceReasons = primaryThemes.map((theme) => theme.label);
-  const primaryAudience = Array.from(new Set(primaryThemes.map((theme) => theme.audience))).join(" and ");
-  const bcnAngle = primaryThemes[0]?.angle
-    ?? "A useful BCN discussion starts with what this changes for real operators rather than the headline alone.";
   const sourceName = item.sourceName ?? defaultSourceName;
+  const articleDetail = buildArticleDetail(item, takeaways);
   const whatHappened = truncateText(takeaways[0] ?? item.summary, 260);
-  const whyThisMatters = truncateText(
-    `This matters because it touches ${relevanceReasons.join(" and ")}, which directly influence commercial decisions inside founder-led businesses.`,
-    260
-  );
-  const whoThisAffects = truncateText(primaryAudience, 180);
+  const whyThisMatters = buildWhyThisMatters(takeaways, primaryThemes);
+  const whoThisAffects = buildWhoThisAffects(primaryThemes);
+  const bcnAngle = buildBcnAngle(primaryThemes);
   const sourceLine = item.url ? `${sourceName} - ${item.url}` : sourceName;
   const publishedLine = item.publishedAt
     ? `Published: ${new Date(item.publishedAt).toISOString().slice(0, 10)}`
@@ -986,6 +1123,9 @@ export function buildBcnCuratedCandidate(
     dedupeKey,
     title: cleanHeadline(item.title),
     content: [
+      "Article detail:",
+      articleDetail,
+      "",
       "What happened:",
       whatHappened,
       "",
@@ -1002,9 +1142,7 @@ export function buildBcnCuratedCandidate(
       sourceLine,
       ...(publishedLine ? ["", publishedLine] : [])
     ].join("\n"),
-    tags: Array.from(
-      new Set(["bcn-update", "curated", ...matchedThemes.map((theme) => theme.slug)])
-    ).slice(0, 6),
+    tags: buildBcnCandidateTags(matchedThemes),
     relevanceReasons,
     sourceUrl: canonicalizeUrl(item.url),
     sourceName

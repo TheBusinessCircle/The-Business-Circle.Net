@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { Badge } from "@/components/ui/badge";
+import { parseBcnStructuredContent } from "@/lib/bcn-intelligence";
 import {
   buildConnectionWinPreview,
   isConnectionWinTags,
@@ -30,6 +31,17 @@ export function postKindBadge(
   kind: string,
   tags: string[] = [],
 ) {
+  if (tags.includes("bcn-update")) {
+    return createElement(
+      Badge,
+      {
+        variant: "outline",
+        className: "border-gold/30 bg-gold/10 text-gold",
+      },
+      "BCN Signal",
+    );
+  }
+
   if (kind === COMMUNITY_POST_KIND.WIN || isConnectionWinTags(tags)) {
     return createElement(
       Badge,
@@ -70,6 +82,11 @@ export function buildCommunityPostPreview(
   content: string,
   tags: string[] = [],
 ) {
+  const parsedBcnContent = parseBcnStructuredContent(content);
+  if (parsedBcnContent) {
+    return parsedBcnContent.articleDetail || parsedBcnContent.whyThisMatters;
+  }
+
   const connectionWinPreview = buildConnectionWinPreview(content, tags);
   if (connectionWinPreview) {
     return connectionWinPreview;
