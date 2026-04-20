@@ -70,6 +70,17 @@ function isStrongValue(value: string, minimumLength = 24) {
   return value.length >= minimumLength;
 }
 
+function isPositiveIntegerString(value: string) {
+  return /^\d+$/.test(value);
+}
+
+function parseCsv(value: string) {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function validateProductionEnv() {
   const issues: Issue[] = [];
 
@@ -99,6 +110,15 @@ function validateProductionEnv() {
       (env("KV_REST_API_URL") && env("KV_REST_API_TOKEN"))
   );
   const realtimeEnabled = parseBoolean(env("NEXT_PUBLIC_COMMUNITY_REALTIME_ENABLED"));
+  const communityAutomationEnabled = env("BCN_COMMUNITY_AUTOMATION_ENABLED").toLowerCase() !== "false";
+  const communityAutomationSecret = env("COMMUNITY_AUTOMATION_SECRET");
+  const cronSecret = env("CRON_SECRET");
+  const automationAuthorId = env("COMMUNITY_AUTOMATION_AUTHOR_ID");
+  const bcnSourceUrl = env("BCN_COMMUNITY_SOURCE_URL");
+  const bcnSourceUrls = parseCsv(env("BCN_COMMUNITY_SOURCE_URLS"));
+  const lookbackHours = env("BCN_COMMUNITY_LOOKBACK_HOURS");
+  const maxPostsPerRun = env("BCN_COMMUNITY_MAX_POSTS_PER_RUN");
+  const throttleMs = env("BCN_COMMUNITY_AUTOMATION_THROTTLE_MS");
 
   if (!isSecureWebUrl(appUrl)) {
     addIssue(issues, "error", "APP_URL must use https:// in production.");
@@ -220,6 +240,97 @@ function validateProductionEnv() {
 
   if (env("DEMO_MEMBER_PASSWORD")) {
     addIssue(issues, "warning", "DEMO_MEMBER_PASSWORD should stay empty in production.");
+  }
+
+  if (communityAutomationEnabled) {
+    if (!communityAutomationSecret && !cronSecret) {
+      addIssue(
+        issues,
+        "error",
+        "BCN automation is enabled but neither COMMUNITY_AUTOMATION_SECRET nor CRON_SECRET is set."
+      );
+    }
+
+    if (communityAutomationSecret && !isStrongValue(communityAutomationSecret)) {
+      addIssue(issues, "error", "COMMUNITY_AUTOMATION_SECRET is missing or too weak.");
+    }
+
+    if (cronSecret && !isStrongValue(cronSecret)) {
+      addIssue(issues, "error", "CRON_SECRET is missing or too weak.");
+    }
+
+    if (!bcnSourceUrl && !bcnSourceUrls.length) {
+      addIssue(
+        issues,
+        "error",
+        "BCN automation is enabled but no sources are configured. Set BCN_COMMUNITY_SOURCE_URLS or BCN_COMMUNITY_SOURCE_URL."
+      );
+    }
+
+    if (bcnSourceUrl && !isSecureWebUrl(bcnSourceUrl)) {
+      addIssue(issues, "error", "BCN_COMMUNITY_SOURCE_URL must use https:// in production.");
+    }
+
+    for (const sourceUrl of bcnSourceUrls) {
+      if (!isSecureWebUrl(sourceUrl)) {
+        addIssue(
+          issues,
+          "error",
+          `BCN_COMMUNITY_SOURCE_URLS contains a non-https feed URL: ${sourceUrl}`
+        );
+      }
+    }
+
+    if (automationAuthorId.includes("@")) {
+      addIssue(
+        issues,
+        "error",
+        "COMMUNITY_AUTOMATION_AUTHOR_ID must be a real user ID, not an email address."
+      );
+    }
+
+    if (!automationAuthorId) {
+      addIssue(
+        issues,
+        "warning",
+        "COMMUNITY_AUTOMATION_AUTHOR_ID is blank. BCN automation will fall back to the first active admin user in the database."
+      );
+    }
+
+    if (!isPositiveIntegerString(lookbackHours)) {
+      addIssue(issues, "error", "BCN_COMMUNITY_LOOKBACK_HOURS must be a whole-number hour value.");
+    } else {
+      const numericLookback = Number(lookbackHours);
+      if (numericLookback < 1 || numericLookback > 168) {
+        addIssue(issues, "error", "BCN_COMMUNITY_LOOKBACK_HOURS must be between 1 and 168.");
+      }
+    }
+
+    if (!isPositiveIntegerString(maxPostsPerRun)) {
+      addIssue(issues, "error", "BCN_COMMUNITY_MAX_POSTS_PER_RUN must be a whole-number value.");
+    } else {
+      const numericMaxPosts = Number(maxPostsPerRun);
+      if (numericMaxPosts < 1 || numericMaxPosts > 5) {
+        addIssue(issues, "error", "BCN_COMMUNITY_MAX_POSTS_PER_RUN must be between 1 and 5.");
+      }
+    }
+
+    if (!isPositiveIntegerString(throttleMs)) {
+      addIssue(
+        issues,
+        "error",
+        "BCN_COMMUNITY_AUTOMATION_THROTTLE_MS must be a whole-number millisecond value."
+      );
+    } else {
+      const numericThrottle = Number(throttleMs);
+      if (numericThrottle < 60_000) {
+        addIssue(
+          issues,
+          "error",
+          "BCN_COMMUNITY_AUTOMATION_THROTTLE_MS must be at least 60000."
+        );
+      }
+    }
   }
 
   return issues;

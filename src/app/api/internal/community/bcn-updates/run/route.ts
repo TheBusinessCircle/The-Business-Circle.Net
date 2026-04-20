@@ -29,6 +29,7 @@ async function runBcnCuration(request: Request) {
     return NextResponse.json(
       {
         ok: false,
+        authorized: false,
         status: "unauthorized",
         error: "Unauthorized.",
         message:
@@ -47,9 +48,12 @@ async function runBcnCuration(request: Request) {
     : upstreamErrorStatuses.has(result.status)
       ? 502
       : 200;
+  const rejectedCount =
+    result.rejectedStaleCount + result.rejectedNonEnglishCount + result.rejectedNotRelevantCount;
 
   return NextResponse.json({
     ok,
+    authorized: true,
     status: result.status,
     sourceCount: result.sourceCount,
     sourceConfigured: result.sourceConfigured,
@@ -62,6 +66,8 @@ async function runBcnCuration(request: Request) {
     rejectedNonEnglishCount: result.rejectedNonEnglishCount,
     rejectedNotRelevantCount: result.rejectedNotRelevantCount,
     rejectedStaleCount: result.rejectedStaleCount,
+    staleCount: result.rejectedStaleCount,
+    rejectedCount,
     lookbackHours: result.lookbackHours,
     maxPostsPerRun: result.maxPostsPerRun,
     throttleMs: result.throttleMs,

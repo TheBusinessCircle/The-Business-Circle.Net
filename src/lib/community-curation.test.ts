@@ -94,6 +94,72 @@ describe("community curation parsing and formatting", () => {
     ]);
   });
 
+  it("parses malformed-but-usable XML items with CDATA content, missing summary, and missing guid safely", () => {
+    const payload = `
+      <rss>
+        <channel>
+          <title>BBC Business</title>
+          <item>
+            <title><![CDATA[Manufacturers rethink hiring after export demand cools]]></title>
+            <content:encoded><![CDATA[<p>Manufacturers are revising hiring plans and delivery schedules after export demand softened.</p>]]></content:encoded>
+            <link>https://example.com/manufacturing-exports?utm_campaign=test</link>
+          </item>
+        </channel>
+      </rss>
+    `;
+
+    const items = parseCommunityCurationSource(payload);
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      title: "Manufacturers rethink hiring after export demand cools",
+      summary:
+        "Manufacturers are revising hiring plans and delivery schedules after export demand softened.",
+      content:
+        "Manufacturers are revising hiring plans and delivery schedules after export demand softened.",
+      url: "https://example.com/manufacturing-exports",
+      sourceName: "BBC Business",
+      publishedAt: null
+    });
+    expect(items[0]?.sourceId).toContain("BBC Business");
+  });
+
+  it("parses JSON feed items with nested content and missing summary safely", () => {
+    const payload = JSON.stringify({
+      data: {
+        articles: [
+          {
+            uuid: "json-compact-1",
+            headline: "Cloud software groups cut forecasts as enterprise buying slows",
+            content: {
+              plain:
+                "Cloud software groups are lowering forecasts and reviewing sales capacity as enterprise buying slows."
+            },
+            canonicalUrl: "https://example.com/cloud-forecast?fbclid=test",
+            datePublished: "2026-04-18T12:15:00Z",
+            publisher: {
+              name: "Markets Desk"
+            }
+          }
+        ]
+      }
+    });
+
+    expect(parseCommunityCurationSource(payload)).toEqual([
+      {
+        sourceId: "json-compact-1",
+        title: "Cloud software groups cut forecasts as enterprise buying slows",
+        summary:
+          "Cloud software groups are lowering forecasts and reviewing sales capacity as enterprise buying slows.",
+        content:
+          "Cloud software groups are lowering forecasts and reviewing sales capacity as enterprise buying slows.",
+        url: "https://example.com/cloud-forecast",
+        sourceName: "Markets Desk",
+        publishedAt: "2026-04-18T12:15:00.000Z"
+      }
+    ]);
+  });
+
   it("formats relevant items into BCN-style update posts", () => {
     const candidate = buildBcnCuratedCandidate(
       {

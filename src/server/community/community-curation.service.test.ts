@@ -381,6 +381,21 @@ describe("community curation service", () => {
     });
   });
 
+  it("fails clearly when no automation author can be resolved", async () => {
+    automationMock.resolveCommunityAutomationAuthorId.mockResolvedValue(null);
+
+    const result = await publishBcnCuratedPosts();
+
+    expect(result).toMatchObject({
+      status: "missing-author",
+      sourceConfigured: true,
+      authorResolved: false,
+      publishedCount: 0,
+      message: expect.stringContaining("COMMUNITY_AUTOMATION_AUTHOR_ID")
+    });
+    expect(dbMock.communityPost.create).not.toHaveBeenCalled();
+  });
+
   it("throttles opportunistic publishing checks between runs", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,

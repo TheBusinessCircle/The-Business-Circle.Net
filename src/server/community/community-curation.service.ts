@@ -288,7 +288,7 @@ export async function publishBcnCuratedPosts(options?: {
   if (!authorId) {
     return baseResult(
       "missing-author",
-      "No automation author could be resolved. Set COMMUNITY_AUTOMATION_AUTHOR_ID or ensure at least one active admin exists.",
+      "No automation author could be resolved. Set COMMUNITY_AUTOMATION_AUTHOR_ID to a real user ID (not an email), or ensure at least one active admin exists.",
       {
         sourceCount: sources.length,
         sourceConfigured,

@@ -30,6 +30,7 @@ describe("BCN automation route", () => {
     expect(response.status).toBe(401);
     expect(payload).toMatchObject({
       ok: false,
+      authorized: false,
       status: "unauthorized"
     });
     expect(publishMock).not.toHaveBeenCalled();
@@ -72,6 +73,7 @@ describe("BCN automation route", () => {
       lookbackHours: 24,
       maxPostsPerRun: 5,
       throttleMs: 300000,
+      authorized: true,
       sourceMode: "unconfigured"
     });
   });
@@ -115,6 +117,9 @@ describe("BCN automation route", () => {
       fetchedCount: 3,
       candidateCount: 2,
       publishedCount: 1,
+      authorized: true,
+      rejectedCount: 2,
+      staleCount: 0,
       rejectedNotRelevantCount: 1,
       rejectedNonEnglishCount: 1,
       publishedPostIds: ["post_bcn_1"],
@@ -161,8 +166,11 @@ describe("BCN automation route", () => {
       authorResolved: true,
       fetchedCount: 4,
       publishedCount: 0,
+      authorized: true,
       duplicateCount: 1,
+      rejectedCount: 3,
       rejectedNotRelevantCount: 2,
+      staleCount: 1,
       rejectedStaleCount: 1,
       sourceMode: "multi-source"
     });
