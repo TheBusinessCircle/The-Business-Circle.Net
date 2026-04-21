@@ -37,6 +37,8 @@ export interface AdminMemberListItem {
   createdAt: Date;
   suspended: boolean;
   companyName: string | null;
+  emailVerificationSentAt: Date | null;
+  emailVerifiedAt: Date | null;
 }
 
 export interface AdminMembersListResult {
@@ -69,6 +71,8 @@ export interface AdminMemberDetails {
   companyName: string | null;
   businessIndustry: string | null;
   location: string | null;
+  emailVerificationSentAt: Date | null;
+  emailVerifiedAt: Date | null;
   recognition: CommunityRecognitionSummary;
   inviteDashboard: InviteDashboardModel | null;
   invitedBy: {

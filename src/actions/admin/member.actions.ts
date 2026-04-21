@@ -206,7 +206,14 @@ export async function updateMemberBasicsAction(formData: FormData) {
   }
 
   const resolvedTier = forceTierFromRole(role, target.membershipTier);
-  const updateData: Prisma.UserUpdateInput = {
+  const updateData: {
+    name: string | null;
+    email: string;
+    role: Role;
+    membershipTier: MembershipTier;
+    emailVerified?: null;
+    emailVerificationSentAt?: null;
+  } = {
     name: normalizedName,
     email: normalizedEmail,
     role,
@@ -215,6 +222,7 @@ export async function updateMemberBasicsAction(formData: FormData) {
 
   if (normalizedEmail !== target.email.toLowerCase()) {
     updateData.emailVerified = null;
+    updateData.emailVerificationSentAt = null;
   }
 
   try {

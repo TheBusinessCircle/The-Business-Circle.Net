@@ -106,6 +106,15 @@ export async function sendEmailVerificationForUser(
       skipped: sendResult.skipped,
       reason: sendResult.reason
     });
+  } else {
+    await db.user.update({
+      where: {
+        id: input.userId
+      },
+      data: {
+        emailVerificationSentAt: new Date()
+      }
+    });
   }
 
   return sendResult;

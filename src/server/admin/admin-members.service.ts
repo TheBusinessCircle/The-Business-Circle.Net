@@ -116,6 +116,8 @@ export async function listAdminMembers(filters: AdminMembersQueryInput): Promise
       membershipTier: true,
       foundingTier: true,
       createdAt: true,
+      emailVerified: true,
+      emailVerificationSentAt: true,
       suspended: true,
       subscription: {
         select: {
@@ -149,7 +151,9 @@ export async function listAdminMembers(filters: AdminMembersQueryInput): Promise
       subscriptionBillingVariant: user.subscription?.billingVariant ?? null,
       createdAt: user.createdAt,
       suspended: user.suspended,
-      companyName: user.profile?.business?.companyName ?? null
+      companyName: user.profile?.business?.companyName ?? null,
+      emailVerificationSentAt: user.emailVerificationSentAt,
+      emailVerifiedAt: user.emailVerified
     })),
     total,
     page: normalizedPage,
@@ -178,6 +182,8 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
         suspendedAt: true,
         createdAt: true,
         updatedAt: true,
+        emailVerified: true,
+        emailVerificationSentAt: true,
         subscription: {
           select: {
             status: true,
@@ -238,6 +244,8 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
     suspendedAt: user.suspendedAt,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
+    emailVerificationSentAt: user.emailVerificationSentAt,
+    emailVerifiedAt: user.emailVerified,
     subscriptionStatus: user.subscription?.status ?? "NONE",
     subscriptionBillingInterval: user.subscription?.billingInterval ?? null,
     subscriptionBillingVariant: user.subscription?.billingVariant ?? null,

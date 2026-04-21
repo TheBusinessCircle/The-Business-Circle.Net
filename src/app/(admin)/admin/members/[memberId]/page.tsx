@@ -63,6 +63,46 @@ function formatBillingInterval(value: "MONTH" | "YEAR" | null) {
   return value === "YEAR" ? "Annual" : "Monthly";
 }
 
+function renderVerificationSummary(member: {
+  emailVerificationSentAt: Date | null;
+  emailVerifiedAt: Date | null;
+}) {
+  if (member.emailVerifiedAt) {
+    return (
+      <>
+        <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-200">
+          Email Confirmed
+        </Badge>
+        <p className="mt-2 text-xs text-muted">Accepted: {formatDate(member.emailVerifiedAt)}</p>
+        {member.emailVerificationSentAt ? (
+          <p className="mt-1 text-xs text-muted">Sent: {formatDate(member.emailVerificationSentAt)}</p>
+        ) : null}
+      </>
+    );
+  }
+
+  if (member.emailVerificationSentAt) {
+    return (
+      <>
+        <Badge variant="outline" className="border-border text-muted">
+          Email Sent
+        </Badge>
+        <p className="mt-2 text-xs text-muted">Sent: {formatDate(member.emailVerificationSentAt)}</p>
+        <p className="mt-1 text-xs text-muted">Still waiting for member confirmation.</p>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Badge variant="outline" className="border-border text-muted">
+        Not Sent
+      </Badge>
+      <p className="mt-2 text-xs text-muted">No confirmation email has been recorded yet.</p>
+    </>
+  );
+}
+
 function buildFeedbackMessage(input: { error: string; notice: string }) {
   const noticeMap: Record<string, string> = {
     "member-updated": "Member details were updated.",
@@ -191,6 +231,19 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
           <Badge variant="outline" className="border-border text-muted">
             Joined: {formatDate(member.createdAt)}
           </Badge>
+          {member.emailVerifiedAt ? (
+            <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-200">
+              Email confirmed
+            </Badge>
+          ) : member.emailVerificationSentAt ? (
+            <Badge variant="outline" className="border-border text-muted">
+              Confirmation sent
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="border-border text-muted">
+              Confirmation not sent
+            </Badge>
+          )}
           {member.location ? (
             <Badge variant="outline" className="border-border text-muted">
               Location: {member.location}
@@ -276,6 +329,16 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
                 Update Tier
               </Button>
             </form>
+
+            <div className="rounded-xl border border-border p-3">
+              <p className="text-sm font-medium text-foreground">Email Confirmation</p>
+              <p className="mt-1 text-xs text-muted">
+                Track whether the verification email has gone out and when the member accepted it.
+              </p>
+              <div className="mt-3 rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                {renderVerificationSummary(member)}
+              </div>
+            </div>
 
             <div className="rounded-xl border border-border p-3">
               <p className="text-sm font-medium text-foreground">Current subscription state</p>

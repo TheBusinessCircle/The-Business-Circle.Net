@@ -76,6 +76,46 @@ function formatBillingInterval(value: "MONTH" | "YEAR" | null) {
   return value === "YEAR" ? "Annual" : "Monthly";
 }
 
+function renderVerificationStatus(member: {
+  emailVerificationSentAt: Date | null;
+  emailVerifiedAt: Date | null;
+}) {
+  if (member.emailVerifiedAt) {
+    return (
+      <div className="space-y-1">
+        <Badge variant="success" className="normal-case tracking-normal">
+          Confirmed
+        </Badge>
+        <p className="text-xs text-muted">Accepted {formatDate(member.emailVerifiedAt)}</p>
+        {member.emailVerificationSentAt ? (
+          <p className="text-xs text-muted">Sent {formatDate(member.emailVerificationSentAt)}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (member.emailVerificationSentAt) {
+    return (
+      <div className="space-y-1">
+        <Badge variant="outline" className="text-muted normal-case tracking-normal">
+          Sent
+        </Badge>
+        <p className="text-xs text-muted">Sent {formatDate(member.emailVerificationSentAt)}</p>
+        <p className="text-xs text-muted">Awaiting confirmation</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <Badge variant="outline" className="text-muted normal-case tracking-normal">
+        Not sent
+      </Badge>
+      <p className="text-xs text-muted">No confirmation email recorded yet</p>
+    </div>
+  );
+}
+
 function parseRole(value: string): Role | "" {
   if (ROLE_OPTIONS.includes(value as Role)) {
     return value as Role;
@@ -460,6 +500,7 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                   <th className="px-3 py-2 font-medium">Role</th>
                   <th className="px-3 py-2 font-medium">Membership</th>
                   <th className="px-3 py-2 font-medium">Subscription</th>
+                  <th className="px-3 py-2 font-medium">Verification</th>
                   <th className="px-3 py-2 font-medium">Created</th>
                   <th className="px-3 py-2 font-medium">Suspended</th>
                   <th className="px-3 py-2 font-medium">Actions</th>
@@ -503,6 +544,7 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                             </p>
                           ) : null}
                         </td>
+                        <td className="px-3 py-3">{renderVerificationStatus(member)}</td>
                         <td className="px-3 py-3 text-muted">{formatDate(member.createdAt)}</td>
                         <td className="px-3 py-3">
                           {member.suspended ? (
@@ -589,9 +631,9 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="px-3 py-10 text-center text-muted">
-                      No members match your current search and filter criteria.
-                    </td>
+                      <td colSpan={9} className="px-3 py-10 text-center text-muted">
+                        No members match your current search and filter criteria.
+                      </td>
                   </tr>
                 )}
               </tbody>
