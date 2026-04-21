@@ -13,6 +13,7 @@ import {
   updateMemberBasicsAction,
   updateMemberTierAction
 } from "@/actions/admin/member.actions";
+import { AdminMemberResendVerificationButton } from "@/components/admin/admin-member-resend-verification-button";
 import { CommunityRecognitionPanel } from "@/components/profile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -350,6 +351,18 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
               </p>
               <div className="mt-3 rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
                 {renderVerificationSummary(member)}
+                {!member.emailVerifiedAt ? (
+                  <div className="mt-4 border-t border-border/70 pt-4">
+                    <p className="text-xs text-muted">
+                      Send a fresh confirmation email if this member still needs access. The newest
+                      link replaces older verification links automatically.
+                    </p>
+                    <AdminMemberResendVerificationButton
+                      memberId={member.id}
+                      className="mt-3"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
 

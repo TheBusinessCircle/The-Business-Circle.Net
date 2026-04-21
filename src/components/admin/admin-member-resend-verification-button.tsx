@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 
 type AdminMemberResendVerificationButtonProps = {
   memberId: string;
+  className?: string;
 };
 
 export function AdminMemberResendVerificationButton({
-  memberId
+  memberId,
+  className
 }: AdminMemberResendVerificationButtonProps) {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
@@ -45,9 +47,9 @@ export function AdminMemberResendVerificationButton({
   }
 
   return (
-    <div className="space-y-2">
+    <div className={className ? `${className} space-y-2` : "space-y-2"}>
       <Button type="button" variant="outline" size="sm" onClick={handleResend} disabled={isPending}>
-        {isPending ? "Sending..." : "Resend confirmation"}
+        {isPending ? "Sending..." : "Resend confirmation email"}
       </Button>
       {notice ? <p className="text-xs text-gold">{notice}</p> : null}
       {error ? <p className="text-xs text-red-200">{error}</p> : null}
