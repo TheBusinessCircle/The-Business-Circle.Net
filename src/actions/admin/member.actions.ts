@@ -212,7 +212,8 @@ export async function updateMemberBasicsAction(formData: FormData) {
     role: Role;
     membershipTier: MembershipTier;
     emailVerified?: null;
-    emailVerificationSentAt?: null;
+    verificationEmailLastSentAt?: null;
+    verificationEmailSendCount?: number;
   } = {
     name: normalizedName,
     email: normalizedEmail,
@@ -222,7 +223,8 @@ export async function updateMemberBasicsAction(formData: FormData) {
 
   if (normalizedEmail !== target.email.toLowerCase()) {
     updateData.emailVerified = null;
-    updateData.emailVerificationSentAt = null;
+    updateData.verificationEmailLastSentAt = null;
+    updateData.verificationEmailSendCount = 0;
   }
 
   try {

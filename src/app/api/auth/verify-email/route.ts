@@ -22,6 +22,9 @@ export async function GET(request: Request) {
   const token = requestUrl.searchParams.get("token")?.trim() || "";
 
   if (!userId || !token) {
+    console.warn("[verify-email] verification route rejected", {
+      reason: "missing-parameters"
+    });
     return NextResponse.redirect(toRedirectUrl(requestUrl, "invalid"));
   }
 
@@ -29,6 +32,11 @@ export async function GET(request: Request) {
     const verified = await verifyEmailToken({
       userId,
       token
+    });
+
+    console.info("[verify-email] verification route completed", {
+      userId,
+      verified
     });
 
     return NextResponse.redirect(toRedirectUrl(requestUrl, verified ? "success" : "invalid"));

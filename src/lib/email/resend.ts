@@ -19,6 +19,16 @@ export type SendTransactionalEmailResult = {
   reason?: string;
 };
 
+export class TransactionalEmailError extends Error {
+  code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "TransactionalEmailError";
+    this.code = code;
+  }
+}
+
 let resendClient: Resend | null | undefined;
 
 function getResendClient(): Resend | null {
@@ -70,63 +80,71 @@ function resolveFromAddress(overrideFrom?: string) {
   };
 }
 
-export async function sendTransactionalEmail(
+export async function sendTransactionalEmailOrThrow(
   input: SendTransactionalEmailInput
-): Promise<SendTransactionalEmailResult> {
+) {
   const client = getResendClient();
   const hasRenderableContent = Boolean(input.react || input.html || input.text);
   const fromAddress = resolveFromAddress(input.from);
 
   if (!client) {
-    return {
-      sent: false,
-      skipped: true,
-      reason: "RESEND_API_KEY is not configured."
-    };
+    throw new TransactionalEmailError("RESEND_API_KEY_MISSING", "RESEND_API_KEY is not configured.");
   }
 
   if (!hasRenderableContent) {
-    return {
-      sent: false,
-      skipped: false,
-      reason: "Email body is required (react, html, or text)."
-    };
+    throw new TransactionalEmailError(
+      "EMAIL_BODY_MISSING",
+      "Email body is required (react, html, or text)."
+    );
   }
 
   if (!fromAddress.value) {
-    return {
-      sent: false,
-      skipped: false,
-      reason: fromAddress.reason || "RESEND_FROM_EMAIL is not configured."
-    };
+    throw new TransactionalEmailError(
+      "EMAIL_FROM_INVALID",
+      fromAddress.reason || "RESEND_FROM_EMAIL is not configured."
+    );
   }
 
-  try {
-    const result = await client.emails.send({
-      from: fromAddress.value,
-      to: input.to,
-      subject: input.subject,
-      react: input.react,
-      html: input.html,
-      text: input.text,
-      replyTo: input.replyTo,
-      tags: input.tags
-    });
+  const result = await client.emails.send({
+    from: fromAddress.value,
+    to: input.to,
+    subject: input.subject,
+    react: input.react,
+    html: input.html,
+    text: input.text,
+    replyTo: input.replyTo,
+    tags: input.tags
+  });
 
-    if (result.error) {
-      return {
-        sent: false,
-        skipped: false,
-        reason: result.error.message
-      };
-    }
+  if (result.error) {
+    throw new TransactionalEmailError("RESEND_SEND_FAILED", result.error.message);
+  }
+
+  return {
+    id: result.data?.id ?? null
+  };
+}
+
+export async function sendTransactionalEmail(
+  input: SendTransactionalEmailInput
+): Promise<SendTransactionalEmailResult> {
+  try {
+    const result = await sendTransactionalEmailOrThrow(input);
 
     return {
       sent: true,
       skipped: false,
-      id: result.data?.id ?? null
+      id: result.id
     };
   } catch (error) {
+    if (error instanceof TransactionalEmailError) {
+      return {
+        sent: false,
+        skipped: error.code === "RESEND_API_KEY_MISSING",
+        reason: error.message
+      };
+    }
+
     return {
       sent: false,
       skipped: false,

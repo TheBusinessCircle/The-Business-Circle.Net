@@ -10,6 +10,7 @@ import {
   updateMemberTierAction
 } from "@/actions/admin/member.actions";
 import { AdminMemberDeleteForm } from "@/components/admin/admin-member-delete-form";
+import { AdminMemberResendVerificationButton } from "@/components/admin/admin-member-resend-verification-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,7 +78,8 @@ function formatBillingInterval(value: "MONTH" | "YEAR" | null) {
 }
 
 function renderVerificationStatus(member: {
-  emailVerificationSentAt: Date | null;
+  verificationEmailLastSentAt: Date | null;
+  verificationEmailSendCount: number;
   emailVerifiedAt: Date | null;
 }) {
   if (member.emailVerifiedAt) {
@@ -87,20 +89,34 @@ function renderVerificationStatus(member: {
           Confirmed
         </Badge>
         <p className="text-xs text-muted">Accepted {formatDate(member.emailVerifiedAt)}</p>
-        {member.emailVerificationSentAt ? (
-          <p className="text-xs text-muted">Sent {formatDate(member.emailVerificationSentAt)}</p>
+        {member.verificationEmailLastSentAt ? (
+          <p className="text-xs text-muted">
+            Last sent {formatDate(member.verificationEmailLastSentAt)}
+          </p>
+        ) : null}
+        {member.verificationEmailSendCount > 0 ? (
+          <p className="text-xs text-muted">
+            {member.verificationEmailSendCount} confirmation
+            {member.verificationEmailSendCount === 1 ? "" : "s"} sent
+          </p>
         ) : null}
       </div>
     );
   }
 
-  if (member.emailVerificationSentAt) {
+  if (member.verificationEmailLastSentAt) {
     return (
       <div className="space-y-1">
         <Badge variant="outline" className="text-muted normal-case tracking-normal">
           Sent
         </Badge>
-        <p className="text-xs text-muted">Sent {formatDate(member.emailVerificationSentAt)}</p>
+        <p className="text-xs text-muted">
+          Last sent {formatDate(member.verificationEmailLastSentAt)}
+        </p>
+        <p className="text-xs text-muted">
+          {member.verificationEmailSendCount} confirmation
+          {member.verificationEmailSendCount === 1 ? "" : "s"} sent
+        </p>
         <p className="text-xs text-muted">Awaiting confirmation</p>
       </div>
     );
@@ -561,6 +577,9 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                         </td>
                         <td className="px-3 py-3">
                           <div className="space-y-2">
+                            {!member.emailVerifiedAt ? (
+                              <AdminMemberResendVerificationButton memberId={member.id} />
+                            ) : null}
                             <div className="flex flex-wrap gap-2">
                               <Link href={`/admin/members/${member.id}`}>
                                 <Button variant="outline" size="sm">

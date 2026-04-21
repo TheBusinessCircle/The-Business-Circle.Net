@@ -64,7 +64,8 @@ function formatBillingInterval(value: "MONTH" | "YEAR" | null) {
 }
 
 function renderVerificationSummary(member: {
-  emailVerificationSentAt: Date | null;
+  verificationEmailLastSentAt: Date | null;
+  verificationEmailSendCount: number;
   emailVerifiedAt: Date | null;
 }) {
   if (member.emailVerifiedAt) {
@@ -74,20 +75,32 @@ function renderVerificationSummary(member: {
           Email Confirmed
         </Badge>
         <p className="mt-2 text-xs text-muted">Accepted: {formatDate(member.emailVerifiedAt)}</p>
-        {member.emailVerificationSentAt ? (
-          <p className="mt-1 text-xs text-muted">Sent: {formatDate(member.emailVerificationSentAt)}</p>
+        {member.verificationEmailLastSentAt ? (
+          <p className="mt-1 text-xs text-muted">
+            Last sent: {formatDate(member.verificationEmailLastSentAt)}
+          </p>
+        ) : null}
+        {member.verificationEmailSendCount > 0 ? (
+          <p className="mt-1 text-xs text-muted">
+            Total sends: {member.verificationEmailSendCount}
+          </p>
         ) : null}
       </>
     );
   }
 
-  if (member.emailVerificationSentAt) {
+  if (member.verificationEmailLastSentAt) {
     return (
       <>
         <Badge variant="outline" className="border-border text-muted">
           Email Sent
         </Badge>
-        <p className="mt-2 text-xs text-muted">Sent: {formatDate(member.emailVerificationSentAt)}</p>
+        <p className="mt-2 text-xs text-muted">
+          Last sent: {formatDate(member.verificationEmailLastSentAt)}
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          Total sends: {member.verificationEmailSendCount}
+        </p>
         <p className="mt-1 text-xs text-muted">Still waiting for member confirmation.</p>
       </>
     );
@@ -235,7 +248,7 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
             <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-200">
               Email confirmed
             </Badge>
-          ) : member.emailVerificationSentAt ? (
+          ) : member.verificationEmailLastSentAt ? (
             <Badge variant="outline" className="border-border text-muted">
               Confirmation sent
             </Badge>

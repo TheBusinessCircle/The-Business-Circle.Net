@@ -11,7 +11,8 @@ model User {
   name                         String?
   email                        String                     @unique
   emailVerified                DateTime?
-  emailVerificationSentAt      DateTime?
+  verificationEmailLastSentAt  DateTime?
+  verificationEmailSendCount   Int                        @default(0)
   image                        String?
   passwordHash                 String?
   role                         Role                       @default(MEMBER)

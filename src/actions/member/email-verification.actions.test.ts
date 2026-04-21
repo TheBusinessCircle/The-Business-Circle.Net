@@ -7,7 +7,7 @@ const redirectMock = vi.hoisted(() =>
 );
 
 const requireUserMock = vi.hoisted(() => vi.fn());
-const sendEmailVerificationForUserMock = vi.hoisted(() => vi.fn());
+const resendVerificationEmailMock = vi.hoisted(() => vi.fn());
 const logServerWarningMock = vi.hoisted(() => vi.fn());
 const prismaMock = vi.hoisted(() => ({
   user: {
@@ -24,7 +24,7 @@ vi.mock("@/lib/session", () => ({
 }));
 
 vi.mock("@/lib/auth/email-verification", () => ({
-  sendEmailVerificationForUser: sendEmailVerificationForUserMock
+  resendVerificationEmail: resendVerificationEmailMock
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -55,7 +55,7 @@ describe("resendEmailVerificationAction", () => {
       emailVerified: null,
       role: "MEMBER"
     });
-    sendEmailVerificationForUserMock.mockResolvedValue({
+    resendVerificationEmailMock.mockResolvedValue({
       sent: true,
       skipped: false
     });
@@ -66,11 +66,7 @@ describe("resendEmailVerificationAction", () => {
     await expect(resendEmailVerificationAction(formData)).rejects.toThrow(
       "REDIRECT:/dashboard?notice=verification-email-sent"
     );
-    expect(sendEmailVerificationForUserMock).toHaveBeenCalledWith({
-      userId: "user_123",
-      email: "member@example.com",
-      firstName: "Asha"
-    });
+    expect(resendVerificationEmailMock).toHaveBeenCalledWith("user_123");
   });
 
   it("does not resend for an already verified member", async () => {
@@ -88,7 +84,7 @@ describe("resendEmailVerificationAction", () => {
     await expect(resendEmailVerificationAction(formData)).rejects.toThrow(
       "REDIRECT:/dashboard?notice=verification-already-complete"
     );
-    expect(sendEmailVerificationForUserMock).not.toHaveBeenCalled();
+    expect(resendVerificationEmailMock).not.toHaveBeenCalled();
   });
 
   it("redirects with an error and logs when delivery is unavailable", async () => {
@@ -99,7 +95,7 @@ describe("resendEmailVerificationAction", () => {
       emailVerified: null,
       role: "MEMBER"
     });
-    sendEmailVerificationForUserMock.mockResolvedValue({
+    resendVerificationEmailMock.mockResolvedValue({
       sent: false,
       skipped: true,
       reason: "RESEND_API_KEY is not configured."

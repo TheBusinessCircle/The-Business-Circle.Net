@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { sendEmailVerificationForUser } from "@/lib/auth/email-verification";
+import { resendVerificationEmail } from "@/lib/auth/email-verification";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import { prisma } from "@/lib/prisma";
 import { logServerWarning } from "@/lib/security/logging";
@@ -46,12 +46,7 @@ export async function resendEmailVerificationAction(formData: FormData) {
     redirectWithNotice(returnPath, "verification-already-complete");
   }
 
-  const firstName = user.name?.trim().split(/\s+/)[0] || "Member";
-  const result = await sendEmailVerificationForUser({
-    userId: user.id,
-    email: user.email,
-    firstName
-  });
+  const result = await resendVerificationEmail(user.id);
 
   if (!result.sent) {
     logServerWarning("verification-email-resend-failed", {
