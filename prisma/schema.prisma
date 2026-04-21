@@ -158,6 +158,9 @@ model Profile {
   instagram            String?
   linkedin             String?
   tiktok               String?
+  facebook             String?
+  youtube              String?
+  customLinks          String[]  @default([])
   collaborationNeeds   String?
   collaborationOffers  String?
   partnershipInterests String?

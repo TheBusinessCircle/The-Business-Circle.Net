@@ -2,14 +2,17 @@ import type { BusinessStage, MemberRoleTag, MembershipTier } from "@prisma/clien
 import {
   BriefcaseBusiness,
   Clock3,
+  Facebook,
   Globe,
   Instagram,
+  Link2,
   Linkedin,
   MapPin,
   ShieldCheck,
   Target,
   UserRound,
-  Video
+  Video,
+  Youtube
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CommunityRecognitionSummary } from "@/types";
@@ -44,6 +47,9 @@ type PublicMemberProfileViewProps = {
     instagram?: string | null;
     linkedin?: string | null;
     tiktok?: string | null;
+    facebook?: string | null;
+    youtube?: string | null;
+    customLinks: string[];
     collaborationNeeds?: string | null;
     collaborationOffers?: string | null;
     partnershipInterests?: string | null;
@@ -82,6 +88,15 @@ function LinkItem({
       {label}
     </a>
   );
+}
+
+function formatCustomLinkLabel(href: string) {
+  try {
+    const url = new URL(href);
+    return url.hostname.replace(/^www\./i, "") + url.pathname;
+  } catch {
+    return href;
+  }
 }
 
 export function PublicMemberProfileView({
@@ -298,9 +313,25 @@ export function PublicMemberProfileView({
             {member.linkedin ? <LinkItem href={member.linkedin} label="LinkedIn" icon={<Linkedin size={12} />} /> : null}
             {member.instagram ? <LinkItem href={member.instagram} label="Instagram" icon={<Instagram size={12} />} /> : null}
             {member.tiktok ? <LinkItem href={member.tiktok} label="TikTok" icon={<Video size={12} />} /> : null}
+            {member.facebook ? <LinkItem href={member.facebook} label="Facebook" icon={<Facebook size={12} />} /> : null}
+            {member.youtube ? <LinkItem href={member.youtube} label="YouTube" icon={<Youtube size={12} />} /> : null}
             {website ? <LinkItem href={website} label="Website" icon={<Globe size={12} />} /> : null}
+            {member.customLinks.map((link) => (
+              <LinkItem
+                key={`${member.id}-${link}`}
+                href={link}
+                label={formatCustomLinkLabel(link)}
+                icon={<Link2 size={12} />}
+              />
+            ))}
 
-            {!member.linkedin && !member.instagram && !member.tiktok && !website ? (
+            {!member.linkedin &&
+            !member.instagram &&
+            !member.tiktok &&
+            !member.facebook &&
+            !member.youtube &&
+            !website &&
+            member.customLinks.length === 0 ? (
               <p className="text-sm text-muted">No public links shared yet.</p>
             ) : null}
 

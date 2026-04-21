@@ -78,6 +78,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedProfileImagePreview, setSelectedProfileImagePreview] = useState<string | null>(null);
   const [selectedProfileImageName, setSelectedProfileImageName] = useState<string | null>(null);
+  const [customLinkDraft, setCustomLinkDraft] = useState("");
   const [isPending, startTransition] = useTransition();
   const profileImageUploadRef = useRef<HTMLInputElement | null>(null);
 
@@ -87,6 +88,20 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
   });
 
   const values = form.watch();
+  const customLinkList = useMemo(() => {
+    if (!values.customLinks?.trim()) {
+      return [] as string[];
+    }
+
+    try {
+      const parsed = JSON.parse(values.customLinks) as unknown;
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        : [];
+    } catch {
+      return [];
+    }
+  }, [values.customLinks]);
   const previewImage = selectedProfileImagePreview || values.profileImage || undefined;
   const completion = useMemo(
     () =>
@@ -103,6 +118,9 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
         instagram: values.instagram,
         linkedin: values.linkedin,
         tiktok: values.tiktok,
+        facebook: values.facebook,
+        youtube: values.youtube,
+        customLinks: customLinkList,
         collaborationNeeds: values.collaborationNeeds,
         collaborationOffers: values.collaborationOffers,
         partnershipInterests: values.partnershipInterests
@@ -113,7 +131,9 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
       values.collaborationNeeds,
       values.collaborationOffers,
       values.companyName,
+      customLinkList,
       values.experience,
+      values.facebook,
       values.industry,
       values.instagram,
       values.linkedin,
@@ -122,6 +142,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
       values.partnershipInterests,
       values.services,
       values.tiktok,
+      values.youtube,
       values.website
     ]
   );
@@ -199,6 +220,52 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
     setSelectedProfileImagePreview(null);
     setSelectedProfileImageName(null);
     form.clearErrors("profileImage");
+  }
+
+  function addCustomLink() {
+    const trimmedDraft = customLinkDraft.trim();
+    if (!trimmedDraft) {
+      return;
+    }
+
+    let normalizedLink: string;
+
+    try {
+      normalizedLink = new URL(trimmedDraft).toString();
+    } catch {
+      form.setError("customLinks", {
+        type: "manual",
+        message: "Add a full link starting with https://"
+      });
+      return;
+    }
+
+    if (customLinkList.includes(normalizedLink)) {
+      form.setError("customLinks", {
+        type: "manual",
+        message: "That link has already been published."
+      });
+      return;
+    }
+
+    const nextLinks = [...customLinkList, normalizedLink];
+    form.setValue("customLinks", JSON.stringify(nextLinks), {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    });
+    form.clearErrors("customLinks");
+    setCustomLinkDraft("");
+  }
+
+  function removeCustomLink(linkToRemove: string) {
+    const nextLinks = customLinkList.filter((link) => link !== linkToRemove);
+    form.setValue("customLinks", JSON.stringify(nextLinks), {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    });
+    form.clearErrors("customLinks");
   }
 
   const onSubmit = form.handleSubmit((submitted) => {
@@ -308,7 +375,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
         <div className="space-y-4">
           <section className="premium-surface p-5">
             <p className="mb-4 text-xs tracking-[0.1em] text-silver uppercase">Identity</p>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input id="name" {...form.register("name")} />
@@ -458,6 +525,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
           <section className="premium-surface p-5">
             <p className="mb-4 text-xs tracking-[0.1em] text-silver uppercase">Links & Collaboration</p>
             <div className="grid gap-4 md:grid-cols-2">
+              <input type="hidden" {...form.register("customLinks")} />
               <div className="space-y-2">
                 <Label htmlFor="website">Website</Label>
                 <Input id="website" {...form.register("website")} placeholder="https://your-site.com" />
@@ -478,22 +546,72 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
                 <Input id="tiktok" {...form.register("tiktok")} placeholder="https://www.tiktok.com/@..." />
                 <FieldError message={form.formState.errors.tiktok?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
+                <Label htmlFor="facebook">Facebook</Label>
+                <Input id="facebook" {...form.register("facebook")} placeholder="https://facebook.com/..." />
+                <FieldError message={form.formState.errors.facebook?.message} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="youtube">YouTube</Label>
+                <Input id="youtube" {...form.register("youtube")} placeholder="https://youtube.com/@..." />
+                <FieldError message={form.formState.errors.youtube?.message} />
+              </div>
+              <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                <Label htmlFor="customLinkDraft">Other Links</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="customLinkDraft"
+                    value={customLinkDraft}
+                    onChange={(event) => setCustomLinkDraft(event.target.value)}
+                    placeholder="https://calendly.com/your-link"
+                  />
+                  <Button type="button" variant="outline" onClick={addCustomLink}>
+                    Publish
+                  </Button>
+                </div>
+                <p className="text-xs text-muted">
+                  Add any other public link you want members to see, then publish it into your profile list.
+                </p>
+                {customLinkList.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {customLinkList.map((link) => (
+                      <span
+                        key={link}
+                        className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/50 px-3 py-1 text-xs text-foreground"
+                      >
+                        <span className="truncate">{link}</span>
+                        <button
+                          type="button"
+                          className="text-muted hover:text-primary"
+                          onClick={() => removeCustomLink(link)}
+                          aria-label={`Remove ${link}`}
+                        >
+                          x
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted">No other links published yet.</p>
+                )}
+                <FieldError message={form.formState.errors.customLinks?.message} />
+              </div>
+              <div className="space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="collaborationNeeds">What You Need Help With</Label>
                 <Textarea id="collaborationNeeds" rows={3} {...form.register("collaborationNeeds")} />
                 <FieldError message={form.formState.errors.collaborationNeeds?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="collaborationOffers">What You Can Help With</Label>
                 <Textarea id="collaborationOffers" rows={3} {...form.register("collaborationOffers")} />
                 <FieldError message={form.formState.errors.collaborationOffers?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="partnershipInterests">Partnership Interests</Label>
                 <Textarea id="partnershipInterests" rows={3} {...form.register("partnershipInterests")} />
                 <FieldError message={form.formState.errors.partnershipInterests?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="collaborationTags">Collaboration Tags (comma separated)</Label>
                 <Input id="collaborationTags" {...form.register("collaborationTags")} placeholder="fundraising, hiring, b2b-sales" />
                 <FieldError message={form.formState.errors.collaborationTags?.message} />

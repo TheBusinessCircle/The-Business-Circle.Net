@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { BusinessStage, BusinessStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireApiUser } from "@/lib/auth/api";
 import { prisma } from "@/lib/prisma";
 import { profileSchema } from "@/lib/validators";
@@ -28,6 +29,9 @@ const PROFILE_FORM_FIELDS = [
   "instagram",
   "linkedin",
   "tiktok",
+  "facebook",
+  "youtube",
+  "customLinks",
   "collaborationNeeds",
   "collaborationOffers",
   "partnershipInterests",
@@ -52,6 +56,21 @@ function parseTagList(value?: string) {
   }
 
   return Array.from(new Set(value.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean)));
+}
+
+function parseCustomLinks(value?: string) {
+  if (!value?.trim()) {
+    return [];
+  }
+
+  const parsed = JSON.parse(value) as unknown;
+  const validated = z.array(z.string().trim().url().max(2048)).max(20).safeParse(parsed);
+
+  if (!validated.success) {
+    throw new Error("invalid-custom-links");
+  }
+
+  return Array.from(new Set(validated.data.map((item) => item.trim())));
 }
 
 function isFileValue(value: FormDataEntryValue | null): value is File {
@@ -229,6 +248,20 @@ export async function PATCH(request: Request) {
         : null;
     const website = toNull(data.website);
     const resolvedProfileImage = uploadedProfileImage || toNull(data.profileImage);
+    let customLinks: string[];
+
+    try {
+      customLinks = parseCustomLinks(data.customLinks);
+    } catch (error) {
+      if (error instanceof Error && error.message === "invalid-custom-links") {
+        return NextResponse.json(
+          { error: "Other links must be a valid list of URLs." },
+          { status: 400, headers }
+        );
+      }
+
+      throw error;
+    }
 
     await prisma.user.update({
       where: { id: authResult.user.id },
@@ -247,6 +280,9 @@ export async function PATCH(request: Request) {
               instagram: toNull(data.instagram),
               linkedin: toNull(data.linkedin),
               tiktok: toNull(data.tiktok),
+              facebook: toNull(data.facebook),
+              youtube: toNull(data.youtube),
+              customLinks,
               collaborationNeeds: toNull(data.collaborationNeeds),
               collaborationOffers: toNull(data.collaborationOffers),
               partnershipInterests: toNull(data.partnershipInterests),
@@ -273,6 +309,9 @@ export async function PATCH(request: Request) {
               instagram: toNull(data.instagram),
               linkedin: toNull(data.linkedin),
               tiktok: toNull(data.tiktok),
+              facebook: toNull(data.facebook),
+              youtube: toNull(data.youtube),
+              customLinks,
               collaborationNeeds: toNull(data.collaborationNeeds),
               collaborationOffers: toNull(data.collaborationOffers),
               partnershipInterests: toNull(data.partnershipInterests),
@@ -316,4 +355,3 @@ export async function PATCH(request: Request) {
     );
   }
 }
-

@@ -283,6 +283,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     instagram: member?.profile?.instagram,
     linkedin: member?.profile?.linkedin,
     tiktok: member?.profile?.tiktok,
+    facebook: member?.profile?.facebook,
+    youtube: member?.profile?.youtube,
+    customLinks: member?.profile?.customLinks,
     collaborationNeeds: member?.profile?.collaborationNeeds,
     collaborationOffers: member?.profile?.collaborationOffers,
     partnershipInterests: member?.profile?.partnershipInterests

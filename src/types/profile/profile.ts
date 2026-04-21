@@ -14,6 +14,9 @@ export interface MemberProfileModel {
   linkedin?: string | null;
   instagram?: string | null;
   tiktok?: string | null;
+  facebook?: string | null;
+  youtube?: string | null;
+  customLinks: string[];
   companyName?: string | null;
   companyDescription?: string | null;
   industry?: string | null;
@@ -38,6 +41,9 @@ export interface MemberProfileFormModel {
   instagram: string;
   linkedin: string;
   tiktok: string;
+  facebook: string;
+  youtube: string;
+  customLinks: string;
   collaborationNeeds: string;
   collaborationOffers: string;
   partnershipInterests: string;

@@ -15,6 +15,9 @@ function buildValidProfileInput(overrides: Partial<Record<string, string>> = {})
     instagram: "",
     linkedin: "",
     tiktok: "",
+    facebook: "",
+    youtube: "",
+    customLinks: "",
     collaborationNeeds: "",
     collaborationOffers: "",
     partnershipInterests: "",
@@ -49,5 +52,20 @@ describe("profileSchema", () => {
     );
 
     expect(parsed.success).toBe(false);
+  });
+
+  it("accepts facebook, youtube, and custom link payloads", () => {
+    const parsed = profileSchema.safeParse(
+      buildValidProfileInput({
+        facebook: "https://facebook.com/test-member",
+        youtube: "https://youtube.com/@testmember",
+        customLinks: JSON.stringify([
+          "https://calendly.com/test-member/intro",
+          "https://example.com/portfolio"
+        ])
+      })
+    );
+
+    expect(parsed.success).toBe(true);
   });
 });

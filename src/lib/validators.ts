@@ -8,6 +8,7 @@ export const registerSchema = registerMemberSchema;
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalUrl = z.string().trim().url().max(2048).optional().or(z.literal(""));
+const optionalJsonArray = z.string().trim().max(8000).optional().or(z.literal(""));
 const optionalProfileImage = z
   .string()
   .trim()
@@ -51,6 +52,9 @@ export const profileSchema = z.object({
   instagram: optionalUrl,
   linkedin: optionalUrl,
   tiktok: optionalUrl,
+  facebook: optionalUrl,
+  youtube: optionalUrl,
+  customLinks: optionalJsonArray,
   collaborationNeeds: optionalText(600),
   collaborationOffers: optionalText(600),
   partnershipInterests: optionalText(600),
@@ -127,5 +131,4 @@ export const founderServiceRequestSchema = z.object({
 export type ProfileFormValues = z.infer<typeof profileSchema>;
 export type ContactFormInput = z.infer<typeof contactSchema>;
 export type FounderServiceRequestFormValues = z.infer<typeof founderServiceRequestSchema>;
-
 

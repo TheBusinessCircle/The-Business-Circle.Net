@@ -11,6 +11,9 @@ export type ProfileCompletionInput = {
   instagram?: string | null;
   linkedin?: string | null;
   tiktok?: string | null;
+  facebook?: string | null;
+  youtube?: string | null;
+  customLinks?: string[] | null;
   collaborationNeeds?: string | null;
   collaborationOffers?: string | null;
   partnershipInterests?: string | null;
@@ -29,6 +32,9 @@ export type ProfileCompletionFieldKey =
   | "instagram"
   | "linkedin"
   | "tiktok"
+  | "facebook"
+  | "youtube"
+  | "customLinks"
   | "collaborationNeeds"
   | "collaborationOffers"
   | "partnershipInterests";
@@ -59,12 +65,19 @@ const PROFILE_COMPLETION_FIELDS: Array<{ key: ProfileCompletionFieldKey; label: 
   { key: "instagram", label: "Instagram" },
   { key: "linkedin", label: "LinkedIn" },
   { key: "tiktok", label: "TikTok" },
+  { key: "facebook", label: "Facebook" },
+  { key: "youtube", label: "YouTube" },
+  { key: "customLinks", label: "Other Links" },
   { key: "collaborationNeeds", label: "Need Help With" },
   { key: "collaborationOffers", label: "Can Help With" },
   { key: "partnershipInterests", label: "Partnership Interests" }
 ];
 
-function hasContent(value: string | null | undefined): boolean {
+function hasContent(value: string | string[] | null | undefined): boolean {
+  if (Array.isArray(value)) {
+    return value.some((item) => item.trim().length > 0);
+  }
+
   return Boolean(value && value.trim().length);
 }
 
