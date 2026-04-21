@@ -3,7 +3,8 @@ import type { MembershipTier } from "@prisma/client";
 import { redirect } from "next/navigation";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
-import { membershipAccessBillingQuery } from "@/lib/membership/access";
+import { hasEntitledSubscription, membershipAccessBillingQuery } from "@/lib/membership/access";
+import { prisma } from "@/lib/prisma";
 import type { SessionUser } from "@/types";
 import { canTierAccess, isAdminRole, resolveEffectiveTier, userCanAccessTier } from "@/lib/auth/permissions";
 
@@ -36,7 +37,43 @@ export async function getCurrentSession() {
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const session = await getCurrentSession();
-  return toSessionUser(session);
+  const user = toSessionUser(session);
+
+  if (!user) {
+    return null;
+  }
+
+  const fresh = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      role: true,
+      membershipTier: true,
+      emailVerified: true,
+      suspended: true,
+      subscription: {
+        select: {
+          status: true
+        }
+      }
+    }
+  });
+
+  if (!fresh) {
+    return null;
+  }
+
+  const hasActiveSubscription =
+    fresh.role === "ADMIN" ? true : hasEntitledSubscription(fresh.subscription?.status ?? null);
+
+  return {
+    ...user,
+    role: fresh.role,
+    membershipTier: fresh.membershipTier,
+    subscriptionStatus: fresh.subscription?.status ?? null,
+    hasActiveSubscription,
+    suspended: fresh.suspended,
+    emailVerified: fresh.emailVerified ?? null
+  };
 }
 
 export async function requireCurrentUser(): Promise<SessionUser> {

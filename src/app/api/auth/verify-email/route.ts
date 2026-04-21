@@ -21,6 +21,11 @@ export async function GET(request: Request) {
   const userId = requestUrl.searchParams.get("uid")?.trim() || "";
   const token = requestUrl.searchParams.get("token")?.trim() || "";
 
+  console.info("[verify-email] token received", {
+    userId,
+    hasToken: Boolean(token)
+  });
+
   if (!userId || !token) {
     console.warn("[verify-email] verification route rejected", {
       reason: "missing-parameters"
@@ -38,9 +43,16 @@ export async function GET(request: Request) {
       userId,
       verified
     });
+    console.info("[verify-email] redirecting", {
+      userId,
+      status: verified ? "success" : "invalid"
+    });
 
     return NextResponse.redirect(toRedirectUrl(requestUrl, verified ? "success" : "invalid"));
   } catch (error) {
+    console.warn("[verify-email] verification failed", {
+      userId
+    });
     logServerError("email-verification-route-failed", error);
     return NextResponse.redirect(toRedirectUrl(requestUrl, "invalid"));
   }

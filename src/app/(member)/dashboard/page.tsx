@@ -73,6 +73,8 @@ export const metadata: Metadata = createPageMetadata({
   path: "/dashboard"
 });
 
+export const dynamic = "force-dynamic";
+
 type DashboardPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
@@ -135,8 +137,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const welcome = firstValue(params.welcome);
   const notice = firstValue(params.notice);
   const error = firstValue(params.error);
-  const needsEmailVerification =
-    session.user.role !== "ADMIN" && !Boolean(session.user.emailVerified);
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
   const effectiveTierRank = getMembershipTierRank(effectiveTier);
   const tiers = allowedResourceTiers(effectiveTier);
@@ -435,6 +435,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const joinedRecently = member
     ? Date.now() - member.createdAt.getTime() <= 14 * 24 * 60 * 60 * 1000
     : false;
+  const needsEmailVerification =
+    session.user.role !== "ADMIN" && !Boolean(member?.emailVerified ?? session.user.emailVerified);
   const showOnboardingExperience =
     billingSource === "join" ||
     welcome === "1" ||

@@ -14,6 +14,7 @@ async function getFreshUserEntitlement(userId: string) {
     select: {
       role: true,
       membershipTier: true,
+      emailVerified: true,
       suspended: true,
       subscription: {
         select: {
@@ -49,6 +50,7 @@ export async function requireUser() {
   session.user.subscriptionStatus = fresh.subscription?.status ?? null;
   session.user.hasActiveSubscription = hasActiveSubscription;
   session.user.suspended = fresh.suspended;
+  session.user.emailVerified = fresh.emailVerified ?? null;
 
   if (fresh.role !== "ADMIN" && !hasActiveSubscription) {
     redirect(

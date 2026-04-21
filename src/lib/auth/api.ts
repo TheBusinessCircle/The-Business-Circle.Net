@@ -58,6 +58,7 @@ async function refreshUserEntitlement(userId: string) {
     select: {
       role: true,
       membershipTier: true,
+      emailVerified: true,
       suspended: true,
       subscription: {
         select: {
@@ -94,7 +95,8 @@ export async function requireApiUser(options: ApiAuthOptions = {}): Promise<ApiA
     membershipTier: fresh.membershipTier,
     subscriptionStatus: fresh.subscription?.status ?? null,
     hasActiveSubscription,
-    suspended: fresh.suspended
+    suspended: fresh.suspended,
+    emailVerified: fresh.emailVerified ?? null
   };
 
   if (options.adminOnly && !isAdminRole(resolvedUser.role)) {

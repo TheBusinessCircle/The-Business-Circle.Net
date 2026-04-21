@@ -44,6 +44,8 @@ export const metadata: Metadata = createPageMetadata({
   path: "/admin/members"
 });
 
+export const dynamic = "force-dynamic";
+
 function firstValue(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
     return value[0] ?? "";

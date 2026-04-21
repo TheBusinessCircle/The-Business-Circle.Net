@@ -332,7 +332,7 @@ export async function resendVerificationEmail(userId: string): Promise<ResendVer
 }
 
 export async function verifyEmailToken(input: VerifyEmailTokenInput) {
-  console.info("[verify-email] verifying token", {
+  console.info("[verify-email] token received", {
     userId: input.userId
   });
 
@@ -342,6 +342,7 @@ export async function verifyEmailToken(input: VerifyEmailTokenInput) {
     where: { id: input.userId },
     select: {
       id: true,
+      email: true,
       emailVerified: true
     }
   });
@@ -361,7 +362,8 @@ export async function verifyEmailToken(input: VerifyEmailTokenInput) {
       }
     });
     console.info("[verify-email] verification already complete", {
-      userId: input.userId
+      userId: input.userId,
+      email: user.email
     });
     return true;
   }
@@ -382,10 +384,20 @@ export async function verifyEmailToken(input: VerifyEmailTokenInput) {
   if (!token) {
     console.warn("[verify-email] verification failed", {
       userId: input.userId,
+      email: user.email,
       reason: "token-invalid-or-expired"
     });
     return false;
   }
+
+  console.info("[verify-email] token valid", {
+    userId: input.userId,
+    email: user.email
+  });
+  console.info("[verify-email] marking user verified", {
+    userId: input.userId,
+    email: user.email
+  });
 
   await db.$transaction(async (tx) => {
     await tx.user.update({
@@ -402,8 +414,9 @@ export async function verifyEmailToken(input: VerifyEmailTokenInput) {
     });
   });
 
-  console.info("[verify-email] verification success", {
-    userId: input.userId
+  console.info("[verify-email] user verified", {
+    userId: input.userId,
+    email: user.email
   });
   return true;
 }
