@@ -124,6 +124,24 @@ Before the first deploy, place your TURN certificate files at `.secrets/coturn/f
 npm run db:migrate:prod
 ```
 
+If production was ever left in a drifted state where Prisma migration history says the
+verification-email tracking migration was applied but the `User` table is still missing the
+columns, deploy the latest repo version and run `npm run db:migrate:prod` again first. The
+follow-up repair migration will add:
+
+- `verificationEmailLastSentAt`
+- `verificationEmailSendCount`
+
+If you need to repair the schema manually before the next deploy, use:
+
+```bash
+cat <<'SQL' | npx prisma db execute --stdin --schema prisma/schema.prisma
+ALTER TABLE "User"
+  ADD COLUMN IF NOT EXISTS "verificationEmailLastSentAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "verificationEmailSendCount" INTEGER NOT NULL DEFAULT 0;
+SQL
+```
+
 Optional seed for initial environments only:
 
 ```bash

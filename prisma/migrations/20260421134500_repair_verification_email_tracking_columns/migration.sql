@@ -1,0 +1,3 @@
+ALTER TABLE "User"
+ADD COLUMN IF NOT EXISTS "verificationEmailLastSentAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "verificationEmailSendCount" INTEGER NOT NULL DEFAULT 0;
