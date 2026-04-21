@@ -8,6 +8,28 @@ export const registerSchema = registerMemberSchema;
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalUrl = z.string().trim().url().max(2048).optional().or(z.literal(""));
+const optionalProfileImage = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine(
+    (value) => {
+      if (!value) {
+        return true;
+      }
+
+      if (value.startsWith("/uploads/profiles/")) {
+        return true;
+      }
+
+      return z.string().url().safeParse(value).success;
+    },
+    {
+      message: "Profile image must be a full URL or an uploaded profile image path."
+    }
+  )
+  .optional()
+  .or(z.literal(""));
 const requiredText = (min: number, max: number) => z.string().trim().min(min).max(max);
 
 export const contactSchema = z.object({
@@ -19,7 +41,7 @@ export const contactSchema = z.object({
 
 export const profileSchema = z.object({
   name: z.string().trim().min(2).max(100),
-  profileImage: optionalUrl,
+  profileImage: optionalProfileImage,
   memberRoleTag: z.nativeEnum(MemberRoleTag),
   headline: optionalText(120),
   bio: optionalText(1200),
@@ -105,6 +127,5 @@ export const founderServiceRequestSchema = z.object({
 export type ProfileFormValues = z.infer<typeof profileSchema>;
 export type ContactFormInput = z.infer<typeof contactSchema>;
 export type FounderServiceRequestFormValues = z.infer<typeof founderServiceRequestSchema>;
-
 
 

@@ -106,7 +106,7 @@ export function PublicMemberProfileView({
         <CardContent className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:p-8">
           <div className="space-y-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <Avatar className="h-20 w-20" name={member.name} image={member.image} />
+              <Avatar className="h-32 w-32 shrink-0 ring-2 ring-gold/20" name={member.name} image={member.image} />
               <div className="min-w-0 space-y-2">
                 <CardTitle className="font-display text-3xl sm:text-4xl">{member.name}</CardTitle>
                 <CardDescription className="text-base text-foreground/80">

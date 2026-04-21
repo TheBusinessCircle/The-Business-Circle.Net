@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { MembershipTier } from "@prisma/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowUpRight } from "lucide-react";
@@ -31,6 +31,8 @@ const MEMBER_ROLE_OPTIONS: Array<ProfileFormValues["memberRoleTag"]> = [
   "OPERATOR",
   "ADVISOR"
 ];
+const MIN_PROFILE_IMAGE_DIMENSION = 512;
+const RECOMMENDED_PROFILE_IMAGE_DIMENSION = 1024;
 
 function FieldError({ message }: { message?: string }) {
   if (!message) {
@@ -40,9 +42,42 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs text-red-300">{message}</p>;
 }
 
+async function createProfileImagePreview(file: File) {
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const image = new window.Image();
+
+      image.onload = () => {
+        resolve({
+          width: image.naturalWidth,
+          height: image.naturalHeight
+        });
+      };
+
+      image.onerror = () => {
+        reject(new Error("invalid-image-file"));
+      };
+
+      image.src = objectUrl;
+    });
+
+    return {
+      objectUrl,
+      ...dimensions
+    };
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
+}
+
 export function ProfileForm({ initialValues, membershipTier, memberProfileHref }: ProfileFormProps) {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
+  const [selectedProfileImagePreview, setSelectedProfileImagePreview] = useState<string | null>(null);
+  const [selectedProfileImageName, setSelectedProfileImageName] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const profileImageUploadRef = useRef<HTMLInputElement | null>(null);
 
@@ -52,6 +87,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
   });
 
   const values = form.watch();
+  const previewImage = selectedProfileImagePreview || values.profileImage || undefined;
   const completion = useMemo(
     () =>
       getProfileCompletion({
@@ -90,7 +126,81 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
     ]
   );
 
+  useEffect(() => {
+    return () => {
+      if (selectedProfileImagePreview) {
+        URL.revokeObjectURL(selectedProfileImagePreview);
+      }
+    };
+  }, [selectedProfileImagePreview]);
+
   const missingFields = completion.fields.filter((field) => !field.complete).slice(0, 5);
+
+  async function handleProfileImageUploadChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const nextFile = event.target.files?.[0];
+
+    if (selectedProfileImagePreview) {
+      URL.revokeObjectURL(selectedProfileImagePreview);
+    }
+
+    if (!nextFile) {
+      setSelectedProfileImagePreview(null);
+      setSelectedProfileImageName(null);
+      form.clearErrors("profileImage");
+      return;
+    }
+
+    try {
+      const preview = await createProfileImagePreview(nextFile);
+
+      if (
+        preview.width < MIN_PROFILE_IMAGE_DIMENSION ||
+        preview.height < MIN_PROFILE_IMAGE_DIMENSION
+      ) {
+        URL.revokeObjectURL(preview.objectUrl);
+        if (profileImageUploadRef.current) {
+          profileImageUploadRef.current.value = "";
+        }
+        setSelectedProfileImagePreview(null);
+        setSelectedProfileImageName(null);
+        form.setError("profileImage", {
+          type: "manual",
+          message: `Profile image must be at least ${MIN_PROFILE_IMAGE_DIMENSION}x${MIN_PROFILE_IMAGE_DIMENSION}px for a sharp result.`
+        });
+        return;
+      }
+
+      form.clearErrors("profileImage");
+      setSelectedProfileImagePreview(preview.objectUrl);
+      setSelectedProfileImageName(nextFile.name);
+      setNotice(null);
+    } catch {
+      if (profileImageUploadRef.current) {
+        profileImageUploadRef.current.value = "";
+      }
+      setSelectedProfileImagePreview(null);
+      setSelectedProfileImageName(null);
+      form.setError("profileImage", {
+        type: "manual",
+        message: "Profile image must be a valid image file."
+      });
+    }
+  }
+
+  function clearProfileImageUpload() {
+    if (selectedProfileImagePreview) {
+      URL.revokeObjectURL(selectedProfileImagePreview);
+    }
+
+    if (profileImageUploadRef.current) {
+      profileImageUploadRef.current.value = "";
+    }
+
+    setSelectedProfileImagePreview(null);
+    setSelectedProfileImageName(null);
+    form.clearErrors("profileImage");
+  }
+
   const onSubmit = form.handleSubmit((submitted) => {
     setNotice(null);
 
@@ -148,9 +258,9 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
           <section className="premium-surface p-5">
             <div className="flex items-center gap-3">
               <Avatar
-                className="h-16 w-16"
+                className="h-24 w-24"
                 name={values.name || "Member"}
-                image={values.profileImage || undefined}
+                image={previewImage}
               />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-foreground">{values.name || "Business Circle Member"}</p>
@@ -252,6 +362,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
                       type="file"
                       accept="image/*"
                       ref={profileImageUploadRef}
+                      onChange={handleProfileImageUploadChange}
                     />
                   </div>
                 </div>
@@ -259,6 +370,21 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
                   Optional: upload an avatar image directly. If selected, the uploaded file will
                   override the URL value on save.
                 </p>
+                <p className="text-xs text-muted">
+                  Best results: use a square image that is at least {RECOMMENDED_PROFILE_IMAGE_DIMENSION}x{RECOMMENDED_PROFILE_IMAGE_DIMENSION}px.
+                </p>
+                {selectedProfileImageName ? (
+                  <div className="flex items-center gap-2 text-xs text-muted">
+                    <span className="truncate">Selected upload: {selectedProfileImageName}</span>
+                    <button
+                      type="button"
+                      className="text-primary hover:underline"
+                      onClick={clearProfileImageUpload}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : null}
                 <FieldError message={form.formState.errors.profileImage?.message} />
               </div>
             </div>

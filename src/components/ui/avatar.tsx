@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 type AvatarProps = {
@@ -16,6 +19,12 @@ function initials(name: string) {
 }
 
 export function Avatar({ name, image, className }: AvatarProps) {
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [image]);
+
   return (
     <div
       className={cn(
@@ -23,8 +32,13 @@ export function Avatar({ name, image, className }: AvatarProps) {
         className
       )}
     >
-      {image ? (
-        <img src={image} alt={name} className="h-full w-full object-cover" />
+      {image && !hasImageError ? (
+        <img
+          src={image}
+          alt={name}
+          className="h-full w-full object-cover object-center [image-rendering:-webkit-optimize-contrast]"
+          onError={() => setHasImageError(true)}
+        />
       ) : (
         <span className="grid h-full w-full place-items-center text-xs font-semibold tracking-wide text-foreground">
           {initials(name || "Member")}
@@ -33,4 +47,3 @@ export function Avatar({ name, image, className }: AvatarProps) {
     </div>
   );
 }
-
