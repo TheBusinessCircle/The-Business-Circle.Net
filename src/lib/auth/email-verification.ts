@@ -99,8 +99,13 @@ export async function sendEmailVerificationForUser(
     ]
   });
 
-  if (!sendResult.sent && !sendResult.skipped) {
-    logServerWarning("verification-email-delivery-failed");
+  if (!sendResult.sent) {
+    logServerWarning("verification-email-delivery-failed", {
+      userId: input.userId,
+      email: input.email,
+      skipped: sendResult.skipped,
+      reason: sendResult.reason
+    });
   }
 
   return sendResult;

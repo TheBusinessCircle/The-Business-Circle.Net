@@ -36,9 +36,38 @@ function getResendClient(): Resend | null {
   return resendClient;
 }
 
+function isResendDevAddress(value: string) {
+  return /@resend\.dev>/i.test(value) || /@resend\.dev$/i.test(value);
+}
+
 function resolveFromAddress(overrideFrom?: string) {
   const from = overrideFrom?.trim() || process.env.RESEND_FROM_EMAIL?.trim();
-  return from || "The Business Circle Network <onboarding@resend.dev>";
+
+  if (from) {
+    if (process.env.NODE_ENV === "production" && isResendDevAddress(from)) {
+      return {
+        value: null,
+        reason: "RESEND_FROM_EMAIL must use your verified domain in production."
+      };
+    }
+
+    return {
+      value: from,
+      reason: null
+    };
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return {
+      value: null,
+      reason: "RESEND_FROM_EMAIL is not configured."
+    };
+  }
+
+  return {
+    value: "The Business Circle Network <onboarding@resend.dev>",
+    reason: null
+  };
 }
 
 export async function sendTransactionalEmail(
@@ -46,6 +75,7 @@ export async function sendTransactionalEmail(
 ): Promise<SendTransactionalEmailResult> {
   const client = getResendClient();
   const hasRenderableContent = Boolean(input.react || input.html || input.text);
+  const fromAddress = resolveFromAddress(input.from);
 
   if (!client) {
     return {
@@ -63,9 +93,17 @@ export async function sendTransactionalEmail(
     };
   }
 
+  if (!fromAddress.value) {
+    return {
+      sent: false,
+      skipped: false,
+      reason: fromAddress.reason || "RESEND_FROM_EMAIL is not configured."
+    };
+  }
+
   try {
     const result = await client.emails.send({
-      from: resolveFromAddress(input.from),
+      from: fromAddress.value,
       to: input.to,
       subject: input.subject,
       react: input.react,

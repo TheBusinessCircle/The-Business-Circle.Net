@@ -725,7 +725,7 @@ export async function finalizePendingRegistrationAccess(input: {
   }
 
   const firstName = input.fullName.trim().split(/\s+/)[0] || "Member";
-  await Promise.allSettled([
+  const [welcomeResult, verificationResult] = await Promise.allSettled([
     sendWelcomeMemberEmail({
       email: input.email,
       firstName,
@@ -737,6 +737,35 @@ export async function finalizePendingRegistrationAccess(input: {
       firstName
     })
   ]);
+
+  if (welcomeResult.status === "rejected") {
+    logServerWarning("welcome-email-send-threw", {
+      userId: input.userId,
+      email: input.email,
+      reason:
+        welcomeResult.reason instanceof Error
+          ? welcomeResult.reason.message
+          : "Unknown welcome email error."
+    });
+  }
+
+  if (verificationResult.status === "rejected") {
+    logServerWarning("verification-email-send-threw", {
+      userId: input.userId,
+      email: input.email,
+      reason:
+        verificationResult.reason instanceof Error
+          ? verificationResult.reason.message
+          : "Unknown verification email error."
+    });
+  } else if (!verificationResult.value.sent) {
+    logServerWarning("verification-email-not-sent-after-registration", {
+      userId: input.userId,
+      email: input.email,
+      skipped: verificationResult.value.skipped,
+      reason: verificationResult.value.reason
+    });
+  }
 
   return true;
 }

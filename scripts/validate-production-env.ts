@@ -93,6 +93,7 @@ function validateProductionEnv() {
   const stripeSecretKey = env("STRIPE_SECRET_KEY");
   const stripeWebhookSecret = env("STRIPE_WEBHOOK_SECRET");
   const resendApiKey = env("RESEND_API_KEY");
+  const resendFromEmail = env("RESEND_FROM_EMAIL");
   const liveKitUrl = env("LIVEKIT_URL");
   const turnDomain = env("TURN_DOMAIN");
   const turnTlsEnabled = parseBoolean(env("TURN_TLS_ENABLED"));
@@ -158,6 +159,16 @@ function validateProductionEnv() {
 
   if (!resendApiKey.startsWith("re_")) {
     addIssue(issues, "error", "RESEND_API_KEY is missing or invalid.");
+  }
+
+  if (!resendFromEmail) {
+    addIssue(issues, "error", "RESEND_FROM_EMAIL must be configured in production.");
+  } else if (resendFromEmail.includes("@resend.dev")) {
+    addIssue(
+      issues,
+      "error",
+      "RESEND_FROM_EMAIL must use your verified domain instead of a resend.dev address in production."
+    );
   }
 
   if (!redisConfigured) {

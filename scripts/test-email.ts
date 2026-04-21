@@ -1,5 +1,14 @@
 import { sendTransactionalEmail } from "../src/lib/email/resend";
 
+const loadEnvFile = (process as typeof process & {
+  loadEnvFile?: (path?: string) => void;
+}).loadEnvFile;
+
+if (typeof loadEnvFile === "function") {
+  loadEnvFile(".env");
+  loadEnvFile(".env.production");
+}
+
 async function main() {
   const cliRecipient = process.argv[2]?.trim();
   const recipient = cliRecipient || process.env.RESEND_TEST_TO?.trim();
