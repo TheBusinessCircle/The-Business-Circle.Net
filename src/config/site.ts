@@ -40,6 +40,7 @@ const adminNavigation: NavigationItem[] = [
   { label: "Calling", href: "/admin/calling" },
   { label: "Revenue", href: "/admin/revenue" },
   { label: "Products & Pricing", href: "/admin/products-pricing" },
+  { label: "Email Test Centre", href: "/admin/email-test-centre" },
   { label: "Security", href: "/admin/security" },
   { label: "System Health", href: "/admin/system-health" },
   { label: "Founding Launch", href: "/admin/founding" },
