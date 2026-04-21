@@ -1,3 +1,7 @@
+import { createElement } from "react";
+import { BcnEmailLayout, EmailNote } from "../src/emails";
+import { renderEmailHtml } from "../src/emails/render";
+import { buildBrandedEmailText } from "../src/emails/text";
 import { sendTransactionalEmail } from "../src/lib/email/resend";
 
 const loadEnvFile = (process as typeof process & {
@@ -19,20 +23,27 @@ async function main() {
     );
   }
 
+  const sentAt = new Date().toISOString();
+  const emailTemplate = createElement(BcnEmailLayout, {
+    previewText: "This is a BCN transactional email test.",
+    eyebrow: "EMAIL TEST",
+    heading: "Resend test successful",
+    lead: "This is a test email from The Business Circle Network.",
+    note: createElement(EmailNote, null, `Sent at: ${sentAt}`)
+  });
+  const html = await renderEmailHtml(emailTemplate);
+
   const result = await sendTransactionalEmail({
     to: recipient,
     subject: "The Business Circle Network | Resend test",
-    text: [
-      "This is a test email from The Business Circle Network.",
-      `Sent at: ${new Date().toISOString()}`
-    ].join("\n"),
-    html: `
-      <div style="font-family: Arial, sans-serif; color: #0a1024; line-height: 1.5;">
-        <h2>Resend test successful</h2>
-        <p>This is a test email from The Business Circle Network.</p>
-        <p>Sent at: ${new Date().toISOString()}</p>
-      </div>
-    `
+    text: buildBrandedEmailText({
+      eyebrow: "Email test",
+      heading: "Resend test successful",
+      bodyLines: ["This is a test email from The Business Circle Network."],
+      noteLines: [`Sent at: ${sentAt}`]
+    }),
+    html,
+    react: emailTemplate
   });
 
   if (!result.sent) {

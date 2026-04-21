@@ -1,14 +1,34 @@
-﻿type InnerCircleUpgradeEmailProps = {
+import React from "react";
+import { BcnEmailLayout, EmailNote } from "@/emails/bcn-email-layout";
+
+type InnerCircleUpgradeEmailProps = {
   firstName: string;
+  innerCircleUrl: string;
 };
 
-export function InnerCircleUpgradeEmail({ firstName }: InnerCircleUpgradeEmailProps) {
+export function InnerCircleUpgradeEmail({
+  firstName,
+  innerCircleUrl
+}: InnerCircleUpgradeEmailProps) {
   return (
-    <div style={{ fontFamily: "Arial, sans-serif", color: "#0a1024", lineHeight: 1.5 }}>
-      <h1>Welcome to Inner Circle</h1>
-      <p>Hi {firstName},</p>
-      <p>Your Inner Circle upgrade is now active.</p>
-      <p>You now have access to premium resources, private channels, and strategy call events.</p>
-    </div>
+    <BcnEmailLayout
+      previewText="Your Inner Circle access is now active."
+      eyebrow="INNER CIRCLE"
+      heading="Your Inner Circle access is now active"
+      lead={
+        <>
+          Hi {firstName}, your upgrade is complete. You can now access private channels, premium
+          resources, and the deeper BCN Inner Circle experience.
+        </>
+      }
+      ctaLabel="Enter Inner Circle"
+      ctaUrl={innerCircleUrl}
+      fallbackUrl={innerCircleUrl}
+      note={
+        <EmailNote>
+          Use the link above to step straight into the member environment.
+        </EmailNote>
+      }
+    />
   );
 }

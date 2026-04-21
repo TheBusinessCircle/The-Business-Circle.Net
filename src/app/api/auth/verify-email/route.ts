@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { verifyEmailToken } from "@/lib/auth/email-verification";
 import { logServerError } from "@/lib/security/logging";
+import { getBaseUrl } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
-function toRedirectUrl(requestUrl: URL, status: "success" | "invalid") {
-  const loginUrl = new URL("/login", requestUrl);
+function toRedirectUrl(status: "success" | "invalid") {
+  const loginUrl = new URL("/login", getBaseUrl());
 
   if (status === "success") {
     loginUrl.searchParams.set("verified", "1");
@@ -30,7 +31,13 @@ export async function GET(request: Request) {
     console.warn("[verify-email] verification route rejected", {
       reason: "missing-parameters"
     });
-    return NextResponse.redirect(toRedirectUrl(requestUrl, "invalid"));
+    const redirectUrl = toRedirectUrl("invalid");
+    console.info("[verify-email] redirect target", {
+      userId,
+      status: "invalid",
+      redirectUrl: redirectUrl.toString()
+    });
+    return NextResponse.redirect(redirectUrl);
   }
 
   try {
@@ -47,13 +54,25 @@ export async function GET(request: Request) {
       userId,
       status: verified ? "success" : "invalid"
     });
+    const redirectUrl = toRedirectUrl(verified ? "success" : "invalid");
+    console.info("[verify-email] redirect target", {
+      userId,
+      status: verified ? "success" : "invalid",
+      redirectUrl: redirectUrl.toString()
+    });
 
-    return NextResponse.redirect(toRedirectUrl(requestUrl, verified ? "success" : "invalid"));
+    return NextResponse.redirect(redirectUrl);
   } catch (error) {
     console.warn("[verify-email] verification failed", {
       userId
     });
     logServerError("email-verification-route-failed", error);
-    return NextResponse.redirect(toRedirectUrl(requestUrl, "invalid"));
+    const redirectUrl = toRedirectUrl("invalid");
+    console.info("[verify-email] redirect target", {
+      userId,
+      status: "invalid",
+      redirectUrl: redirectUrl.toString()
+    });
+    return NextResponse.redirect(redirectUrl);
   }
 }

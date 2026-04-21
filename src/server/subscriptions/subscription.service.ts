@@ -25,6 +25,8 @@ import {
   provisionUserFromPendingRegistration
 } from "@/lib/auth/register";
 import { db } from "@/lib/db";
+import { renderEmailHtml } from "@/emails/render";
+import { buildBrandedEmailText } from "@/emails/text";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
@@ -995,21 +997,32 @@ async function sendBillingReceiptForInvoice(invoice: Stripe.Invoice) {
   const amount = invoiceAmountAsCurrency(invoice.amount_paid ?? invoice.amount_due, invoice.currency);
   const planName = await invoicePlanName(invoice);
   const firstName = invoiceFirstName(invoice);
+  const dashboardUrl = absoluteUrl("/dashboard");
+  const emailTemplate = createElement(BillingReceiptEmail, {
+    firstName,
+    amount,
+    planName,
+    dashboardUrl
+  });
+  const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
     to: recipient,
     subject: "Your Business Circle billing receipt",
-    text: [
-      `Hi ${firstName},`,
-      "",
-      `We received your payment of ${amount} for ${planName}.`,
-      "Thank you for being part of The Business Circle Network."
-    ].join("\n"),
-    react: createElement(BillingReceiptEmail, {
-      firstName,
-      amount,
-      planName
+    text: buildBrandedEmailText({
+      greeting: `Hi ${firstName},`,
+      eyebrow: "Billing receipt",
+      heading: "Your payment has been received",
+      bodyLines: [
+        `We have received your payment of ${amount} for ${planName}.`,
+        "Thank you for being part of The Business Circle Network."
+      ],
+      ctaLabel: "Open your dashboard",
+      ctaUrl: dashboardUrl,
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
     }),
+    html,
+    react: emailTemplate,
     tags: [
       { name: "type", value: "billing-receipt" },
       { name: "source", value: "stripe-webhook" }

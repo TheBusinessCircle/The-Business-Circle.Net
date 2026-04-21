@@ -20,9 +20,12 @@ import {
   registerMemberSchema
 } from "@/lib/auth/schemas";
 import { normalizeEmail } from "@/lib/auth/utils";
+import { renderEmailHtml } from "@/emails/render";
+import { buildBrandedEmailText } from "@/emails/text";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 import { prisma } from "@/lib/prisma";
 import { logServerWarning } from "@/lib/security/logging";
+import { getBaseUrl } from "@/lib/utils";
 import { recordInviteReferral } from "@/server/community-recognition";
 import { requireStripeClient } from "@/server/stripe/client";
 
@@ -287,22 +290,32 @@ async function sendWelcomeMemberEmail(input: {
   tier: MembershipTier;
 }) {
   const planName = getMembershipPlan(input.tier).name;
+  const dashboardUrl = new URL("/dashboard", getBaseUrl()).toString();
+  const emailTemplate = createElement(WelcomeMemberEmail, {
+    firstName: input.firstName,
+    tier: input.tier,
+    dashboardUrl
+  });
+  const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
     to: input.email,
     subject: "Welcome to The Business Circle",
-    text: [
-      `Hi ${input.firstName},`,
-      "",
-      "Welcome to The Business Circle. You are in the right place.",
-      `Your membership tier is ${planName}.`,
-      "You can now log in to access your dashboard, resources, and community discussions.",
-      "Start with one clear move inside the platform and let the rest build from there."
-    ].join("\n"),
-    react: createElement(WelcomeMemberEmail, {
-      firstName: input.firstName,
-      tier: input.tier
+    text: buildBrandedEmailText({
+      greeting: `Hi ${input.firstName},`,
+      eyebrow: "Welcome to BCN",
+      heading: "Your membership is now live",
+      bodyLines: [
+        `Welcome to The Business Circle Network. Your membership tier is ${planName}.`,
+        "You can now log in to access your dashboard, resources, and community discussions.",
+        "Start with one clear move inside the platform and let the rest build from there."
+      ],
+      ctaLabel: "Open your dashboard",
+      ctaUrl: dashboardUrl,
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
     }),
+    html,
+    react: emailTemplate,
     tags: [
       { name: "type", value: "welcome-member" },
       { name: "source", value: "auth" }

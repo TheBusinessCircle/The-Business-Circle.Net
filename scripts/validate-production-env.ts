@@ -12,6 +12,8 @@ type Options = {
   envFile?: string;
 };
 
+const CANONICAL_PRODUCTION_URL = "https://thebusinesscircle.net";
+
 function loadEnvFileIfAvailable(filePath: string) {
   const loadEnvFile = (process as typeof process & {
     loadEnvFile?: (path?: string) => void;
@@ -62,6 +64,24 @@ function isSecureWebUrl(value: string) {
   return value.startsWith("https://");
 }
 
+function normalizeWebUrl(value: string) {
+  return value.replace(/\/$/, "");
+}
+
+function isLoopbackUrl(value: string) {
+  try {
+    const { hostname } = new URL(value);
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname === "::1"
+    );
+  } catch {
+    return false;
+  }
+}
+
 function isSecureWsUrl(value: string) {
   return value.startsWith("wss://") || value.startsWith("https://");
 }
@@ -84,8 +104,8 @@ function parseCsv(value: string) {
 function validateProductionEnv() {
   const issues: Issue[] = [];
 
-  const appUrl = env("APP_URL");
-  const nextAuthUrl = env("NEXTAUTH_URL");
+  const appUrl = normalizeWebUrl(env("APP_URL"));
+  const nextAuthUrl = normalizeWebUrl(env("NEXTAUTH_URL"));
   const authSecret = env("AUTH_SECRET");
   const nextAuthSecret = env("NEXTAUTH_SECRET");
   const postgresPassword = env("POSTGRES_PASSWORD");
@@ -123,10 +143,30 @@ function validateProductionEnv() {
 
   if (!isSecureWebUrl(appUrl)) {
     addIssue(issues, "error", "APP_URL must use https:// in production.");
+  } else if (isLoopbackUrl(appUrl)) {
+    addIssue(issues, "error", "APP_URL cannot use localhost or another loopback host in production.");
+  } else if (appUrl !== CANONICAL_PRODUCTION_URL) {
+    addIssue(
+      issues,
+      "error",
+      `APP_URL must be set to ${CANONICAL_PRODUCTION_URL} in production.`
+    );
   }
 
   if (!isSecureWebUrl(nextAuthUrl)) {
     addIssue(issues, "error", "NEXTAUTH_URL must use https:// in production.");
+  } else if (isLoopbackUrl(nextAuthUrl)) {
+    addIssue(
+      issues,
+      "error",
+      "NEXTAUTH_URL cannot use localhost or another loopback host in production."
+    );
+  } else if (nextAuthUrl !== CANONICAL_PRODUCTION_URL) {
+    addIssue(
+      issues,
+      "error",
+      `NEXTAUTH_URL must be set to ${CANONICAL_PRODUCTION_URL} in production.`
+    );
   }
 
   if (appUrl && nextAuthUrl && appUrl !== nextAuthUrl) {

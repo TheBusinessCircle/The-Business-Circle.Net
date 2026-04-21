@@ -1,16 +1,37 @@
-﻿type BillingReceiptEmailProps = {
+import React from "react";
+import { BcnEmailLayout, EmailNote } from "@/emails/bcn-email-layout";
+
+type BillingReceiptEmailProps = {
   firstName: string;
   amount: string;
   planName: string;
+  dashboardUrl: string;
 };
 
-export function BillingReceiptEmail({ firstName, amount, planName }: BillingReceiptEmailProps) {
+export function BillingReceiptEmail({
+  firstName,
+  amount,
+  planName,
+  dashboardUrl
+}: BillingReceiptEmailProps) {
   return (
-    <div style={{ fontFamily: "Arial, sans-serif", color: "#0a1024", lineHeight: 1.5 }}>
-      <h1>Payment Receipt</h1>
-      <p>Hi {firstName},</p>
-      <p>We received your payment of {amount} for {planName}.</p>
-      <p>Thank you for being part of The Business Circle Network.</p>
-    </div>
+    <BcnEmailLayout
+      previewText="Your BCN billing receipt is ready."
+      eyebrow="BILLING RECEIPT"
+      heading="Your payment has been received"
+      lead={
+        <>
+          Hi {firstName}, we have received your payment of {amount} for {planName}.
+        </>
+      }
+      ctaLabel="Open your dashboard"
+      ctaUrl={dashboardUrl}
+      fallbackUrl={dashboardUrl}
+      note={
+        <EmailNote>
+          Thank you for being part of The Business Circle Network.
+        </EmailNote>
+      }
+    />
   );
 }

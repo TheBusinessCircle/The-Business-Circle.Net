@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createElement } from "react";
 import { VerifyEmailAddressEmail } from "@/emails";
+import { renderEmailHtml } from "@/emails/render";
+import { buildBrandedEmailText } from "@/emails/text";
 import { db } from "@/lib/db";
 import { sendTransactionalEmailOrThrow } from "@/lib/email/resend";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
@@ -58,96 +60,22 @@ function buildVerificationUrl(userId: string, token: string) {
 }
 
 function buildVerificationEmailText(firstName: string, verificationUrl: string, ttlHours: number) {
-  return [
-    `Hi ${firstName},`,
-    "",
-    "EMAIL VERIFICATION",
-    "Confirm your email address",
-    "",
-    "You are one step away from full access to The Business Circle Network.",
-    "Confirm your email address to unlock your member access and continue inside the platform.",
-    "",
-    `Verification link: ${verificationUrl}`,
-    "",
-    "If the button does not work, copy and paste the link above into your browser.",
-    "",
-    `This verification link expires in ${ttlHours} hours.`,
-    "For security, only the most recent verification email remains valid. Older links expire automatically.",
-    "",
-    "The Business Circle Network"
-  ].join("\n");
-}
-
-function buildVerificationEmailHtml(
-  firstName: string,
-  verificationUrl: string,
-  ttlHours: number,
-  logoUrl: string
-) {
-  return `
-    <div style="margin:0;padding:32px 16px;background-color:#07111f;color:#f8fafc;font-family:Arial,sans-serif;">
-      <div style="margin:0 auto;max-width:560px;">
-        <div style="margin-bottom:20px;text-align:center;">
-          <img
-            src="${logoUrl}"
-            alt="The Business Circle Network"
-            width="84"
-            height="84"
-            style="display:inline-block;width:84px;height:84px;border-radius:9999px;border:1px solid rgba(209,168,97,0.45);background-color:#020817;object-fit:contain;"
-          />
-        </div>
-        <div style="border-radius:28px;border:1px solid rgba(209,168,97,0.22);background:linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(7,17,31,0.98) 100%);box-shadow:0 24px 60px rgba(2,6,23,0.45);padding:36px 28px;">
-          <p style="margin:0 0 14px;color:#d1a861;font-size:12px;font-weight:700;letter-spacing:0.18em;text-align:center;">
-            EMAIL VERIFICATION
-          </p>
-          <h1 style="margin:0 0 14px;color:#f8fafc;font-size:32px;font-weight:700;line-height:1.15;text-align:center;">
-            Confirm your email address
-          </h1>
-          <p style="margin:0 0 28px;color:#94a3b8;font-size:16px;line-height:1.65;text-align:center;">
-            Hi ${firstName}, you are one step away from full access to The Business Circle Network.
-            Confirm your email address to unlock your member access and continue inside the platform.
-          </p>
-          <div style="margin-bottom:28px;text-align:center;">
-            <a
-              href="${verificationUrl}"
-              target="_blank"
-              rel="noopener noreferrer"
-              style="display:inline-block;border-radius:9999px;background-color:#d1a861;color:#07111f;font-size:16px;font-weight:700;line-height:1;padding:16px 28px;text-decoration:none;"
-            >
-              Verify your email
-            </a>
-          </div>
-          <div style="border-radius:20px;border:1px solid rgba(148,163,184,0.18);background-color:rgba(15,23,42,0.7);padding:18px 18px 16px;margin-bottom:18px;">
-            <p style="margin:0 0 10px;color:#e2e8f0;font-size:13px;font-weight:700;letter-spacing:0.08em;">
-              If the button does not work
-            </p>
-            <p style="margin:0 0 10px;color:#94a3b8;font-size:14px;line-height:1.6;">
-              Copy and paste the link below into your browser.
-            </p>
-            <p style="margin:0;word-break:break-all;">
-              <a
-                href="${verificationUrl}"
-                target="_blank"
-                rel="noopener noreferrer"
-                style="color:#d1a861;font-size:13px;line-height:1.6;text-decoration:underline;"
-              >
-                ${verificationUrl}
-              </a>
-            </p>
-          </div>
-          <p style="margin:0 0 6px;color:#cbd5e1;font-size:13px;line-height:1.6;text-align:center;">
-            This verification link expires in ${ttlHours} hours.
-          </p>
-          <p style="margin:0 0 6px;color:#cbd5e1;font-size:13px;line-height:1.6;text-align:center;">
-            For security, only the most recent verification email remains valid. Older links expire automatically.
-          </p>
-          <p style="margin:0;color:#64748b;font-size:12px;line-height:1.6;text-align:center;">
-            The Business Circle Network
-          </p>
-        </div>
-      </div>
-    </div>
-  `.trim();
+  return buildBrandedEmailText({
+    greeting: `Hi ${firstName},`,
+    eyebrow: "Email verification",
+    heading: "Confirm your email address",
+    bodyLines: [
+      "You are one step away from full access to The Business Circle Network.",
+      "Confirm your email address to unlock your member access and continue inside the platform."
+    ],
+    ctaLabel: "Verify your email",
+    ctaUrl: verificationUrl,
+    fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
+    noteLines: [
+      `This verification link expires in ${ttlHours} hours.`,
+      "For security, only the most recent verification email remains valid. Older links expire automatically."
+    ]
+  });
 }
 
 async function sendVerificationEmailMessage(input: {
@@ -157,14 +85,13 @@ async function sendVerificationEmailMessage(input: {
   verificationUrl: string;
   ttlHours: number;
 }): Promise<ResendVerificationEmailResult> {
-  const logoUrl = new URL("/branding/the-business-circle-logo.png", getBaseUrl()).toString();
   const text = buildVerificationEmailText(input.firstName, input.verificationUrl, input.ttlHours);
-  const html = buildVerificationEmailHtml(
-    input.firstName,
-    input.verificationUrl,
-    input.ttlHours,
-    logoUrl
-  );
+  const emailTemplate = createElement(VerifyEmailAddressEmail, {
+    firstName: input.firstName,
+    verificationUrl: input.verificationUrl,
+    ttlHours: input.ttlHours
+  });
+  const html = await renderEmailHtml(emailTemplate);
 
   console.info("[verify-email] starting send", {
     userId: input.userId,
@@ -177,11 +104,7 @@ async function sendVerificationEmailMessage(input: {
       subject: "Verify your Business Circle email",
       text,
       html,
-      react: createElement(VerifyEmailAddressEmail, {
-        firstName: input.firstName,
-        verificationUrl: input.verificationUrl,
-        logoUrl
-      }),
+      react: emailTemplate,
       tags: [
         { name: "type", value: "email-verification" },
         { name: "source", value: "auth" }

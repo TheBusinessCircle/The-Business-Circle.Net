@@ -1,8 +1,12 @@
 import { createHash, randomBytes } from "node:crypto";
-import { db } from "@/lib/db";
-import { sendTransactionalEmail } from "@/lib/email/resend";
+import { createElement } from "react";
+import { PasswordChangedEmail, PasswordResetEmail } from "@/emails";
+import { renderEmailHtml } from "@/emails/render";
+import { buildBrandedEmailText } from "@/emails/text";
 import { hashPassword } from "@/lib/auth/password";
 import { normalizeEmail } from "@/lib/auth/utils";
+import { db } from "@/lib/db";
+import { sendTransactionalEmail } from "@/lib/email/resend";
 import { logServerWarning } from "@/lib/security/logging";
 import { getBaseUrl } from "@/lib/utils";
 
@@ -21,17 +25,10 @@ type ConfirmPasswordResetInput = {
   password: string;
 };
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 function resolveResetTokenTtlMinutes() {
-  const configured = Number(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES ?? DEFAULT_RESET_TOKEN_TTL_MINUTES);
+  const configured = Number(
+    process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES ?? DEFAULT_RESET_TOKEN_TTL_MINUTES
+  );
   if (!Number.isFinite(configured)) {
     return DEFAULT_RESET_TOKEN_TTL_MINUTES;
   }
@@ -75,8 +72,7 @@ function buildResetUrl(email: string, token: string) {
 function genericPasswordResetEmailNotice() {
   return {
     ok: true as const,
-    message:
-      "If an account exists with that email, a password reset link has been sent."
+    message: "If an account exists with that email, a password reset link has been sent."
   };
 }
 
@@ -93,7 +89,6 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
     }
   });
 
-  // Do not reveal whether this email exists.
   if (!user || !user.passwordHash || user.suspended) {
     return genericPasswordResetEmailNotice();
   }
@@ -117,35 +112,34 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
 
   const resetUrl = buildResetUrl(user.email, tokenPair.token);
   const recipientName = user.name?.trim() || "Member";
-  const safeName = escapeHtml(recipientName);
-  const safeResetUrl = escapeHtml(resetUrl);
+  const emailTemplate = createElement(PasswordResetEmail, {
+    firstName: recipientName,
+    resetUrl,
+    ttlMinutes: tokenPair.ttlMinutes
+  });
+  const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
     to: user.email,
     subject: "Reset your Business Circle password",
-    text: [
-      `Hi ${recipientName},`,
-      "",
-      "We received a request to reset your password.",
-      `Use this link to set a new password (expires in ${tokenPair.ttlMinutes} minutes):`,
-      resetUrl,
-      "",
-      "If you did not request this, you can ignore this email."
-    ].join("\n"),
-    html: `
-      <div style="font-family: Arial, sans-serif; color: #111; line-height: 1.5;">
-        <h2>Password reset request</h2>
-        <p>Hi ${safeName},</p>
-        <p>We received a request to reset your password.</p>
-        <p>
-          Use this secure link to set a new password (expires in ${tokenPair.ttlMinutes} minutes):
-        </p>
-        <p>
-          <a href="${safeResetUrl}" target="_blank" rel="noopener noreferrer">${safeResetUrl}</a>
-        </p>
-        <p>If you did not request this, you can ignore this email.</p>
-      </div>
-    `,
+    text: buildBrandedEmailText({
+      greeting: `Hi ${recipientName},`,
+      eyebrow: "Password reset",
+      heading: "Reset your password",
+      bodyLines: [
+        "We received a request to reset your password.",
+        "Use the secure link below to set a new password and return to the platform."
+      ],
+      ctaLabel: "Reset your password",
+      ctaUrl: resetUrl,
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
+      noteLines: [
+        `This reset link expires in ${tokenPair.ttlMinutes} minutes.`,
+        "If you did not request this, you can safely ignore this email."
+      ]
+    }),
+    html,
+    react: emailTemplate,
     tags: [
       { name: "type", value: "password-reset" },
       { name: "source", value: "auth" }
@@ -202,39 +196,37 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
       data: { usedAt }
     });
 
-    // Session strategy is JWT today, but clear DB sessions as a defense-in-depth step.
     await tx.session.deleteMany({
       where: { userId: user.id }
     });
   });
 
   const recipientName = user.name?.trim() || "Member";
-  const safeName = escapeHtml(recipientName);
   const loginUrl = new URL("/login", getBaseUrl()).toString();
+  const emailTemplate = createElement(PasswordChangedEmail, {
+    firstName: recipientName,
+    loginUrl
+  });
+  const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
     to: user.email,
     subject: "Your password was changed",
-    text: [
-      `Hi ${recipientName},`,
-      "",
-      "Your password was changed successfully.",
-      `You can now sign in here: ${loginUrl}`,
-      "",
-      "If this was not you, contact support immediately."
-    ].join("\n"),
-    html: `
-      <div style="font-family: Arial, sans-serif; color: #111; line-height: 1.5;">
-        <h2>Password changed</h2>
-        <p>Hi ${safeName},</p>
-        <p>Your password was changed successfully.</p>
-        <p>
-          You can sign in here:
-          <a href="${escapeHtml(loginUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(loginUrl)}</a>
-        </p>
-        <p>If this was not you, contact support immediately.</p>
-      </div>
-    `,
+    text: buildBrandedEmailText({
+      greeting: `Hi ${recipientName},`,
+      eyebrow: "Security update",
+      heading: "Your password was changed",
+      bodyLines: [
+        "Your password was changed successfully.",
+        "You can now sign back in to The Business Circle Network."
+      ],
+      ctaLabel: "Sign in",
+      ctaUrl: loginUrl,
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
+      noteLines: ["If this was not you, contact support immediately."]
+    }),
+    html,
+    react: emailTemplate,
     tags: [
       { name: "type", value: "password-reset-confirmed" },
       { name: "source", value: "auth" }
