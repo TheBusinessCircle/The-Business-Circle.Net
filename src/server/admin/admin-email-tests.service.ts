@@ -51,7 +51,6 @@ type BuiltAdminEmailTestPayload = {
   subject: string;
   text: string;
   html: string;
-  react: ReturnType<typeof createElement>;
 };
 
 type SendAdminEmailTestInput = {
@@ -216,8 +215,7 @@ async function buildAdminEmailTestPayload(
             ...commonPreviewNoteLines()
           ]
         }),
-        html: await renderEmailHtml(react),
-        react
+        html: await renderEmailHtml(react)
       };
     }
     case "welcome-member-email": {
@@ -244,8 +242,7 @@ async function buildAdminEmailTestPayload(
           ctaUrl: dashboardUrl,
           fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
         }),
-        html: await renderEmailHtml(react),
-        react
+        html: await renderEmailHtml(react)
       };
     }
     case "billing-receipt-email": {
@@ -272,8 +269,7 @@ async function buildAdminEmailTestPayload(
           ctaUrl: dashboardUrl,
           fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
         }),
-        html: await renderEmailHtml(react),
-        react
+        html: await renderEmailHtml(react)
       };
     }
     case "password-reset-email": {
@@ -303,8 +299,7 @@ async function buildAdminEmailTestPayload(
             ...commonPreviewNoteLines()
           ]
         }),
-        html: await renderEmailHtml(react),
-        react
+        html: await renderEmailHtml(react)
       };
     }
     case "password-changed-email": {
@@ -330,8 +325,7 @@ async function buildAdminEmailTestPayload(
           fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
           noteLines: ["If this was not you, contact support immediately."]
         }),
-        html: await renderEmailHtml(react),
-        react
+        html: await renderEmailHtml(react)
       };
     }
     case "contact-auto-reply-email": {
@@ -355,8 +349,7 @@ async function buildAdminEmailTestPayload(
           ],
           noteLines: ["Subject: Founder strategy session enquiry", "Source: /contact"]
         }),
-        html: await renderEmailHtml(react),
-        react
+        html: await renderEmailHtml(react)
       };
     }
     case "contact-admin-notification-email": {
@@ -395,8 +388,7 @@ async function buildAdminEmailTestPayload(
             ...commonPreviewNoteLines()
           ]
         }),
-        html: await renderEmailHtml(react),
-        react
+        html: await renderEmailHtml(react)
       };
     }
     case "inner-circle-upgrade-email": {
@@ -421,8 +413,7 @@ async function buildAdminEmailTestPayload(
           fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
           noteLines: ["Use the link above to step straight into the member environment."]
         }),
-        html: await renderEmailHtml(react),
-        react
+        html: await renderEmailHtml(react)
       };
     }
   }
@@ -439,7 +430,28 @@ export async function sendAdminEmailTest(input: SendAdminEmailTestInput) {
     recipientEmail: input.recipientEmail
   });
 
-  const payload = await buildAdminEmailTestPayload(input.emailType);
+  let payload: BuiltAdminEmailTestPayload;
+
+  try {
+    payload = await buildAdminEmailTestPayload(input.emailType);
+    console.info("[admin-email-test] render success", {
+      adminUserId: input.adminUserId,
+      emailType: input.emailType,
+      recipientEmail: input.recipientEmail,
+      subject: payload.subject
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown admin email preview render error.";
+    console.error("[admin-email-test] failed", {
+      adminUserId: input.adminUserId,
+      emailType: input.emailType,
+      recipientEmail: input.recipientEmail,
+      stage: "render",
+      error: errorMessage
+    });
+    throw error;
+  }
 
   console.info("[admin-email-test] sending", {
     adminUserId: input.adminUserId,
@@ -454,7 +466,6 @@ export async function sendAdminEmailTest(input: SendAdminEmailTestInput) {
       subject: payload.subject,
       text: payload.text,
       html: payload.html,
-      react: payload.react,
       tags: [
         { name: "type", value: "admin-email-test" },
         { name: "email_type", value: input.emailType },
