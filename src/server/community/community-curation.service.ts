@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { CommunityPostKind } from "@prisma/client";
 import { BCN_UPDATES_CHANNEL_SLUG, BCN_UPDATES_MEMBER_ROUTE } from "@/config/community";
+import { parseBcnStructuredContent } from "@/lib/bcn-intelligence";
 import { buildCommunityPostPath } from "@/lib/community-paths";
 import {
   buildBcnCuratedCandidate,
@@ -14,7 +15,70 @@ import { logServerError, logServerWarning } from "@/lib/security/logging";
 import { ensureCommunityChannels, resolveCommunityAutomationAuthorId } from "@/server/community/community.service";
 
 const DEFAULT_BCN_CURATION_THROTTLE_MS = 5 * 60 * 1000;
-const DEFAULT_BCN_CURATION_MAX_POSTS_PER_RUN = 5;
+const DEFAULT_BCN_CURATION_MAX_POSTS_PER_RUN = 2;
+
+const BCN_STOP_WORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "from",
+  "into",
+  "after",
+  "over",
+  "amid",
+  "this",
+  "that",
+  "will",
+  "have",
+  "has",
+  "had",
+  "been",
+  "being",
+  "their",
+  "about",
+  "business",
+  "businesses",
+  "company",
+  "companies",
+  "market",
+  "markets",
+  "news",
+  "update",
+  "updates",
+  "says",
+  "said",
+  "more",
+  "than",
+  "into",
+  "across"
+]);
+
+const BCN_TAG_IMPORTANCE: Record<string, number> = {
+  operations: 1.45,
+  growth: 1.35,
+  regulation: 1.35,
+  "e-commerce": 1.28,
+  marketing: 1.24,
+  ai: 1.22,
+  retail: 1.16,
+  hiring: 1.16,
+  leadership: 1.1,
+  economy: 1.04
+};
+
+type PreparedBcnCandidate = {
+  item: CommunityCurationSourceItem;
+  source: ResolvedBcnSource;
+  candidate: NonNullable<ReturnType<typeof buildBcnCuratedCandidate>>;
+  normalizedTitle: string;
+  titleTokens: Set<string>;
+  contentTokens: Set<string>;
+  entityTokens: Set<string>;
+  topicFingerprint: string[];
+  sourceCredibility: number;
+  score: number;
+};
 
 let lastBcnCurationSweepAt = 0;
 
@@ -53,6 +117,11 @@ type ResolvedBcnSource = ReturnType<typeof resolveBcnSources>[number];
 type QueuedBcnSourceItem = {
   item: CommunityCurationSourceItem;
   source: ResolvedBcnSource;
+};
+
+type BcnCandidateCluster = {
+  key: string;
+  members: PreparedBcnCandidate[];
 };
 
 function bcnCurationEnabled() {
@@ -200,6 +269,316 @@ function itemPublishedAtTime(item: CommunityCurationSourceItem) {
   return Number.isNaN(publishedAt) ? 0 : publishedAt;
 }
 
+function normalizeSimilarityText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenizeSimilarityText(value: string) {
+  return normalizeSimilarityText(value)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && !BCN_STOP_WORDS.has(token));
+}
+
+function extractEntityTokens(value: string) {
+  const matches = value.match(/\b[A-Z][A-Za-z0-9&.-]+(?:\s+[A-Z][A-Za-z0-9&.-]+){0,2}\b/g) ?? [];
+  return new Set(
+    matches
+      .map((match) => match.trim().toLowerCase())
+      .filter((match) => match.length >= 4 && !match.includes("bcn"))
+  );
+}
+
+function jaccardSimilarity(left: Set<string>, right: Set<string>) {
+  if (!left.size || !right.size) {
+    return 0;
+  }
+
+  let intersection = 0;
+  for (const value of left) {
+    if (right.has(value)) {
+      intersection += 1;
+    }
+  }
+
+  const union = left.size + right.size - intersection;
+  return union ? intersection / union : 0;
+}
+
+function overlapShare(left: Set<string>, right: Set<string>) {
+  if (!left.size || !right.size) {
+    return 0;
+  }
+
+  const [smaller, larger] = left.size <= right.size ? [left, right] : [right, left];
+  let shared = 0;
+  for (const value of smaller) {
+    if (larger.has(value)) {
+      shared += 1;
+    }
+  }
+
+  return shared / smaller.size;
+}
+
+function sourceCredibilityScore(source: ResolvedBcnSource) {
+  const haystack = `${source.label} ${source.url}`.toLowerCase();
+
+  if (haystack.includes("reuters")) {
+    return 1.28;
+  }
+
+  if (haystack.includes("bbc")) {
+    return 1.18;
+  }
+
+  if (haystack.includes("ft") || haystack.includes("financial times")) {
+    return 1.22;
+  }
+
+  if (haystack.includes("apnews") || haystack.includes("ap news")) {
+    return 1.18;
+  }
+
+  if (haystack.includes("cnbc") || haystack.includes("bloomberg")) {
+    return 1.14;
+  }
+
+  return 1;
+}
+
+function candidateTagImportanceScore(tags: string[]) {
+  return tags.reduce((score, tag) => score + (BCN_TAG_IMPORTANCE[tag] ?? 0.92), 0);
+}
+
+function countSpecificSignals(value: string) {
+  return (
+    (value.match(/\b(?:19|20)\d{2}\b/g) ?? []).length +
+    (value.match(/\b\d+(?:,\d{3})*(?:\.\d+)?%?\b/g) ?? []).length +
+    (value.match(/\b[A-Z][A-Za-z0-9&.-]+(?:\s+[A-Z][A-Za-z0-9&.-]+){0,2}\b/g) ?? []).length
+  );
+}
+
+function buildTopicFingerprint(item: CommunityCurationSourceItem, candidate: NonNullable<ReturnType<typeof buildBcnCuratedCandidate>>) {
+  const rankedTokens = Array.from(
+    new Set(
+      [
+        ...tokenizeSimilarityText(item.title),
+        ...tokenizeSimilarityText(item.summary),
+        ...tokenizeSimilarityText(candidate.title),
+        ...candidate.tags.filter((tag) => tag !== "bcn-update" && tag !== "curated")
+      ].filter(Boolean)
+    )
+  );
+
+  return rankedTokens.slice(0, 8);
+}
+
+function freshnessScore(item: CommunityCurationSourceItem) {
+  const publishedTime = itemPublishedAtTime(item);
+  if (!publishedTime) {
+    return 0.65;
+  }
+
+  const ageHours = Math.max(0, (Date.now() - publishedTime) / (60 * 60 * 1000));
+  if (ageHours <= 4) {
+    return 1.2;
+  }
+
+  if (ageHours <= 10) {
+    return 1.08;
+  }
+
+  if (ageHours <= 24) {
+    return 0.96;
+  }
+
+  return 0.8;
+}
+
+function detailRichnessScore(item: CommunityCurationSourceItem, candidate: NonNullable<ReturnType<typeof buildBcnCuratedCandidate>>) {
+  const parsed = parseBcnStructuredContent(candidate.content);
+  const detailLength =
+    (parsed?.articleDetail.length ?? 0) +
+    (parsed?.whatHappened.length ?? 0) +
+    (parsed?.keyDetail.length ?? 0);
+  const rawSpecificity = countSpecificSignals(`${candidate.title} ${item.summary} ${item.content}`);
+
+  return detailLength / 340 + rawSpecificity * 0.18;
+}
+
+function noveltyScore(prepared: PreparedBcnCandidate) {
+  return Math.min(1.25, 0.7 + prepared.topicFingerprint.length * 0.06 + prepared.entityTokens.size * 0.08);
+}
+
+function discussionValueScore(candidate: NonNullable<ReturnType<typeof buildBcnCuratedCandidate>>) {
+  const parsed = parseBcnStructuredContent(candidate.content);
+  if (!parsed) {
+    return 0.7;
+  }
+
+  return (
+    parsed.whyThisMatters.length / 220 +
+    parsed.whoThisAffects.length / 200 +
+    parsed.whatToWatchNext.length / 180
+  );
+}
+
+function practicalImportanceScore(item: CommunityCurationSourceItem, candidate: NonNullable<ReturnType<typeof buildBcnCuratedCandidate>>) {
+  const content = `${item.title} ${item.summary} ${item.content}`.toLowerCase();
+  const directSignals = [
+    "pricing",
+    "margin",
+    "demand",
+    "regulation",
+    "compliance",
+    "recall",
+    "hiring",
+    "layoff",
+    "inventory",
+    "operations",
+    "traffic",
+    "conversion",
+    "forecast",
+    "guidance"
+  ].reduce((score, token) => score + (content.includes(token) ? 0.16 : 0), 0);
+
+  return candidateTagImportanceScore(candidate.tags) + directSignals;
+}
+
+function buildPreparedBcnCandidate(
+  queuedItem: QueuedBcnSourceItem,
+  candidate: NonNullable<ReturnType<typeof buildBcnCuratedCandidate>>
+): PreparedBcnCandidate {
+  const titleTokens = new Set(tokenizeSimilarityText(candidate.title));
+  const contentTokens = new Set(
+    tokenizeSimilarityText(`${queuedItem.item.summary} ${queuedItem.item.content}`).slice(0, 28)
+  );
+  const entityTokens = extractEntityTokens(
+    `${queuedItem.item.title} ${queuedItem.item.summary} ${queuedItem.item.content}`
+  );
+  const topicFingerprint = buildTopicFingerprint(queuedItem.item, candidate);
+  const sourceCredibility = sourceCredibilityScore(queuedItem.source);
+  const score =
+    freshnessScore(queuedItem.item) * 1.1 +
+    detailRichnessScore(queuedItem.item, candidate) * 1.2 +
+    sourceCredibility * 0.95 +
+    noveltyScore({
+      item: queuedItem.item,
+      source: queuedItem.source,
+      candidate,
+      normalizedTitle: "",
+      titleTokens,
+      contentTokens,
+      entityTokens,
+      topicFingerprint,
+      sourceCredibility,
+      score: 0
+    } as PreparedBcnCandidate) *
+      0.7 +
+    discussionValueScore(candidate) * 1.05 +
+    practicalImportanceScore(queuedItem.item, candidate) * 1.15;
+
+  return {
+    item: queuedItem.item,
+    source: queuedItem.source,
+    candidate,
+    normalizedTitle: normalizeSimilarityText(candidate.title),
+    titleTokens,
+    contentTokens,
+    entityTokens,
+    topicFingerprint,
+    sourceCredibility,
+    score
+  };
+}
+
+function candidatesAreNearDuplicates(left: PreparedBcnCandidate, right: PreparedBcnCandidate) {
+  if (
+    left.normalizedTitle === right.normalizedTitle ||
+    left.candidate.checksum === right.candidate.checksum ||
+    left.candidate.dedupeKey === right.candidate.dedupeKey
+  ) {
+    return true;
+  }
+
+  const titleSimilarity = jaccardSimilarity(left.titleTokens, right.titleTokens);
+  const contentSimilarity = jaccardSimilarity(left.contentTokens, right.contentTokens);
+  const entitySimilarity = jaccardSimilarity(left.entityTokens, right.entityTokens);
+  const titleOverlap = overlapShare(left.titleTokens, right.titleTokens);
+  const fingerprintSimilarity = jaccardSimilarity(
+    new Set(left.topicFingerprint),
+    new Set(right.topicFingerprint)
+  );
+
+  if (titleSimilarity >= 0.74) {
+    return true;
+  }
+
+  if (titleOverlap >= 0.7 && (entitySimilarity >= 0.18 || contentSimilarity >= 0.18)) {
+    return true;
+  }
+
+  if (titleSimilarity >= 0.38 && entitySimilarity >= 0.16 && contentSimilarity >= 0.14) {
+    return true;
+  }
+
+  if (titleSimilarity >= 0.52 && (contentSimilarity >= 0.4 || fingerprintSimilarity >= 0.58)) {
+    return true;
+  }
+
+  if (entitySimilarity >= 0.6 && contentSimilarity >= 0.34) {
+    return true;
+  }
+
+  return false;
+}
+
+function clusterPreparedCandidates(candidates: PreparedBcnCandidate[]) {
+  const clusters: BcnCandidateCluster[] = [];
+
+  for (const candidate of candidates.sort((left, right) => right.score - left.score)) {
+    const existingCluster = clusters.find((cluster) =>
+      cluster.members.some((member) => candidatesAreNearDuplicates(member, candidate))
+    );
+
+    if (existingCluster) {
+      existingCluster.members.push(candidate);
+      continue;
+    }
+
+    clusters.push({
+      key: candidate.topicFingerprint.join(":") || candidate.normalizedTitle,
+      members: [candidate]
+    });
+  }
+
+  return clusters;
+}
+
+function pickClusterWinner(cluster: BcnCandidateCluster) {
+  return [...cluster.members].sort((left, right) => {
+    const scoreDelta = right.score - left.score;
+    if (scoreDelta !== 0) {
+      return scoreDelta;
+    }
+
+    const specificityDelta =
+      countSpecificSignals(`${right.candidate.title} ${right.item.summary} ${right.item.content}`) -
+      countSpecificSignals(`${left.candidate.title} ${left.item.summary} ${left.item.content}`);
+    if (specificityDelta !== 0) {
+      return specificityDelta;
+    }
+
+    return itemPublishedAtTime(right.item) - itemPublishedAtTime(left.item);
+  })[0]!;
+}
+
 function buildCompletedRunMessage(result: {
   sourceCount: number;
   fetchedCount: number;
@@ -328,6 +707,7 @@ export async function publishBcnCuratedPosts(options?: {
   const seenExternalIds = new Set<string>();
   const seenChecksums = new Set<string>();
   const queuedItems: QueuedBcnSourceItem[] = [];
+  const preparedCandidates: PreparedBcnCandidate[] = [];
 
   for (const source of sources) {
     let payload: string;
@@ -365,20 +745,7 @@ export async function publishBcnCuratedPosts(options?: {
     queuedItems.push(...items.map((item) => ({ item, source })));
   }
 
-  queuedItems.sort((left, right) => {
-    const publishedTimeDelta = itemPublishedAtTime(right.item) - itemPublishedAtTime(left.item);
-    if (publishedTimeDelta !== 0) {
-      return publishedTimeDelta;
-    }
-
-    return left.item.title.localeCompare(right.item.title);
-  });
-
   for (const queuedItem of queuedItems) {
-    if (publishedPostIds.length >= maxPostsPerRun) {
-      break;
-    }
-
     const { item, source } = queuedItem;
 
     if (!isWithinLookbackWindow(item.publishedAt, now)) {
@@ -416,6 +783,45 @@ export async function publishBcnCuratedPosts(options?: {
     }
 
     candidateCount += 1;
+    preparedCandidates.push(buildPreparedBcnCandidate(queuedItem, candidate));
+  }
+
+  const candidateClusters = clusterPreparedCandidates(preparedCandidates);
+  duplicateCount += Math.max(0, preparedCandidates.length - candidateClusters.length);
+
+  const clusterWinners = candidateClusters
+    .map((cluster) => pickClusterWinner(cluster))
+    .sort((left, right) => {
+      const scoreDelta = right.score - left.score;
+      if (scoreDelta !== 0) {
+        return scoreDelta;
+      }
+
+      return itemPublishedAtTime(right.item) - itemPublishedAtTime(left.item);
+    });
+
+  const selectedCandidates: PreparedBcnCandidate[] = [];
+
+  for (const prepared of clusterWinners) {
+    if (selectedCandidates.length >= maxPostsPerRun) {
+      break;
+    }
+
+    if (selectedCandidates.some((selected) => candidatesAreNearDuplicates(selected, prepared))) {
+      duplicateCount += 1;
+      logServerWarning("bcn-curation-item-skipped", {
+        reason: "duplicate-cluster-overlap",
+        sourceId: prepared.item.sourceId,
+        sourceName: prepared.source.label
+      });
+      continue;
+    }
+
+    selectedCandidates.push(prepared);
+  }
+
+  for (const prepared of selectedCandidates) {
+    const { item, source, candidate } = prepared;
 
     if (
       seenExternalIds.has(`${source.label}:${candidate.externalId}`) ||

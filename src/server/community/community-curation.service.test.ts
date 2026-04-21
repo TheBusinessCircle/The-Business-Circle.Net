@@ -51,7 +51,7 @@ describe("community curation service", () => {
     process.env.BCN_COMMUNITY_SOURCE_URLS = "";
     process.env.BCN_COMMUNITY_SOURCE_NAME = "BCN Source";
     process.env.BCN_COMMUNITY_LOOKBACK_HOURS = "24";
-    process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "5";
+    process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "2";
     process.env.BCN_COMMUNITY_AUTOMATION_THROTTLE_MS = "300000";
 
     automationMock.ensureCommunityChannels.mockResolvedValue(undefined);
@@ -105,7 +105,7 @@ describe("community curation service", () => {
       rejectedNotRelevantCount: 0,
       rejectedStaleCount: 0,
       lookbackHours: 24,
-      maxPostsPerRun: 5,
+      maxPostsPerRun: 2,
       throttleMs: 300000
     });
     expect(dbMock.communityPost.create).toHaveBeenCalledWith(
@@ -156,7 +156,7 @@ describe("community curation service", () => {
     expect(dbMock.communityPost.create).not.toHaveBeenCalled();
   });
 
-  it("dedupes overlapping stories across multiple configured sources", async () => {
+  it("clusters overlapping stories across multiple configured sources and publishes only one winner", async () => {
     process.env.BCN_COMMUNITY_SOURCE_URL = "";
     process.env.BCN_COMMUNITY_SOURCE_URLS =
       "https://example.com/feed-a.xml, https://example.com/feed-b.xml";
@@ -215,10 +215,74 @@ describe("community curation service", () => {
     expect(dbMock.communityPost.create).toHaveBeenCalledTimes(1);
   });
 
-  it("prefers the newest stories across all configured sources before hitting the run cap", async () => {
+  it("prefers the richer source when two feeds cover the same story", async () => {
     process.env.BCN_COMMUNITY_SOURCE_URL = "";
     process.env.BCN_COMMUNITY_SOURCE_URLS =
-      "https://example.com/feed-a.xml, https://example.com/feed-b.xml";
+      "https://example.com/feed-thin.xml, https://example.com/feed-rich.xml";
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      return {
+        ok: true,
+        text: vi.fn().mockResolvedValue(
+          url.includes("feed-thin")
+            ? `
+                <rss>
+                  <channel>
+                    <title>Thin Wire</title>
+                    <item>
+                      <guid>thin-1</guid>
+                      <title>Volvo recalls hybrid SUVs over battery issue</title>
+                      <description>Volvo has issued a recall on hybrid SUVs over a battery issue.</description>
+                      <link>https://example.com/volvo-recall-thin</link>
+                      <pubDate>Fri, 18 Apr 2026 10:00:00 GMT</pubDate>
+                    </item>
+                  </channel>
+                </rss>
+              `
+            : `
+                <rss>
+                  <channel>
+                    <title>Reuters</title>
+                    <item>
+                      <guid>rich-1</guid>
+                      <title>Volvo recalls 48,000 XC60 and XC90 hybrid SUVs across Europe over battery fire risk</title>
+                      <description>Volvo is recalling 48,000 XC60 and XC90 hybrid SUVs across Europe after identifying a battery module defect linked to overheating and fire risk.</description>
+                      <link>https://example.com/volvo-recall-rich</link>
+                      <pubDate>Fri, 18 Apr 2026 10:05:00 GMT</pubDate>
+                    </item>
+                  </channel>
+                </rss>
+              `
+        )
+      } as Response;
+    });
+
+    const result = await publishBcnCuratedPosts({
+      fetchImpl: fetchImpl as typeof fetch
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      publishedCount: 1,
+      duplicateCount: 1,
+      candidateCount: 2
+    });
+    expect(dbMock.communityPost.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title:
+            "Volvo recalls 48,000 XC60 and XC90 hybrid SUVs across Europe over battery fire risk"
+        })
+      })
+    );
+  });
+
+  it("publishes only the best two non-overlapping stories per run", async () => {
+    process.env.BCN_COMMUNITY_SOURCE_URL = "";
+    process.env.BCN_COMMUNITY_SOURCE_URLS =
+      "https://example.com/feed-a.xml, https://example.com/feed-b.xml, https://example.com/feed-c.xml";
     process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "2";
     dbMock.communityPost.create
       .mockResolvedValueOnce({ id: "post_bcn_newest" })
@@ -238,29 +302,44 @@ describe("community curation service", () => {
                     <item>
                       <guid>feed-a-older</guid>
                       <title>Manufacturers rethink pricing after freight costs rise</title>
-                      <description>Exporters are revising pricing and delivery windows after another jump in freight costs.</description>
+                      <description>Exporters are revising pricing and delivery windows after another jump in freight costs, with margin pressure building across supply chains.</description>
                       <link>https://example.com/feed-a-older</link>
                       <pubDate>Fri, 18 Apr 2026 08:00:00 GMT</pubDate>
                     </item>
                   </channel>
                 </rss>
               `
-            : `
+            : url.includes("feed-b")
+              ? `
                 <rss>
                   <channel>
                     <title>Feed B</title>
                     <item>
                       <guid>feed-b-newest</guid>
                       <title>Chip suppliers raise investment plans as demand improves</title>
-                      <description>Semiconductor suppliers are expanding investment plans as enterprise demand and cloud orders improve.</description>
+                      <description>Semiconductor suppliers are expanding investment plans as enterprise demand and cloud orders improve, signalling stronger capacity and procurement activity.</description>
                       <link>https://example.com/feed-b-newest</link>
                       <pubDate>Fri, 18 Apr 2026 11:30:00 GMT</pubDate>
                     </item>
                     <item>
-                      <guid>feed-b-second</guid>
-                      <title>Retail groups trim hiring targets as consumer demand softens</title>
-                      <description>Retail operators are reviewing hiring, inventory, and promotions as consumer demand stays uneven.</description>
-                      <link>https://example.com/feed-b-second</link>
+                      <guid>feed-b-duplicate</guid>
+                      <title>Semiconductor suppliers expand investment plans as cloud demand improves</title>
+                      <description>Chipmakers are increasing investment plans as enterprise cloud demand improves and order books strengthen.</description>
+                      <link>https://example.com/feed-b-duplicate</link>
+                      <pubDate>Fri, 18 Apr 2026 11:20:00 GMT</pubDate>
+                    </item>
+                  </channel>
+                </rss>
+              `
+              : `
+                <rss>
+                  <channel>
+                    <title>Reuters</title>
+                    <item>
+                      <guid>feed-c-rich</guid>
+                      <title>EU AI Act disclosure rules push Adobe and Microsoft to update enterprise copilots</title>
+                      <description>Adobe and Microsoft are updating enterprise AI product messaging and compliance workflows ahead of new EU AI Act disclosure expectations across European markets.</description>
+                      <link>https://example.com/feed-c-rich</link>
                       <pubDate>Fri, 18 Apr 2026 10:45:00 GMT</pubDate>
                     </item>
                   </channel>
@@ -276,29 +355,26 @@ describe("community curation service", () => {
 
     expect(result).toMatchObject({
       status: "completed",
-      sourceCount: 2,
+      sourceCount: 3,
       publishedCount: 2,
-      fetchedCount: 3,
+      fetchedCount: 4,
+      duplicateCount: 1,
       maxPostsPerRun: 2
     });
-    expect(dbMock.communityPost.create).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        data: expect.objectContaining({
-          title: "Chip suppliers raise investment plans as demand improves",
-          automationSource: "Example"
-        })
-      })
+    const publishedTitles = dbMock.communityPost.create.mock.calls.map(
+      ([input]) => input.data.title
     );
-    expect(dbMock.communityPost.create).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        data: expect.objectContaining({
-          title: "Retail groups trim hiring targets as consumer demand softens",
-          automationSource: "Example"
-        })
-      })
+
+    expect(publishedTitles).toContain(
+      "EU AI Act disclosure rules push Adobe and Microsoft to update enterprise copilots"
     );
+    expect(new Set(publishedTitles).size).toBe(2);
+    expect(
+      publishedTitles.filter(
+        (title) =>
+          title.toLowerCase().includes("chip") || title.toLowerCase().includes("semiconductor")
+      ).length
+    ).toBeLessThanOrEqual(1);
   });
 
   it("skips likely non-English items to keep BCN updates in English", async () => {

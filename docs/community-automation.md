@@ -27,7 +27,7 @@ Environment:
 - `BCN_COMMUNITY_SOURCE_NAME` only affects the legacy single-source label; multi-source runs derive labels from each feed.
 - `BCN_COMMUNITY_LOOKBACK_HOURS` should stay at `24` so BCN Updates stays focused on the latest day of useful business news.
 - `BCN_COMMUNITY_AUTOMATION_THROTTLE_MS` now defaults to `300000` so opportunistic checks never outrun the 5-minute scheduler target.
-- `BCN_COMMUNITY_MAX_POSTS_PER_RUN` now defaults to `5` to allow a fuller catch-up run without flooding the feed.
+- `BCN_COMMUNITY_MAX_POSTS_PER_RUN` now defaults to `2` so BCN Intelligence stays selective even when many sources are configured.
 
 Cron example:
 
