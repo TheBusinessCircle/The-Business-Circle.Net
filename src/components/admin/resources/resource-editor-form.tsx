@@ -25,6 +25,7 @@ export type ResourceEditorInitialValues = {
   title: string;
   slug: string;
   excerpt: string;
+  coverImage: string;
   tier: ResourceTier;
   category: string;
   type: ResourceType;
@@ -53,6 +54,7 @@ export function ResourceEditorForm({
   const [category, setCategory] = useState<string>(initialValues.category);
   const [type, setType] = useState<ResourceType>(initialValues.type);
   const [excerpt, setExcerpt] = useState<string>(initialValues.excerpt);
+  const [coverImage, setCoverImage] = useState<string>(initialValues.coverImage);
   const [content, setContent] = useState<string>(initialValues.content);
 
   const categories = useMemo(() => RESOURCE_CATEGORIES_BY_TIER[tier], [tier]);
@@ -176,6 +178,20 @@ export function ResourceEditorForm({
               rows={3}
               required
             />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="coverImage">Cover Image URL</Label>
+            <Input
+              id="coverImage"
+              name="coverImage"
+              value={coverImage}
+              onChange={(event) => setCoverImage(event.target.value)}
+              placeholder="https://images.example.com/resource-cover.jpg"
+            />
+            <p className="text-xs text-muted">
+              Optional manual override. Leave blank to let the live resource experience fall back to the existing stored media or branded placeholder treatment.
+            </p>
           </div>
 
           <div className="space-y-2 md:col-span-2">

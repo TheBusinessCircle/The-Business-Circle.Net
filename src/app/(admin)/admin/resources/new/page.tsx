@@ -66,6 +66,7 @@ export default async function AdminNewResourcePage() {
           title: "",
           slug: "",
           excerpt: "",
+          coverImage: "",
           tier: "FOUNDATION",
           category: "Getting Started",
           type: "CLARITY",

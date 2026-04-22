@@ -1,4 +1,9 @@
-import { MembershipTier, ResourceTier, ResourceType } from "@prisma/client";
+import {
+  MembershipTier,
+  ResourceMediaType,
+  ResourceTier,
+  ResourceType
+} from "@prisma/client";
 import { db } from "@/lib/db";
 import { getAccessibleResourceTiers } from "@/server/resources/resource-policy";
 import { buildResourceReadFilter, type ResourceLibraryView } from "@/server/resources/resource-read.service";
@@ -11,6 +16,9 @@ export type PublishedResourceSummary = {
   tier: ResourceTier;
   category: string;
   type: ResourceType;
+  coverImage: string | null;
+  mediaType: ResourceMediaType;
+  mediaUrl: string | null;
   publishedAt: Date | null;
   updatedAt: Date;
   isRead: boolean;
@@ -44,6 +52,9 @@ export async function listLatestPublishedResources(
       tier: true,
       category: true,
       type: true,
+      coverImage: true,
+      mediaType: true,
+      mediaUrl: true,
       publishedAt: true,
       updatedAt: true,
       ...(options?.userId
@@ -70,6 +81,9 @@ export async function listLatestPublishedResources(
     tier: resource.tier,
     category: resource.category,
     type: resource.type,
+    coverImage: resource.coverImage,
+    mediaType: resource.mediaType,
+    mediaUrl: resource.mediaUrl,
     publishedAt: resource.publishedAt,
     updatedAt: resource.updatedAt,
     isRead: "readStates" in resource ? resource.readStates.length > 0 : false
@@ -96,6 +110,9 @@ export async function getPublishedResourceBySlug(slug: string, membershipTier: M
       tier: true,
       category: true,
       type: true,
+      coverImage: true,
+      mediaType: true,
+      mediaUrl: true,
       publishedAt: true,
       updatedAt: true,
       createdAt: true
@@ -138,6 +155,9 @@ export async function getRelatedPublishedResources(
       tier: true,
       category: true,
       type: true,
+      coverImage: true,
+      mediaType: true,
+      mediaUrl: true,
       publishedAt: true,
       updatedAt: true
     },

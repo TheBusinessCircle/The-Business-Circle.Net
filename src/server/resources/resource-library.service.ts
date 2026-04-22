@@ -1,4 +1,10 @@
-import { MembershipTier, Prisma, ResourceTier, ResourceType } from "@prisma/client";
+import {
+  MembershipTier,
+  Prisma,
+  ResourceMediaType,
+  ResourceTier,
+  ResourceType
+} from "@prisma/client";
 import {
   RESOURCE_CATEGORY_OPTIONS,
   RESOURCE_TIER_LABELS,
@@ -31,6 +37,9 @@ export type ResourceLibraryCardItem = {
   tier: ResourceTier;
   category: string;
   type: ResourceType;
+  coverImage: string | null;
+  mediaType: ResourceMediaType;
+  mediaUrl: string | null;
   publishedAt: Date | null;
   updatedAt: Date;
   isRead: boolean;
@@ -168,6 +177,9 @@ export async function searchResourceLibrary(
       tier: true,
       category: true,
       type: true,
+      coverImage: true,
+      mediaType: true,
+      mediaUrl: true,
       publishedAt: true,
       updatedAt: true,
       ...(filters.userId
@@ -195,6 +207,9 @@ export async function searchResourceLibrary(
       tier: resource.tier,
       category: resource.category,
       type: resource.type,
+      coverImage: resource.coverImage,
+      mediaType: resource.mediaType,
+      mediaUrl: resource.mediaUrl,
       publishedAt: resource.publishedAt,
       updatedAt: resource.updatedAt,
       isRead: "readStates" in resource ? resource.readStates.length > 0 : false

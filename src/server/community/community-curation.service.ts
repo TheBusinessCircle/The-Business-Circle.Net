@@ -13,6 +13,7 @@ import {
 import { db } from "@/lib/db";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
 import { ensureCommunityChannels, resolveCommunityAutomationAuthorId } from "@/server/community/community.service";
+import { resolveCommunitySourcePreviewMetadata } from "@/server/community/community-source-preview.service";
 
 const DEFAULT_BCN_CURATION_THROTTLE_MS = 5 * 60 * 1000;
 const DEFAULT_BCN_CURATION_MAX_POSTS_PER_RUN = 2;
@@ -866,6 +867,13 @@ export async function publishBcnCuratedPosts(options?: {
       continue;
     }
 
+    const sourcePreview = await resolveCommunitySourcePreviewMetadata({
+      title: candidate.title,
+      sourceName: source.label,
+      sourceUrl: candidate.sourceUrl ?? item.url,
+      fetchImpl: options?.fetchImpl
+    });
+
     const createdPost = await db.communityPost.create({
       data: {
         channelId: channel.id,
@@ -877,6 +885,11 @@ export async function publishBcnCuratedPosts(options?: {
         automationSource: source.label,
         automationExternalId: candidate.externalId,
         automationChecksum: candidate.checksum,
+        sourceUrl: sourcePreview.sourceUrl,
+        sourceDomain: sourcePreview.sourceDomain,
+        previewImageUrl: sourcePreview.previewImageUrl,
+        previewImageKind: sourcePreview.previewImageKind,
+        previewGeneratedAt: sourcePreview.previewGeneratedAt,
         automatedAt: new Date()
       },
       select: {

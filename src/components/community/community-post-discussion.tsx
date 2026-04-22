@@ -16,6 +16,7 @@ import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { FeedSubmitButton } from "@/components/community/feed-submit-button";
+import { CommunitySourcePreview } from "@/components/community/community-source-preview";
 import { CommunityUserSignals } from "@/components/community/community-user-signals";
 import { ContinuePrivatelyButton } from "@/components/messages";
 import { authorName } from "@/lib/community-helpers";
@@ -356,7 +357,10 @@ export function CommunityPostBody({
   post,
   showTags = true
 }: {
-  post: Pick<CommunityPostSummaryModel, "content" | "tags">;
+  post: Pick<
+    CommunityPostSummaryModel,
+    "title" | "content" | "tags" | "previewImageUrl" | "sourceUrl" | "sourceDomain"
+  >;
   showTags?: boolean;
 }) {
   const parsedConnectionWin = parseConnectionWin(post.content, post.tags);
@@ -433,6 +437,13 @@ export function CommunityPostBody({
 
     return (
       <div className="space-y-5">
+        <CommunitySourcePreview
+          title={post.title}
+          sourceAttribution={parsedBcnContent.source}
+          previewImageUrl={post.previewImageUrl}
+          sourceUrl={post.sourceUrl}
+          sourceDomain={post.sourceDomain}
+        />
         <div className="rounded-2xl border border-gold/22 bg-gold/10 px-4 py-4">
           <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Article detail</p>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
@@ -664,3 +675,5 @@ export function CommunityPostDiscussion({
     </div>
   );
 }
+
+export { CommunitySourcePreview };

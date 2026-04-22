@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Badge } from "@/components/ui/badge";
 import { CommunityPostFeedList } from "@/components/community/community-post-feed-list";
+import { CommunitySourcePreview } from "@/components/community/community-post-discussion";
 import { VisualPlacementBackground } from "@/components/visual-media";
 import {
   BCN_UPDATES_CHANNEL_SLUG,
@@ -259,26 +260,37 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                 </div>
               </CardHeader>
               <CardContent className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Key detail</p>
-                    <p className="mt-2 text-sm leading-7 text-foreground/88">
-                      {latestSignalPreview?.keyDetail ?? latestSignalPreview?.whatHappened}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Why this matters</p>
-                    <p className="mt-2 text-sm leading-7 text-foreground/88">
-                      {latestSignalPreview?.whyThisMatters ??
-                        "Worth discussing when the signal changes pricing, demand, staffing, execution, or strategic timing."}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4 md:col-span-2">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">What to watch next</p>
-                    <p className="mt-2 text-sm leading-7 text-foreground/88">
-                      {latestSignalPreview?.whatToWatchNext ??
-                        "Watch for whether the next updates show a wider operating shift rather than a single headline."}
-                    </p>
+                <div className="space-y-3">
+                  {latestSignalPreview ? (
+                    <CommunitySourcePreview
+                      title={latestSignal.title}
+                      sourceAttribution={latestSignalPreview.source}
+                      previewImageUrl={latestSignal.previewImageUrl}
+                      sourceUrl={latestSignal.sourceUrl}
+                      sourceDomain={latestSignal.sourceDomain}
+                    />
+                  ) : null}
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Key detail</p>
+                      <p className="mt-2 text-sm leading-7 text-foreground/88">
+                        {latestSignalPreview?.keyDetail ?? latestSignalPreview?.whatHappened}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Why this matters</p>
+                      <p className="mt-2 text-sm leading-7 text-foreground/88">
+                        {latestSignalPreview?.whyThisMatters ??
+                          "Worth discussing when the signal changes pricing, demand, staffing, execution, or strategic timing."}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4 md:col-span-2">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-silver">What to watch next</p>
+                      <p className="mt-2 text-sm leading-7 text-foreground/88">
+                        {latestSignalPreview?.whatToWatchNext ??
+                          "Watch for whether the next updates show a wider operating shift rather than a single headline."}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col justify-between gap-3 rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">

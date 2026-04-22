@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Lock, MoveUpRight, Tags } from "lucide-react";
-import { ResourceTier, ResourceType } from "@prisma/client";
+import { ResourceMediaType, ResourceTier, ResourceType } from "@prisma/client";
+import { ResourceCoverImage } from "@/components/resources/resource-cover-image";
 import { ResourceTierBadge } from "@/components/resources/resource-tier-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,9 @@ type ResourceLibraryCardProps = {
     category: string;
     type: ResourceType;
     tier: ResourceTier;
+    coverImage?: string | null;
+    mediaType?: ResourceMediaType;
+    mediaUrl?: string | null;
     publishedAt: Date | null;
     isRead?: boolean;
   };
@@ -39,6 +43,19 @@ export function ResourceLibraryCard({
 
   return (
     <Card className={`interactive-card group h-full overflow-hidden ${tierCardClassName}`}>
+      <ResourceCoverImage
+        resource={{
+          title: resource.title,
+          category: resource.category,
+          type: resource.type,
+          tier: resource.tier,
+          coverImage: resource.coverImage,
+          mediaType: resource.mediaType,
+          mediaUrl: resource.mediaUrl
+        }}
+        className="aspect-[16/10] border-b border-silver/12"
+        imageClassName="transition-transform duration-500 group-hover:scale-[1.03]"
+      />
       <CardHeader className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="muted">

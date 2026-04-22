@@ -1,4 +1,4 @@
-import { ResourceStatus, ResourceTier, ResourceType } from "@prisma/client";
+import { ResourceMediaType, ResourceStatus, ResourceTier, ResourceType } from "@prisma/client";
 
 export interface ResourceCardModel {
   id: string;
@@ -9,6 +9,9 @@ export interface ResourceCardModel {
   tier: ResourceTier;
   type: ResourceType;
   category: string;
+  coverImage: string | null;
+  mediaType: ResourceMediaType;
+  mediaUrl: string | null;
 }
 
 export interface ResourceDetailModel extends ResourceCardModel {

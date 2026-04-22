@@ -15,6 +15,7 @@ import {
   CommunityPostBody,
   CommunityPostCommentsSection,
   CommunityPostEngagementBar,
+  CommunitySourcePreview,
   CommunityPostTags
 } from "@/components/community/community-post-discussion";
 import { CommunityUserSignals } from "@/components/community/community-user-signals";
@@ -257,6 +258,14 @@ export function CommunityPostFeedList({
                   <CardTitle className="text-2xl leading-tight">{post.title}</CardTitle>
                   {parsedBcn ? (
                     <div className="space-y-3">
+                      <CommunitySourcePreview
+                        title={post.title}
+                        sourceAttribution={parsedBcn.source}
+                        previewImageUrl={post.previewImageUrl}
+                        sourceUrl={post.sourceUrl}
+                        sourceDomain={post.sourceDomain}
+                        compact
+                      />
                       <div className="rounded-2xl border border-gold/18 bg-gold/10 px-4 py-3">
                         <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
                           Article detail

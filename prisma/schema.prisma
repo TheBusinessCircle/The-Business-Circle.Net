@@ -819,6 +819,11 @@ model CommunityPost {
   automationSource     String?
   automationExternalId String?
   automationChecksum   String?        @unique
+  sourceUrl           String?
+  sourceDomain        String?
+  previewImageUrl     String?
+  previewImageKind    String?
+  previewGeneratedAt  DateTime?
   automatedAt          DateTime?
   deletedAt    DateTime?
   createdAt    DateTime               @default(now())
@@ -836,6 +841,7 @@ model CommunityPost {
   @@index([userId, createdAt])
   @@index([kind, createdAt])
   @@index([automationSource, automationExternalId])
+  @@index([sourceDomain, createdAt])
   @@index([deletedAt])
   @@index([deletedAt, createdAt])
 }

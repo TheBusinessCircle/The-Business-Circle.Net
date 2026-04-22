@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ResourceTier, ResourceType } from "@prisma/client";
 import { Filter, Search, Sparkles } from "lucide-react";
 import { ResourceLibraryCard } from "@/components/resources";
+import { ResourceCoverImage } from "@/components/resources";
 import { ResourceTierBadge } from "@/components/resources/resource-tier-badge";
 import { VisualPlacementBackground } from "@/components/visual-media";
 import { Badge } from "@/components/ui/badge";
@@ -336,6 +337,12 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
                 href={`/dashboard/resources/${recommendedNextRead.slug}`}
                 className="block rounded-2xl border border-silver/14 bg-background/22 px-4 py-4 transition-colors hover:border-silver/28 hover:bg-background/32"
               >
+                <ResourceCoverImage
+                  resource={recommendedNextRead}
+                  className="mb-4 aspect-[16/9] rounded-[1.6rem] border border-silver/10"
+                  imageClassName="transition-transform duration-500 hover:scale-[1.02]"
+                  overlayClassName="bg-[linear-gradient(180deg,rgba(3,8,20,0.03),rgba(3,8,20,0.12)_48%,rgba(3,8,20,0.34)_100%)]"
+                />
                 <div className="flex flex-wrap items-center gap-2">
                   <ResourceTierBadge tier={recommendedNextRead.tier} />
                   <Badge variant="outline" className="border-silver/14 normal-case tracking-normal text-silver">
@@ -381,10 +388,16 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
                   <Link
                     key={resource.id}
                     href={`/dashboard/resources/${resource.slug}`}
-                    className="block rounded-xl border border-silver/14 bg-background/20 px-4 py-3 transition-colors hover:border-silver/26 hover:bg-background/30"
+                    className="block rounded-xl border border-silver/14 bg-background/20 p-3 transition-colors hover:border-silver/26 hover:bg-background/30"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <ResourceCoverImage
+                        resource={resource}
+                        className="h-16 w-24 shrink-0 rounded-xl border border-silver/12"
+                        imageClassName="object-cover"
+                        overlayClassName="bg-[linear-gradient(180deg,rgba(3,8,20,0.02),rgba(3,8,20,0.14)_100%)]"
+                      />
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-foreground">{resource.title}</p>
                         <p className="text-xs text-muted">
                           {resource.category}

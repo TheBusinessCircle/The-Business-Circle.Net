@@ -9,6 +9,7 @@ import {
 } from "@/actions/resources/resource-progress.actions";
 import {
   ResourceMarkdown,
+  ResourceCoverImage,
   ResourceNarratorCard,
   ResourceNarratorPrimaryControls,
   ResourceNarratorProvider,
@@ -144,6 +145,13 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
       </div>
 
       <Card className="overflow-hidden border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/68">
+        <ResourceCoverImage
+          resource={resource}
+          className="aspect-[16/9] border-b border-silver/14"
+          imageClassName="object-cover"
+          overlayClassName="bg-[linear-gradient(180deg,rgba(3,8,20,0.04),rgba(3,8,20,0.14)_32%,rgba(3,8,20,0.56)_100%)]"
+          priority
+        />
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <ResourceTierBadge tier={resource.tier} />

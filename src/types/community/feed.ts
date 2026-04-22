@@ -40,6 +40,10 @@ export interface CommunityPostSummaryModel {
   promptTier: MembershipTier | null;
   createdAt: string;
   updatedAt: string;
+  sourceUrl: string | null;
+  sourceDomain: string | null;
+  previewImageUrl: string | null;
+  previewImageKind: string | null;
   likeCount: number;
   commentCount: number;
   viewerHasLiked: boolean;
