@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { resolveAuthErrorMessage } from "@/lib/auth/client";
+import { DEFAULT_AUTH_ERROR_MESSAGE, resolveAuthErrorMessage } from "@/lib/auth/client";
 import { type CredentialsSignInInput, credentialsSignInSchema } from "@/lib/auth/schemas";
 import { safeRedirectPath } from "@/lib/auth/utils";
 
@@ -58,19 +58,28 @@ export function LoginForm({
     setNotice(null);
 
     startTransition(async () => {
-      const result = await signIn("credentials", {
-        email: values.email,
-        password: values.password,
-        redirect: false
-      });
+      try {
+        const result = await signIn("credentials", {
+          email: values.email,
+          password: values.password,
+          redirect: false
+        });
 
-      if (result?.error) {
-        setNotice(resolveAuthErrorMessage(result.error, result.code));
-        return;
+        if (result?.error) {
+          const detailCode = "code" in result ? result.code : undefined;
+          setNotice(resolveAuthErrorMessage(result.error, detailCode));
+          return;
+        }
+
+        router.push(targetPath);
+        router.refresh();
+      } catch (error) {
+        console.error("[auth] Login submission failed", {
+          from: from ?? null,
+          error: error instanceof Error ? error.message : "Unknown login submission error."
+        });
+        setNotice(DEFAULT_AUTH_ERROR_MESSAGE);
       }
-
-      router.push(targetPath);
-      router.refresh();
     });
   });
 

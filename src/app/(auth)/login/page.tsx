@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { parseLoginSearchParams } from "@/lib/auth/login-state";
 import { withFromParam } from "@/lib/auth/utils";
 import { createPageMetadata } from "@/lib/seo";
 
@@ -17,16 +18,9 @@ export const metadata: Metadata = createPageMetadata({
   noIndex: true
 });
 
-function firstValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const from = firstValue(params.from);
-  const error = firstValue(params.error);
-  const code = firstValue(params.code);
-  const verified = firstValue(params.verified) === "1";
+  const { from, errorCode, errorDetailCode, initialNotice } = parseLoginSearchParams(params);
 
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:px-8">
@@ -50,11 +44,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
       <LoginForm
         from={from}
-        errorCode={error}
-        errorDetailCode={code}
-        initialNotice={
-          verified ? "Email verified successfully. You can sign in now." : undefined
-        }
+        errorCode={errorCode}
+        errorDetailCode={errorDetailCode}
+        initialNotice={initialNotice}
       />
     </div>
   );
