@@ -261,7 +261,7 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
       ) : null}
 
       <Card className="relative overflow-hidden border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/68">
-        <VisualPlacementBackground placement={resourcesHeroPlacement} />
+        <VisualPlacementBackground placement={resourcesHeroPlacement} tone="editorial" />
         <CardHeader className="relative z-[1] space-y-4">
           <Badge variant="outline" className="w-fit border-silver/18 bg-silver/10 text-silver">
             Member Resources

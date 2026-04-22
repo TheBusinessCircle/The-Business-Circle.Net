@@ -544,7 +544,7 @@ export function MembershipGuidedSelector({
       />
 
       <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
-        <VisualPlacementBackground placement={heroPlacement} />
+        <VisualPlacementBackground placement={heroPlacement} tone="structured" />
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-foundation/14 blur-[120px]" />
@@ -646,6 +646,7 @@ export function MembershipGuidedSelector({
           {roomsPlacement?.isActive && roomsPlacement.imageUrl ? (
             <SectionFeatureImage
               placement={roomsPlacement}
+              tone="platform"
               aspectClassName="aspect-[16/11] xl:aspect-[4/5]"
               className="min-h-[17rem]"
             />
@@ -775,6 +776,7 @@ export function MembershipGuidedSelector({
           {foundersPlacement?.isActive && foundersPlacement.imageUrl ? (
             <SectionFeatureImage
               placement={foundersPlacement}
+              tone="founders"
               className="min-h-[17rem]"
             />
           ) : null}

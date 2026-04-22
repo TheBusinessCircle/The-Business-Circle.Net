@@ -137,7 +137,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <Card className="relative overflow-hidden border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
-        <VisualPlacementBackground placement={communityHeroPlacement} />
+        <VisualPlacementBackground placement={communityHeroPlacement} tone="structured" />
         <CardHeader className="relative z-[1]">
           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Member discussions</p>
           <CardTitle className="font-display text-3xl">Structured discussions</CardTitle>

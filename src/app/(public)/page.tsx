@@ -266,6 +266,7 @@ export default async function HomePage() {
             {homeHeroPlacement?.isActive && homeHeroPlacement.imageUrl ? (
               <PageHeroImage
                 placement={homeHeroPlacement}
+                tone="cinematic"
                 className="bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02),transparent_62%)]"
               />
             ) : (
@@ -407,6 +408,7 @@ export default async function HomePage() {
             {homeConnectionPlacement?.isActive && homeConnectionPlacement.imageUrl ? (
               <SectionFeatureImage
                 placement={homeConnectionPlacement}
+                tone="human"
                 aspectClassName="aspect-[16/11] lg:aspect-[4/5]"
                 className="h-full min-h-[17rem]"
               />
@@ -439,6 +441,7 @@ export default async function HomePage() {
           {homePlatformPlacement?.isActive && homePlatformPlacement.imageUrl ? (
             <SectionFeatureImage
               placement={homePlatformPlacement}
+              tone="platform"
               aspectClassName="aspect-[16/10] xl:aspect-[16/11]"
               className="min-h-[17rem]"
               sizes="(min-width: 1280px) 26vw, (min-width: 1024px) 32vw, 100vw"

@@ -143,7 +143,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <Card className="relative overflow-hidden border-gold/28 bg-gradient-to-br from-gold/10 via-card/88 to-card/72">
-        <VisualPlacementBackground placement={intelligenceHeroPlacement} />
+        <VisualPlacementBackground placement={intelligenceHeroPlacement} tone="editorial" />
         <CardHeader className="relative z-[1] space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="border-gold/25 bg-gold/10 text-gold">

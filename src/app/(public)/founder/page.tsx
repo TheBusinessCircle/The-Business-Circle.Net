@@ -68,7 +68,7 @@ export default async function FounderPage() {
       <JsonLd data={buildFounderSchema()} />
 
       <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/58 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
-        <VisualPlacementBackground placement={servicesHeroPlacement} />
+        <VisualPlacementBackground placement={servicesHeroPlacement} tone="anchored" />
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
 
@@ -201,6 +201,7 @@ export default async function FounderPage() {
         {servicesApproachPlacement?.isActive && servicesApproachPlacement.imageUrl ? (
           <SectionFeatureImage
             placement={servicesApproachPlacement}
+            tone="editorial"
             aspectClassName="aspect-[16/10] 2xl:aspect-auto"
             className="min-h-[17rem] 2xl:h-full"
             sizes="(min-width: 1536px) 24vw, (min-width: 1024px) 34vw, 100vw"
