@@ -5,6 +5,50 @@ import type {
   VisualMediaVariant
 } from "@prisma/client";
 
+export type VisualMediaImageFamilyTag =
+  | "cinematic-atmosphere"
+  | "founder-conversation"
+  | "platform-mockup"
+  | "exclusivity"
+  | "story-mission"
+  | "editorial-insight"
+  | "strategy-process";
+
+export type VisualMediaAdminPreviewFamily =
+  | "hero"
+  | "human"
+  | "editorial"
+  | "founders";
+
+export type VisualMediaPlacementGuidance = {
+  imageFamilyTag: VisualMediaImageFamilyTag;
+  adminPreviewFamily: VisualMediaAdminPreviewFamily;
+  imagePurpose: string;
+  bestImageType: string;
+  emotionalTone: string[];
+  recommendedSubjectMatter: string[];
+  recommendedComposition: string[];
+  recommendedLightingMood: string[];
+  avoid: string[];
+  longAdminGuidance: string;
+  qualityChecklist: string[];
+  contentLayerNote?: string;
+  promptTemplate: VisualMediaPromptTemplate;
+};
+
+export type VisualMediaPromptTemplate = {
+  styleSummary: string;
+  sceneType: string;
+  subject: string;
+  environment: string;
+  lighting: string;
+  mood: string;
+  style: string;
+  cameraComposition: string;
+  qualityTags: string;
+  negativePrompt: string;
+};
+
 export type VisualMediaPlacementDefinition = {
   key: string;
   label: string;
@@ -15,7 +59,7 @@ export type VisualMediaPlacementDefinition = {
   supportsMobile: boolean;
   recommendedAspectRatio: string;
   adminHelperText?: string;
-};
+} & VisualMediaPlacementGuidance;
 
 export type VisualMediaPlacementRecord = {
   id: string | null;

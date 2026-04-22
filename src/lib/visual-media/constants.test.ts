@@ -32,4 +32,35 @@ describe("visual media placement registry", () => {
   it("requires positive, intentional sort ordering", () => {
     expect(VISUAL_MEDIA_PLACEMENT_LIST.every((item) => item.sortOrder > 0)).toBe(true);
   });
+
+  it("keeps brand guidance complete for every approved slot", () => {
+    expect(
+      VISUAL_MEDIA_PLACEMENT_LIST.every((item) => {
+        return Boolean(
+          item.adminHelperText &&
+            item.imageFamilyTag &&
+            item.adminPreviewFamily &&
+            item.imagePurpose &&
+            item.bestImageType &&
+            item.longAdminGuidance &&
+            item.promptTemplate.styleSummary &&
+            item.promptTemplate.sceneType &&
+            item.promptTemplate.subject &&
+            item.promptTemplate.environment &&
+            item.promptTemplate.lighting &&
+            item.promptTemplate.mood &&
+            item.promptTemplate.style &&
+            item.promptTemplate.cameraComposition &&
+            item.promptTemplate.qualityTags &&
+            item.promptTemplate.negativePrompt &&
+            item.emotionalTone.length &&
+            item.recommendedSubjectMatter.length &&
+            item.recommendedComposition.length &&
+            item.recommendedLightingMood.length &&
+            item.avoid.length &&
+            item.qualityChecklist.length
+        );
+      })
+    ).toBe(true);
+  });
 });

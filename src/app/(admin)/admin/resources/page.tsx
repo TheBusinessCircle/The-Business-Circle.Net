@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ResourceStatus, ResourceTier } from "@prisma/client";
-import { CalendarDays, Filter, Plus, Search } from "lucide-react";
+import { CalendarDays, Filter, ImageIcon, Plus, Search } from "lucide-react";
 import {
   deleteResourceAction,
   setResourceStatusAction
@@ -215,6 +215,38 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
             </div>
           </div>
         </CardHeader>
+      </Card>
+
+      <Card className="border-silver/16 bg-card/62">
+        <CardHeader>
+          <CardTitle className="inline-flex items-center gap-2 text-xl">
+            <ImageIcon size={16} className="text-silver" />
+            Resource image direction
+          </CardTitle>
+          <CardDescription>
+            Resource card and article imagery should stay clearly separate from the manual page-hero system.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Preferred tone</p>
+            <p className="mt-2 text-sm leading-7 text-foreground/88">
+              Premium, dark, editorial, and business-relevant beats bright lifestyle or generic startup imagery.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">What to avoid</p>
+            <p className="mt-2 text-sm leading-7 text-foreground/88">
+              Avoid cheesy business stock, cartoonish AI scenes, loud SaaS colours, and imagery that feels too literal or noisy.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Composition check</p>
+            <p className="mt-2 text-sm leading-7 text-foreground/88">
+              If you override imagery later, choose crops that still read cleanly in cards and headers without relying on baked-in text.
+            </p>
+          </div>
+        </CardContent>
       </Card>
 
       {feedback ? (

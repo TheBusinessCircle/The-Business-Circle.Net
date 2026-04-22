@@ -458,8 +458,15 @@ export function CommunityPostBody({
           ))}
         </div>
         {parsedBcnContent.source ? (
-          <div className="rounded-2xl border border-gold/22 bg-gold/10 px-4 py-4">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Source</p>
+          <div className="rounded-2xl border border-silver/16 bg-[linear-gradient(180deg,rgba(15,23,42,0.44),rgba(8,15,31,0.72))] px-4 py-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex rounded-full border border-gold/22 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
+                Source context
+              </span>
+              <span className="text-xs text-muted">
+                Original reporting or source detail preserved for credibility.
+              </span>
+            </div>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
               {parsedBcnContent.source}
             </p>

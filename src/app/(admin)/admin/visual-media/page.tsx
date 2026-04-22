@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { ImageIcon, Save, Smartphone, Upload, X } from "lucide-react";
+import { ImageIcon, ListChecks, Save, Smartphone, Sparkles, Upload, X } from "lucide-react";
 import {
   removeVisualMediaPlacementAssetAction,
   updateVisualMediaPlacementDetailsAction,
   uploadVisualMediaDesktopImageAction,
   uploadVisualMediaMobileImageAction
 } from "@/actions/admin/visual-media.actions";
+import { VisualMediaPromptPanel } from "@/components/admin/visual-media-prompt-panel";
+import { VisualMediaSlotDiagnostics } from "@/components/admin/visual-media-slot-diagnostics";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,10 +17,15 @@ import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
 import { cn, formatDate } from "@/lib/utils";
 import {
+  getVisualMediaPlacementDefinition,
   VISUAL_MEDIA_PAGE_LABELS,
   VISUAL_MEDIA_PAGE_ORDER,
   type VisualMediaPlacementKey
 } from "@/lib/visual-media/constants";
+import type {
+  VisualMediaAdminPreviewFamily,
+  VisualMediaPlacementDefinition
+} from "@/lib/visual-media/types";
 import { syncVisualMediaPlacementRegistry } from "@/server/visual-media";
 
 type PageProps = {
@@ -43,6 +50,14 @@ function firstValue(value: string | string[] | undefined) {
   return value ?? "";
 }
 
+function messageFromMap(map: Record<string, string>, key: string) {
+  if (!key || !Object.prototype.hasOwnProperty.call(map, key)) {
+    return null;
+  }
+
+  return map[key];
+}
+
 function feedbackMessage(input: { notice: string; error: string }) {
   const noticeMap: Record<string, string> = {
     "placement-saved": "Placement settings saved.",
@@ -59,12 +74,16 @@ function feedbackMessage(input: { notice: string; error: string }) {
     "file-too-large": "That image is too large. Keep uploads under 8MB."
   };
 
-  if (input.notice && noticeMap[input.notice]) {
-    return { type: "notice" as const, message: noticeMap[input.notice] };
+  const noticeMessage = messageFromMap(noticeMap, input.notice);
+
+  if (noticeMessage) {
+    return { type: "notice" as const, message: noticeMessage };
   }
 
-  if (input.error && errorMap[input.error]) {
-    return { type: "error" as const, message: errorMap[input.error] };
+  const errorMessage = messageFromMap(errorMap, input.error);
+
+  if (errorMessage) {
+    return { type: "error" as const, message: errorMessage };
   }
 
   return null;
@@ -74,61 +93,7 @@ function updatedAtLabel(value: Date | null) {
   return value ? formatDate(value) : "Not updated yet";
 }
 
-type PreviewFamily = "hero" | "human" | "editorial" | "founders";
-
-function previewFamilyForKey(key: VisualMediaPlacementKey): PreviewFamily {
-  if (key.endsWith(".hero")) {
-    if (key === "resources.hero" || key === "intelligence.hero") {
-      return "editorial";
-    }
-
-    return "hero";
-  }
-
-  if (key === "membership.section.founders") {
-    return "founders";
-  }
-
-  if (
-    key === "home.section.platform" ||
-    key === "membership.section.rooms" ||
-    key === "services.section.approach"
-  ) {
-    return "editorial";
-  }
-
-  return "human";
-}
-
-function placementStyleHint(key: VisualMediaPlacementKey) {
-  switch (key) {
-    case "home.hero":
-    case "join.hero":
-    case "membership.hero":
-      return "Best for cinematic atmosphere";
-    case "home.section.connection":
-    case "join.section.inside":
-    case "about.section.story":
-    case "community.hero":
-      return "Best for founder conversation imagery";
-    case "home.section.platform":
-    case "membership.section.rooms":
-    case "services.section.approach":
-      return "Best for platform or dashboard mockups";
-    case "resources.hero":
-    case "intelligence.hero":
-      return "Best for editorial or intelligence tone";
-    case "membership.section.founders":
-      return "Best for exclusivity and founder-offer tone";
-    case "about.hero":
-    case "services.hero":
-      return "Best for serious founder-led positioning";
-    default:
-      return "Best for premium, restrained imagery";
-  }
-}
-
-function previewFrameClassName(family: PreviewFamily) {
+function previewFrameClassName(family: VisualMediaAdminPreviewFamily) {
   switch (family) {
     case "hero":
       return "h-52 rounded-[1.6rem]";
@@ -141,7 +106,7 @@ function previewFrameClassName(family: PreviewFamily) {
   }
 }
 
-function previewOverlayClassName(family: PreviewFamily) {
+function previewOverlayClassName(family: VisualMediaAdminPreviewFamily) {
   switch (family) {
     case "hero":
       return "bg-[linear-gradient(180deg,rgba(4,10,23,0.08),rgba(4,10,23,0.18)_26%,rgba(4,10,23,0.48)_60%,rgba(4,10,23,0.84)_100%)]";
@@ -154,7 +119,7 @@ function previewOverlayClassName(family: PreviewFamily) {
   }
 }
 
-function placeholderClassName(family: PreviewFamily) {
+function placeholderClassName(family: VisualMediaAdminPreviewFamily) {
   switch (family) {
     case "hero":
       return "bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.1),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.95),rgba(8,15,31,0.86))]";
@@ -167,6 +132,136 @@ function placeholderClassName(family: PreviewFamily) {
   }
 }
 
+function imageFamilyLabel(definition: VisualMediaPlacementDefinition) {
+  switch (definition.imageFamilyTag) {
+    case "cinematic-atmosphere":
+      return "Cinematic atmosphere";
+    case "founder-conversation":
+      return "Founder conversation";
+    case "platform-mockup":
+      return "Platform mockup";
+    case "exclusivity":
+      return "Exclusivity";
+    case "story-mission":
+      return "Story and mission";
+    case "editorial-insight":
+      return "Editorial insight";
+    case "strategy-process":
+      return "Strategy process";
+    default:
+      return "Premium imagery";
+  }
+}
+
+function GuidanceSection({
+  title,
+  items
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{title}</p>
+      <div className="space-y-2">
+        {items.map((item) => (
+          <p key={item} className="text-sm leading-6 text-foreground/86">
+            {item}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlacementGuidancePanel({
+  definition
+}: {
+  definition: VisualMediaPlacementDefinition;
+}) {
+  return (
+    <div className="rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
+      <div className="flex items-center gap-2">
+        <Sparkles size={14} className="text-gold" />
+        <p className="text-sm font-medium text-foreground">Slot direction</p>
+      </div>
+
+      <div className="mt-4 space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="border-gold/20 bg-gold/10 text-gold">
+            {definition.bestImageType}
+          </Badge>
+          <Badge variant="outline" className="border-silver/16 bg-silver/10 text-silver">
+            {imageFamilyLabel(definition)}
+          </Badge>
+          <Badge variant="outline" className="border-silver/16 bg-silver/10 text-silver">
+            Ratio guide {definition.recommendedAspectRatio}
+          </Badge>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-sm leading-6 text-foreground/88">{definition.longAdminGuidance}</p>
+          <p className="text-sm leading-6 text-muted">{definition.imagePurpose}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {definition.emotionalTone.map((tone) => (
+            <Badge
+              key={tone}
+              variant="outline"
+              className="border-silver/16 bg-background/18 normal-case tracking-normal text-silver"
+            >
+              {tone}
+            </Badge>
+          ))}
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <GuidanceSection
+            title="Recommended subject matter"
+            items={definition.recommendedSubjectMatter}
+          />
+          <GuidanceSection
+            title="Composition guidance"
+            items={definition.recommendedComposition}
+          />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <GuidanceSection
+            title="Lighting and mood"
+            items={definition.recommendedLightingMood}
+          />
+          <GuidanceSection title="Avoid" items={definition.avoid} />
+        </div>
+
+        <div className="rounded-2xl border border-silver/12 bg-background/18 p-4">
+          <div className="flex items-center gap-2">
+            <ListChecks size={14} className="text-silver" />
+            <p className="text-sm font-medium text-foreground">Quality checklist</p>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {definition.qualityChecklist.map((item) => (
+              <p key={item} className="text-sm leading-6 text-foreground/84">
+                {item}
+              </p>
+            ))}
+          </div>
+        </div>
+
+        {definition.contentLayerNote ? (
+          <div className="rounded-2xl border border-gold/18 bg-gold/10 p-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Content-layer guardrail</p>
+            <p className="mt-2 text-sm leading-6 text-foreground/86">
+              {definition.contentLayerNote}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function PreviewPane({
   title,
   imageUrl,
@@ -176,7 +271,7 @@ function PreviewPane({
   title: string;
   imageUrl: string | null;
   altText: string;
-  family: PreviewFamily;
+  family: VisualMediaAdminPreviewFamily;
 }) {
   return (
     <div className="space-y-2">
@@ -302,177 +397,210 @@ export default async function AdminVisualMediaPage({ searchParams }: PageProps) 
             <div className="grid gap-5 2xl:grid-cols-2">
               {pagePlacements.map((placement) => (
                 <Card key={placement.key} className="border-border/80 bg-card/66 shadow-panel-soft">
-                  <CardHeader className="space-y-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-2">
-                        <CardTitle className="text-2xl">{placement.label}</CardTitle>
-                        <CardDescription className="text-sm">
-                          <span className="font-mono text-xs text-silver">{placement.key}</span>
-                        </CardDescription>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline" className="border-silver/20 bg-silver/10 text-silver">
-                            {placement.variant === "HERO" ? "Hero placement" : "Supporting placement"}
-                          </Badge>
-                          <Badge variant="outline" className="border-gold/20 bg-gold/10 text-gold">
-                            {placementStyleHint(placement.key as VisualMediaPlacementKey)}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge
-                          variant="outline"
-                          className={
-                            placement.isActive && placement.imageUrl
-                              ? "border-gold/30 bg-gold/10 text-gold"
-                              : "border-silver/20 bg-silver/10 text-silver"
-                          }
-                        >
-                          {placement.isActive && placement.imageUrl ? "Active" : "Inactive"}
-                        </Badge>
-                        {placement.supportsMobile ? (
-                          <Badge variant="outline" className="border-silver/20 bg-silver/10 text-silver">
-                            Mobile variant
-                          </Badge>
-                        ) : null}
-                      </div>
-                    </div>
-                    <p className="text-sm leading-relaxed text-muted">
-                      {placement.adminHelperText || "Upload and manage the image for this live placement."}
-                    </p>
-                  </CardHeader>
+                  {(() => {
+                    const definition =
+                      getVisualMediaPlacementDefinition(
+                        placement.key as VisualMediaPlacementKey
+                      ) ?? null;
+                    const previewFamily = definition?.adminPreviewFamily ?? "human";
+                    const helperText =
+                      definition?.adminHelperText ||
+                      placement.adminHelperText ||
+                      "Upload and manage the image for this live placement.";
 
-                  <CardContent className="space-y-5">
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <PreviewPane
-                        title="Desktop preview"
-                        imageUrl={placement.imageUrl}
-                        altText={placement.altText?.trim() || placement.label}
-                        family={previewFamilyForKey(placement.key as VisualMediaPlacementKey)}
-                      />
-                      <PreviewPane
-                        title="Mobile preview"
-                        imageUrl={placement.mobileImageUrl}
-                        altText={placement.altText?.trim() || placement.label}
-                        family={previewFamilyForKey(placement.key as VisualMediaPlacementKey)}
-                      />
-                    </div>
+                    return (
+                      <>
+                        <CardHeader className="space-y-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="space-y-2">
+                              <CardTitle className="text-2xl">{placement.label}</CardTitle>
+                              <CardDescription className="text-sm">
+                                <span className="font-mono text-xs text-silver">{placement.key}</span>
+                              </CardDescription>
+                              <div className="flex flex-wrap gap-2">
+                                <Badge variant="outline" className="border-silver/20 bg-silver/10 text-silver">
+                                  {placement.variant === "HERO" ? "Hero placement" : "Supporting placement"}
+                                </Badge>
+                                <Badge variant="outline" className="border-gold/20 bg-gold/10 text-gold">
+                                  {helperText}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  placement.isActive && placement.imageUrl
+                                    ? "border-gold/30 bg-gold/10 text-gold"
+                                    : "border-silver/20 bg-silver/10 text-silver"
+                                }
+                              >
+                                {placement.isActive && placement.imageUrl ? "Active" : "Inactive"}
+                              </Badge>
+                              {placement.supportsMobile ? (
+                                <Badge variant="outline" className="border-silver/20 bg-silver/10 text-silver">
+                                  Mobile variant
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </div>
+                          <p className="text-sm leading-relaxed text-muted">{helperText}</p>
+                        </CardHeader>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <form action={uploadVisualMediaDesktopImageAction} className="space-y-3 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
-                        <input type="hidden" name="key" value={placement.key} />
-                        <input type="hidden" name="returnPath" value={returnPath} />
-                        <input type="hidden" name="mode" value="desktop" />
-                        <div className="space-y-2">
-                          <Label htmlFor={`${placement.key}-desktop-file`}>Desktop image</Label>
-                          <Input id={`${placement.key}-desktop-file`} name="file" type="file" accept="image/*" />
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button type="submit" size="sm">
-                            <Upload size={14} className="mr-1" />
-                            {placement.imageUrl ? "Replace desktop" : "Upload desktop"}
-                          </Button>
-                          {placement.imageUrl ? (
-                            <Button formAction={removeVisualMediaPlacementAssetAction} type="submit" size="sm" variant="outline">
-                              <X size={14} className="mr-1" />
-                              Remove
-                            </Button>
+                        <CardContent className="space-y-5">
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <PreviewPane
+                              title="Desktop preview"
+                              imageUrl={placement.imageUrl}
+                              altText={placement.altText?.trim() || placement.label}
+                              family={previewFamily}
+                            />
+                            <PreviewPane
+                              title="Mobile preview"
+                              imageUrl={placement.mobileImageUrl}
+                              altText={placement.altText?.trim() || placement.label}
+                              family={previewFamily}
+                            />
+                          </div>
+
+                          {definition ? (
+                            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                              <PlacementGuidancePanel definition={definition} />
+                              <VisualMediaSlotDiagnostics
+                                label={placement.label}
+                                variant={placement.variant}
+                                family={previewFamily}
+                                imageUrl={placement.imageUrl}
+                                mobileImageUrl={placement.mobileImageUrl}
+                                altText={placement.altText}
+                                objectPosition={placement.objectPosition}
+                                supportsMobile={placement.supportsMobile}
+                                recommendedAspectRatio={placement.recommendedAspectRatio}
+                              />
+                            </div>
                           ) : null}
-                        </div>
-                      </form>
 
-                      {placement.supportsMobile ? (
-                        <form action={uploadVisualMediaMobileImageAction} className="space-y-3 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
-                          <input type="hidden" name="key" value={placement.key} />
-                          <input type="hidden" name="returnPath" value={returnPath} />
-                          <input type="hidden" name="mode" value="mobile" />
-                          <div className="space-y-2">
-                            <Label htmlFor={`${placement.key}-mobile-file`}>Mobile image</Label>
-                            <Input id={`${placement.key}-mobile-file`} name="file" type="file" accept="image/*" />
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <form action={uploadVisualMediaDesktopImageAction} className="space-y-3 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
+                              <input type="hidden" name="key" value={placement.key} />
+                              <input type="hidden" name="returnPath" value={returnPath} />
+                              <input type="hidden" name="mode" value="desktop" />
+                              <div className="space-y-2">
+                                <Label htmlFor={`${placement.key}-desktop-file`}>Desktop image</Label>
+                                <Input id={`${placement.key}-desktop-file`} name="file" type="file" accept="image/*" />
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <Button type="submit" size="sm">
+                                  <Upload size={14} className="mr-1" />
+                                  {placement.imageUrl ? "Replace desktop" : "Upload desktop"}
+                                </Button>
+                                {placement.imageUrl ? (
+                                  <Button formAction={removeVisualMediaPlacementAssetAction} type="submit" size="sm" variant="outline">
+                                    <X size={14} className="mr-1" />
+                                    Remove
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </form>
+
+                            {placement.supportsMobile ? (
+                              <form action={uploadVisualMediaMobileImageAction} className="space-y-3 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
+                                <input type="hidden" name="key" value={placement.key} />
+                                <input type="hidden" name="returnPath" value={returnPath} />
+                                <input type="hidden" name="mode" value="mobile" />
+                                <div className="space-y-2">
+                                  <Label htmlFor={`${placement.key}-mobile-file`}>Mobile image</Label>
+                                  <Input id={`${placement.key}-mobile-file`} name="file" type="file" accept="image/*" />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button type="submit" size="sm" variant="outline">
+                                    <Smartphone size={14} className="mr-1" />
+                                    {placement.mobileImageUrl ? "Replace mobile" : "Upload mobile"}
+                                  </Button>
+                                  {placement.mobileImageUrl ? (
+                                    <Button formAction={removeVisualMediaPlacementAssetAction} type="submit" size="sm" variant="outline">
+                                      <X size={14} className="mr-1" />
+                                      Remove
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              </form>
+                            ) : (
+                              <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-background/12 p-4 text-sm text-muted">
+                                This placement is using a single responsive image only.
+                              </div>
+                            )}
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button type="submit" size="sm" variant="outline">
-                              <Smartphone size={14} className="mr-1" />
-                              {placement.mobileImageUrl ? "Replace mobile" : "Upload mobile"}
-                            </Button>
-                            {placement.mobileImageUrl ? (
-                              <Button formAction={removeVisualMediaPlacementAssetAction} type="submit" size="sm" variant="outline">
-                                <X size={14} className="mr-1" />
-                                Remove
+
+                          {definition ? <VisualMediaPromptPanel definition={definition} /> : null}
+
+                          <form action={updateVisualMediaPlacementDetailsAction} className="space-y-4 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
+                            <input type="hidden" name="key" value={placement.key} />
+                            <input type="hidden" name="returnPath" value={returnPath} />
+
+                            <div className="grid gap-4 lg:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor={`${placement.key}-alt`}>Alt text</Label>
+                                <Input
+                                  id={`${placement.key}-alt`}
+                                  name="altText"
+                                  defaultValue={placement.altText ?? ""}
+                                  placeholder="Describe the image for accessibility"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`${placement.key}-object-position`}>Object position</Label>
+                                <Input
+                                  id={`${placement.key}-object-position`}
+                                  name="objectPosition"
+                                  defaultValue={placement.objectPosition ?? ""}
+                                  placeholder="center center"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-end">
+                              <div className="space-y-2">
+                                <Label htmlFor={`${placement.key}-overlay`}>Overlay style</Label>
+                                <select
+                                  id={`${placement.key}-overlay`}
+                                  name="overlayStyle"
+                                  defaultValue={placement.overlayStyle ?? ""}
+                                  className="flex h-11 w-full rounded-xl border border-border/90 bg-background/35 px-3 py-2 text-sm text-foreground shadow-inner-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80"
+                                >
+                                  <option value="">No overlay</option>
+                                  <option value="SOFT_DARK">Soft Dark</option>
+                                  <option value="DARK">Dark</option>
+                                  <option value="CINEMATIC">Cinematic</option>
+                                </select>
+                              </div>
+
+                              <label className="inline-flex items-center gap-3 rounded-xl border border-white/8 bg-background/18 px-4 py-3 text-sm text-foreground">
+                                <input
+                                  type="checkbox"
+                                  name="isActive"
+                                  defaultChecked={placement.isActive && Boolean(placement.imageUrl)}
+                                  disabled={!placement.imageUrl}
+                                  className="h-4 w-4 rounded border-border/90 bg-background/35 accent-gold"
+                                />
+                                Active on site
+                              </label>
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4">
+                              <p className="text-xs text-muted">
+                                Updated {updatedAtLabel(placement.updatedAt)}.
+                              </p>
+                              <Button type="submit">
+                                <Save size={14} className="mr-1" />
+                                Save placement settings
                               </Button>
-                            ) : null}
-                          </div>
-                        </form>
-                      ) : (
-                        <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-background/12 p-4 text-sm text-muted">
-                          This placement is using a single responsive image only.
-                        </div>
-                      )}
-                    </div>
-
-                    <form action={updateVisualMediaPlacementDetailsAction} className="space-y-4 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
-                      <input type="hidden" name="key" value={placement.key} />
-                      <input type="hidden" name="returnPath" value={returnPath} />
-
-                      <div className="grid gap-4 lg:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor={`${placement.key}-alt`}>Alt text</Label>
-                          <Input
-                            id={`${placement.key}-alt`}
-                            name="altText"
-                            defaultValue={placement.altText ?? ""}
-                            placeholder="Describe the image for accessibility"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`${placement.key}-object-position`}>Object position</Label>
-                          <Input
-                            id={`${placement.key}-object-position`}
-                            name="objectPosition"
-                            defaultValue={placement.objectPosition ?? ""}
-                            placeholder="center center"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-end">
-                        <div className="space-y-2">
-                          <Label htmlFor={`${placement.key}-overlay`}>Overlay style</Label>
-                          <select
-                            id={`${placement.key}-overlay`}
-                            name="overlayStyle"
-                            defaultValue={placement.overlayStyle ?? ""}
-                            className="flex h-11 w-full rounded-xl border border-border/90 bg-background/35 px-3 py-2 text-sm text-foreground shadow-inner-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80"
-                          >
-                            <option value="">No overlay</option>
-                            <option value="SOFT_DARK">Soft Dark</option>
-                            <option value="DARK">Dark</option>
-                            <option value="CINEMATIC">Cinematic</option>
-                          </select>
-                        </div>
-
-                        <label className="inline-flex items-center gap-3 rounded-xl border border-white/8 bg-background/18 px-4 py-3 text-sm text-foreground">
-                          <input
-                            type="checkbox"
-                            name="isActive"
-                            defaultChecked={placement.isActive && Boolean(placement.imageUrl)}
-                            disabled={!placement.imageUrl}
-                            className="h-4 w-4 rounded border-border/90 bg-background/35 accent-gold"
-                          />
-                          Active on site
-                        </label>
-                      </div>
-
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4">
-                        <p className="text-xs text-muted">
-                          Updated {updatedAtLabel(placement.updatedAt)}.
-                        </p>
-                        <Button type="submit">
-                          <Save size={14} className="mr-1" />
-                          Save placement settings
-                        </Button>
-                      </div>
-                    </form>
-                  </CardContent>
+                            </div>
+                          </form>
+                        </CardContent>
+                      </>
+                    );
+                  })()}
                 </Card>
               ))}
             </div>
