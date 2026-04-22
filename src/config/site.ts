@@ -1,9 +1,5 @@
 import type { NavigationItem, SiteConfig } from "@/types";
-import { getBaseUrl } from "@/lib/utils";
-
-function resolveSiteUrl() {
-  return getBaseUrl();
-}
+import { CANONICAL_SITE_URL } from "@/config/site-constants";
 
 const publicNavigation: NavigationItem[] = [
   { label: "Home", href: "/" },
@@ -54,7 +50,7 @@ export const SITE_CONFIG: SiteConfig = {
   shortName: "Business Circle",
   description:
     "A founder-led private business environment for owners who want better structure, stronger relationships, and steadier momentum.",
-  url: resolveSiteUrl(),
+  url: CANONICAL_SITE_URL,
   supportEmail: "support@businesscircle.network",
   publicNavigation,
   memberNavigation,

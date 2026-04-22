@@ -1,8 +1,10 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import {
+  CANONICAL_SITE_HOSTNAME,
+  CANONICAL_SITE_URL
+} from "@/config/site-constants";
 
-const PRODUCTION_CANONICAL_BASE_URL = "https://thebusinesscircle.net";
-const PRODUCTION_ALLOWED_HOSTNAME = "thebusinesscircle.net";
 let lastLoggedBaseUrl: string | null = null;
 let lastLoggedReason: string | null = null;
 
@@ -69,7 +71,7 @@ function isLoopbackHost(value: string) {
 function isAllowedProductionUrl(value: string) {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname === PRODUCTION_ALLOWED_HOSTNAME;
+    return url.protocol === "https:" && url.hostname === CANONICAL_SITE_HOSTNAME;
   } catch {
     return false;
   }
@@ -102,7 +104,7 @@ function throwInvalidProductionBaseUrl(reason: string, details: Record<string, u
   }
 
   throw new Error(
-    `Invalid production base URL configuration: ${reason}. Expected ${PRODUCTION_CANONICAL_BASE_URL}.`
+    `Invalid production base URL configuration: ${reason}. Expected ${CANONICAL_SITE_URL}.`
   );
 }
 
