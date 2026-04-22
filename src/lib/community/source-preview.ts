@@ -1,4 +1,4 @@
-export type CommunitySourcePreviewKind = "og-image" | "feed-image" | "placeholder";
+export type CommunitySourcePreviewKind = "screenshot" | "og-image" | "feed-image" | "placeholder";
 
 type CommunitySourceAttribution = {
   sourceName: string | null;

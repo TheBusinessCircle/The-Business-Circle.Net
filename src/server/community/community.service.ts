@@ -21,10 +21,13 @@ import { canTierAccess } from "@/lib/auth/permissions";
 import { buildReplyThreadMeta } from "@/lib/community-reply-thread";
 import { sortPromptsByRhythm } from "@/lib/community-rhythm";
 import { CONNECTION_WIN_TAG } from "@/lib/connection-wins";
+import { parseBcnStructuredContent } from "@/lib/bcn-intelligence";
+import { parseCommunitySourceAttribution } from "@/lib/community/source-preview";
 import { db } from "@/lib/db";
 import { assertNoBlockedProfanity } from "@/lib/moderation/profanity";
 import { logServerWarning } from "@/lib/security/logging";
 import { getCommunityRecognitionForUsers } from "@/server/community-recognition";
+import { resolveCommunitySourcePreviewMetadata } from "@/server/community/community-source-preview.service";
 import { listUpcomingEventsForTiers } from "@/server/events";
 import { getDirectMessageRelationshipStateMap } from "@/server/messages";
 import type {
@@ -103,6 +106,88 @@ type FeedCommentRecord = {
   };
   user: CommunityUserRecord;
 };
+
+type CommunitySourcePreviewFields = {
+  sourceUrl: string | null;
+  sourceDomain: string | null;
+  previewImageUrl: string | null;
+  previewImageKind: string | null;
+};
+
+function isBcnSourcePreviewCandidate(post: {
+  content: string;
+  sourceUrl: string | null;
+  previewImageKind: string | null;
+}) {
+  return Boolean(post.sourceUrl || parseBcnStructuredContent(post.content)?.source || post.previewImageKind);
+}
+
+async function resolveHydratedCommunitySourcePreview(post: {
+  id: string;
+  title: string;
+  content: string;
+  sourceUrl: string | null;
+  sourceDomain: string | null;
+  previewImageUrl: string | null;
+  previewImageKind: string | null;
+}) {
+  const parsedBcnContent = parseBcnStructuredContent(post.content);
+  const sourceAttribution = parseCommunitySourceAttribution(parsedBcnContent?.source ?? null);
+  const sourceUrl = post.sourceUrl ?? sourceAttribution.sourceUrl;
+  const sourceDomain = post.sourceDomain ?? sourceAttribution.sourceDomain;
+
+  if (!sourceUrl) {
+    return {
+      sourceUrl: post.sourceUrl,
+      sourceDomain: sourceDomain ?? post.sourceDomain,
+      previewImageUrl: post.previewImageUrl,
+      previewImageKind: post.previewImageKind
+    } satisfies CommunitySourcePreviewFields;
+  }
+
+  if (post.previewImageUrl && post.previewImageKind === "screenshot") {
+    return {
+      sourceUrl,
+      sourceDomain: sourceDomain ?? post.sourceDomain,
+      previewImageUrl: post.previewImageUrl,
+      previewImageKind: post.previewImageKind
+    } satisfies CommunitySourcePreviewFields;
+  }
+
+  const preview = await resolveCommunitySourcePreviewMetadata({
+    title: post.title,
+    sourceName: sourceAttribution.sourceName,
+    sourceUrl,
+    sourceDomain
+  });
+
+  if (
+    preview.previewImageUrl !== post.previewImageUrl ||
+    preview.previewImageKind !== post.previewImageKind ||
+    preview.sourceUrl !== post.sourceUrl ||
+    preview.sourceDomain !== post.sourceDomain
+  ) {
+    await db.communityPost.update({
+      where: {
+        id: post.id
+      },
+      data: {
+        sourceUrl: preview.sourceUrl,
+        sourceDomain: preview.sourceDomain,
+        previewImageUrl: preview.previewImageUrl,
+        previewImageKind: preview.previewImageKind,
+        previewGeneratedAt: preview.previewGeneratedAt
+      }
+    });
+  }
+
+  return {
+    sourceUrl: preview.sourceUrl,
+    sourceDomain: preview.sourceDomain,
+    previewImageUrl: preview.previewImageUrl,
+    previewImageKind: preview.previewImageKind
+  } satisfies CommunitySourcePreviewFields;
+}
 
 function mapChannelBase(
   channel: Pick<
@@ -605,26 +690,39 @@ export async function getCommunityFeedPage(input: {
 
   const recognitionByUserId = await buildRecognitionMap(posts.map((post) => post.user.id));
 
-  const mappedPosts: CommunityPostSummaryModel[] = posts.map((post) => ({
-    id: post.id,
-    channelId: post.channelId,
-    title: post.title,
-    content: post.content,
-    tags: post.tags,
-    kind: post.kind,
-    promptId: post.promptId,
-    promptTier: post.promptTier,
-    sourceUrl: post.sourceUrl,
-    sourceDomain: post.sourceDomain,
-    previewImageUrl: post.previewImageUrl,
-    previewImageKind: post.previewImageKind,
-    createdAt: post.createdAt.toISOString(),
-    updatedAt: post.updatedAt.toISOString(),
-    likeCount: post._count.likes,
-    commentCount: post._count.comments,
-    viewerHasLiked: post.likes.length > 0,
-    user: mapCommunityUser(post.user, recognitionByUserId)
-  }));
+  const mappedPosts: CommunityPostSummaryModel[] = await Promise.all(
+    posts.map(async (post) => {
+      const previewFields = isBcnSourcePreviewCandidate(post)
+        ? await resolveHydratedCommunitySourcePreview(post)
+        : {
+            sourceUrl: post.sourceUrl,
+            sourceDomain: post.sourceDomain,
+            previewImageUrl: post.previewImageUrl,
+            previewImageKind: post.previewImageKind
+          };
+
+      return {
+        id: post.id,
+        channelId: post.channelId,
+        title: post.title,
+        content: post.content,
+        tags: post.tags,
+        kind: post.kind,
+        promptId: post.promptId,
+        promptTier: post.promptTier,
+        sourceUrl: previewFields.sourceUrl,
+        sourceDomain: previewFields.sourceDomain,
+        previewImageUrl: previewFields.previewImageUrl,
+        previewImageKind: previewFields.previewImageKind,
+        createdAt: post.createdAt.toISOString(),
+        updatedAt: post.updatedAt.toISOString(),
+        likeCount: post._count.likes,
+        commentCount: post._count.comments,
+        viewerHasLiked: post.likes.length > 0,
+        user: mapCommunityUser(post.user, recognitionByUserId)
+      };
+    })
+  );
 
   return {
     channels,
@@ -907,6 +1005,15 @@ export async function getCommunityPostDetail(input: {
     ...comments.map((comment) => comment.user.id)
   ]);
 
+  const previewFields = isBcnSourcePreviewCandidate(post)
+    ? await resolveHydratedCommunitySourcePreview(post)
+    : {
+        sourceUrl: post.sourceUrl,
+        sourceDomain: post.sourceDomain,
+        previewImageUrl: post.previewImageUrl,
+        previewImageKind: post.previewImageKind
+      };
+
   return {
     id: post.id,
     channelId: post.channelId,
@@ -916,10 +1023,10 @@ export async function getCommunityPostDetail(input: {
     kind: post.kind,
     promptId: post.promptId,
     promptTier: post.promptTier,
-    sourceUrl: post.sourceUrl,
-    sourceDomain: post.sourceDomain,
-    previewImageUrl: post.previewImageUrl,
-    previewImageKind: post.previewImageKind,
+    sourceUrl: previewFields.sourceUrl,
+    sourceDomain: previewFields.sourceDomain,
+    previewImageUrl: previewFields.previewImageUrl,
+    previewImageKind: previewFields.previewImageKind,
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
     likeCount: post._count.likes,
