@@ -1344,6 +1344,34 @@ model SiteContent {
   @@index([slug])
 }
 
+model VisualMediaPlacement {
+  id                String                     @id @default(cuid())
+  key               String                     @unique
+  label             String
+  page              VisualMediaPage
+  section           String?
+  variant           VisualMediaVariant
+  imageUrl          String?
+  mobileImageUrl    String?
+  desktopStorageKey String?
+  mobileStorageKey  String?
+  storageProvider   VisualMediaStorageProvider?
+  altText           String?
+  isActive          Boolean                    @default(false)
+  sortOrder         Int                        @default(0)
+  overlayStyle      VisualMediaOverlayStyle?
+  objectPosition    String?
+  focalPointX       Int?
+  focalPointY       Int?
+  adminHelperText   String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  @@index([page, sortOrder])
+  @@index([page, section, sortOrder])
+  @@index([isActive, page])
+}
+
 enum Role {
   MEMBER
   INNER_CIRCLE
@@ -1567,6 +1595,38 @@ enum BillingSyncStatus {
   SYNCED
   MISSING
   ERROR
+}
+
+enum VisualMediaPage {
+  HOME
+  MEMBERSHIP
+  JOIN
+  ABOUT
+  COMMUNITY
+  FOUNDER
+  RESOURCES
+  INSIGHTS
+  GLOBAL
+}
+
+enum VisualMediaVariant {
+  HERO
+  SECTION
+  BACKGROUND
+  INLINE
+  CARD
+}
+
+enum VisualMediaOverlayStyle {
+  NONE
+  SOFT_DARK
+  DARK
+  CINEMATIC
+}
+
+enum VisualMediaStorageProvider {
+  LOCAL
+  CLOUDINARY
 }
 
 enum FounderRevenueRange {

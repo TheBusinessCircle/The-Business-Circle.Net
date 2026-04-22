@@ -9,3 +9,4 @@ export * from "@/server/community-recognition";
 export * from "@/server/profile";
 export * from "@/server/subscriptions";
 export * from "@/server/contact";
+export * from "@/server/visual-media";

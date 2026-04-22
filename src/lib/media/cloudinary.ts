@@ -25,7 +25,7 @@ export function isCloudinaryConfigured() {
   );
 }
 
-export async function uploadImageToCloudinary(input: {
+export async function uploadImageAssetToCloudinary(input: {
   file: File;
   folder: string;
   publicIdPrefix: string;
@@ -35,7 +35,7 @@ export async function uploadImageToCloudinary(input: {
   const bytes = Buffer.from(await input.file.arrayBuffer());
   const publicId = `${input.publicIdPrefix}-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<{ secureUrl: string; publicId: string }>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
         folder: input.folder,
@@ -44,15 +44,35 @@ export async function uploadImageToCloudinary(input: {
         overwrite: false
       },
       (error, result) => {
-        if (error || !result?.secure_url) {
+        if (error || !result?.secure_url || !result.public_id) {
           reject(error ?? new Error("Cloudinary did not return a secure URL."));
           return;
         }
 
-        resolve(result.secure_url);
+        resolve({
+          secureUrl: result.secure_url,
+          publicId: result.public_id
+        });
       }
     );
 
     stream.end(bytes);
+  });
+}
+
+export async function uploadImageToCloudinary(input: {
+  file: File;
+  folder: string;
+  publicIdPrefix: string;
+}) {
+  const result = await uploadImageAssetToCloudinary(input);
+  return result.secureUrl;
+}
+
+export async function deleteImageFromCloudinary(publicId: string) {
+  ensureCloudinaryConfigured();
+  await cloudinary.uploader.destroy(publicId, {
+    invalidate: true,
+    resource_type: "image"
   });
 }
