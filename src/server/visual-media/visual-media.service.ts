@@ -180,7 +180,6 @@ export async function syncVisualMediaPlacementRegistry() {
     })
   );
 
-  revalidateTag(CACHE_TAGS.visualMedia);
   return placements.map((placement) => toVisualMediaRecord(placement)).filter(Boolean);
 }
 
