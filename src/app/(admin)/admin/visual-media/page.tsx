@@ -316,15 +316,59 @@ function PreviewPane({
 export default async function AdminVisualMediaPage({ searchParams }: PageProps) {
   await requireAdmin();
   const params = await searchParams;
-  const placements = await syncVisualMediaPlacementRegistry();
-  const placementRecords = placements.filter(
-    (placement): placement is NonNullable<(typeof placements)[number]> => Boolean(placement)
-  );
   const feedback = feedbackMessage({
     notice: firstValue(params.notice),
     error: firstValue(params.error)
   });
   const returnPath = "/admin/visual-media";
+  let placementRecords: NonNullable<
+    Awaited<ReturnType<typeof syncVisualMediaPlacementRegistry>>[number]
+  >[] = [];
+
+  try {
+    const placements = await syncVisualMediaPlacementRegistry();
+    placementRecords = placements.filter(
+      (placement): placement is NonNullable<(typeof placements)[number]> => Boolean(placement)
+    );
+  } catch (error) {
+    console.error("[visual-media] failed to load admin registry", {
+      message: error instanceof Error ? error.message : "unknown-error"
+    });
+
+    return (
+      <div className="space-y-6">
+        <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/82 to-card/72">
+          <CardHeader className="space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <Badge variant="outline" className="border-gold/35 bg-gold/12 text-gold">
+                  <ImageIcon size={12} className="mr-1" />
+                  Curated Site Imagery
+                </Badge>
+                <CardTitle className="mt-3 font-display text-3xl">
+                  Visual Media Manager
+                </CardTitle>
+                <CardDescription className="mt-2 max-w-3xl text-base">
+                  The visual-media registry could not be loaded right now. Existing live images are unaffected, but this admin surface needs a quick server-side check before it can be edited safely.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card className="border-red-500/35 bg-red-500/10">
+          <CardContent className="py-5">
+            <p className="text-sm text-red-100">
+              Visual media admin failed to initialise. Check the server logs for the
+              <span className="mx-1 font-mono">[visual-media] failed to load admin registry</span>
+              entry and confirm the latest deployment finished cleanly.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const placementsByPage = new Map(
     VISUAL_MEDIA_PAGE_ORDER.map((page) => [
       page,
