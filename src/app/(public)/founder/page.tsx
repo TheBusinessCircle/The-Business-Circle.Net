@@ -9,6 +9,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { JsonLd } from "@/components/public";
+import { SectionFeatureImage, VisualPlacementBackground } from "@/components/visual-media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { buildFounderSchema } from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 import { getFounderServicePricing, isGrowthArchitectServiceSlug } from "@/lib/founder";
 import { listActiveFounderServices } from "@/server/founder";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const dynamic = "force-dynamic";
 
@@ -46,9 +48,11 @@ function billingSuffix(billingType: "ONE_TIME" | "MONTHLY_RETAINER") {
 }
 
 export default async function FounderPage() {
-  const [session, allServices] = await Promise.all([
+  const [session, allServices, servicesHeroPlacement, servicesApproachPlacement] = await Promise.all([
     auth(),
-    listActiveFounderServices().catch(() => [])
+    listActiveFounderServices().catch(() => []),
+    getVisualMediaPlacement("services.hero"),
+    getVisualMediaPlacement("services.section.approach")
   ]);
   const viewer = session?.user
     ? {
@@ -64,6 +68,7 @@ export default async function FounderPage() {
       <JsonLd data={buildFounderSchema()} />
 
       <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/58 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+        <VisualPlacementBackground placement={servicesHeroPlacement} />
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
 
@@ -132,57 +137,75 @@ export default async function FounderPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.84fr)]">
-        <Card className="border-border/90 bg-card/72 shadow-panel-soft">
-          <CardHeader>
-            <Badge variant="outline" className="w-fit border-gold/35 bg-gold/12 text-gold">
-              What I Do
-            </Badge>
-            <CardTitle className="mt-3 font-display text-3xl text-foreground">
-              I work directly with business owners to make the next move clearer.
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <p className="max-w-3xl text-base leading-relaxed text-muted">
-              I work directly with business owners to improve clarity, tighten structure, remove
-              noise, and help momentum move properly.
-            </p>
-            <p className="text-base leading-relaxed text-muted">
-              This is not theory. This is applied thinking around real businesses.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {WHAT_I_DO.map((item) => (
-                <div
-                  key={item}
-                  className="rounded-[1.35rem] border border-white/8 bg-background/18 px-4 py-3 text-sm text-foreground"
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      <section
+        className={cn(
+          "gap-6",
+          servicesApproachPlacement?.isActive && servicesApproachPlacement.imageUrl
+            ? "grid 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.52fr)]"
+            : ""
+        )}
+      >
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.84fr)]">
+          <Card className="border-border/90 bg-card/72 shadow-panel-soft">
+            <CardHeader>
+              <Badge variant="outline" className="w-fit border-gold/35 bg-gold/12 text-gold">
+                What I Do
+              </Badge>
+              <CardTitle className="mt-3 font-display text-3xl text-foreground">
+                I work directly with business owners to make the next move clearer.
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <p className="max-w-3xl text-base leading-relaxed text-muted">
+                I work directly with business owners to improve clarity, tighten structure, remove
+                noise, and help momentum move properly.
+              </p>
+              <p className="text-base leading-relaxed text-muted">
+                This is not theory. This is applied thinking around real businesses.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {WHAT_I_DO.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-[1.35rem] border border-white/8 bg-background/18 px-4 py-3 text-sm text-foreground"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/82 to-card/72 shadow-panel-soft">
-          <CardHeader>
-            <Badge variant="outline" className="w-fit border-gold/35 bg-gold/15 text-gold">
-              How Work Starts
-            </Badge>
-            <CardTitle className="mt-3 font-display text-3xl text-foreground">
-              All work starts with a Clarity Audit.
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-base leading-relaxed text-muted">
-            <p>
-              This allows me to understand the business properly before giving direction or taking
-              on deeper work.
-            </p>
-            <p>
-              It keeps the work clean. It keeps the thinking honest. And it stops bigger decisions
-              being made from partial context.
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/82 to-card/72 shadow-panel-soft">
+            <CardHeader>
+              <Badge variant="outline" className="w-fit border-gold/35 bg-gold/15 text-gold">
+                How Work Starts
+              </Badge>
+              <CardTitle className="mt-3 font-display text-3xl text-foreground">
+                All work starts with a Clarity Audit.
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-base leading-relaxed text-muted">
+              <p>
+                This allows me to understand the business properly before giving direction or taking
+                on deeper work.
+              </p>
+              <p>
+                It keeps the work clean. It keeps the thinking honest. And it stops bigger decisions
+                being made from partial context.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {servicesApproachPlacement?.isActive && servicesApproachPlacement.imageUrl ? (
+          <SectionFeatureImage
+            placement={servicesApproachPlacement}
+            aspectClassName="aspect-[16/10] 2xl:aspect-auto"
+            className="min-h-[17rem] 2xl:h-full"
+            sizes="(min-width: 1536px) 24vw, (min-width: 1024px) 34vw, 100vw"
+          />
+        ) : null}
       </section>
 
       <section id="services" className="space-y-6">

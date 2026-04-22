@@ -15,6 +15,7 @@ import {
 } from "@/lib/structured-data";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { getSiteContentSection } from "@/server/site-content";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const dynamic = "force-dynamic";
 
@@ -53,9 +54,12 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
     firstValue(params.period) ?? firstValue(params.interval)
   );
 
-  const [membershipContent, foundingOffer] = await Promise.all([
+  const [membershipContent, foundingOffer, membershipHeroPlacement, membershipRoomsPlacement, membershipFoundersPlacement] = await Promise.all([
     getSiteContentSection("membership"),
-    getFoundingOfferSnapshot()
+    getFoundingOfferSnapshot(),
+    getVisualMediaPlacement("membership.hero"),
+    getVisualMediaPlacement("membership.section.rooms"),
+    getVisualMediaPlacement("membership.section.founders")
   ]);
 
   const foundingOfferByTier = {
@@ -124,6 +128,9 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         faqTitle={membershipContent.faqTitle}
         faqDescription={membershipContent.faqDescription}
         faqItems={membershipContent.faqs}
+        heroPlacement={membershipHeroPlacement}
+        roomsPlacement={membershipRoomsPlacement}
+        foundersPlacement={membershipFoundersPlacement}
       />
     </div>
   );

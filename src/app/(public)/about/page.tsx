@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Compass, Shield, TrendingUp, Users } from "lucide-react";
 import { JourneyRail, JsonLd } from "@/components/public";
+import { SectionFeatureImage, VisualPlacementBackground } from "@/components/visual-media";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { TREV_FOUNDER_CONTENT } from "@/config/founder";
@@ -9,6 +10,7 @@ import { createPageMetadata } from "@/lib/seo";
 import { buildBreadcrumbSchema, buildCollectionPageSchema } from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 import { getSiteContentSection } from "@/server/site-content";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +96,11 @@ const notForAudience = [
 ] as const;
 
 export default async function AboutPage() {
-  const aboutContent = await getSiteContentSection("about");
+  const [aboutContent, aboutHeroPlacement, aboutStoryPlacement] = await Promise.all([
+    getSiteContentSection("about"),
+    getVisualMediaPlacement("about.hero"),
+    getVisualMediaPlacement("about.section.story")
+  ]);
 
   return (
     <div className="space-y-20 pb-20 sm:space-y-24 lg:space-y-28">
@@ -116,6 +122,7 @@ export default async function AboutPage() {
       />
 
       <section className="relative overflow-hidden rounded-[2.3rem] border border-border/80 bg-card/55 px-6 py-10 shadow-panel sm:px-10 sm:py-14 lg:px-14 lg:py-16">
+        <VisualPlacementBackground placement={aboutHeroPlacement} />
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-12 h-56 w-56 rounded-full bg-silver/10 blur-[90px]" />
         <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
@@ -142,24 +149,39 @@ export default async function AboutPage() {
         nextAction={{ href: "/membership", label: "Continue To Membership" }}
       />
 
-      <section className="mx-auto max-w-3xl space-y-6 px-1">
-        <p className="premium-kicker">Founder reality</p>
-        <div className="space-y-5 text-lg leading-relaxed text-muted">
-          <p>
-            I built this because I know what it feels like to carry a business in real life. The
-            work sits alongside clients, pressure, family, time, responsibility, and the constant
-            need to make clear decisions while still moving things forward.
-          </p>
-          <p>
-            Most business spaces do not feel short on activity. They feel short on substance. You
-            can be surrounded by updates, events, advice, and people, yet still have very little
-            room to think properly or work through what actually matters.
-          </p>
-          <p>
-            That gap kept standing out to me. Owners were often surrounded by visibility and still
-            short on the kind of environment that helps real progress happen.
-          </p>
+      <section
+        className={cn(
+          "mx-auto gap-6 px-1 xl:items-start",
+          aboutStoryPlacement?.isActive && aboutStoryPlacement.imageUrl
+            ? "grid max-w-5xl xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.46fr)]"
+            : "max-w-3xl space-y-6"
+        )}
+      >
+        <div className="space-y-6">
+          <p className="premium-kicker">Founder reality</p>
+          <div className="space-y-5 text-lg leading-relaxed text-muted">
+            <p>
+              I built this because I know what it feels like to carry a business in real life. The
+              work sits alongside clients, pressure, family, time, responsibility, and the constant
+              need to make clear decisions while still moving things forward.
+            </p>
+            <p>
+              Most business spaces do not feel short on activity. They feel short on substance. You
+              can be surrounded by updates, events, advice, and people, yet still have very little
+              room to think properly or work through what actually matters.
+            </p>
+            <p>
+              That gap kept standing out to me. Owners were often surrounded by visibility and still
+              short on the kind of environment that helps real progress happen.
+            </p>
+          </div>
         </div>
+        {aboutStoryPlacement?.isActive && aboutStoryPlacement.imageUrl ? (
+          <SectionFeatureImage
+            placement={aboutStoryPlacement}
+            className="min-h-[18rem]"
+          />
+        ) : null}
       </section>
 
       <section className="space-y-8">

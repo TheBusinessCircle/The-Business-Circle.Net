@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { MessageSquareText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { VisualPlacementBackground } from "@/components/visual-media";
 import {
   CommunityFeed,
   CommunityFeedNav
@@ -21,6 +22,7 @@ import {
   maybePublishBcnCuratedPosts,
   maybePublishQuietCommunityPrompt
 } from "@/server/community";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -102,7 +104,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
     redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
   }
 
-  const [feed, upcomingEvents, recentConnectionWins] = await Promise.all([
+  const [feed, upcomingEvents, recentConnectionWins, communityHeroPlacement] = await Promise.all([
     getCommunityFeedPage({
       tiers,
       selectedSlug: selectedSlugRaw,
@@ -113,7 +115,8 @@ export default async function CommunityPage({ searchParams }: PageProps) {
       tiers,
       viewerUserId: session.user.id,
       take: 1
-    })
+    }),
+    getVisualMediaPlacement("community.hero")
   ]);
 
   if (!feed.selectedChannel) {
@@ -133,8 +136,9 @@ export default async function CommunityPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
-        <CardHeader>
+      <Card className="relative overflow-hidden border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
+        <VisualPlacementBackground placement={communityHeroPlacement} />
+        <CardHeader className="relative z-[1]">
           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Member discussions</p>
           <CardTitle className="font-display text-3xl">Structured discussions</CardTitle>
           <p className="max-w-4xl text-sm leading-relaxed text-muted">
@@ -142,7 +146,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
             and less noise than live chat. Choose a room, open the strongest thread, or start a discussion when you have something worth placing in front of the group.
           </p>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="relative z-[1] pt-0">
           <CommunityFeedNav
             channels={feed.channels}
             selectedSlug={feed.selectedChannel.slug}

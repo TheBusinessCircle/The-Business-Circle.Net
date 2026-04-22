@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { JoinCheckoutPrep } from "@/components/auth/join-checkout-prep";
 import { JourneyRail } from "@/components/public";
+import { SectionFeatureImage, VisualPlacementBackground } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
 import { roleToTier } from "@/lib/permissions";
@@ -18,6 +19,7 @@ import {
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { buildAuthModeRedirect, firstValue } from "@/lib/join/routing";
 import { cn } from "@/lib/utils";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 type JoinPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -63,7 +65,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
     ? roleToTier(session.user.role, session.user.membershipTier)
     : MembershipTier.FOUNDATION;
 
-  const [foundingOffer, currentSubscription] = await Promise.all([
+  const [foundingOffer, currentSubscription, joinHeroPlacement, joinInsidePlacement] = await Promise.all([
     getFoundingOfferSnapshot(),
     session?.user
       ? db.subscription.findUnique({
@@ -74,7 +76,9 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
             stripePriceId: true
           }
         })
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    getVisualMediaPlacement("join.hero"),
+    getVisualMediaPlacement("join.section.inside")
   ]);
 
   const currentBillingInterval = currentSubscription?.stripePriceId
@@ -89,6 +93,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
   return (
     <div className="space-y-8 pb-16">
       <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+        <VisualPlacementBackground placement={joinHeroPlacement} />
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-gold/14 blur-[120px]" />
@@ -188,16 +193,31 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
       />
 
       <section className="rounded-[2rem] border border-white/10 bg-card/52 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
-        <div className="max-w-3xl space-y-4">
-          <p className="premium-kicker">Clarity before checkout</p>
-          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            A clean route from room selection to access.
-          </h2>
-          <p className="text-base leading-relaxed text-muted">
-            The aim here is a clean decision, not a perfect prediction. Pick the room that matches
-            the business now, move through setup with confidence, and let the ecosystem deepen only
-            when the business genuinely needs another layer.
-          </p>
+        <div
+          className={cn(
+            "gap-6 xl:items-center",
+            joinInsidePlacement?.isActive && joinInsidePlacement.imageUrl
+              ? "grid xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.54fr)]"
+              : ""
+          )}
+        >
+          <div className="max-w-3xl space-y-4">
+            <p className="premium-kicker">Clarity before checkout</p>
+            <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+              A clean route from room selection to access.
+            </h2>
+            <p className="text-base leading-relaxed text-muted">
+              The aim here is a clean decision, not a perfect prediction. Pick the room that matches
+              the business now, move through setup with confidence, and let the ecosystem deepen only
+              when the business genuinely needs another layer.
+            </p>
+          </div>
+          {joinInsidePlacement?.isActive && joinInsidePlacement.imageUrl ? (
+            <SectionFeatureImage
+              placement={joinInsidePlacement}
+              className="min-h-[17rem]"
+            />
+          ) : null}
         </div>
       </section>
     </div>

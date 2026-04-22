@@ -41,6 +41,7 @@ const adminNavigation: NavigationItem[] = [
   { label: "System Health", href: "/admin/system-health" },
   { label: "Founding Launch", href: "/admin/founding" },
   { label: "Site Content", href: "/admin/site-content" },
+  { label: "Visual Media", href: "/admin/visual-media" },
   { label: "Channels", href: "/admin/channels" },
   { label: "Founder Services", href: "/admin/founder-services" }
 ];

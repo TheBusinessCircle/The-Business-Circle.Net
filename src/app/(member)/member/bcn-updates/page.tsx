@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Badge } from "@/components/ui/badge";
 import { CommunityPostFeedList } from "@/components/community/community-post-feed-list";
+import { VisualPlacementBackground } from "@/components/visual-media";
 import {
   BCN_UPDATES_CHANNEL_SLUG,
   BCN_UPDATES_MEMBER_ROUTE
@@ -28,6 +29,7 @@ import {
   getCommunityFeedPage,
   maybePublishBcnCuratedPosts
 } from "@/server/community";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -90,12 +92,15 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
   await maybePublishBcnCuratedPosts();
 
   const expandedPostId = typeof params.post === "string" ? params.post : null;
-  const feed = await getCommunityFeedPage({
-    tiers,
-    selectedSlug: BCN_UPDATES_CHANNEL_SLUG,
-    viewerUserId: session.user.id,
-    includeStandalone: true
-  });
+  const [feed, intelligenceHeroPlacement] = await Promise.all([
+    getCommunityFeedPage({
+      tiers,
+      selectedSlug: BCN_UPDATES_CHANNEL_SLUG,
+      viewerUserId: session.user.id,
+      includeStandalone: true
+    }),
+    getVisualMediaPlacement("intelligence.hero")
+  ]);
 
   if (!feed.selectedChannel || feed.selectedChannel.slug !== BCN_UPDATES_CHANNEL_SLUG) {
     return (
@@ -137,8 +142,9 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="border-gold/28 bg-gradient-to-br from-gold/10 via-card/88 to-card/72">
-        <CardHeader className="space-y-4">
+      <Card className="relative overflow-hidden border-gold/28 bg-gradient-to-br from-gold/10 via-card/88 to-card/72">
+        <VisualPlacementBackground placement={intelligenceHeroPlacement} />
+        <CardHeader className="relative z-[1] space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="border-gold/25 bg-gold/10 text-gold">
               <Sparkles size={12} className="mr-1" />
@@ -156,7 +162,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
+        <CardContent className="relative z-[1] grid gap-3 md:grid-cols-3">
           <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
             <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Signal quality</p>
             <p className="mt-2 text-base font-semibold text-foreground">Ranked for operator relevance first</p>

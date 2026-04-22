@@ -12,13 +12,20 @@ describe("visual media placement registry", () => {
   });
 
   it("includes the key placements needed for the public site rollout", () => {
-    expect(VISUAL_MEDIA_PLACEMENTS.HOME_HERO_PRIMARY.key).toBe("home.hero.primary");
-    expect(VISUAL_MEDIA_PLACEMENTS.MEMBERSHIP_HERO_PRIMARY.key).toBe("membership.hero.primary");
-    expect(VISUAL_MEDIA_PLACEMENTS.JOIN_HERO_PRIMARY.key).toBe("join.hero.primary");
+    expect(VISUAL_MEDIA_PLACEMENTS.HOME_HERO.key).toBe("home.hero");
+    expect(VISUAL_MEDIA_PLACEMENTS.HOME_PLATFORM.key).toBe("home.section.platform");
+    expect(VISUAL_MEDIA_PLACEMENTS.MEMBERSHIP_FOUNDERS.key).toBe(
+      "membership.section.founders"
+    );
+    expect(VISUAL_MEDIA_PLACEMENTS.INTELLIGENCE_HERO.key).toBe("intelligence.hero");
+    expect(VISUAL_MEDIA_PLACEMENTS.SERVICES_APPROACH.key).toBe(
+      "services.section.approach"
+    );
   });
 
   it("recognizes only approved placement keys", () => {
-    expect(isVisualMediaPlacementKey("home.hero.primary")).toBe(true);
+    expect(isVisualMediaPlacementKey("home.hero")).toBe(true);
+    expect(isVisualMediaPlacementKey("membership.section.rooms")).toBe(true);
     expect(isVisualMediaPlacementKey("unknown.hero.primary")).toBe(false);
   });
 

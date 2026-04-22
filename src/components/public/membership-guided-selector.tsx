@@ -19,6 +19,7 @@ import type { FoundingOfferTierSnapshot } from "@/types";
 import { FAQSection } from "@/components/public/faq-section";
 import { JourneyRail } from "@/components/public/journey-rail";
 import { TierBadge } from "@/components/public/tier-badge";
+import { SectionFeatureImage, VisualPlacementBackground } from "@/components/visual-media";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -43,6 +44,7 @@ import {
   getTierSelectionRingClassName
 } from "@/lib/tier-styles";
 import { cn } from "@/lib/utils";
+import type { VisualMediaRenderablePlacement } from "@/lib/visual-media/types";
 
 type MembershipGuidedSelectorProps = {
   initialSelectedTier: MembershipTier;
@@ -57,6 +59,9 @@ type MembershipGuidedSelectorProps = {
     question: string;
     answer: string;
   }>;
+  heroPlacement?: VisualMediaRenderablePlacement | null;
+  roomsPlacement?: VisualMediaRenderablePlacement | null;
+  foundersPlacement?: VisualMediaRenderablePlacement | null;
 };
 
 type TierGuide = {
@@ -477,7 +482,10 @@ export function MembershipGuidedSelector({
   foundingOfferByTier,
   faqTitle,
   faqDescription,
-  faqItems
+  faqItems,
+  heroPlacement,
+  roomsPlacement,
+  foundersPlacement
 }: MembershipGuidedSelectorProps) {
   const [selectedTier, setSelectedTier] = useState<MembershipTier>(initialSelectedTier);
   const [billingInterval, setBillingInterval] =
@@ -536,6 +544,7 @@ export function MembershipGuidedSelector({
       />
 
       <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+        <VisualPlacementBackground placement={heroPlacement} />
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-foundation/14 blur-[120px]" />
@@ -616,15 +625,31 @@ export function MembershipGuidedSelector({
       </section>
 
       <section className="space-y-6">
-        <div className="max-w-3xl space-y-3">
-          <p className="premium-kicker">Position Selection</p>
-          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            Select the room first. Read the depth second.
-          </h2>
-          <p className="text-base leading-relaxed text-muted">
-            This is structured to reduce overload. Cards stay light and scannable. Depth appears
-            after you choose where the business fits now.
-          </p>
+        <div
+          className={cn(
+            "gap-6 xl:items-center",
+            roomsPlacement?.isActive && roomsPlacement.imageUrl
+              ? "grid xl:grid-cols-[minmax(0,0.92fr)_minmax(320px,0.58fr)]"
+              : "max-w-3xl"
+          )}
+        >
+          <div className="max-w-3xl space-y-3">
+            <p className="premium-kicker">Position Selection</p>
+            <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+              Select the room first. Read the depth second.
+            </h2>
+            <p className="text-base leading-relaxed text-muted">
+              This is structured to reduce overload. Cards stay light and scannable. Depth appears
+              after you choose where the business fits now.
+            </p>
+          </div>
+          {roomsPlacement?.isActive && roomsPlacement.imageUrl ? (
+            <SectionFeatureImage
+              placement={roomsPlacement}
+              aspectClassName="aspect-[16/11] xl:aspect-[4/5]"
+              className="min-h-[17rem]"
+            />
+          ) : null}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(320px,27rem)_minmax(0,1fr)] lg:items-start xl:grid-cols-[minmax(340px,28rem)_minmax(0,1fr)]">
@@ -728,16 +753,31 @@ export function MembershipGuidedSelector({
       </section>
 
       <section className="rounded-[2rem] border border-white/10 bg-card/52 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
-        <div className="max-w-3xl space-y-4">
-          <p className="premium-kicker">Founder Perspective</p>
-          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            Why this is structured this way
-          </h2>
-          <div className="space-y-3 text-base leading-relaxed text-muted">
-            {FOUNDER_PERSPECTIVE_LINES.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
+        <div
+          className={cn(
+            "gap-6 xl:items-start",
+            foundersPlacement?.isActive && foundersPlacement.imageUrl
+              ? "grid xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.56fr)]"
+              : ""
+          )}
+        >
+          <div className="max-w-3xl space-y-4">
+            <p className="premium-kicker">Founder Perspective</p>
+            <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+              Why this is structured this way
+            </h2>
+            <div className="space-y-3 text-base leading-relaxed text-muted">
+              {FOUNDER_PERSPECTIVE_LINES.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
           </div>
+          {foundersPlacement?.isActive && foundersPlacement.imageUrl ? (
+            <SectionFeatureImage
+              placement={foundersPlacement}
+              className="min-h-[17rem]"
+            />
+          ) : null}
         </div>
       </section>
 

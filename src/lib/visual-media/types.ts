@@ -43,4 +43,21 @@ export type VisualMediaPlacementRecord = {
   recommendedAspectRatio: string;
 };
 
+export type VisualMediaRenderablePlacement = Pick<
+  VisualMediaPlacementRecord,
+  | "key"
+  | "label"
+  | "variant"
+  | "imageUrl"
+  | "mobileImageUrl"
+  | "altText"
+  | "isActive"
+  | "overlayStyle"
+  | "objectPosition"
+  | "focalPointX"
+  | "focalPointY"
+  | "supportsMobile"
+  | "recommendedAspectRatio"
+>;
+
 export type VisualMediaUploadMode = "desktop" | "mobile";

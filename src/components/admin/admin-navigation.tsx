@@ -8,6 +8,7 @@ import {
   FileText,
   LayoutGrid,
   MessageSquare,
+  ImageIcon,
   ShieldCheck,
   Sparkles,
   Settings,
@@ -33,6 +34,9 @@ function iconForHref(href: string) {
   }
   if (href.startsWith("/admin/content") || href.startsWith("/admin/site-content")) {
     return FileText;
+  }
+  if (href.startsWith("/admin/visual-media")) {
+    return ImageIcon;
   }
   if (href.startsWith("/admin/resources")) {
     return Settings;

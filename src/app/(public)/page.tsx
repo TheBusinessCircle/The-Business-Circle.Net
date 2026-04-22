@@ -23,6 +23,7 @@ import {
   JsonLd,
   SectionHeading
 } from "@/components/public";
+import { PageHeroImage, SectionFeatureImage } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
 import { buildBreadcrumbSchema, buildCollectionPageSchema } from "@/lib/structured-data";
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { buildPublicTrustDisplay, getPublicTrustSnapshot } from "@/server/public-site";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { getSiteContentSection } from "@/server/site-content";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Private Business Environment For Owners In The UK",
@@ -158,10 +160,20 @@ const membershipPathwayContent = {
 } as const;
 
 export default async function HomePage() {
-  const [homeContent, publicTrustSnapshot, foundingOffer] = await Promise.all([
+  const [
+    homeContent,
+    publicTrustSnapshot,
+    foundingOffer,
+    homeHeroPlacement,
+    homeConnectionPlacement,
+    homePlatformPlacement
+  ] = await Promise.all([
     getSiteContentSection("home"),
     getPublicTrustSnapshot(),
-    getFoundingOfferSnapshot()
+    getFoundingOfferSnapshot(),
+    getVisualMediaPlacement("home.hero"),
+    getVisualMediaPlacement("home.section.connection"),
+    getVisualMediaPlacement("home.section.platform")
   ]);
 
   const trustDisplay = buildPublicTrustDisplay(publicTrustSnapshot);
@@ -251,20 +263,27 @@ export default async function HomePage() {
               ) : null}
             </article>
 
-            <figure className="relative flex min-h-[20rem] flex-1 overflow-hidden rounded-[2.6rem] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02),transparent_62%)] sm:min-h-[23rem] lg:min-h-[28rem]">
-              <div className="pointer-events-none absolute inset-x-[2%] bottom-[2%] top-[4%] rounded-[2.8rem] bg-[radial-gradient(circle_at_center,rgba(214,180,103,0.18),transparent_46%)] blur-3xl" />
-              <div className="pointer-events-none absolute inset-x-[6%] bottom-[-4%] top-[14%] rounded-[3rem] bg-[radial-gradient(circle_at_center,rgba(82,146,255,0.12),transparent_58%)] blur-[100px]" />
-              <div className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(8,16,36,0.08),rgba(8,16,36,0.04)_30%,rgba(8,16,36,0.22)_100%)]" />
-              <Image
-                src="/branding/home-hero-network-portrait.png"
-                alt="Business owners in a focused premium meeting environment"
-                fill
-                priority
-                sizes="(min-width: 1024px) 42vw, 100vw"
-                className="object-cover object-[center_44%] scale-[1.08] opacity-[0.95] sm:scale-[1.12] lg:scale-[1.16]"
-                style={heroImageBlendStyle}
+            {homeHeroPlacement?.isActive && homeHeroPlacement.imageUrl ? (
+              <PageHeroImage
+                placement={homeHeroPlacement}
+                className="bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02),transparent_62%)]"
               />
-            </figure>
+            ) : (
+              <figure className="relative flex min-h-[20rem] flex-1 overflow-hidden rounded-[2.6rem] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02),transparent_62%)] sm:min-h-[23rem] lg:min-h-[28rem]">
+                <div className="pointer-events-none absolute inset-x-[2%] bottom-[2%] top-[4%] rounded-[2.8rem] bg-[radial-gradient(circle_at_center,rgba(214,180,103,0.18),transparent_46%)] blur-3xl" />
+                <div className="pointer-events-none absolute inset-x-[6%] bottom-[-4%] top-[14%] rounded-[3rem] bg-[radial-gradient(circle_at_center,rgba(82,146,255,0.12),transparent_58%)] blur-[100px]" />
+                <div className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(8,16,36,0.08),rgba(8,16,36,0.04)_30%,rgba(8,16,36,0.22)_100%)]" />
+                <Image
+                  src="/branding/home-hero-network-portrait.png"
+                  alt="Business owners in a focused premium meeting environment"
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 42vw, 100vw"
+                  className="object-cover object-[center_44%] scale-[1.08] opacity-[0.95] sm:scale-[1.12] lg:scale-[1.16]"
+                  style={heroImageBlendStyle}
+                />
+              </figure>
+            )}
           </div>
         }
       />
@@ -357,7 +376,14 @@ export default async function HomePage() {
         <FeatureGrid columns={4} items={environmentItems} />
 
         <article className="rounded-[1.9rem] border border-white/10 bg-card/52 px-6 py-6 shadow-panel-soft sm:px-8">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:items-start">
+          <div
+            className={cn(
+              "grid gap-6 lg:items-start",
+              homeConnectionPlacement?.isActive && homeConnectionPlacement.imageUrl
+                ? "xl:grid-cols-[minmax(0,0.92fr)_minmax(280px,0.48fr)]"
+                : "lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]"
+            )}
+          >
             <div className="space-y-2">
               <p className="premium-kicker inline-flex items-center gap-2">
                 <Handshake size={14} />
@@ -378,24 +404,47 @@ export default async function HomePage() {
                 Better conditions for movement.
               </p>
             </div>
+            {homeConnectionPlacement?.isActive && homeConnectionPlacement.imageUrl ? (
+              <SectionFeatureImage
+                placement={homeConnectionPlacement}
+                aspectClassName="aspect-[16/11] lg:aspect-[4/5]"
+                className="h-full min-h-[17rem]"
+              />
+            ) : null}
           </div>
         </article>
       </section>
 
       <section className="space-y-8">
-        <SectionHeading
-          label="Membership Pathway"
-          title="Different stages of business need different rooms."
-          description="Foundation, Inner Circle, and Core create progression inside the ecosystem. The membership page helps you see where the business fits now and what to do next."
-          action={
-            <Link
-              href="/membership"
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-            >
-              Review Membership
-            </Link>
-          }
-        />
+        <div
+          className={cn(
+            homePlatformPlacement?.isActive && homePlatformPlacement.imageUrl
+              ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.56fr)] xl:items-end"
+              : ""
+          )}
+        >
+          <SectionHeading
+            label="Membership Pathway"
+            title="Different stages of business need different rooms."
+            description="Foundation, Inner Circle, and Core create progression inside the ecosystem. The membership page helps you see where the business fits now and what to do next."
+            action={
+              <Link
+                href="/membership"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                Review Membership
+              </Link>
+            }
+          />
+          {homePlatformPlacement?.isActive && homePlatformPlacement.imageUrl ? (
+            <SectionFeatureImage
+              placement={homePlatformPlacement}
+              aspectClassName="aspect-[16/10] xl:aspect-[16/11]"
+              className="min-h-[17rem]"
+              sizes="(min-width: 1280px) 26vw, (min-width: 1024px) 32vw, 100vw"
+            />
+          ) : null}
+        </div>
 
         <div className="grid gap-4 lg:grid-cols-3 lg:[grid-auto-rows:1fr]">
           {membershipPreview.map((item) => (

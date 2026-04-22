@@ -4,6 +4,7 @@ import { ResourceTier, ResourceType } from "@prisma/client";
 import { Filter, Search, Sparkles } from "lucide-react";
 import { ResourceLibraryCard } from "@/components/resources";
 import { ResourceTierBadge } from "@/components/resources/resource-tier-badge";
+import { VisualPlacementBackground } from "@/components/visual-media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,7 @@ import {
   searchResourceLibrary
 } from "@/server/resources";
 import { maybePublishDueResources } from "@/server/resources/resource-publishing.service";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -118,7 +120,7 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
   const error = firstValue(params.error).trim();
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
   const viewCopy = getViewCopy(view);
-  const [results, latestResources, latestMemberPost, latestMemberComment, memberProfile] = await Promise.all([
+  const [results, latestResources, latestMemberPost, latestMemberComment, memberProfile, resourcesHeroPlacement] = await Promise.all([
     searchResourceLibrary(
       {
         query: q,
@@ -186,7 +188,8 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
           }
         }
       }
-    })
+    }),
+    getVisualMediaPlacement("resources.hero")
   ]);
 
   const hasFilters = Boolean(q || tier || category || type);
@@ -257,8 +260,9 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
         </Card>
       ) : null}
 
-      <Card className="overflow-hidden border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/68">
-        <CardHeader className="space-y-4">
+      <Card className="relative overflow-hidden border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/68">
+        <VisualPlacementBackground placement={resourcesHeroPlacement} />
+        <CardHeader className="relative z-[1] space-y-4">
           <Badge variant="outline" className="w-fit border-silver/18 bg-silver/10 text-silver">
             Member Resources
           </Badge>
@@ -296,7 +300,7 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
             </div>
           </div>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="relative z-[1] pt-0">
           <div className="flex flex-wrap gap-2">
             <Link href="/dashboard/resources">
               <Button variant={view === "unread" ? "default" : "outline"} size="sm">

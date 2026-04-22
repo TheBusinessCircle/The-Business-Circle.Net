@@ -48,6 +48,28 @@ export async function listVisualMediaPlacements(client: DbClient = db) {
   });
 }
 
+export async function updateVisualMediaPlacementByKey(
+  key: string,
+  data: Prisma.VisualMediaPlacementUncheckedUpdateInput,
+  client: DbClient = db
+) {
+  return client.visualMediaPlacement.update({
+    where: { key },
+    data,
+    select: visualMediaPlacementSelect
+  });
+}
+
+export async function deleteVisualMediaPlacementByKey(
+  key: string,
+  client: DbClient = db
+) {
+  return client.visualMediaPlacement.delete({
+    where: { key },
+    select: visualMediaPlacementSelect
+  });
+}
+
 export async function upsertVisualMediaPlacement(
   input: Prisma.VisualMediaPlacementUncheckedCreateInput,
   update: Prisma.VisualMediaPlacementUncheckedUpdateInput,
