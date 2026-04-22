@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import { ImageIcon, ListChecks, Save, Smartphone, Sparkles, Upload, X } from "lucide-react";
+import { ChevronDown, ImageIcon, ListChecks, Save, Sparkles } from "lucide-react";
 import {
-  removeVisualMediaPlacementAssetAction,
   updateVisualMediaPlacementDetailsAction,
-  uploadVisualMediaDesktopImageAction,
-  uploadVisualMediaMobileImageAction
 } from "@/actions/admin/visual-media.actions";
 import { VisualMediaPromptPanel } from "@/components/admin/visual-media-prompt-panel";
 import { VisualMediaSlotDiagnostics } from "@/components/admin/visual-media-slot-diagnostics";
+import { VisualMediaUploadPanel } from "@/components/admin/visual-media-upload-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -491,156 +489,180 @@ export default async function AdminVisualMediaPage({ searchParams }: PageProps) 
                           <p className="text-sm leading-relaxed text-muted">{helperText}</p>
                         </CardHeader>
 
-                        <CardContent className="space-y-5">
-                          <div className="grid gap-4 lg:grid-cols-2">
-                            <PreviewPane
-                              title="Desktop preview"
-                              imageUrl={placement.imageUrl}
-                              altText={placement.altText?.trim() || placement.label}
-                              family={previewFamily}
-                            />
-                            <PreviewPane
-                              title="Mobile preview"
-                              imageUrl={placement.mobileImageUrl}
-                              altText={placement.altText?.trim() || placement.label}
-                              family={previewFamily}
-                            />
-                          </div>
-
-                          {definition ? (
-                            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-                              <PlacementGuidancePanel definition={definition} />
-                              <VisualMediaSlotDiagnostics
-                                label={placement.label}
-                                variant={placement.variant}
-                                family={previewFamily}
-                                imageUrl={placement.imageUrl}
-                                mobileImageUrl={placement.mobileImageUrl}
-                                altText={placement.altText}
-                                objectPosition={placement.objectPosition}
-                                supportsMobile={placement.supportsMobile}
-                                recommendedAspectRatio={placement.recommendedAspectRatio}
-                              />
+                        <CardContent className="space-y-6">
+                          <section className="space-y-3">
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-medium uppercase tracking-[0.08em] text-silver">
+                                Preview row
+                              </h3>
+                              <p className="text-sm text-muted">
+                                Live desktop and mobile previews for this saved placement.
+                              </p>
                             </div>
-                          ) : null}
-
-                          <div className="grid gap-4 lg:grid-cols-2">
-                            <form action={uploadVisualMediaDesktopImageAction} className="space-y-3 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
-                              <input type="hidden" name="key" value={placement.key} />
-                              <input type="hidden" name="returnPath" value={returnPath} />
-                              <input type="hidden" name="mode" value="desktop" />
-                              <div className="space-y-2">
-                                <Label htmlFor={`${placement.key}-desktop-file`}>Desktop image</Label>
-                                <Input id={`${placement.key}-desktop-file`} name="file" type="file" accept="image/*" />
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                <Button type="submit" size="sm">
-                                  <Upload size={14} className="mr-1" />
-                                  {placement.imageUrl ? "Replace desktop" : "Upload desktop"}
-                                </Button>
-                                {placement.imageUrl ? (
-                                  <Button formAction={removeVisualMediaPlacementAssetAction} type="submit" size="sm" variant="outline">
-                                    <X size={14} className="mr-1" />
-                                    Remove
-                                  </Button>
-                                ) : null}
-                              </div>
-                            </form>
-
-                            {placement.supportsMobile ? (
-                              <form action={uploadVisualMediaMobileImageAction} className="space-y-3 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
-                                <input type="hidden" name="key" value={placement.key} />
-                                <input type="hidden" name="returnPath" value={returnPath} />
-                                <input type="hidden" name="mode" value="mobile" />
-                                <div className="space-y-2">
-                                  <Label htmlFor={`${placement.key}-mobile-file`}>Mobile image</Label>
-                                  <Input id={`${placement.key}-mobile-file`} name="file" type="file" accept="image/*" />
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  <Button type="submit" size="sm" variant="outline">
-                                    <Smartphone size={14} className="mr-1" />
-                                    {placement.mobileImageUrl ? "Replace mobile" : "Upload mobile"}
-                                  </Button>
-                                  {placement.mobileImageUrl ? (
-                                    <Button formAction={removeVisualMediaPlacementAssetAction} type="submit" size="sm" variant="outline">
-                                      <X size={14} className="mr-1" />
-                                      Remove
-                                    </Button>
-                                  ) : null}
-                                </div>
-                              </form>
-                            ) : (
-                              <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-background/12 p-4 text-sm text-muted">
-                                This placement is using a single responsive image only.
-                              </div>
-                            )}
-                          </div>
-
-                          {definition ? <VisualMediaPromptPanel definition={definition} /> : null}
-
-                          <form action={updateVisualMediaPlacementDetailsAction} className="space-y-4 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
-                            <input type="hidden" name="key" value={placement.key} />
-                            <input type="hidden" name="returnPath" value={returnPath} />
 
                             <div className="grid gap-4 lg:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label htmlFor={`${placement.key}-alt`}>Alt text</Label>
-                                <Input
-                                  id={`${placement.key}-alt`}
-                                  name="altText"
-                                  defaultValue={placement.altText ?? ""}
-                                  placeholder="Describe the image for accessibility"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor={`${placement.key}-object-position`}>Object position</Label>
-                                <Input
-                                  id={`${placement.key}-object-position`}
-                                  name="objectPosition"
-                                  defaultValue={placement.objectPosition ?? ""}
-                                  placeholder="center center"
-                                />
-                              </div>
+                              <PreviewPane
+                                title="Desktop preview"
+                                imageUrl={placement.imageUrl}
+                                altText={placement.altText?.trim() || placement.label}
+                                family={previewFamily}
+                              />
+                              <PreviewPane
+                                title="Mobile preview"
+                                imageUrl={placement.mobileImageUrl}
+                                altText={placement.altText?.trim() || placement.label}
+                                family={previewFamily}
+                              />
                             </div>
+                          </section>
 
-                            <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-end">
-                              <div className="space-y-2">
-                                <Label htmlFor={`${placement.key}-overlay`}>Overlay style</Label>
-                                <select
-                                  id={`${placement.key}-overlay`}
-                                  name="overlayStyle"
-                                  defaultValue={placement.overlayStyle ?? ""}
-                                  className="flex h-11 w-full rounded-xl border border-border/90 bg-background/35 px-3 py-2 text-sm text-foreground shadow-inner-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80"
-                                >
-                                  <option value="">No overlay</option>
-                                  <option value="SOFT_DARK">Soft Dark</option>
-                                  <option value="DARK">Dark</option>
-                                  <option value="CINEMATIC">Cinematic</option>
-                                </select>
-                              </div>
-
-                              <label className="inline-flex items-center gap-3 rounded-xl border border-white/8 bg-background/18 px-4 py-3 text-sm text-foreground">
-                                <input
-                                  type="checkbox"
-                                  name="isActive"
-                                  defaultChecked={placement.isActive && Boolean(placement.imageUrl)}
-                                  disabled={!placement.imageUrl}
-                                  className="h-4 w-4 rounded border-border/90 bg-background/35 accent-gold"
-                                />
-                                Active on site
-                              </label>
-                            </div>
-
-                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4">
-                              <p className="text-xs text-muted">
-                                Updated {updatedAtLabel(placement.updatedAt)}.
+                          <section className="space-y-3 border-t border-white/8 pt-5">
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-medium uppercase tracking-[0.08em] text-silver">
+                                Upload controls
+                              </h3>
+                              <p className="text-sm text-muted">
+                                Choose a file, preview it locally, then upload only when the crop looks right.
                               </p>
-                              <Button type="submit">
-                                <Save size={14} className="mr-1" />
-                                Save placement settings
-                              </Button>
                             </div>
-                          </form>
+
+                            <div className="grid gap-4 lg:grid-cols-2">
+                              <VisualMediaUploadPanel
+                                placementKey={placement.key}
+                                placementLabel={placement.label}
+                                mode="desktop"
+                                returnPath={returnPath}
+                                family={previewFamily}
+                                savedImageUrl={placement.imageUrl}
+                                altText={placement.altText?.trim() || placement.label}
+                              />
+                              {placement.supportsMobile ? (
+                                <VisualMediaUploadPanel
+                                  placementKey={placement.key}
+                                  placementLabel={placement.label}
+                                  mode="mobile"
+                                  returnPath={returnPath}
+                                  family={previewFamily}
+                                  savedImageUrl={placement.mobileImageUrl}
+                                  altText={placement.altText?.trim() || placement.label}
+                                />
+                              ) : (
+                                <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-background/12 p-5 text-sm text-muted">
+                                  This placement is using a single responsive image only, so a separate mobile upload is not required here.
+                                </div>
+                              )}
+                            </div>
+                          </section>
+
+                          <section className="space-y-3 border-t border-white/8 pt-5">
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-medium uppercase tracking-[0.08em] text-silver">
+                                Settings
+                              </h3>
+                              <p className="text-sm text-muted">
+                                Adjust accessibility copy, crop positioning, overlay styling, and live status.
+                              </p>
+                            </div>
+
+                            <form action={updateVisualMediaPlacementDetailsAction} className="space-y-4 rounded-[1.5rem] border border-white/8 bg-background/16 p-4">
+                              <input type="hidden" name="key" value={placement.key} />
+                              <input type="hidden" name="returnPath" value={returnPath} />
+
+                              <div className="grid gap-4 lg:grid-cols-2">
+                                <div className="space-y-2">
+                                  <Label htmlFor={`${placement.key}-alt`}>Alt text</Label>
+                                  <Input
+                                    id={`${placement.key}-alt`}
+                                    name="altText"
+                                    defaultValue={placement.altText ?? ""}
+                                    placeholder="Describe the image for accessibility"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`${placement.key}-object-position`}>Object position</Label>
+                                  <Input
+                                    id={`${placement.key}-object-position`}
+                                    name="objectPosition"
+                                    defaultValue={placement.objectPosition ?? ""}
+                                    placeholder="center center"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-end">
+                                <div className="space-y-2">
+                                  <Label htmlFor={`${placement.key}-overlay`}>Overlay style</Label>
+                                  <select
+                                    id={`${placement.key}-overlay`}
+                                    name="overlayStyle"
+                                    defaultValue={placement.overlayStyle ?? ""}
+                                    className="flex h-11 w-full rounded-xl border border-border/90 bg-background/35 px-3 py-2 text-sm text-foreground shadow-inner-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80"
+                                  >
+                                    <option value="">No overlay</option>
+                                    <option value="SOFT_DARK">Soft Dark</option>
+                                    <option value="DARK">Dark</option>
+                                    <option value="CINEMATIC">Cinematic</option>
+                                  </select>
+                                </div>
+
+                                <label className="inline-flex items-center gap-3 rounded-xl border border-white/8 bg-background/18 px-4 py-3 text-sm text-foreground">
+                                  <input
+                                    type="checkbox"
+                                    name="isActive"
+                                    defaultChecked={placement.isActive && Boolean(placement.imageUrl)}
+                                    disabled={!placement.imageUrl}
+                                    className="h-4 w-4 rounded border-border/90 bg-background/35 accent-gold"
+                                  />
+                                  Active on site
+                                </label>
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4">
+                                <p className="text-xs text-muted">
+                                  Updated {updatedAtLabel(placement.updatedAt)}.
+                                </p>
+                                <Button type="submit">
+                                  <Save size={14} className="mr-1" />
+                                  Save placement settings
+                                </Button>
+                              </div>
+                            </form>
+                          </section>
+
+                          {definition ? (
+                            <details className="group rounded-[1.5rem] border border-white/8 bg-background/12">
+                              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium text-foreground">
+                                    Guidance tools
+                                  </p>
+                                  <p className="text-sm text-muted">
+                                    Slot direction, soft checks, quality checklist, and prompt editing stay available here when you need them.
+                                  </p>
+                                </div>
+                                <ChevronDown className="h-4 w-4 shrink-0 text-silver transition-transform group-open:rotate-180" />
+                              </summary>
+
+                              <div className="space-y-4 border-t border-white/8 px-5 py-5">
+                                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+                                  <PlacementGuidancePanel definition={definition} />
+                                  <VisualMediaSlotDiagnostics
+                                    label={placement.label}
+                                    variant={placement.variant}
+                                    family={previewFamily}
+                                    imageUrl={placement.imageUrl}
+                                    mobileImageUrl={placement.mobileImageUrl}
+                                    altText={placement.altText}
+                                    objectPosition={placement.objectPosition}
+                                    supportsMobile={placement.supportsMobile}
+                                    recommendedAspectRatio={placement.recommendedAspectRatio}
+                                  />
+                                </div>
+
+                                <VisualMediaPromptPanel definition={definition} />
+                              </div>
+                            </details>
+                          ) : null}
                         </CardContent>
                       </>
                     );
