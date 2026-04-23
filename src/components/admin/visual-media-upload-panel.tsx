@@ -5,8 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { CheckCircle2, ImageIcon, Loader2, Monitor, Smartphone, Trash2, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
-  submitVisualMediaPlacementAssetRemovalAction,
-  submitVisualMediaPlacementUploadAction
+  submitVisualMediaPlacementAssetRemovalAction
 } from "@/actions/admin/visual-media.actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +29,17 @@ type InlineMessage =
       text: string;
     }
   | null;
+
+type UploadResponse =
+  | {
+      ok: true;
+      message: string;
+      imageUrl: string | null;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
 
 function previewFrameClassName(family: VisualMediaAdminPreviewFamily) {
   switch (family) {
@@ -61,27 +71,6 @@ function modeLabel(mode: VisualMediaUploadMode) {
   return mode === "desktop" ? "Desktop image" : "Mobile image";
 }
 
-function withUploadTimeout<T>(promise: Promise<T>, timeoutMs = 45_000): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error("visual-media-client-upload-timeout"));
-    }, timeoutMs);
-  });
-
-  promise.catch(() => {
-    // The caller handles the raced rejection; this prevents late server-action
-    // failures from surfacing as unhandled promise rejections after a timeout.
-  });
-
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  });
-}
-
 export function VisualMediaUploadPanel({
   placementKey,
   placementLabel,
@@ -95,8 +84,10 @@ export function VisualMediaUploadPanel({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [selectedPreviewUrl, setSelectedPreviewUrl] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [currentSavedImageUrl, setCurrentSavedImageUrl] = useState<string | null>(savedImageUrl);
   const [inlineMessage, setInlineMessage] = useState<InlineMessage>(null);
   const [pendingAction, setPendingAction] = useState<"upload" | "remove" | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -106,6 +97,10 @@ export function VisualMediaUploadPanel({
       }
     };
   }, [selectedPreviewUrl]);
+
+  useEffect(() => {
+    setCurrentSavedImageUrl(savedImageUrl);
+  }, [savedImageUrl]);
 
   function resetSelection() {
     if (selectedPreviewUrl) {
@@ -138,7 +133,7 @@ export function VisualMediaUploadPanel({
     setInlineMessage(null);
   }
 
-  function handleUploadSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleUploadSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const file = inputRef.current?.files?.[0] ?? null;
@@ -159,34 +154,48 @@ export function VisualMediaUploadPanel({
 
     setInlineMessage(null);
     setPendingAction("upload");
+    setIsUploading(true);
 
-    startTransition(async () => {
-      try {
-        const result = await withUploadTimeout(
-          submitVisualMediaPlacementUploadAction(formData)
-        );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 60_000);
 
-        setInlineMessage({
-          tone: result.ok ? "success" : "error",
-          text: result.message
-        });
+    try {
+      const response = await fetch("/api/admin/visual-media/upload", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal
+      });
+      const result = (await response.json()) as UploadResponse;
 
-        if (result.ok) {
-          resetSelection();
-          router.refresh();
-        }
-      } catch (error) {
+      setInlineMessage({
+        tone: result.ok ? "success" : "error",
+        text: result.message
+      });
+
+      if (result.ok) {
+        setCurrentSavedImageUrl(result.imageUrl);
+        resetSelection();
+        router.refresh();
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
         setInlineMessage({
           tone: "error",
-          text:
-            error instanceof Error && error.message === "visual-media-client-upload-timeout"
-              ? "Upload timed out. The button has been reset; try again with a smaller image or check Cloudinary."
-              : "Upload could not be completed right now."
+          text: "Upload timed out before the server responded. The button has been reset."
         });
-      } finally {
-        setPendingAction(null);
+      } else {
+        setInlineMessage({
+          tone: "error",
+          text: "Upload could not be completed right now."
+        });
       }
-    });
+    } finally {
+      clearTimeout(timeoutId);
+      setIsUploading(false);
+      setPendingAction(null);
+    }
   }
 
   function handleRemove() {
@@ -208,6 +217,7 @@ export function VisualMediaUploadPanel({
         });
 
         if (result.ok) {
+          setCurrentSavedImageUrl(null);
           resetSelection();
           router.refresh();
         }
@@ -222,11 +232,12 @@ export function VisualMediaUploadPanel({
     });
   }
 
-  const effectivePreviewUrl = selectedPreviewUrl || savedImageUrl;
-  const isUploadPending = isPending && pendingAction === "upload";
+  const effectivePreviewUrl = selectedPreviewUrl || currentSavedImageUrl;
+  const isUploadPending = isUploading && pendingAction === "upload";
   const isRemovePending = isPending && pendingAction === "remove";
+  const isBusy = isUploading || isPending;
   const hasSelectedFile = Boolean(selectedFileName);
-  const hasSavedAsset = Boolean(savedImageUrl);
+  const hasSavedAsset = Boolean(currentSavedImageUrl);
   const modeIcon =
     mode === "desktop" ? (
       <Monitor size={14} className="text-silver" />
@@ -308,7 +319,7 @@ export function VisualMediaUploadPanel({
           type="file"
           accept="image/*"
           onChange={handleFileChange}
-          disabled={isPending}
+          disabled={isBusy}
         />
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
           <span>{selectedFileName ?? `No ${mode} file selected for ${placementLabel}.`}</span>
@@ -346,7 +357,7 @@ export function VisualMediaUploadPanel({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="sm" disabled={!hasSelectedFile || isPending}>
+        <Button type="submit" size="sm" disabled={!hasSelectedFile || isBusy}>
           {isUploadPending ? (
             <>
               <Loader2 size={14} className="mr-1 animate-spin" />
@@ -360,12 +371,12 @@ export function VisualMediaUploadPanel({
           )}
         </Button>
 
-        {savedImageUrl ? (
+        {currentSavedImageUrl ? (
           <Button
             type="button"
             size="sm"
             variant="outline"
-            disabled={isPending}
+            disabled={isBusy}
             onClick={handleRemove}
           >
             {isRemovePending ? (
