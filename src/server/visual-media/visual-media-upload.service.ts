@@ -41,6 +41,13 @@ export async function persistVisualMediaUpload(
   placementKey: string,
   mode: "desktop" | "mobile"
 ): Promise<StoredVisualMediaAsset> {
+  console.info("[visual-media] upload service received file", {
+    placementKey,
+    mode,
+    size: file.size,
+    type: file.type || "unknown"
+  });
+
   if (file.size > VISUAL_MEDIA_MAX_UPLOAD_BYTES) {
     throw new Error("visual-media-too-large");
   }
@@ -54,10 +61,22 @@ export async function persistVisualMediaUpload(
   const fileName = `${mode}-${Date.now()}-${randomUUID().slice(0, 8)}${extension}`;
 
   if (isCloudinaryConfigured()) {
+    console.info("[visual-media] cloudinary upload starting", {
+      placementKey,
+      mode,
+      folder: `${CLOUDINARY_VISUAL_MEDIA_FOLDER}/${keySegment}`
+    });
+
     const result = await uploadImageAssetToCloudinary({
       file,
       folder: `${CLOUDINARY_VISUAL_MEDIA_FOLDER}/${keySegment}`,
       publicIdPrefix: `${keySegment}-${mode}`
+    });
+
+    console.info("[visual-media] cloudinary upload completed", {
+      placementKey,
+      mode,
+      publicId: result.publicId
     });
 
     return {
@@ -73,6 +92,12 @@ export async function persistVisualMediaUpload(
   const absolutePath = join(absoluteDirectory, fileName);
   const bytes = Buffer.from(await file.arrayBuffer());
   await writeFile(absolutePath, bytes);
+
+  console.info("[visual-media] local upload completed", {
+    placementKey,
+    mode,
+    storageKey: relativePath
+  });
 
   return {
     url: `${VISUAL_MEDIA_UPLOAD_PATH_PREFIX}${relativePath}`,

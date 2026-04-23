@@ -69,7 +69,9 @@ function feedbackMessage(input: { notice: string; error: string }) {
     "invalid-placement": "That placement could not be updated.",
     "missing-file": "Choose an image before uploading.",
     "invalid-file": "Only valid image files can be uploaded here.",
-    "file-too-large": "That image is too large. Keep uploads under 8MB."
+    "file-too-large": "That image is too large. Keep uploads under 8MB.",
+    "upload-timeout": "The image upload timed out. Try again with a smaller image or check Cloudinary.",
+    "upload-failed": "The image upload could not be completed right now."
   };
 
   const noticeMessage = messageFromMap(noticeMap, input.notice);

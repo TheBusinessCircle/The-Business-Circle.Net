@@ -61,6 +61,27 @@ function modeLabel(mode: VisualMediaUploadMode) {
   return mode === "desktop" ? "Desktop image" : "Mobile image";
 }
 
+function withUploadTimeout<T>(promise: Promise<T>, timeoutMs = 45_000): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("visual-media-client-upload-timeout"));
+    }, timeoutMs);
+  });
+
+  promise.catch(() => {
+    // The caller handles the raced rejection; this prevents late server-action
+    // failures from surfacing as unhandled promise rejections after a timeout.
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
+}
+
 export function VisualMediaUploadPanel({
   placementKey,
   placementLabel,
@@ -141,7 +162,9 @@ export function VisualMediaUploadPanel({
 
     startTransition(async () => {
       try {
-        const result = await submitVisualMediaPlacementUploadAction(formData);
+        const result = await withUploadTimeout(
+          submitVisualMediaPlacementUploadAction(formData)
+        );
 
         setInlineMessage({
           tone: result.ok ? "success" : "error",
@@ -152,10 +175,13 @@ export function VisualMediaUploadPanel({
           resetSelection();
           router.refresh();
         }
-      } catch {
+      } catch (error) {
         setInlineMessage({
           tone: "error",
-          text: "Upload could not be completed right now."
+          text:
+            error instanceof Error && error.message === "visual-media-client-upload-timeout"
+              ? "Upload timed out. The button has been reset; try again with a smaller image or check Cloudinary."
+              : "Upload could not be completed right now."
         });
       } finally {
         setPendingAction(null);

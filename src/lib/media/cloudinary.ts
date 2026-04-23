@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { v2 as cloudinary } from "cloudinary";
 
 let configured = false;
+const CLOUDINARY_UPLOAD_TIMEOUT_MS = 30_000;
+const CLOUDINARY_DELETE_TIMEOUT_MS = 15_000;
 
 function ensureCloudinaryConfigured() {
   if (configured) {
@@ -36,7 +38,39 @@ export async function uploadImageAssetToCloudinary(input: {
   const publicId = `${input.publicIdPrefix}-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
   return new Promise<{ secureUrl: string; publicId: string }>((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
+    let settled = false;
+    let stream: ReturnType<typeof cloudinary.uploader.upload_stream> | null = null;
+    const timeout = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      stream?.destroy(new Error("Cloudinary upload timed out."));
+      reject(new Error("cloudinary-upload-timeout"));
+    }, CLOUDINARY_UPLOAD_TIMEOUT_MS);
+
+    function settleWithError(error: unknown) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timeout);
+      reject(error instanceof Error ? error : new Error("Cloudinary upload failed."));
+    }
+
+    function settleWithSuccess(result: { secureUrl: string; publicId: string }) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    }
+
+    stream = cloudinary.uploader.upload_stream(
       {
         folder: input.folder,
         public_id: publicId,
@@ -45,17 +79,18 @@ export async function uploadImageAssetToCloudinary(input: {
       },
       (error, result) => {
         if (error || !result?.secure_url || !result.public_id) {
-          reject(error ?? new Error("Cloudinary did not return a secure URL."));
+          settleWithError(error ?? new Error("Cloudinary did not return a secure URL."));
           return;
         }
 
-        resolve({
+        settleWithSuccess({
           secureUrl: result.secure_url,
           publicId: result.public_id
         });
       }
     );
 
+    stream.on("error", settleWithError);
     stream.end(bytes);
   });
 }
@@ -71,8 +106,13 @@ export async function uploadImageToCloudinary(input: {
 
 export async function deleteImageFromCloudinary(publicId: string) {
   ensureCloudinaryConfigured();
-  await cloudinary.uploader.destroy(publicId, {
-    invalidate: true,
-    resource_type: "image"
-  });
+  await Promise.race([
+    cloudinary.uploader.destroy(publicId, {
+      invalidate: true,
+      resource_type: "image"
+    }),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("cloudinary-delete-timeout")), CLOUDINARY_DELETE_TIMEOUT_MS);
+    })
+  ]);
 }

@@ -247,6 +247,12 @@ export async function uploadVisualMediaPlacementAsset(input: {
   mode: "desktop" | "mobile";
   file: File;
 }) {
+  console.info("[visual-media] placement upload mutation starting", {
+    key: input.key,
+    mode: input.mode,
+    size: input.file.size
+  });
+
   const current = await getVisualMediaPlacement(input.key);
 
   if (!current) {
@@ -254,12 +260,34 @@ export async function uploadVisualMediaPlacementAsset(input: {
   }
 
   const stored = await persistVisualMediaUpload(input.file, input.key, input.mode);
+  console.info("[visual-media] placement upload storage completed", {
+    key: input.key,
+    mode: input.mode,
+    storageProvider: stored.storageProvider,
+    storageKey: stored.storageKey
+  });
 
-  if (input.mode === "desktop") {
-    await deleteManagedVisualMediaAsset(current.storageProvider, current.desktopStorageKey);
-  } else {
-    await deleteManagedVisualMediaAsset(current.storageProvider, current.mobileStorageKey);
+  const previousStorageKey =
+    input.mode === "desktop" ? current.desktopStorageKey : current.mobileStorageKey;
+
+  if (previousStorageKey) {
+    try {
+      await deleteManagedVisualMediaAsset(current.storageProvider, previousStorageKey);
+    } catch (error) {
+      console.warn("[visual-media] previous asset cleanup failed after replacement", {
+        key: input.key,
+        mode: input.mode,
+        storageProvider: current.storageProvider,
+        storageKey: previousStorageKey,
+        message: error instanceof Error ? error.message : "unknown-error"
+      });
+    }
   }
+
+  console.info("[visual-media] placement DB update starting", {
+    key: input.key,
+    mode: input.mode
+  });
 
   await upsertVisualMediaPlacement(
     createPlacementSeedInput(input.key),
@@ -276,6 +304,11 @@ export async function uploadVisualMediaPlacementAsset(input: {
           })
     }
   );
+
+  console.info("[visual-media] placement DB update completed", {
+    key: input.key,
+    mode: input.mode
+  });
 
   revalidateTag(CACHE_TAGS.visualMedia);
   revalidateTag(visualMediaTag(input.key));

@@ -29,7 +29,9 @@ const VISUAL_MEDIA_ERROR_MESSAGES = {
   "invalid-placement": "That placement could not be updated.",
   "missing-file": "Choose an image before uploading.",
   "invalid-file": "Only valid image files can be uploaded here.",
-  "file-too-large": "That image is too large. Keep uploads under 8MB."
+  "file-too-large": "That image is too large. Keep uploads under 8MB.",
+  "upload-timeout": "The image upload timed out. Try again with a smaller image or check Cloudinary.",
+  "upload-failed": "The image upload could not be completed right now."
 } as const;
 
 export type VisualMediaActionResult =
@@ -185,11 +187,23 @@ async function persistPlacementUpload(
     return createErrorResult("missing-file");
   }
 
+  console.info("[visual-media] upload action starting", {
+    key: parsed.data.key,
+    mode: parsed.data.mode,
+    size: file.size,
+    type: file.type || "unknown"
+  });
+
   try {
     await uploadVisualMediaPlacementAsset({
       key: parsed.data.key,
       mode: parsed.data.mode,
       file
+    });
+
+    console.info("[visual-media] upload action completed", {
+      key: parsed.data.key,
+      mode: parsed.data.mode
     });
   } catch (error) {
     if (error instanceof Error && error.message === "visual-media-too-large") {
@@ -204,7 +218,17 @@ async function persistPlacementUpload(
       return createErrorResult("invalid-placement");
     }
 
-    throw error;
+    console.error("[visual-media] upload action failed", {
+      key: parsed.data.key,
+      mode: parsed.data.mode,
+      message: error instanceof Error ? error.message : "unknown-error"
+    });
+
+    return createErrorResult(
+      error instanceof Error && error.message === "cloudinary-upload-timeout"
+        ? "upload-timeout"
+        : "upload-failed"
+    );
   }
 
   revalidateVisualMediaAdminSurface();
