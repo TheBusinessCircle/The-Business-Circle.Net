@@ -41,3 +41,4 @@ yarn-error.log*
 # Test output
 coverage/
 .codex-review/
+public/uploads/
