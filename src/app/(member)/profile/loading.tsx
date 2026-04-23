@@ -15,7 +15,7 @@ export default function ProfileLoading() {
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
-        <Card className="premium-surface h-fit p-5">
+        <Card className="premium-surface p-5">
           <CardContent className="space-y-4 p-0">
             <div className="flex items-center gap-3">
               <Skeleton className="h-16 w-16 rounded-full" />

@@ -23,7 +23,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   const header = (
     <header className="border-b border-border/80 bg-background/78 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div className="flex w-full flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 2xl:px-12">
         <div className="flex items-center justify-between gap-4">
           <Link href="/admin" className="inline-flex min-w-0 items-center gap-3">
             <BrandMark placement="admin" />
@@ -55,7 +55,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   );
 
   const sidebar = (
-    <aside className="premium-surface hidden h-fit p-4 lg:sticky lg:top-6 lg:block">
+    <aside className="premium-surface hidden p-4 lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="rounded-2xl border border-gold/35 bg-gold/10 p-3">
         <p className="inline-flex items-center gap-2 text-sm font-medium text-gold">
           <Sparkles size={15} />

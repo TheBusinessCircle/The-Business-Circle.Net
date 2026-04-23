@@ -28,19 +28,19 @@ export function AppShell({
       <div className="page-surface page-surface-workspace flex-1 overflow-x-clip transition-colors duration-200">
         <main
           className={cn(
-            "mx-auto w-full max-w-7xl overflow-x-clip px-4 py-8 sm:px-6 lg:px-8 lg:py-10",
+            "w-full min-w-0 overflow-x-clip px-4 py-8 sm:px-6 lg:px-8 lg:py-10 2xl:px-12",
             contentClassName
           )}
         >
           {hasWorkspaceColumns ? (
             <div
               className={cn(
-                "grid gap-6 xl:gap-7",
+                "grid min-w-0 items-start gap-6 xl:gap-7",
                 sidebar && rightRail
-                  ? "xl:grid-cols-[260px_minmax(0,1fr)_300px]"
+                  ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]"
                   : sidebar
-                    ? "lg:grid-cols-[252px_minmax(0,1fr)]"
-                    : "lg:grid-cols-[minmax(0,1fr)_300px]"
+                    ? "lg:grid-cols-[280px_minmax(0,1fr)]"
+                    : "lg:grid-cols-[minmax(0,1fr)_320px]"
               )}
             >
               {sidebar}

@@ -321,7 +321,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
-        <aside className="space-y-4">
+        <aside className="space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
           <section className="premium-surface p-5">
             <div className="flex items-center gap-3">
               <Avatar

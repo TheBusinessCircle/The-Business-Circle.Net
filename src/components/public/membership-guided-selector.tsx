@@ -738,7 +738,7 @@ export function MembershipGuidedSelector({
             })}
           </div>
 
-          <aside className="hidden lg:block lg:sticky lg:top-8">
+          <aside className="hidden lg:sticky lg:top-8 lg:block lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
             <AnimatePresence mode="wait" initial={false}>
               <SelectedPathPanel
                 key={`${selectedTier}-${billingInterval}`}

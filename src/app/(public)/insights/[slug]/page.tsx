@@ -349,7 +349,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
           </article>
 
           <aside className="space-y-4">
-            <div className="sticky top-24 space-y-4">
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto overscroll-contain pr-1">
               <section className="public-panel p-5">
                 <p className="premium-kicker">Inside This Insight</p>
                 <div className="mt-4 space-y-2">

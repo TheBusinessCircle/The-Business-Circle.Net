@@ -277,7 +277,7 @@ export function JoinCheckoutPrep({
         </div>
       </section>
 
-      <aside className="space-y-4 xl:sticky xl:top-8">
+      <aside className="space-y-4 xl:sticky xl:top-8 xl:max-h-[calc(100vh-4rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
         <article className="rounded-[2rem] border border-gold/20 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-6 shadow-gold-soft sm:p-7">
           <div className="flex flex-wrap items-center gap-2">
             <TierBadge tier={selectedTier} />

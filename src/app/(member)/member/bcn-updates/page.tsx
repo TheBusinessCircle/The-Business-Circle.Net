@@ -331,7 +331,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
           )}
         </div>
 
-        <aside className="space-y-5">
+        <aside className="space-y-5 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
           <Card className="border-silver/16 bg-card/62">
             <CardHeader>
               <CardTitle className="inline-flex items-center gap-2 text-xl">

@@ -59,7 +59,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
 
   const header = (
     <header className="border-b border-border/80 bg-background/78 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div className="flex w-full flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 2xl:px-12">
         <div className="flex items-center justify-between gap-4">
           <Link href="/dashboard" className="inline-flex items-center gap-3">
             <BrandMark placement="workspace" />
@@ -100,7 +100,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   );
 
   const sidebar = (
-    <aside className="premium-surface hidden h-fit p-4 lg:sticky lg:top-6 lg:block">
+    <aside className="premium-surface hidden p-4 lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-background/25 p-3">
         <Avatar name={session.user.name ?? session.user.email ?? "Member"} image={session.user.image} />
         <div className="min-w-0">

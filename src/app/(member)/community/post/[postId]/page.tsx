@@ -194,8 +194,8 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
           </CardContent>
         </Card>
 
-        <aside className="space-y-4">
-          <Card className="sticky top-24">
+        <aside className="space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
+          <Card>
             <CardHeader>
               <CardTitle className="inline-flex items-center gap-2 text-base">
                 <NotebookText size={16} />

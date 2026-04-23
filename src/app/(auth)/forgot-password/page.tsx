@@ -13,7 +13,7 @@ export const metadata: Metadata = createPageMetadata({
 
 export default function ForgotPasswordPage() {
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:px-8">
+    <div className="grid w-full min-w-0 gap-6 px-4 py-8 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:px-8 2xl:px-12">
       <Card>
         <CardHeader>
           <CardTitle className="font-display text-3xl">

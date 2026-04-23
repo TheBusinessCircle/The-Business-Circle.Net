@@ -248,7 +248,7 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
           </Card>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
           <Card className="border-silver/16 bg-card/62">
             <CardHeader>
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Library status</p>
@@ -280,7 +280,7 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
             </CardContent>
           </Card>
 
-          <Card className="sticky top-24 border-silver/16 bg-card/62">
+          <Card className="border-silver/16 bg-card/62">
             <CardHeader>
               <CardTitle className="inline-flex items-center gap-2 text-base">
                 <NotebookTabs size={16} className="text-silver" />
