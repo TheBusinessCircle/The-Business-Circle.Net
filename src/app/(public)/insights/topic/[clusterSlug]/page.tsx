@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Compass, MoveLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { InsightCard, JsonLd } from "@/components/public";
+import { PublicTopVisual } from "@/components/visual-media";
 import { Button } from "@/components/ui/button";
 import { INSIGHT_TOPIC_PILLARS } from "@/config/insight-pillars";
 import { SITE_CONFIG } from "@/config/site";
@@ -16,6 +17,7 @@ import {
   listInsightTopicClusters,
   listInsightTopicClusterSlugs
 } from "@/server/insights/insight.service";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 type PageProps = {
   params: Promise<{ clusterSlug: string }>;
@@ -68,6 +70,7 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
   }
 
   const pillar = INSIGHT_TOPIC_PILLARS[cluster.slug];
+  const insightsHeroPlacement = await getVisualMediaPlacement("intelligence.hero");
   const membershipPath =
     cluster.pillarInsight?.recommendedMembershipHref ?? `/membership?from=${cluster.href}`;
   const relatedClusters = listInsightTopicClusters()
@@ -98,6 +101,15 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
       <JsonLd data={collectionPageSchema} />
 
       <div className="space-y-10 pb-14 lg:space-y-12 lg:pb-16">
+        <PublicTopVisual
+          placement={insightsHeroPlacement}
+          eyebrow="Insight Topic"
+          title={pillar.headline}
+          description={cluster.description}
+          tone="anchored"
+          fallbackLabel="Insights top visual"
+        />
+
         <div className="space-y-4">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-muted">
             <Link href="/" className="hover:text-foreground">

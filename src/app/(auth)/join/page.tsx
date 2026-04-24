@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { JoinCheckoutPrep } from "@/components/auth/join-checkout-prep";
 import { JourneyRail } from "@/components/public";
-import { SectionFeatureImage, VisualPlacementBackground } from "@/components/visual-media";
+import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
 import { roleToTier } from "@/lib/permissions";
@@ -92,8 +92,16 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
 
   return (
     <div className="space-y-8 pb-16">
+      <PublicTopVisual
+        placement={joinHeroPlacement}
+        eyebrow="Join"
+        title="Step into the private environment with clarity."
+        description="Review the room, confirm the price, and move into secure checkout without friction."
+        tone="immersive"
+        fallbackLabel="Join top visual"
+      />
+
       <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
-        <VisualPlacementBackground placement={joinHeroPlacement} tone="immersive" />
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-gold/14 blur-[120px]" />

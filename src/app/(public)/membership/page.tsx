@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/public";
+import { PublicTopVisual } from "@/components/visual-media";
 import { MembershipGuidedSelector } from "@/components/public/membership-guided-selector";
 import {
   resolveMembershipBillingInterval,
@@ -82,6 +83,15 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
       />
       <JsonLd data={buildFaqSchema(membershipContent.faqs)} />
 
+      <PublicTopVisual
+        placement={membershipHeroPlacement}
+        eyebrow="Membership"
+        title="Choose the room that matches the business now."
+        description="Start with the atmosphere of the room before you compare the membership paths."
+        tone="immersive"
+        fallbackLabel="Membership top visual"
+      />
+
       {billing === "required" ? (
         <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
           Your account needs an active membership to access member areas. Choose the right room,
@@ -128,7 +138,6 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         faqTitle={membershipContent.faqTitle}
         faqDescription={membershipContent.faqDescription}
         faqItems={membershipContent.faqs}
-        heroPlacement={membershipHeroPlacement}
         roomsPlacement={membershipRoomsPlacement}
         foundersPlacement={membershipFoundersPlacement}
       />

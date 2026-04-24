@@ -43,6 +43,7 @@ type PageHeroImageProps = {
   className?: string;
   contentClassName?: string;
   priority?: boolean;
+  sizes?: string;
   tone?: PageHeroImageTone;
   children?: ReactNode;
 };
@@ -52,6 +53,7 @@ export function PageHeroImage({
   className,
   contentClassName,
   priority = true,
+  sizes = "(min-width: 1280px) 40vw, (min-width: 1024px) 44vw, 100vw",
   tone = "cinematic",
   children
 }: PageHeroImageProps) {
@@ -61,7 +63,7 @@ export function PageHeroImage({
     <VisualPlacement
       placement={placement}
       priority={priority}
-      sizes="(min-width: 1280px) 40vw, (min-width: 1024px) 44vw, 100vw"
+      sizes={sizes}
       className={cn(
         "min-h-[16rem] rounded-[2.45rem] border bg-background/18 shadow-panel sm:min-h-[21rem] lg:min-h-[26rem]",
         "before:pointer-events-none before:absolute before:inset-[1px] before:z-[1] before:rounded-[2.35rem] before:border before:border-white/8 before:content-['']",

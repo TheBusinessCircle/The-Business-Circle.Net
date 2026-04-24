@@ -9,7 +9,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { JsonLd } from "@/components/public";
-import { SectionFeatureImage, VisualPlacementBackground } from "@/components/visual-media";
+import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,8 +67,16 @@ export default async function FounderPage() {
     <div className="space-y-12 pb-16 sm:space-y-14">
       <JsonLd data={buildFounderSchema()} />
 
+      <PublicTopVisual
+        placement={servicesHeroPlacement}
+        eyebrow="Founder"
+        title="Founder-led support for owners who need clearer thinking and cleaner next moves."
+        description="A calm introduction to the founder page before the service detail begins."
+        tone="anchored"
+        fallbackLabel="Founder top visual"
+      />
+
       <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/58 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
-        <VisualPlacementBackground placement={servicesHeroPlacement} tone="anchored" />
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
 

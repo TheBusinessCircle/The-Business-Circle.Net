@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BookOpen, Compass, Lock, MoveLeft, NotebookTabs } from "lucide-react";
 import { notFound } from "next/navigation";
 import { InsightCard, JsonLd } from "@/components/public";
+import { PublicTopVisual } from "@/components/visual-media";
 import { Button } from "@/components/ui/button";
 import { SITE_CONFIG } from "@/config/site";
 import { createPageMetadata } from "@/lib/seo";
@@ -14,6 +15,7 @@ import {
   getRelatedPublicInsights,
   listPublicInsightSlugs
 } from "@/server/insights/insight.service";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -80,6 +82,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
 
   const relatedInsights = getRelatedPublicInsights(insight.slug, 3);
   const topicCluster = getInsightTopicClusterBySlug(insight.clusterSlug);
+  const insightsHeroPlacement = await getVisualMediaPlacement("intelligence.hero");
   const topicInsights = topicCluster
     ? [
         ...(topicCluster.pillarInsight ? [topicCluster.pillarInsight] : []),
@@ -106,6 +109,15 @@ export default async function InsightArticlePage({ params }: PageProps) {
       <JsonLd data={articleSchema} />
 
       <div className="space-y-10 pb-14 lg:space-y-12 lg:pb-16">
+        <PublicTopVisual
+          placement={insightsHeroPlacement}
+          eyebrow="Insight Article"
+          title={insight.title}
+          description={insight.summary}
+          tone="anchored"
+          fallbackLabel="Insights top visual"
+        />
+
         <div className="space-y-4">
           <nav
             aria-label="Breadcrumb"

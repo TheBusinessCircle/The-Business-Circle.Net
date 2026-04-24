@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { FounderServiceRequestForm } from "@/components/founder";
+import { PublicTopVisual } from "@/components/visual-media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import {
   getFounderServiceBySlug,
   getFounderServiceFormPrefill
 } from "@/server/founder";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
@@ -72,7 +74,10 @@ export default async function FounderServicePage({
   searchParams
 }: PageProps) {
   const [{ slug }, parsedSearchParams] = await Promise.all([params, searchParams]);
-  const service = await getFounderServiceBySlug(slug);
+  const [service, founderHeroPlacement] = await Promise.all([
+    getFounderServiceBySlug(slug),
+    getVisualMediaPlacement("services.hero")
+  ]);
 
   if (!service) {
     notFound();
@@ -109,6 +114,15 @@ export default async function FounderServicePage({
 
   return (
     <div className="space-y-8 pb-16">
+      <PublicTopVisual
+        placement={founderHeroPlacement}
+        eyebrow="Founder Service"
+        title={service.title}
+        description={service.shortDescription}
+        tone="anchored"
+        fallbackLabel="Founder top visual"
+      />
+
       <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-card/56 px-6 py-8 shadow-panel sm:px-8 sm:py-10">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -right-20 top-0 h-64 w-64 rounded-full bg-gold/16 blur-[110px]" />

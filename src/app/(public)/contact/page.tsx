@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Mail, MessageSquare, ShieldCheck } from "lucide-react";
+import { PublicTopVisual } from "@/components/visual-media";
 import { formatCompanyTrustLine } from "@/config/company";
 import { ContactForm } from "@/components/platform/contact-form";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { getSiteContentSection } from "@/server/site-content";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Contact The Business Circle Network",
@@ -22,10 +24,22 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default async function ContactPage() {
-  const footerContent = await getSiteContentSection("footer");
+  const [footerContent, publicTopPlacement] = await Promise.all([
+    getSiteContentSection("footer"),
+    getVisualMediaPlacement("global.public.top")
+  ]);
 
   return (
     <div className="space-y-12 pb-16">
+      <PublicTopVisual
+        placement={publicTopPlacement}
+        eyebrow="Contact"
+        title="Start a serious business conversation."
+        description="A premium opening visual for contact, enquiries, support, and partnership conversations."
+        tone="anchored"
+        fallbackLabel="Shared public top visual"
+      />
+
       <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />

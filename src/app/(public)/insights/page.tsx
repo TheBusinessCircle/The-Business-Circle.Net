@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BookOpen, Compass, Lock } from "lucide-react";
 import { CTASection, InsightCard, SectionHeading } from "@/components/public";
+import { PublicTopVisual } from "@/components/visual-media";
 import { Button } from "@/components/ui/button";
 import { INSIGHT_SECTION_COPY } from "@/config/insights";
 import { createPageMetadata } from "@/lib/seo";
@@ -9,6 +10,7 @@ import {
   listInsightTopicClusters,
   listPublicInsights
 } from "@/server/insights/insight.service";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Business Growth Insights For Founders",
@@ -44,9 +46,10 @@ const journeyItems = [
   }
 ] as const;
 
-export default function InsightsPage() {
+export default async function InsightsPage() {
   const insights = listPublicInsights();
   const topicClusters = listInsightTopicClusters();
+  const insightsHeroPlacement = await getVisualMediaPlacement("intelligence.hero");
   const startHereInsight =
     insights.find(
       (insight) => insight.slug === "why-your-business-is-not-growing-even-though-you-are-working-hard"
@@ -55,6 +58,15 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-14 pb-14 sm:space-y-16 lg:space-y-16 lg:pb-16">
+      <PublicTopVisual
+        placement={insightsHeroPlacement}
+        eyebrow="BCN Intelligence"
+        title="Signal over noise for founders who want clearer decisions."
+        description="Start with a clearer editorial layer before you move deeper into the insight content."
+        tone="anchored"
+        fallbackLabel="Insights top visual"
+      />
+
       <section className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 p-8 shadow-panel sm:p-10 lg:p-12">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -right-16 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />

@@ -13,7 +13,9 @@ describe("visual media placement registry", () => {
 
   it("includes the key placements needed for the public site rollout", () => {
     expect(VISUAL_MEDIA_PLACEMENTS.HOME_HERO.key).toBe("home.hero");
+    expect(VISUAL_MEDIA_PLACEMENTS.HOME_JOIN.key).toBe("home.section.join");
     expect(VISUAL_MEDIA_PLACEMENTS.HOME_PLATFORM.key).toBe("home.section.platform");
+    expect(VISUAL_MEDIA_PLACEMENTS.GLOBAL_PUBLIC_TOP.key).toBe("global.public.top");
     expect(VISUAL_MEDIA_PLACEMENTS.MEMBERSHIP_FOUNDERS.key).toBe(
       "membership.section.founders"
     );

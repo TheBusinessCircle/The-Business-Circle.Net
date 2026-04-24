@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { FAQSection, JsonLd } from "@/components/public";
+import { PublicTopVisual } from "@/components/visual-media";
 import { createPageMetadata } from "@/lib/seo";
 import { buildFaqSchema } from "@/lib/structured-data";
 import { getSiteContentSection } from "@/server/site-content";
+import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Frequently Asked Questions",
@@ -31,9 +33,10 @@ function dedupeFaqItems(
 }
 
 export default async function FaqPage() {
-  const [homeContent, membershipContent] = await Promise.all([
+  const [homeContent, membershipContent, publicTopPlacement] = await Promise.all([
     getSiteContentSection("home"),
-    getSiteContentSection("membership")
+    getSiteContentSection("membership"),
+    getVisualMediaPlacement("global.public.top")
   ]);
 
   const faqItems = dedupeFaqItems([...membershipContent.faqs, ...homeContent.faqs]).slice(0, 8);
@@ -41,6 +44,15 @@ export default async function FaqPage() {
   return (
     <div className="space-y-10 pb-16">
       <JsonLd data={buildFaqSchema(faqItems)} />
+
+      <PublicTopVisual
+        placement={publicTopPlacement}
+        eyebrow="FAQ"
+        title="Questions worth settling before you enter."
+        description="Clear answers on room fit, access, billing, and what changes once you step inside."
+        tone="anchored"
+        fallbackLabel="Shared public top visual"
+      />
 
       <section className="public-panel space-y-4 p-8 sm:p-10">
         <p className="premium-kicker">FAQ</p>

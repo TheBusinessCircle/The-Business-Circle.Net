@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Compass, Shield, TrendingUp, Users } from "lucide-react";
 import { JourneyRail, JsonLd } from "@/components/public";
-import { SectionFeatureImage, VisualPlacementBackground } from "@/components/visual-media";
+import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { TREV_FOUNDER_CONTENT } from "@/config/founder";
@@ -121,8 +121,16 @@ export default async function AboutPage() {
         ])}
       />
 
+      <PublicTopVisual
+        placement={aboutHeroPlacement}
+        eyebrow="About The Business Circle Network"
+        title="Built for owners who want a calmer, sharper room around real business decisions."
+        description="The story behind why BCN exists, how it is led, and what it is designed to change for serious business owners."
+        tone="anchored"
+        fallbackLabel="About top visual"
+      />
+
       <section className="relative overflow-hidden rounded-[2.3rem] border border-border/80 bg-card/55 px-6 py-10 shadow-panel sm:px-10 sm:py-14 lg:px-14 lg:py-16">
-        <VisualPlacementBackground placement={aboutHeroPlacement} tone="anchored" />
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-12 h-56 w-56 rounded-full bg-silver/10 blur-[90px]" />
         <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />

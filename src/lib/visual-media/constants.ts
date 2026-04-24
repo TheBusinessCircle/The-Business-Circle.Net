@@ -45,7 +45,7 @@ function createPromptTemplate(template: VisualMediaPromptTemplate) {
 export const VISUAL_MEDIA_PLACEMENTS = {
   HOME_HERO: {
     key: "home.hero",
-    label: "Homepage Hero",
+    label: "Homepage - Top Visual",
     page: "HOME",
     section: "hero",
     variant: "HERO",
@@ -53,7 +53,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     supportsMobile: true,
     recommendedAspectRatio: "16:10",
     adminHelperText:
-      "Best for cinematic atmosphere and premium first impression.",
+      "Used as the first visual section above the homepage content.",
     imageFamilyTag: "cinematic-atmosphere",
     adminPreviewFamily: "hero",
     imagePurpose: "Set the tone for the whole BCN experience immediately.",
@@ -115,7 +115,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
   },
   HOME_CONNECTION: {
     key: "home.section.connection",
-    label: "Homepage Connection Section",
+    label: "Homepage - Founder / Trust Section",
     page: "HOME",
     section: "connection",
     variant: "SECTION",
@@ -123,7 +123,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     supportsMobile: true,
     recommendedAspectRatio: "4:5",
     adminHelperText:
-      "Best for meaningful founder conversation imagery.",
+      "Supports the founder-led trust section near the end of the homepage.",
     imageFamilyTag: "founder-conversation",
     adminPreviewFamily: "human",
     imagePurpose:
@@ -176,7 +176,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
   },
   HOME_PLATFORM: {
     key: "home.section.platform",
-    label: "Homepage Platform Section",
+    label: "Homepage - Inside The Network",
     page: "HOME",
     section: "platform",
     variant: "SECTION",
@@ -184,7 +184,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     supportsMobile: true,
     recommendedAspectRatio: "16:10",
     adminHelperText:
-      "Best for platform or dashboard mockups.",
+      "Visual showing the BCN ecosystem, member environment, and structured platform.",
     imageFamilyTag: "platform-mockup",
     adminPreviewFamily: "editorial",
     imagePurpose: "Show the structured ecosystem and digital side of BCN.",
@@ -234,9 +234,76 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     }),
     defaultOverlayStyle: "SOFT_DARK"
   },
+  HOME_JOIN: {
+    key: "home.section.join",
+    label: "Homepage - What Happens When You Join",
+    page: "HOME",
+    section: "join",
+    variant: "SECTION",
+    sortOrder: 25,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Visual showing the member environment, resources, calls, collaborations, and owner activity.",
+    imageFamilyTag: "platform-mockup",
+    adminPreviewFamily: "editorial",
+    imagePurpose:
+      "Show what membership feels like in practice once someone steps inside the network.",
+    bestImageType: "Premium member-environment visual or refined platform-led story scene.",
+    emotionalTone: [
+      "clarity",
+      "activity with control",
+      "serious participation",
+      "premium structure",
+      "credible momentum"
+    ],
+    recommendedSubjectMatter: [
+      "dark-mode workspace or member environment",
+      "platform mockup with discussion, resources, and calls visible",
+      "owner activity shown in a calm premium way",
+      "collaboration or resource-led visual storytelling",
+      "structured ecosystem moment"
+    ],
+    recommendedComposition: [
+      "wide composition that feels premium and easy to read",
+      "show enough structure to feel real without becoming cluttered",
+      "should support adjacent cards or explanatory copy",
+      "avoid tiny unreadable UI detail"
+    ],
+    recommendedLightingMood: ["dark premium", "clean", "structured", "editorial realism"],
+    avoid: [
+      "cartoon dashboard renders",
+      "generic networking events",
+      "chaotic multi-screen overload",
+      "rainbow SaaS visuals"
+    ],
+    longAdminGuidance:
+      "Use this slot to make membership feel tangible. It should show what happens once a member joins: structured rooms, useful resources, live discussion, and visible movement inside a premium environment.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "platform-mockup"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Premium visual storytelling for what happens when someone joins BCN.",
+      sceneType: "Member-environment and ecosystem story visual.",
+      subject:
+        "Dark premium business platform environment showing discussion rooms, resource access, calls, and collaboration in a believable way.",
+      environment:
+        "Refined founder-world workspace with laptop and mobile context, subtle interface detail, and a calm premium atmosphere.",
+      lighting: "Controlled moody lighting with crisp interface detail.",
+      mood: "Structured, credible, active, and calm.",
+      style: "Editorial product-storytelling style, ultra realistic.",
+      cameraComposition:
+        "Wide clean composition with a clear focal plane, believable depth, and enough negative space to sit beside section copy.",
+      qualityTags:
+        "Premium dark-mode aesthetic, believable interface detail, no watermark, no text baked into the image, polished and realistic.",
+      negativePrompt:
+        "busy dashboard clutter, cartoon ui, event photography, bright coworking chaos, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
   JOIN_HERO: {
     key: "join.hero",
-    label: "Join Page Hero",
+    label: "Join Page - Top Visual",
     page: "JOIN",
     section: "hero",
     variant: "HERO",
@@ -244,7 +311,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     supportsMobile: true,
     recommendedAspectRatio: "16:10",
     adminHelperText:
-      "Best for premium entry-point atmosphere.",
+      "Used as the first visual section above the join flow.",
     imageFamilyTag: "cinematic-atmosphere",
     adminPreviewFamily: "hero",
     imagePurpose:
@@ -356,7 +423,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
   },
   MEMBERSHIP_HERO: {
     key: "membership.hero",
-    label: "Membership Hero",
+    label: "Membership Page - Top Visual",
     page: "MEMBERSHIP",
     section: "hero",
     variant: "HERO",
@@ -364,7 +431,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     supportsMobile: true,
     recommendedAspectRatio: "16:10",
     adminHelperText:
-      "Best for premium structure and room-selection atmosphere.",
+      "Used as the first visual section above the membership content.",
     imageFamilyTag: "cinematic-atmosphere",
     adminPreviewFamily: "hero",
     imagePurpose: "Elevate the membership page and support premium room selection.",
@@ -533,7 +600,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
   },
   ABOUT_HERO: {
     key: "about.hero",
-    label: "About Hero",
+    label: "About Page - Top Visual",
     page: "ABOUT",
     section: "hero",
     variant: "HERO",
@@ -541,7 +608,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     supportsMobile: true,
     recommendedAspectRatio: "16:10",
     adminHelperText:
-      "Best for founder-led credibility and identity.",
+      "Used as the first visual section above the about page content.",
     imageFamilyTag: "story-mission",
     adminPreviewFamily: "hero",
     imagePurpose: "Anchor the about page in credibility and identity.",
@@ -772,7 +839,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
   },
   INTELLIGENCE_HERO: {
     key: "intelligence.hero",
-    label: "BCN Intelligence Hero",
+    label: "Insights Page - Top Visual",
     page: "INSIGHTS",
     section: "hero",
     variant: "HERO",
@@ -780,7 +847,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     supportsMobile: true,
     recommendedAspectRatio: "16:10",
     adminHelperText:
-      "Best for editorial intelligence and signal-over-noise tone.",
+      "Used as the first visual section above the public insights content.",
     imageFamilyTag: "editorial-insight",
     adminPreviewFamily: "editorial",
     imagePurpose: "Position BCN Intelligence as a premium editorial intelligence layer.",
@@ -834,7 +901,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
   },
   SERVICES_HERO: {
     key: "services.hero",
-    label: "Services Hero",
+    label: "Founder Page - Top Visual",
     page: "FOUNDER",
     section: "hero",
     variant: "HERO",
@@ -842,7 +909,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     supportsMobile: true,
     recommendedAspectRatio: "16:10",
     adminHelperText:
-      "Best for premium strategic support positioning.",
+      "Used as the first visual section above the founder page content.",
     imageFamilyTag: "strategy-process",
     adminPreviewFamily: "hero",
     imagePurpose: "Position the service offer as high-value strategic support.",
@@ -948,6 +1015,68 @@ export const VISUAL_MEDIA_PLACEMENTS = {
         "messy whiteboard, chaotic brainstorming"
     }),
     defaultOverlayStyle: "SOFT_DARK"
+  },
+  GLOBAL_PUBLIC_TOP: {
+    key: "global.public.top",
+    label: "Public Page - Top Visual",
+    page: "GLOBAL",
+    section: "public-top",
+    variant: "HERO",
+    sortOrder: 10,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Shared top visual for public utility and detail pages such as Contact and FAQ.",
+    imageFamilyTag: "cinematic-atmosphere",
+    adminPreviewFamily: "hero",
+    imagePurpose:
+      "Give lighter public pages a premium opening section without requiring a unique slot for every route.",
+    bestImageType: "Calm premium atmosphere with flexible editorial cropping.",
+    emotionalTone: ["calm authority", "premium restraint", "clarity", "credibility", "welcome"],
+    recommendedSubjectMatter: [
+      "premium architectural business environment",
+      "calm workspace atmosphere",
+      "refined editorial business setting",
+      "subtle founder-world interior",
+      "credible premium business context"
+    ],
+    recommendedComposition: [
+      "wide composition that crops cleanly across different public pages",
+      "enough negative space for page-specific copy overlays",
+      "should feel supportive rather than overly thematic",
+      "avoid busy detail that fights page headings"
+    ],
+    recommendedLightingMood: ["dark premium", "editorial", "soft highlights", "controlled"],
+    avoid: [
+      "theme-specific imagery that only suits one page",
+      "crowded office scenes",
+      "event photography",
+      "bright generic stock"
+    ],
+    longAdminGuidance:
+      "Use this as the shared premium top visual for public pages that need a polished opening but do not justify their own dedicated media slot. It should feel versatile, calm, and on-brand across multiple contexts.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "cinematic-atmosphere",
+      isHero: true
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Versatile premium top visual for shared public pages.",
+      sceneType: "Premium editorial business atmosphere.",
+      subject:
+        "Refined private business environment with subtle architectural detail and clean premium surfaces.",
+      environment:
+        "Modern luxury business interior with calm composition, restrained materials, and believable depth.",
+      lighting: "Moody balanced lighting with soft highlights.",
+      mood: "Quiet, credible, premium, and welcoming.",
+      style: "Editorial photography style, ultra realistic.",
+      cameraComposition:
+        "Wide crop-friendly composition with flexible negative space and no dominant focal element that would limit reuse.",
+      qualityTags:
+        "Premium realism, high-end restraint, no watermark, no baked text, versatile brand atmosphere.",
+      negativePrompt:
+        "crowded office, bright coworking space, event scene, cheesy stock imagery, clutter"
+    }),
+    defaultOverlayStyle: "CINEMATIC"
   }
 } as const satisfies Record<string, RegistryItem>;
 
@@ -964,10 +1093,10 @@ export const VISUAL_MEDIA_PAGE_LABELS: Record<VisualMediaPage, string> = {
   JOIN: "Join",
   ABOUT: "About",
   COMMUNITY: "Community",
-  FOUNDER: "Services",
+  FOUNDER: "Founder",
   RESOURCES: "Resources",
-  INSIGHTS: "BCN Intelligence",
-  GLOBAL: "Global"
+  INSIGHTS: "Insights",
+  GLOBAL: "Shared"
 };
 
 export const VISUAL_MEDIA_PAGE_ORDER: readonly VisualMediaPage[] = [
@@ -978,7 +1107,8 @@ export const VISUAL_MEDIA_PAGE_ORDER: readonly VisualMediaPage[] = [
   "COMMUNITY",
   "RESOURCES",
   "INSIGHTS",
-  "FOUNDER"
+  "FOUNDER",
+  "GLOBAL"
 ] as const;
 
 export const VISUAL_MEDIA_LEGACY_KEY_MAP: Partial<
