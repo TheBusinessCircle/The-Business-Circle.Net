@@ -22,6 +22,10 @@ model User {
   foundingTier                 MembershipTier?
   foundingPrice                Int?
   foundingClaimedAt            DateTime?
+  acceptedTermsAt              DateTime?
+  acceptedRulesAt              DateTime?
+  acceptedTermsVersion         String?
+  acceptedRulesVersion         String?
   suspended                    Boolean                    @default(false)
   suspendedAt                  DateTime?
   createdAt                    DateTime                   @default(now())
@@ -591,6 +595,10 @@ model PendingRegistration {
   businessStage         BusinessStage?
   companyNumber         String?
   coreAccessConfirmed   Boolean                            @default(false)
+  acceptedTermsAt       DateTime?
+  acceptedRulesAt       DateTime?
+  acceptedTermsVersion  String?
+  acceptedRulesVersion  String?
   inviteCode            String?
   status                PendingRegistrationStatus          @default(PENDING)
   stripeCheckoutSessionId String?                          @unique

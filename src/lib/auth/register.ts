@@ -11,6 +11,10 @@ import {
   SubscriptionStatus
 } from "@prisma/client";
 import { WelcomeMemberEmail } from "@/emails";
+import {
+  BCN_RULES_VERSION,
+  TERMS_VERSION
+} from "@/config/legal";
 import { getMembershipPlan, type MembershipBillingInterval } from "@/config/membership";
 import { sendEmailVerificationForUser } from "@/lib/auth/email-verification";
 import { hashPassword } from "@/lib/auth/password";
@@ -61,6 +65,10 @@ export type CreatePendingRegistrationResult = {
     billingInterval: MembershipBillingInterval;
     coreAccessConfirmed: boolean;
     inviteCode: string | null;
+    acceptedTermsAt: Date;
+    acceptedRulesAt: Date;
+    acceptedTermsVersion: string;
+    acceptedRulesVersion: string;
   };
 };
 
@@ -193,6 +201,10 @@ function buildExistingUserUpdateData(input: {
   businessStatus: BusinessStatus | null;
   companyNumber: string | null;
   businessStage: BusinessStage | null;
+  acceptedTermsAt: Date | null;
+  acceptedRulesAt: Date | null;
+  acceptedTermsVersion: string | null;
+  acceptedRulesVersion: string | null;
 }) {
   const businessData = buildBusinessUpdateData({
     businessName: input.businessName,
@@ -207,6 +219,10 @@ function buildExistingUserUpdateData(input: {
     passwordHash: input.passwordHash,
     role: roleForTier(input.selectedTier),
     membershipTier: input.selectedTier,
+    acceptedTermsAt: input.acceptedTermsAt,
+    acceptedRulesAt: input.acceptedRulesAt,
+    acceptedTermsVersion: input.acceptedTermsVersion,
+    acceptedRulesVersion: input.acceptedRulesVersion,
     ...(shouldUpdateBusiness
       ? {
           profile: {
@@ -235,7 +251,13 @@ function buildExistingUserUpdateData(input: {
 function toPendingRegistrationRecord(
   input: RegisterMemberInput,
   email: string,
-  passwordHash: string
+  passwordHash: string,
+  legalAcceptance: {
+    acceptedTermsAt: Date;
+    acceptedRulesAt: Date;
+    acceptedTermsVersion: string;
+    acceptedRulesVersion: string;
+  }
 ) {
   return {
     email,
@@ -248,6 +270,10 @@ function toPendingRegistrationRecord(
     businessStage: normalizeBusinessStage(input.businessStage),
     companyNumber: input.companyNumber?.trim() || null,
     coreAccessConfirmed: Boolean(input.coreAccessConfirmed),
+    acceptedTermsAt: legalAcceptance.acceptedTermsAt,
+    acceptedRulesAt: legalAcceptance.acceptedRulesAt,
+    acceptedTermsVersion: legalAcceptance.acceptedTermsVersion,
+    acceptedRulesVersion: legalAcceptance.acceptedRulesVersion,
     inviteCode: input.inviteCode?.trim().toUpperCase() || null
   };
 }
@@ -426,7 +452,10 @@ export async function createPendingRegistration(
   const parsed = registerMemberSchema.safeParse(rawInput);
 
   if (!parsed.success) {
-    throw new RegistrationServiceError("INVALID_INPUT", "Invalid registration payload.");
+    throw new RegistrationServiceError(
+      "INVALID_INPUT",
+      parsed.error.issues[0]?.message ?? "Invalid registration payload."
+    );
   }
 
   const input = parsed.data;
@@ -479,7 +508,19 @@ export async function createPendingRegistration(
   }
 
   const passwordHash = await hashPassword(input.password);
-  const normalizedRecord = toPendingRegistrationRecord(input, email, passwordHash);
+  const acceptedAt = new Date();
+  const legalAcceptance = {
+    acceptedTermsAt: acceptedAt,
+    acceptedRulesAt: acceptedAt,
+    acceptedTermsVersion: TERMS_VERSION,
+    acceptedRulesVersion: BCN_RULES_VERSION
+  };
+  const normalizedRecord = toPendingRegistrationRecord(
+    input,
+    email,
+    passwordHash,
+    legalAcceptance
+  );
   const expiresAt = new Date(
     Date.now() + resolvePendingRegistrationTtlHours() * 60 * 60 * 1000
   );
@@ -499,7 +540,11 @@ export async function createPendingRegistration(
         selectedTier: true,
         billingInterval: true,
         coreAccessConfirmed: true,
-        inviteCode: true
+        inviteCode: true,
+        acceptedTermsAt: true,
+        acceptedRulesAt: true,
+        acceptedTermsVersion: true,
+        acceptedRulesVersion: true
       }
     });
 
@@ -513,7 +558,13 @@ export async function createPendingRegistration(
           pendingRegistration.billingInterval
         ),
         coreAccessConfirmed: pendingRegistration.coreAccessConfirmed,
-        inviteCode: pendingRegistration.inviteCode
+        inviteCode: pendingRegistration.inviteCode,
+        acceptedTermsAt: pendingRegistration.acceptedTermsAt ?? acceptedAt,
+        acceptedRulesAt: pendingRegistration.acceptedRulesAt ?? acceptedAt,
+        acceptedTermsVersion:
+          pendingRegistration.acceptedTermsVersion ?? TERMS_VERSION,
+        acceptedRulesVersion:
+          pendingRegistration.acceptedRulesVersion ?? BCN_RULES_VERSION
       }
     };
   } catch (error) {
@@ -557,6 +608,10 @@ export async function provisionUserFromPendingRegistration(input: {
         companyNumber: true,
         coreAccessConfirmed: true,
         inviteCode: true,
+        acceptedTermsAt: true,
+        acceptedRulesAt: true,
+        acceptedTermsVersion: true,
+        acceptedRulesVersion: true,
         status: true,
         completedUserId: true
       }
@@ -609,7 +664,11 @@ export async function provisionUserFromPendingRegistration(input: {
               businessName: pendingRegistration.businessName,
               businessStatus: pendingRegistration.businessStatus,
               companyNumber: pendingRegistration.companyNumber,
-              businessStage: pendingRegistration.businessStage
+              businessStage: pendingRegistration.businessStage,
+              acceptedTermsAt: pendingRegistration.acceptedTermsAt,
+              acceptedRulesAt: pendingRegistration.acceptedRulesAt,
+              acceptedTermsVersion: pendingRegistration.acceptedTermsVersion,
+              acceptedRulesVersion: pendingRegistration.acceptedRulesVersion
             }),
             select: {
               id: true,
@@ -624,6 +683,10 @@ export async function provisionUserFromPendingRegistration(input: {
               passwordHash: pendingRegistration.passwordHash,
               role: roleForTier(pendingRegistration.selectedTier),
               membershipTier: pendingRegistration.selectedTier,
+              acceptedTermsAt: pendingRegistration.acceptedTermsAt,
+              acceptedRulesAt: pendingRegistration.acceptedRulesAt,
+              acceptedTermsVersion: pendingRegistration.acceptedTermsVersion,
+              acceptedRulesVersion: pendingRegistration.acceptedRulesVersion,
               profile: {
                 create: buildProfileCreateData({
                   businessName: pendingRegistration.businessName,

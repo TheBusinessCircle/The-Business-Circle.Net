@@ -267,6 +267,7 @@ export const SITE_CONTENT_REVALIDATION_PATHS: Record<SiteContentSlug, string[]> 
     "/dpia",
     "/privacy-policy",
     "/terms-of-service",
+    "/rules",
     "/cookie-policy"
   ]
 };

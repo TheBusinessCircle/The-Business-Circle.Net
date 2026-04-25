@@ -17,6 +17,8 @@ vi.mock("@/lib/db", () => ({
   db: dbMock
 }));
 
+vi.mock("server-only", () => ({}));
+
 vi.mock("@/server/community-recognition", () => recognitionMock);
 
 vi.mock("@/server/messages", () => ({

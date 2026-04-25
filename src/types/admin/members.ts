@@ -75,6 +75,10 @@ export interface AdminMemberDetails {
   verificationEmailLastSentAt: Date | null;
   verificationEmailSendCount: number;
   emailVerifiedAt: Date | null;
+  acceptedTermsAt: Date | null;
+  acceptedRulesAt: Date | null;
+  acceptedTermsVersion: string | null;
+  acceptedRulesVersion: string | null;
   recognition: CommunityRecognitionSummary;
   inviteDashboard: InviteDashboardModel | null;
   invitedBy: {

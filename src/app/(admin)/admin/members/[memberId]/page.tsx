@@ -119,6 +119,23 @@ function renderVerificationSummary(member: {
   );
 }
 
+function renderLegalAcceptanceSummary(input: {
+  acceptedAt: Date | null;
+  version: string | null;
+  emptyLabel: string;
+}) {
+  if (!input.acceptedAt) {
+    return <p className="mt-2 text-xs text-muted">{input.emptyLabel}</p>;
+  }
+
+  return (
+    <div className="mt-2 space-y-1 text-xs text-muted">
+      <p>Accepted: {formatDate(input.acceptedAt)}</p>
+      <p>Version: {input.version ?? "Not recorded"}</p>
+    </div>
+  );
+}
+
 function buildFeedbackMessage(input: { error: string; notice: string }) {
   const noticeMap: Record<string, string> = {
     "member-updated": "Member details were updated.",
@@ -410,6 +427,35 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
                   This subscription is set to cancel at the end of the current billing period.
                 </p>
               ) : null}
+            </div>
+
+            <div className="rounded-xl border border-border p-3">
+              <p className="text-sm font-medium text-foreground">Legal Acceptance</p>
+              <p className="mt-1 text-xs text-muted">
+                Review the legal agreements accepted during secure signup.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                    Terms & Conditions
+                  </p>
+                  {renderLegalAcceptanceSummary({
+                    acceptedAt: member.acceptedTermsAt,
+                    version: member.acceptedTermsVersion,
+                    emptyLabel: "No terms acceptance recorded yet."
+                  })}
+                </div>
+                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                    BCN Rules
+                  </p>
+                  {renderLegalAcceptanceSummary({
+                    acceptedAt: member.acceptedRulesAt,
+                    version: member.acceptedRulesVersion,
+                    emptyLabel: "No BCN Rules acceptance recorded yet."
+                  })}
+                </div>
+              </div>
             </div>
 
             <div className="rounded-xl border border-border p-3">

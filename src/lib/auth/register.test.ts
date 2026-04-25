@@ -1,6 +1,7 @@
 import { Role, SubscriptionStatus } from "@prisma/client";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { RegistrationServiceError, createPendingRegistration } from "@/lib/auth/register";
+import { BCN_RULES_VERSION, TERMS_VERSION } from "@/config/legal";
 
 const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
@@ -96,7 +97,9 @@ describe("createPendingRegistration", () => {
         email: "trev@example.com",
         password: "ValidPassword1!",
         tier: "FOUNDATION",
-        billingInterval: "monthly"
+        billingInterval: "monthly",
+        acceptedTerms: true,
+        acceptedRules: true
       })
     ).rejects.toMatchObject({
       code: "EMAIL_IN_USE"
@@ -120,7 +123,11 @@ describe("createPendingRegistration", () => {
       selectedTier: "FOUNDATION",
       billingInterval: "MONTHLY",
       coreAccessConfirmed: false,
-      inviteCode: null
+      inviteCode: null,
+      acceptedTermsAt: new Date("2026-04-25T09:15:00.000Z"),
+      acceptedRulesAt: new Date("2026-04-25T09:15:00.000Z"),
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedRulesVersion: BCN_RULES_VERSION
     });
 
     const result = await createPendingRegistration({
@@ -128,7 +135,9 @@ describe("createPendingRegistration", () => {
       email: "trev@example.com",
       password: "ValidPassword1!",
       tier: "FOUNDATION",
-      billingInterval: "monthly"
+      billingInterval: "monthly",
+      acceptedTerms: true,
+      acceptedRules: true
     });
 
     expect(result.pendingRegistration.id).toBe("pending_456");
@@ -152,7 +161,9 @@ describe("createPendingRegistration", () => {
         email: "trev@example.com",
         password: "ValidPassword1!",
         tier: "FOUNDATION",
-        billingInterval: "monthly"
+        billingInterval: "monthly",
+        acceptedTerms: true,
+        acceptedRules: true
       })
     ).rejects.toMatchObject({
       code: "EMAIL_IN_USE"
@@ -168,10 +179,44 @@ describe("createPendingRegistration", () => {
         email: "trev@example.com",
         password: "ValidPassword1!",
         tier: "FOUNDATION",
-        billingInterval: "monthly"
+        billingInterval: "monthly",
+        acceptedTerms: true,
+        acceptedRules: true
       })
     ).rejects.toMatchObject({
       code: "PAYMENT_IN_PROGRESS"
+    } satisfies Partial<RegistrationServiceError>);
+  });
+
+  it("rejects when the terms are not accepted", async () => {
+    await expect(
+      createPendingRegistration({
+        name: "Trevor Newton",
+        email: "trev@example.com",
+        password: "ValidPassword1!",
+        tier: "FOUNDATION",
+        billingInterval: "monthly",
+        acceptedRules: true
+      })
+    ).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message: "You must accept the Terms & Conditions to continue."
+    } satisfies Partial<RegistrationServiceError>);
+  });
+
+  it("rejects when the BCN Rules are not accepted", async () => {
+    await expect(
+      createPendingRegistration({
+        name: "Trevor Newton",
+        email: "trev@example.com",
+        password: "ValidPassword1!",
+        tier: "FOUNDATION",
+        billingInterval: "monthly",
+        acceptedTerms: true
+      })
+    ).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message: "You must accept the BCN Rules to continue."
     } satisfies Partial<RegistrationServiceError>);
   });
 
@@ -183,7 +228,11 @@ describe("createPendingRegistration", () => {
       selectedTier: "INNER_CIRCLE",
       billingInterval: "ANNUAL",
       coreAccessConfirmed: false,
-      inviteCode: "BC-TREV-1234"
+      inviteCode: "BC-TREV-1234",
+      acceptedTermsAt: new Date("2026-04-25T09:15:00.000Z"),
+      acceptedRulesAt: new Date("2026-04-25T09:15:00.000Z"),
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedRulesVersion: BCN_RULES_VERSION
     });
 
     const result = await createPendingRegistration({
@@ -196,7 +245,9 @@ describe("createPendingRegistration", () => {
       businessStatus: "REGISTERED_BUSINESS",
       businessStage: "GROWTH",
       companyNumber: " 12345678 ",
-      inviteCode: "bc-trev-1234"
+      inviteCode: "bc-trev-1234",
+      acceptedTerms: true,
+      acceptedRules: true
     });
 
     expect(mocks.pendingRegistrationCreate).toHaveBeenCalledWith(
@@ -211,7 +262,11 @@ describe("createPendingRegistration", () => {
           businessStatus: "REGISTERED_BUSINESS",
           businessStage: "GROWTH",
           companyNumber: "12345678",
-          inviteCode: "BC-TREV-1234"
+          inviteCode: "BC-TREV-1234",
+          acceptedTermsAt: expect.any(Date),
+          acceptedRulesAt: expect.any(Date),
+          acceptedTermsVersion: TERMS_VERSION,
+          acceptedRulesVersion: BCN_RULES_VERSION
         })
       })
     );
@@ -222,7 +277,11 @@ describe("createPendingRegistration", () => {
       selectedTier: "INNER_CIRCLE",
       billingInterval: "annual",
       coreAccessConfirmed: false,
-      inviteCode: "BC-TREV-1234"
+      inviteCode: "BC-TREV-1234",
+      acceptedTermsAt: new Date("2026-04-25T09:15:00.000Z"),
+      acceptedRulesAt: new Date("2026-04-25T09:15:00.000Z"),
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedRulesVersion: BCN_RULES_VERSION
     });
   });
 });

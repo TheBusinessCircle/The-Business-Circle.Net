@@ -11,6 +11,8 @@ export const membershipBillingIntervalSchema = z.enum(membershipBillingIntervalV
 
 const coreAccessConfirmationMessage =
   "Please confirm that you are actively running a business or generating revenue to continue to Core.";
+const acceptedTermsMessage = "You must accept the Terms & Conditions to continue.";
+const acceptedRulesMessage = "You must accept the BCN Rules to continue.";
 
 export const emailSchema = z.string().trim().email().max(254);
 
@@ -32,6 +34,8 @@ const registerMemberBaseSchema = z.object({
   tier: membershipTierSchema,
   billingInterval: membershipBillingIntervalSchema.default("monthly"),
   coreAccessConfirmed: z.boolean().optional().default(false),
+  acceptedTerms: z.boolean().optional().default(false),
+  acceptedRules: z.boolean().optional().default(false),
   businessName: z.string().trim().max(140).optional().or(z.literal("")),
   businessStatus: z.nativeEnum(BusinessStatus).optional().or(z.literal("")),
   companyNumber: z.string().trim().max(64).optional().or(z.literal("")),
@@ -47,6 +51,22 @@ export const registerMemberSchema = registerMemberBaseSchema.superRefine((input,
       message: coreAccessConfirmationMessage
     });
   }
+
+  if (!input.acceptedTerms) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["acceptedTerms"],
+      message: acceptedTermsMessage
+    });
+  }
+
+  if (!input.acceptedRules) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["acceptedRules"],
+      message: acceptedRulesMessage
+    });
+  }
 });
 
 export const registerMemberFormSchema = registerMemberBaseSchema
@@ -59,6 +79,22 @@ export const registerMemberFormSchema = registerMemberBaseSchema
         code: z.ZodIssueCode.custom,
         path: ["coreAccessConfirmed"],
         message: coreAccessConfirmationMessage
+      });
+    }
+
+    if (!input.acceptedTerms) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["acceptedTerms"],
+        message: acceptedTermsMessage
+      });
+    }
+
+    if (!input.acceptedRules) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["acceptedRules"],
+        message: acceptedRulesMessage
       });
     }
 
@@ -99,4 +135,3 @@ export type MembershipTierValue = z.infer<typeof membershipTierSchema>;
 export type MembershipBillingIntervalValue = z.infer<typeof membershipBillingIntervalSchema>;
 export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestSchema>;
 export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchema>;
-

@@ -187,6 +187,10 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
         emailVerified: true,
         verificationEmailLastSentAt: true,
         verificationEmailSendCount: true,
+        acceptedTermsAt: true,
+        acceptedRulesAt: true,
+        acceptedTermsVersion: true,
+        acceptedRulesVersion: true,
         subscription: {
           select: {
             status: true,
@@ -250,6 +254,10 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
     verificationEmailLastSentAt: user.verificationEmailLastSentAt,
     verificationEmailSendCount: user.verificationEmailSendCount,
     emailVerifiedAt: user.emailVerified,
+    acceptedTermsAt: user.acceptedTermsAt,
+    acceptedRulesAt: user.acceptedRulesAt,
+    acceptedTermsVersion: user.acceptedTermsVersion,
+    acceptedRulesVersion: user.acceptedRulesVersion,
     subscriptionStatus: user.subscription?.status ?? "NONE",
     subscriptionBillingInterval: user.subscription?.billingInterval ?? null,
     subscriptionBillingVariant: user.subscription?.billingVariant ?? null,

@@ -52,6 +52,8 @@ type RegisterPayload = {
   tier: MembershipTier;
   billingInterval: MembershipBillingIntervalValue;
   coreAccessConfirmed: boolean;
+  acceptedTerms: boolean;
+  acceptedRules: boolean;
   businessName?: string;
   businessStatus?: "IDEA_STARTUP" | "REGISTERED_BUSINESS" | "ESTABLISHED_COMPANY";
   companyNumber?: string;
@@ -143,6 +145,8 @@ export function RegisterForm({
 
   const form = useForm<RegisterMemberFormInput>({
     resolver: zodResolver(registerMemberFormSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       name: "",
       email: "",
@@ -151,6 +155,8 @@ export function RegisterForm({
       tier: defaultTier,
       billingInterval,
       coreAccessConfirmed,
+      acceptedTerms: false,
+      acceptedRules: false,
       businessName: "",
       businessStatus: "",
       companyNumber: "",
@@ -200,7 +206,9 @@ export function RegisterForm({
         password: values.password,
         tier: values.tier,
         billingInterval: values.billingInterval,
-        coreAccessConfirmed: values.coreAccessConfirmed
+        coreAccessConfirmed: values.coreAccessConfirmed,
+        acceptedTerms: values.acceptedTerms,
+        acceptedRules: values.acceptedRules
       };
 
       if (values.inviteCode?.trim()) {
@@ -245,6 +253,7 @@ export function RegisterForm({
       setNotice("Unable to start secure checkout.");
     });
   });
+  const canSubmitRegistration = form.formState.isValid && !submitDisabled;
 
   return (
     <Card className="overflow-hidden border-gold/25 bg-gradient-to-b from-card/95 via-card/84 to-background/76 shadow-[0_24px_70px_rgba(2,6,23,0.32)] backdrop-blur-xl">
@@ -502,7 +511,60 @@ export function RegisterForm({
 
           <input type="hidden" {...form.register("inviteCode")} />
 
-          <Button disabled={isPending || submitDisabled} type="submit" className="w-full" size="lg">
+          <div className="space-y-3 rounded-2xl border border-border/70 bg-background/20 p-4">
+            <label
+              htmlFor="register-accepted-terms"
+              className="flex items-start gap-3 text-sm leading-relaxed text-foreground"
+            >
+              <input
+                id="register-accepted-terms"
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                {...form.register("acceptedTerms")}
+              />
+              <span className="min-w-0">
+                I agree to the{" "}
+                <Link href="/terms-of-service" className="text-primary hover:underline">
+                  Terms & Conditions
+                </Link>
+              </span>
+            </label>
+            {form.formState.errors.acceptedTerms ? (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.acceptedTerms.message}
+              </p>
+            ) : null}
+
+            <label
+              htmlFor="register-accepted-rules"
+              className="flex items-start gap-3 text-sm leading-relaxed text-foreground"
+            >
+              <input
+                id="register-accepted-rules"
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                {...form.register("acceptedRules")}
+              />
+              <span className="min-w-0">
+                I agree to the{" "}
+                <Link href="/rules" className="text-primary hover:underline">
+                  BCN Rules
+                </Link>
+              </span>
+            </label>
+            {form.formState.errors.acceptedRules ? (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.acceptedRules.message}
+              </p>
+            ) : null}
+          </div>
+
+          <Button
+            disabled={isPending || !canSubmitRegistration}
+            type="submit"
+            className="w-full"
+            size="lg"
+          >
             <span className="inline-flex items-center gap-2">
               {isPending ? "Starting Secure Checkout..." : "Continue To Secure Checkout"}
               {isPending ? null : <ArrowRight size={16} />}
@@ -512,6 +574,10 @@ export function RegisterForm({
           {submitDisabled ? (
             <p className="text-xs text-muted">
               Confirm Core eligibility above to continue.
+            </p>
+          ) : !canSubmitRegistration ? (
+            <p className="text-xs text-muted">
+              Complete the required details and accept both legal agreements to continue.
             </p>
           ) : null}
         </form>

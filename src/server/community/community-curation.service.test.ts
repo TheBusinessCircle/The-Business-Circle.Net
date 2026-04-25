@@ -197,7 +197,7 @@ describe("community curation service", () => {
                 </rss>
               `
         )
-      } as Response;
+      } as unknown as Response;
     });
 
     const result = await publishBcnCuratedPosts({
@@ -256,7 +256,7 @@ describe("community curation service", () => {
                 </rss>
               `
         )
-      } as Response;
+      } as unknown as Response;
     });
 
     const result = await publishBcnCuratedPosts({
@@ -346,7 +346,7 @@ describe("community curation service", () => {
                 </rss>
               `
         )
-      } as Response;
+      } as unknown as Response;
     });
 
     const result = await publishBcnCuratedPosts({

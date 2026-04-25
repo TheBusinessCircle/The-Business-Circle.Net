@@ -1,6 +1,24 @@
 import { MembershipTier, SubscriptionStatus } from "@prisma/client";
 import { describe, expect, it, vi } from "vitest";
 import type Stripe from "stripe";
+import { BCN_RULES_VERSION, TERMS_VERSION } from "@/config/legal";
+
+const stripeWebhookEventCreateMock = vi.hoisted(() => vi.fn(async () => ({})));
+const stripeWebhookEventFindUniqueMock = vi.hoisted(() => vi.fn(async () => null));
+const stripeWebhookEventUpdateManyMock = vi.hoisted(() => vi.fn(async () => ({ count: 1 })));
+const stripeWebhookEventUpdateMock = vi.hoisted(() => vi.fn(async () => ({})));
+const pendingRegistrationFindUniqueMock = vi.hoisted(() => vi.fn());
+const pendingRegistrationFindFirstMock = vi.hoisted(() => vi.fn());
+const pendingRegistrationUpdateMock = vi.hoisted(() => vi.fn(async () => ({})));
+const stripeCheckoutCreateMock = vi.hoisted(() => vi.fn());
+const stripeCustomersListMock = vi.hoisted(() => vi.fn());
+const stripeCustomersCreateMock = vi.hoisted(() => vi.fn());
+const stripeCustomersUpdateMock = vi.hoisted(() => vi.fn());
+const reserveFoundingSlotMock = vi.hoisted(() => vi.fn());
+const attachFoundingReservationToCheckoutSessionMock = vi.hoisted(() => vi.fn(async () => {}));
+const releaseFoundingReservationMock = vi.hoisted(() => vi.fn(async () => {}));
+const claimFoundingReservationMock = vi.hoisted(() => vi.fn(async () => {}));
+const resolveManagedMembershipPlanMock = vi.hoisted(() => vi.fn());
 
 vi.hoisted(() => {
   process.env.STRIPE_STANDARD_PRICE_ID = "price_standard_test";
@@ -30,16 +48,32 @@ vi.hoisted(() => {
 vi.mock("@/lib/db", () => ({
   db: {
     stripeWebhookEvent: {
-      create: vi.fn(async () => ({})),
-      findUnique: vi.fn(async () => null),
-      updateMany: vi.fn(async () => ({ count: 1 })),
-      update: vi.fn(async () => ({}))
+      create: stripeWebhookEventCreateMock,
+      findUnique: stripeWebhookEventFindUniqueMock,
+      updateMany: stripeWebhookEventUpdateManyMock,
+      update: stripeWebhookEventUpdateMock
+    },
+    pendingRegistration: {
+      findUnique: pendingRegistrationFindUniqueMock,
+      findFirst: pendingRegistrationFindFirstMock,
+      update: pendingRegistrationUpdateMock
     }
   }
 }));
 
 vi.mock("@/server/stripe/client", () => ({
-  requireStripeClient: vi.fn()
+  requireStripeClient: vi.fn(() => ({
+    checkout: {
+      sessions: {
+        create: stripeCheckoutCreateMock
+      }
+    },
+    customers: {
+      list: stripeCustomersListMock,
+      create: stripeCustomersCreateMock,
+      update: stripeCustomersUpdateMock
+    }
+  }))
 }));
 
 vi.mock("@/lib/email/resend", () => ({
@@ -47,7 +81,7 @@ vi.mock("@/lib/email/resend", () => ({
 }));
 
 vi.mock("@/server/products-pricing", () => ({
-  resolveManagedMembershipPlan: vi.fn(),
+  resolveManagedMembershipPlan: resolveManagedMembershipPlanMock,
   resolveManagedMembershipPlanFromStripePriceId: vi.fn(async () => ({
     tier: "FOUNDATION",
     billingVariant: "standard",
@@ -61,11 +95,19 @@ vi.mock("@/server/products-pricing", () => ({
   resolveManagedMembershipTierFromStripePriceId: vi.fn(async () => "FOUNDATION")
 }));
 
+vi.mock("@/server/founding", () => ({
+  attachFoundingReservationToCheckoutSession: attachFoundingReservationToCheckoutSessionMock,
+  claimFoundingReservation: claimFoundingReservationMock,
+  releaseFoundingReservation: releaseFoundingReservationMock,
+  reserveFoundingSlot: reserveFoundingSlotMock
+}));
+
 import {
   getMembershipBillingPlan,
   resolveBillingIntervalFromPriceId
 } from "@/config/membership";
 import {
+  createStripeCheckoutSessionForPendingRegistration,
   getTierFromStripePriceId,
   isSubscriptionEntitled,
   processStripeWebhookEvent,
@@ -204,5 +246,68 @@ describe("subscription service", () => {
     );
 
     expect(processors.handleCheckoutSessionCompleted).not.toHaveBeenCalled();
+  });
+
+  it("includes legal acceptance metadata on pending registration checkout sessions", async () => {
+    const acceptedAt = new Date("2026-04-25T10:15:00.000Z");
+
+    resolveManagedMembershipPlanMock.mockResolvedValueOnce({
+      stripePriceId: "price_inner_circle_annual_test",
+      planKey: "inner-circle-annual",
+      checkoutPrice: 468,
+      monthlyEquivalentPrice: 39
+    });
+    reserveFoundingSlotMock.mockResolvedValueOnce(null);
+    stripeCustomersListMock.mockResolvedValueOnce({
+      data: []
+    });
+    stripeCustomersCreateMock.mockResolvedValueOnce({
+      id: "cus_pending_123"
+    });
+    pendingRegistrationFindUniqueMock
+      .mockResolvedValueOnce({
+        stripeCustomerId: null
+      })
+      .mockResolvedValueOnce({
+        id: "pending_123",
+        stripeCheckoutSessionId: null
+      });
+    stripeCheckoutCreateMock.mockResolvedValueOnce({
+      id: "cs_pending_123",
+      url: "https://checkout.stripe.com/c/pay/cs_pending_123",
+      customer: "cus_pending_123",
+      subscription: null
+    });
+
+    await createStripeCheckoutSessionForPendingRegistration({
+      pendingRegistrationId: "pending_123",
+      email: "trev@example.com",
+      name: "Trevor Newton",
+      targetTier: MembershipTier.INNER_CIRCLE,
+      billingInterval: "annual",
+      coreAccessConfirmed: false,
+      inviteCode: "BC-TREV-1234",
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedRulesVersion: BCN_RULES_VERSION,
+      acceptedAt,
+      allowFoundingOffer: false
+    });
+
+    const checkoutPayload = stripeCheckoutCreateMock.mock.calls[0]?.[0];
+
+    expect(checkoutPayload.metadata).toMatchObject({
+      acceptedTerms: "true",
+      acceptedRules: "true",
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedRulesVersion: BCN_RULES_VERSION,
+      acceptedLegalAt: acceptedAt.toISOString()
+    });
+    expect(checkoutPayload.subscription_data.metadata).toMatchObject({
+      acceptedTerms: "true",
+      acceptedRules: "true",
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedRulesVersion: BCN_RULES_VERSION,
+      acceptedLegalAt: acceptedAt.toISOString()
+    });
   });
 });

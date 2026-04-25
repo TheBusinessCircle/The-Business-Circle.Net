@@ -1,29 +1,29 @@
 import type { Metadata } from "next";
 import {
-  TERMS_LAST_UPDATED,
-  TERMS_OF_SERVICE_CONTENT
+  BCN_RULES_CONTENT,
+  BCN_RULES_LAST_UPDATED
 } from "@/config/legal";
 import { LegalDocument } from "@/components/public";
 import { createPageMetadata } from "@/lib/seo";
 import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Terms of Service",
-  description: TERMS_OF_SERVICE_CONTENT.description,
-  path: "/terms-of-service"
+  title: "BCN Rules",
+  description: BCN_RULES_CONTENT.description,
+  path: "/rules"
 });
 
-export default async function TermsOfServicePage() {
+export default async function RulesPage() {
   const footerContent = await getSiteContentSection("footer");
 
   return (
     <LegalDocument
-      label={TERMS_OF_SERVICE_CONTENT.label}
-      title={TERMS_OF_SERVICE_CONTENT.title}
-      intro={TERMS_OF_SERVICE_CONTENT.intro}
-      updatedAt={TERMS_LAST_UPDATED}
+      label={BCN_RULES_CONTENT.label}
+      title={BCN_RULES_CONTENT.title}
+      intro={BCN_RULES_CONTENT.intro}
+      updatedAt={BCN_RULES_LAST_UPDATED}
       supportEmail={footerContent.supportEmail}
-      sections={TERMS_OF_SERVICE_CONTENT.sections}
+      sections={BCN_RULES_CONTENT.sections}
     />
   );
 }

@@ -11,6 +11,10 @@ import {
 } from "@prisma/client";
 import { createElement } from "react";
 import type Stripe from "stripe";
+import {
+  BCN_RULES_VERSION,
+  TERMS_VERSION
+} from "@/config/legal";
 import { BillingReceiptEmail } from "@/emails";
 import {
   getMembershipPlan,
@@ -67,6 +71,9 @@ type PendingRegistrationCheckoutInput = {
   billingInterval: MembershipBillingInterval;
   coreAccessConfirmed?: boolean;
   inviteCode?: string | null;
+  acceptedTermsVersion: string;
+  acceptedRulesVersion: string;
+  acceptedAt: Date;
   successPath?: string;
   cancelPath?: string;
   allowFoundingOffer?: boolean;
@@ -122,6 +129,29 @@ function assertCoreAccessConfirmed(input: {
   if (input.targetTier === MembershipTier.CORE && !input.coreAccessConfirmed) {
     throw new Error("core-access-confirmation-required");
   }
+}
+
+function buildLegalAcceptanceMetadata(input?: {
+  acceptedTermsVersion?: string | null;
+  acceptedRulesVersion?: string | null;
+  acceptedAt?: Date | string | null;
+}) {
+  if (!input?.acceptedAt) {
+    return {};
+  }
+
+  const acceptedAt =
+    typeof input.acceptedAt === "string"
+      ? input.acceptedAt
+      : input.acceptedAt.toISOString();
+
+  return {
+    acceptedTerms: "true",
+    acceptedRules: "true",
+    acceptedTermsVersion: input.acceptedTermsVersion ?? TERMS_VERSION,
+    acceptedRulesVersion: input.acceptedRulesVersion ?? BCN_RULES_VERSION,
+    acceptedLegalAt: acceptedAt
+  };
 }
 
 function toStripeObjectId(
@@ -1342,7 +1372,7 @@ export async function createStripeCheckoutSessionForPendingRegistration(
   );
   const priceId = selectedPlan.stripePriceId;
   const planKey = selectedPlan.planKey;
-  const metadata = {
+  const metadata: Stripe.MetadataParam = {
     checkoutKind: "pending_registration",
     pendingRegistrationId: input.pendingRegistrationId,
     targetTier: input.targetTier,
@@ -1350,17 +1380,25 @@ export async function createStripeCheckoutSessionForPendingRegistration(
     billingInterval: input.billingInterval,
     planKey,
     coreAccessConfirmed: input.coreAccessConfirmed ? "true" : "false",
-    inviteCode: input.inviteCode ?? "",
-    ...(foundingReservation
-      ? {
-          foundingReservationId: foundingReservation.id
-        }
-      : {})
+    inviteCode: input.inviteCode ?? ""
   };
+
+  Object.assign(
+    metadata,
+    buildLegalAcceptanceMetadata({
+      acceptedTermsVersion: input.acceptedTermsVersion,
+      acceptedRulesVersion: input.acceptedRulesVersion,
+      acceptedAt: input.acceptedAt
+    })
+  );
+
+  if (foundingReservation) {
+    metadata.foundingReservationId = foundingReservation.id;
+  }
 
   let session: Stripe.Checkout.Session;
   try {
-    session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
       payment_method_types: ["card"],
       customer: customerId,
@@ -1378,7 +1416,9 @@ export async function createStripeCheckoutSessionForPendingRegistration(
       subscription_data: {
         metadata
       }
-    });
+    };
+
+    session = await stripe.checkout.sessions.create(sessionParams);
   } catch (error) {
     if (foundingReservation) {
       await releaseFoundingReservation({

@@ -1,4 +1,8 @@
 export const LEGAL_LAST_UPDATED = "14 April 2026";
+export const TERMS_VERSION = "2026-04-25";
+export const BCN_RULES_VERSION = "2026-04-25";
+export const TERMS_LAST_UPDATED = "25 April 2026";
+export const BCN_RULES_LAST_UPDATED = "25 April 2026";
 
 export const PRIVACY_POLICY_CONTENT = {
   label: "Privacy Policy",
@@ -132,6 +136,125 @@ export const TERMS_OF_SERVICE_CONTENT = {
       paragraphs: [
         "We aim to keep the platform available, useful, and secure, but we do not guarantee uninterrupted access, specific business outcomes, or error-free service at all times.",
         "If you have questions about these terms, please contact support using the details provided in the website footer or contact page."
+      ]
+    }
+  ]
+} as const;
+
+export const BCN_RULES_CONTENT = {
+  label: "BCN Rules",
+  title: "BCN Rules",
+  description:
+    "The operating standard for professionalism, respect, trust, messaging, events, and conduct inside The Business Circle Network.",
+  intro:
+    "The Standard Inside The Business Circle. The Business Circle is a private environment built for business owners who value clarity, respect, trust, and real progress. Access is granted on the understanding that every member contributes to the standard of the room.",
+  sections: [
+    {
+      title: "1. Respect Is Non-Negotiable",
+      paragraphs: [
+        "Every interaction should reflect professionalism and basic respect.",
+        "Disagreement is allowed. Disrespect is not."
+      ],
+      bullets: [
+        "No hostility",
+        "No harassment",
+        "No personal attacks",
+        "No discrimination of any kind"
+      ]
+    },
+    {
+      title: "2. This Is a Business Environment",
+      paragraphs: [
+        "This is not a place for noise, spam, or attention-seeking behaviour.",
+        "Relationships should be built properly and respectfully."
+      ],
+      bullets: [
+        "No mass messaging",
+        "No unsolicited selling in private messages",
+        "No irrelevant self-promotion",
+        "No pressure-based networking"
+      ]
+    },
+    {
+      title: "3. Private Messaging Comes With Responsibility",
+      paragraphs: [
+        "1 to 1 messaging exists to build genuine connections, not to exploit access.",
+        "If someone is not interested, respect it."
+      ],
+      bullets: [
+        "Do not pitch immediately after connecting",
+        "Do not send repeated unwanted messages",
+        "Do not pressure other members into decisions",
+        "Do not continue messaging after someone has shown they are not interested"
+      ]
+    },
+    {
+      title: "4. Video Calls and Group Events",
+      paragraphs: [
+        "Video calls, 1 to 1 calls, and group events are premium parts of the BCN experience and must be treated as such.",
+        "Members are expected to join with intent, be present and engaged, respect speaking time and event structure, and contribute constructively."
+      ],
+      bullets: [
+        "Do not record calls without permission",
+        "Do not disrupt sessions",
+        "Do not use calls to aggressively sell",
+        "Do not share private meeting content outside the platform without consent"
+      ]
+    },
+    {
+      title: "5. Confidentiality and Trust",
+      paragraphs: [
+        "What is shared inside BCN should be treated with care.",
+        "Trust is the foundation of the network."
+      ],
+      bullets: [
+        "Do not share private conversations externally",
+        "Do not screenshot or distribute member discussions without consent",
+        "Do not misuse information gained through the platform",
+        "Do not present another member's ideas, contacts, opportunities, or private information as your own"
+      ]
+    },
+    {
+      title: "6. No Harmful, Misleading, or Illegal Activity",
+      paragraphs: [
+        "BCN has zero tolerance for harmful, misleading, or unlawful conduct.",
+        "Serious violations may result in immediate removal."
+      ],
+      bullets: [
+        "No fraudulent behaviour",
+        "No misleading claims",
+        "No illegal services or offers",
+        "No scams",
+        "No impersonation",
+        "No abusive conduct"
+      ]
+    },
+    {
+      title: "7. Protect the Environment",
+      paragraphs: [
+        "BCN is a curated business environment.",
+        "If a member's behaviour lowers the quality, safety, or trust of the space, action may be taken.",
+        "Where removal is due to rule violations, refunds may not be issued, subject to the Terms & Conditions and applicable law."
+      ],
+      bullets: [
+        "A warning",
+        "Temporary restriction",
+        "Removal from specific features",
+        "Full removal from the platform"
+      ]
+    },
+    {
+      title: "8. BCN Is Not for Everyone",
+      paragraphs: [
+        "The Business Circle is built for business owners who want to contribute, connect properly, and grow in a serious environment.",
+        "If someone is here only to take, spam, sell aggressively, or extract value without contributing, this is not the right place for them."
+      ]
+    },
+    {
+      title: "Agreement",
+      paragraphs: [
+        "By joining The Business Circle, members agree to uphold these standards and help protect the quality of the environment.",
+        "This is how BCN maintains a space where serious business owners can think clearly, connect properly, and move forward."
       ]
     }
   ]

@@ -62,6 +62,9 @@ export async function POST(request: Request) {
       billingInterval: pendingRegistration.billingInterval,
       coreAccessConfirmed: pendingRegistration.coreAccessConfirmed,
       inviteCode: pendingRegistration.inviteCode,
+      acceptedTermsVersion: pendingRegistration.acceptedTermsVersion,
+      acceptedRulesVersion: pendingRegistration.acceptedRulesVersion,
+      acceptedAt: pendingRegistration.acceptedTermsAt,
       cancelPath: `/join?billing=cancelled&tier=${pendingRegistration.selectedTier}&period=${pendingRegistration.billingInterval}`
     });
 
