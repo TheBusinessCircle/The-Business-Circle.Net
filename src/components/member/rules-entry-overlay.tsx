@@ -10,7 +10,22 @@ type RulesEntryOverlayProps = {
   reviewHref: string;
 };
 
-const FADE_OUT_MS = 420;
+export const RULES_ENTRY_FADE_OUT_MS = 480;
+
+const TRUST_POINTS = [
+  {
+    title: "Private by design",
+    copy: "A focused environment for serious business owners."
+  },
+  {
+    title: "Built for better conversations",
+    copy: "Less noise. More useful context, insight, and direction."
+  },
+  {
+    title: "Held to a higher standard",
+    copy: "The quality of the room is protected by the people inside it."
+  }
+] as const;
 
 export function RulesEntryOverlay({ reviewHref }: RulesEntryOverlayProps) {
   const router = useRouter();
@@ -40,7 +55,7 @@ export function RulesEntryOverlay({ reviewHref }: RulesEntryOverlayProps) {
     setLeaving(true);
     window.setTimeout(() => {
       router.push(reviewHref);
-    }, FADE_OUT_MS);
+    }, RULES_ENTRY_FADE_OUT_MS);
   }
 
   return (
@@ -52,35 +67,67 @@ export function RulesEntryOverlay({ reviewHref }: RulesEntryOverlayProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="rules-entry-title"
+      aria-describedby="rules-entry-description"
     >
-      <section className="rules-entry-card">
+      <div className="rules-entry-orbits" aria-hidden="true">
+        <span className="rules-entry-orbit rules-entry-orbit-primary" />
+        <span className="rules-entry-orbit rules-entry-orbit-secondary" />
+        <span className="rules-entry-orbit rules-entry-orbit-tertiary" />
+        <span className="rules-entry-orbit rules-entry-core-glow" />
+      </div>
+
+      <section className="rules-entry-card" aria-label="Welcome to The Business Circle Network">
         <div className="rules-entry-eyebrow">
           <span className="rules-entry-eyebrow-dot" aria-hidden="true" />
-          Private Member Standard
+          Welcome to The Business Circle Network
         </div>
         <h1
           id="rules-entry-title"
-          className="rules-entry-heading mt-5 font-display text-[2.35rem] font-semibold leading-[1.02] text-[rgba(255,255,255,0.92)] sm:text-[3.35rem] lg:text-[4rem]"
+          className="rules-entry-heading mt-5 font-display text-[2.65rem] font-semibold leading-[0.98] text-[rgba(255,255,255,0.94)] sm:text-[4rem] lg:text-[4.75rem]"
         >
-          Before you enter the room
+          You&rsquo;re in the right room.
         </h1>
-        <p className="rules-entry-copy mt-6">
-          This is a private environment built for business owners who value clarity, proper
-          conversation, and a stronger space around the work.
-        </p>
-        <p className="rules-entry-copy mt-4">
-          Before accessing conversations, take a moment to understand how this space works.
-        </p>
+        <div id="rules-entry-description" className="mt-7 space-y-4">
+          <p className="rules-entry-copy rules-entry-copy-strong">
+            You have not just joined another platform.
+          </p>
+          <p className="rules-entry-copy">
+            You have stepped into a private environment built for business owners, founders, and
+            CEOs who value clarity, proper conversation, and a higher standard around the work.
+          </p>
+          <p className="rules-entry-copy">
+            Before conversations, messaging, and calls open, take a moment to understand how this
+            room is protected.
+          </p>
+        </div>
+
+        <div className="rules-entry-trust-grid mt-8">
+          {TRUST_POINTS.map((point, index) => (
+            <article key={point.title} className="rules-entry-trust-card">
+              <span className="rules-entry-trust-number">{index + 1}</span>
+              <h2>{point.title}</h2>
+              <p>{point.copy}</p>
+            </article>
+          ))}
+        </div>
+
         <div className="mt-8">
+          <p className="rules-entry-closing">
+            You did not just sign up.
+            <span>You stepped into a standard.</span>
+          </p>
           <Button
             type="button"
             size="lg"
-            className="rules-entry-button w-full sm:w-auto"
+            className="rules-entry-button mt-6 w-full sm:w-auto"
             onClick={reviewRules}
             disabled={leaving}
           >
             Review BCN Rules <ArrowRight size={16} />
           </Button>
+          <p className="mt-3 text-center text-xs text-[rgba(255,255,255,0.56)] sm:text-left">
+            A quick read before the room fully opens.
+          </p>
         </div>
       </section>
     </div>

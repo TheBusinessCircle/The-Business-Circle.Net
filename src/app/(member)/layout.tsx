@@ -22,6 +22,7 @@ import {
   BCN_RULES_ACCEPTANCE_PATH,
   hasAcceptedBcnRules
 } from "@/lib/rules-acceptance";
+import { shouldShowRulesWelcomeOverlay } from "@/lib/rules-onboarding";
 import { requireUser } from "@/lib/session";
 import { getDirectMessageNavCounts } from "@/server/messages";
 
@@ -63,6 +64,10 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   const premiumLinkLabel = canAccessTier(effectiveTier, MembershipTier.CORE)
     ? "Open Core Access"
     : "Open Inner Circle";
+  const showRulesWelcome = shouldShowRulesWelcomeOverlay({
+    isLoggedIn: true,
+    rulesAccepted
+  });
 
   const header = (
     <header className="border-b border-border/80 bg-background/78 backdrop-blur-xl">
@@ -149,7 +154,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   return (
     <AppShell header={header} sidebar={sidebar} contentClassName="py-7 lg:py-9">
       <div className="space-y-6">
-        {!rulesAccepted ? (
+        {showRulesWelcome ? (
           <>
             <RulesEntryOverlay reviewHref={BCN_RULES_ACCEPTANCE_PATH} />
             <section className="premium-surface border-gold/30 bg-gradient-to-br from-gold/12 via-card/84 to-card/70 p-5">

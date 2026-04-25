@@ -422,12 +422,14 @@ a:hover {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   isolation: isolate;
   overscroll-behavior: contain;
   background:
-    radial-gradient(circle at 75% 20%, rgba(30, 91, 255, 0.22), transparent 34%),
-    radial-gradient(circle at 20% 80%, rgba(30, 91, 255, 0.12), transparent 32%),
+    radial-gradient(circle at 76% 18%, rgba(30, 91, 255, 0.26), transparent 34%),
+    radial-gradient(circle at 18% 80%, rgba(100, 167, 255, 0.13), transparent 32%),
+    radial-gradient(circle at 50% 48%, rgba(30, 91, 255, 0.1), transparent 46%),
     linear-gradient(135deg, #05070d 0%, #07111f 55%, #05070d 100%);
   opacity: 1;
   transition: opacity 450ms ease-out;
@@ -458,8 +460,8 @@ a:hover {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.34) 78%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 22%, rgba(0, 0, 0, 0.18));
+    radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.38) 78%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 22%, rgba(0, 0, 0, 0.24));
 }
 
 .rules-entry-overlay-leaving {
@@ -469,19 +471,107 @@ a:hover {
 
 .rules-entry-card {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
-  max-width: 760px;
+  max-width: 900px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 28px;
-  background: rgba(5, 7, 13, 0.62);
+  border-radius: clamp(28px, 4vw, 36px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+    rgba(5, 7, 13, 0.68);
   padding: clamp(28px, 5vw, 56px);
   box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.42),
-    0 0 80px rgba(30, 91, 255, 0.08),
+    0 30px 110px rgba(0, 0, 0, 0.5),
+    0 0 96px rgba(30, 91, 255, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(22px);
-  animation: rules-entry-card-in 600ms ease-out both;
+  animation: rules-entry-card-in 900ms ease-out both;
+}
+
+.rules-entry-card::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 82% 4%, rgba(100, 167, 255, 0.12), transparent 30%),
+    radial-gradient(circle at 16% 100%, rgba(30, 91, 255, 0.1), transparent 32%);
+}
+
+.rules-entry-orbits {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: min(96vw, 1040px);
+  aspect-ratio: 1;
+  pointer-events: none;
+  perspective: 1200px;
+  transform: translate3d(-50%, -50%, 0);
+  transform-style: preserve-3d;
+}
+
+.rules-entry-orbit,
+.rules-entry-core-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  border-radius: 9999px;
+  transform-style: preserve-3d;
+}
+
+.rules-entry-orbit {
+  border: 1px solid rgba(100, 167, 255, 0.18);
+  box-shadow:
+    0 0 34px rgba(30, 91, 255, 0.16),
+    inset 0 0 34px rgba(30, 91, 255, 0.08);
+}
+
+.rules-entry-orbit-primary {
+  width: 72%;
+  height: 72%;
+  border-top-color: rgba(100, 167, 255, 0.34);
+  border-right-color: rgba(30, 91, 255, 0.32);
+  transform: translate3d(-50%, -50%, 0) rotateX(64deg) rotateY(-12deg) rotateZ(0deg);
+  animation:
+    rules-entry-orbit-primary 30s linear infinite,
+    rules-entry-orbit-glow 9s ease-in-out infinite;
+}
+
+.rules-entry-orbit-secondary {
+  width: 88%;
+  height: 54%;
+  border-color: rgba(100, 167, 255, 0.13);
+  border-left-color: rgba(30, 91, 255, 0.26);
+  transform: translate3d(-50%, -50%, -60px) rotateX(72deg) rotateY(18deg) rotateZ(18deg);
+  animation:
+    rules-entry-orbit-secondary 38s linear infinite reverse,
+    rules-entry-orbit-glow 11s ease-in-out infinite;
+}
+
+.rules-entry-orbit-tertiary {
+  width: 58%;
+  height: 88%;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(100, 167, 255, 0.22);
+  transform: translate3d(-50%, -50%, -120px) rotateX(48deg) rotateY(54deg) rotateZ(-12deg);
+  animation:
+    rules-entry-orbit-tertiary 34s linear infinite,
+    rules-entry-orbit-glow 10s ease-in-out infinite;
+}
+
+.rules-entry-core-glow {
+  width: 44%;
+  height: 44%;
+  background:
+    radial-gradient(circle, rgba(30, 91, 255, 0.2), rgba(30, 91, 255, 0.06) 42%, transparent 72%);
+  filter: blur(14px);
+  opacity: 0.6;
+  transform: translate3d(-50%, -50%, -180px);
+  animation: rules-entry-core-pulse 10s ease-in-out infinite;
 }
 
 .rules-entry-eyebrow {
@@ -516,6 +606,70 @@ a:hover {
   line-height: 1.7;
 }
 
+.rules-entry-copy-strong {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.rules-entry-trust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.rules-entry-trust-card {
+  min-height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015)),
+    rgba(7, 17, 31, 0.42);
+  padding: 1.05rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 16px 34px rgba(0, 0, 0, 0.18);
+}
+
+.rules-entry-trust-number {
+  display: inline-flex;
+  width: 1.65rem;
+  height: 1.65rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(100, 167, 255, 0.2);
+  border-radius: 9999px;
+  background: rgba(30, 91, 255, 0.1);
+  color: rgba(200, 222, 255, 0.9);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.rules-entry-trust-card h2 {
+  margin-top: 0.9rem;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.rules-entry-trust-card p {
+  margin-top: 0.45rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.rules-entry-closing {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.rules-entry-closing span {
+  display: block;
+  color: rgba(255, 255, 255, 0.94);
+  font-weight: 650;
+}
+
 .rules-entry-button {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
@@ -538,6 +692,7 @@ a:hover {
     0 20px 52px rgba(30, 91, 255, 0.36),
     inset 0 1px 0 rgba(255, 255, 255, 0.24);
   filter: saturate(1.06);
+  transform: translateY(-1px);
 }
 
 .rules-cta-panel {
@@ -627,12 +782,86 @@ a:hover {
 @keyframes rules-entry-card-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px) scale(0.992);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rules-entry-orbit-primary {
+  from {
+    transform: translate3d(-50%, -50%, 0) rotateX(64deg) rotateY(-12deg) rotateZ(0deg);
+  }
+
+  to {
+    transform: translate3d(-50%, -50%, 0) rotateX(64deg) rotateY(-12deg) rotateZ(360deg);
+  }
+}
+
+@keyframes rules-entry-orbit-secondary {
+  from {
+    transform: translate3d(-50%, -50%, -60px) rotateX(72deg) rotateY(18deg) rotateZ(18deg);
+  }
+
+  to {
+    transform: translate3d(-50%, -50%, -60px) rotateX(72deg) rotateY(18deg) rotateZ(378deg);
+  }
+}
+
+@keyframes rules-entry-orbit-tertiary {
+  from {
+    transform: translate3d(-50%, -50%, -120px) rotateX(48deg) rotateY(54deg) rotateZ(-12deg);
+  }
+
+  to {
+    transform: translate3d(-50%, -50%, -120px) rotateX(48deg) rotateY(54deg) rotateZ(348deg);
+  }
+}
+
+@keyframes rules-entry-orbit-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 0.82;
+  }
+}
+
+@keyframes rules-entry-core-pulse {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: translate3d(-50%, -50%, -180px) scale(0.96);
+  }
+
+  50% {
+    opacity: 0.68;
+    transform: translate3d(-50%, -50%, -180px) scale(1.05);
+  }
+}
+
+@media (max-width: 767px) {
+  .rules-entry-overlay {
+    align-items: flex-start;
+  }
+
+  .rules-entry-orbits {
+    top: 38%;
+    width: min(128vw, 720px);
+    opacity: 0.72;
+  }
+
+  .rules-entry-trust-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rules-entry-trust-card {
+    padding: 0.95rem;
   }
 }
 
@@ -872,7 +1101,11 @@ html[data-background-mode="light"] .badge-base.badge-warning {
   }
 
   .rules-entry-overlay::before,
-  .rules-entry-card {
+  .rules-entry-card,
+  .rules-entry-orbit-primary,
+  .rules-entry-orbit-secondary,
+  .rules-entry-orbit-tertiary,
+  .rules-entry-core-glow {
     animation: none !important;
   }
 
