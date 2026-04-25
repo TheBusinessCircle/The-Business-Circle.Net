@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatCompanyTrustLine } from "@/config/company";
 import { SectionHeading } from "@/components/public/section-heading";
 
@@ -14,6 +15,7 @@ type LegalDocumentProps = {
   updatedAt: string;
   supportEmail: string;
   sections: readonly LegalDocumentSection[];
+  children?: ReactNode;
 };
 
 export function LegalDocument({
@@ -22,7 +24,8 @@ export function LegalDocument({
   intro,
   updatedAt,
   supportEmail,
-  sections
+  sections,
+  children
 }: LegalDocumentProps) {
   return (
     <div className="space-y-10 pb-16">
@@ -69,6 +72,8 @@ export function LegalDocument({
           </article>
         ))}
       </section>
+
+      {children}
     </div>
   );
 }

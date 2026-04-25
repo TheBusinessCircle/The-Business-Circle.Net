@@ -5,7 +5,7 @@ import { MembershipTier } from "@prisma/client";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { BackgroundModeToggle } from "@/components/background-mode/background-mode-toggle";
 import { BrandMark } from "@/components/branding/brand-mark";
-import { MemberNavigation } from "@/components/member";
+import { MemberNavigation, RulesEntryOverlay } from "@/components/member";
 import { AppShell } from "@/components/shell/app-shell";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,6 @@ import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
 import {
   BCN_RULES_ACCEPTANCE_PATH,
-  BCN_RULES_REQUIRED_MESSAGE,
   hasAcceptedBcnRules
 } from "@/lib/rules-acceptance";
 import { requireUser } from "@/lib/session";
@@ -151,27 +150,29 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     <AppShell header={header} sidebar={sidebar} contentClassName="py-7 lg:py-9">
       <div className="space-y-6">
         {!rulesAccepted ? (
-          <section className="premium-surface border-gold/30 bg-gradient-to-br from-gold/12 via-card/84 to-card/70 p-5">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="max-w-3xl">
-                <p className="text-xs uppercase tracking-[0.1em] text-gold">
-                  A quick standard before you enter
-                </p>
-                <h2 className="mt-2 font-display text-2xl text-foreground">
-                  Review the BCN Rules
-                </h2>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
-                  This is a private environment built on trust, respect, and proper conversation.
-                  {` ${BCN_RULES_REQUIRED_MESSAGE}`}
-                </p>
+          <>
+            <RulesEntryOverlay reviewHref={BCN_RULES_ACCEPTANCE_PATH} />
+            <section className="premium-surface border-gold/30 bg-gradient-to-br from-gold/12 via-card/84 to-card/70 p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="max-w-3xl">
+                  <p className="text-xs uppercase tracking-[0.1em] text-gold">
+                    Accept BCN Rules to access conversations
+                  </p>
+                  <h2 className="mt-2 font-display text-2xl text-foreground">
+                    Review the BCN Rules
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">
+                    Messaging, chat, and calls unlock once you accept the BCN Rules.
+                  </p>
+                </div>
+                <Link href={BCN_RULES_ACCEPTANCE_PATH}>
+                  <Button className="w-full md:w-auto">
+                    Review BCN Rules <ArrowRight size={16} />
+                  </Button>
+                </Link>
               </div>
-              <Link href={BCN_RULES_ACCEPTANCE_PATH}>
-                <Button className="w-full md:w-auto">
-                  Review and accept rules <ArrowRight size={16} />
-                </Button>
-              </Link>
-            </div>
-          </section>
+            </section>
+          </>
         ) : null}
         {children}
       </div>

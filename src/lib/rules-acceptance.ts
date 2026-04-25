@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 export const BCN_RULES_REQUIRED_CODE = "bcn-rules-required";
 export const BCN_RULES_REQUIRED_MESSAGE =
   "Before accessing conversations, you need to accept the BCN Rules to help maintain the standard of the environment.";
-export const BCN_RULES_ACCEPTANCE_PATH = "/profile#bcn-rules";
+export const BCN_RULES_ACCEPTANCE_PATH = "/rules";
 
 export class BcnRulesAcceptanceRequiredError extends Error {
   code = BCN_RULES_REQUIRED_CODE;
@@ -49,4 +49,3 @@ export function bcnRulesRequiredResponse(headers?: HeadersInit) {
     { status: 403, headers }
   );
 }
-

@@ -1,8 +1,12 @@
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 (globalThis as { React?: typeof React }).React = React;
+
+vi.mock("@/actions/legal/rules.actions", () => ({
+  acceptBcnRulesAndContinueAction: vi.fn()
+}));
 
 import RulesPage from "@/app/(public)/rules/page";
 
@@ -14,5 +18,8 @@ describe("rules page", () => {
     expect(html).toContain("The Standard Inside The Business Circle");
     expect(html).toContain("Respect Is Non-Negotiable");
     expect(html).toContain("Private Messaging Comes With Responsibility");
+    expect(html).toContain("Ready to enter");
+    expect(html).toContain("Accept and Continue to Dashboard");
+    expect(html).toContain("Back to dashboard");
   });
 });
