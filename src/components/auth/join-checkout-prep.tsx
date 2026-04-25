@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { MembershipTier } from "@prisma/client";
+import { ArrowLeft } from "lucide-react";
 import type { FoundingOfferTierSnapshot } from "@/types";
 import { RegisterForm } from "@/components/auth/register-form";
 import { MembershipPlanAction } from "@/components/billing";
@@ -42,6 +44,16 @@ type JoinCheckoutPrepProps = {
   currentBillingInterval: MembershipBillingInterval | null;
   foundingOfferByTier: Record<MembershipTier, FoundingOfferTierSnapshot>;
 };
+
+export type JoinStep = "tier" | "account";
+
+export function resolveInitialJoinStep(initialShowAccountSetup: boolean): JoinStep {
+  return initialShowAccountSetup ? "account" : "tier";
+}
+
+export function transitionJoinStep(action: "continue" | "back"): JoinStep {
+  return action === "continue" ? "account" : "tier";
+}
 
 const tierStageLabels: Record<MembershipTier, string> = {
   FOUNDATION: "Early stage",
@@ -116,6 +128,200 @@ function updateJoinUrl(href: string) {
   window.history.replaceState(null, "", href);
 }
 
+function buildTierDetailNotes(input: {
+  selectedOffer: FoundingOfferTierSnapshot;
+  selectedTier: MembershipTier;
+}): string[] {
+  return [
+    "You can move between tiers later as the business evolves.",
+    input.selectedOffer.available
+      ? "Founder pricing only applies while this room still has founder allocation available."
+      : getFounderRoomPricingNote(input.selectedOffer),
+    "Billing is completed securely in Stripe, and access is only created after payment confirms."
+  ];
+}
+
+function renderTierDetailPanel(input: {
+  selectedTier: MembershipTier;
+  billingInterval: MembershipBillingInterval;
+  selectedOffer: FoundingOfferTierSnapshot;
+  selectedContent: ReturnType<typeof getMembershipTierContent>;
+  selectedDefinition: ReturnType<typeof getMembershipTierDefinition>;
+  selectedDisplayPrice: number;
+  selectedStandardPrice: number;
+  selectedNotes: string[];
+  requiresCoreConfirmation: boolean;
+  coreAccessConfirmed: boolean;
+  setCoreAccessConfirmed: (value: boolean) => void;
+  isAuthenticated: boolean;
+  currentTier: MembershipTier;
+  currentBillingInterval: MembershipBillingInterval | null;
+  hasActiveSubscription: boolean;
+  currentJoinHref: string;
+  loginHref: string;
+  canContinueToCore: boolean;
+  onContinueToAccountSetup: () => void;
+}): ReactNode {
+  return (
+    <article className="rounded-[2rem] border border-gold/20 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-6 shadow-gold-soft transition-all duration-300 sm:p-7">
+      <div className="flex flex-wrap items-center gap-2">
+        <TierBadge tier={input.selectedTier} />
+        <span className="rounded-full border border-white/10 bg-background/25 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
+          {tierStageLabels[input.selectedTier]}
+        </span>
+        <span className="rounded-full border border-white/10 bg-background/25 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
+          {input.billingInterval === "annual" ? "Annual billing" : "Monthly billing"}
+        </span>
+        {input.selectedContent.accessNote ? (
+          <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
+            {input.selectedContent.accessNote}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-5 space-y-3">
+        <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Step 1 of 2</p>
+        <h1 className="font-display text-4xl text-foreground">{input.selectedDefinition.name}</h1>
+        <p className="text-sm leading-relaxed text-muted sm:text-base">
+          {input.selectedContent.description}
+        </p>
+      </div>
+
+      <div className="mt-5 rounded-[1.4rem] border border-white/10 bg-background/24 p-4">
+        <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+          Right for the business when
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          {input.selectedContent.bestFitLine}
+        </p>
+      </div>
+
+      <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-background/28 p-5">
+        {input.selectedOffer.available ? (
+          <div className="space-y-3">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Founding access</p>
+            <p className="text-sm text-muted">
+              Founder pricing is still available in this room for a limited founder allocation.
+            </p>
+            <p className="text-xs uppercase tracking-[0.08em] text-gold/90">
+              {founderAvailabilityLine(input.selectedOffer)}
+            </p>
+            <div className="flex flex-wrap items-end gap-2">
+              <span
+                className={cn(
+                  "font-display text-5xl",
+                  getTierAccentTextClassName(input.selectedTier)
+                )}
+              >
+                {formatMembershipPrice(input.selectedDisplayPrice)}
+              </span>
+              <span className="pb-1 text-sm text-silver">{periodLabel(input.billingInterval)}</span>
+            </div>
+            <p className="text-sm text-muted">
+              Usually{" "}
+              <span className="text-foreground">
+                {formatMembershipPrice(input.selectedStandardPrice)}
+                {periodLabel(input.billingInterval)}
+              </span>
+            </p>
+            <p className="text-sm text-muted">
+              Founder pricing moves to the standard rate once this room&apos;s founder allocation is
+              filled.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Current pricing</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <span
+                className={cn(
+                  "font-display text-5xl",
+                  getTierAccentTextClassName(input.selectedTier)
+                )}
+              >
+                {formatMembershipPrice(input.selectedStandardPrice)}
+              </span>
+              <span className="pb-1 text-sm text-silver">{periodLabel(input.billingInterval)}</span>
+            </div>
+            <p className="text-xs uppercase tracking-[0.08em] text-silver">
+              {founderAvailabilityLine(input.selectedOffer)}
+            </p>
+            <p className="text-sm text-muted">{input.selectedOffer.launchClosedLabel}</p>
+          </div>
+        )}
+      </div>
+
+      {input.requiresCoreConfirmation ? (
+        <label className="mt-4 flex items-start gap-3 rounded-[1.4rem] border border-gold/25 bg-background/25 px-4 py-4 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={input.coreAccessConfirmed}
+            onChange={(event) => input.setCoreAccessConfirmed(event.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+          />
+          <span>I am actively running a business or generating revenue from a business</span>
+        </label>
+      ) : null}
+
+      <div className="mt-6">
+        {input.isAuthenticated ? (
+          <MembershipPlanAction
+            tier={input.selectedTier}
+            source="join"
+            billingInterval={input.billingInterval}
+            coreAccessConfirmed={input.coreAccessConfirmed}
+            showCoreConfirmation={false}
+            isAuthenticated
+            isCurrentPlan={input.currentTier === input.selectedTier}
+            hasActiveSubscription={input.hasActiveSubscription}
+            currentBillingInterval={input.currentBillingInterval}
+            buttonVariant={getTierButtonVariant(input.selectedTier)}
+            authenticatedLabel={getAuthenticatedLabel({
+              currentTier: input.currentTier,
+              currentBillingInterval: input.currentBillingInterval,
+              targetTier: input.selectedTier,
+              targetBillingInterval: input.billingInterval
+            })}
+            unauthenticatedLabel={input.selectedContent.ctaLabel}
+            joinHref={input.currentJoinHref}
+            loginHref={input.loginHref}
+          />
+        ) : (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              className="w-full"
+              size="lg"
+              variant={getTierButtonVariant(input.selectedTier)}
+              onClick={input.onContinueToAccountSetup}
+              disabled={!input.canContinueToCore}
+            >
+              Continue To Account Setup
+            </Button>
+            <p className="text-center text-xs text-muted">
+              Already a member?{" "}
+              <Link href={input.loginHref} className="text-primary hover:underline">
+                Sign in
+              </Link>
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-5 grid gap-2">
+        {input.selectedNotes.map((item) => (
+          <div
+            key={item}
+            className="rounded-[1.2rem] border border-white/8 bg-background/18 px-4 py-3 text-sm leading-relaxed text-muted"
+          >
+            {item}
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 export function JoinCheckoutPrep({
   initialSelectedTier,
   initialBillingInterval,
@@ -134,7 +340,9 @@ export function JoinCheckoutPrep({
   const [billingInterval, setBillingInterval] =
     useState<MembershipBillingInterval>(initialBillingInterval);
   const [coreAccessConfirmed, setCoreAccessConfirmed] = useState(initialCoreAccessConfirmed);
-  const [showAccountSetup, setShowAccountSetup] = useState(initialShowAccountSetup);
+  const [joinStep, setJoinStep] = useState<JoinStep>(
+    resolveInitialJoinStep(initialShowAccountSetup)
+  );
 
   useEffect(() => {
     setSelectedTier(initialSelectedTier);
@@ -149,7 +357,7 @@ export function JoinCheckoutPrep({
   }, [initialCoreAccessConfirmed]);
 
   useEffect(() => {
-    setShowAccountSetup(initialShowAccountSetup);
+    setJoinStep(resolveInitialJoinStep(initialShowAccountSetup));
   }, [initialShowAccountSetup]);
 
   const selectedOffer = foundingOfferByTier[selectedTier];
@@ -176,6 +384,15 @@ export function JoinCheckoutPrep({
     billingInterval === "annual" ? selectedOffer.standardAnnualPrice : selectedOffer.standardPrice;
   const requiresCoreConfirmation = selectedTier === "CORE";
   const canContinueToCore = !requiresCoreConfirmation || coreAccessConfirmed;
+  const selectedNotes = useMemo(
+    () =>
+      buildTierDetailNotes({
+        selectedOffer,
+        selectedTier
+      }),
+    [selectedOffer, selectedTier]
+  );
+  const isAccountStep = !isAuthenticated && joinStep === "account";
 
   useEffect(() => {
     updateJoinUrl(currentJoinHref);
@@ -183,7 +400,7 @@ export function JoinCheckoutPrep({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,0.82fr)_minmax(360px,0.78fr)] xl:items-start">
-      <section className="space-y-4">
+      <section className={cn("space-y-4", isAccountStep ? "hidden xl:block" : "")}>
         <div className="flex flex-col gap-4 rounded-[1.8rem] border border-white/10 bg-card/55 p-5 shadow-panel sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Billing cadence</p>
@@ -278,154 +495,7 @@ export function JoinCheckoutPrep({
       </section>
 
       <aside className="space-y-4 xl:sticky xl:top-8 xl:max-h-[calc(100vh-4rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
-        <article className="rounded-[2rem] border border-gold/20 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-6 shadow-gold-soft sm:p-7">
-          <div className="flex flex-wrap items-center gap-2">
-            <TierBadge tier={selectedTier} />
-            <span className="rounded-full border border-white/10 bg-background/25 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-              {tierStageLabels[selectedTier]}
-            </span>
-            {selectedContent.accessNote ? (
-              <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
-                {selectedContent.accessNote}
-              </span>
-            ) : null}
-          </div>
-
-          <h1 className="mt-5 font-display text-4xl text-foreground">{selectedDefinition.name}</h1>
-          <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
-            {selectedContent.description}
-          </p>
-
-          <div className="mt-5 rounded-[1.4rem] border border-white/10 bg-background/24 p-4">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Right for the business when</p>
-            <p className="mt-2 text-sm leading-relaxed text-muted">{selectedContent.bestFitLine}</p>
-          </div>
-
-          <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-background/28 p-5">
-            {selectedOffer.available ? (
-              <div className="space-y-3">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Founding access</p>
-                <p className="text-sm text-muted">
-                  Founder pricing is still available in this room for a limited founder allocation.
-                </p>
-                <p className="text-xs uppercase tracking-[0.08em] text-gold/90">
-                  {founderAvailabilityLine(selectedOffer)}
-                </p>
-                <div className="flex flex-wrap items-end gap-2">
-                  <span
-                    className={cn("font-display text-5xl", getTierAccentTextClassName(selectedTier))}
-                  >
-                    {formatMembershipPrice(selectedDisplayPrice)}
-                  </span>
-                  <span className="pb-1 text-sm text-silver">{periodLabel(billingInterval)}</span>
-                </div>
-                <p className="text-sm text-muted">
-                  Usually{" "}
-                  <span className="text-foreground">
-                    {formatMembershipPrice(selectedStandardPrice)}
-                    {periodLabel(billingInterval)}
-                  </span>
-                </p>
-                <p className="text-sm text-muted">
-                  Founder pricing moves to the standard rate once this room&apos;s founder allocation is
-                  filled.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Current pricing</p>
-                <div className="flex flex-wrap items-end gap-2">
-                  <span
-                    className={cn("font-display text-5xl", getTierAccentTextClassName(selectedTier))}
-                  >
-                    {formatMembershipPrice(selectedStandardPrice)}
-                  </span>
-                  <span className="pb-1 text-sm text-silver">{periodLabel(billingInterval)}</span>
-                </div>
-                <p className="text-xs uppercase tracking-[0.08em] text-silver">
-                  {founderAvailabilityLine(selectedOffer)}
-                </p>
-                <p className="text-sm text-muted">{selectedOffer.launchClosedLabel}</p>
-              </div>
-            )}
-          </div>
-
-          {requiresCoreConfirmation ? (
-            <label className="mt-4 flex items-start gap-3 rounded-[1.4rem] border border-gold/25 bg-background/25 px-4 py-4 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={coreAccessConfirmed}
-                onChange={(event) => setCoreAccessConfirmed(event.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-              />
-              <span>I am actively running a business or generating revenue from a business</span>
-            </label>
-          ) : null}
-
-          <div className="mt-6">
-            {isAuthenticated ? (
-              <MembershipPlanAction
-                tier={selectedTier}
-                source="join"
-                billingInterval={billingInterval}
-                coreAccessConfirmed={coreAccessConfirmed}
-                showCoreConfirmation={false}
-                isAuthenticated
-                isCurrentPlan={currentTier === selectedTier}
-                hasActiveSubscription={hasActiveSubscription}
-                currentBillingInterval={currentBillingInterval}
-                buttonVariant={getTierButtonVariant(selectedTier)}
-                authenticatedLabel={getAuthenticatedLabel({
-                  currentTier,
-                  currentBillingInterval,
-                  targetTier: selectedTier,
-                  targetBillingInterval: billingInterval
-                })}
-                unauthenticatedLabel={selectedContent.ctaLabel}
-                joinHref={currentJoinHref}
-                loginHref={loginHref}
-              />
-            ) : (
-              <div className="space-y-3">
-                <Button
-                  type="button"
-                  className="w-full"
-                  size="lg"
-                  variant={getTierButtonVariant(selectedTier)}
-                  onClick={() => setShowAccountSetup(true)}
-                  disabled={!canContinueToCore}
-                >
-                  Continue To Account Setup
-                </Button>
-                <p className="text-center text-xs text-muted">
-                  Already a member?{" "}
-                  <Link href={loginHref} className="text-primary hover:underline">
-                    Sign in
-                  </Link>
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-5 grid gap-2">
-            {[
-              "You can move between tiers later as the business evolves.",
-              selectedOffer.available
-                ? "Founder pricing only applies while this room still has founder allocation available."
-                : getFounderRoomPricingNote(selectedOffer),
-              "Billing is completed securely in Stripe, and access is only created after payment confirms."
-            ].map((item) => (
-              <div
-                key={item}
-                className="rounded-[1.2rem] border border-white/8 bg-background/18 px-4 py-3 text-sm leading-relaxed text-muted"
-              >
-                {item}
-              </div>
-            ))}
-          </div>
-        </article>
-
-        {!isAuthenticated && showAccountSetup ? (
+        {isAccountStep ? (
           <RegisterForm
             from={from}
             loginFrom={currentJoinHref}
@@ -437,9 +507,43 @@ export function JoinCheckoutPrep({
             showTierSelector={false}
             showCoreConfirmation={false}
             submitDisabled={!canContinueToCore}
+            headerAction={
+              <button
+                type="button"
+                onClick={() => setJoinStep(transitionJoinStep("back"))}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-background/30 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-silver transition-colors hover:text-foreground"
+              >
+                <ArrowLeft size={14} />
+                Back to membership selection
+              </button>
+            }
+            titleOverride="Secure account setup"
+            descriptionOverride="Create your account details before moving to secure Stripe checkout."
             streamlined
           />
-        ) : null}
+        ) : (
+          renderTierDetailPanel({
+            selectedTier,
+            billingInterval,
+            selectedOffer,
+            selectedContent,
+            selectedDefinition,
+            selectedDisplayPrice,
+            selectedStandardPrice,
+            selectedNotes,
+            requiresCoreConfirmation,
+            coreAccessConfirmed,
+            setCoreAccessConfirmed: (value) => setCoreAccessConfirmed(value),
+            isAuthenticated,
+            currentTier,
+            currentBillingInterval,
+            hasActiveSubscription,
+            currentJoinHref,
+            loginHref,
+            canContinueToCore,
+            onContinueToAccountSetup: () => setJoinStep(transitionJoinStep("continue"))
+          })
+        )}
       </aside>
     </div>
   );

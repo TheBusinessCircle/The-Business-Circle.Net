@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,13 +40,16 @@ type RegisterFormProps = {
   showCoreConfirmation?: boolean;
   submitDisabled?: boolean;
   streamlined?: boolean;
+  headerAction?: ReactNode;
+  titleOverride?: string;
+  descriptionOverride?: string;
   tierOptions?: Array<{
     value: MembershipTier;
     label: string;
   }>;
 };
 
-type RegisterPayload = {
+export type RegisterPayload = {
   name: string;
   email: string;
   password: string;
@@ -120,6 +124,41 @@ const tierHeroCopy: Record<
   }
 };
 
+export function buildRegisterPayload(values: RegisterMemberFormInput): RegisterPayload {
+  const payload: RegisterPayload = {
+    name: values.name,
+    email: values.email,
+    password: values.password,
+    tier: values.tier,
+    billingInterval: values.billingInterval,
+    coreAccessConfirmed: values.coreAccessConfirmed,
+    acceptedTerms: values.acceptedTerms,
+    acceptedRules: values.acceptedRules
+  };
+
+  if (values.inviteCode?.trim()) {
+    payload.inviteCode = values.inviteCode.trim();
+  }
+
+  if (values.businessName?.trim()) {
+    payload.businessName = values.businessName.trim();
+  }
+
+  if (values.businessStatus) {
+    payload.businessStatus = values.businessStatus;
+  }
+
+  if (values.companyNumber?.trim()) {
+    payload.companyNumber = values.companyNumber.trim();
+  }
+
+  if (values.businessStage) {
+    payload.businessStage = values.businessStage;
+  }
+
+  return payload;
+}
+
 export function RegisterForm({
   from,
   loginFrom,
@@ -133,6 +172,9 @@ export function RegisterForm({
   showCoreConfirmation = true,
   submitDisabled = false,
   streamlined = false,
+  headerAction,
+  titleOverride,
+  descriptionOverride,
   tierOptions = DEFAULT_TIER_OPTIONS
 }: RegisterFormProps) {
   const [notice, setNotice] = useState<string | null>(null);
@@ -200,36 +242,7 @@ export function RegisterForm({
     setNotice(null);
 
     startTransition(async () => {
-      const payload: RegisterPayload = {
-        name: values.name,
-        email: values.email,
-        password: values.password,
-        tier: values.tier,
-        billingInterval: values.billingInterval,
-        coreAccessConfirmed: values.coreAccessConfirmed,
-        acceptedTerms: values.acceptedTerms,
-        acceptedRules: values.acceptedRules
-      };
-
-      if (values.inviteCode?.trim()) {
-        payload.inviteCode = values.inviteCode.trim();
-      }
-
-      if (values.businessName?.trim()) {
-        payload.businessName = values.businessName.trim();
-      }
-
-      if (values.businessStatus) {
-        payload.businessStatus = values.businessStatus;
-      }
-
-      if (values.companyNumber?.trim()) {
-        payload.companyNumber = values.companyNumber.trim();
-      }
-
-      if (values.businessStage) {
-        payload.businessStage = values.businessStage;
-      }
+      const payload = buildRegisterPayload(values);
 
       const response = await fetch("/api/register", {
         method: "POST",
@@ -263,6 +276,7 @@ export function RegisterForm({
           streamlined ? "pb-5" : "pb-6"
         )}
       >
+        {headerAction ? <div>{headerAction}</div> : null}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -283,14 +297,16 @@ export function RegisterForm({
               ) : null}
             </div>
             <CardTitle className="text-2xl sm:text-[2rem]">
-              {streamlined
+              {titleOverride ??
+                (streamlined
                 ? "Confirm your details before secure checkout"
-                : "Confirm your details and choose your room"}
+                : "Confirm your details and choose your room")}
             </CardTitle>
             <CardDescription className="max-w-xl text-sm">
-              {streamlined
+              {descriptionOverride ??
+                (streamlined
                 ? "Your selected tier and billing period are already in place. Stripe handles billing next, and member access opens after payment is confirmed."
-                : "Start with the room that fits where your business is now. Billing happens securely in Stripe, and member access is completed after payment confirms."}
+                : "Start with the room that fits where your business is now. Billing happens securely in Stripe, and member access is completed after payment confirms.")}
             </CardDescription>
           </div>
 
@@ -566,7 +582,7 @@ export function RegisterForm({
             size="lg"
           >
             <span className="inline-flex items-center gap-2">
-              {isPending ? "Starting Secure Checkout..." : "Continue To Secure Checkout"}
+              {isPending ? "Starting Secure Checkout..." : "Continue to Secure Checkout"}
               {isPending ? null : <ArrowRight size={16} />}
             </span>
           </Button>
