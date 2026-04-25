@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { MembershipTier, PrismaClient, Role } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import { hashPassword } from "../src/lib/auth/password";
 
 const DEFAULT_EMAIL = "test-rules@thebusinesscircle.net";
@@ -12,6 +13,7 @@ type Options = {
   tier: Extract<MembershipTier, "FOUNDATION" | "INNER_CIRCLE">;
   deleteAccount: boolean;
   envFile: string;
+  verifyOnly: boolean;
 };
 
 function parseArgs(argv: string[]): Options {
@@ -20,7 +22,8 @@ function parseArgs(argv: string[]): Options {
     password: process.env.BCN_RULES_TEST_PASSWORD?.trim() || DEFAULT_PASSWORD,
     tier: parseTier(process.env.BCN_RULES_TEST_TIER) ?? DEFAULT_TIER,
     deleteAccount: false,
-    envFile: ".env"
+    envFile: ".env",
+    verifyOnly: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -28,6 +31,11 @@ function parseArgs(argv: string[]): Options {
 
     if (arg === "--delete") {
       options.deleteAccount = true;
+      continue;
+    }
+
+    if (arg === "--verify") {
+      options.verifyOnly = true;
       continue;
     }
 
@@ -171,6 +179,7 @@ function printHelp() {
   npx tsx scripts/reset-rules-test-member.ts
   npx tsx scripts/reset-rules-test-member.ts --env-file .env
   npx tsx scripts/reset-rules-test-member.ts --tier inner-circle
+  npx tsx scripts/reset-rules-test-member.ts --verify
   npx tsx scripts/reset-rules-test-member.ts --delete
 
 Options:
@@ -178,8 +187,13 @@ Options:
   --email <email>       Defaults to ${DEFAULT_EMAIL}. Must be an obvious test*@thebusinesscircle.net address.
   --password <value>    Defaults to ${DEFAULT_PASSWORD}, or BCN_RULES_TEST_PASSWORD if set.
   --tier <tier>         foundation or inner-circle. Defaults to foundation.
+  --verify              Check the configured account and password without changing data.
   --delete              Delete only the configured test account.
 `);
+}
+
+function redactDatabaseUrl(value: string | undefined) {
+  return value?.replace(/:[^:@/]+@/, ":***@") ?? "not set";
 }
 
 async function resetTestMember(db: PrismaClient, options: Options) {
@@ -356,6 +370,57 @@ async function deleteTestMember(db: PrismaClient, email: string) {
   return deleted;
 }
 
+async function verifyTestMember(db: PrismaClient, options: Options) {
+  const rows = await db.$queryRaw<
+    Array<{
+      email: string;
+      passwordHash: string | null;
+      emailVerified: Date | null;
+      suspended: boolean;
+      role: string;
+      membershipTier: string;
+      acceptedRulesAt: Date | null;
+      acceptedRulesVersion: string | null;
+      subscriptionStatus: string | null;
+      subscriptionTier: string | null;
+    }>
+  >`
+    SELECT
+      u."email",
+      u."passwordHash",
+      u."emailVerified",
+      u."suspended",
+      u."role",
+      u."membershipTier",
+      u."acceptedRulesAt",
+      u."acceptedRulesVersion",
+      s."status" as "subscriptionStatus",
+      s."tier" as "subscriptionTier"
+    FROM "User" u
+    LEFT JOIN "Subscription" s ON s."userId" = u."id"
+    WHERE u."email" = ${options.email}
+  `;
+  const user = rows[0] ?? null;
+  const passwordMatches = user?.passwordHash
+    ? await bcrypt.compare(options.password, user.passwordHash)
+    : false;
+
+  console.info(`---
+BCN TEST ACCOUNT CHECK
+Database: ${redactDatabaseUrl(process.env.DATABASE_URL)}
+Email Exists: ${user ? "YES" : "NO"}
+Email: ${options.email}
+Password Matches: ${passwordMatches ? "YES" : "NO"}
+Role: ${user?.role ?? "n/a"}
+Tier: ${user?.membershipTier ? tierLabel(user.membershipTier as MembershipTier) : "n/a"}
+Subscription Status: ${user?.subscriptionStatus ?? "n/a"}
+Subscription Tier: ${user?.subscriptionTier ?? "n/a"}
+Rules Accepted: ${user?.acceptedRulesAt ? "YES" : "NO"}
+Rules Version: ${user?.acceptedRulesVersion ?? "null"}
+Suspended: ${user?.suspended ? "YES" : "NO"}
+---`);
+}
+
 async function main() {
   const parsedOptions = parseArgs(process.argv.slice(2));
   loadEnvFileIfAvailable(parsedOptions.envFile);
@@ -367,6 +432,11 @@ async function main() {
   const db = createPrismaClient();
 
   try {
+    if (options.verifyOnly) {
+      await verifyTestMember(db, options);
+      return;
+    }
+
     if (options.deleteAccount) {
       const count = await deleteTestMember(db, options.email);
       console.info(`Deleted ${count} BCN rules test account(s) for ${options.email}.`);
