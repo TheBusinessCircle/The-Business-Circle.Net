@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { logServerError } from "@/lib/security/logging";
 import { markCallParticipantLeft, recordCallParticipantPresence } from "@/server/calling";
@@ -20,6 +21,10 @@ export async function POST(
     const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
       return authResult.response;
+    }
+
+    if (!(await hasAcceptedBcnRules(authResult.user.id))) {
+      return bcnRulesRequiredResponse();
     }
 
     const params = roomIdSchema.safeParse(await context.params);

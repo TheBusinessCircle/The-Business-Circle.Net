@@ -104,12 +104,17 @@ export default async function FounderPage() {
 
             <div className="rounded-[1.6rem] border border-white/8 bg-background/18 p-5">
               <div className="space-y-3 text-base leading-relaxed text-muted">
-                <p>I work full-time.</p>
-                <p>I have a family.</p>
-                <p>And I&apos;m building this properly.</p>
                 <p>
-                  That matters because I understand what it actually takes to grow something while
-                  everything else is still moving.
+                  The point of sharing that is not biography. It is context.
+                </p>
+                <p>
+                  I understand what it takes to build something properly around real
+                  responsibilities, limited time, and decisions that need to be clean before they
+                  become expensive.
+                </p>
+                <p>
+                  That is why The Business Circle is designed as a calmer, more serious room for
+                  owners who need better thinking around the work.
                 </p>
               </div>
             </div>

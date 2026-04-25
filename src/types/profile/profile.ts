@@ -6,6 +6,7 @@ export interface MemberProfileModel {
   image?: string | null;
   membershipTier: MembershipTier;
   memberRoleTag: MemberRoleTag;
+  acceptedRulesAt?: Date | null;
   headline?: string | null;
   bio?: string | null;
   location?: string | null;
@@ -53,4 +54,5 @@ export interface MemberProfileFormModel {
   industry: string;
   services: string;
   businessStage: BusinessStage | "";
+  acceptedRules: boolean;
 }

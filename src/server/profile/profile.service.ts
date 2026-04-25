@@ -23,6 +23,7 @@ export async function getMemberProfile(userId: string): Promise<MemberProfileMod
     image: user.image,
     membershipTier: user.membershipTier,
     memberRoleTag: user.memberRoleTag,
+    acceptedRulesAt: user.acceptedRulesAt,
     headline: user.profile?.headline,
     bio: user.profile?.bio,
     location: user.profile?.location,

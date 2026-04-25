@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BCN_RULES_VERSION, TERMS_VERSION } from "@/config/legal";
+import { TERMS_VERSION } from "@/config/legal";
 
 const createPendingRegistrationMock = vi.hoisted(() => vi.fn());
 const createStripeCheckoutSessionForPendingRegistrationMock = vi.hoisted(() => vi.fn());
@@ -84,33 +84,7 @@ describe("register route", () => {
     expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
   });
 
-  it("returns a clear validation error when BCN Rules are not accepted", async () => {
-    createPendingRegistrationMock.mockRejectedValueOnce(
-      new MockRegistrationServiceError(
-        "INVALID_INPUT",
-        "You must accept the BCN Rules to continue."
-      )
-    );
-
-    const response = await POST(
-      new Request("http://localhost/api/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({})
-      })
-    );
-    const payload = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(payload).toEqual({
-      error: "You must accept the BCN Rules to continue."
-    });
-    expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
-  });
-
-  it("starts checkout only when both legal agreements are accepted", async () => {
+  it("starts checkout when Terms are accepted without requiring BCN Rules", async () => {
     const acceptedAt = new Date("2026-04-25T10:15:00.000Z");
 
     createPendingRegistrationMock.mockResolvedValueOnce({
@@ -123,9 +97,9 @@ describe("register route", () => {
         coreAccessConfirmed: false,
         inviteCode: "BC-TREV-1234",
         acceptedTermsAt: acceptedAt,
-        acceptedRulesAt: acceptedAt,
+        acceptedRulesAt: null,
         acceptedTermsVersion: TERMS_VERSION,
-        acceptedRulesVersion: BCN_RULES_VERSION
+        acceptedRulesVersion: null
       }
     });
     createStripeCheckoutSessionForPendingRegistrationMock.mockResolvedValueOnce({
@@ -144,8 +118,7 @@ describe("register route", () => {
           password: "ValidPassword1!",
           tier: "INNER_CIRCLE",
           billingInterval: "annual",
-          acceptedTerms: true,
-          acceptedRules: true
+          acceptedTerms: true
         })
       })
     );
@@ -159,7 +132,8 @@ describe("register route", () => {
       expect.objectContaining({
         pendingRegistrationId: "pending_123",
         acceptedTermsVersion: TERMS_VERSION,
-        acceptedRulesVersion: BCN_RULES_VERSION,
+        acceptedRulesAt: null,
+        acceptedRulesVersion: null,
         acceptedAt
       })
     );

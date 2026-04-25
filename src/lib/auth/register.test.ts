@@ -204,20 +204,42 @@ describe("createPendingRegistration", () => {
     } satisfies Partial<RegistrationServiceError>);
   });
 
-  it("rejects when the BCN Rules are not accepted", async () => {
-    await expect(
-      createPendingRegistration({
-        name: "Trevor Newton",
-        email: "trev@example.com",
-        password: "ValidPassword1!",
-        tier: "FOUNDATION",
-        billingInterval: "monthly",
-        acceptedTerms: true
+  it("does not require BCN Rules acceptance during signup", async () => {
+    mocks.pendingRegistrationCreate.mockResolvedValueOnce({
+      id: "pending_terms_only",
+      email: "trev@example.com",
+      fullName: "Trevor Newton",
+      selectedTier: "FOUNDATION",
+      billingInterval: "MONTHLY",
+      coreAccessConfirmed: false,
+      inviteCode: null,
+      acceptedTermsAt: new Date("2026-04-25T09:15:00.000Z"),
+      acceptedRulesAt: null,
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedRulesVersion: null
+    });
+
+    const result = await createPendingRegistration({
+      name: "Trevor Newton",
+      email: "trev@example.com",
+      password: "ValidPassword1!",
+      tier: "FOUNDATION",
+      billingInterval: "monthly",
+      acceptedTerms: true
+    });
+
+    expect(mocks.pendingRegistrationCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          acceptedTermsAt: expect.any(Date),
+          acceptedRulesAt: null,
+          acceptedTermsVersion: TERMS_VERSION,
+          acceptedRulesVersion: null
+        })
       })
-    ).rejects.toMatchObject({
-      code: "INVALID_INPUT",
-      message: "You must accept the BCN Rules to continue."
-    } satisfies Partial<RegistrationServiceError>);
+    );
+    expect(result.pendingRegistration.acceptedRulesAt).toBeNull();
+    expect(result.pendingRegistration.acceptedRulesVersion).toBeNull();
   });
 
   it("stores a normalized pending registration instead of creating a real user", async () => {

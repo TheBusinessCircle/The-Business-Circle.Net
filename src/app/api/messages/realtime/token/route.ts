@@ -3,6 +3,7 @@ import { requireApiUser } from "@/lib/auth/api";
 import { getAblyRestClient } from "@/lib/community/ably-server";
 import { messagesThreadChannelName, messagesUserChannelName } from "@/lib/messages/realtime";
 import { db } from "@/lib/db";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import {
   clientIpFromHeaders,
@@ -25,6 +26,10 @@ export async function GET(request: Request) {
   const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
   if ("response" in authResult) {
     return authResult.response;
+  }
+
+  if (!(await hasAcceptedBcnRules(authResult.user.id))) {
+    return bcnRulesRequiredResponse();
   }
 
   const rateLimit = await consumeRateLimit({

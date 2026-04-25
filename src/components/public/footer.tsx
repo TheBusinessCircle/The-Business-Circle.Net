@@ -110,11 +110,6 @@ export async function Footer() {
                 )}
               </li>
             ))}
-            <li>
-              <Link href="/membership" className="transition-colors hover:text-foreground">
-                Find Your Room
-              </Link>
-            </li>
           </ul>
         </div>
 

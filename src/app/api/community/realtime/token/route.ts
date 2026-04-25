@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
 import { getAblyRestClient } from "@/lib/community/ably-server";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { logServerError } from "@/lib/security/logging";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import {
@@ -29,6 +30,10 @@ export async function GET(request: Request) {
   const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
   if ("response" in authResult) {
     return authResult.response;
+  }
+
+  if (!(await hasAcceptedBcnRules(authResult.user.id))) {
+    return bcnRulesRequiredResponse();
   }
 
   const rateLimit = await consumeRateLimit({
@@ -82,4 +87,3 @@ export async function GET(request: Request) {
     );
   }
 }
-

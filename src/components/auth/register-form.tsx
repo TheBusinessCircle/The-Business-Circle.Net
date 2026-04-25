@@ -550,29 +550,17 @@ export function RegisterForm({
                 {form.formState.errors.acceptedTerms.message}
               </p>
             ) : null}
-
-            <label
-              htmlFor="register-accepted-rules"
-              className="flex items-start gap-3 text-sm leading-relaxed text-foreground"
-            >
-              <input
-                id="register-accepted-rules"
-                type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                {...form.register("acceptedRules")}
-              />
-              <span className="min-w-0">
-                I agree to the{" "}
-                <Link href="/rules" className="text-primary hover:underline">
-                  BCN Rules
-                </Link>
-              </span>
-            </label>
-            {form.formState.errors.acceptedRules ? (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.acceptedRules.message}
-              </p>
-            ) : null}
+            <p className="text-xs leading-relaxed text-muted">
+              By continuing, you agree to the{" "}
+              <Link href="/terms-of-service" className="text-primary hover:underline">
+                Terms & Conditions
+              </Link>{" "}
+              and will be required to accept the{" "}
+              <Link href="/rules" className="text-primary hover:underline">
+                BCN Rules
+              </Link>{" "}
+              after joining.
+            </p>
           </div>
 
           <Button
@@ -593,7 +581,7 @@ export function RegisterForm({
             </p>
           ) : !canSubmitRegistration ? (
             <p className="text-xs text-muted">
-              Complete the required details and accept both legal agreements to continue.
+              Complete the required details and accept the Terms & Conditions to continue.
             </p>
           ) : null}
         </form>

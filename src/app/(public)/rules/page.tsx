@@ -4,8 +4,8 @@ import {
   BCN_RULES_LAST_UPDATED
 } from "@/config/legal";
 import { LegalDocument } from "@/components/public";
+import { SITE_CONFIG } from "@/config/site";
 import { createPageMetadata } from "@/lib/seo";
-import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "BCN Rules",
@@ -13,16 +13,14 @@ export const metadata: Metadata = createPageMetadata({
   path: "/rules"
 });
 
-export default async function RulesPage() {
-  const footerContent = await getSiteContentSection("footer");
-
+export default function RulesPage() {
   return (
     <LegalDocument
       label={BCN_RULES_CONTENT.label}
       title={BCN_RULES_CONTENT.title}
       intro={BCN_RULES_CONTENT.intro}
       updatedAt={BCN_RULES_LAST_UPDATED}
-      supportEmail={footerContent.supportEmail}
+      supportEmail={SITE_CONFIG.supportEmail}
       sections={BCN_RULES_CONTENT.sections}
     />
   );

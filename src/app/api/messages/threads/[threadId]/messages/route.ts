@@ -12,6 +12,7 @@ import {
   publishMessagesThreadRefresh,
   publishMessagesUserRefresh
 } from "@/lib/messages/ably-publisher";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import {
   isFileValue,
   MAX_DIRECT_MESSAGE_UPLOAD_COUNT,
@@ -33,6 +34,10 @@ export async function POST(request: Request, { params }: RouteProps) {
   const authResult = await requireApiUser({ requiredTier: MembershipTier.FOUNDATION });
   if ("response" in authResult) {
     return authResult.response;
+  }
+
+  if (!(await hasAcceptedBcnRules(authResult.user.id))) {
+    return bcnRulesRequiredResponse();
   }
 
   const rateLimit = await consumeRateLimit({

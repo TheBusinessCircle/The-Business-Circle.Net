@@ -9,6 +9,7 @@ import {
 } from "@/lib/security/rate-limit";
 import { directMessageRequestSchema } from "@/lib/messages/validators";
 import { publishMessagesUserRefresh } from "@/lib/messages/ably-publisher";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { logServerWarning } from "@/lib/security/logging";
 import { createDirectMessageRequest, listDirectMessageRequests } from "@/server/messages";
 
@@ -36,6 +37,10 @@ export async function POST(request: Request) {
   const authResult = await requireApiUser({ requiredTier: MembershipTier.FOUNDATION });
   if ("response" in authResult) {
     return authResult.response;
+  }
+
+  if (!(await hasAcceptedBcnRules(authResult.user.id))) {
+    return bcnRulesRequiredResponse();
   }
 
   const rateLimit = await consumeRateLimit({

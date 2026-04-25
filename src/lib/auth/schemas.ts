@@ -12,7 +12,6 @@ export const membershipBillingIntervalSchema = z.enum(membershipBillingIntervalV
 const coreAccessConfirmationMessage =
   "Please confirm that you are actively running a business or generating revenue to continue to Core.";
 const acceptedTermsMessage = "You must accept the Terms & Conditions to continue.";
-const acceptedRulesMessage = "You must accept the BCN Rules to continue.";
 
 export const emailSchema = z.string().trim().email().max(254);
 
@@ -60,13 +59,6 @@ export const registerMemberSchema = registerMemberBaseSchema.superRefine((input,
     });
   }
 
-  if (!input.acceptedRules) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["acceptedRules"],
-      message: acceptedRulesMessage
-    });
-  }
 });
 
 export const registerMemberFormSchema = registerMemberBaseSchema
@@ -87,14 +79,6 @@ export const registerMemberFormSchema = registerMemberBaseSchema
         code: z.ZodIssueCode.custom,
         path: ["acceptedTerms"],
         message: acceptedTermsMessage
-      });
-    }
-
-    if (!input.acceptedRules) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["acceptedRules"],
-        message: acceptedRulesMessage
       });
     }
 

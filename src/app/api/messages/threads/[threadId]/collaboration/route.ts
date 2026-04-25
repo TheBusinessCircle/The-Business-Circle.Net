@@ -3,6 +3,7 @@ import { MembershipTier } from "@prisma/client";
 import { requireApiUser } from "@/lib/auth/api";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { directMessageCollaborationSchema } from "@/lib/messages/validators";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { updateDirectMessageCollaboration } from "@/server/messages";
 
 export const runtime = "nodejs";
@@ -19,6 +20,10 @@ export async function POST(request: Request, { params }: RouteProps) {
   const authResult = await requireApiUser({ requiredTier: MembershipTier.FOUNDATION });
   if ("response" in authResult) {
     return authResult.response;
+  }
+
+  if (!(await hasAcceptedBcnRules(authResult.user.id))) {
+    return bcnRulesRequiredResponse();
   }
 
   const parsed = directMessageCollaborationSchema.safeParse(await request.json());

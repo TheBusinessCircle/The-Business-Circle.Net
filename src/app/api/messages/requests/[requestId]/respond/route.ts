@@ -3,6 +3,7 @@ import { MembershipTier } from "@prisma/client";
 import { requireApiUser } from "@/lib/auth/api";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { directMessageResponseSchema } from "@/lib/messages/validators";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { respondToDirectMessageRequest } from "@/server/messages";
 
 export const runtime = "nodejs";
@@ -24,6 +25,10 @@ export async function POST(request: Request, { params }: RouteProps) {
   const parsed = directMessageResponseSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request response." }, { status: 400 });
+  }
+
+  if (parsed.data.action === "accept" && !(await hasAcceptedBcnRules(authResult.user.id))) {
+    return bcnRulesRequiredResponse();
   }
 
   try {

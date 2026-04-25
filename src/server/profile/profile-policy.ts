@@ -20,7 +20,8 @@ export function calculateProfileCompletion(profile: MemberProfileModel): number 
     customLinks: profile.customLinks,
     collaborationNeeds: profile.collaborationNeeds,
     collaborationOffers: profile.collaborationOffers,
-    partnershipInterests: profile.partnershipInterests
+    partnershipInterests: profile.partnershipInterests,
+    acceptedRulesAt: profile.acceptedRulesAt
   });
 
   return completion.percentage;

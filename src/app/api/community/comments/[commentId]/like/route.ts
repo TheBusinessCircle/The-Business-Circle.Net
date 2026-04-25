@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveEffectiveTier } from "@/lib/auth/permissions";
 import { requireApiUser } from "@/lib/auth/api";
 import { db } from "@/lib/db";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { logServerError } from "@/lib/security/logging";
 import { toggleCommunityCommentLike } from "@/server/community";
@@ -18,6 +19,10 @@ export async function POST(
     const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
       return authResult.response;
+    }
+
+    if (!(await hasAcceptedBcnRules(authResult.user.id))) {
+      return bcnRulesRequiredResponse();
     }
 
     const { commentId } = await context.params;

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ReactNode } from "react";
 import { MembershipTier } from "@prisma/client";
-import { ShieldCheck } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { BackgroundModeToggle } from "@/components/background-mode/background-mode-toggle";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { MemberNavigation } from "@/components/member";
@@ -18,6 +18,11 @@ import { getMembershipTierLabel } from "@/config/membership";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
+import {
+  BCN_RULES_ACCEPTANCE_PATH,
+  BCN_RULES_REQUIRED_MESSAGE,
+  hasAcceptedBcnRules
+} from "@/lib/rules-acceptance";
 import { requireUser } from "@/lib/session";
 import { getDirectMessageNavCounts } from "@/server/messages";
 
@@ -28,7 +33,10 @@ export const metadata: Metadata = {
 export default async function MemberLayout({ children }: { children: ReactNode }) {
   const session = await requireUser();
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
-  const messageCounts = await getDirectMessageNavCounts(session.user.id);
+  const [messageCounts, rulesAccepted] = await Promise.all([
+    getDirectMessageNavCounts(session.user.id),
+    hasAcceptedBcnRules(session.user.id)
+  ]);
 
   const visibleNavItems = PLATFORM_NAV.filter((item) => {
     const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
@@ -141,7 +149,32 @@ export default async function MemberLayout({ children }: { children: ReactNode }
 
   return (
     <AppShell header={header} sidebar={sidebar} contentClassName="py-7 lg:py-9">
-      <div className="space-y-6">{children}</div>
+      <div className="space-y-6">
+        {!rulesAccepted ? (
+          <section className="premium-surface border-gold/30 bg-gradient-to-br from-gold/12 via-card/84 to-card/70 p-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="max-w-3xl">
+                <p className="text-xs uppercase tracking-[0.1em] text-gold">
+                  A quick standard before you enter
+                </p>
+                <h2 className="mt-2 font-display text-2xl text-foreground">
+                  Review the BCN Rules
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  This is a private environment built on trust, respect, and proper conversation.
+                  {` ${BCN_RULES_REQUIRED_MESSAGE}`}
+                </p>
+              </div>
+              <Link href={BCN_RULES_ACCEPTANCE_PATH}>
+                <Button className="w-full md:w-auto">
+                  Review and accept rules <ArrowRight size={16} />
+                </Button>
+              </Link>
+            </div>
+          </section>
+        ) : null}
+        {children}
+      </div>
     </AppShell>
   );
 }

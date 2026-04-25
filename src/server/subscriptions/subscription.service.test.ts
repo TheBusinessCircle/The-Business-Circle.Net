@@ -1,7 +1,7 @@
 import { MembershipTier, SubscriptionStatus } from "@prisma/client";
 import { describe, expect, it, vi } from "vitest";
 import type Stripe from "stripe";
-import { BCN_RULES_VERSION, TERMS_VERSION } from "@/config/legal";
+import { TERMS_VERSION } from "@/config/legal";
 
 const stripeWebhookEventCreateMock = vi.hoisted(() => vi.fn(async () => ({})));
 const stripeWebhookEventFindUniqueMock = vi.hoisted(() => vi.fn(async () => null));
@@ -248,7 +248,7 @@ describe("subscription service", () => {
     expect(processors.handleCheckoutSessionCompleted).not.toHaveBeenCalled();
   });
 
-  it("includes legal acceptance metadata on pending registration checkout sessions", async () => {
+  it("includes Terms acceptance metadata on pending registration checkout sessions", async () => {
     const acceptedAt = new Date("2026-04-25T10:15:00.000Z");
 
     resolveManagedMembershipPlanMock.mockResolvedValueOnce({
@@ -288,7 +288,6 @@ describe("subscription service", () => {
       coreAccessConfirmed: false,
       inviteCode: "BC-TREV-1234",
       acceptedTermsVersion: TERMS_VERSION,
-      acceptedRulesVersion: BCN_RULES_VERSION,
       acceptedAt,
       allowFoundingOffer: false
     });
@@ -297,17 +296,15 @@ describe("subscription service", () => {
 
     expect(checkoutPayload.metadata).toMatchObject({
       acceptedTerms: "true",
-      acceptedRules: "true",
       acceptedTermsVersion: TERMS_VERSION,
-      acceptedRulesVersion: BCN_RULES_VERSION,
       acceptedLegalAt: acceptedAt.toISOString()
     });
     expect(checkoutPayload.subscription_data.metadata).toMatchObject({
       acceptedTerms: "true",
-      acceptedRules: "true",
       acceptedTermsVersion: TERMS_VERSION,
-      acceptedRulesVersion: BCN_RULES_VERSION,
       acceptedLegalAt: acceptedAt.toISOString()
     });
+    expect(checkoutPayload.metadata).not.toHaveProperty("acceptedRules");
+    expect(checkoutPayload.subscription_data.metadata).not.toHaveProperty("acceptedRules");
   });
 });

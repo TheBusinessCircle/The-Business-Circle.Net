@@ -41,6 +41,7 @@ async function getMemberProfileRouteData(memberId: string, viewerUserId?: string
       membershipTier: true,
       memberRoleTag: true,
       foundingTier: true,
+      acceptedRulesAt: true,
       profile: {
         select: {
           headline: true,
@@ -157,7 +158,8 @@ export default async function PublicMemberProfilePage({ params }: PageProps) {
     customLinks: user.profile?.customLinks,
     collaborationNeeds: user.profile?.collaborationNeeds,
     collaborationOffers: user.profile?.collaborationOffers,
-    partnershipInterests: user.profile?.partnershipInterests
+    partnershipInterests: user.profile?.partnershipInterests,
+    acceptedRulesAt: user.acceptedRulesAt
   });
 
   const isSelfPreview = viewerUserId === user.id;

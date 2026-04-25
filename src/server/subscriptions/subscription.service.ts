@@ -72,8 +72,9 @@ type PendingRegistrationCheckoutInput = {
   coreAccessConfirmed?: boolean;
   inviteCode?: string | null;
   acceptedTermsVersion: string;
-  acceptedRulesVersion: string;
   acceptedAt: Date;
+  acceptedRulesAt?: Date | null;
+  acceptedRulesVersion?: string | null;
   successPath?: string;
   cancelPath?: string;
   allowFoundingOffer?: boolean;
@@ -133,6 +134,7 @@ function assertCoreAccessConfirmed(input: {
 
 function buildLegalAcceptanceMetadata(input?: {
   acceptedTermsVersion?: string | null;
+  acceptedRulesAt?: Date | string | null;
   acceptedRulesVersion?: string | null;
   acceptedAt?: Date | string | null;
 }) {
@@ -145,13 +147,22 @@ function buildLegalAcceptanceMetadata(input?: {
       ? input.acceptedAt
       : input.acceptedAt.toISOString();
 
-  return {
+  const metadata: Stripe.MetadataParam = {
     acceptedTerms: "true",
-    acceptedRules: "true",
     acceptedTermsVersion: input.acceptedTermsVersion ?? TERMS_VERSION,
-    acceptedRulesVersion: input.acceptedRulesVersion ?? BCN_RULES_VERSION,
     acceptedLegalAt: acceptedAt
   };
+
+  if (input.acceptedRulesAt) {
+    metadata.acceptedRules = "true";
+    metadata.acceptedRulesVersion = input.acceptedRulesVersion ?? BCN_RULES_VERSION;
+    metadata.acceptedRulesAt =
+      typeof input.acceptedRulesAt === "string"
+        ? input.acceptedRulesAt
+        : input.acceptedRulesAt.toISOString();
+  }
+
+  return metadata;
 }
 
 function toStripeObjectId(
@@ -1387,6 +1398,7 @@ export async function createStripeCheckoutSessionForPendingRegistration(
     metadata,
     buildLegalAcceptanceMetadata({
       acceptedTermsVersion: input.acceptedTermsVersion,
+      acceptedRulesAt: input.acceptedRulesAt,
       acceptedRulesVersion: input.acceptedRulesVersion,
       acceptedAt: input.acceptedAt
     })

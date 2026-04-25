@@ -12,6 +12,7 @@ import {
 } from "@/lib/connection-wins";
 import { buildCommunityPostPath } from "@/lib/community-paths";
 import { roleToTier } from "@/lib/permissions";
+import { hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { requireUser } from "@/lib/session";
 import {
   createCommunityComment,
@@ -71,6 +72,12 @@ function redirectWithNotice(path: string, noticeCode: string): never {
   redirect(appendQueryParam(path, "notice", noticeCode));
 }
 
+async function requireRulesAcceptedOrRedirect(userId: string, returnPath: string) {
+  if (!(await hasAcceptedBcnRules(userId))) {
+    redirectWithError(returnPath, "bcn-rules-required");
+  }
+}
+
 function normalizeRevalidationPath(path: string) {
   const url = new URL(path, "http://localhost");
   return url.pathname;
@@ -104,6 +111,8 @@ export async function createCommunityPostAction(formData: FormData) {
   if (!parsed.success) {
     redirectWithError(returnPath, "post-invalid");
   }
+
+  await requireRulesAcceptedOrRedirect(session.user.id, returnPath);
 
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
   let createdPostId: string | null = null;
@@ -164,6 +173,8 @@ export async function createCommunityCommentAction(formData: FormData) {
     redirectWithError(returnPath, "comment-invalid");
   }
 
+  await requireRulesAcceptedOrRedirect(session.user.id, returnPath);
+
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
 
   try {
@@ -214,6 +225,8 @@ export async function createConnectionWinAction(formData: FormData) {
     redirectWithError(returnPath, "connection-win-invalid");
   }
 
+  await requireRulesAcceptedOrRedirect(session.user.id, returnPath);
+
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
 
   try {
@@ -256,6 +269,8 @@ export async function toggleCommunityPostLikeAction(formData: FormData) {
     redirect(returnPath);
   }
 
+  await requireRulesAcceptedOrRedirect(session.user.id, returnPath);
+
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
 
   try {
@@ -292,6 +307,8 @@ export async function toggleCommunityCommentLikeAction(formData: FormData) {
   if (!parsed.success) {
     redirect(returnPath);
   }
+
+  await requireRulesAcceptedOrRedirect(session.user.id, returnPath);
 
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { logServerError } from "@/lib/security/logging";
 import { validateCallRoomAccess } from "@/server/calling";
 import { roomIdSchema } from "@/server/calling/schemas";
@@ -13,6 +14,10 @@ export async function GET(
     const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
       return authResult.response;
+    }
+
+    if (!(await hasAcceptedBcnRules(authResult.user.id))) {
+      return bcnRulesRequiredResponse();
     }
 
     const parsed = roomIdSchema.safeParse(await context.params);

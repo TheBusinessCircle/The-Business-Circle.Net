@@ -288,7 +288,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     customLinks: member?.profile?.customLinks,
     collaborationNeeds: member?.profile?.collaborationNeeds,
     collaborationOffers: member?.profile?.collaborationOffers,
-    partnershipInterests: member?.profile?.partnershipInterests
+    partnershipInterests: member?.profile?.partnershipInterests,
+    acceptedRulesAt: member?.acceptedRulesAt
   });
   const nextAction = getMemberHomeNextAction({
     completionPercentage: completion.percentage,

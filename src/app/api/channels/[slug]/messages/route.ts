@@ -6,6 +6,7 @@ import { userCanAccessTier } from "@/lib/auth/permissions";
 import { publishCommunityEvent } from "@/lib/community";
 import { ensureCommunityRealtimePublisherConfigured } from "@/lib/community/ably-publisher";
 import { prisma } from "@/lib/prisma";
+import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { messageSchema } from "@/lib/validators";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { logServerError } from "@/lib/security/logging";
@@ -93,6 +94,10 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
       return authResult.response;
+    }
+
+    if (!(await hasAcceptedBcnRules(authResult.user.id))) {
+      return bcnRulesRequiredResponse();
     }
 
     await ensureCommunityChannels();

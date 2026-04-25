@@ -66,9 +66,9 @@ export type CreatePendingRegistrationResult = {
     coreAccessConfirmed: boolean;
     inviteCode: string | null;
     acceptedTermsAt: Date;
-    acceptedRulesAt: Date;
+    acceptedRulesAt: Date | null;
     acceptedTermsVersion: string;
-    acceptedRulesVersion: string;
+    acceptedRulesVersion: string | null;
   };
 };
 
@@ -254,9 +254,9 @@ function toPendingRegistrationRecord(
   passwordHash: string,
   legalAcceptance: {
     acceptedTermsAt: Date;
-    acceptedRulesAt: Date;
+    acceptedRulesAt: Date | null;
     acceptedTermsVersion: string;
-    acceptedRulesVersion: string;
+    acceptedRulesVersion: string | null;
   }
 ) {
   return {
@@ -511,9 +511,9 @@ export async function createPendingRegistration(
   const acceptedAt = new Date();
   const legalAcceptance = {
     acceptedTermsAt: acceptedAt,
-    acceptedRulesAt: acceptedAt,
+    acceptedRulesAt: input.acceptedRules ? acceptedAt : null,
     acceptedTermsVersion: TERMS_VERSION,
-    acceptedRulesVersion: BCN_RULES_VERSION
+    acceptedRulesVersion: input.acceptedRules ? BCN_RULES_VERSION : null
   };
   const normalizedRecord = toPendingRegistrationRecord(
     input,
@@ -560,11 +560,10 @@ export async function createPendingRegistration(
         coreAccessConfirmed: pendingRegistration.coreAccessConfirmed,
         inviteCode: pendingRegistration.inviteCode,
         acceptedTermsAt: pendingRegistration.acceptedTermsAt ?? acceptedAt,
-        acceptedRulesAt: pendingRegistration.acceptedRulesAt ?? acceptedAt,
+        acceptedRulesAt: pendingRegistration.acceptedRulesAt,
         acceptedTermsVersion:
           pendingRegistration.acceptedTermsVersion ?? TERMS_VERSION,
-        acceptedRulesVersion:
-          pendingRegistration.acceptedRulesVersion ?? BCN_RULES_VERSION
+        acceptedRulesVersion: pendingRegistration.acceptedRulesVersion
       }
     };
   } catch (error) {

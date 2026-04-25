@@ -4,6 +4,7 @@ import { extname, join } from "node:path";
 import { BusinessStage, BusinessStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { BCN_RULES_VERSION } from "@/config/legal";
 import { requireApiUser } from "@/lib/auth/api";
 import { prisma } from "@/lib/prisma";
 import { profileSchema } from "@/lib/validators";
@@ -42,7 +43,8 @@ const PROFILE_FORM_FIELDS = [
   "businessDescription",
   "industry",
   "services",
-  "businessStage"
+  "businessStage",
+  "acceptedRules"
 ] as const;
 
 function toNull(value?: string) {
@@ -241,6 +243,19 @@ export async function PATCH(request: Request) {
     }
 
     const data = parsed.data;
+    const existingRulesAcceptance = data.acceptedRules
+      ? await prisma.user.findUnique({
+          where: { id: authResult.user.id },
+          select: {
+            acceptedRulesAt: true,
+            acceptedRulesVersion: true
+          }
+        })
+      : null;
+    const shouldRecordRulesAcceptance =
+      data.acceptedRules &&
+      (!existingRulesAcceptance?.acceptedRulesAt ||
+        existingRulesAcceptance.acceptedRulesVersion !== BCN_RULES_VERSION);
     const stage = data.businessStage && data.businessStage.length ? (data.businessStage as BusinessStage) : null;
     const businessStatus =
       data.businessStatus && data.businessStatus.length
@@ -269,6 +284,12 @@ export async function PATCH(request: Request) {
         name: data.name.trim(),
         image: resolvedProfileImage,
         memberRoleTag: data.memberRoleTag,
+        ...(shouldRecordRulesAcceptance
+          ? {
+              acceptedRulesAt: new Date(),
+              acceptedRulesVersion: BCN_RULES_VERSION
+            }
+          : {}),
         profile: {
           upsert: {
             create: {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { safeRedirectPath } from "@/lib/auth/utils";
+import { hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { requireUser } from "@/lib/session";
 import {
   createApprovedHostCallRoom,
@@ -45,6 +46,10 @@ export async function requestGroupHostAccessAction(formData: FormData) {
     redirect(appendQueryParam(returnPath, "error", "invalid-host-request"));
   }
 
+  if (!(await hasAcceptedBcnRules(session.user.id))) {
+    redirect(appendQueryParam(returnPath, "error", "bcn-rules-required"));
+  }
+
   try {
     await submitGroupHostAccessRequest({
       actor: toCallingUser(session.user),
@@ -79,6 +84,10 @@ export async function createHostedCallRoomAction(formData: FormData) {
 
   if (!parsed.success) {
     redirect(appendQueryParam(returnPath, "error", "invalid-call-room"));
+  }
+
+  if (!(await hasAcceptedBcnRules(session.user.id))) {
+    redirect(appendQueryParam(returnPath, "error", "bcn-rules-required"));
   }
 
   try {
@@ -125,6 +134,10 @@ export async function endHostedCallRoomAction(formData: FormData) {
 
   if (!roomId) {
     redirect(appendQueryParam(returnPath, "error", "call-room-missing"));
+  }
+
+  if (!(await hasAcceptedBcnRules(session.user.id))) {
+    redirect(appendQueryParam(returnPath, "error", "bcn-rules-required"));
   }
 
   try {

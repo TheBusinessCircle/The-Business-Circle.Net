@@ -68,4 +68,15 @@ describe("profileSchema", () => {
 
     expect(parsed.success).toBe(true);
   });
+
+  it("parses BCN Rules acceptance from profile form checkboxes", () => {
+    const parsed = profileSchema.safeParse(
+      buildValidProfileInput({
+        acceptedRules: "true"
+      })
+    );
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.success ? parsed.data.acceptedRules : false).toBe(true);
+  });
 });

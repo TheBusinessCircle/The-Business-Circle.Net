@@ -163,6 +163,7 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
       },
       select: {
         name: true,
+        acceptedRulesAt: true,
         profile: {
           select: {
             bio: true,
@@ -228,7 +229,8 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
     customLinks: memberProfile?.profile?.customLinks,
     collaborationNeeds: memberProfile?.profile?.collaborationNeeds,
     collaborationOffers: memberProfile?.profile?.collaborationOffers,
-    partnershipInterests: memberProfile?.profile?.partnershipInterests
+    partnershipInterests: memberProfile?.profile?.partnershipInterests,
+    acceptedRulesAt: memberProfile?.acceptedRulesAt
   });
   const personalisation = getResourcePersonalisation({
     membershipTier: effectiveTier,

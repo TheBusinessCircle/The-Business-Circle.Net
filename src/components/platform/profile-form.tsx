@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { MembershipTier } from "@prisma/client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Avatar } from "@/components/ui/avatar";
@@ -123,7 +123,8 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
         customLinks: customLinkList,
         collaborationNeeds: values.collaborationNeeds,
         collaborationOffers: values.collaborationOffers,
-        partnershipInterests: values.partnershipInterests
+        partnershipInterests: values.partnershipInterests,
+        acceptedRulesAt: values.acceptedRules ? "accepted" : null
       }),
     [
       values.bio,
@@ -141,6 +142,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
       values.name,
       values.partnershipInterests,
       values.services,
+      values.acceptedRules,
       values.tiktok,
       values.youtube,
       values.website
@@ -275,11 +277,11 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
       try {
         const payload = new FormData();
         const entries = Object.entries(submitted) as Array<
-          [keyof ProfileFormValues, string | undefined]
+          [keyof ProfileFormValues, string | boolean | undefined]
         >;
 
         for (const [key, value] of entries) {
-          payload.set(key, value ?? "");
+          payload.set(key, typeof value === "boolean" ? String(value) : value ?? "");
         }
 
         const selectedImage = profileImageUploadRef.current?.files?.[0];
@@ -373,6 +375,50 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
         </aside>
 
         <div className="space-y-4">
+          <section id="bcn-rules" className="premium-surface p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="max-w-2xl">
+                <p className="mb-2 text-xs tracking-[0.1em] text-silver uppercase">
+                  BCN Rules Acceptance
+                </p>
+                <h2 className="font-display text-2xl text-foreground">
+                  Protect the standard of the room
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  Conversations, private messaging, and calls unlock once this standard is accepted.
+                </p>
+              </div>
+              {values.acceptedRules ? (
+                <span className="inline-flex items-center gap-2 rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-xs text-gold">
+                  <ShieldCheck size={14} />
+                  Accepted
+                </span>
+              ) : null}
+            </div>
+
+            <label
+              htmlFor="acceptedRules"
+              className="mt-5 flex items-start gap-3 rounded-2xl border border-gold/20 bg-background/25 px-4 py-4 text-sm leading-relaxed text-foreground"
+            >
+              <input
+                id="acceptedRules"
+                type="checkbox"
+                value="true"
+                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                {...form.register("acceptedRules")}
+              />
+              <span className="min-w-0">
+                I have read and agree to the{" "}
+                <Link href="/rules" className="text-primary hover:underline">
+                  BCN Rules
+                </Link>
+              </span>
+            </label>
+            <p className="mt-3 text-xs leading-relaxed text-muted">
+              This is part of profile completion and keeps discussion areas aligned with the BCN standard.
+            </p>
+          </section>
+
           <section className="premium-surface p-5">
             <p className="mb-4 text-xs tracking-[0.1em] text-silver uppercase">Identity</p>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

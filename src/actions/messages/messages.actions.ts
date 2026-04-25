@@ -13,6 +13,7 @@ import {
   directMessageCollaborationSchema,
   directMessageReportSchema
 } from "@/lib/messages/validators";
+import { hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import {
   blockDirectMessageUser,
   reportDirectMessage,
@@ -55,6 +56,10 @@ export async function respondToDirectMessageRequestAction(formData: FormData) {
 
   if (!requestId || !["accept", "decline", "block"].includes(action)) {
     redirectWithError(returnPath, "invalid-request-response");
+  }
+
+  if (action === "accept" && !(await hasAcceptedBcnRules(session.user.id))) {
+    redirectWithError(returnPath, "bcn-rules-required");
   }
 
   try {
@@ -144,6 +149,10 @@ export async function updateDirectMessageCollaborationAction(formData: FormData)
 
   if (!threadId || !parsed.success) {
     redirectWithError(returnPath, "invalid-collaboration");
+  }
+
+  if (!(await hasAcceptedBcnRules(session.user.id))) {
+    redirectWithError(returnPath, "bcn-rules-required");
   }
 
   try {

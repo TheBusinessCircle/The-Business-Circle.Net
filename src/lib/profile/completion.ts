@@ -17,6 +17,7 @@ export type ProfileCompletionInput = {
   collaborationNeeds?: string | null;
   collaborationOffers?: string | null;
   partnershipInterests?: string | null;
+  acceptedRulesAt?: Date | string | null;
 };
 
 export type ProfileCompletionFieldKey =
@@ -37,7 +38,8 @@ export type ProfileCompletionFieldKey =
   | "customLinks"
   | "collaborationNeeds"
   | "collaborationOffers"
-  | "partnershipInterests";
+  | "partnershipInterests"
+  | "acceptedRules";
 
 export type ProfileCompletionField = {
   key: ProfileCompletionFieldKey;
@@ -70,7 +72,8 @@ const PROFILE_COMPLETION_FIELDS: Array<{ key: ProfileCompletionFieldKey; label: 
   { key: "customLinks", label: "Other Links" },
   { key: "collaborationNeeds", label: "Need Help With" },
   { key: "collaborationOffers", label: "Can Help With" },
-  { key: "partnershipInterests", label: "Partnership Interests" }
+  { key: "partnershipInterests", label: "Partnership Interests" },
+  { key: "acceptedRules", label: "BCN Rules Acceptance" }
 ];
 
 function hasContent(value: string | string[] | null | undefined): boolean {
@@ -84,7 +87,10 @@ function hasContent(value: string | string[] | null | undefined): boolean {
 export function getProfileCompletion(input: ProfileCompletionInput): ProfileCompletionResult {
   const fields = PROFILE_COMPLETION_FIELDS.map((field) => ({
     ...field,
-    complete: hasContent(input[field.key])
+    complete:
+      field.key === "acceptedRules"
+        ? Boolean(input.acceptedRulesAt)
+        : hasContent(input[field.key])
   }));
   const completedCount = fields.filter((field) => field.complete).length;
   const totalCount = fields.length;

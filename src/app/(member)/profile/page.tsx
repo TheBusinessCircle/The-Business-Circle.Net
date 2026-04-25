@@ -100,7 +100,8 @@ export default async function ProfilePage() {
           businessDescription: user.profile?.business?.description || "",
           industry: user.profile?.business?.industry || "",
           services: user.profile?.business?.services || "",
-          businessStage: user.profile?.business?.stage || ""
+          businessStage: user.profile?.business?.stage || "",
+          acceptedRules: Boolean(user.acceptedRulesAt)
         }}
         membershipTier={effectiveTier}
         memberProfileHref={memberProfileHref}

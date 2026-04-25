@@ -32,6 +32,10 @@ const optionalProfileImage = z
   .optional()
   .or(z.literal(""));
 const requiredText = (min: number, max: number) => z.string().trim().min(min).max(max);
+const checkboxBoolean = z.preprocess(
+  (value) => value === true || value === "true" || value === "on",
+  z.boolean()
+);
 
 export const contactSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -65,7 +69,8 @@ export const profileSchema = z.object({
   businessDescription: optionalText(1200),
   industry: optionalText(100),
   services: optionalText(400),
-  businessStage: z.enum(["IDEA", "STARTUP", "GROWTH", "SCALE", "ESTABLISHED"]).optional().or(z.literal(""))
+  businessStage: z.enum(["IDEA", "STARTUP", "GROWTH", "SCALE", "ESTABLISHED"]).optional().or(z.literal("")),
+  acceptedRules: checkboxBoolean.optional().default(false)
 });
 
 export const resourceSchema = z.object({
@@ -131,4 +136,3 @@ export const founderServiceRequestSchema = z.object({
 export type ProfileFormValues = z.infer<typeof profileSchema>;
 export type ContactFormInput = z.infer<typeof contactSchema>;
 export type FounderServiceRequestFormValues = z.infer<typeof founderServiceRequestSchema>;
-
