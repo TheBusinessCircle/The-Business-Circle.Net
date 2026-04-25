@@ -301,6 +301,345 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     }),
     defaultOverlayStyle: "SOFT_DARK"
   },
+  HOME_ROOMS_PREVIEW: {
+    key: "home.section.roomsPreview",
+    label: "Homepage - Rooms Preview",
+    page: "HOME",
+    section: "rooms-preview",
+    variant: "SECTION",
+    sortOrder: 26,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Shows structured discussion rooms and business owner conversations.",
+    imageFamilyTag: "founder-conversation",
+    adminPreviewFamily: "human",
+    imagePurpose: "Make the private-room layer feel tangible and credible.",
+    bestImageType: "Focused owner conversation or structured room imagery.",
+    emotionalTone: ["focus", "privacy", "signal", "serious conversation", "trust"],
+    recommendedSubjectMatter: [
+      "small owner discussion room",
+      "private strategic conversation",
+      "quiet premium meeting setting",
+      "serious business-owner exchange"
+    ],
+    recommendedComposition: [
+      "show depth and conversation without crowding",
+      "keep the scene calm and structured",
+      "allow the image to support a premium card layout"
+    ],
+    recommendedLightingMood: ["warm-dark", "premium", "calm", "credible"],
+    avoid: [
+      "event photography",
+      "conference crowds",
+      "social-media style chatter",
+      "forced smiling team shots"
+    ],
+    longAdminGuidance:
+      "Use this slot to show that private rooms inside BCN feel thoughtful, structured, and useful. It should feel like a better room for serious owners, not a generic networking event.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "founder-conversation"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Premium structured room and owner conversation preview.",
+      sceneType: "Private business conversation scene.",
+      subject:
+        "Two or three business owners in a focused discussion inside a refined private workspace.",
+      environment:
+        "Quiet premium room with subtle materials, believable detail, and no visual clutter.",
+      lighting: "Warm premium lighting.",
+      mood: "Structured, serious, and calm.",
+      style: "Editorial business photography, ultra realistic.",
+      cameraComposition:
+        "Balanced medium-wide composition that suggests a private room and meaningful discussion.",
+      qualityTags:
+        "Premium realism, believable interaction, no watermark, no text in image, strong trust cues.",
+      negativePrompt:
+        "conference crowd, networking event, staged laughter, bright coworking space, clutter"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  HOME_RESOURCES_PREVIEW: {
+    key: "home.section.resourcesPreview",
+    label: "Homepage - Resources Preview",
+    page: "HOME",
+    section: "resources-preview",
+    variant: "SECTION",
+    sortOrder: 27,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Shows tiered resources, business insights, and practical support.",
+    imageFamilyTag: "editorial-insight",
+    adminPreviewFamily: "editorial",
+    imagePurpose: "Show the practical support layer inside BCN through resources and insights.",
+    bestImageType: "Editorial resource or knowledge-layer visual.",
+    emotionalTone: ["clarity", "support", "structure", "usefulness", "editorial quality"],
+    recommendedSubjectMatter: [
+      "refined member resource interface",
+      "editorial workspace with insight materials",
+      "tiered knowledge or business support visual"
+    ],
+    recommendedComposition: [
+      "clean and editorial",
+      "easy to crop within a premium card",
+      "suggest value without overwhelming detail"
+    ],
+    recommendedLightingMood: ["clean", "dark editorial", "sharp", "polished"],
+    avoid: [
+      "generic e-learning visuals",
+      "busy library clichés",
+      "screen clutter",
+      "bright classroom imagery"
+    ],
+    longAdminGuidance:
+      "Use this slot to make the resource layer feel practical and premium. It should suggest real support for decisions and progress, not content for content's sake.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "editorial-insight"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Editorial business resources and insight preview.",
+      sceneType: "Premium resource and support visual.",
+      subject:
+        "Refined dark-mode resource interface with notebooks, strategic prompts, and subtle insight context.",
+      environment:
+        "Premium editorial workspace with structured materials and believable business support cues.",
+      lighting: "Clean controlled lighting.",
+      mood: "Useful, calm, and intelligent.",
+      style: "Editorial product-storytelling style, ultra realistic.",
+      cameraComposition:
+        "Clean structured composition that shows value quickly without becoming visually noisy.",
+      qualityTags:
+        "Editorial clarity, premium detail, no watermark, no baked text, practical business support tone.",
+      negativePrompt:
+        "classroom, clutter, chaotic dashboard, bright content-marketing imagery"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  HOME_CALLS_PREVIEW: {
+    key: "home.section.callsPreview",
+    label: "Homepage - 1-to-1 Calls Preview",
+    page: "HOME",
+    section: "calls-preview",
+    variant: "SECTION",
+    sortOrder: 28,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Shows member-to-member calls or focused owner conversations.",
+    imageFamilyTag: "founder-conversation",
+    adminPreviewFamily: "human",
+    imagePurpose: "Support the idea of direct access and useful conversations between owners.",
+    bestImageType: "Focused call or premium owner-to-owner conversation scene.",
+    emotionalTone: ["direct access", "support", "focus", "credibility", "privacy"],
+    recommendedSubjectMatter: [
+      "video call between owners",
+      "owner-to-owner strategic conversation",
+      "quiet premium workspace during a call"
+    ],
+    recommendedComposition: [
+      "show human connection without looking casual or consumer-tech",
+      "keep it premium and believable",
+      "work well in a feature card"
+    ],
+    recommendedLightingMood: ["warm premium", "focused", "calm"],
+    avoid: [
+      "generic headset support imagery",
+      "call-centre energy",
+      "messy desk scenes"
+    ],
+    longAdminGuidance:
+      "This slot should help the call layer feel valuable, focused, and owner-to-owner. It should feel like access to useful conversation, not generic customer support.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "founder-conversation"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Premium owner-to-owner call preview.",
+      sceneType: "Focused business call scene.",
+      subject:
+        "Business owner in a refined workspace taking part in a focused one-to-one video call.",
+      environment:
+        "Premium calm desk setup with subtle interface context and a believable work atmosphere.",
+      lighting: "Soft warm lighting.",
+      mood: "Direct, useful, and calm.",
+      style: "Editorial business photography, ultra realistic.",
+      cameraComposition:
+        "Natural composition with enough environment detail to suggest a meaningful private call.",
+      qualityTags:
+        "Premium founder-world realism, no watermark, no text in image, credible business atmosphere.",
+      negativePrompt:
+        "call center, headset sales, messy desk, casual selfie, consumer tech ad"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  HOME_COLLABORATIONS_PREVIEW: {
+    key: "home.section.collaborationsPreview",
+    label: "Homepage - Collaborations Preview",
+    page: "HOME",
+    section: "collaborations-preview",
+    variant: "SECTION",
+    sortOrder: 29,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Shows aligned business owners working together.",
+    imageFamilyTag: "founder-conversation",
+    adminPreviewFamily: "human",
+    imagePurpose: "Show that useful collaboration and aligned opportunities happen inside the network.",
+    bestImageType: "Premium collaboration scene between serious owners.",
+    emotionalTone: ["alignment", "opportunity", "trust", "progress", "serious collaboration"],
+    recommendedSubjectMatter: [
+      "two owners planning together",
+      "collaborative workspace moment",
+      "strategy session between aligned operators"
+    ],
+    recommendedComposition: [
+      "human and believable",
+      "should feel commercially relevant rather than social",
+      "works inside a polished card layout"
+    ],
+    recommendedLightingMood: ["warm-dark", "grounded", "premium"],
+    avoid: [
+      "corporate teamwork clichés",
+      "high-five imagery",
+      "generic agency collaboration shots"
+    ],
+    longAdminGuidance:
+      "This slot should suggest that meaningful collaboration happens naturally in a better room. Keep it grounded, premium, and commercially credible.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "founder-conversation"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Premium collaboration preview for aligned owners.",
+      sceneType: "Strategic collaboration scene.",
+      subject:
+        "Two business owners working together in a refined premium workspace with notes and laptops present.",
+      environment:
+        "Calm modern business setting that feels commercially serious and uncluttered.",
+      lighting: "Soft warm editorial lighting.",
+      mood: "Aligned, useful, and grounded.",
+      style: "Editorial photography, ultra realistic.",
+      cameraComposition:
+        "Balanced collaborative composition with believable gestures and no staged energy.",
+      qualityTags:
+        "Credible founder collaboration, premium realism, no watermark, no text in image.",
+      negativePrompt:
+        "teamwork stock photo, high five, startup culture cliché, loud office"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  HOME_WINS_PREVIEW: {
+    key: "home.section.winsPreview",
+    label: "Homepage - Wins Preview",
+    page: "HOME",
+    section: "wins-preview",
+    variant: "SECTION",
+    sortOrder: 31,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Shows member progress, business wins, and shared momentum.",
+    imageFamilyTag: "editorial-insight",
+    adminPreviewFamily: "editorial",
+    imagePurpose: "Make visible progress and shared wins feel real inside BCN.",
+    bestImageType: "Premium progress or business-win storytelling visual.",
+    emotionalTone: ["progress", "momentum", "evidence", "confidence", "shared movement"],
+    recommendedSubjectMatter: [
+      "business progress moment",
+      "owner reviewing positive movement",
+      "premium visual metaphor for traction and progress"
+    ],
+    recommendedComposition: [
+      "clean and optimistic without hype",
+      "should feel measured and credible",
+      "easy to crop into a feature card"
+    ],
+    recommendedLightingMood: ["clear", "premium", "editorial", "uplifting but restrained"],
+    avoid: [
+      "celebration clichés",
+      "confetti visuals",
+      "sales-hype imagery"
+    ],
+    longAdminGuidance:
+      "This slot should make momentum visible without becoming loud or salesy. Think evidence of movement, useful progress, and shared wins in a serious room.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "editorial-insight"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Visible member progress and wins preview.",
+      sceneType: "Premium business progress storytelling visual.",
+      subject:
+        "Business owner reviewing signs of real progress in a premium workspace with subtle success cues.",
+      environment:
+        "Refined business setting with restrained visual detail and a clear sense of forward movement.",
+      lighting: "Balanced editorial lighting.",
+      mood: "Measured, positive, and credible.",
+      style: "Editorial product-storytelling style, ultra realistic.",
+      cameraComposition:
+        "Clean composition with subtle motion or progress cues, avoiding hype or exaggerated celebration.",
+      qualityTags:
+        "Premium realism, no watermark, no baked text, restrained success tone.",
+      negativePrompt:
+        "confetti, hype marketing, loud success imagery, exaggerated celebration"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  HOME_ECOSYSTEM_MAP: {
+    key: "home.section.ecosystemMap",
+    label: "Homepage - Network Ecosystem Map",
+    page: "HOME",
+    section: "ecosystem-map",
+    variant: "SECTION",
+    sortOrder: 32,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Shows how profiles, rooms, resources, calls, wins, and collaborations connect.",
+    imageFamilyTag: "platform-mockup",
+    adminPreviewFamily: "editorial",
+    imagePurpose: "Show BCN as one connected operating environment rather than isolated features.",
+    bestImageType: "Ecosystem map or connected-platform visual.",
+    emotionalTone: ["structure", "connection", "system", "clarity", "premium function"],
+    recommendedSubjectMatter: [
+      "connected platform map",
+      "ecosystem diagram visual",
+      "member environment with linked layers"
+    ],
+    recommendedComposition: [
+      "clear and structured",
+      "show relationships between layers",
+      "avoid clutter and unreadable micro detail"
+    ],
+    recommendedLightingMood: ["clean", "sharp", "premium", "controlled"],
+    avoid: [
+      "generic network node graphics",
+      "crypto-style diagrams",
+      "rainbow feature maps"
+    ],
+    longAdminGuidance:
+      "Use this slot to make the ecosystem feel connected. It should show how profiles, rooms, resources, calls, wins, collaborations, and insights work together as one environment.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "platform-mockup"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Premium ecosystem map for the BCN operating environment.",
+      sceneType: "Connected platform and ecosystem visual.",
+      subject:
+        "Refined dark-mode ecosystem map linking member profiles, rooms, resources, calls, wins, collaborations, and insights.",
+      environment:
+        "Premium digital interface environment with clean nodes, cards, and connection lines.",
+      lighting: "Sharp controlled interface lighting.",
+      mood: "Structured, clear, and sophisticated.",
+      style: "Realistic premium interface render, ultra clean composition.",
+      cameraComposition:
+        "Wide structured composition that shows the ecosystem clearly without visual clutter.",
+      qualityTags:
+        "Premium dark-mode system map, believable UI, no watermark, no baked text, crisp detail.",
+      negativePrompt:
+        "neon network graphic, crypto chart feel, rainbow interface, clutter, low-res"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
   JOIN_HERO: {
     key: "join.hero",
     label: "Join Page - Top Visual",
@@ -421,6 +760,66 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     }),
     defaultOverlayStyle: "SOFT_DARK"
   },
+  JOIN_AFTER_PAYMENT: {
+    key: "join.section.afterPayment",
+    label: "Join - After Payment Journey Visual",
+    page: "JOIN",
+    section: "after-payment",
+    variant: "SECTION",
+    sortOrder: 25,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Shows what happens after payment: profile, access, resources, rooms, and calls.",
+    imageFamilyTag: "platform-mockup",
+    adminPreviewFamily: "editorial",
+    imagePurpose:
+      "Reduce checkout hesitation by making the post-payment journey feel clear and tangible.",
+    bestImageType: "Premium member onboarding or ecosystem-access visual.",
+    emotionalTone: ["clarity", "trust", "structure", "progression", "calm confidence"],
+    recommendedSubjectMatter: [
+      "member onboarding flow",
+      "premium dashboard or access journey",
+      "profile, resources, and room access visual",
+      "structured progress through the member environment"
+    ],
+    recommendedComposition: [
+      "should show progression without clutter",
+      "works well beside a checklist",
+      "keep interface detail believable and premium",
+      "avoid busy screen overload"
+    ],
+    recommendedLightingMood: ["clean", "dark premium", "structured", "polished"],
+    avoid: [
+      "checkout screens only",
+      "generic payment imagery",
+      "chaotic dashboard clutter",
+      "consumer-app onboarding styles"
+    ],
+    longAdminGuidance:
+      "Use this slot to reassure people what happens after payment. It should show access opening into a premium member environment with profile setup, resources, rooms, and useful next steps.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "platform-mockup"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Premium post-payment onboarding journey.",
+      sceneType: "Member access and onboarding visual.",
+      subject:
+        "Dark premium business platform showing profile completion, room access, resource navigation, and member activity in a believable way.",
+      environment:
+        "Refined founder-world workspace with a laptop and mobile screen showing a calm onboarding journey.",
+      lighting: "Controlled moody lighting with crisp screen detail.",
+      mood: "Clear, reassuring, and premium.",
+      style: "Editorial product-storytelling style, ultra realistic.",
+      cameraComposition:
+        "Wide clean composition with a clear focal plane, believable depth, and enough negative space to sit beside checklist copy.",
+      qualityTags:
+        "Premium dark-mode aesthetic, believable interface detail, no watermark, no text baked into the image, polished and realistic.",
+      negativePrompt:
+        "generic payment graphic, cluttered ui, cartoon interface, bright consumer app, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
   MEMBERSHIP_HERO: {
     key: "membership.hero",
     label: "Membership Page - Top Visual",
@@ -536,6 +935,65 @@ export const VISUAL_MEDIA_PLACEMENTS = {
         "Premium architectural tone, minimal clutter, believable detail, no watermark, no text in image.",
       negativePrompt:
         "chaotic space, messy layout, crowded office, random objects"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  MEMBERSHIP_TIER_COMPARISON: {
+    key: "membership.section.tierComparison",
+    label: "Membership - Tier Comparison Visual",
+    page: "MEMBERSHIP",
+    section: "tier-comparison",
+    variant: "SECTION",
+    sortOrder: 25,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Supports the membership decision and makes tiers easier to compare.",
+    imageFamilyTag: "platform-mockup",
+    adminPreviewFamily: "editorial",
+    imagePurpose:
+      "Make the membership comparison feel structured, premium, and easier to understand quickly.",
+    bestImageType: "Tier comparison, layered access, or structured environment visual.",
+    emotionalTone: ["clarity", "progression", "confidence", "structured access", "premium value"],
+    recommendedSubjectMatter: [
+      "layered access visual",
+      "premium dashboard or environment with clear progression",
+      "three-tier ecosystem metaphor",
+      "calm structured membership comparison scene"
+    ],
+    recommendedComposition: [
+      "should support a comparison story rather than overpower it",
+      "clean enough to sit beside tier guidance",
+      "show progression without feeling hierarchical or salesy"
+    ],
+    recommendedLightingMood: ["clean premium", "structured", "editorial", "calm"],
+    avoid: [
+      "pricing-table screenshots",
+      "loud sales graphics",
+      "overly literal pyramid metaphors",
+      "busy dashboard clutter"
+    ],
+    longAdminGuidance:
+      "Use this slot to make the membership comparison easier to feel and understand. It should support stage-based progression and room fit, not status or aggressive upsell energy.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "platform-mockup"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Structured premium tier comparison visual.",
+      sceneType: "Layered access and environment comparison.",
+      subject:
+        "Premium dark-mode business environment showing three levels of access or progression in a calm, believable way.",
+      environment:
+        "Refined editorial platform visual with subtle hierarchy and clear structure, without turning into a pricing table screenshot.",
+      lighting: "Clean controlled lighting.",
+      mood: "Clear, premium, and confidence-building.",
+      style: "Editorial product-storytelling style, ultra realistic.",
+      cameraComposition:
+        "Balanced composition that suggests stage-based progression with enough negative space for comparison copy.",
+      qualityTags:
+        "Premium realism, structured design, no watermark, no baked text, clear progression cues without sales pressure.",
+      negativePrompt:
+        "aggressive sales graphic, pyramid scheme visual, cluttered pricing table, cartoon ui, watermark"
     }),
     defaultOverlayStyle: "SOFT_DARK"
   },
@@ -1077,6 +1535,65 @@ export const VISUAL_MEDIA_PLACEMENTS = {
         "crowded office, bright coworking space, event scene, cheesy stock imagery, clutter"
     }),
     defaultOverlayStyle: "CINEMATIC"
+  },
+  FAQ_TRUST: {
+    key: "faq.section.trust",
+    label: "FAQ - Trust Visual",
+    page: "GLOBAL",
+    section: "faq-trust",
+    variant: "SECTION",
+    sortOrder: 15,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:10",
+    adminHelperText:
+      "Supports reassurance around billing, cancellation, privacy, access, and platform standards.",
+    imageFamilyTag: "story-mission",
+    adminPreviewFamily: "editorial",
+    imagePurpose:
+      "Reassure visitors that BCN is a well-run private environment with clear standards and access paths.",
+    bestImageType: "Trust-supporting editorial business visual.",
+    emotionalTone: ["trust", "reassurance", "privacy", "standards", "calm confidence"],
+    recommendedSubjectMatter: [
+      "private premium workspace",
+      "secure calm business environment",
+      "structured editorial scene with human warmth",
+      "quiet founder-world setting that feels safe and credible"
+    ],
+    recommendedComposition: [
+      "should support reassurance copy",
+      "avoid visual tension or loud contrast",
+      "works well in a trust-focused support section"
+    ],
+    recommendedLightingMood: ["soft premium", "calm", "credible", "grounded"],
+    avoid: [
+      "security padlock stock images",
+      "sterile compliance visuals",
+      "customer-support headset imagery",
+      "corporate stock cliches"
+    ],
+    longAdminGuidance:
+      "Use this slot to support reassurance on the FAQ page. It should feel private, credible, and well-run without drifting into generic security or support imagery.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "story-mission"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Trust-supporting premium editorial reassurance.",
+      sceneType: "Private, credible business environment.",
+      subject:
+        "Quiet premium business workspace with subtle signs of structure, care, and private access.",
+      environment:
+        "Refined founder-world interior with calm materials, believable detail, and a grounded high-trust atmosphere.",
+      lighting: "Soft balanced lighting.",
+      mood: "Reassuring, calm, and credible.",
+      style: "Editorial photography style, ultra realistic.",
+      cameraComposition:
+        "Clean flexible composition that supports reassurance copy without dominating the section.",
+      qualityTags:
+        "Premium realism, high-trust atmosphere, no watermark, no text in image, private environment cues.",
+      negativePrompt:
+        "padlock icon graphic, call center, sterile office stock, loud corporate security imagery, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
   }
 } as const satisfies Record<string, RegistryItem>;
 

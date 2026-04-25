@@ -107,7 +107,6 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
           title={pillar.headline}
           description={cluster.description}
           tone="anchored"
-          fallbackLabel="Insights top visual"
         />
 
         <div className="space-y-4">
@@ -235,24 +234,26 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
         ) : null}
 
         <section className="public-panel border-silver/22 bg-gradient-to-br from-silver/10 via-card/72 to-card/68 p-6">
-          <p className="premium-kicker">Go deeper inside membership</p>
+          <p className="premium-kicker">Continue The Topic</p>
           <h2 className="mt-4 font-display text-3xl text-foreground">
-            {pillar.ctaTitle}
+            Continue the conversation inside The Business Circle
           </h2>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">
-            {pillar.ctaDescription}
+            Public topic guides help you understand the landscape. Membership is where owners can
+            discuss the real decisions, compare context, and keep the next move connected to the
+            wider environment.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link href={membershipPath}>
               <Button>
-                Go Deeper Inside Membership
+                Join The Business Circle
                 <ArrowRight size={14} className="ml-2" />
               </Button>
             </Link>
-            <Link href="/insights">
+            <Link href="/membership">
               <Button variant="outline">
                 <Compass size={14} className="mr-2" />
-                Browse all insights
+                View Membership Options
               </Button>
             </Link>
           </div>

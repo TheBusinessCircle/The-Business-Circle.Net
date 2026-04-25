@@ -30,7 +30,8 @@ type TrustLinkItem =
 
 const TRUST_LINKS: TrustLinkItem[] = [
   { kind: "link", label: "Privacy Policy", href: "/privacy-policy" },
-  { kind: "link", label: "Terms of Service", href: "/terms-of-service" },
+  { kind: "link", label: "Terms & Conditions", href: "/terms-of-service" },
+  { kind: "link", label: "BCN Rules", href: "/rules" },
   { kind: "link", label: "Cookie Policy", href: "/cookie-policy" },
   { kind: "button", label: "Cookie settings" },
   { kind: "link", label: "DPIA & Data Protection", href: "/dpia" }
@@ -60,7 +61,7 @@ export async function Footer() {
   );
 
   return (
-    <footer className="border-t border-border/80 bg-background/88">
+    <footer className="border-t border-border/80 bg-background/92">
       <div className="grid w-full gap-8 px-4 py-12 sm:gap-10 sm:px-6 sm:py-14 lg:grid-cols-[1.25fr_0.8fr_0.8fr_0.9fr] lg:px-8 lg:py-16 2xl:px-12">
         <div className="space-y-5">
           <div className="flex items-center gap-3">
@@ -73,7 +74,7 @@ export async function Footer() {
             </div>
           </div>
           <p className="max-w-md text-sm leading-relaxed text-muted">{footerContent.brandBlurb}</p>
-          <div className="space-y-3 rounded-3xl border border-border/80 bg-card/55 p-4">
+          <div className="surface-subtle space-y-3 rounded-3xl p-4">
             <p className="text-xs uppercase tracking-[0.08em] text-gold">Why owners trust the room</p>
             <p className="text-sm text-muted">{footerContent.trustLine}</p>
             <p className="text-sm text-muted">{footerContent.founderLine}</p>

@@ -29,7 +29,7 @@ function NavigationLinks({ items, className }: NavigationLinksProps) {
           key={item.href}
           href={item.href}
           className={cn(
-            "rounded-xl px-2.5 py-2 text-sm text-muted transition-all hover:bg-background/55 hover:text-foreground xl:px-3",
+            "rounded-xl px-2.5 py-2 text-sm text-muted transition-all hover:bg-accent/70 hover:text-foreground xl:px-3",
             className
           )}
         >
@@ -61,12 +61,12 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
   }
 
   return (
-    <header className="sticky top-0 z-50 overflow-x-clip border-b border-border/80 bg-background/82 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 overflow-x-clip border-b border-border/80 bg-background/88 backdrop-blur-xl">
       <div className="flex h-[4.5rem] w-full items-center justify-between gap-3 px-3 sm:h-[5.5rem] sm:gap-6 sm:px-6 lg:px-8 2xl:px-12">
         <NavbarBrand />
 
         <nav className="hidden flex-1 items-center justify-center px-3 lg:flex">
-          <div className="flex min-w-0 max-w-[36rem] items-center gap-1 rounded-2xl border border-border/70 bg-card/60 p-1.5 shadow-panel-soft">
+          <div className="surface-subtle flex min-w-0 max-w-[36rem] items-center gap-1 rounded-2xl p-1.5">
             <NavigationLinks items={PUBLIC_NAV} />
           </div>
         </nav>
@@ -111,7 +111,7 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
             aria-controls="mobile-navigation-menu"
             aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
             onClick={() => setMobileMenuOpen((previousState) => !previousState)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card/65 text-silver min-[420px]:h-10 min-[420px]:w-10 min-[420px]:rounded-xl"
+            className="surface-subtle flex h-9 w-9 items-center justify-center rounded-lg text-silver min-[420px]:h-10 min-[420px]:w-10 min-[420px]:rounded-xl"
           >
             <span className="sr-only">Toggle navigation</span>
             <Menu size={18} />
@@ -120,7 +120,7 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
           {mobileMenuOpen ? (
             <div
               id="mobile-navigation-menu"
-              className="absolute right-0 top-11 w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl border border-border/90 bg-background/95 p-3 shadow-panel backdrop-blur min-[420px]:top-12"
+              className="surface-card-strong absolute right-0 top-11 w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl p-3 min-[420px]:top-12"
             >
               <div className="rounded-2xl border border-gold/20 bg-gold/10 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
@@ -136,7 +136,7 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                     key={item.href}
                     type="button"
                     onClick={() => handleMobileNavigation(item.href)}
-                    className="rounded-xl px-2.5 py-2 text-left text-sm text-muted transition-all hover:bg-background/55 hover:text-foreground"
+                    className="rounded-xl px-2.5 py-2 text-left text-sm text-muted transition-all hover:bg-accent/70 hover:text-foreground"
                   >
                     {item.label}
                   </button>

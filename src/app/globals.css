@@ -11,6 +11,8 @@
   --muted: 217 20% 73%;
   --border: 222 34% 24%;
   --primary: 42 52% 60%;
+  --destructive: 0 72% 58%;
+  --destructive-foreground: 0 0% 100%;
   --ring: 42 55% 67%;
   --accent: 222 42% 18%;
   --foundation: 208 52% 60%;
@@ -92,6 +94,8 @@ html[data-background-mode="light"] .page-surface {
   --muted: 220 12% 36%;
   --border: 220 16% 84%;
   --primary: 40 58% 42%;
+  --destructive: 0 72% 42%;
+  --destructive-foreground: 0 0% 100%;
   --ring: 40 62% 50%;
   --accent: 220 18% 94%;
   --foundation: 209 46% 38%;
@@ -130,6 +134,14 @@ html[data-background-mode="light"] .page-surface .shadow-inner-surface {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+html[data-background-mode="light"] .page-surface .shadow-panel,
+html[data-background-mode="light"] .page-surface .shadow-panel-soft,
+html[data-background-mode="light"] .page-surface .shadow-gold-soft,
+html[data-background-mode="light"] .page-surface .shadow-silver-soft,
+html[data-background-mode="light"] .page-surface .shadow-foundation-soft {
+  backdrop-filter: none;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -166,7 +178,7 @@ a:hover {
   }
 
   .public-panel {
-    @apply rounded-3xl border border-border/80 bg-card/70 shadow-panel backdrop-blur transition-all duration-300;
+    @apply rounded-3xl border border-border/80 bg-card/75 shadow-panel backdrop-blur transition-all duration-300;
   }
 
   .public-grid-overlay {
@@ -185,7 +197,7 @@ a:hover {
   }
 
   .interactive-card {
-    @apply transition-all duration-300 hover:-translate-y-0.5 hover:border-gold/35 hover:bg-card/85 hover:shadow-gold-soft;
+    @apply transition-all duration-300 hover:-translate-y-0.5 hover:border-gold/35 hover:bg-card/80 hover:shadow-gold-soft;
   }
 
   .empty-state-panel {
@@ -194,6 +206,26 @@ a:hover {
 
   .premium-kicker {
     @apply inline-flex rounded-full border border-gold/35 bg-gold/10 px-3 py-1 text-[11px] tracking-[0.1em] text-gold uppercase;
+  }
+
+  .surface-subtle {
+    @apply rounded-[1.5rem] border border-border/80 bg-background/30 shadow-panel-soft transition-colors duration-300;
+  }
+
+  .surface-card {
+    @apply rounded-[1.7rem] border border-border/80 bg-card/70 shadow-panel-soft transition-colors duration-300;
+  }
+
+  .surface-card-strong {
+    @apply rounded-[1.9rem] border border-border/85 bg-card/80 shadow-panel transition-colors duration-300;
+  }
+
+  .surface-accent {
+    @apply rounded-[1.7rem] border border-gold/25 bg-gradient-to-br from-gold/10 via-card/80 to-card/75 shadow-gold-soft transition-colors duration-300;
+  }
+
+  .surface-pill {
+    @apply rounded-full border border-border/80 bg-background/40 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver transition-colors duration-300;
   }
 
   .join-cinematic-shell {
@@ -442,6 +474,150 @@ html[data-background-mode="light"] .join-stage-copy {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.52) 0%, rgba(255, 255, 255, 0.82) 100%),
     rgba(255, 255, 255, 0.45);
+}
+
+html[data-background-mode="light"] .premium-surface,
+html[data-background-mode="light"] .public-panel,
+html[data-background-mode="light"] .surface-subtle,
+html[data-background-mode="light"] .surface-card,
+html[data-background-mode="light"] .surface-card-strong,
+html[data-background-mode="light"] .surface-accent {
+  backdrop-filter: none;
+}
+
+html[data-background-mode="light"] .premium-surface,
+html[data-background-mode="light"] .public-panel,
+html[data-background-mode="light"] .surface-card,
+html[data-background-mode="light"] .surface-card-strong {
+  border-color: rgba(148, 163, 184, 0.28);
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+html[data-background-mode="light"] .surface-subtle {
+  border-color: rgba(148, 163, 184, 0.26);
+  background-color: rgba(248, 250, 252, 0.95);
+}
+
+html[data-background-mode="light"] .surface-accent {
+  border-color: rgba(164, 126, 58, 0.24);
+  background-image: linear-gradient(135deg, rgba(205, 164, 89, 0.12), rgba(255, 255, 255, 0.94) 46%, rgba(245, 248, 252, 0.98));
+}
+
+html[data-background-mode="light"] .surface-pill,
+html[data-background-mode="light"] .premium-kicker {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+html[data-background-mode="light"] .surface-pill {
+  border-color: rgba(148, 163, 184, 0.28);
+  background-color: rgba(248, 250, 252, 0.96);
+  color: hsl(220 11% 34%);
+}
+
+html[data-background-mode="light"] .premium-kicker {
+  border-color: rgba(164, 126, 58, 0.28);
+  background-color: rgba(205, 164, 89, 0.14);
+  color: hsl(33 72% 28%);
+}
+
+html[data-background-mode="light"] .public-grid-overlay {
+  background-image:
+    linear-gradient(to right, rgba(100, 116, 139, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(100, 116, 139, 0.08) 1px, transparent 1px);
+}
+
+html[data-background-mode="light"] .hero-visual-shell,
+html[data-background-mode="light"] .feature-visual-shell {
+  border-color: rgba(148, 163, 184, 0.28);
+  background-color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.08);
+}
+
+html[data-background-mode="light"] .btn-base.btn-outline {
+  border-color: rgba(148, 163, 184, 0.34);
+  background-color: rgba(255, 255, 255, 0.96);
+  color: hsl(222 47% 16%);
+}
+
+html[data-background-mode="light"] .btn-base.btn-outline:hover {
+  border-color: rgba(164, 126, 58, 0.36);
+  background-color: rgba(248, 250, 252, 1);
+}
+
+html[data-background-mode="light"] .btn-base.btn-secondary,
+html[data-background-mode="light"] .btn-base.btn-ghost {
+  background-color: rgba(241, 245, 249, 0.96);
+  color: hsl(222 47% 16%);
+}
+
+html[data-background-mode="light"] .btn-base.btn-ghost:hover,
+html[data-background-mode="light"] .btn-base.btn-secondary:hover {
+  background-color: rgba(226, 232, 240, 0.96);
+}
+
+html[data-background-mode="light"] .btn-base.btn-innerCircle {
+  border-color: rgba(100, 116, 139, 0.28);
+  background-image: linear-gradient(180deg, rgba(241, 245, 249, 0.96), rgba(226, 232, 240, 0.92));
+  color: hsl(220 11% 30%);
+}
+
+html[data-background-mode="light"] .btn-base.btn-default,
+html[data-background-mode="light"] .btn-base.btn-foundation,
+html[data-background-mode="light"] .btn-base.btn-core {
+  box-shadow: 0 14px 32px rgba(146, 116, 62, 0.16);
+}
+
+html[data-background-mode="light"] .card-surface {
+  border-color: rgba(148, 163, 184, 0.28);
+  background-color: rgba(255, 255, 255, 0.94);
+}
+
+html[data-background-mode="light"] .input-surface {
+  border-color: rgba(148, 163, 184, 0.36);
+  background-color: rgba(255, 255, 255, 0.96);
+  color: hsl(222 47% 16%);
+}
+
+html[data-background-mode="light"] .input-surface::placeholder {
+  color: rgba(71, 85, 105, 0.82);
+}
+
+html[data-background-mode="light"] .badge-base.badge-outline,
+html[data-background-mode="light"] .badge-base.badge-secondary {
+  border-color: rgba(148, 163, 184, 0.3);
+  background-color: rgba(248, 250, 252, 0.96);
+  color: hsl(222 47% 16%);
+}
+
+html[data-background-mode="light"] .badge-base.badge-muted,
+html[data-background-mode="light"] .badge-base.badge-innerCircle {
+  border-color: rgba(100, 116, 139, 0.24);
+  background-color: rgba(226, 232, 240, 0.72);
+  color: hsl(220 11% 34%);
+}
+
+html[data-background-mode="light"] .badge-base.badge-premium,
+html[data-background-mode="light"] .badge-base.badge-core,
+html[data-background-mode="light"] .badge-base.badge-default {
+  color: hsl(33 72% 28%);
+}
+
+html[data-background-mode="light"] .badge-base.badge-success {
+  border-color: rgba(5, 150, 105, 0.24);
+  background-color: rgba(16, 185, 129, 0.12);
+  color: rgb(6 95 70);
+}
+
+html[data-background-mode="light"] .badge-base.badge-danger {
+  border-color: rgba(220, 38, 38, 0.22);
+  background-color: rgba(239, 68, 68, 0.12);
+  color: rgb(153 27 27);
+}
+
+html[data-background-mode="light"] .badge-base.badge-warning {
+  border-color: rgba(217, 119, 6, 0.22);
+  background-color: rgba(245, 158, 11, 0.12);
+  color: rgb(146 64 14);
 }
 
 @media (prefers-reduced-motion: reduce) {

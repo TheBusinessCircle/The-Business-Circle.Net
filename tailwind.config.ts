@@ -18,6 +18,8 @@ const config: Config = {
         muted: "hsl(var(--muted) / <alpha-value>)",
         border: "hsl(var(--border) / <alpha-value>)",
         primary: "hsl(var(--primary) / <alpha-value>)",
+        destructive: "hsl(var(--destructive) / <alpha-value>)",
+        destructiveForeground: "hsl(var(--destructive-foreground) / <alpha-value>)",
         ring: "hsl(var(--ring) / <alpha-value>)",
         accent: "hsl(var(--accent) / <alpha-value>)",
         foundation: "hsl(var(--foundation) / <alpha-value>)",

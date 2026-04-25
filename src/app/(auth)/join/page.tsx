@@ -65,7 +65,13 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
     ? roleToTier(session.user.role, session.user.membershipTier)
     : MembershipTier.FOUNDATION;
 
-  const [foundingOffer, currentSubscription, joinHeroPlacement, joinInsidePlacement] = await Promise.all([
+  const [
+    foundingOffer,
+    currentSubscription,
+    joinHeroPlacement,
+    joinInsidePlacement,
+    joinAfterPaymentPlacement
+  ] = await Promise.all([
     getFoundingOfferSnapshot(),
     session?.user
       ? db.subscription.findUnique({
@@ -78,7 +84,8 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         })
       : Promise.resolve(null),
     getVisualMediaPlacement("join.hero"),
-    getVisualMediaPlacement("join.section.inside")
+    getVisualMediaPlacement("join.section.inside"),
+    getVisualMediaPlacement("join.section.afterPayment")
   ]);
 
   const currentBillingInterval = currentSubscription?.stripePriceId
@@ -101,7 +108,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         fallbackLabel="Join top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+      <section className="relative overflow-hidden rounded-[2.2rem] border border-border/80 bg-card/60 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-gold/14 blur-[120px]" />
@@ -164,7 +171,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
               ].map((item) => (
                 <article
                   key={item.title}
-                  className="rounded-[1.55rem] border border-white/10 bg-background/22 p-4"
+                  className="rounded-[1.55rem] border border-border/80 bg-background/24 p-4"
                 >
                   <p className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <item.icon size={16} className="text-gold" />
@@ -200,7 +207,56 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         foundingOfferByTier={foundingOfferByTier}
       />
 
-      <section className="rounded-[2rem] border border-white/10 bg-card/52 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
+      <section className="rounded-[2rem] border border-border/80 bg-card/56 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
+        <div
+          className={cn(
+            "gap-6 xl:items-center",
+            joinAfterPaymentPlacement?.isActive && joinAfterPaymentPlacement.imageUrl
+              ? "grid xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.58fr)]"
+              : ""
+          )}
+        >
+          <div className="max-w-3xl space-y-4">
+            <p className="premium-kicker">What Happens After Payment</p>
+            <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+              Access opens in a clear sequence.
+            </h2>
+            <p className="text-base leading-relaxed text-muted">
+              Payment is not the end of the process. It is the point where your access opens and
+              the right parts of the environment become available for your tier.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                "Your account is created",
+                "Your membership access opens",
+                "You can complete your profile",
+                "You can enter the right spaces",
+                "You can access your resources",
+                "You can start useful conversations",
+                "Calls and deeper access unlock according to your tier"
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-[1.2rem] border border-border/80 bg-background/24 px-4 py-3 text-sm text-foreground"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {joinAfterPaymentPlacement?.isActive && joinAfterPaymentPlacement.imageUrl ? (
+            <SectionFeatureImage
+              placement={joinAfterPaymentPlacement}
+              tone="platform"
+              className="min-h-[17rem]"
+            />
+          ) : null}
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-border/80 bg-card/56 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
         <div
           className={cn(
             "gap-6 xl:items-center",

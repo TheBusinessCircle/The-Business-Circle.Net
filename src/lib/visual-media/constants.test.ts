@@ -14,11 +14,18 @@ describe("visual media placement registry", () => {
   it("includes the key placements needed for the public site rollout", () => {
     expect(VISUAL_MEDIA_PLACEMENTS.HOME_HERO.key).toBe("home.hero");
     expect(VISUAL_MEDIA_PLACEMENTS.HOME_JOIN.key).toBe("home.section.join");
+    expect(VISUAL_MEDIA_PLACEMENTS.HOME_ROOMS_PREVIEW.key).toBe("home.section.roomsPreview");
+    expect(VISUAL_MEDIA_PLACEMENTS.HOME_ECOSYSTEM_MAP.key).toBe("home.section.ecosystemMap");
     expect(VISUAL_MEDIA_PLACEMENTS.HOME_PLATFORM.key).toBe("home.section.platform");
     expect(VISUAL_MEDIA_PLACEMENTS.GLOBAL_PUBLIC_TOP.key).toBe("global.public.top");
+    expect(VISUAL_MEDIA_PLACEMENTS.FAQ_TRUST.key).toBe("faq.section.trust");
     expect(VISUAL_MEDIA_PLACEMENTS.MEMBERSHIP_FOUNDERS.key).toBe(
       "membership.section.founders"
     );
+    expect(VISUAL_MEDIA_PLACEMENTS.MEMBERSHIP_TIER_COMPARISON.key).toBe(
+      "membership.section.tierComparison"
+    );
+    expect(VISUAL_MEDIA_PLACEMENTS.JOIN_AFTER_PAYMENT.key).toBe("join.section.afterPayment");
     expect(VISUAL_MEDIA_PLACEMENTS.INTELLIGENCE_HERO.key).toBe("intelligence.hero");
     expect(VISUAL_MEDIA_PLACEMENTS.SERVICES_APPROACH.key).toBe(
       "services.section.approach"

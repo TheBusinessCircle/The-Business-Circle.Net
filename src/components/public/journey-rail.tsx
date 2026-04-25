@@ -34,7 +34,7 @@ export function JourneyRail({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[1.6rem] border border-white/10 bg-background/20 px-4 py-4 shadow-panel-soft sm:px-5 sm:py-5",
+        "surface-subtle overflow-hidden rounded-[1.6rem] px-4 py-4 sm:px-5 sm:py-5",
         className
       )}
     >
@@ -58,7 +58,7 @@ export function JourneyRail({
                   ) : (
                     <Link
                       href={step.href}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-background/25 px-3 py-1 text-xs text-muted transition-colors hover:border-gold/25 hover:text-foreground"
+                      className="surface-pill inline-flex items-center gap-2 text-xs hover:border-gold/25 hover:text-foreground"
                     >
                       <span className="text-silver">{index + 1}.</span>
                       {step.label}

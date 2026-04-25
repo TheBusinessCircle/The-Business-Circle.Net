@@ -35,12 +35,11 @@ export default async function ContactPage() {
         placement={publicTopPlacement}
         eyebrow="Contact"
         title="Start a serious business conversation."
-        description="A premium opening visual for contact, enquiries, support, and partnership conversations."
+        description="Choose the right route for membership questions, founder services, collaborations, or member support."
         tone="anchored"
-        fallbackLabel="Shared public top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+      <section className="relative overflow-hidden rounded-[2.2rem] border border-border/80 bg-card/60 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-gold/14 blur-[120px]" />
@@ -53,9 +52,9 @@ export default async function ContactPage() {
                 Start a serious business conversation.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-muted">
-                Use this page if you want to ask about membership fit, partnerships, founder-led
-                opportunities, or platform support. This is not a generic help desk. It is the
-                right place for a considered conversation.
+                Use this page for membership questions, founder services, partnership or
+                collaboration opportunities, and existing member support. It is built to route the
+                conversation clearly, not make you hunt for the right inbox.
               </p>
             </div>
 
@@ -76,7 +75,7 @@ export default async function ContactPage() {
             </div>
           </div>
 
-          <aside className="rounded-[1.8rem] border border-white/10 bg-background/22 p-5">
+          <aside className="rounded-[1.8rem] border border-border/80 bg-background/24 p-5">
             <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Direct contact</p>
             <a
               href={`mailto:${footerContent.supportEmail}`}
@@ -95,30 +94,36 @@ export default async function ContactPage() {
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <aside className="public-panel space-y-5 p-6">
-          <h2 className="font-display text-2xl text-silver">What to contact us about</h2>
+          <h2 className="font-display text-2xl text-foreground">What to contact us about</h2>
           <p className="text-sm leading-relaxed text-muted">
-            The strongest enquiries are clear, intentional, and grounded in a real business need.
+            The strongest enquiries are clear, intentional, and grounded in the actual next step
+            you need.
           </p>
           <div className="space-y-3">
             {[
               {
                 icon: MessageSquare,
-                title: "Membership fit",
+                title: "Membership questions",
                 copy: "Use this if you want help understanding which room fits the business now."
               },
               {
                 icon: Mail,
-                title: "Partnerships and founder enquiries",
-                copy: "Use this for aligned collaborations, opportunities, and more specific conversations."
+                title: "Founder services",
+                copy: "Use this for higher-level strategic support, founder-led work, or service-fit questions."
+              },
+              {
+                icon: ArrowRight,
+                title: "Partnership or collaboration",
+                copy: "Use this for aligned opportunities, introductions, or commercial collaboration conversations."
               },
               {
                 icon: ShieldCheck,
-                title: "Platform and billing support",
-                copy: "Use this for access, account, billing, or technical issues that need a response."
+                title: "Existing member support",
+                copy: "Use this for access, account, billing, or platform issues that need a response."
               }
             ].map((item) => (
               <div key={item.title} className="rounded-2xl border border-border/80 bg-background/30 p-4">
-                <p className="flex items-center gap-2 text-sm font-medium text-silver">
+                <p className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <item.icon size={16} className="text-gold" />
                   {item.title}
                 </p>

@@ -192,7 +192,7 @@ export function ContactForm({
           </div>
 
           {status === "error" && notice ? (
-            <p className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-primary">
+            <p className="rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {notice}
             </p>
           ) : null}

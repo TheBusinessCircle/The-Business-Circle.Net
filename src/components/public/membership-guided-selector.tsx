@@ -60,6 +60,7 @@ type MembershipGuidedSelectorProps = {
     answer: string;
   }>;
   roomsPlacement?: VisualMediaRenderablePlacement | null;
+  tierComparisonPlacement?: VisualMediaRenderablePlacement | null;
   foundersPlacement?: VisualMediaRenderablePlacement | null;
 };
 
@@ -153,6 +154,14 @@ const REASSURANCE_ITEMS = [
       "You can start where the fit is obvious, then move deeper only when the business genuinely needs more."
   }
 ] as const;
+
+const TIER_GUIDANCE = {
+  FOUNDATION: "For owners who want structure, access, and useful business direction.",
+  INNER_CIRCLE:
+    "For owners who want deeper conversations, stronger access, and more regular support.",
+  CORE:
+    "For owners who want the highest level of access, visibility, and strategic environment."
+} as const satisfies Record<MembershipTier, string>;
 
 function findTierGuide(tier: MembershipTier) {
   return TIER_GUIDES.find((guide) => guide.tier === tier) ?? TIER_GUIDES[0];
@@ -483,6 +492,7 @@ export function MembershipGuidedSelector({
   faqDescription,
   faqItems,
   roomsPlacement,
+  tierComparisonPlacement,
   foundersPlacement
 }: MembershipGuidedSelectorProps) {
   const [selectedTier, setSelectedTier] = useState<MembershipTier>(initialSelectedTier);
@@ -541,7 +551,7 @@ export function MembershipGuidedSelector({
         nextAction={{ href: selectedJoinHref, label: "Continue To Join" }}
       />
 
-      <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/55 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+      <section className="relative overflow-hidden rounded-[2.2rem] border border-border/80 bg-card/60 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-foundation/14 blur-[120px]" />
@@ -573,7 +583,7 @@ export function MembershipGuidedSelector({
               ].map((item) => (
                 <div
                   key={item}
-                  className="rounded-[1.4rem] border border-white/8 bg-background/18 px-4 py-4 text-sm leading-relaxed text-muted"
+                  className="rounded-[1.4rem] border border-border/80 bg-background/22 px-4 py-4 text-sm leading-relaxed text-muted"
                 >
                   {item}
                 </div>
@@ -582,7 +592,7 @@ export function MembershipGuidedSelector({
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-[1.55rem] border border-white/10 bg-background/20 p-4">
+            <div className="rounded-[1.55rem] border border-border/80 bg-background/24 p-4">
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Billing</p>
               <div className="mt-3 inline-flex w-full rounded-full border border-border/80 bg-background/30 p-1 sm:w-auto">
                 {(["monthly", "annual"] as const).map((period) => (
@@ -657,16 +667,8 @@ export function MembershipGuidedSelector({
               const selected = guide.tier === selectedTier;
               const selectionToneClassName = getTierSelectionRingClassName(guide.tier);
               const selectionCardClassName = getTierCardClassName(guide.tier);
-              const detailJoinHref = buildJoinConfirmationHref({
-                tier: getMembershipTierSlug(guide.tier),
-                period: billingInterval,
-                billing,
-                from,
-                invite: inviteCode
-              });
-
               return (
-                <div key={guide.tier} className="space-y-4">
+                <div key={guide.tier}>
                   <button
                     type="button"
                     aria-pressed={selected}
@@ -677,9 +679,9 @@ export function MembershipGuidedSelector({
                       selected
                         ? cn(
                             selectionToneClassName,
-                            "scale-[1.015] bg-card/88 shadow-[0_24px_56px_rgba(2,6,23,0.34)]"
+                            "scale-[1.02] bg-card/92 shadow-[0_24px_56px_rgba(2,6,23,0.34)]"
                           )
-                        : "bg-card/62 opacity-85 hover:-translate-y-1 hover:opacity-100 hover:shadow-[0_22px_46px_rgba(2,6,23,0.3)]"
+                        : "bg-card/68 opacity-90 hover:-translate-y-1 hover:opacity-100 hover:shadow-[0_22px_46px_rgba(2,6,23,0.3)]"
                     )}
                   >
                     <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
@@ -687,7 +689,7 @@ export function MembershipGuidedSelector({
                     </div>
 
                     <div className="relative flex items-center justify-between gap-3">
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-background/24 text-silver">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/80 bg-background/24 text-silver">
                         <Icon size={18} />
                       </span>
                       {selected ? (
@@ -712,27 +714,28 @@ export function MembershipGuidedSelector({
                       <p className="max-w-[30rem] text-sm leading-relaxed text-muted">
                         {guide.bestForLine}
                       </p>
+                      <p className="max-w-[30rem] text-sm leading-relaxed text-foreground">
+                        {TIER_GUIDANCE[guide.tier]}
+                      </p>
                     </div>
                   </button>
-
-                  <div className="lg:hidden">
-                    <AnimatePresence mode="wait" initial={false}>
-                      {selected ? (
-                        <SelectedPathPanel
-                          key={`${guide.tier}-${billingInterval}`}
-                          guide={guide}
-                          billingInterval={billingInterval}
-                          offer={foundingOfferByTier[guide.tier]}
-                          joinHref={detailJoinHref}
-                          reducedMotion={reducedMotion}
-                          compact
-                        />
-                      ) : null}
-                    </AnimatePresence>
-                  </div>
                 </div>
               );
             })}
+
+            <div className="lg:hidden">
+              <AnimatePresence mode="wait" initial={false}>
+                <SelectedPathPanel
+                  key={`${selectedTier}-${billingInterval}-mobile`}
+                  guide={selectedGuide}
+                  billingInterval={billingInterval}
+                  offer={selectedOffer}
+                  joinHref={selectedJoinHref}
+                  reducedMotion={reducedMotion}
+                  compact
+                />
+              </AnimatePresence>
+            </div>
           </div>
 
           <aside className="hidden lg:sticky lg:top-8 lg:block lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
@@ -750,7 +753,68 @@ export function MembershipGuidedSelector({
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-white/10 bg-card/52 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
+      <section className="space-y-6">
+        <div
+          className={cn(
+            "gap-6 xl:items-center",
+            tierComparisonPlacement?.isActive && tierComparisonPlacement.imageUrl
+              ? "grid xl:grid-cols-[minmax(0,0.96fr)_minmax(320px,0.62fr)]"
+              : "space-y-6"
+          )}
+        >
+          <div className="space-y-4">
+            <p className="premium-kicker">Tier Guidance</p>
+            <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+              Choose by stage, not status.
+            </h2>
+            <p className="max-w-3xl text-base leading-relaxed text-muted">
+              Foundation is not the weak option. Core is not the default. Each room is designed to
+              suit a different level of access, pace, and business responsibility.
+            </p>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              {TIER_GUIDES.map((guide) => {
+                const selected = guide.tier === selectedTier;
+
+                return (
+                  <article
+                    key={guide.tier}
+                    className={cn(
+                      "rounded-[1.7rem] border p-5 shadow-panel-soft transition-colors",
+                      selected
+                        ? cn(getTierSelectionRingClassName(guide.tier), "bg-card/90")
+                        : "border-border/80 bg-card/66"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <TierBadge tier={guide.tier} />
+                      {selected ? (
+                        <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
+                          Selected
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-4 text-sm leading-relaxed text-foreground">
+                      {TIER_GUIDANCE[guide.tier]}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          {tierComparisonPlacement?.isActive && tierComparisonPlacement.imageUrl ? (
+            <SectionFeatureImage
+              placement={tierComparisonPlacement}
+              tone="platform"
+              aspectClassName="aspect-[16/11] xl:aspect-[4/5]"
+              className="min-h-[17rem]"
+            />
+          ) : null}
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-border/80 bg-card/56 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
         <div
           className={cn(
             "gap-6 xl:items-start",

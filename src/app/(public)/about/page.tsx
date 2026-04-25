@@ -271,6 +271,37 @@ export default async function AboutPage() {
         </div>
       </section>
 
+      <section className="space-y-8">
+        <div className="max-w-4xl space-y-4">
+          <p className="premium-kicker">Built For Better Rooms</p>
+          <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
+            Built for business owners who need better rooms.
+          </h2>
+          <p className="text-base leading-relaxed text-muted sm:text-lg">
+            The Business Circle was built around a simple belief: business owners do not need more
+            noise. They need better rooms, better input, and better conversations with people who
+            understand the weight of running something.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[
+            "Founder-led",
+            "Business-owner focused",
+            "Private environment",
+            "Structured access",
+            "Standards and moderation",
+            "No spam and no noise"
+          ].map((item) => (
+            <Card key={item} className="border-border/90 bg-card/70 shadow-panel-soft">
+              <CardContent className="p-5 sm:p-6">
+                <p className="text-sm leading-relaxed text-foreground">{item}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.92fr)]">
         <Card className="border-border/90 bg-card/72 shadow-panel-soft">
           <CardContent className="space-y-5 p-6 sm:p-8">

@@ -27,7 +27,7 @@ export function CTASection({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-[2.2rem] border border-gold/35 bg-gradient-to-br from-gold/14 via-card/70 to-card/78 p-6 shadow-gold-soft sm:p-10 lg:p-12",
+        "surface-accent relative overflow-hidden rounded-[2.2rem] p-6 sm:p-10 lg:p-12",
         className
       )}
     >

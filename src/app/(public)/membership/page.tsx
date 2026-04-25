@@ -55,11 +55,19 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
     firstValue(params.period) ?? firstValue(params.interval)
   );
 
-  const [membershipContent, foundingOffer, membershipHeroPlacement, membershipRoomsPlacement, membershipFoundersPlacement] = await Promise.all([
+  const [
+    membershipContent,
+    foundingOffer,
+    membershipHeroPlacement,
+    membershipRoomsPlacement,
+    membershipTierComparisonPlacement,
+    membershipFoundersPlacement
+  ] = await Promise.all([
     getSiteContentSection("membership"),
     getFoundingOfferSnapshot(),
     getVisualMediaPlacement("membership.hero"),
     getVisualMediaPlacement("membership.section.rooms"),
+    getVisualMediaPlacement("membership.section.tierComparison"),
     getVisualMediaPlacement("membership.section.founders")
   ]);
 
@@ -108,7 +116,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
       ) : null}
 
       {billing === "past-due" ? (
-        <p className="rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+        <p className="rounded-2xl border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           Your last payment did not complete, so premium access is currently on hold. Update
           billing to restore full member access.
         </p>
@@ -139,6 +147,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         faqDescription={membershipContent.faqDescription}
         faqItems={membershipContent.faqs}
         roomsPlacement={membershipRoomsPlacement}
+        tierComparisonPlacement={membershipTierComparisonPlacement}
         foundersPlacement={membershipFoundersPlacement}
       />
     </div>

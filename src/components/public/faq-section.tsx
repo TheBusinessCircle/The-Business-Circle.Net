@@ -37,7 +37,7 @@ export function FAQSection({
           >
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-5 text-left sm:px-6">
               <span className="font-medium text-foreground">{item.question}</span>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/80 bg-background/35 text-silver transition-transform duration-200 group-open:rotate-180">
+              <span className="surface-pill flex h-9 w-9 shrink-0 items-center justify-center rounded-full p-0 transition-transform duration-200 group-open:rotate-180">
                 <ChevronDown size={16} />
               </span>
             </summary>

@@ -43,7 +43,7 @@ export function HeroSection({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-[2.2rem] border border-border/70 bg-card/56 p-6 shadow-panel backdrop-blur sm:p-9 lg:p-14",
+        "surface-card-strong relative overflow-hidden rounded-[2.2rem] p-6 sm:p-9 lg:p-14",
         className
       )}
     >
@@ -109,7 +109,7 @@ export function HeroSection({
               {callouts.map((callout) => (
                 <span
                   key={callout}
-                  className="rounded-full border border-border/80 bg-background/40 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.08em] text-silver"
+                  className="surface-pill"
                 >
                   {callout}
                 </span>
@@ -118,7 +118,7 @@ export function HeroSection({
           ) : null}
 
           {supportLine ? (
-            <p className="max-w-3xl text-sm leading-relaxed text-silver">{supportLine}</p>
+            <p className="max-w-3xl text-sm leading-relaxed text-muted">{supportLine}</p>
           ) : null}
 
           {metrics?.length ? (
@@ -126,9 +126,9 @@ export function HeroSection({
               {metrics.map((metric) => (
                 <div
                   key={metric.label}
-                  className="min-w-0 rounded-[1.35rem] border border-border/80 bg-background/35 px-4 py-3.5 transition-colors hover:border-gold/30"
+                  className="surface-subtle min-w-0 rounded-[1.35rem] px-4 py-3.5 hover:border-gold/30"
                 >
-                  <p className="font-display text-2xl text-silver">{metric.value}</p>
+                  <p className="font-display text-2xl text-foreground">{metric.value}</p>
                   <p className="mt-1 text-xs tracking-wide text-muted uppercase">{metric.label}</p>
                 </div>
               ))}

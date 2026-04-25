@@ -115,7 +115,6 @@ export default async function InsightArticlePage({ params }: PageProps) {
           title={insight.title}
           description={insight.summary}
           tone="anchored"
-          fallbackLabel="Insights top visual"
         />
 
         <div className="space-y-4">
@@ -337,6 +336,27 @@ export default async function InsightArticlePage({ params }: PageProps) {
                   ))}
                 </div>
               ) : null}
+            </section>
+
+            <section className="rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/76 to-card/70 p-6 shadow-gold-soft sm:p-8">
+              <p className="premium-kicker">Continue Inside</p>
+              <h2 className="mt-4 font-display text-3xl text-foreground">
+                Continue This Conversation Inside The Business Circle
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted sm:text-base">
+                Insights are only the surface. Inside The Business Circle, business owners can
+                discuss the real decisions, pressure, and next moves behind the topic.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link href={insight.recommendedMembershipHref}>
+                  <Button size="lg">Join The Business Circle</Button>
+                </Link>
+                <Link href="/membership">
+                  <Button size="lg" variant="outline">
+                    View Membership Options
+                  </Button>
+                </Link>
+              </div>
             </section>
 
             <section className="space-y-6">

@@ -19,7 +19,7 @@ const SECTION_FEATURE_TREATMENTS: Record<
   human: {
     aspectClassName: "aspect-[16/11] sm:aspect-[16/10] lg:aspect-[4/5]",
     containerClassName:
-      "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] shadow-[0_24px_60px_rgba(2,6,23,0.18)]",
+      "border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] shadow-[0_24px_60px_rgba(2,6,23,0.18)]",
     imageClassName: "scale-[1.03] saturate-[0.94] contrast-[1.03]",
     overlayClassName:
       "bg-[linear-gradient(180deg,rgba(3,8,20,0.02),rgba(3,8,20,0.08)_32%,rgba(3,8,20,0.26)_68%,rgba(3,8,20,0.42)_100%)]"
@@ -35,7 +35,7 @@ const SECTION_FEATURE_TREATMENTS: Record<
   platform: {
     aspectClassName: "aspect-[16/10] sm:aspect-[16/10] lg:aspect-[16/11]",
     containerClassName:
-      "border-silver/16 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] shadow-[0_18px_44px_rgba(2,6,23,0.14)]",
+      "border-silver/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] shadow-[0_18px_44px_rgba(2,6,23,0.14)]",
     imageClassName: "scale-[1.0] saturate-[0.98] contrast-[1.05]",
     overlayClassName:
       "bg-[linear-gradient(180deg,rgba(3,8,20,0.01),rgba(3,8,20,0.05)_38%,rgba(3,8,20,0.16)_78%,rgba(3,8,20,0.24)_100%)]"
@@ -51,7 +51,7 @@ const SECTION_FEATURE_TREATMENTS: Record<
   editorial: {
     aspectClassName: "aspect-[16/10] sm:aspect-[16/10] lg:aspect-[16/11]",
     containerClassName:
-      "border-silver/16 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] shadow-[0_18px_44px_rgba(2,6,23,0.14)]",
+      "border-silver/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] shadow-[0_18px_44px_rgba(2,6,23,0.14)]",
     imageClassName: "scale-[1.0] saturate-[0.96] contrast-[1.05]",
     overlayClassName:
       "bg-[linear-gradient(180deg,rgba(3,8,20,0.02),rgba(3,8,20,0.06)_44%,rgba(3,8,20,0.18)_82%,rgba(3,8,20,0.28)_100%)]"
@@ -84,8 +84,8 @@ export function SectionFeatureImage({
       placement={placement}
       sizes={sizes}
       className={cn(
-        "overflow-hidden rounded-[2rem] border bg-card/48 shadow-panel-soft",
-        "before:pointer-events-none before:absolute before:inset-[1px] before:z-[1] before:rounded-[1.9rem] before:border before:border-white/8 before:content-['']",
+        "feature-visual-shell overflow-hidden rounded-[2rem] border bg-card/48 shadow-panel-soft",
+        "before:pointer-events-none before:absolute before:inset-[1px] before:z-[1] before:rounded-[1.9rem] before:border before:border-border/60 before:content-['']",
         treatment.containerClassName,
         aspectClassName ?? treatment.aspectClassName,
         className
