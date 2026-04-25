@@ -27,20 +27,21 @@ export default function RulesPage() {
       supportEmail={SITE_CONFIG.supportEmail}
       sections={BCN_RULES_CONTENT.sections}
     >
-      <section className="public-panel border-gold/25 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-6 shadow-gold-soft sm:p-8">
+      <section className="rules-cta-panel p-6 sm:p-8">
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="max-w-2xl">
-            <p className="premium-kicker">Ready to enter</p>
+            <p className="rules-cta-kicker">Ready to enter</p>
             <h2 className="mt-3 font-display text-3xl text-foreground">
               Ready to enter
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              Accept the standard and continue into your member dashboard.
+              Once you accept the BCN Rules, conversations, messaging, and calls can open with the
+              right standard in place.
             </p>
           </div>
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             <form action={acceptBcnRulesAndContinueAction}>
-              <Button type="submit" size="lg" className="w-full sm:w-auto">
+              <Button type="submit" size="lg" className="rules-cta-primary w-full sm:w-auto">
                 Accept and Continue to Dashboard <ArrowRight size={16} />
               </Button>
             </form>
