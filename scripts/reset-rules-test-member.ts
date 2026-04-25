@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { MembershipTier, PrismaClient, Role } from "@prisma/client";
 import { hashPassword } from "../src/lib/auth/password";
@@ -12,6 +11,7 @@ type Options = {
   password: string;
   tier: Extract<MembershipTier, "FOUNDATION" | "INNER_CIRCLE">;
   deleteAccount: boolean;
+  envFile: string;
 };
 
 function parseArgs(argv: string[]): Options {
@@ -19,7 +19,8 @@ function parseArgs(argv: string[]): Options {
     email: DEFAULT_EMAIL,
     password: process.env.BCN_RULES_TEST_PASSWORD?.trim() || DEFAULT_PASSWORD,
     tier: parseTier(process.env.BCN_RULES_TEST_TIER) ?? DEFAULT_TIER,
-    deleteAccount: false
+    deleteAccount: false,
+    envFile: ".env"
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -27,6 +28,12 @@ function parseArgs(argv: string[]): Options {
 
     if (arg === "--delete") {
       options.deleteAccount = true;
+      continue;
+    }
+
+    if (arg === "--env-file") {
+      options.envFile = requireValue(argv[index + 1], "--env-file");
+      index += 1;
       continue;
     }
 
@@ -71,6 +78,29 @@ function requireValue(value: string | undefined, flag: string) {
   }
 
   return value.trim();
+}
+
+function loadEnvFileIfAvailable(filePath: string) {
+  const loadEnvFile = (process as typeof process & {
+    loadEnvFile?: (path?: string) => void;
+  }).loadEnvFile;
+
+  if (typeof loadEnvFile === "function") {
+    loadEnvFile(filePath);
+    return;
+  }
+
+  if (filePath !== ".env") {
+    throw new Error(`This Node version cannot load ${filePath}. Set DATABASE_URL directly instead.`);
+  }
+}
+
+function applyEnvDefaults(options: Options): Options {
+  return {
+    ...options,
+    password: process.env.BCN_RULES_TEST_PASSWORD?.trim() || options.password,
+    tier: parseTier(process.env.BCN_RULES_TEST_TIER) ?? options.tier
+  };
 }
 
 function parseTier(value: string | undefined) {
@@ -139,10 +169,12 @@ function roleForTier(tier: MembershipTier) {
 function printHelp() {
   console.info(`Usage:
   npx tsx scripts/reset-rules-test-member.ts
+  npx tsx scripts/reset-rules-test-member.ts --env-file .env
   npx tsx scripts/reset-rules-test-member.ts --tier inner-circle
   npx tsx scripts/reset-rules-test-member.ts --delete
 
 Options:
+  --env-file <path>     Defaults to .env. Use this to point at a specific local/staging/admin database.
   --email <email>       Defaults to ${DEFAULT_EMAIL}. Must be an obvious test*@thebusinesscircle.net address.
   --password <value>    Defaults to ${DEFAULT_PASSWORD}, or BCN_RULES_TEST_PASSWORD if set.
   --tier <tier>         foundation or inner-circle. Defaults to foundation.
@@ -325,7 +357,9 @@ async function deleteTestMember(db: PrismaClient, email: string) {
 }
 
 async function main() {
-  const options = parseArgs(process.argv.slice(2));
+  const parsedOptions = parseArgs(process.argv.slice(2));
+  loadEnvFileIfAvailable(parsedOptions.envFile);
+  const options = applyEnvDefaults(parsedOptions);
 
   assertSafeEnvironment();
   assertSafeTestEmail(options.email);
