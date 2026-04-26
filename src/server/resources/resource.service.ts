@@ -17,8 +17,10 @@ export type PublishedResourceSummary = {
   category: string;
   type: ResourceType;
   coverImage: string | null;
+  generatedImageUrl: string | null;
   mediaType: ResourceMediaType;
   mediaUrl: string | null;
+  estimatedReadMinutes: number | null;
   publishedAt: Date | null;
   updatedAt: Date;
   isRead: boolean;
@@ -53,8 +55,10 @@ export async function listLatestPublishedResources(
       category: true,
       type: true,
       coverImage: true,
+      generatedImageUrl: true,
       mediaType: true,
       mediaUrl: true,
+      estimatedReadMinutes: true,
       publishedAt: true,
       updatedAt: true,
       ...(options?.userId
@@ -82,8 +86,10 @@ export async function listLatestPublishedResources(
     category: resource.category,
     type: resource.type,
     coverImage: resource.coverImage,
+    generatedImageUrl: resource.generatedImageUrl,
     mediaType: resource.mediaType,
     mediaUrl: resource.mediaUrl,
+    estimatedReadMinutes: resource.estimatedReadMinutes,
     publishedAt: resource.publishedAt,
     updatedAt: resource.updatedAt,
     isRead: "readStates" in resource ? resource.readStates.length > 0 : false
@@ -111,8 +117,10 @@ export async function getPublishedResourceBySlug(slug: string, membershipTier: M
       category: true,
       type: true,
       coverImage: true,
+      generatedImageUrl: true,
       mediaType: true,
       mediaUrl: true,
+      estimatedReadMinutes: true,
       publishedAt: true,
       updatedAt: true,
       createdAt: true
@@ -156,8 +164,10 @@ export async function getRelatedPublishedResources(
       category: true,
       type: true,
       coverImage: true,
+      generatedImageUrl: true,
       mediaType: true,
       mediaUrl: true,
+      estimatedReadMinutes: true,
       publishedAt: true,
       updatedAt: true
     },

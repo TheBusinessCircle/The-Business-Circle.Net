@@ -10,8 +10,10 @@ export interface ResourceCardModel {
   type: ResourceType;
   category: string;
   coverImage: string | null;
+  generatedImageUrl?: string | null;
   mediaType: ResourceMediaType;
   mediaUrl: string | null;
+  estimatedReadMinutes?: number | null;
 }
 
 export interface ResourceDetailModel extends ResourceCardModel {

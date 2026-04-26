@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import {
+  regenerateResourceImageAction,
   toDateTimeLocalValue,
   updateResourceFromEditorAction
 } from "@/actions/admin/resource-cms.actions";
@@ -35,7 +36,9 @@ function feedbackMessage(input: { notice: string; error: string }) {
   const noticeMap: Record<string, string> = {
     "draft-saved": "Resource saved as draft.",
     scheduled: "Resource scheduled.",
-    published: "Resource published."
+    published: "Resource published.",
+    "image-generated": "Resource cover image generated.",
+    "image-prompt-saved": "Image prompt saved. Generation is unavailable or skipped."
   };
 
   const errorMap: Record<string, string> = {
@@ -47,7 +50,10 @@ function feedbackMessage(input: { notice: string; error: string }) {
     "invalid-schedule": "The schedule date could not be parsed.",
     "invalid-length": "Scheduled and published resources must be between 600 and 1200 words.",
     "invalid-structure": "The article must include Reality, Breakdown, Shift, and Next step headings.",
-    "invalid-tone": "The article content still includes banned punctuation or tone markers."
+    "invalid-tone": "The article content still includes banned punctuation or tone markers.",
+    "image-generation-failed": "Image generation failed, but the prompt was saved.",
+    "generation-provider-not-configured": "Generation provider not configured.",
+    "resource-not-found": "The requested resource could not be found."
   };
 
   if (input.notice && noticeMap[input.notice]) {
@@ -77,12 +83,21 @@ export default async function AdminResourceDetailsPage({
       slug: true,
       excerpt: true,
       coverImage: true,
+      generatedImageUrl: true,
+      imageDirection: true,
+      imagePrompt: true,
+      imageStatus: true,
+      approvalStatus: true,
       tier: true,
       category: true,
       type: true,
       content: true,
       status: true,
-      scheduledFor: true
+      scheduledFor: true,
+      generationBatchId: true,
+      generationDate: true,
+      lockedAt: true,
+      generationMetadata: true
     }
   });
 
@@ -121,6 +136,7 @@ export default async function AdminResourceDetailsPage({
       <ResourceEditorForm
         mode="edit"
         action={updateResourceFromEditorAction}
+        imageAction={regenerateResourceImageAction}
         returnPath={`/admin/resources/${resource.id}`}
         initialValues={{
           resourceId: resource.id,
@@ -128,12 +144,23 @@ export default async function AdminResourceDetailsPage({
           slug: resource.slug,
           excerpt: resource.excerpt,
           coverImage: resource.coverImage ?? "",
+          generatedImageUrl: resource.generatedImageUrl ?? "",
+          imageDirection: resource.imageDirection ?? "",
+          imagePrompt: resource.imagePrompt ?? "",
+          imageStatus: resource.imageStatus,
+          approvalStatus: resource.approvalStatus,
           tier: resource.tier,
           category: resource.category,
           type: resource.type,
           content: resource.content,
           status: resource.status,
-          scheduledFor: toDateTimeLocalValue(resource.scheduledFor)
+          scheduledFor: toDateTimeLocalValue(resource.scheduledFor),
+          generationBatchId: resource.generationBatchId,
+          generationDate: resource.generationDate?.toISOString().slice(0, 10) ?? null,
+          lockedAt: resource.lockedAt?.toISOString() ?? null,
+          generationMetadata: resource.generationMetadata
+            ? JSON.stringify(resource.generationMetadata, null, 2)
+            : null
         }}
       />
     </div>

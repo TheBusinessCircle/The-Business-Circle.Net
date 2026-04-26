@@ -67,6 +67,11 @@ model User {
   answeredInnerCircleQuestions InnerCircleQuestion[]      @relation("InnerCircleQuestionAnswerer")
   profile                      Profile?
   resourcesAuthored            Resource[]                 @relation("ResourceAuthor")
+  resourcesApproved            Resource[]                 @relation("ResourceApprover")
+  resourcesRejected            Resource[]                 @relation("ResourceRejector")
+  resourcesLocked              Resource[]                 @relation("ResourceLocker")
+  dailyResourceBatchesGenerated DailyResourceBatch[]      @relation("DailyResourceBatchGenerator")
+  dailyResourceBatchesApproved DailyResourceBatch[]        @relation("DailyResourceBatchApprover")
   resourceReads               ResourceRead[]
   passwordResetTokens          PasswordResetToken[]
   sessions                     Session[]
@@ -246,9 +251,28 @@ model Resource {
   scheduledFor         DateTime?
   publishedAt          DateTime?
   archivedAt           DateTime?
+  approvalStatus       ResourceApprovalStatus @default(MANUAL)
+  generationSource     ResourceGenerationSource @default(MANUAL)
+  generationBatchId    String?
+  generationDate       DateTime?         @db.Date
+  imageDirection       String?
+  imagePrompt          String?           @db.Text
+  imageStatus          ResourceImageStatus @default(MANUAL)
+  generatedImageUrl    String?
+  generationMetadata   Json?
+  approvedAt           DateTime?
+  approvedById         String?
+  rejectedAt           DateTime?
+  rejectedById         String?
+  lockedAt             DateTime?
+  lockedById           String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   author               User?             @relation("ResourceAuthor", fields: [authorId], references: [id])
+  approvedBy           User?             @relation("ResourceApprover", fields: [approvedById], references: [id])
+  rejectedBy           User?             @relation("ResourceRejector", fields: [rejectedById], references: [id])
+  lockedBy             User?             @relation("ResourceLocker", fields: [lockedById], references: [id])
+  generationBatch      DailyResourceBatch? @relation(fields: [generationBatchId], references: [id], onDelete: SetNull)
   catalogCategory      Category?         @relation(fields: [categoryId], references: [id])
   blocks               ResourceBlock[]
   readStates           ResourceRead[]
@@ -264,6 +288,36 @@ model Resource {
   @@index([publishedAt])
   @@index([status, publishedAt])
   @@index([createdAt])
+  @@index([approvalStatus])
+  @@index([imageStatus])
+  @@index([generationBatchId])
+  @@index([generationDate])
+  @@index([generationSource])
+  @@index([approvedById])
+  @@index([rejectedById])
+  @@index([lockedById])
+}
+
+model DailyResourceBatch {
+  id             String                   @id @default(cuid())
+  generationDate DateTime                 @unique @db.Date
+  status         DailyResourceBatchStatus @default(DRAFT)
+  generatedAt    DateTime                 @default(now())
+  generatedById  String?
+  approvedAt     DateTime?
+  approvedById   String?
+  scheduledAt    DateTime?
+  metadata       Json?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  generatedBy    User?                    @relation("DailyResourceBatchGenerator", fields: [generatedById], references: [id], onDelete: SetNull)
+  approvedBy     User?                    @relation("DailyResourceBatchApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  resources      Resource[]
+
+  @@index([status])
+  @@index([generatedAt])
+  @@index([generatedById])
+  @@index([approvedById])
 }
 
 model ResourceRead {
@@ -1409,6 +1463,47 @@ enum ResourceStatus {
   SCHEDULED
   PUBLISHED
   ARCHIVED
+}
+
+enum ResourceApprovalStatus {
+  MANUAL
+  GENERATED
+  PENDING_APPROVAL
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+  REJECTED
+  REGENERATE_REQUESTED
+}
+
+enum ResourceGenerationSource {
+  MANUAL
+  DAILY_AI
+  ADMIN_AI
+  IMPORTED
+}
+
+enum ResourceImageStatus {
+  MANUAL
+  PROMPT_READY
+  QUEUED
+  GENERATING
+  GENERATED
+  FAILED
+  SKIPPED
+  NEEDS_REVIEW
+}
+
+enum DailyResourceBatchStatus {
+  DRAFT
+  GENERATED
+  PENDING_APPROVAL
+  PARTIALLY_APPROVED
+  APPROVED
+  SCHEDULED
+  PARTIALLY_PUBLISHED
+  PUBLISHED
+  REJECTED
 }
 
 enum ResourceTier {

@@ -67,12 +67,21 @@ export default async function AdminNewResourcePage() {
           slug: "",
           excerpt: "",
           coverImage: "",
+          generatedImageUrl: "",
+          imageDirection: "",
+          imagePrompt: "",
+          imageStatus: "MANUAL",
+          approvalStatus: "MANUAL",
           tier: "FOUNDATION",
           category: "Getting Started",
           type: "CLARITY",
           content: DEFAULT_CONTENT,
           status: "DRAFT",
-          scheduledFor: ""
+          scheduledFor: "",
+          generationBatchId: null,
+          generationDate: null,
+          lockedAt: null,
+          generationMetadata: null
         }}
       />
     </div>

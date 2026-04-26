@@ -11,6 +11,7 @@ type ResourceCoverImageProps = {
     type: ResourceType;
     tier: ResourceTier;
     coverImage?: string | null;
+    generatedImageUrl?: string | null;
     mediaType?: ResourceMediaType | null;
     mediaUrl?: string | null;
   };

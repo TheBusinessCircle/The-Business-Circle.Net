@@ -19,22 +19,13 @@ function ensureCloudinaryConfigured() {
   });
 }
 
-export function isCloudinaryConfigured() {
-  return Boolean(
-    process.env.CLOUDINARY_CLOUD_NAME?.trim() &&
-      process.env.CLOUDINARY_API_KEY?.trim() &&
-      process.env.CLOUDINARY_API_SECRET?.trim()
-  );
-}
-
-export async function uploadImageAssetToCloudinary(input: {
-  file: File;
+function uploadImageBufferAssetToCloudinary(input: {
+  bytes: Buffer;
   folder: string;
   publicIdPrefix: string;
 }) {
   ensureCloudinaryConfigured();
 
-  const bytes = Buffer.from(await input.file.arrayBuffer());
   const publicId = `${input.publicIdPrefix}-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
   return new Promise<{ secureUrl: string; publicId: string }>((resolve, reject) => {
@@ -91,8 +82,38 @@ export async function uploadImageAssetToCloudinary(input: {
     );
 
     stream.on("error", settleWithError);
-    stream.end(bytes);
+    stream.end(input.bytes);
   });
+}
+
+export function isCloudinaryConfigured() {
+  return Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME?.trim() &&
+      process.env.CLOUDINARY_API_KEY?.trim() &&
+      process.env.CLOUDINARY_API_SECRET?.trim()
+  );
+}
+
+export async function uploadImageAssetToCloudinary(input: {
+  file: File;
+  folder: string;
+  publicIdPrefix: string;
+}) {
+  const bytes = Buffer.from(await input.file.arrayBuffer());
+  return uploadImageBufferAssetToCloudinary({
+    bytes,
+    folder: input.folder,
+    publicIdPrefix: input.publicIdPrefix
+  });
+}
+
+export async function uploadImageBufferToCloudinary(input: {
+  bytes: Buffer;
+  folder: string;
+  publicIdPrefix: string;
+}) {
+  const result = await uploadImageBufferAssetToCloudinary(input);
+  return result.secureUrl;
 }
 
 export async function uploadImageToCloudinary(input: {

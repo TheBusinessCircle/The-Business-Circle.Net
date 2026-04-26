@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ResourceStatus, ResourceTier, ResourceType } from "@prisma/client";
+import type {
+  ResourceApprovalStatus,
+  ResourceImageStatus,
+  ResourceStatus,
+  ResourceTier,
+  ResourceType
+} from "@prisma/client";
 import {
   RESOURCE_CATEGORIES_BY_TIER,
   RESOURCE_SCHEDULE_TIMEZONE,
@@ -17,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ResourceCoverImage } from "@/components/resources/resource-cover-image";
 import { generateResourceDraftFromTitle } from "@/lib/resources";
 import { slugify } from "@/lib/utils";
 
@@ -26,24 +33,64 @@ export type ResourceEditorInitialValues = {
   slug: string;
   excerpt: string;
   coverImage: string;
+  generatedImageUrl: string;
+  imageDirection: string;
+  imagePrompt: string;
+  imageStatus: ResourceImageStatus;
+  approvalStatus: ResourceApprovalStatus;
   tier: ResourceTier;
   category: string;
   type: ResourceType;
   content: string;
   status: ResourceStatus;
   scheduledFor: string;
+  generationBatchId?: string | null;
+  generationDate?: string | null;
+  lockedAt?: string | null;
+  generationMetadata?: string | null;
 };
 
 type ResourceEditorFormProps = {
   mode: "create" | "edit";
   action: (formData: FormData) => void | Promise<void>;
+  imageAction?: (formData: FormData) => void | Promise<void>;
   returnPath: string;
   initialValues: ResourceEditorInitialValues;
 };
 
+const APPROVAL_STATUS_OPTIONS: ResourceApprovalStatus[] = [
+  "MANUAL",
+  "GENERATED",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "SCHEDULED",
+  "PUBLISHED",
+  "REJECTED",
+  "REGENERATE_REQUESTED"
+];
+
+const IMAGE_STATUS_OPTIONS: ResourceImageStatus[] = [
+  "MANUAL",
+  "PROMPT_READY",
+  "QUEUED",
+  "GENERATING",
+  "GENERATED",
+  "FAILED",
+  "SKIPPED",
+  "NEEDS_REVIEW"
+];
+
+function formatOptionLabel(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, (match) => match.toUpperCase());
+}
+
 export function ResourceEditorForm({
   mode,
   action,
+  imageAction,
   returnPath,
   initialValues
 }: ResourceEditorFormProps) {
@@ -55,6 +102,13 @@ export function ResourceEditorForm({
   const [type, setType] = useState<ResourceType>(initialValues.type);
   const [excerpt, setExcerpt] = useState<string>(initialValues.excerpt);
   const [coverImage, setCoverImage] = useState<string>(initialValues.coverImage);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string>(initialValues.generatedImageUrl);
+  const [imageDirection, setImageDirection] = useState<string>(initialValues.imageDirection);
+  const [imagePrompt, setImagePrompt] = useState<string>(initialValues.imagePrompt);
+  const [imageStatus, setImageStatus] = useState<ResourceImageStatus>(initialValues.imageStatus);
+  const [approvalStatus, setApprovalStatus] = useState<ResourceApprovalStatus>(
+    initialValues.approvalStatus
+  );
   const [content, setContent] = useState<string>(initialValues.content);
 
   const categories = useMemo(() => RESOURCE_CATEGORIES_BY_TIER[tier], [tier]);
@@ -190,8 +244,107 @@ export function ResourceEditorForm({
               placeholder="https://images.example.com/resource-cover.jpg"
             />
             <p className="text-xs text-muted">
-              Optional manual override. Leave blank to let the live resource experience fall back to the existing stored media or branded placeholder treatment.
+              Optional manual override. Use resource imagery for editorial business atmosphere. Avoid text-heavy covers, generic startup photos, and visuals that rely on the title being baked into the image.
             </p>
+          </div>
+
+          <div className="space-y-3 md:col-span-2">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+              <ResourceCoverImage
+                resource={{
+                  title: title || "Resource image preview",
+                  category: selectedCategory,
+                  type,
+                  tier,
+                  coverImage,
+                  generatedImageUrl
+                }}
+                className="aspect-[16/9] rounded-2xl border border-silver/14"
+                imageClassName="object-cover"
+              />
+              <div className="grid gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="generatedImageUrl">Generated Image URL</Label>
+                  <Input
+                    id="generatedImageUrl"
+                    name="generatedImageUrl"
+                    value={generatedImageUrl}
+                    onChange={(event) => setGeneratedImageUrl(event.target.value)}
+                    placeholder="Generated Cloudinary image URL"
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="imageStatus">Image Status</Label>
+                    <Select
+                      id="imageStatus"
+                      name="imageStatus"
+                      value={imageStatus}
+                      onChange={(event) => setImageStatus(event.target.value as ResourceImageStatus)}
+                    >
+                      {IMAGE_STATUS_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {formatOptionLabel(option)}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="approvalStatus">Approval Status</Label>
+                    <Select
+                      id="approvalStatus"
+                      name="approvalStatus"
+                      value={approvalStatus}
+                      onChange={(event) =>
+                        setApprovalStatus(event.target.value as ResourceApprovalStatus)
+                      }
+                    >
+                      {APPROVAL_STATUS_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {formatOptionLabel(option)}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+                {imageAction && initialValues.resourceId ? (
+                  <Button
+                    type="submit"
+                    formAction={imageAction}
+                    formNoValidate
+                    variant="outline"
+                    name="imageIntent"
+                    value="regenerate_image"
+                  >
+                    Regenerate Image
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="imageDirection">Image Direction</Label>
+            <Textarea
+              id="imageDirection"
+              name="imageDirection"
+              value={imageDirection}
+              onChange={(event) => setImageDirection(event.target.value)}
+              rows={3}
+              placeholder="Premium editorial direction for the cover image."
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="imagePrompt">Image Prompt</Label>
+            <Textarea
+              id="imagePrompt"
+              name="imagePrompt"
+              value={imagePrompt}
+              onChange={(event) => setImagePrompt(event.target.value)}
+              rows={5}
+              placeholder="Dark premium business-owner editorial cover prompt. No text or logos in the image."
+            />
           </div>
 
           <div className="space-y-2 md:col-span-2">
@@ -239,12 +392,24 @@ export function ResourceEditorForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Tier Schedule</CardTitle>
+          <CardTitle>Generation & Schedule</CardTitle>
           <CardDescription>
-            Monday, Wednesday, and Friday cadence with separated times by tier.
+            Review generated workflow state and keep the publishing slot deliberate.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
+          {initialValues.generationBatchId || initialValues.generationDate || initialValues.lockedAt ? (
+            <div className="rounded-2xl border border-gold/20 bg-gold/8 px-4 py-3">
+              <p className="text-sm font-medium text-foreground">Generation metadata</p>
+              <div className="mt-2 space-y-1 text-xs text-muted">
+                {initialValues.generationBatchId ? (
+                  <p>Batch: {initialValues.generationBatchId}</p>
+                ) : null}
+                {initialValues.generationDate ? <p>Date: {initialValues.generationDate}</p> : null}
+                {initialValues.lockedAt ? <p>Locked: {initialValues.lockedAt}</p> : null}
+              </div>
+            </div>
+          ) : null}
           {RESOURCE_TIER_ORDER.map((resourceTier) => (
             <div
               key={resourceTier}
@@ -277,7 +442,8 @@ export function ResourceEditorForm({
 
       <p className="text-xs text-muted">
         Status: {initialValues.status.replaceAll("_", " ").toLowerCase()} | Type:{" "}
-        {getResourceTypeLabel(type)}
+        {getResourceTypeLabel(type)} | Approval: {formatOptionLabel(approvalStatus)} | Image:{" "}
+        {formatOptionLabel(imageStatus)}
       </p>
     </form>
   );

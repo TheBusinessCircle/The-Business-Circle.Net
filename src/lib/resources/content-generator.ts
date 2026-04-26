@@ -33,6 +33,14 @@ type TypeLens = {
   nextStep: string;
 };
 
+const DEFAULT_CATEGORY_LENS: CategoryLens = {
+  surface: "the business is carrying a decision or operating condition that has not been made clear enough",
+  cause: "the owner has not turned the issue into a simple enough commercial rule",
+  consequence: "energy gets spent compensating for confusion instead of moving the business forward cleanly",
+  firstMove: "name the decision, remove one source of confusion, and make the next move visible",
+  practicalTest: "the issue should be easier to explain, easier to own, and easier to act on this week"
+};
+
 const CATEGORY_LENSES: Record<string, CategoryLens> = {
   "Getting Started": {
     surface: "the owner is trying to build too many moving parts before the business has earned that complexity",
@@ -138,6 +146,111 @@ const CATEGORY_LENSES: Record<string, CategoryLens> = {
     consequence: "revenue may rise while strategic quality falls",
     firstMove: "judge new growth moves against the business you are trying to build, not only the revenue they could create now",
     practicalTest: "your next growth decision should strengthen the future model rather than borrow against it"
+  },
+  Positioning: {
+    surface: "the business sounds capable but not sharp enough to be chosen quickly",
+    cause: "the market difference is described too broadly",
+    consequence: "buyers compare on price, convenience, or familiarity instead of fit and value",
+    firstMove: "tighten the buyer, the problem, and the commercial outcome until the difference is visible",
+    practicalTest: "the right prospect should feel why this is a better fit before hearing the full explanation"
+  },
+  Leadership: {
+    surface: "important expectations are living in the founder's head instead of in the business",
+    cause: "leadership clarity has not been translated into visible standards",
+    consequence: "people wait, guess, or over-rely on the founder for decisions they should be able to make",
+    firstMove: "turn one repeated expectation into a visible standard",
+    practicalTest: "people should be able to make a better decision without needing the founder in the room"
+  },
+  Operations: {
+    surface: "the work is happening, but the operating rhythm is not carrying it cleanly",
+    cause: "ownership, timing, or review points are too loose",
+    consequence: "small misses compound into drag, delay, and avoidable founder involvement",
+    firstMove: "clarify one operating rhythm that removes repeated friction",
+    practicalTest: "the right person should know what happens, when it happens, and what good looks like"
+  },
+  Sales: {
+    surface: "sales conversations are doing too much heavy lifting too late",
+    cause: "the business has not prepared enough trust, value, and next-step clarity before the conversation",
+    consequence: "good prospects stall, negotiate harder, or need repeated reassurance",
+    firstMove: "tighten the path from enquiry to decision around buyer confidence",
+    practicalTest: "a prospect should arrive with the right problem, the right expectation, and a clear next step"
+  },
+  Messaging: {
+    surface: "the message is accurate but not decisive enough",
+    cause: "it describes the business more than it names the buyer's real pressure",
+    consequence: "good prospects recognise parts of the offer without feeling enough urgency or fit",
+    firstMove: "write the message around the problem people already feel and the result they can understand",
+    practicalTest: "the right person should be able to repeat the point back without needing extra explanation"
+  },
+  "Team Clarity": {
+    surface: "people are busy but not always pointed at the same standard",
+    cause: "roles, decisions, or handoffs are not plain enough",
+    consequence: "the business pays for confusion through rework, delay, and founder correction",
+    firstMove: "clarify one responsibility boundary that keeps recurring work out of the grey",
+    practicalTest: "two people should not need to negotiate who owns the same moment every week"
+  },
+  "Strategic Direction": {
+    surface: "the business is moving, but not every move strengthens the direction",
+    cause: "near-term opportunities are being judged without a strong enough strategic filter",
+    consequence: "growth becomes busy and expensive instead of coherent",
+    firstMove: "name the direction clearly enough to say no to work that does not support it",
+    practicalTest: "the next decision should make the business easier to understand and harder to distract"
+  },
+  "Founder Pressure": {
+    surface: "pressure is shaping the founder's read of the business",
+    cause: "too much judgement is happening inside urgency, fatigue, or responsibility",
+    consequence: "the founder either over-corrects, delays, or carries decisions that should be systematised",
+    firstMove: "separate the feeling of pressure from the evidence in the business",
+    practicalTest: "the next decision should still look sensible when the pressure is lower"
+  },
+  "Growth Systems": {
+    surface: "growth depends too much on effort and not enough on repeatable conditions",
+    cause: "the business has not turned proven movement into a system people can use",
+    consequence: "progress relies on memory, intensity, or founder presence",
+    firstMove: "standardise the part of growth that already works before adding another channel or tactic",
+    practicalTest: "a good system should make the right growth behaviour easier to repeat"
+  },
+  "Trust and Credibility": {
+    surface: "the business asks for trust before enough evidence has been made visible",
+    cause: "proof, process, and standards are not presented in the moments where doubt naturally appears",
+    consequence: "buyers hesitate even when the offer is strong",
+    firstMove: "place one credible proof point exactly where the buyer's risk increases",
+    practicalTest: "a buyer should feel less uncertainty without needing a long reassurance conversation"
+  },
+  Pricing: {
+    surface: "price is being discussed before value has been properly held",
+    cause: "the commercial case is not clear enough around the cost of the problem and the value of the result",
+    consequence: "the business discounts, over-explains, or attracts poorly fitted demand",
+    firstMove: "connect price to consequence, outcome, and delivery confidence",
+    practicalTest: "the price should feel connected to a business result, not only to a list of tasks"
+  },
+  "Client Experience": {
+    surface: "the client experience depends too much on goodwill and improvisation",
+    cause: "expectations, communication, and handoffs are not designed tightly enough",
+    consequence: "delivery quality varies and the owner has to rescue confidence manually",
+    firstMove: "define the moment where clients most need certainty and build a better signal there",
+    practicalTest: "clients should know what is happening, why it matters, and what comes next"
+  },
+  Delivery: {
+    surface: "delivery is producing the work, but not always protecting the standard",
+    cause: "the business has not made quality, ownership, and review simple enough to repeat",
+    consequence: "margin, trust, and team confidence get squeezed by avoidable friction",
+    firstMove: "name the delivery standard and remove one repeat point of confusion",
+    practicalTest: "the same quality should be easier to produce next time, not harder"
+  },
+  Retention: {
+    surface: "the business is not always giving clients a strong enough reason to continue",
+    cause: "value, progress, and next-stage relevance are not being made visible soon enough",
+    consequence: "good relationships end earlier than they should or need extra founder energy to hold",
+    firstMove: "show the client what has changed and what the next useful stage requires",
+    practicalTest: "continuation should feel commercially sensible, not emotionally negotiated"
+  },
+  "Focus and Prioritisation": {
+    surface: "too many priorities are competing for the same attention",
+    cause: "the business has not chosen the constraint that matters most right now",
+    consequence: "important work gets thinned out until nothing receives enough force",
+    firstMove: "choose the decision or constraint that would make the week cleaner if it moved",
+    practicalTest: "the priority should be obvious enough to protect when attractive distractions appear"
   }
 };
 
@@ -239,7 +352,7 @@ function buildExcerpt(spec: ResourceDraftSpec) {
 }
 
 function buildRealityParagraphs(spec: ResourceDraftSpec) {
-  const categoryLens = CATEGORY_LENSES[spec.category];
+  const categoryLens = CATEGORY_LENSES[spec.category] ?? DEFAULT_CATEGORY_LENS;
   const typeLens = TYPE_LENSES[spec.type];
   const tierLabel = getResourceTierLabel(spec.tier).toLowerCase();
 
@@ -250,7 +363,7 @@ function buildRealityParagraphs(spec: ResourceDraftSpec) {
 }
 
 function buildBreakdownParagraphs(spec: ResourceDraftSpec) {
-  const categoryLens = CATEGORY_LENSES[spec.category];
+  const categoryLens = CATEGORY_LENSES[spec.category] ?? DEFAULT_CATEGORY_LENS;
   const typeLens = TYPE_LENSES[spec.type];
 
   return [
@@ -261,7 +374,7 @@ function buildBreakdownParagraphs(spec: ResourceDraftSpec) {
 }
 
 function buildShiftParagraphs(spec: ResourceDraftSpec) {
-  const categoryLens = CATEGORY_LENSES[spec.category];
+  const categoryLens = CATEGORY_LENSES[spec.category] ?? DEFAULT_CATEGORY_LENS;
   const typeLens = TYPE_LENSES[spec.type];
 
   return [
@@ -271,7 +384,7 @@ function buildShiftParagraphs(spec: ResourceDraftSpec) {
 }
 
 function buildNextSteps(spec: ResourceDraftSpec) {
-  const categoryLens = CATEGORY_LENSES[spec.category];
+  const categoryLens = CATEGORY_LENSES[spec.category] ?? DEFAULT_CATEGORY_LENS;
   const typeLens = TYPE_LENSES[spec.type];
 
   return {

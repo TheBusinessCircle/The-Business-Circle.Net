@@ -1,6 +1,14 @@
 "use server";
 
-import { MembershipTier, Prisma, ResourceStatus, ResourceTier, ResourceType } from "@prisma/client";
+import {
+  MembershipTier,
+  Prisma,
+  ResourceApprovalStatus,
+  ResourceImageStatus,
+  ResourceStatus,
+  ResourceTier,
+  ResourceType
+} from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -15,6 +23,17 @@ import { membershipTierForResourceTier } from "@/lib/db/access";
 import { requireAdmin } from "@/lib/session";
 import { slugify } from "@/lib/utils";
 import { findNextAvailableResourceSlot } from "@/server/resources/resource-publishing.service";
+import {
+  approveAndScheduleDailyResourceBatch,
+  approveDailyResourceBatch,
+  approveGeneratedResource,
+  generateCoverImageForResource,
+  generateDailyResourceBatch,
+  regenerateGeneratedResourceArticle,
+  rejectGeneratedResource,
+  toggleGeneratedResourceLock
+} from "@/server/resources";
+import { ResourceGenerationError } from "@/server/resources/resource-generation-guards";
 
 const editorSchema = z.object({
   resourceId: z.string().cuid().optional().or(z.literal("")),
@@ -23,6 +42,11 @@ const editorSchema = z.object({
   slug: z.string().trim().max(220).optional().or(z.literal("")),
   excerpt: z.string().trim().min(24).max(320),
   coverImage: z.string().trim().url().optional().or(z.literal("")),
+  imageDirection: z.string().trim().max(900).optional().or(z.literal("")),
+  imagePrompt: z.string().trim().max(2200).optional().or(z.literal("")),
+  generatedImageUrl: z.string().trim().url().optional().or(z.literal("")),
+  approvalStatus: z.nativeEnum(ResourceApprovalStatus).optional(),
+  imageStatus: z.nativeEnum(ResourceImageStatus).optional(),
   tier: z.nativeEnum(ResourceTier),
   category: z.string().trim().min(3).max(80),
   type: z.nativeEnum(ResourceType),
@@ -116,6 +140,42 @@ function toStatusFromIntent(intent: z.infer<typeof editorSchema>["intent"]) {
   return ResourceStatus.DRAFT;
 }
 
+function toApprovalStatusFromEditor(input: {
+  selected?: ResourceApprovalStatus;
+  finalStatus: ResourceStatus;
+}) {
+  if (input.finalStatus === ResourceStatus.PUBLISHED) {
+    return ResourceApprovalStatus.PUBLISHED;
+  }
+
+  if (input.finalStatus === ResourceStatus.SCHEDULED) {
+    return ResourceApprovalStatus.SCHEDULED;
+  }
+
+  return input.selected ?? ResourceApprovalStatus.MANUAL;
+}
+
+function toImageStatusFromEditor(input: {
+  selected?: ResourceImageStatus;
+  coverImage?: string;
+  generatedImageUrl?: string;
+  imagePrompt?: string;
+}) {
+  if (input.generatedImageUrl?.trim()) {
+    return ResourceImageStatus.GENERATED;
+  }
+
+  if (input.coverImage?.trim()) {
+    return input.selected ?? ResourceImageStatus.MANUAL;
+  }
+
+  if (input.imagePrompt?.trim()) {
+    return input.selected ?? ResourceImageStatus.PROMPT_READY;
+  }
+
+  return input.selected ?? ResourceImageStatus.MANUAL;
+}
+
 function toLegacyTier(tier: ResourceTier): MembershipTier {
   return membershipTierForResourceTier(tier);
 }
@@ -167,6 +227,11 @@ async function persistResourceFromFormData(formData: FormData, mode: "create" | 
     slug: String(formData.get("slug") || ""),
     excerpt: String(formData.get("excerpt") || ""),
     coverImage: String(formData.get("coverImage") || ""),
+    imageDirection: String(formData.get("imageDirection") || ""),
+    imagePrompt: String(formData.get("imagePrompt") || ""),
+    generatedImageUrl: String(formData.get("generatedImageUrl") || ""),
+    approvalStatus: String(formData.get("approvalStatus") || "") || undefined,
+    imageStatus: String(formData.get("imageStatus") || "") || undefined,
     tier: String(formData.get("tier") || ""),
     category: String(formData.get("category") || ""),
     type: String(formData.get("type") || ""),
@@ -243,6 +308,16 @@ async function persistResourceFromFormData(formData: FormData, mode: "create" | 
   const finalStatus =
     publishedAt && status === ResourceStatus.SCHEDULED ? ResourceStatus.PUBLISHED : status;
   const estimatedReadMinutes = Math.max(3, Math.ceil(countWords(input.content) / 220));
+  const finalApprovalStatus = toApprovalStatusFromEditor({
+    selected: input.approvalStatus,
+    finalStatus
+  });
+  const finalImageStatus = toImageStatusFromEditor({
+    selected: input.imageStatus,
+    coverImage: input.coverImage,
+    generatedImageUrl: input.generatedImageUrl,
+    imagePrompt: input.imagePrompt
+  });
 
   try {
     const resource = await db.$transaction(async (tx) => {
@@ -251,6 +326,11 @@ async function persistResourceFromFormData(formData: FormData, mode: "create" | 
         slug,
         excerpt: input.excerpt,
         coverImage: input.coverImage || null,
+        imageDirection: input.imageDirection || null,
+        imagePrompt: input.imagePrompt || null,
+        generatedImageUrl: input.generatedImageUrl || null,
+        imageStatus: finalImageStatus,
+        approvalStatus: finalApprovalStatus,
         summary: input.excerpt,
         content: input.content,
         tier: input.tier,
@@ -260,7 +340,23 @@ async function persistResourceFromFormData(formData: FormData, mode: "create" | 
         status: finalStatus,
         scheduledFor,
         publishedAt,
-        estimatedReadMinutes
+        estimatedReadMinutes,
+        approvedAt:
+          finalApprovalStatus === ResourceApprovalStatus.APPROVED ||
+          finalApprovalStatus === ResourceApprovalStatus.SCHEDULED ||
+          finalApprovalStatus === ResourceApprovalStatus.PUBLISHED
+            ? new Date()
+            : null,
+        approvedById:
+          finalApprovalStatus === ResourceApprovalStatus.APPROVED ||
+          finalApprovalStatus === ResourceApprovalStatus.SCHEDULED ||
+          finalApprovalStatus === ResourceApprovalStatus.PUBLISHED
+            ? session.user.id
+            : null,
+        rejectedAt:
+          finalApprovalStatus === ResourceApprovalStatus.REJECTED ? new Date() : null,
+        rejectedById:
+          finalApprovalStatus === ResourceApprovalStatus.REJECTED ? session.user.id : null
       };
 
       if (mode === "update") {
@@ -377,7 +473,7 @@ export async function deleteResourceAction(formData: FormData) {
 }
 
 export async function setResourceStatusAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const resourceId = String(formData.get("resourceId") || "").trim();
   const intent = String(formData.get("intent") || "").trim();
@@ -409,6 +505,12 @@ export async function setResourceStatusAction(formData: FormData) {
       where: { id: resourceId },
       data: {
         status,
+        approvalStatus:
+          status === ResourceStatus.PUBLISHED
+            ? ResourceApprovalStatus.PUBLISHED
+            : ResourceApprovalStatus.MANUAL,
+        approvedAt: status === ResourceStatus.PUBLISHED ? new Date() : null,
+        approvedById: status === ResourceStatus.PUBLISHED ? session.user.id : null,
         publishedAt: status === ResourceStatus.PUBLISHED ? new Date() : null,
         scheduledFor: null
       }
@@ -428,6 +530,201 @@ export async function setResourceStatusAction(formData: FormData) {
     }
 
     throw error;
+  }
+}
+
+function resourceWorkflowReturnPath(formData: FormData, fallback = "/admin/resources") {
+  return resolveReturnPath(
+    typeof formData.get("returnPath") === "string"
+      ? String(formData.get("returnPath"))
+      : undefined,
+    fallback
+  );
+}
+
+function parseGenerationDate(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw new Error("invalid-generation-date");
+  }
+
+  return new Date(
+    Date.UTC(
+      Number.parseInt(match[1], 10),
+      Number.parseInt(match[2], 10) - 1,
+      Number.parseInt(match[3], 10)
+    )
+  );
+}
+
+function redirectWithWorkflowError(returnPath: string, error: unknown): never {
+  if (error instanceof ResourceGenerationError) {
+    redirectWithError(returnPath, error.code);
+  }
+
+  if (error instanceof Error && error.message === "invalid-generation-date") {
+    redirectWithError(returnPath, "invalid-generation-date");
+  }
+
+  throw error;
+}
+
+export async function generateDailyResourceBatchAction(formData: FormData) {
+  const session = await requireAdmin();
+  const returnPath = resourceWorkflowReturnPath(formData);
+
+  try {
+    await generateDailyResourceBatch({
+      generationDate: parseGenerationDate(String(formData.get("generationDate") || "")),
+      generatedById: session.user.id,
+      force: String(formData.get("force") || "") === "true",
+      generateImages: String(formData.get("generateImages") || "true") !== "false"
+    });
+
+    revalidateResourcePaths();
+    redirectWithNotice(returnPath, "daily-generated");
+  } catch (error) {
+    redirectWithWorkflowError(returnPath, error);
+  }
+}
+
+export async function approveGeneratedResourceAction(formData: FormData) {
+  const session = await requireAdmin();
+  const returnPath = resourceWorkflowReturnPath(formData);
+  const resourceId = String(formData.get("resourceId") || "").trim();
+
+  if (!resourceId) {
+    redirectWithError(returnPath, "invalid");
+  }
+
+  try {
+    await approveGeneratedResource({ resourceId, adminUserId: session.user.id });
+    revalidateResourcePaths();
+    redirectWithNotice(returnPath, "resource-approved");
+  } catch (error) {
+    redirectWithWorkflowError(returnPath, error);
+  }
+}
+
+export async function rejectGeneratedResourceAction(formData: FormData) {
+  const session = await requireAdmin();
+  const returnPath = resourceWorkflowReturnPath(formData);
+  const resourceId = String(formData.get("resourceId") || "").trim();
+
+  if (!resourceId) {
+    redirectWithError(returnPath, "invalid");
+  }
+
+  try {
+    await rejectGeneratedResource({ resourceId, adminUserId: session.user.id });
+    revalidateResourcePaths();
+    redirectWithNotice(returnPath, "resource-rejected");
+  } catch (error) {
+    redirectWithWorkflowError(returnPath, error);
+  }
+}
+
+export async function regenerateGeneratedResourceArticleAction(formData: FormData) {
+  const session = await requireAdmin();
+  const returnPath = resourceWorkflowReturnPath(formData);
+  const resourceId = String(formData.get("resourceId") || "").trim();
+
+  if (!resourceId) {
+    redirectWithError(returnPath, "invalid");
+  }
+
+  try {
+    await regenerateGeneratedResourceArticle({ resourceId, adminUserId: session.user.id });
+    revalidateResourcePaths();
+    redirectWithNotice(returnPath, "resource-regenerated");
+  } catch (error) {
+    redirectWithWorkflowError(returnPath, error);
+  }
+}
+
+export async function regenerateResourceImageAction(formData: FormData) {
+  await requireAdmin();
+  const returnPath = resourceWorkflowReturnPath(formData);
+  const resourceId = String(formData.get("resourceId") || "").trim();
+
+  if (!resourceId) {
+    redirectWithError(returnPath, "invalid");
+  }
+
+  try {
+    const result = await generateCoverImageForResource(resourceId);
+    revalidateResourcePaths();
+    redirectWithNotice(
+      returnPath,
+      result.status === ResourceImageStatus.GENERATED ? "image-generated" : "image-prompt-saved"
+    );
+  } catch (error) {
+    redirectWithWorkflowError(returnPath, error);
+  }
+}
+
+export async function toggleGeneratedResourceLockAction(formData: FormData) {
+  const session = await requireAdmin();
+  const returnPath = resourceWorkflowReturnPath(formData);
+  const resourceId = String(formData.get("resourceId") || "").trim();
+
+  if (!resourceId) {
+    redirectWithError(returnPath, "invalid");
+  }
+
+  try {
+    const result = await toggleGeneratedResourceLock({
+      resourceId,
+      adminUserId: session.user.id
+    });
+    revalidateResourcePaths();
+    redirectWithNotice(returnPath, result.locked ? "resource-locked" : "resource-unlocked");
+  } catch (error) {
+    redirectWithWorkflowError(returnPath, error);
+  }
+}
+
+export async function approveDailyResourceBatchAction(formData: FormData) {
+  const session = await requireAdmin();
+  const returnPath = resourceWorkflowReturnPath(formData);
+  const batchId = String(formData.get("batchId") || "").trim();
+
+  if (!batchId) {
+    redirectWithError(returnPath, "invalid");
+  }
+
+  try {
+    await approveDailyResourceBatch({ batchId, adminUserId: session.user.id });
+    revalidateResourcePaths();
+    redirectWithNotice(returnPath, "batch-approved");
+  } catch (error) {
+    redirectWithWorkflowError(returnPath, error);
+  }
+}
+
+export async function approveAndScheduleDailyResourceBatchAction(formData: FormData) {
+  const session = await requireAdmin();
+  const returnPath = resourceWorkflowReturnPath(formData);
+  const batchId = String(formData.get("batchId") || "").trim();
+
+  if (!batchId) {
+    redirectWithError(returnPath, "invalid");
+  }
+
+  try {
+    await approveAndScheduleDailyResourceBatch({
+      batchId,
+      adminUserId: session.user.id
+    });
+    revalidateResourcePaths();
+    redirectWithNotice(returnPath, "batch-scheduled");
+  } catch (error) {
+    redirectWithWorkflowError(returnPath, error);
   }
 }
 

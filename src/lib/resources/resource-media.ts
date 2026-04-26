@@ -6,6 +6,7 @@ type ResourceImageInput = {
   type: ResourceType;
   tier: ResourceTier;
   coverImage?: string | null;
+  generatedImageUrl?: string | null;
   mediaType?: ResourceMediaType | null;
   mediaUrl?: string | null;
 };
@@ -21,33 +22,33 @@ const RESOURCE_TYPE_STYLES: Record<
   {
     accent: string;
     highlight: string;
-    eyebrow: string;
+    geometry: "beam" | "signal" | "map" | "pressure" | "steps";
   }
 > = {
   CLARITY: {
     accent: "#c6a86a",
     highlight: "#f3e0a7",
-    eyebrow: "Clearer thinking"
+    geometry: "beam"
   },
   STRATEGY: {
     accent: "#7aa6d9",
     highlight: "#d7e9ff",
-    eyebrow: "Strategic direction"
+    geometry: "map"
   },
   OBSERVATION: {
     accent: "#7cc0b5",
     highlight: "#d9fbf6",
-    eyebrow: "Operator insight"
+    geometry: "signal"
   },
   MINDSET: {
     accent: "#b98bd2",
     highlight: "#f0ddff",
-    eyebrow: "Founder perspective"
+    geometry: "pressure"
   },
   ACTION: {
     accent: "#d18d67",
     highlight: "#ffe0c9",
-    eyebrow: "Practical next step"
+    geometry: "steps"
   }
 };
 
@@ -77,25 +78,24 @@ function sanitizeImageUrl(value: string | null | undefined) {
   return null;
 }
 
-function escapeXml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
 function buildSvgDataUri(svg: string) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
 export function buildResourcePlaceholderImage(input: Omit<ResourceImageInput, "coverImage" | "mediaType" | "mediaUrl">) {
   const style = RESOURCE_TYPE_STYLES[input.type];
-  const title = escapeXml(input.title);
-  const category = escapeXml(input.category);
-  const eyebrow = escapeXml(style.eyebrow);
-  const tier = escapeXml(input.tier.replaceAll("_", " "));
+  const seed = Math.abs(
+    input.category.split("").reduce((total, character) => total + character.charCodeAt(0), 0)
+  );
+  const offset = seed % 220;
+  const secondaryOffset = (seed * 7) % 180;
+  const geometry = {
+    beam: `<path d="M250 ${690 - offset / 6} C520 ${520 - offset / 5} 720 ${505 + offset / 7} 1010 ${342 + secondaryOffset / 4}" stroke="${style.highlight}" stroke-opacity="0.52" stroke-width="5" stroke-linecap="round"/><circle cx="1010" cy="${342 + secondaryOffset / 4}" r="18" fill="${style.highlight}" opacity="0.76"/><circle cx="250" cy="${690 - offset / 6}" r="12" fill="${style.accent}" opacity="0.7"/>`,
+    signal: `<circle cx="${480 + offset}" cy="420" r="150" stroke="${style.highlight}" stroke-opacity="0.22" stroke-width="2"/><circle cx="${480 + offset}" cy="420" r="82" stroke="${style.accent}" stroke-opacity="0.34" stroke-width="3"/><path d="M680 580 C830 460 930 520 1080 384" stroke="${style.highlight}" stroke-opacity="0.5" stroke-width="4" stroke-linecap="round"/>`,
+    map: `<path d="M330 660 L570 470 L815 545 L1125 320" stroke="${style.highlight}" stroke-opacity="0.5" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><rect x="300" y="626" width="70" height="70" rx="18" fill="${style.accent}" opacity="0.16"/><rect x="535" y="435" width="70" height="70" rx="18" fill="${style.highlight}" opacity="0.14"/><rect x="1088" y="285" width="76" height="76" rx="20" fill="${style.accent}" opacity="0.18"/>`,
+    pressure: `<path d="M400 260 C690 190 1000 250 1165 500 C1000 745 650 786 392 642 C268 506 280 348 400 260Z" fill="${style.accent}" opacity="0.08"/><path d="M515 315 C722 275 915 326 1030 502 C902 650 680 672 508 585 C426 487 432 374 515 315Z" stroke="${style.highlight}" stroke-opacity="0.28" stroke-width="3"/>`,
+    steps: `<rect x="335" y="610" width="190" height="48" rx="18" fill="${style.accent}" opacity="0.18"/><rect x="548" y="535" width="230" height="48" rx="18" fill="${style.highlight}" opacity="0.14"/><rect x="802" y="460" width="250" height="48" rx="18" fill="${style.accent}" opacity="0.18"/><path d="M525 634 C620 625 670 572 548 559 M778 559 C882 548 912 494 802 484" stroke="${style.highlight}" stroke-opacity="0.4" stroke-width="3" stroke-linecap="round"/>`
+  }[style.geometry];
 
   return buildSvgDataUri(`
     <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" fill="none">
@@ -113,16 +113,16 @@ export function buildResourcePlaceholderImage(input: Omit<ResourceImageInput, "c
       <rect width="1600" height="1000" rx="48" fill="url(#bg)"/>
       <rect width="1600" height="1000" rx="48" fill="url(#glow)"/>
       <rect x="70" y="70" width="1460" height="860" rx="40" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)"/>
-      <circle cx="1360" cy="240" r="180" fill="${style.accent}" opacity="0.08"/>
-      <circle cx="1240" cy="760" r="110" fill="${style.highlight}" opacity="0.06"/>
-      <rect x="130" y="136" width="248" height="42" rx="21" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.10)"/>
-      <text x="160" y="164" fill="${style.highlight}" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="600" letter-spacing="1.6">${eyebrow}</text>
-      <text x="130" y="286" fill="#f8fafc" font-family="Georgia, 'Times New Roman', serif" font-size="68" font-weight="700">${title}</text>
-      <text x="130" y="360" fill="rgba(226,232,240,0.88)" font-family="Inter, Arial, sans-serif" font-size="28">${category}</text>
-      <text x="130" y="404" fill="rgba(148,163,184,0.9)" font-family="Inter, Arial, sans-serif" font-size="22">Tier: ${tier}</text>
-      <rect x="130" y="710" width="520" height="140" rx="28" fill="rgba(6,13,26,0.62)" stroke="rgba(255,255,255,0.08)"/>
-      <text x="172" y="764" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="600">Premium BCN Resource</text>
-      <text x="172" y="808" fill="rgba(203,213,225,0.86)" font-family="Inter, Arial, sans-serif" font-size="22">Structured guidance, calm presentation, and a premium editorial finish.</text>
+      <circle cx="${1190 + offset / 3}" cy="${230 + secondaryOffset / 5}" r="180" fill="${style.accent}" opacity="0.08"/>
+      <circle cx="${980 - secondaryOffset / 4}" cy="${760 - offset / 8}" r="110" fill="${style.highlight}" opacity="0.06"/>
+      <path d="M135 790 C430 620 572 740 840 558 C1060 408 1192 418 1450 264" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+      <path d="M170 226 H512" stroke="${style.accent}" stroke-opacity="0.36" stroke-width="5" stroke-linecap="round"/>
+      <path d="M170 258 H392" stroke="${style.highlight}" stroke-opacity="0.24" stroke-width="3" stroke-linecap="round"/>
+      <g opacity="0.95">${geometry}</g>
+      <rect x="1135" y="676" width="265" height="112" rx="30" fill="rgba(255,255,255,0.035)" stroke="rgba(255,255,255,0.08)"/>
+      <circle cx="1196" cy="732" r="18" fill="${style.accent}" opacity="0.3"/>
+      <circle cx="1254" cy="732" r="18" fill="${style.highlight}" opacity="0.16"/>
+      <circle cx="1312" cy="732" r="18" fill="${style.accent}" opacity="0.18"/>
     </svg>
   `);
 }
@@ -146,6 +146,15 @@ export function resolveResourceImage(input: ResourceImageInput): ResourceImageRe
         isFallback: false
       };
     }
+  }
+
+  const generatedImage = sanitizeImageUrl(input.generatedImageUrl);
+  if (generatedImage) {
+    return {
+      url: generatedImage,
+      alt: `${input.title} generated editorial image`,
+      isFallback: false
+    };
   }
 
   return {

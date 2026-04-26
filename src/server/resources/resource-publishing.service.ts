@@ -1,4 +1,9 @@
-import { ResourceStatus, ResourceTier } from "@prisma/client";
+import {
+  DailyResourceBatchStatus,
+  ResourceApprovalStatus,
+  ResourceStatus,
+  ResourceTier
+} from "@prisma/client";
 import { db } from "@/lib/db";
 import { generateFutureTierScheduleSlots } from "@/lib/resources";
 import { RESOURCE_AUTOMATION_THROTTLE_MS } from "@/config/resources";
@@ -20,7 +25,8 @@ export async function publishDueResources(now = new Date()): Promise<PublishDueR
     },
     select: {
       id: true,
-      scheduledFor: true
+      scheduledFor: true,
+      generationBatchId: true
     },
     orderBy: {
       scheduledFor: "asc"
@@ -42,12 +48,50 @@ export async function publishDueResources(now = new Date()): Promise<PublishDueR
         },
         data: {
           status: ResourceStatus.PUBLISHED,
+          approvalStatus: ResourceApprovalStatus.PUBLISHED,
           publishedAt: resource.scheduledFor ?? now,
           scheduledFor: null
         }
       })
     )
   );
+
+  const batchIds = Array.from(
+    new Set(
+      dueResources
+        .map((resource) => resource.generationBatchId)
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  for (const batchId of batchIds) {
+    const batch = await db.dailyResourceBatch.findUnique({
+      where: { id: batchId },
+      select: {
+        resources: {
+          select: {
+            status: true
+          }
+        }
+      }
+    });
+
+    if (batch?.resources.length) {
+      const publishedCount = batch.resources.filter(
+        (resource) => resource.status === ResourceStatus.PUBLISHED
+      ).length;
+
+      await db.dailyResourceBatch.update({
+        where: { id: batchId },
+        data: {
+          status:
+            publishedCount === batch.resources.length
+              ? DailyResourceBatchStatus.PUBLISHED
+              : DailyResourceBatchStatus.PARTIALLY_PUBLISHED
+        }
+      });
+    }
+  }
 
   return {
     publishedCount: dueResources.length,

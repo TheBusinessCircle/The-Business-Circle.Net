@@ -43,6 +43,9 @@ export const RESOURCE_BLOCK_TYPES = [
 const DEFAULT_FOUNDATION_TIMES = ["09:00", "13:00", "18:00"] as const;
 const DEFAULT_INNER_TIMES = ["10:30", "14:30", "19:30"] as const;
 const DEFAULT_CORE_TIMES = ["12:00", "16:00", "20:30"] as const;
+const DEFAULT_DAILY_FOUNDATION_TIME = "09:00";
+const DEFAULT_DAILY_INNER_TIME = "13:00";
+const DEFAULT_DAILY_CORE_TIME = "17:00";
 const WEEKDAY_SEQUENCE: ResourceScheduleSlot["weekday"][] = [1, 3, 5];
 const DAY_LABELS: Record<ResourceScheduleSlot["weekday"], ResourceScheduleSlot["dayLabel"]> = {
   1: "Monday",
@@ -57,6 +60,31 @@ export const RESOURCE_AUTOMATION_THROTTLE_MS = normalizePositiveInteger(
   process.env.RESOURCE_AUTOMATION_THROTTLE_MS,
   5 * 60 * 1000
 );
+
+export const RESOURCE_GENERATION_PROVIDER =
+  process.env.RESOURCE_GENERATION_PROVIDER?.trim().toLowerCase() || "openai";
+
+export const RESOURCE_CONTENT_MODEL =
+  process.env.RESOURCE_CONTENT_MODEL?.trim() ||
+  process.env.OPENAI_RESOURCE_CONTENT_MODEL?.trim() ||
+  "gpt-4.1";
+
+export const RESOURCE_IMAGE_MODEL =
+  process.env.RESOURCE_IMAGE_MODEL?.trim() ||
+  process.env.OPENAI_RESOURCE_IMAGE_MODEL?.trim() ||
+  "gpt-image-1";
+
+export const RESOURCE_DAILY_PUBLISH_TIMES = {
+  FOUNDATION: parseSingleTime(
+    process.env.RESOURCE_DAILY_FOUNDATION_PUBLISH_TIME,
+    DEFAULT_DAILY_FOUNDATION_TIME
+  ),
+  INNER: parseSingleTime(
+    process.env.RESOURCE_DAILY_INNER_PUBLISH_TIME,
+    DEFAULT_DAILY_INNER_TIME
+  ),
+  CORE: parseSingleTime(process.env.RESOURCE_DAILY_CORE_PUBLISH_TIME, DEFAULT_DAILY_CORE_TIME)
+} as const satisfies Record<ResourceTier, string>;
 
 export const RESOURCE_TIER_ORDER = [
   "FOUNDATION",
@@ -84,21 +112,57 @@ export const RESOURCE_CATEGORIES_BY_TIER: Record<ResourceTier, string[]> = {
     "Business Foundations",
     "Offer Clarity",
     "Basic Marketing",
-    "Direction and Thinking"
+    "Direction and Thinking",
+    "Customer Journey",
+    "Decision Making",
+    "Website and Conversion",
+    "Positioning",
+    "Operations",
+    "Sales",
+    "Messaging",
+    "Trust and Credibility",
+    "Pricing",
+    "Client Experience",
+    "Delivery",
+    "Focus and Prioritisation"
   ],
   INNER: [
     "Offer Positioning",
     "Website and Conversion",
     "Customer Journey",
     "Pricing and Value",
-    "Fixing Problems"
+    "Fixing Problems",
+    "Offer Clarity",
+    "Decision Making",
+    "Positioning",
+    "Operations",
+    "Sales",
+    "Messaging",
+    "Team Clarity",
+    "Trust and Credibility",
+    "Pricing",
+    "Client Experience",
+    "Delivery",
+    "Retention",
+    "Growth Systems",
+    "Focus and Prioritisation"
   ],
   CORE: [
     "Scaling and Structure",
     "Decision Making",
     "Time and Energy",
     "Systems",
-    "Long Term Growth"
+    "Long Term Growth",
+    "Leadership",
+    "Strategic Direction",
+    "Founder Pressure",
+    "Growth Systems",
+    "Positioning",
+    "Operations",
+    "Pricing",
+    "Retention",
+    "Focus and Prioritisation",
+    "Delivery"
   ]
 };
 
@@ -152,6 +216,15 @@ function parseTierTimes(
   }
 
   return [parts[0], parts[1], parts[2]];
+}
+
+function parseSingleTime(value: string | undefined, fallback: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed || !/^\d{2}:\d{2}$/.test(trimmed)) {
+    return fallback;
+  }
+
+  return trimmed;
 }
 
 function buildTierSchedule(times: [string, string, string]): ResourceScheduleSlot[] {

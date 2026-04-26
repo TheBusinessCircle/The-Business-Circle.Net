@@ -1,0 +1,244 @@
+import { ResourceImageStatus } from "@prisma/client";
+import { RESOURCE_IMAGE_MODEL } from "@/config/resources";
+import { db } from "@/lib/db";
+import {
+  isCloudinaryConfigured,
+  uploadImageBufferToCloudinary
+} from "@/lib/media/cloudinary";
+import { slugify } from "@/lib/utils";
+import {
+  generateResourceCoverImageFromProvider,
+  isResourceImageProviderConfigured
+} from "@/server/resources/resource-ai-provider.service";
+import {
+  buildResourceImageDirection,
+  buildResourceImagePrompt
+} from "@/server/resources/resource-image-prompt-builder";
+import { ResourceGenerationError } from "@/server/resources/resource-generation-guards";
+
+const CLOUDINARY_RESOURCE_FOLDER =
+  process.env.CLOUDINARY_RESOURCE_FOLDER?.trim() || "business-circle/resources";
+
+type ResourceForImageGeneration = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  tier: Parameters<typeof buildResourceImagePrompt>[0]["tier"];
+  category: string;
+  type: Parameters<typeof buildResourceImagePrompt>[0]["type"];
+  coverImage: string | null;
+  imageDirection: string | null;
+  imagePrompt: string | null;
+  generationMetadata: unknown;
+};
+
+function metadataRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
+}
+
+async function saveImageFailure(input: {
+  resourceId: string;
+  imagePrompt: string;
+  imageDirection: string;
+  code: string;
+  message: string;
+}) {
+  await db.resource.update({
+    where: { id: input.resourceId },
+    data: {
+      imagePrompt: input.imagePrompt,
+      imageDirection: input.imageDirection,
+      imageStatus: ResourceImageStatus.FAILED,
+      generationMetadata: {
+        imageGeneration: {
+          status: "failed",
+          code: input.code,
+          message: input.message,
+          failedAt: new Date().toISOString()
+        }
+      }
+    }
+  });
+}
+
+export async function ensureResourceImagePrompt(resource: ResourceForImageGeneration) {
+  const imageDirection =
+    resource.imageDirection?.trim() ||
+    buildResourceImageDirection({
+      title: resource.title,
+      excerpt: resource.excerpt,
+      tier: resource.tier,
+      category: resource.category,
+      type: resource.type
+    });
+  const imagePrompt =
+    resource.imagePrompt?.trim() ||
+    buildResourceImagePrompt({
+      title: resource.title,
+      excerpt: resource.excerpt,
+      tier: resource.tier,
+      category: resource.category,
+      type: resource.type,
+      imageDirection
+    });
+
+  if (!resource.imageDirection || !resource.imagePrompt) {
+    await db.resource.update({
+      where: { id: resource.id },
+      data: {
+        imageDirection,
+        imagePrompt,
+        imageStatus: ResourceImageStatus.PROMPT_READY
+      }
+    });
+  }
+
+  return { imageDirection, imagePrompt };
+}
+
+export async function generateCoverImageForResource(resourceId: string) {
+  const resource = await db.resource.findUnique({
+    where: { id: resourceId },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      tier: true,
+      category: true,
+      type: true,
+      coverImage: true,
+      imageDirection: true,
+      imagePrompt: true,
+      generationMetadata: true
+    }
+  });
+
+  if (!resource) {
+    throw new ResourceGenerationError("Resource not found.", "resource-not-found");
+  }
+
+  const { imageDirection, imagePrompt } = await ensureResourceImagePrompt(resource);
+  const existingMetadata = metadataRecord(resource.generationMetadata);
+
+  if (!isResourceImageProviderConfigured()) {
+    await db.resource.update({
+      where: { id: resource.id },
+      data: {
+        imageDirection,
+        imagePrompt,
+        imageStatus: ResourceImageStatus.SKIPPED,
+        generationMetadata: {
+          ...existingMetadata,
+          imageGeneration: {
+            status: "skipped",
+            reason: "Image generation provider not configured",
+            skippedAt: new Date().toISOString()
+          }
+        }
+      }
+    });
+
+    return {
+      status: ResourceImageStatus.SKIPPED,
+      message: "Image generation provider not configured. Prompt saved."
+    };
+  }
+
+  if (!isCloudinaryConfigured()) {
+    await db.resource.update({
+      where: { id: resource.id },
+      data: {
+        imageDirection,
+        imagePrompt,
+        imageStatus: ResourceImageStatus.SKIPPED,
+        generationMetadata: {
+          ...existingMetadata,
+          imageGeneration: {
+            status: "skipped",
+            reason: "Cloudinary is not configured",
+            skippedAt: new Date().toISOString()
+          }
+        }
+      }
+    });
+
+    return {
+      status: ResourceImageStatus.SKIPPED,
+      message: "Cloudinary is not configured. Prompt saved."
+    };
+  }
+
+  await db.resource.update({
+    where: { id: resource.id },
+    data: {
+      imageStatus: ResourceImageStatus.GENERATING,
+      imageDirection,
+      imagePrompt
+    }
+  });
+
+  try {
+    const generated = await generateResourceCoverImageFromProvider(imagePrompt);
+
+    if (!generated.bytes) {
+      throw new ResourceGenerationError(
+        "Image provider returned no binary image data.",
+        "image-generation-empty"
+      );
+    }
+
+    const imageUrl = await uploadImageBufferToCloudinary({
+      bytes: generated.bytes,
+      folder: CLOUDINARY_RESOURCE_FOLDER,
+      publicIdPrefix: `resource-${slugify(resource.slug || resource.title)}`
+    });
+
+    await db.resource.update({
+      where: { id: resource.id },
+      data: {
+        generatedImageUrl: imageUrl,
+        coverImage: resource.coverImage ? undefined : imageUrl,
+        imageStatus: ResourceImageStatus.GENERATED,
+        generationMetadata: {
+          ...existingMetadata,
+          imageGeneration: {
+            status: "generated",
+            provider: "openai",
+            model: RESOURCE_IMAGE_MODEL,
+            generatedAt: new Date().toISOString(),
+            sourceUrl: generated.url ?? null,
+            ...generated.metadata
+          }
+        }
+      }
+    });
+
+    return {
+      status: ResourceImageStatus.GENERATED,
+      imageUrl,
+      message: "Cover image generated."
+    };
+  } catch (error) {
+    await saveImageFailure({
+      resourceId: resource.id,
+      imagePrompt,
+      imageDirection,
+      code:
+        error instanceof ResourceGenerationError
+          ? error.code
+          : "image-generation-failed",
+      message: error instanceof Error ? error.message : "Image generation failed."
+    });
+
+    return {
+      status: ResourceImageStatus.FAILED,
+      message: "Image generation failed, prompt saved."
+    };
+  }
+}
