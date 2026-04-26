@@ -26,6 +26,8 @@ import { findNextAvailableResourceSlot } from "@/server/resources/resource-publi
 import {
   approveAndScheduleDailyResourceBatch,
   approveDailyResourceBatch,
+  backfillResourceImages,
+  formatBackfillSummary,
   approveGeneratedResource,
   generateCoverImageForResource,
   generateDailyResourceBatch,
@@ -58,6 +60,14 @@ const editorSchema = z.object({
 function appendQueryParam(path: string, key: string, value: string): string {
   const url = new URL(path, "http://localhost");
   url.searchParams.set(key, value);
+  return `${url.pathname}${url.search}`;
+}
+
+function appendQueryParams(path: string, params: Record<string, string>): string {
+  const url = new URL(path, "http://localhost");
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
   return `${url.pathname}${url.search}`;
 }
 
@@ -723,6 +733,32 @@ export async function approveAndScheduleDailyResourceBatchAction(formData: FormD
     });
     revalidateResourcePaths();
     redirectWithNotice(returnPath, "batch-scheduled");
+  } catch (error) {
+    redirectWithWorkflowError(returnPath, error);
+  }
+}
+
+export async function backfillMissingResourceImagesAction(formData: FormData) {
+  await requireAdmin();
+  const returnPath = resourceWorkflowReturnPath(formData);
+  const limit = Number.parseInt(String(formData.get("limit") || "10"), 10);
+  const publishedOnly = String(formData.get("publishedOnly") || "") === "true";
+  const forcePromptsOnly = String(formData.get("forcePromptsOnly") || "") === "true";
+
+  try {
+    const result = await backfillResourceImages({
+      limit,
+      publishedOnly,
+      forcePromptsOnly
+    });
+
+    revalidateResourcePaths();
+    redirect(
+      appendQueryParams(returnPath, {
+        notice: "image-backfill-complete",
+        backfillSummary: formatBackfillSummary(result)
+      })
+    );
   } catch (error) {
     redirectWithWorkflowError(returnPath, error);
   }

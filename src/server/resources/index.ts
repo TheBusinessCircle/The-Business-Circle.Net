@@ -10,3 +10,5 @@ export * from "@/server/resources/resource-image-generation.service";
 export * from "@/server/resources/resource-approval.service";
 export * from "@/server/resources/resource-scheduling.service";
 export * from "@/server/resources/daily-resource-generation.service";
+export * from "@/server/resources/resource-workflow-diagnostics.service";
+export * from "@/server/resources/resource-image-backfill.service";

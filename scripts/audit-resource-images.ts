@@ -33,6 +33,22 @@ function imageAttentionScore(resource: {
 async function main() {
   loadLocalEnv();
   const { db } = await import("@/lib/db");
+  const { getResourceWorkflowDiagnostics } = await import(
+    "@/server/resources/resource-workflow-diagnostics.service"
+  );
+  const diagnostics = await getResourceWorkflowDiagnostics();
+
+  if (!diagnostics.migrationReady) {
+    console.log("Resource image audit");
+    console.log("====================");
+    console.log("Database migration is missing, so workflow image fields cannot be audited yet.");
+    console.log(`Missing tables: ${diagnostics.missingTables.join(", ") || "none"}`);
+    console.log(
+      `Missing Resource columns: ${diagnostics.missingResourceColumns.join(", ") || "none"}`
+    );
+    return;
+  }
+
   const [
     total,
     published,

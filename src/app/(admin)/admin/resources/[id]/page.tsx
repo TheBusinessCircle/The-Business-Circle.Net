@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
 import { db } from "@/lib/db";
+import { getResourceWorkflowDiagnostics } from "@/server/resources/resource-workflow-diagnostics.service";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -74,6 +75,7 @@ export default async function AdminResourceDetailsPage({
   await requireAdmin();
   const { id } = await params;
   const parsedSearchParams = await searchParams;
+  const diagnostics = await getResourceWorkflowDiagnostics();
 
   const resource = await db.resource.findUnique({
     where: { id },
@@ -93,6 +95,7 @@ export default async function AdminResourceDetailsPage({
       type: true,
       content: true,
       status: true,
+      generationSource: true,
       scheduledFor: true,
       generationBatchId: true,
       generationDate: true,
@@ -137,6 +140,8 @@ export default async function AdminResourceDetailsPage({
         mode="edit"
         action={updateResourceFromEditorAction}
         imageAction={regenerateResourceImageAction}
+        imageGenerationAvailable={diagnostics.imageGenerationAvailable}
+        cloudinaryConfigured={diagnostics.cloudinaryConfigured}
         returnPath={`/admin/resources/${resource.id}`}
         initialValues={{
           resourceId: resource.id,
@@ -154,6 +159,7 @@ export default async function AdminResourceDetailsPage({
           type: resource.type,
           content: resource.content,
           status: resource.status,
+          generationSource: resource.generationSource,
           scheduledFor: toDateTimeLocalValue(resource.scheduledFor),
           generationBatchId: resource.generationBatchId,
           generationDate: resource.generationDate?.toISOString().slice(0, 10) ?? null,

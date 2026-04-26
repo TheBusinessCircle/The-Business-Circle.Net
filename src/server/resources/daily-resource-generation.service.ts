@@ -35,6 +35,7 @@ import {
   type GeneratedResourceCandidate,
   type RecentResourceForGeneration
 } from "@/server/resources/resource-generation-guards";
+import { getResourceWorkflowDiagnostics } from "@/server/resources/resource-workflow-diagnostics.service";
 
 type GenerateDailyResourceBatchInput = {
   generationDate?: Date;
@@ -72,6 +73,49 @@ async function getRecentResourceHistory(
   excludeResourceId?: string
 ): Promise<RecentResourceForGeneration[]> {
   const since = new Date(generationDate.getTime() - RECENT_HISTORY_DAYS * 24 * 60 * 60 * 1000);
+  const loadLegacyHistory = async () => {
+    const legacyHistory = await db.resource.findMany({
+      where: {
+        id: excludeResourceId ? { not: excludeResourceId } : undefined,
+        OR: [
+          {
+            publishedAt: {
+              gte: since
+            }
+          },
+          {
+            createdAt: {
+              gte: since
+            }
+          }
+        ]
+      },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      take: 80,
+      select: {
+        title: true,
+        slug: true,
+        tier: true,
+        category: true,
+        type: true,
+        excerpt: true,
+        content: true,
+        publishedAt: true,
+        createdAt: true
+      }
+    });
+
+    return legacyHistory.map((item) => ({
+      ...item,
+      generationDate: null
+    }));
+  };
+
+  const diagnostics = await getResourceWorkflowDiagnostics();
+  if (!diagnostics.migrationReady) {
+    console.warn("[resources] generation metadata columns are not migrated yet; using legacy history query for planning only.");
+    return loadLegacyHistory();
+  }
 
   try {
     return await db.resource.findMany({
@@ -116,42 +160,7 @@ async function getRecentResourceHistory(
     }
 
     console.warn("[resources] generation metadata columns are not migrated yet; using legacy history query for planning only.");
-
-    const legacyHistory = await db.resource.findMany({
-      where: {
-        id: excludeResourceId ? { not: excludeResourceId } : undefined,
-        OR: [
-          {
-            publishedAt: {
-              gte: since
-            }
-          },
-          {
-            createdAt: {
-              gte: since
-            }
-          }
-        ]
-      },
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-      take: 80,
-      select: {
-        title: true,
-        slug: true,
-        tier: true,
-        category: true,
-        type: true,
-        excerpt: true,
-        content: true,
-        publishedAt: true,
-        createdAt: true
-      }
-    });
-
-    return legacyHistory.map((item) => ({
-      ...item,
-      generationDate: null
-    }));
+    return loadLegacyHistory();
   }
 }
 

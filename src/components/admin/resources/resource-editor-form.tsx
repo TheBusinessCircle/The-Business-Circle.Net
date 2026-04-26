@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type {
   ResourceApprovalStatus,
+  ResourceGenerationSource,
   ResourceImageStatus,
   ResourceStatus,
   ResourceTier,
@@ -46,6 +47,7 @@ export type ResourceEditorInitialValues = {
   scheduledFor: string;
   generationBatchId?: string | null;
   generationDate?: string | null;
+  generationSource?: ResourceGenerationSource | string | null;
   lockedAt?: string | null;
   generationMetadata?: string | null;
 };
@@ -54,6 +56,8 @@ type ResourceEditorFormProps = {
   mode: "create" | "edit";
   action: (formData: FormData) => void | Promise<void>;
   imageAction?: (formData: FormData) => void | Promise<void>;
+  imageGenerationAvailable?: boolean;
+  cloudinaryConfigured?: boolean;
   returnPath: string;
   initialValues: ResourceEditorInitialValues;
 };
@@ -91,6 +95,8 @@ export function ResourceEditorForm({
   mode,
   action,
   imageAction,
+  imageGenerationAvailable = false,
+  cloudinaryConfigured = false,
   returnPath,
   initialValues
 }: ResourceEditorFormProps) {
@@ -235,119 +241,6 @@ export function ResourceEditorForm({
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="coverImage">Cover Image URL</Label>
-            <Input
-              id="coverImage"
-              name="coverImage"
-              value={coverImage}
-              onChange={(event) => setCoverImage(event.target.value)}
-              placeholder="https://images.example.com/resource-cover.jpg"
-            />
-            <p className="text-xs text-muted">
-              Optional manual override. Use resource imagery for editorial business atmosphere. Avoid text-heavy covers, generic startup photos, and visuals that rely on the title being baked into the image.
-            </p>
-          </div>
-
-          <div className="space-y-3 md:col-span-2">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <ResourceCoverImage
-                resource={{
-                  title: title || "Resource image preview",
-                  category: selectedCategory,
-                  type,
-                  tier,
-                  coverImage,
-                  generatedImageUrl
-                }}
-                className="aspect-[16/9] rounded-2xl border border-silver/14"
-                imageClassName="object-cover"
-              />
-              <div className="grid gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="generatedImageUrl">Generated Image URL</Label>
-                  <Input
-                    id="generatedImageUrl"
-                    name="generatedImageUrl"
-                    value={generatedImageUrl}
-                    onChange={(event) => setGeneratedImageUrl(event.target.value)}
-                    placeholder="Generated Cloudinary image URL"
-                  />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="imageStatus">Image Status</Label>
-                    <Select
-                      id="imageStatus"
-                      name="imageStatus"
-                      value={imageStatus}
-                      onChange={(event) => setImageStatus(event.target.value as ResourceImageStatus)}
-                    >
-                      {IMAGE_STATUS_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {formatOptionLabel(option)}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="approvalStatus">Approval Status</Label>
-                    <Select
-                      id="approvalStatus"
-                      name="approvalStatus"
-                      value={approvalStatus}
-                      onChange={(event) =>
-                        setApprovalStatus(event.target.value as ResourceApprovalStatus)
-                      }
-                    >
-                      {APPROVAL_STATUS_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {formatOptionLabel(option)}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
-                {imageAction && initialValues.resourceId ? (
-                  <Button
-                    type="submit"
-                    formAction={imageAction}
-                    formNoValidate
-                    variant="outline"
-                    name="imageIntent"
-                    value="regenerate_image"
-                  >
-                    Regenerate Image
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="imageDirection">Image Direction</Label>
-            <Textarea
-              id="imageDirection"
-              name="imageDirection"
-              value={imageDirection}
-              onChange={(event) => setImageDirection(event.target.value)}
-              rows={3}
-              placeholder="Premium editorial direction for the cover image."
-            />
-          </div>
-
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="imagePrompt">Image Prompt</Label>
-            <Textarea
-              id="imagePrompt"
-              name="imagePrompt"
-              value={imagePrompt}
-              onChange={(event) => setImagePrompt(event.target.value)}
-              rows={5}
-              placeholder="Dark premium business-owner editorial cover prompt. No text or logos in the image."
-            />
-          </div>
-
-          <div className="space-y-2 md:col-span-2">
             <Label htmlFor="scheduledFor">Schedule</Label>
             <Input
               id="scheduledFor"
@@ -359,6 +252,168 @@ export function ResourceEditorForm({
               Uses {RESOURCE_SCHEDULE_TIMEZONE}. If left blank while scheduling, the next open tier
               slot is assigned automatically.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-silver/18 bg-card/70">
+        <CardHeader>
+          <CardTitle>Resource Image</CardTitle>
+          <CardDescription>
+            Use resource imagery for editorial business atmosphere. Avoid text-heavy covers, generic startup photos, and visuals that rely on the title being baked into the image.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.1fr)]">
+          <div className="space-y-3">
+            <ResourceCoverImage
+              resource={{
+                title: title || "Resource image preview",
+                category: selectedCategory,
+                type,
+                tier,
+                coverImage,
+                generatedImageUrl
+              }}
+              className="aspect-[16/9] rounded-2xl border border-silver/14"
+              imageClassName="object-cover"
+            />
+            <div className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-sm text-muted">
+              <p>Generation source: {formatOptionLabel(initialValues.generationSource ?? "MANUAL")}</p>
+              <p>Approval status: {formatOptionLabel(approvalStatus)}</p>
+              <p>Image status: {formatOptionLabel(imageStatus)}</p>
+              <p>Generated image URL: {generatedImageUrl ? "present" : "not present"}</p>
+              <p>Image prompt: {imagePrompt ? "present" : "missing"}</p>
+              <p>Image direction: {imageDirection ? "present" : "missing"}</p>
+              <p>Generation batch ID: {initialValues.generationBatchId ?? "none"}</p>
+            </div>
+            {generatedImageUrl ? (
+              <div className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-xs text-muted">
+                <p className="font-medium text-foreground">Generated image URL</p>
+                <p className="mt-2 break-all">{generatedImageUrl}</p>
+              </div>
+            ) : null}
+            {initialValues.generationMetadata ? (
+              <div className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-xs text-muted">
+                <p className="font-medium text-foreground">Generation metadata</p>
+                <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words">
+                  {initialValues.generationMetadata}
+                </pre>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4">
+            {!imageGenerationAvailable ? (
+              <div className="rounded-2xl border border-amber-500/35 bg-amber-500/10 p-4 text-sm text-amber-100">
+                {cloudinaryConfigured
+                  ? "Image generation provider is not configured. You can still save direction and prompt fields."
+                  : "Cloudinary or image generation provider is not configured. You can still save direction and prompt fields."}
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="coverImage">Cover Image URL</Label>
+              <Input
+                id="coverImage"
+                name="coverImage"
+                value={coverImage}
+                onChange={(event) => setCoverImage(event.target.value)}
+                placeholder="https://images.example.com/resource-cover.jpg"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="generatedImageUrl">Generated Image URL</Label>
+              <Input
+                id="generatedImageUrl"
+                name="generatedImageUrl"
+                value={generatedImageUrl}
+                onChange={(event) => setGeneratedImageUrl(event.target.value)}
+                placeholder="Generated Cloudinary image URL"
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="imageStatus">Image Status</Label>
+                <Select
+                  id="imageStatus"
+                  name="imageStatus"
+                  value={imageStatus}
+                  onChange={(event) => setImageStatus(event.target.value as ResourceImageStatus)}
+                >
+                  {IMAGE_STATUS_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {formatOptionLabel(option)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="approvalStatus">Approval Status</Label>
+                <Select
+                  id="approvalStatus"
+                  name="approvalStatus"
+                  value={approvalStatus}
+                  onChange={(event) =>
+                    setApprovalStatus(event.target.value as ResourceApprovalStatus)
+                  }
+                >
+                  {APPROVAL_STATUS_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {formatOptionLabel(option)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="imageDirection">Image Direction</Label>
+              <Textarea
+                id="imageDirection"
+                name="imageDirection"
+                value={imageDirection}
+                onChange={(event) => setImageDirection(event.target.value)}
+                rows={3}
+                placeholder="Premium editorial direction for the cover image."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="imagePrompt">Image Prompt</Label>
+              <Textarea
+                id="imagePrompt"
+                name="imagePrompt"
+                value={imagePrompt}
+                onChange={(event) => setImagePrompt(event.target.value)}
+                rows={5}
+                placeholder="Dark premium business-owner editorial cover prompt. No text or logos in the image."
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {imageAction && initialValues.resourceId ? (
+                <Button
+                  type="submit"
+                  formAction={imageAction}
+                  formNoValidate
+                  variant="outline"
+                  name="imageIntent"
+                  value="regenerate_image"
+                  disabled={!imageGenerationAvailable}
+                >
+                  {coverImage || generatedImageUrl ? "Regenerate Cover Image" : "Generate Cover Image"}
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" disabled>
+                  Generate Cover Image After Saving
+                </Button>
+              )}
+              <Button type="submit" name="intent" value="save_draft" variant="outline">
+                Save Image Prompt / Direction
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

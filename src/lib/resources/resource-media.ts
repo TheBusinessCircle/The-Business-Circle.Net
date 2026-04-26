@@ -137,6 +137,15 @@ export function resolveResourceImage(input: ResourceImageInput): ResourceImageRe
     };
   }
 
+  const generatedImage = sanitizeImageUrl(input.generatedImageUrl);
+  if (generatedImage) {
+    return {
+      url: generatedImage,
+      alt: `${input.title} generated editorial image`,
+      isFallback: false
+    };
+  }
+
   if (input.mediaType === ResourceMediaType.IMAGE) {
     const directMediaImage = sanitizeImageUrl(input.mediaUrl);
     if (directMediaImage) {
@@ -146,15 +155,6 @@ export function resolveResourceImage(input: ResourceImageInput): ResourceImageRe
         isFallback: false
       };
     }
-  }
-
-  const generatedImage = sanitizeImageUrl(input.generatedImageUrl);
-  if (generatedImage) {
-    return {
-      url: generatedImage,
-      alt: `${input.title} generated editorial image`,
-      isFallback: false
-    };
   }
 
   return {

@@ -5,6 +5,7 @@ import { createResourceFromEditorAction } from "@/actions/admin/resource-cms.act
 import { ResourceEditorForm } from "@/components/admin/resources/resource-editor-form";
 import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
+import { getResourceWorkflowDiagnostics } from "@/server/resources/resource-workflow-diagnostics.service";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Create Resource",
@@ -44,6 +45,7 @@ Show what needs to change in the way the business is being seen or run.
 
 export default async function AdminNewResourcePage() {
   await requireAdmin();
+  const diagnostics = await getResourceWorkflowDiagnostics();
 
   return (
     <div className="space-y-6">
@@ -61,6 +63,8 @@ export default async function AdminNewResourcePage() {
       <ResourceEditorForm
         mode="create"
         action={createResourceFromEditorAction}
+        imageGenerationAvailable={diagnostics.imageGenerationAvailable}
+        cloudinaryConfigured={diagnostics.cloudinaryConfigured}
         returnPath="/admin/resources/new"
         initialValues={{
           title: "",
@@ -80,6 +84,7 @@ export default async function AdminNewResourcePage() {
           scheduledFor: "",
           generationBatchId: null,
           generationDate: null,
+          generationSource: "MANUAL",
           lockedAt: null,
           generationMetadata: null
         }}
