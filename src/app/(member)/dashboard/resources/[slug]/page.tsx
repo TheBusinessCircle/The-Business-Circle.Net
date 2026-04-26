@@ -170,6 +170,7 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
           </div>
           <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.08em] text-silver">
             <span>{resource.publishedAt ? `Published ${formatDate(resource.publishedAt)}` : "Published"}</span>
+            {resource.estimatedReadMinutes ? <span>{resource.estimatedReadMinutes} min read</span> : null}
             <span>Member-only resource</span>
           </div>
         </CardHeader>

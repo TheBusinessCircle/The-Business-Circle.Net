@@ -26,8 +26,10 @@ type ResourceLibraryCardProps = {
     type: ResourceType;
     tier: ResourceTier;
     coverImage?: string | null;
+    generatedImageUrl?: string | null;
     mediaType?: ResourceMediaType;
     mediaUrl?: string | null;
+    estimatedReadMinutes?: number | null;
     publishedAt: Date | null;
     isRead?: boolean;
   };
@@ -50,15 +52,16 @@ export function ResourceLibraryCard({
           type: resource.type,
           tier: resource.tier,
           coverImage: resource.coverImage,
+          generatedImageUrl: resource.generatedImageUrl,
           mediaType: resource.mediaType,
           mediaUrl: resource.mediaUrl
         }}
-        className="aspect-[16/10] border-b border-silver/12"
+        className="aspect-[16/9] border-b border-silver/12"
         imageClassName="transition-transform duration-500 group-hover:scale-[1.03]"
       />
-      <CardHeader className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="muted">
+      <CardHeader className="space-y-3">
+        <div className="flex min-h-[68px] flex-wrap content-start items-center gap-2">
+          <Badge variant="muted" className="max-w-full normal-case tracking-normal">
             <Tags size={11} className="mr-1" />
             {resource.category}
           </Badge>
@@ -79,17 +82,18 @@ export function ResourceLibraryCard({
         </div>
 
         <div className="space-y-2">
-          <CardTitle className="line-clamp-2 text-2xl">{resource.title}</CardTitle>
-          <CardDescription className="line-clamp-4 text-sm leading-relaxed">
+          <CardTitle className="line-clamp-2 min-h-[3.5rem] text-xl">{resource.title}</CardTitle>
+          <CardDescription className="line-clamp-3 min-h-[4.5rem] text-sm leading-relaxed">
             {resource.excerpt}
           </CardDescription>
         </div>
       </CardHeader>
 
       <CardContent className="pt-0">
-        <p className="text-xs uppercase tracking-[0.08em] text-silver">
-          {resource.publishedAt ? `Published ${formatDate(resource.publishedAt)}` : "Awaiting publication"}
-        </p>
+        <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.08em] text-silver">
+          <span>{resource.publishedAt ? formatDate(resource.publishedAt) : "Awaiting publication"}</span>
+          {resource.estimatedReadMinutes ? <span>{resource.estimatedReadMinutes} min read</span> : null}
+        </div>
       </CardContent>
 
       <CardFooter>

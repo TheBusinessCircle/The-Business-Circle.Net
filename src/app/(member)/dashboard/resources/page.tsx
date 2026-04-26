@@ -267,37 +267,37 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
         <VisualPlacementBackground placement={resourcesHeroPlacement} tone="editorial" />
         <CardHeader className="relative z-[1] space-y-4">
           <Badge variant="outline" className="w-fit border-silver/18 bg-silver/10 text-silver">
-            Member Resources
+            Private Library
           </Badge>
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
             <div className="space-y-3">
               <CardTitle className="font-display text-4xl leading-tight">
-                Clear thinking for the stage you are actually in.
+                Business Resource Library
               </CardTitle>
               <CardDescription className="max-w-3xl text-base">
-                {viewCopy.description}
+                Clear, practical resources for the decisions, conversations, and pressure points business owners actually face.
               </CardDescription>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              <div className="rounded-2xl border border-silver/14 bg-background/30 px-4 py-4">
+              <div className="rounded-2xl border border-silver/14 bg-background/24 px-4 py-4">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{viewCopy.title}</p>
-                <p className="mt-2 text-3xl font-semibold text-foreground">{results.total}</p>
+                <p className="mt-2 text-lg font-semibold text-foreground">{results.total} available</p>
               </div>
-              <div className="rounded-2xl border border-silver/14 bg-background/30 px-4 py-4">
+              <div className="rounded-2xl border border-silver/14 bg-background/24 px-4 py-4">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Your access</p>
                 <p className="mt-2 text-sm text-muted">
                   {getResourceTierLabel(highestVisibleTier)} and below
                 </p>
               </div>
-              <div className="rounded-2xl border border-silver/14 bg-background/30 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">How it works</p>
+              <div className="rounded-2xl border border-silver/14 bg-background/24 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Reading rhythm</p>
                 <p className="mt-2 text-sm text-muted">
                   {view === "read"
-                    ? "Revisit what you have already finished without losing access."
+                    ? "Revisit finished resources when a decision brings them back into focus."
                     : view === "all"
-                      ? "Search, filter, and review the full library inside your current tier."
-                      : "Mark finished resources as read to keep this default view focused on what is still left to explore."}
+                      ? "Browse the full library inside your access level."
+                      : "Unread simply means available for later, not overdue."}
                 </p>
               </div>
             </div>
@@ -324,47 +324,56 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
         <Card className={recommendedCardClassName}>
           <CardHeader>
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Recommended for you</p>
-            <CardTitle>Worth your time now</CardTitle>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Featured resource</p>
+            <CardTitle>Recommended inside your access</CardTitle>
             <CardDescription>
-              A lighter route back into the resource hub without needing to search first.
+              One useful read to start with, without turning the library into a task list.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {recommendedNextRead ? (
               <Link
                 href={`/dashboard/resources/${recommendedNextRead.slug}`}
-                className="block rounded-2xl border border-silver/14 bg-background/22 px-4 py-4 transition-colors hover:border-silver/28 hover:bg-background/32"
+                className="grid gap-4 rounded-2xl border border-silver/14 bg-background/22 p-4 transition-colors hover:border-silver/28 hover:bg-background/32 lg:grid-cols-[minmax(240px,0.9fr)_minmax(0,1.1fr)]"
               >
                 <ResourceCoverImage
                   resource={recommendedNextRead}
-                  className="mb-4 aspect-[16/9] rounded-[1.6rem] border border-silver/10"
+                  className="aspect-[16/10] rounded-[1.15rem] border border-silver/10"
                   imageClassName="transition-transform duration-500 hover:scale-[1.02]"
                   overlayClassName="bg-[linear-gradient(180deg,rgba(3,8,20,0.03),rgba(3,8,20,0.12)_48%,rgba(3,8,20,0.34)_100%)]"
                 />
-                <div className="flex flex-wrap items-center gap-2">
-                  <ResourceTierBadge tier={recommendedNextRead.tier} />
-                  <Badge variant="outline" className="border-silver/14 normal-case tracking-normal text-silver">
-                    {recommendedNextRead.category}
-                  </Badge>
-                  <Badge variant="outline" className="border-silver/14 normal-case tracking-normal text-silver">
-                    {getResourceTypeLabel(recommendedNextRead.type)}
-                  </Badge>
-                </div>
-                <p className="mt-4 text-2xl font-semibold text-foreground">{recommendedNextRead.title}</p>
-                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">
-                  {recommendedNextRead.excerpt}
-                </p>
-                <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted">
-                  <span className={recommendedAccentClassName}>
-                    {recommendedNextRead.publishedAt
-                      ? `Published ${formatDate(recommendedNextRead.publishedAt)}`
-                      : "Recently added"}
-                  </span>
-                  <span>Member-only resource</span>
+                <div className="flex min-w-0 flex-col justify-between gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ResourceTierBadge tier={recommendedNextRead.tier} />
+                      <Badge variant="outline" className="border-silver/14 normal-case tracking-normal text-silver">
+                        {recommendedNextRead.category}
+                      </Badge>
+                      <Badge variant="outline" className="border-silver/14 normal-case tracking-normal text-silver">
+                        {getResourceTypeLabel(recommendedNextRead.type)}
+                      </Badge>
+                    </div>
+                    <p className="mt-4 line-clamp-2 text-2xl font-semibold text-foreground">
+                      {recommendedNextRead.title}
+                    </p>
+                    <p className="mt-3 line-clamp-3 max-w-3xl text-sm leading-relaxed text-muted">
+                      {recommendedNextRead.excerpt}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+                    <span className={recommendedAccentClassName}>
+                      {recommendedNextRead.publishedAt
+                        ? `Published ${formatDate(recommendedNextRead.publishedAt)}`
+                        : "Recently added"}
+                    </span>
+                    {recommendedNextRead.estimatedReadMinutes ? (
+                      <span>{recommendedNextRead.estimatedReadMinutes} min read</span>
+                    ) : null}
+                    <span>Read resource</span>
+                  </div>
                 </div>
               </Link>
             ) : (
@@ -458,31 +467,12 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
 
       <Card className="border-silver/16 bg-card/62">
         <CardHeader>
-          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-            {personalisation.nextStep.eyebrow}
-          </p>
-          <CardTitle>{personalisation.nextStep.title}</CardTitle>
-          <CardDescription>{personalisation.nextStep.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Link
-            href={personalisation.nextStep.href}
-            className="inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
-          >
-            {personalisation.nextStep.label}
-            <Sparkles size={14} />
-          </Link>
-        </CardContent>
-      </Card>
-
-      <Card className="border-silver/16 bg-card/62">
-        <CardHeader>
           <CardTitle className="inline-flex items-center gap-2">
             <Filter size={16} className="text-silver" />
-            Filters
+            Browse Library
           </CardTitle>
           <CardDescription>
-            Narrow the library by tier, category, or type without leaving the dashboard.
+            Search and filter by access level, category, type, and read status.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
