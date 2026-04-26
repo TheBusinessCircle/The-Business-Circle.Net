@@ -2,7 +2,9 @@ import { z } from "zod";
 import {
   RESOURCE_CONTENT_MODEL,
   RESOURCE_GENERATION_PROVIDER,
-  RESOURCE_IMAGE_MODEL
+  RESOURCE_IMAGE_MODEL,
+  RESOURCE_IMAGE_QUALITY,
+  RESOURCE_IMAGE_SIZE
 } from "@/config/resources";
 import { ResourceGenerationError } from "@/server/resources/resource-generation-guards";
 
@@ -182,11 +184,6 @@ export async function generateResourceCoverImageFromProvider(
     );
   }
 
-  const imageSize =
-    process.env.RESOURCE_IMAGE_SIZE?.trim() ||
-    (RESOURCE_IMAGE_MODEL.includes("dall-e-3") ? "1792x1024" : "1536x1024");
-  const imageQuality = process.env.RESOURCE_IMAGE_QUALITY?.trim();
-
   const response = await fetch(OPENAI_IMAGES_URL, {
     method: "POST",
     headers: {
@@ -197,8 +194,8 @@ export async function generateResourceCoverImageFromProvider(
       model: RESOURCE_IMAGE_MODEL,
       prompt,
       n: 1,
-      size: imageSize,
-      ...(imageQuality ? { quality: imageQuality } : {})
+      size: RESOURCE_IMAGE_SIZE,
+      ...(RESOURCE_IMAGE_QUALITY ? { quality: RESOURCE_IMAGE_QUALITY } : {})
     })
   });
 
@@ -229,7 +226,8 @@ export async function generateResourceCoverImageFromProvider(
       mimeType: "image/png",
       metadata: {
         model: RESOURCE_IMAGE_MODEL,
-        imageSize,
+        imageSize: RESOURCE_IMAGE_SIZE,
+        imageQuality: RESOURCE_IMAGE_QUALITY,
         revisedPrompt: item.revised_prompt ?? null
       }
     };
@@ -243,7 +241,8 @@ export async function generateResourceCoverImageFromProvider(
     mimeType: "image/png",
     metadata: {
       model: RESOURCE_IMAGE_MODEL,
-      imageSize,
+      imageSize: RESOURCE_IMAGE_SIZE,
+      imageQuality: RESOURCE_IMAGE_QUALITY,
       revisedPrompt: item.revised_prompt ?? null
     }
   };

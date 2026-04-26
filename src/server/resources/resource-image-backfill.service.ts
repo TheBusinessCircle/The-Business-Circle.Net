@@ -9,9 +9,7 @@ import {
   buildResourceImagePrompt
 } from "@/server/resources/resource-image-prompt-builder";
 import { generateCoverImageForResource } from "@/server/resources/resource-image-generation.service";
-import {
-  isResourceImageProviderConfigured
-} from "@/server/resources/resource-ai-provider.service";
+import { isResourceImageProviderConfigured } from "@/server/resources/resource-ai-provider.service";
 import { isCloudinaryConfigured } from "@/lib/media/cloudinary";
 
 export type BackfillResourceImagesOptions = {
@@ -30,6 +28,7 @@ export type BackfillResourceImagesResult = {
   skippedManualImages: number;
   skippedExistingImages: number;
   skippedProviderUnavailable: number;
+  skippedCloudinaryUnavailable: number;
   dryRun: boolean;
   limit: number;
   publishedOnly: boolean;
@@ -69,7 +68,8 @@ export async function backfillResourceImages(
   options: BackfillResourceImagesOptions = {}
 ): Promise<BackfillResourceImagesResult> {
   const limit = normalizeLimit(options.limit);
-  const providerAvailable = isResourceImageProviderConfigured() && isCloudinaryConfigured();
+  const providerConfigured = isResourceImageProviderConfigured();
+  const cloudinaryConfigured = isCloudinaryConfigured();
   const baseWhere = {
     ...(options.publishedOnly ? { status: ResourceStatus.PUBLISHED } : {})
   };
@@ -150,6 +150,7 @@ export async function backfillResourceImages(
     skippedManualImages,
     skippedExistingImages,
     skippedProviderUnavailable: 0,
+    skippedCloudinaryUnavailable: 0,
     dryRun: Boolean(options.dryRun),
     limit,
     publishedOnly: Boolean(options.publishedOnly),
@@ -201,8 +202,13 @@ export async function backfillResourceImages(
       continue;
     }
 
-    if (!providerAvailable) {
+    if (!providerConfigured) {
       result.skippedProviderUnavailable += 1;
+      continue;
+    }
+
+    if (!cloudinaryConfigured) {
+      result.skippedCloudinaryUnavailable += 1;
       continue;
     }
 
@@ -232,6 +238,7 @@ export function formatBackfillSummary(result: BackfillResourceImagesResult) {
     `failed ${result.failed}`,
     `manual skipped ${result.skippedManualImages}`,
     `existing skipped ${result.skippedExistingImages}`,
-    `provider skipped ${result.skippedProviderUnavailable}`
+    `provider skipped ${result.skippedProviderUnavailable}`,
+    `cloudinary skipped ${result.skippedCloudinaryUnavailable}`
   ].join(", ");
 }

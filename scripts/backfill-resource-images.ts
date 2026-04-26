@@ -94,6 +94,7 @@ async function main() {
   console.log(`Skipped manual images: ${result.skippedManualImages}`);
   console.log(`Skipped existing images: ${result.skippedExistingImages}`);
   console.log(`Skipped provider unavailable: ${result.skippedProviderUnavailable}`);
+  console.log(`Skipped Cloudinary unavailable: ${result.skippedCloudinaryUnavailable}`);
 }
 
 main()

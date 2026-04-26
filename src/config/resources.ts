@@ -67,12 +67,16 @@ export const RESOURCE_GENERATION_PROVIDER =
 export const RESOURCE_CONTENT_MODEL =
   process.env.RESOURCE_CONTENT_MODEL?.trim() ||
   process.env.OPENAI_RESOURCE_CONTENT_MODEL?.trim() ||
-  "gpt-4.1";
+  "gpt-5.4-mini";
 
 export const RESOURCE_IMAGE_MODEL =
   process.env.RESOURCE_IMAGE_MODEL?.trim() ||
   process.env.OPENAI_RESOURCE_IMAGE_MODEL?.trim() ||
-  "gpt-image-1";
+  "gpt-image-2";
+
+export const RESOURCE_IMAGE_SIZE = process.env.RESOURCE_IMAGE_SIZE?.trim() || "1024x1024";
+
+export const RESOURCE_IMAGE_QUALITY = process.env.RESOURCE_IMAGE_QUALITY?.trim() || "medium";
 
 export const RESOURCE_DAILY_PUBLISH_TIMES = {
   FOUNDATION: parseSingleTime(
