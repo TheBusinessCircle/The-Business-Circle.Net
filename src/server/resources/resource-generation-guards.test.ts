@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import { resolveResourceImage } from "@/lib/resources/resource-media";
+import { buildResourceContentPrompt } from "@/server/resources/resource-content-prompt-builder";
 import {
   ResourceGenerationError,
   buildDailyResourcePlan,
@@ -71,6 +72,31 @@ describe("daily resource generation guards", () => {
     ]);
     expect(new Set(plan.items.map((item) => item.category)).size).toBe(3);
     expect(new Set(plan.items.map((item) => item.type)).size).toBe(3);
+    expect(new Set(plan.items.map((item) => item.angle)).size).toBe(3);
+  });
+
+  it("tells generated resources to account for higher-tier access to lower-tier resources", () => {
+    const plan = buildDailyResourcePlan([], REFERENCE_DATE);
+    const coreItem = plan.items.find((item) => item.tier === ResourceTier.CORE);
+
+    expect(coreItem).toBeDefined();
+
+    const prompt = buildResourceContentPrompt({
+      planItem: coreItem!,
+      generationDateKey: plan.dateKey,
+      sameDayExclusions: plan.items
+        .filter((item) => item.tier !== coreItem!.tier)
+        .map((item) => ({
+          tier: item.tier,
+          category: item.category,
+          type: item.type,
+          angle: item.angle
+        })),
+      recentHistory: []
+    });
+
+    expect(prompt).toContain("Higher-tier members can read lower-tier resources");
+    expect(prompt).toContain("Core members can also read Inner Circle");
   });
 
   it("rejects same-day duplicate categories and types", () => {

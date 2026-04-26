@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  ResourceApprovalStatus,
+  ResourceGenerationSource,
+  ResourceImageStatus,
+  ResourceStatus
+} from "@prisma/client";
 import { ArrowLeft } from "lucide-react";
 import {
   regenerateResourceImageAction,
@@ -24,6 +30,8 @@ export const metadata: Metadata = createPageMetadata({
   description: "Edit resource metadata, content, and scheduling.",
   path: "/admin/resources"
 });
+
+export const dynamic = "force-dynamic";
 
 function firstValue(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
@@ -77,32 +85,72 @@ export default async function AdminResourceDetailsPage({
   const parsedSearchParams = await searchParams;
   const diagnostics = await getResourceWorkflowDiagnostics();
 
-  const resource = await db.resource.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      excerpt: true,
-      coverImage: true,
-      generatedImageUrl: true,
-      imageDirection: true,
-      imagePrompt: true,
-      imageStatus: true,
-      approvalStatus: true,
-      tier: true,
-      category: true,
-      type: true,
-      content: true,
-      status: true,
-      generationSource: true,
-      scheduledFor: true,
-      generationBatchId: true,
-      generationDate: true,
-      lockedAt: true,
-      generationMetadata: true
-    }
-  });
+  const resource = diagnostics.migrationReady
+    ? await db.resource.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          coverImage: true,
+          generatedImageUrl: true,
+          imageDirection: true,
+          imagePrompt: true,
+          imageStatus: true,
+          approvalStatus: true,
+          tier: true,
+          category: true,
+          type: true,
+          content: true,
+          status: true,
+          generationSource: true,
+          scheduledFor: true,
+          generationBatchId: true,
+          generationDate: true,
+          lockedAt: true,
+          generationMetadata: true
+        }
+      })
+    : await db.resource
+        .findUnique({
+          where: { id },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            excerpt: true,
+            coverImage: true,
+            tier: true,
+            category: true,
+            type: true,
+            content: true,
+            status: true,
+            scheduledFor: true
+          }
+        })
+        .then((legacyResource) =>
+          legacyResource
+            ? {
+                ...legacyResource,
+                generatedImageUrl: null,
+                imageDirection: null,
+                imagePrompt: null,
+                imageStatus: ResourceImageStatus.MANUAL,
+                approvalStatus:
+                  legacyResource.status === ResourceStatus.PUBLISHED
+                    ? ResourceApprovalStatus.PUBLISHED
+                    : legacyResource.status === ResourceStatus.SCHEDULED
+                      ? ResourceApprovalStatus.SCHEDULED
+                      : ResourceApprovalStatus.MANUAL,
+                generationSource: ResourceGenerationSource.MANUAL,
+                generationBatchId: null,
+                generationDate: null,
+                lockedAt: null,
+                generationMetadata: null
+              }
+            : null
+        );
 
   if (!resource) {
     notFound();

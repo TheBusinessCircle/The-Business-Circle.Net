@@ -742,14 +742,18 @@ export async function backfillMissingResourceImagesAction(formData: FormData) {
   await requireAdmin();
   const returnPath = resourceWorkflowReturnPath(formData);
   const limit = Number.parseInt(String(formData.get("limit") || "10"), 10);
+  const intent = String(formData.get("backfillIntent") || "").trim();
   const publishedOnly = String(formData.get("publishedOnly") || "") === "true";
-  const forcePromptsOnly = String(formData.get("forcePromptsOnly") || "") === "true";
+  const dryRun = String(formData.get("dryRun") || "") === "true" || intent === "dry_run";
+  const forcePromptsOnly =
+    String(formData.get("forcePromptsOnly") || "") === "true" || intent === "prompts_only";
 
   try {
     const result = await backfillResourceImages({
       limit,
       publishedOnly,
-      forcePromptsOnly
+      forcePromptsOnly,
+      dryRun
     });
 
     revalidateResourcePaths();

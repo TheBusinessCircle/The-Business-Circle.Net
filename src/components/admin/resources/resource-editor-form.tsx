@@ -258,13 +258,16 @@ export function ResourceEditorForm({
 
       <Card className="border-silver/18 bg-card/70">
         <CardHeader>
-          <CardTitle>Resource Image</CardTitle>
+          <CardTitle>Resource Image panel</CardTitle>
           <CardDescription>
             Use resource imagery for editorial business atmosphere. Avoid text-heavy covers, generic startup photos, and visuals that rely on the title being baked into the image.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.1fr)]">
           <div className="space-y-3">
+            <p className="text-sm font-medium text-foreground">
+              Current preview or fallback preview
+            </p>
             <ResourceCoverImage
               resource={{
                 title: title || "Resource image preview",
@@ -285,6 +288,7 @@ export function ResourceEditorForm({
               <p>Image prompt: {imagePrompt ? "present" : "missing"}</p>
               <p>Image direction: {imageDirection ? "present" : "missing"}</p>
               <p>Generation batch ID: {initialValues.generationBatchId ?? "none"}</p>
+              <p>Generation metadata: {initialValues.generationMetadata ? "present" : "none"}</p>
             </div>
             {generatedImageUrl ? (
               <div className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-xs text-muted">
@@ -305,6 +309,7 @@ export function ResourceEditorForm({
           <div className="grid gap-4">
             {!imageGenerationAvailable ? (
               <div className="rounded-2xl border border-amber-500/35 bg-amber-500/10 p-4 text-sm text-amber-100">
+                Provider warning:{" "}
                 {cloudinaryConfigured
                   ? "Image generation provider is not configured. You can still save direction and prompt fields."
                   : "Cloudinary or image generation provider is not configured. You can still save direction and prompt fields."}
@@ -394,17 +399,30 @@ export function ResourceEditorForm({
 
             <div className="flex flex-wrap gap-2">
               {imageAction && initialValues.resourceId ? (
-                <Button
-                  type="submit"
-                  formAction={imageAction}
-                  formNoValidate
-                  variant="outline"
-                  name="imageIntent"
-                  value="regenerate_image"
-                  disabled={!imageGenerationAvailable}
-                >
-                  {coverImage || generatedImageUrl ? "Regenerate Cover Image" : "Generate Cover Image"}
-                </Button>
+                <>
+                  <Button
+                    type="submit"
+                    formAction={imageAction}
+                    formNoValidate
+                    variant="outline"
+                    name="imageIntent"
+                    value="generate_image"
+                    disabled={!imageGenerationAvailable}
+                  >
+                    Generate Cover Image
+                  </Button>
+                  <Button
+                    type="submit"
+                    formAction={imageAction}
+                    formNoValidate
+                    variant="outline"
+                    name="imageIntent"
+                    value="regenerate_image"
+                    disabled={!imageGenerationAvailable}
+                  >
+                    Regenerate Cover Image
+                  </Button>
+                </>
               ) : (
                 <Button type="button" variant="outline" disabled>
                   Generate Cover Image After Saving

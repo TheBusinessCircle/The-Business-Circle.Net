@@ -32,6 +32,8 @@ export type BackfillResourceImagesResult = {
   skippedProviderUnavailable: number;
   dryRun: boolean;
   limit: number;
+  publishedOnly: boolean;
+  promptsOnly: boolean;
 };
 
 function normalizeLimit(value: number | undefined) {
@@ -149,7 +151,9 @@ export async function backfillResourceImages(
     skippedExistingImages,
     skippedProviderUnavailable: 0,
     dryRun: Boolean(options.dryRun),
-    limit
+    limit,
+    publishedOnly: Boolean(options.publishedOnly),
+    promptsOnly: Boolean(options.forcePromptsOnly)
   };
 
   for (const resource of resources) {
@@ -218,12 +222,16 @@ export async function backfillResourceImages(
 
 export function formatBackfillSummary(result: BackfillResourceImagesResult) {
   return [
+    `dry run ${result.dryRun ? "yes" : "no"}`,
+    `scope ${result.publishedOnly ? "published only" : "all resources"}`,
+    `limit ${result.limit}`,
     `checked ${result.totalChecked}`,
     `missing ${result.missingImages}`,
     `prompts ${result.promptsCreated}`,
     `generated ${result.imagesGenerated}`,
     `failed ${result.failed}`,
     `manual skipped ${result.skippedManualImages}`,
+    `existing skipped ${result.skippedExistingImages}`,
     `provider skipped ${result.skippedProviderUnavailable}`
   ].join(", ");
 }

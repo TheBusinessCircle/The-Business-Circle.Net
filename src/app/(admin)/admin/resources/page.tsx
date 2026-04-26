@@ -48,13 +48,23 @@ import { requireAdmin } from "@/lib/session";
 import { formatDate, toTitleCase } from "@/lib/utils";
 import { getDailyResourceBatchForDate } from "@/server/resources/daily-resource-generation.service";
 import { maybePublishDueResources } from "@/server/resources/resource-publishing.service";
-import { getResourceWorkflowDiagnostics } from "@/server/resources/resource-workflow-diagnostics.service";
+import {
+  getResourceWorkflowDiagnostics,
+  type ResourceWorkflowDiagnostics
+} from "@/server/resources/resource-workflow-diagnostics.service";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const PAGE_SIZE = 20;
+const ADMIN_RESOURCE_WORKFLOW_MARKER = "Resource Workflow UI v2 active";
+const DAILY_GENERATE_BUTTON_LABEL = "Generate Today's 3 Resources";
+const TODAYS_BATCH_STATUS_LABEL = "Today's batch status";
+
+type TodayBatchResource = NonNullable<
+  Awaited<ReturnType<typeof getDailyResourceBatchForDate>>
+>["resources"][number];
 
 type AdminResourceRow = {
   id: string;
@@ -218,6 +228,23 @@ function WorkflowBadge({ value }: { value: string }) {
   );
 }
 
+function DiagnosticStatus({
+  label,
+  ready
+}: {
+  label: string;
+  ready: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-silver/14 bg-background/20 px-4 py-3">
+      <span className="text-sm text-muted">{label}</span>
+      <Badge variant={ready ? "success" : "danger"} className="normal-case tracking-normal">
+        {ready ? "Yes" : "No"}
+      </Badge>
+    </div>
+  );
+}
+
 function imageStateLabel(resource: {
   coverImage: string | null;
   generatedImageUrl: string | null;
@@ -308,6 +335,203 @@ function QuickActionForm({
       <input type="hidden" name="returnPath" value={returnPath} />
       {children}
     </form>
+  );
+}
+
+function DailyTierWorkflowCard({
+  tier,
+  resource,
+  currentPath,
+  diagnostics
+}: {
+  tier: ResourceTier;
+  resource?: TodayBatchResource;
+  currentPath: string;
+  diagnostics: ResourceWorkflowDiagnostics;
+}) {
+  const tierLabel = getResourceTierLabel(tier);
+  const previewResource = resource ?? {
+    title: `${tierLabel} daily resource slot`,
+    category: "Daily resource",
+    type: ResourceType.CLARITY,
+    tier,
+    coverImage: null,
+    generatedImageUrl: null,
+    mediaType: ResourceMediaType.NONE,
+    mediaUrl: null
+  };
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-silver/14 bg-background/22">
+      <ResourceCoverImage
+        resource={previewResource}
+        className="aspect-[16/9] border-b border-silver/12"
+        imageClassName="object-cover"
+      />
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <ResourceTierBadge tier={tier} />
+          <Badge variant="outline" className="normal-case tracking-normal text-muted">
+            {tierLabel} daily card
+          </Badge>
+          {resource ? (
+            <>
+              <WorkflowBadge value={resource.approvalStatus} />
+              <ImageStateBadge resource={resource} />
+              {resource.lockedAt ? (
+                <Badge variant="warning" className="normal-case tracking-normal">
+                  <Lock size={11} className="mr-1" />
+                  Locked
+                </Badge>
+              ) : null}
+            </>
+          ) : (
+            <Badge variant="warning" className="normal-case tracking-normal">
+              Empty slot
+            </Badge>
+          )}
+        </div>
+        <div>
+          <p className="line-clamp-2 text-base font-semibold text-foreground">
+            {resource?.title ?? `${tierLabel} daily resource not generated yet`}
+          </p>
+          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">
+            {resource?.excerpt ??
+              "This card stays visible so the daily workflow is obvious even before a batch exists."}
+          </p>
+        </div>
+        <div className="grid gap-2 text-xs text-muted">
+          <p>
+            {resource
+              ? `${resource.category} | ${getResourceTypeLabel(resource.type)}`
+              : `${tierLabel} | awaiting generation`}
+          </p>
+          <p>
+            {resource?.scheduledFor
+              ? `Scheduled ${formatDate(resource.scheduledFor)}`
+              : resource?.publishedAt
+                ? `Published ${formatDate(resource.publishedAt)}`
+                : "Not scheduled"}
+          </p>
+        </div>
+        <div className="mt-auto flex flex-wrap gap-2">
+          {resource ? (
+            <Link href={`/admin/resources/${resource.id}`}>
+              <Button variant="outline" size="sm">
+                Preview/Edit
+              </Button>
+            </Link>
+          ) : (
+            <Button variant="outline" size="sm" disabled>
+              Preview/Edit
+            </Button>
+          )}
+          {resource ? (
+            <QuickActionForm
+              action={approveGeneratedResourceAction}
+              returnPath={currentPath}
+              resourceId={resource.id}
+            >
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={!diagnostics.migrationReady}
+              >
+                Approve
+              </Button>
+            </QuickActionForm>
+          ) : (
+            <Button type="button" variant="outline" size="sm" disabled>
+              Approve
+            </Button>
+          )}
+          {resource ? (
+            <QuickActionForm
+              action={rejectGeneratedResourceAction}
+              returnPath={currentPath}
+              resourceId={resource.id}
+            >
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={!diagnostics.migrationReady}
+              >
+                <XCircle size={13} className="mr-1" />
+                Reject
+              </Button>
+            </QuickActionForm>
+          ) : (
+            <Button type="button" variant="outline" size="sm" disabled>
+              <XCircle size={13} className="mr-1" />
+              Reject
+            </Button>
+          )}
+          {resource ? (
+            <QuickActionForm
+              action={regenerateGeneratedResourceArticleAction}
+              returnPath={currentPath}
+              resourceId={resource.id}
+            >
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={!diagnostics.contentProviderConfigured}
+              >
+                <RefreshCw size={13} className="mr-1" />
+                Article
+              </Button>
+            </QuickActionForm>
+          ) : (
+            <Button type="button" variant="outline" size="sm" disabled>
+              <RefreshCw size={13} className="mr-1" />
+              Article
+            </Button>
+          )}
+          {resource ? (
+            <QuickActionForm
+              action={regenerateResourceImageAction}
+              returnPath={currentPath}
+              resourceId={resource.id}
+            >
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={!diagnostics.imageGenerationAvailable}
+              >
+                <ImageIcon size={13} className="mr-1" />
+                Image
+              </Button>
+            </QuickActionForm>
+          ) : (
+            <Button type="button" variant="outline" size="sm" disabled>
+              <ImageIcon size={13} className="mr-1" />
+              Image
+            </Button>
+          )}
+          {resource ? (
+            <QuickActionForm
+              action={toggleGeneratedResourceLockAction}
+              returnPath={currentPath}
+              resourceId={resource.id}
+            >
+              <Button type="submit" variant="outline" size="sm">
+                <Lock size={13} className="mr-1" />
+                {resource.lockedAt ? "Unlock" : "Lock"}
+              </Button>
+            </QuickActionForm>
+          ) : (
+            <Button type="button" variant="outline" size="sm" disabled>
+              <Lock size={13} className="mr-1" />
+              Lock
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -490,14 +714,23 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
     type,
     page: safePage
   });
+  const backfillSummary = firstValue(params.backfillSummary);
   const feedback = feedbackMessage({
     notice: firstValue(params.notice),
     error: firstValue(params.error),
-    backfillSummary: firstValue(params.backfillSummary)
+    backfillSummary
   });
 
   return (
     <div className="space-y-6">
+      <Card className="border-emerald-500/35 bg-emerald-500/10">
+        <CardContent className="py-3">
+          <p className="text-sm font-medium text-emerald-100">
+            {ADMIN_RESOURCE_WORKFLOW_MARKER}
+          </p>
+        </CardContent>
+      </Card>
+
       <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/80 to-card/65">
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -529,7 +762,7 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
                   disabled={!diagnostics.dailyGenerationAvailable}
                 >
                   <Sparkles size={14} className="mr-1" />
-                  Generate Today&apos;s 3
+                  {DAILY_GENERATE_BUTTON_LABEL}
                 </Button>
               </form>
               <Link href="/admin/resources/new">
@@ -558,6 +791,46 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
       ) : null}
+
+      <Card className="border-silver/16 bg-card/62">
+        <CardHeader>
+          <CardTitle className="text-xl">Resource workflow diagnostics</CardTitle>
+          <CardDescription>
+            Server-side/admin diagnostics for the visible Resource CMS workflow.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <DiagnosticStatus label="migration check status" ready={diagnostics.migrationReady} />
+            <DiagnosticStatus
+              label="OpenAI/provider configured"
+              ready={diagnostics.contentProviderConfigured}
+            />
+            <DiagnosticStatus label="Cloudinary configured" ready={diagnostics.cloudinaryConfigured} />
+            <DiagnosticStatus
+              label="daily generation service available"
+              ready={diagnostics.dailyGenerationAvailable}
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <DiagnosticStatus
+              label="image provider configured"
+              ready={diagnostics.imageProviderConfigured}
+            />
+            <DiagnosticStatus
+              label="image generation service available"
+              ready={diagnostics.imageGenerationAvailable}
+            />
+          </div>
+          <div className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-xs text-muted">
+            <p>Missing tables: {diagnostics.missingTables.join(", ") || "none"}</p>
+            <p>
+              Missing resource columns:{" "}
+              {diagnostics.missingResourceColumns.join(", ") || "none"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {diagnostics.migrationReady &&
       diagnostics.contentProviderConfigured &&
@@ -617,178 +890,71 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {todayBatch ? (
-                <>
-                  <QuickActionForm
-                    action={approveDailyResourceBatchAction}
-                    returnPath={currentPath}
-                    batchId={todayBatch.id}
-                  >
-                    <Button type="submit" variant="outline" disabled={!diagnostics.migrationReady}>
-                      <CheckCircle2 size={14} className="mr-1" />
-                      Approve All
-                    </Button>
-                  </QuickActionForm>
-                  <QuickActionForm
-                    action={approveAndScheduleDailyResourceBatchAction}
-                    returnPath={currentPath}
-                    batchId={todayBatch.id}
-                  >
-                    <Button type="submit" disabled={!diagnostics.migrationReady}>
-                      <Clock size={14} className="mr-1" />
-                      Approve & Schedule All
-                    </Button>
-                  </QuickActionForm>
-                </>
-              ) : (
-                <form action={generateDailyResourceBatchAction}>
-                  <input type="hidden" name="returnPath" value={currentPath} />
-                  <Button type="submit" disabled={!diagnostics.dailyGenerationAvailable}>
-                    <Sparkles size={14} className="mr-1" />
-                    Generate Today&apos;s 3 Resources
-                  </Button>
-                </form>
-              )}
+              <form action={generateDailyResourceBatchAction}>
+                <input type="hidden" name="returnPath" value={currentPath} />
+                <Button type="submit" disabled={!diagnostics.dailyGenerationAvailable}>
+                  <Sparkles size={14} className="mr-1" />
+                  {DAILY_GENERATE_BUTTON_LABEL}
+                </Button>
+              </form>
+              <QuickActionForm
+                action={approveDailyResourceBatchAction}
+                returnPath={currentPath}
+                batchId={todayBatch?.id}
+              >
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={!todayBatch || !diagnostics.migrationReady}
+                >
+                  <CheckCircle2 size={14} className="mr-1" />
+                  Approve All
+                </Button>
+              </QuickActionForm>
+              <QuickActionForm
+                action={approveAndScheduleDailyResourceBatchAction}
+                returnPath={currentPath}
+                batchId={todayBatch?.id}
+              >
+                <Button
+                  type="submit"
+                  disabled={!todayBatch || !diagnostics.migrationReady}
+                >
+                  <Clock size={14} className="mr-1" />
+                  Approve & Schedule All
+                </Button>
+              </QuickActionForm>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {todayBatch ? (
-            <div className="grid gap-4 xl:grid-cols-3">
-              {todayBatch.resources.map((resource) => (
-                <div
-                  key={resource.id}
-                  className="flex h-full flex-col overflow-hidden rounded-2xl border border-silver/14 bg-background/22"
-                >
-                  <ResourceCoverImage
-                    resource={resource}
-                    className="aspect-[16/9] border-b border-silver/12"
-                    imageClassName="object-cover"
-                  />
-                  <div className="flex flex-1 flex-col gap-4 p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <ResourceTierBadge tier={resource.tier} />
-                      <WorkflowBadge value={resource.approvalStatus} />
-                      <ImageStateBadge resource={resource} />
-                      {resource.lockedAt ? (
-                        <Badge variant="warning" className="normal-case tracking-normal">
-                          <Lock size={11} className="mr-1" />
-                          Locked
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <div>
-                      <p className="line-clamp-2 text-base font-semibold text-foreground">
-                        {resource.title}
-                      </p>
-                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">
-                        {resource.excerpt}
-                      </p>
-                    </div>
-                    <div className="grid gap-2 text-xs text-muted">
-                      <p>
-                        {resource.category} | {getResourceTypeLabel(resource.type)}
-                      </p>
-                      <p>
-                        {resource.scheduledFor
-                          ? `Scheduled ${formatDate(resource.scheduledFor)}`
-                          : resource.publishedAt
-                            ? `Published ${formatDate(resource.publishedAt)}`
-                            : "Not scheduled"}
-                      </p>
-                    </div>
-                    <div className="mt-auto flex flex-wrap gap-2">
-                      <Link href={`/admin/resources/${resource.id}`}>
-                        <Button variant="outline" size="sm">
-                          Preview/Edit
-                        </Button>
-                      </Link>
-                      <QuickActionForm
-                        action={approveGeneratedResourceAction}
-                        returnPath={currentPath}
-                        resourceId={resource.id}
-                      >
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          size="sm"
-                          disabled={!diagnostics.migrationReady}
-                        >
-                          Approve
-                        </Button>
-                      </QuickActionForm>
-                      <QuickActionForm
-                        action={rejectGeneratedResourceAction}
-                        returnPath={currentPath}
-                        resourceId={resource.id}
-                      >
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          size="sm"
-                          disabled={!diagnostics.migrationReady}
-                        >
-                          <XCircle size={13} className="mr-1" />
-                          Reject
-                        </Button>
-                      </QuickActionForm>
-                      <QuickActionForm
-                        action={regenerateGeneratedResourceArticleAction}
-                        returnPath={currentPath}
-                        resourceId={resource.id}
-                      >
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          size="sm"
-                          disabled={!diagnostics.contentProviderConfigured}
-                        >
-                          <RefreshCw size={13} className="mr-1" />
-                          Article
-                        </Button>
-                      </QuickActionForm>
-                      <QuickActionForm
-                        action={regenerateResourceImageAction}
-                        returnPath={currentPath}
-                        resourceId={resource.id}
-                      >
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          size="sm"
-                          disabled={!diagnostics.imageGenerationAvailable}
-                        >
-                          <ImageIcon size={13} className="mr-1" />
-                          Image
-                        </Button>
-                      </QuickActionForm>
-                      <QuickActionForm
-                        action={toggleGeneratedResourceLockAction}
-                        returnPath={currentPath}
-                        resourceId={resource.id}
-                      >
-                        <Button type="submit" variant="outline" size="sm">
-                          <Lock size={13} className="mr-1" />
-                          {resource.lockedAt ? "Unlock" : "Lock"}
-                        </Button>
-                      </QuickActionForm>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-silver/14 bg-background/20 p-6">
-              <p className="text-sm text-muted">
-                No daily resource set generated for today yet.
+        <CardContent className="space-y-4">
+          <div className="rounded-2xl border border-silver/14 bg-background/20 p-4">
+            <p className="text-sm font-medium text-foreground">
+              {TODAYS_BATCH_STATUS_LABEL}:{" "}
+              {todayBatch ? formatStatusLabel(todayBatch.status) : "No batch generated"}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              {todayBatch
+                ? `${todayBatch.resources.length}/3 daily resources found for this batch.`
+                : "No daily resource set generated for today yet. The Foundation, Inner Circle, and Core cards remain visible as empty slots."}
+            </p>
+            {!diagnostics.dailyGenerationAvailable ? (
+              <p className="mt-2 text-sm text-amber-100/90">
+                AI provider not configured. Generation buttons are disabled until OPENAI_API_KEY / provider env vars are configured.
               </p>
-              {!diagnostics.dailyGenerationAvailable ? (
-                <p className="mt-2 text-sm text-amber-100/90">
-                  AI provider not configured. Generation buttons are disabled until OPENAI_API_KEY / provider env vars are configured.
-                </p>
-              ) : null}
-            </div>
-          )}
+            ) : null}
+          </div>
+          <div className="grid gap-4 xl:grid-cols-3">
+            {RESOURCE_TIER_ORDER.map((resourceTier) => (
+              <DailyTierWorkflowCard
+                key={resourceTier}
+                tier={resourceTier}
+                resource={todayBatch?.resources.find((resource) => resource.tier === resourceTier)}
+                currentPath={currentPath}
+                diagnostics={diagnostics}
+              />
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -841,24 +1007,70 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-3">
-          <form action={backfillMissingResourceImagesAction}>
+        <CardContent className="space-y-4">
+          {backfillSummary ? (
+            <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/10 p-4">
+              <p className="text-sm font-medium text-emerald-100">Backfill results</p>
+              <p className="mt-2 text-sm text-emerald-100/85">{backfillSummary}</p>
+            </div>
+          ) : null}
+
+          <form action={backfillMissingResourceImagesAction} className="space-y-4">
             <input type="hidden" name="returnPath" value={currentPath} />
-            <input type="hidden" name="limit" value="25" />
-            <input type="hidden" name="forcePromptsOnly" value="true" />
-            <Button type="submit" variant="outline" disabled={!diagnostics.migrationReady}>
-              Prepare Missing Prompts
-            </Button>
-          </form>
-          <form action={backfillMissingResourceImagesAction}>
-            <input type="hidden" name="returnPath" value={currentPath} />
-            <input type="hidden" name="limit" value="10" />
-            <Button type="submit" disabled={!diagnostics.imageGenerationAvailable}>
-              Generate Missing Resource Images
-            </Button>
+            <input type="hidden" name="publishedOnly" value="true" />
+            <div className="grid gap-3 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
+              <div className="space-y-2">
+                <label htmlFor="imageBackfillLimit" className="text-sm text-muted">
+                  Backfill limit
+                </label>
+                <input
+                  id="imageBackfillLimit"
+                  name="limit"
+                  type="number"
+                  min={1}
+                  max={100}
+                  defaultValue={10}
+                  className="flex h-11 w-full rounded-xl border border-border/80 bg-background/25 px-3 text-sm outline-none transition-colors focus:border-gold/35"
+                />
+              </div>
+              <div className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-sm text-muted">
+                <p>Scope: published resources missing visible imagery.</p>
+                <p>Manual Cover Image URL values are never overwritten by default.</p>
+                <p>Generated images upload to Cloudinary when the provider and Cloudinary are configured.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="submit"
+                name="backfillIntent"
+                value="dry_run"
+                variant="outline"
+                disabled={!diagnostics.migrationReady}
+              >
+                Dry Run Backfill
+              </Button>
+              <Button
+                type="submit"
+                name="backfillIntent"
+                value="prompts_only"
+                variant="outline"
+                disabled={!diagnostics.migrationReady}
+              >
+                Prepare Missing Prompts
+              </Button>
+              <Button
+                type="submit"
+                name="backfillIntent"
+                value="generate_images"
+                disabled={!diagnostics.imageGenerationAvailable}
+              >
+                Generate Missing Resource Images
+              </Button>
+            </div>
           </form>
           <p className="max-w-2xl text-sm text-muted">
-            The image generator skips resources with manual cover images or existing media images. If provider or Cloudinary config is missing, use prompts first and generate covers after setup.
+            The image generator skips resources with manual cover images, generated images, or existing linked media images. If provider or Cloudinary config is missing, use prompts first and generate covers after setup.
           </p>
         </CardContent>
       </Card>

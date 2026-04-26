@@ -128,6 +128,11 @@ ${sameDaySummary(input.sameDayExclusions)}
 Recent history exclusions from the last 7 to 14 days:
 ${historySummary(input.recentHistory)}
 
+Tier awareness:
+- Higher-tier members can read lower-tier resources, so Inner Circle and Core resources must not repeat the Foundation resource from the same day.
+- Core members can also read Inner Circle, so Core must add a distinct strategic layer rather than a more intense version of the same lesson.
+- Keep the three daily resources complementary: same theme family is acceptable only when the category, type, angle, and practical takeaway are clearly different.
+
 Rules:
 - Do not repeat recent titles, angles, opening concepts, or the same core lesson.
 - Do not create a weaker version of a recent resource.
