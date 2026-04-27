@@ -6,7 +6,8 @@ import {
 import { db } from "@/lib/db";
 import {
   buildResourceImageDirection,
-  buildResourceImagePrompt
+  buildResourceImagePrompt,
+  isRelatableResourceImagePrompt
 } from "@/server/resources/resource-image-prompt-builder";
 import { generateCoverImageForResource } from "@/server/resources/resource-image-generation.service";
 import {
@@ -39,6 +40,11 @@ export type BackfillResourceImagesResult = {
   providerSkipReasons: Record<string, number>;
   cloudinarySkipReasons: Record<string, number>;
   failureReasons: Record<string, number>;
+  promptPreviews: Array<{
+    title: string;
+    slug: string;
+    imagePromptPreview: string;
+  }>;
   dryRun: boolean;
   limit: number;
   publishedOnly: boolean;
@@ -146,8 +152,10 @@ export async function backfillResourceImages(
         take: limit,
         select: {
           id: true,
+          slug: true,
           title: true,
           excerpt: true,
+          content: true,
           tier: true,
           category: true,
           type: true,
@@ -179,6 +187,7 @@ export async function backfillResourceImages(
     providerSkipReasons: {},
     cloudinarySkipReasons: {},
     failureReasons: {},
+    promptPreviews: [],
     dryRun: Boolean(options.dryRun),
     limit,
     publishedOnly: Boolean(options.publishedOnly),
@@ -191,27 +200,32 @@ export async function backfillResourceImages(
       continue;
     }
 
+    const hasRelatablePrompt = isRelatableResourceImagePrompt(resource.imagePrompt);
     const imageDirection =
-      resource.imageDirection ||
-      buildResourceImageDirection({
-        title: resource.title,
-        excerpt: resource.excerpt,
-        tier: resource.tier,
-        category: resource.category,
-        type: resource.type
-      });
+      hasRelatablePrompt && resource.imageDirection
+        ? resource.imageDirection
+        : buildResourceImageDirection({
+            title: resource.title,
+            excerpt: resource.excerpt,
+            content: resource.content,
+            tier: resource.tier,
+            category: resource.category,
+            type: resource.type
+          });
     const imagePrompt =
-      resource.imagePrompt ||
-      buildResourceImagePrompt({
-        title: resource.title,
-        excerpt: resource.excerpt,
-        tier: resource.tier,
-        category: resource.category,
-        type: resource.type,
-        imageDirection
-      });
+      hasRelatablePrompt
+        ? resource.imagePrompt ?? ""
+        : buildResourceImagePrompt({
+            title: resource.title,
+            excerpt: resource.excerpt,
+            content: resource.content,
+            tier: resource.tier,
+            category: resource.category,
+            type: resource.type,
+            imageDirection
+          });
 
-    if (!resource.imageDirection || !resource.imagePrompt) {
+    if (resource.imageDirection !== imageDirection || resource.imagePrompt !== imagePrompt) {
       result.promptsCreated += 1;
 
       if (!options.dryRun) {
@@ -224,6 +238,14 @@ export async function backfillResourceImages(
           }
         });
       }
+    }
+
+    if (options.dryRun && result.promptPreviews.length < 3) {
+      result.promptPreviews.push({
+        title: resource.title,
+        slug: resource.slug,
+        imagePromptPreview: imagePrompt.slice(0, 500)
+      });
     }
 
     if (options.forcePromptsOnly || options.dryRun) {

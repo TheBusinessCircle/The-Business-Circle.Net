@@ -91,6 +91,34 @@ function formatOptionLabel(value: string) {
     .replace(/(^|\s)\S/g, (match) => match.toUpperCase());
 }
 
+function imageFailureReasonFromMetadata(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as {
+      imageGeneration?: {
+        message?: unknown;
+        reason?: unknown;
+        code?: unknown;
+      };
+    };
+    const reason =
+      typeof parsed.imageGeneration?.message === "string"
+        ? parsed.imageGeneration.message
+        : typeof parsed.imageGeneration?.reason === "string"
+          ? parsed.imageGeneration.reason
+          : typeof parsed.imageGeneration?.code === "string"
+            ? parsed.imageGeneration.code
+            : "";
+
+    return reason.trim() ? reason.replace(/\s+/g, " ").slice(0, 180) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ResourceEditorForm({
   mode,
   action,
@@ -119,6 +147,7 @@ export function ResourceEditorForm({
 
   const categories = useMemo(() => RESOURCE_CATEGORIES_BY_TIER[tier], [tier]);
   const selectedCategory = categories.includes(category) ? category : categories[0];
+  const imageFailureReason = imageFailureReasonFromMetadata(initialValues.generationMetadata);
 
   function handleGenerateDraft() {
     if (!title.trim()) {
@@ -284,6 +313,11 @@ export function ResourceEditorForm({
               <p>Generation source: {formatOptionLabel(initialValues.generationSource ?? "MANUAL")}</p>
               <p>Approval status: {formatOptionLabel(approvalStatus)}</p>
               <p>Image status: {formatOptionLabel(imageStatus)}</p>
+              {imageStatus === "FAILED" ? (
+                <p>
+                  Failure reason: {imageFailureReason ?? "No stored reason found. Retry generation to capture the current provider or upload error."}
+                </p>
+              ) : null}
               <p>Generated image URL: {generatedImageUrl ? "present" : "not present"}</p>
               <p>Image prompt: {imagePrompt ? "present" : "missing"}</p>
               <p>Image direction: {imageDirection ? "present" : "missing"}</p>

@@ -82,6 +82,7 @@ type AdminResourceRow = {
   imageStatus: ResourceImageStatus;
   imagePrompt: string | null;
   imageDirection: string | null;
+  generationMetadata: unknown;
   generationSource: ResourceGenerationSource;
   generationBatchId: string | null;
   generationBatch: { status: DailyResourceBatchStatus } | null;
@@ -260,6 +261,33 @@ function DiagnosticValue({
   );
 }
 
+function metadataRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
+}
+
+function shortenReason(value: string) {
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  return trimmed.length > 96 ? `${trimmed.slice(0, 96).trim()}...` : trimmed;
+}
+
+function imageFailureReason(metadata: unknown) {
+  const generation = metadataRecord(metadataRecord(metadata).imageGeneration);
+  const message =
+    typeof generation.message === "string"
+      ? generation.message
+      : typeof generation.reason === "string"
+        ? generation.reason
+        : typeof generation.code === "string"
+          ? generation.code
+          : "unknown reason";
+
+  return shortenReason(message);
+}
+
 function imageStateLabel(resource: {
   coverImage: string | null;
   generatedImageUrl: string | null;
@@ -268,9 +296,13 @@ function imageStateLabel(resource: {
   imagePrompt?: string | null;
   imageDirection?: string | null;
   imageStatus: ResourceImageStatus;
+  generationMetadata?: unknown;
 }) {
-  if (resource.coverImage && resource.generatedImageUrl) {
-    return "Generated image";
+  if (
+    resource.generatedImageUrl &&
+    (!resource.coverImage || resource.coverImage === resource.generatedImageUrl)
+  ) {
+    return "Generated image attached";
   }
 
   if (resource.coverImage) {
@@ -278,15 +310,15 @@ function imageStateLabel(resource: {
   }
 
   if (resource.generatedImageUrl) {
-    return "Generated image";
+    return "Generated image attached";
   }
 
   if (resource.mediaType === ResourceMediaType.IMAGE && resource.mediaUrl) {
-    return "Media image";
+    return "Linked media image";
   }
 
   if (resource.imageStatus === ResourceImageStatus.FAILED) {
-    return "Failed";
+    return `Image generation failed: ${imageFailureReason(resource.generationMetadata)}`;
   }
 
   if (resource.imageStatus === ResourceImageStatus.PROMPT_READY || resource.imagePrompt) {
@@ -294,7 +326,7 @@ function imageStateLabel(resource: {
   }
 
   if (!resource.imagePrompt && !resource.imageDirection) {
-    return "Missing";
+    return "Prompt missing";
   }
 
   return "Fallback only";
@@ -311,20 +343,23 @@ function ImageStateBadge({
     imagePrompt?: string | null;
     imageDirection?: string | null;
     imageStatus: ResourceImageStatus;
+    generationMetadata?: unknown;
   };
 }) {
   const label = imageStateLabel(resource);
   const variant =
-    label === "Generated image" || label === "Manual image" || label === "Media image"
+    label === "Generated image attached" ||
+    label === "Manual image" ||
+    label === "Linked media image"
       ? "success"
-      : label === "Failed" || label === "Missing"
+      : label.startsWith("Image generation failed") || label === "Prompt missing"
         ? "danger"
         : label === "Prompt ready"
           ? "warning"
           : "outline";
 
   return (
-    <Badge variant={variant} className="normal-case tracking-normal">
+    <Badge variant={variant} className="max-w-[260px] whitespace-normal normal-case tracking-normal">
       {label}
     </Badge>
   );
@@ -655,6 +690,7 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
           imageStatus: true,
           imagePrompt: true,
           imageDirection: true,
+          generationMetadata: true,
           scheduledFor: true,
           publishedAt: true,
           updatedAt: true,
@@ -710,6 +746,7 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
             : ResourceImageStatus.MANUAL,
         imagePrompt: null,
         imageDirection: null,
+        generationMetadata: null,
         generationSource: ResourceGenerationSource.MANUAL,
         generationBatchId: null,
         generationBatch: null,

@@ -202,25 +202,19 @@ function coerceProviderCandidate(input: {
   planItem: DailyResourcePlanItem;
   slug: string;
 }) {
-  const imageDirection =
-    input.providerResult.imageDirection?.trim() ||
-    buildResourceImageDirection({
-      title: input.providerResult.title,
-      excerpt: input.providerResult.excerpt,
-      tier: input.planItem.tier,
-      category: input.planItem.category,
-      type: input.planItem.type
-    });
-  const imagePrompt =
-    input.providerResult.imagePrompt?.trim() ||
-    buildResourceImagePrompt({
-      title: input.providerResult.title,
-      excerpt: input.providerResult.excerpt,
-      tier: input.planItem.tier,
-      category: input.planItem.category,
-      type: input.planItem.type,
-      imageDirection
-    });
+  const imagePromptInput = {
+    title: input.providerResult.title,
+    excerpt: input.providerResult.excerpt,
+    content: input.providerResult.content,
+    tier: input.planItem.tier,
+    category: input.planItem.category,
+    type: input.planItem.type
+  };
+  const imageDirection = buildResourceImageDirection(imagePromptInput);
+  const imagePrompt = buildResourceImagePrompt({
+    ...imagePromptInput,
+    imageDirection
+  });
 
   return {
     title: input.providerResult.title.trim(),
@@ -539,6 +533,7 @@ export async function getDailyResourceBatchForDate(date = new Date()) {
           lockedAt: true,
           imagePrompt: true,
           imageDirection: true,
+          generationMetadata: true,
           estimatedReadMinutes: true
         }
       }

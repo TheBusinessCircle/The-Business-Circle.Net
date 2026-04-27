@@ -15,7 +15,8 @@ import {
 } from "@/server/resources/resource-ai-provider.service";
 import {
   buildResourceImageDirection,
-  buildResourceImagePrompt
+  buildResourceImagePrompt,
+  isRelatableResourceImagePrompt
 } from "@/server/resources/resource-image-prompt-builder";
 import { ResourceGenerationError } from "@/server/resources/resource-generation-guards";
 
@@ -27,10 +28,13 @@ type ResourceForImageGeneration = {
   title: string;
   slug: string;
   excerpt: string;
+  content: string;
   tier: Parameters<typeof buildResourceImagePrompt>[0]["tier"];
   category: string;
   type: Parameters<typeof buildResourceImagePrompt>[0]["type"];
   coverImage: string | null;
+  generatedImageUrl: string | null;
+  imageStatus: ResourceImageStatus;
   imageDirection: string | null;
   imagePrompt: string | null;
   generationMetadata: unknown;
@@ -50,6 +54,7 @@ async function saveImageFailure(input: {
   imageDirection: string;
   code: string;
   message: string;
+  existingMetadata: Record<string, unknown>;
 }) {
   await db.resource.update({
     where: { id: input.resourceId },
@@ -58,6 +63,7 @@ async function saveImageFailure(input: {
       imageDirection: input.imageDirection,
       imageStatus: ResourceImageStatus.FAILED,
       generationMetadata: {
+        ...input.existingMetadata,
         imageGeneration: {
           status: "failed",
           code: input.code,
@@ -70,27 +76,32 @@ async function saveImageFailure(input: {
 }
 
 export async function ensureResourceImagePrompt(resource: ResourceForImageGeneration) {
+  const shouldRebuildPrompt = !isRelatableResourceImagePrompt(resource.imagePrompt);
   const imageDirection =
-    resource.imageDirection?.trim() ||
-    buildResourceImageDirection({
-      title: resource.title,
-      excerpt: resource.excerpt,
-      tier: resource.tier,
-      category: resource.category,
-      type: resource.type
-    });
+    !shouldRebuildPrompt && resource.imageDirection?.trim()
+      ? resource.imageDirection.trim()
+      : buildResourceImageDirection({
+          title: resource.title,
+          excerpt: resource.excerpt,
+          content: resource.content,
+          tier: resource.tier,
+          category: resource.category,
+          type: resource.type
+        });
   const imagePrompt =
-    resource.imagePrompt?.trim() ||
-    buildResourceImagePrompt({
-      title: resource.title,
-      excerpt: resource.excerpt,
-      tier: resource.tier,
-      category: resource.category,
-      type: resource.type,
-      imageDirection
-    });
+    !shouldRebuildPrompt && resource.imagePrompt?.trim()
+      ? resource.imagePrompt.trim()
+      : buildResourceImagePrompt({
+          title: resource.title,
+          excerpt: resource.excerpt,
+          content: resource.content,
+          tier: resource.tier,
+          category: resource.category,
+          type: resource.type,
+          imageDirection
+        });
 
-  if (!resource.imageDirection || !resource.imagePrompt) {
+  if (resource.imageDirection !== imageDirection || resource.imagePrompt !== imagePrompt) {
     await db.resource.update({
       where: { id: resource.id },
       data: {
@@ -104,6 +115,19 @@ export async function ensureResourceImagePrompt(resource: ResourceForImageGenera
   return { imageDirection, imagePrompt };
 }
 
+function shouldAttachGeneratedImageAsCover(resource: ResourceForImageGeneration) {
+  if (!resource.coverImage) {
+    return true;
+  }
+
+  if (resource.generatedImageUrl && resource.coverImage === resource.generatedImageUrl) {
+    return true;
+  }
+
+  const imageGeneration = metadataRecord(metadataRecord(resource.generationMetadata).imageGeneration);
+  return imageGeneration.status === "generated";
+}
+
 export async function generateCoverImageForResource(resourceId: string) {
   const resource = await db.resource.findUnique({
     where: { id: resourceId },
@@ -112,10 +136,13 @@ export async function generateCoverImageForResource(resourceId: string) {
       title: true,
       slug: true,
       excerpt: true,
+      content: true,
       tier: true,
       category: true,
       type: true,
       coverImage: true,
+      generatedImageUrl: true,
+      imageStatus: true,
       imageDirection: true,
       imagePrompt: true,
       generationMetadata: true
@@ -214,7 +241,7 @@ export async function generateCoverImageForResource(resourceId: string) {
       where: { id: resource.id },
       data: {
         generatedImageUrl: imageUrl,
-        coverImage: resource.coverImage ? undefined : imageUrl,
+        coverImage: shouldAttachGeneratedImageAsCover(resource) ? imageUrl : undefined,
         imageStatus: ResourceImageStatus.GENERATED,
         generationMetadata: {
           ...existingMetadata,
@@ -245,7 +272,8 @@ export async function generateCoverImageForResource(resourceId: string) {
         error instanceof ResourceGenerationError
           ? error.code
           : "image-generation-failed",
-      message: reason
+      message: reason,
+      existingMetadata
     });
 
     return {

@@ -98,6 +98,17 @@ async function main() {
   console.log(`Skipped provider unavailable: ${result.skippedProviderUnavailable}`);
   console.log(`Skipped Cloudinary unavailable: ${result.skippedCloudinaryUnavailable}`);
 
+  if (result.promptPreviews.length) {
+    console.log("");
+    console.log("Dry-run prompt previews:");
+    result.promptPreviews.forEach((preview) => {
+      console.log(`Resource: ${preview.title}`);
+      console.log(`Slug: ${preview.slug}`);
+      console.log(`Image prompt preview: ${preview.imagePromptPreview}`);
+      console.log("");
+    });
+  }
+
   if (result.providerUnavailableReasons.length) {
     console.log("");
     console.log("Provider unavailable reasons:");

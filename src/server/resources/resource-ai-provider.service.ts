@@ -61,8 +61,8 @@ const generatedContentSchema = z.object({
   type: z.string().trim().min(3).max(40),
   tier: z.string().trim().min(3).max(40),
   content: z.string().trim().min(450),
-  imageDirection: z.string().trim().min(40).max(700),
-  imagePrompt: z.string().trim().min(80).max(1800),
+  imageDirection: z.string().trim().max(700).optional().default(""),
+  imagePrompt: z.string().trim().max(1800).optional().default(""),
   estimatedReadTime: z.union([z.number(), z.string()]).optional()
 });
 
