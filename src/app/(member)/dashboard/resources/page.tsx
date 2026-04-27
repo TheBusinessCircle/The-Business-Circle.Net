@@ -324,46 +324,55 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-        <Card className={recommendedCardClassName}>
-          <CardHeader>
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Featured resource</p>
-            <CardTitle>Recommended inside your access</CardTitle>
-            <CardDescription>
-              One useful read to start with, without turning the library into a task list.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <Card className={`${recommendedCardClassName} overflow-hidden`}>
+          <CardContent className="space-y-4 p-5">
             {recommendedNextRead ? (
-              <Link
-                href={`/dashboard/resources/${recommendedNextRead.slug}`}
-                className="grid gap-4 rounded-2xl border border-silver/14 bg-background/22 p-4 transition-colors hover:border-silver/28 hover:bg-background/32 lg:grid-cols-[minmax(240px,0.9fr)_minmax(0,1.1fr)]"
-              >
-                <ResourceCoverImage
-                  resource={recommendedNextRead}
-                  className="aspect-[16/10] rounded-[1.15rem] border border-silver/10"
-                  imageClassName="transition-transform duration-500 hover:scale-[1.02]"
-                  overlayClassName="bg-[linear-gradient(180deg,rgba(3,8,20,0.03),rgba(3,8,20,0.12)_48%,rgba(3,8,20,0.34)_100%)]"
-                />
-                <div className="flex min-w-0 flex-col justify-between gap-4">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <ResourceTierBadge tier={recommendedNextRead.tier} />
-                      <Badge variant="outline" className="border-silver/14 normal-case tracking-normal text-silver">
-                        {recommendedNextRead.category}
-                      </Badge>
-                      <Badge variant="outline" className="border-silver/14 normal-case tracking-normal text-silver">
-                        {getResourceTypeLabel(recommendedNextRead.type)}
-                      </Badge>
-                    </div>
-                    <p className="mt-4 line-clamp-2 text-2xl font-semibold text-foreground">
-                      {recommendedNextRead.title}
-                    </p>
-                    <p className="mt-3 line-clamp-3 max-w-3xl text-sm leading-relaxed text-muted">
-                      {recommendedNextRead.excerpt}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+              <>
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                    Featured resource
+                  </p>
+                  <h2 className="line-clamp-2 text-2xl font-semibold leading-tight text-foreground">
+                    {recommendedNextRead.title}
+                  </h2>
+                  <p className="line-clamp-2 text-sm leading-relaxed text-muted">
+                    {recommendedNextRead.excerpt}
+                  </p>
+                </div>
+
+                <Link
+                  href={`/dashboard/resources/${recommendedNextRead.slug}`}
+                  aria-label={`Read resource: ${recommendedNextRead.title}`}
+                  className="block overflow-hidden rounded-2xl border border-silver/12 bg-background/22 transition-colors hover:border-silver/28"
+                >
+                  <ResourceCoverImage
+                    resource={recommendedNextRead}
+                    className="aspect-[16/9]"
+                    imageClassName="transition-transform duration-500 hover:scale-[1.025]"
+                    overlayClassName="bg-[linear-gradient(180deg,rgba(3,8,20,0.02),rgba(3,8,20,0.10)_48%,rgba(3,8,20,0.28)_100%)]"
+                    priority
+                  />
+                </Link>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <ResourceTierBadge tier={recommendedNextRead.tier} />
+                  <Badge
+                    variant="outline"
+                    className="max-w-full normal-case tracking-normal text-silver"
+                  >
+                    {recommendedNextRead.category}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="normal-case tracking-normal text-silver"
+                  >
+                    {getResourceTypeLabel(recommendedNextRead.type)}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-silver/12 pt-4 text-xs text-muted">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className={recommendedAccentClassName}>
                       {recommendedNextRead.publishedAt
                         ? `Published ${formatDate(recommendedNextRead.publishedAt)}`
@@ -372,10 +381,14 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
                     {recommendedNextRead.estimatedReadMinutes ? (
                       <span>{recommendedNextRead.estimatedReadMinutes} min read</span>
                     ) : null}
-                    <span>Read resource</span>
                   </div>
+                  <Link href={`/dashboard/resources/${recommendedNextRead.slug}`}>
+                    <Button size="sm" variant="outline">
+                      Read resource
+                    </Button>
+                  </Link>
                 </div>
-              </Link>
+              </>
             ) : (
               <EmptyState
                 icon={Sparkles}
@@ -386,83 +399,97 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
           </CardContent>
         </Card>
 
-        <div className="grid gap-4">
-          <Card className="border-silver/16 bg-card/62">
-            <CardHeader>
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Recently added</p>
-              <CardTitle className="text-xl">New inside your access</CardTitle>
-              <CardDescription>The latest published material available on your current membership.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {recentlyAdded.length ? (
-                recentlyAdded.map((resource) => (
-                  <Link
-                    key={resource.id}
-                    href={`/dashboard/resources/${resource.slug}`}
-                    className="block rounded-xl border border-silver/14 bg-background/20 p-3 transition-colors hover:border-silver/26 hover:bg-background/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <ResourceCoverImage
-                        resource={resource}
-                        className="h-16 w-24 shrink-0 rounded-xl border border-silver/12"
-                        imageClassName="object-cover"
-                        overlayClassName="bg-[linear-gradient(180deg,rgba(3,8,20,0.02),rgba(3,8,20,0.14)_100%)]"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{resource.title}</p>
-                        <p className="text-xs text-muted">
-                          {resource.category}
-                          {resource.publishedAt ? ` | ${formatDate(resource.publishedAt)}` : ""}
-                        </p>
-                      </div>
+        <Card className="border-silver/16 bg-card/62">
+          <CardHeader className="pb-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Recently added</p>
+            <CardTitle className="text-2xl">New inside your access</CardTitle>
+            <CardDescription>
+              The latest published material available on your current membership.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentlyAdded.length ? (
+              recentlyAdded.map((resource) => (
+                <Link
+                  key={resource.id}
+                  href={`/dashboard/resources/${resource.slug}`}
+                  className="block rounded-2xl border border-silver/14 bg-background/20 p-3 transition-colors hover:border-silver/26 hover:bg-background/30"
+                >
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <ResourceCoverImage
+                      resource={resource}
+                      className="h-[76px] w-[116px] shrink-0 rounded-xl border border-silver/12"
+                      imageClassName="object-cover"
+                      overlayClassName="bg-[linear-gradient(180deg,rgba(3,8,20,0.02),rgba(3,8,20,0.14)_100%)]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
+                        {resource.title}
+                      </p>
+                      <p className="mt-1 line-clamp-1 text-xs text-muted">
+                        {resource.category}
+                        {resource.publishedAt ? ` | ${formatDate(resource.publishedAt)}` : ""}
+                        {resource.estimatedReadMinutes
+                          ? ` | ${resource.estimatedReadMinutes} min read`
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="hidden shrink-0 sm:block">
                       <ResourceTierBadge tier={resource.tier} />
                     </div>
-                  </Link>
-                ))
-              ) : (
-                <p className="text-sm text-muted">
-                  New publications will appear here as soon as they go live.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-silver/16 bg-card/62">
-            <CardHeader>
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                {personalisation.basedOnActivity.eyebrow}
+                  </div>
+                  <div className="mt-3 sm:hidden">
+                    <ResourceTierBadge tier={resource.tier} />
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-muted">
+                New publications will appear here as soon as they go live.
               </p>
-              <CardTitle className="text-xl">{personalisation.basedOnActivity.title}</CardTitle>
-              <CardDescription>{personalisation.basedOnActivity.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link
-                href={personalisation.basedOnActivity.href}
-                className="inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
-              >
-                {personalisation.basedOnActivity.label}
-                <Sparkles size={14} />
-              </Link>
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-          <Card className="border-silver/16 bg-card/62">
-            <CardHeader>
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Recommended discussion</p>
-              <CardTitle className="text-xl">{discussionLink.title}</CardTitle>
-              <CardDescription>{discussionLink.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link
-                href={discussionLink.href}
-                className="inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
-              >
-                {discussionLink.label}
-                <Sparkles size={14} />
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-silver/16 bg-card/62">
+          <CardHeader>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+              {personalisation.basedOnActivity.eyebrow}
+            </p>
+            <CardTitle className="text-xl">{personalisation.basedOnActivity.title}</CardTitle>
+            <CardDescription>{personalisation.basedOnActivity.description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href={personalisation.basedOnActivity.href}
+              className="inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
+            >
+              {personalisation.basedOnActivity.label}
+              <Sparkles size={14} />
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="border-silver/16 bg-card/62">
+          <CardHeader>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+              Recommended discussion
+            </p>
+            <CardTitle className="text-xl">{discussionLink.title}</CardTitle>
+            <CardDescription>{discussionLink.description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href={discussionLink.href}
+              className="inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
+            >
+              {discussionLink.label}
+              <Sparkles size={14} />
+            </Link>
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="border-silver/16 bg-card/62">
