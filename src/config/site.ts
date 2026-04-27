@@ -12,14 +12,14 @@ const publicNavigation: NavigationItem[] = [
 
 const memberNavigation: NavigationItem[] = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Resources", href: "/dashboard/resources" },
-  { label: "Directory", href: "/directory" },
-  { label: "Messages", href: "/messages" },
-  { label: "Wins", href: "/wins" },
-  { label: "Calls", href: "/calls" },
   { label: "Community", href: "/community" },
-  { label: "BCN Intelligence", href: "/member/bcn-updates" },
+  { label: "Messages", href: "/messages" },
+  { label: "Directory", href: "/directory" },
   { label: "Events", href: "/events" },
+  { label: "Calls", href: "/calls" },
+  { label: "Resources", href: "/dashboard/resources" },
+  { label: "Wins", href: "/wins" },
+  { label: "BCN Intelligence", href: "/member/bcn-updates" },
   { label: "Profile", href: "/profile" },
   { label: "Inner Circle", href: "/inner-circle", requiresTier: "INNER_CIRCLE" },
   { label: "Founder | Trev", href: "/founder" }
