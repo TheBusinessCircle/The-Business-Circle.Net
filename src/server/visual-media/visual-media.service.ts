@@ -21,7 +21,8 @@ import {
 } from "@/server/repositories/visual-media.repository";
 import {
   deleteManagedVisualMediaAsset,
-  persistVisualMediaUpload
+  persistVisualMediaUpload,
+  type StoredVisualMediaAsset
 } from "@/server/visual-media/visual-media-upload.service";
 
 function toVisualMediaRecord(
@@ -267,6 +268,26 @@ export async function uploadVisualMediaPlacementAsset(input: {
     storageKey: stored.storageKey
   });
 
+  return replaceVisualMediaPlacementStoredAsset({
+    key: input.key,
+    mode: input.mode,
+    stored,
+    current
+  });
+}
+
+export async function replaceVisualMediaPlacementStoredAsset(input: {
+  key: VisualMediaPlacementKey;
+  mode: "desktop" | "mobile";
+  stored: StoredVisualMediaAsset;
+  current?: VisualMediaPlacementRecord | null;
+}) {
+  const current = input.current ?? (await getVisualMediaPlacement(input.key));
+
+  if (!current) {
+    throw new Error("visual-media-placement-not-found");
+  }
+
   const previousStorageKey =
     input.mode === "desktop" ? current.desktopStorageKey : current.mobileStorageKey;
 
@@ -292,15 +313,15 @@ export async function uploadVisualMediaPlacementAsset(input: {
   await upsertVisualMediaPlacement(
     createPlacementSeedInput(input.key),
     {
-      storageProvider: stored.storageProvider,
+      storageProvider: input.stored.storageProvider,
       ...(input.mode === "desktop"
         ? {
-            imageUrl: stored.url,
-            desktopStorageKey: stored.storageKey
+            imageUrl: input.stored.url,
+            desktopStorageKey: input.stored.storageKey
           }
         : {
-            mobileImageUrl: stored.url,
-            mobileStorageKey: stored.storageKey
+            mobileImageUrl: input.stored.url,
+            mobileStorageKey: input.stored.storageKey
           })
     }
   );

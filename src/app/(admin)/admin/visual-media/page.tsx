@@ -20,6 +20,7 @@ import {
   VISUAL_MEDIA_PAGE_ORDER,
   type VisualMediaPlacementKey
 } from "@/lib/visual-media/constants";
+import { buildVisualMediaImagePrompt } from "@/lib/visual-media/prompt-builder";
 import type {
   VisualMediaAdminPreviewFamily,
   VisualMediaPlacementDefinition
@@ -537,6 +538,10 @@ export default async function AdminVisualMediaPage({ searchParams }: PageProps) 
                                 family={previewFamily}
                                 savedImageUrl={placement.imageUrl}
                                 altText={placement.altText?.trim() || placement.label}
+                                generationPrompt={buildVisualMediaImagePrompt({
+                                  definition,
+                                  mode: "desktop"
+                                })}
                               />
                               {placement.supportsMobile ? (
                                 <VisualMediaUploadPanel
@@ -547,6 +552,10 @@ export default async function AdminVisualMediaPage({ searchParams }: PageProps) 
                                   family={previewFamily}
                                   savedImageUrl={placement.mobileImageUrl}
                                   altText={placement.altText?.trim() || placement.label}
+                                  generationPrompt={buildVisualMediaImagePrompt({
+                                    definition,
+                                    mode: "mobile"
+                                  })}
                                 />
                               ) : (
                                 <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-background/12 p-5 text-sm text-muted">

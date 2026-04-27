@@ -19,7 +19,7 @@ function ensureCloudinaryConfigured() {
   });
 }
 
-function uploadImageBufferAssetToCloudinary(input: {
+export function uploadImageBufferAssetToCloudinary(input: {
   bytes: Buffer;
   folder: string;
   publicIdPrefix: string;

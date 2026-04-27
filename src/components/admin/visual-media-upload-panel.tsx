@@ -2,7 +2,7 @@
 
 import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CheckCircle2, ImageIcon, Loader2, Monitor, Smartphone, Trash2, Upload, X } from "lucide-react";
+import { CheckCircle2, ImageIcon, Loader2, Monitor, Smartphone, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   submitVisualMediaPlacementAssetRemovalAction
@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { VisualMediaAdminPreviewFamily, VisualMediaUploadMode } from "@/lib/visual-media/types";
 
@@ -21,6 +22,7 @@ type VisualMediaUploadPanelProps = {
   family: VisualMediaAdminPreviewFamily;
   savedImageUrl: string | null;
   altText: string;
+  generationPrompt: string;
 };
 
 type InlineMessage =
@@ -39,6 +41,21 @@ type UploadResponse =
   | {
       ok: false;
       message: string;
+    };
+
+type GenerateResponse =
+  | {
+      ok: true;
+      message: string;
+      imageUrl: string;
+      prompt: string;
+      metadata?: Record<string, unknown>;
+    }
+  | {
+      ok: false;
+      message: string;
+      error?: string;
+      details?: Record<string, unknown> | null;
     };
 
 function previewFrameClassName(family: VisualMediaAdminPreviewFamily) {
@@ -78,7 +95,8 @@ export function VisualMediaUploadPanel({
   returnPath,
   family,
   savedImageUrl,
-  altText
+  altText,
+  generationPrompt
 }: VisualMediaUploadPanelProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -86,8 +104,12 @@ export function VisualMediaUploadPanel({
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [currentSavedImageUrl, setCurrentSavedImageUrl] = useState<string | null>(savedImageUrl);
   const [inlineMessage, setInlineMessage] = useState<InlineMessage>(null);
-  const [pendingAction, setPendingAction] = useState<"upload" | "remove" | null>(null);
+  const [pendingAction, setPendingAction] = useState<"upload" | "remove" | "generate" | null>(null);
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [generationPromptValue, setGenerationPromptValue] = useState(generationPrompt);
+  const [lastGeneratedImageUrl, setLastGeneratedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -101,6 +123,10 @@ export function VisualMediaUploadPanel({
   useEffect(() => {
     setCurrentSavedImageUrl(savedImageUrl);
   }, [savedImageUrl]);
+
+  useEffect(() => {
+    setGenerationPromptValue(generationPrompt);
+  }, [generationPrompt]);
 
   function resetSelection() {
     if (selectedPreviewUrl) {
@@ -198,6 +224,73 @@ export function VisualMediaUploadPanel({
     }
   }
 
+  async function handleGenerateImage() {
+    const prompt = generationPromptValue.trim();
+
+    if (!prompt) {
+      setInlineMessage({
+        tone: "error",
+        text: "Add a prompt before generating an image."
+      });
+      return;
+    }
+
+    setInlineMessage(null);
+    setLastGeneratedImageUrl(null);
+    setPendingAction("generate");
+    setIsGenerating(true);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 150_000);
+
+    try {
+      const response = await fetch("/api/admin/visual-media/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          key: placementKey,
+          mode,
+          prompt
+        }),
+        signal: controller.signal
+      });
+      const result = (await response.json()) as GenerateResponse;
+
+      setInlineMessage({
+        tone: result.ok ? "success" : "error",
+        text: result.message
+      });
+
+      if (result.ok) {
+        setCurrentSavedImageUrl(result.imageUrl);
+        setLastGeneratedImageUrl(result.imageUrl);
+        setGenerationPromptValue(result.prompt);
+        resetSelection();
+        router.refresh();
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setInlineMessage({
+          tone: "error",
+          text: "Image generation timed out before the server responded. The button has been reset."
+        });
+      } else {
+        setInlineMessage({
+          tone: "error",
+          text: "Image generation could not be completed right now."
+        });
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      setIsGenerating(false);
+      setPendingAction(null);
+    }
+  }
+
   function handleRemove() {
     const formData = new FormData();
     formData.set("key", placementKey);
@@ -235,7 +328,8 @@ export function VisualMediaUploadPanel({
   const effectivePreviewUrl = selectedPreviewUrl || currentSavedImageUrl;
   const isUploadPending = isUploading && pendingAction === "upload";
   const isRemovePending = isPending && pendingAction === "remove";
-  const isBusy = isUploading || isPending;
+  const isGeneratePending = isGenerating && pendingAction === "generate";
+  const isBusy = isUploading || isPending || isGenerating;
   const hasSelectedFile = Boolean(selectedFileName);
   const hasSavedAsset = Boolean(currentSavedImageUrl);
   const modeIcon =
@@ -336,6 +430,84 @@ export function VisualMediaUploadPanel({
         </div>
       </div>
 
+      <div className="space-y-3 rounded-2xl border border-gold/20 bg-gold/10 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">AI generation</p>
+            <p className="text-xs leading-5 text-muted">
+              Generate one image for this slot, upload it to Cloudinary, and attach it here.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isBusy}
+            onClick={() => setIsPromptOpen((open) => !open)}
+          >
+            <Sparkles size={14} className="mr-1" />
+            Generate Image
+          </Button>
+        </div>
+
+        {isPromptOpen ? (
+          <div className="space-y-3 border-t border-white/8 pt-3">
+            <div className="space-y-2">
+              <Label htmlFor={`${placementKey}-${mode}-generation-prompt`}>
+                Generation prompt
+              </Label>
+              <Textarea
+                id={`${placementKey}-${mode}-generation-prompt`}
+                value={generationPromptValue}
+                onChange={(event) => setGenerationPromptValue(event.target.value)}
+                rows={10}
+                disabled={isBusy}
+                className="min-h-[220px] text-xs leading-6"
+              />
+              <p className="text-xs leading-5 text-muted">
+                This is a deliberate one-image action. It will replace the saved {mode} image for this slot.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={isBusy || !generationPromptValue.trim()}
+                onClick={handleGenerateImage}
+              >
+                {isGeneratePending ? (
+                  <>
+                    <Loader2 size={14} className="mr-1 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} className="mr-1" />
+                    Generate and attach {mode}
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isBusy}
+                onClick={() => setGenerationPromptValue(generationPrompt)}
+              >
+                Reset prompt
+              </Button>
+            </div>
+
+            {lastGeneratedImageUrl ? (
+              <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-100">
+                Generated image URL: <span className="break-all">{lastGeneratedImageUrl}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
       {inlineMessage ? (
         <div
           className={cn(
@@ -366,7 +538,7 @@ export function VisualMediaUploadPanel({
           ) : (
             <>
               <Upload size={14} className="mr-1" />
-              {savedImageUrl ? `Replace ${mode}` : `Upload ${mode}`}
+              {hasSavedAsset ? `Replace ${mode}` : `Upload ${mode}`}
             </>
           )}
         </Button>
