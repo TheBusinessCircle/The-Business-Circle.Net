@@ -1,5 +1,12 @@
-import { isCloudinaryConfigured } from "@/lib/media/cloudinary";
+import { getCloudinaryConfigDiagnostics } from "@/lib/media/cloudinary";
 import {
+  RESOURCE_CONTENT_MODEL,
+  RESOURCE_IMAGE_MODEL,
+  RESOURCE_IMAGE_QUALITY,
+  RESOURCE_IMAGE_SIZE
+} from "@/config/resources";
+import {
+  getResourceAiProviderDiagnostics,
   isResourceContentProviderConfigured,
   isResourceImageProviderConfigured
 } from "@/server/resources/resource-ai-provider.service";
@@ -37,7 +44,19 @@ export type ResourceWorkflowDiagnostics = {
   missingResourceColumns: string[];
   contentProviderConfigured: boolean;
   imageProviderConfigured: boolean;
+  resourceGenerationProvider: string;
+  resourceGenerationProviderPresent: boolean;
+  openAiApiKeyPresent: boolean;
+  openAiApiKeyStartsWithSk: boolean;
+  resourceContentModel: string;
+  resourceImageModel: string;
+  resourceImageSize: string;
+  resourceImageQuality: string;
+  imageProviderUnavailableReasons: string[];
+  contentProviderUnavailableReasons: string[];
+  imageGenerationUnavailableReasons: string[];
   cloudinaryConfigured: boolean;
+  cloudinaryUnavailableReasons: string[];
   dailyGenerationAvailable: boolean;
   imageGenerationAvailable: boolean;
 };
@@ -64,9 +83,16 @@ export async function getResourceWorkflowDiagnostics(): Promise<ResourceWorkflow
     (column) => !columns.has(column)
   );
   const migrationReady = missingTables.length === 0 && missingResourceColumns.length === 0;
+  const aiDiagnostics = getResourceAiProviderDiagnostics();
+  const cloudinaryDiagnostics = getCloudinaryConfigDiagnostics();
   const contentProviderConfigured = isResourceContentProviderConfigured();
   const imageProviderConfigured = isResourceImageProviderConfigured();
-  const cloudinaryConfigured = isCloudinaryConfigured();
+  const cloudinaryConfigured = cloudinaryDiagnostics.configured;
+  const imageGenerationUnavailableReasons = [
+    ...(!migrationReady ? ["database migration missing"] : []),
+    ...aiDiagnostics.imageProviderUnavailableReasons,
+    ...cloudinaryDiagnostics.unavailableReasons
+  ];
 
   return {
     migrationReady,
@@ -74,7 +100,19 @@ export async function getResourceWorkflowDiagnostics(): Promise<ResourceWorkflow
     missingResourceColumns,
     contentProviderConfigured,
     imageProviderConfigured,
+    resourceGenerationProvider: aiDiagnostics.resourceGenerationProvider,
+    resourceGenerationProviderPresent: aiDiagnostics.resourceGenerationProviderPresent,
+    openAiApiKeyPresent: aiDiagnostics.openAiApiKeyPresent,
+    openAiApiKeyStartsWithSk: aiDiagnostics.openAiApiKeyStartsWithSk,
+    resourceContentModel: RESOURCE_CONTENT_MODEL,
+    resourceImageModel: RESOURCE_IMAGE_MODEL,
+    resourceImageSize: RESOURCE_IMAGE_SIZE,
+    resourceImageQuality: RESOURCE_IMAGE_QUALITY || "default",
+    imageProviderUnavailableReasons: aiDiagnostics.imageProviderUnavailableReasons,
+    contentProviderUnavailableReasons: aiDiagnostics.contentProviderUnavailableReasons,
+    imageGenerationUnavailableReasons,
     cloudinaryConfigured,
+    cloudinaryUnavailableReasons: cloudinaryDiagnostics.unavailableReasons,
     dailyGenerationAvailable: migrationReady && contentProviderConfigured,
     imageGenerationAvailable: migrationReady && imageProviderConfigured && cloudinaryConfigured
   };

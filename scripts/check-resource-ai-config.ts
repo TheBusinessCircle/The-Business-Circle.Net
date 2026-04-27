@@ -1,70 +1,71 @@
 import { loadLocalEnv } from "./load-env";
 
-function envValue(name: string) {
-  return process.env[name]?.trim() ?? "";
-}
-
 function yesNo(value: boolean) {
   return value ? "yes" : "no";
 }
 
-function maskOpenAiKey(value: string) {
-  if (!value) {
-    return "missing";
-  }
-
-  const prefix = value.startsWith("sk-") ? "sk-" : `${value.slice(0, 2)}-`;
-  return `${prefix}...${value.slice(-4)}`;
-}
-
 async function main() {
-  loadLocalEnv();
+  loadLocalEnv({ printLoadedFiles: true });
 
+  const { getCloudinaryConfigDiagnostics } = await import("@/lib/media/cloudinary");
   const {
-    RESOURCE_CONTENT_MODEL,
-    RESOURCE_GENERATION_PROVIDER,
-    RESOURCE_IMAGE_MODEL,
-    RESOURCE_IMAGE_QUALITY,
-    RESOURCE_IMAGE_SIZE
-  } = await import("@/config/resources");
-  const { isCloudinaryConfigured } = await import("@/lib/media/cloudinary");
-  const {
-    isResourceContentProviderConfigured,
-    isResourceImageProviderConfigured
+    getResourceAiProviderDiagnostics
   } = await import("@/server/resources/resource-ai-provider.service");
 
-  const openAiKey = envValue("OPENAI_API_KEY");
-  const providerEnv = envValue("RESOURCE_GENERATION_PROVIDER");
-  const cloudinaryConfigured = isCloudinaryConfigured();
-  const contentProviderConfigured = isResourceContentProviderConfigured();
-  const imageProviderConfigured = isResourceImageProviderConfigured();
+  const ai = getResourceAiProviderDiagnostics();
+  const cloudinary = getCloudinaryConfigDiagnostics();
 
   console.log("Resource AI configuration");
   console.log("=========================");
-  console.log(`RESOURCE_GENERATION_PROVIDER exists: ${yesNo(Boolean(providerEnv))}`);
-  console.log(`Effective provider: ${RESOURCE_GENERATION_PROVIDER}`);
+  console.log(`OpenAI/provider configured: ${yesNo(ai.providerConfigured)}`);
+  console.log(`Content provider available: ${yesNo(ai.contentProviderAvailable)}`);
+  console.log(`Image provider available: ${yesNo(ai.imageProviderAvailable)}`);
   console.log(
-    `OpenAI/provider configured: ${yesNo(contentProviderConfigured && imageProviderConfigured)}`
+    `RESOURCE_GENERATION_PROVIDER present: ${yesNo(ai.resourceGenerationProviderPresent)}`
   );
-  console.log(`OpenAI API key: ${maskOpenAiKey(openAiKey)}`);
-  console.log(`Cloudinary configured: ${yesNo(cloudinaryConfigured)}`);
-  console.log(`content model: ${RESOURCE_CONTENT_MODEL}`);
-  console.log(`image model: ${RESOURCE_IMAGE_MODEL}`);
-  console.log(`image size: ${RESOURCE_IMAGE_SIZE}`);
-  console.log(`image quality: ${RESOURCE_IMAGE_QUALITY || "default"}`);
+  console.log(
+    `RESOURCE_GENERATION_PROVIDER: ${
+      ai.resourceGenerationProviderPresent ? ai.resourceGenerationProvider : "missing"
+    }`
+  );
+  console.log(`Effective provider default: ${ai.resourceGenerationProvider}`);
+  console.log(`OPENAI_API_KEY present: ${yesNo(ai.openAiApiKeyPresent)}`);
+  console.log(`OPENAI_API_KEY starts with sk: ${yesNo(ai.openAiApiKeyStartsWithSk)}`);
+  console.log(`OPENAI_API_KEY length: ${ai.openAiApiKeyLength}`);
+  console.log(`OPENAI_API_KEY preview: ${ai.openAiApiKeyPreview}`);
+  console.log(`content model: ${ai.contentModel}`);
+  console.log(`image model: ${ai.imageModel}`);
+  console.log(`image model supported by app: ${yesNo(ai.imageModelSupported)}`);
+  console.log(`image size: ${ai.imageSize}`);
+  console.log(`image size supported by app: ${yesNo(ai.imageSizeSupported)}`);
+  console.log(`image quality: ${ai.imageQuality}`);
+  console.log(`image quality supported by app: ${yesNo(ai.imageQualitySupported)}`);
+  console.log(`image generation disabled: ${yesNo(ai.imageGenerationDisabled)}`);
+  console.log(`Cloudinary configured: ${yesNo(cloudinary.configured)}`);
+  console.log(`CLOUDINARY_CLOUD_NAME present: ${yesNo(cloudinary.cloudNamePresent)}`);
+  console.log(`CLOUDINARY_API_KEY present: ${yesNo(cloudinary.apiKeyPresent)}`);
+  console.log(`CLOUDINARY_API_SECRET present: ${yesNo(cloudinary.apiSecretPresent)}`);
+  console.log("OpenAI SDK required: no (native fetch integration)");
 
-  if (!contentProviderConfigured || !imageProviderConfigured) {
+  if (!ai.contentProviderAvailable || !ai.imageProviderAvailable) {
     console.log("");
-    console.log(
-      "Provider not configured. Add RESOURCE_GENERATION_PROVIDER and OPENAI_API_KEY on the server, then restart PM2 with --update-env."
-    );
+    console.log("Provider unavailable reasons:");
+    [
+      ...new Set([
+        ...ai.contentProviderUnavailableReasons,
+        ...ai.imageProviderUnavailableReasons
+      ])
+    ].forEach((reason) => {
+      console.log(`- ${reason}`);
+    });
   }
 
-  if (!cloudinaryConfigured) {
+  if (!cloudinary.configured) {
     console.log("");
-    console.log(
-      "Cloudinary not configured. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET before image upload tests."
-    );
+    console.log("Cloudinary unavailable reasons:");
+    cloudinary.unavailableReasons.forEach((reason) => {
+      console.log(`- ${reason}`);
+    });
   }
 }
 

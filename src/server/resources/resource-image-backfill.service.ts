@@ -9,8 +9,11 @@ import {
   buildResourceImagePrompt
 } from "@/server/resources/resource-image-prompt-builder";
 import { generateCoverImageForResource } from "@/server/resources/resource-image-generation.service";
-import { isResourceImageProviderConfigured } from "@/server/resources/resource-ai-provider.service";
-import { isCloudinaryConfigured } from "@/lib/media/cloudinary";
+import {
+  getResourceAiProviderDiagnostics,
+  isResourceImageProviderConfigured
+} from "@/server/resources/resource-ai-provider.service";
+import { getCloudinaryConfigDiagnostics } from "@/lib/media/cloudinary";
 
 export type BackfillResourceImagesOptions = {
   dryRun?: boolean;
@@ -29,6 +32,13 @@ export type BackfillResourceImagesResult = {
   skippedExistingImages: number;
   skippedProviderUnavailable: number;
   skippedCloudinaryUnavailable: number;
+  providerAvailable: boolean;
+  cloudinaryAvailable: boolean;
+  providerUnavailableReasons: string[];
+  cloudinaryUnavailableReasons: string[];
+  providerSkipReasons: Record<string, number>;
+  cloudinarySkipReasons: Record<string, number>;
+  failureReasons: Record<string, number>;
   dryRun: boolean;
   limit: number;
   publishedOnly: boolean;
@@ -64,12 +74,23 @@ function hasManualOrExistingImage(resource: {
   return null;
 }
 
+function addReason(target: Record<string, number>, reason: string | undefined, amount = 1) {
+  const normalized = reason?.trim() || "unspecified reason";
+  target[normalized] = (target[normalized] ?? 0) + amount;
+}
+
+function firstReason(reasons: string[], fallback: string) {
+  return reasons[0] ?? fallback;
+}
+
 export async function backfillResourceImages(
   options: BackfillResourceImagesOptions = {}
 ): Promise<BackfillResourceImagesResult> {
   const limit = normalizeLimit(options.limit);
+  const providerDiagnostics = getResourceAiProviderDiagnostics();
   const providerConfigured = isResourceImageProviderConfigured();
-  const cloudinaryConfigured = isCloudinaryConfigured();
+  const cloudinaryDiagnostics = getCloudinaryConfigDiagnostics();
+  const cloudinaryConfigured = cloudinaryDiagnostics.configured;
   const baseWhere = {
     ...(options.publishedOnly ? { status: ResourceStatus.PUBLISHED } : {})
   };
@@ -151,6 +172,13 @@ export async function backfillResourceImages(
     skippedExistingImages,
     skippedProviderUnavailable: 0,
     skippedCloudinaryUnavailable: 0,
+    providerAvailable: providerConfigured,
+    cloudinaryAvailable: cloudinaryConfigured,
+    providerUnavailableReasons: providerDiagnostics.imageProviderUnavailableReasons,
+    cloudinaryUnavailableReasons: cloudinaryDiagnostics.unavailableReasons,
+    providerSkipReasons: {},
+    cloudinarySkipReasons: {},
+    failureReasons: {},
     dryRun: Boolean(options.dryRun),
     limit,
     publishedOnly: Boolean(options.publishedOnly),
@@ -204,11 +232,22 @@ export async function backfillResourceImages(
 
     if (!providerConfigured) {
       result.skippedProviderUnavailable += 1;
+      addReason(
+        result.providerSkipReasons,
+        firstReason(
+          providerDiagnostics.imageProviderUnavailableReasons,
+          "image generation provider unavailable"
+        )
+      );
       continue;
     }
 
     if (!cloudinaryConfigured) {
       result.skippedCloudinaryUnavailable += 1;
+      addReason(
+        result.cloudinarySkipReasons,
+        firstReason(cloudinaryDiagnostics.unavailableReasons, "Cloudinary is not configured")
+      );
       continue;
     }
 
@@ -218,12 +257,26 @@ export async function backfillResourceImages(
       result.imagesGenerated += 1;
     } else if (generation.status === ResourceImageStatus.FAILED) {
       result.failed += 1;
+      addReason(result.failureReasons, generation.reason);
     } else {
-      result.skippedProviderUnavailable += 1;
+      const reason = generation.reason;
+      if (reason.toLowerCase().includes("cloudinary")) {
+        result.skippedCloudinaryUnavailable += 1;
+        addReason(result.cloudinarySkipReasons, reason);
+      } else {
+        result.skippedProviderUnavailable += 1;
+        addReason(result.providerSkipReasons, reason);
+      }
     }
   }
 
   return result;
+}
+
+function formatReasonCounts(reasons: Record<string, number>) {
+  return Object.entries(reasons)
+    .map(([reason, count]) => `${count} ${reason}`)
+    .join("; ");
 }
 
 export function formatBackfillSummary(result: BackfillResourceImagesResult) {
@@ -238,7 +291,15 @@ export function formatBackfillSummary(result: BackfillResourceImagesResult) {
     `failed ${result.failed}`,
     `manual skipped ${result.skippedManualImages}`,
     `existing skipped ${result.skippedExistingImages}`,
-    `provider skipped ${result.skippedProviderUnavailable}`,
-    `cloudinary skipped ${result.skippedCloudinaryUnavailable}`
+    `provider skipped ${result.skippedProviderUnavailable}${
+      result.skippedProviderUnavailable
+        ? ` (${formatReasonCounts(result.providerSkipReasons)})`
+        : ""
+    }`,
+    `cloudinary skipped ${result.skippedCloudinaryUnavailable}${
+      result.skippedCloudinaryUnavailable
+        ? ` (${formatReasonCounts(result.cloudinarySkipReasons)})`
+        : ""
+    }`
   ].join(", ");
 }

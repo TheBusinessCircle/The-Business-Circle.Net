@@ -245,6 +245,21 @@ function DiagnosticStatus({
   );
 }
 
+function DiagnosticValue({
+  label,
+  value
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-silver/14 bg-background/20 px-4 py-3">
+      <span className="text-sm text-muted">{label}</span>
+      <span className="max-w-[58%] truncate text-right text-sm text-silver">{value}</span>
+    </div>
+  );
+}
+
 function imageStateLabel(resource: {
   coverImage: string | null;
   generatedImageUrl: string | null;
@@ -806,13 +821,19 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
               label="OpenAI/provider configured"
               ready={diagnostics.contentProviderConfigured}
             />
+            <DiagnosticStatus
+              label="OPENAI_API_KEY present"
+              ready={diagnostics.openAiApiKeyPresent}
+            />
+            <DiagnosticStatus
+              label="OPENAI_API_KEY starts with sk"
+              ready={diagnostics.openAiApiKeyStartsWithSk}
+            />
             <DiagnosticStatus label="Cloudinary configured" ready={diagnostics.cloudinaryConfigured} />
             <DiagnosticStatus
               label="daily generation service available"
               ready={diagnostics.dailyGenerationAvailable}
             />
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
             <DiagnosticStatus
               label="image provider configured"
               ready={diagnostics.imageProviderConfigured}
@@ -822,11 +843,33 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
               ready={diagnostics.imageGenerationAvailable}
             />
           </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <DiagnosticValue
+              label="provider"
+              value={
+                diagnostics.resourceGenerationProviderPresent
+                  ? diagnostics.resourceGenerationProvider
+                  : "missing"
+              }
+            />
+            <DiagnosticValue label="content model" value={diagnostics.resourceContentModel} />
+            <DiagnosticValue label="image model" value={diagnostics.resourceImageModel} />
+            <DiagnosticValue label="image size" value={diagnostics.resourceImageSize} />
+            <DiagnosticValue label="image quality" value={diagnostics.resourceImageQuality} />
+          </div>
           <div className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-xs text-muted">
             <p>Missing tables: {diagnostics.missingTables.join(", ") || "none"}</p>
             <p>
               Missing resource columns:{" "}
               {diagnostics.missingResourceColumns.join(", ") || "none"}
+            </p>
+            <p>
+              Content provider unavailable reasons:{" "}
+              {diagnostics.contentProviderUnavailableReasons.join("; ") || "none"}
+            </p>
+            <p>
+              Image generation unavailable reasons:{" "}
+              {diagnostics.imageGenerationUnavailableReasons.join("; ") || "none"}
             </p>
           </div>
         </CardContent>
@@ -853,14 +896,24 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
             ) : null}
             {!diagnostics.contentProviderConfigured ? (
               <p>
-                AI provider not configured. Generation buttons are disabled until OPENAI_API_KEY / provider env vars are configured.
+                AI provider not configured:{" "}
+                {diagnostics.contentProviderUnavailableReasons.join("; ") ||
+                  "OPENAI_API_KEY / provider env vars are not ready"}.
               </p>
             ) : null}
             {!diagnostics.imageProviderConfigured ? (
-              <p>Image provider is not configured. Image prompts can still be saved.</p>
+              <p>
+                Image provider is not configured:{" "}
+                {diagnostics.imageProviderUnavailableReasons.join("; ") ||
+                  "image provider env vars are not ready"}. Image prompts can still be saved.
+              </p>
             ) : null}
             {!diagnostics.cloudinaryConfigured ? (
-              <p>Cloudinary is not configured. Generated images cannot be attached to resources yet.</p>
+              <p>
+                Cloudinary is not configured:{" "}
+                {diagnostics.cloudinaryUnavailableReasons.join("; ") ||
+                  "Cloudinary env vars are not ready"}. Generated images cannot be attached to resources yet.
+              </p>
             ) : null}
             {!diagnostics.dailyGenerationAvailable ? (
               <p>Daily generation service is unavailable until the database migration and content provider are both ready.</p>
@@ -940,7 +993,9 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
             </p>
             {!diagnostics.dailyGenerationAvailable ? (
               <p className="mt-2 text-sm text-amber-100/90">
-                AI provider not configured. Generation buttons are disabled until OPENAI_API_KEY / provider env vars are configured.
+                Daily generation unavailable:{" "}
+                {diagnostics.contentProviderUnavailableReasons.join("; ") ||
+                  "database migration or provider config is not ready"}.
               </p>
             ) : null}
           </div>

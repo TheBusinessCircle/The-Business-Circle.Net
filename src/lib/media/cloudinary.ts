@@ -94,6 +94,27 @@ export function isCloudinaryConfigured() {
   );
 }
 
+export function getCloudinaryConfigDiagnostics() {
+  const cloudNamePresent = Boolean(process.env.CLOUDINARY_CLOUD_NAME?.trim());
+  const apiKeyPresent = Boolean(process.env.CLOUDINARY_API_KEY?.trim());
+  const apiSecretPresent = Boolean(process.env.CLOUDINARY_API_SECRET?.trim());
+  const missing = [
+    !cloudNamePresent ? "CLOUDINARY_CLOUD_NAME" : null,
+    !apiKeyPresent ? "CLOUDINARY_API_KEY" : null,
+    !apiSecretPresent ? "CLOUDINARY_API_SECRET" : null
+  ].filter((item): item is string => Boolean(item));
+
+  return {
+    cloudNamePresent,
+    apiKeyPresent,
+    apiSecretPresent,
+    configured: missing.length === 0,
+    unavailableReasons: missing.length
+      ? [`Cloudinary missing ${missing.join(", ")}`]
+      : []
+  };
+}
+
 export async function uploadImageAssetToCloudinary(input: {
   file: File;
   folder: string;

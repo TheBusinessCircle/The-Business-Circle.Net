@@ -2,12 +2,15 @@ import { ResourceImageStatus } from "@prisma/client";
 import { RESOURCE_IMAGE_MODEL } from "@/config/resources";
 import { db } from "@/lib/db";
 import {
+  getCloudinaryConfigDiagnostics,
   isCloudinaryConfigured,
   uploadImageBufferToCloudinary
 } from "@/lib/media/cloudinary";
 import { slugify } from "@/lib/utils";
 import {
+  describeResourceProviderError,
   generateResourceCoverImageFromProvider,
+  getResourceAiProviderDiagnostics,
   isResourceImageProviderConfigured
 } from "@/server/resources/resource-ai-provider.service";
 import {
@@ -127,6 +130,10 @@ export async function generateCoverImageForResource(resourceId: string) {
   const existingMetadata = metadataRecord(resource.generationMetadata);
 
   if (!isResourceImageProviderConfigured()) {
+    const diagnostics = getResourceAiProviderDiagnostics();
+    const reason =
+      diagnostics.imageProviderUnavailableReasons[0] ||
+      "Image generation provider not configured";
     await db.resource.update({
       where: { id: resource.id },
       data: {
@@ -137,7 +144,7 @@ export async function generateCoverImageForResource(resourceId: string) {
           ...existingMetadata,
           imageGeneration: {
             status: "skipped",
-            reason: "Image generation provider not configured",
+            reason,
             skippedAt: new Date().toISOString()
           }
         }
@@ -146,11 +153,14 @@ export async function generateCoverImageForResource(resourceId: string) {
 
     return {
       status: ResourceImageStatus.SKIPPED,
-      message: "Image generation provider not configured. Prompt saved."
+      message: "Image generation provider not configured. Prompt saved.",
+      reason
     };
   }
 
   if (!isCloudinaryConfigured()) {
+    const diagnostics = getCloudinaryConfigDiagnostics();
+    const reason = diagnostics.unavailableReasons[0] || "Cloudinary is not configured";
     await db.resource.update({
       where: { id: resource.id },
       data: {
@@ -161,7 +171,7 @@ export async function generateCoverImageForResource(resourceId: string) {
           ...existingMetadata,
           imageGeneration: {
             status: "skipped",
-            reason: "Cloudinary is not configured",
+            reason,
             skippedAt: new Date().toISOString()
           }
         }
@@ -170,7 +180,8 @@ export async function generateCoverImageForResource(resourceId: string) {
 
     return {
       status: ResourceImageStatus.SKIPPED,
-      message: "Cloudinary is not configured. Prompt saved."
+      message: "Cloudinary is not configured. Prompt saved.",
+      reason
     };
   }
 
@@ -225,6 +236,7 @@ export async function generateCoverImageForResource(resourceId: string) {
       message: "Cover image generated."
     };
   } catch (error) {
+    const reason = describeResourceProviderError(error, "image provider");
     await saveImageFailure({
       resourceId: resource.id,
       imagePrompt,
@@ -233,12 +245,13 @@ export async function generateCoverImageForResource(resourceId: string) {
         error instanceof ResourceGenerationError
           ? error.code
           : "image-generation-failed",
-      message: error instanceof Error ? error.message : "Image generation failed."
+      message: reason
     });
 
     return {
       status: ResourceImageStatus.FAILED,
-      message: "Image generation failed, prompt saved."
+      message: "Image generation failed, prompt saved.",
+      reason
     };
   }
 }

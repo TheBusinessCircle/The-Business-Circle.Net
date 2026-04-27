@@ -54,7 +54,7 @@ function parseArgs(argv: string[]): CliOptions {
 }
 
 async function main() {
-  loadLocalEnv();
+  loadLocalEnv({ printLoadedFiles: true });
   const { getResourceWorkflowDiagnostics } = await import(
     "@/server/resources/resource-workflow-diagnostics.service"
   );
@@ -83,6 +83,8 @@ async function main() {
   console.log(`Limit: ${result.limit}`);
   console.log(`Published only: ${options.publishedOnly ? "yes" : "no"}`);
   console.log(`Prompts only: ${options.forcePromptsOnly ? "yes" : "no"}`);
+  console.log(`Provider available: ${result.providerAvailable ? "yes" : "no"}`);
+  console.log(`Cloudinary available: ${result.cloudinaryAvailable ? "yes" : "no"}`);
   console.log("");
   console.log(formatBackfillSummary(result));
   console.log("");
@@ -95,6 +97,46 @@ async function main() {
   console.log(`Skipped existing images: ${result.skippedExistingImages}`);
   console.log(`Skipped provider unavailable: ${result.skippedProviderUnavailable}`);
   console.log(`Skipped Cloudinary unavailable: ${result.skippedCloudinaryUnavailable}`);
+
+  if (result.providerUnavailableReasons.length) {
+    console.log("");
+    console.log("Provider unavailable reasons:");
+    result.providerUnavailableReasons.forEach((reason) => {
+      console.log(`- ${reason}`);
+    });
+  }
+
+  if (result.cloudinaryUnavailableReasons.length) {
+    console.log("");
+    console.log("Cloudinary unavailable reasons:");
+    result.cloudinaryUnavailableReasons.forEach((reason) => {
+      console.log(`- ${reason}`);
+    });
+  }
+
+  if (Object.keys(result.providerSkipReasons).length) {
+    console.log("");
+    console.log("Provider skipped:");
+    Object.entries(result.providerSkipReasons).forEach(([reason, count]) => {
+      console.log(`- ${count} skipped because ${reason}`);
+    });
+  }
+
+  if (Object.keys(result.cloudinarySkipReasons).length) {
+    console.log("");
+    console.log("Cloudinary skipped:");
+    Object.entries(result.cloudinarySkipReasons).forEach(([reason, count]) => {
+      console.log(`- ${count} skipped because ${reason}`);
+    });
+  }
+
+  if (Object.keys(result.failureReasons).length) {
+    console.log("");
+    console.log("Failures:");
+    Object.entries(result.failureReasons).forEach(([reason, count]) => {
+      console.log(`- ${count} failed because ${reason}`);
+    });
+  }
 }
 
 main()
