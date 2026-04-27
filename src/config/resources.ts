@@ -74,6 +74,11 @@ export const RESOURCE_IMAGE_MODEL =
   process.env.OPENAI_RESOURCE_IMAGE_MODEL?.trim() ||
   "gpt-image-2";
 
+export const RESOURCE_IMAGE_FALLBACK_MODEL =
+  process.env.RESOURCE_IMAGE_FALLBACK_MODEL?.trim() ||
+  process.env.OPENAI_RESOURCE_IMAGE_FALLBACK_MODEL?.trim() ||
+  "";
+
 export const RESOURCE_IMAGE_SIZE = process.env.RESOURCE_IMAGE_SIZE?.trim() || "1024x1024";
 
 export const RESOURCE_IMAGE_QUALITY = process.env.RESOURCE_IMAGE_QUALITY?.trim() || "medium";

@@ -54,6 +54,7 @@ async function saveImageFailure(input: {
   imageDirection: string;
   code: string;
   message: string;
+  details?: Record<string, unknown>;
   existingMetadata: Record<string, unknown>;
 }) {
   await db.resource.update({
@@ -68,6 +69,26 @@ async function saveImageFailure(input: {
           status: "failed",
           code: input.code,
           message: input.message,
+          httpStatus:
+            typeof input.details?.status === "number" ? input.details.status : null,
+          providerErrorCode:
+            typeof input.details?.providerErrorCode === "string"
+              ? input.details.providerErrorCode
+              : null,
+          providerErrorType:
+            typeof input.details?.providerErrorType === "string"
+              ? input.details.providerErrorType
+              : null,
+          model:
+            typeof input.details?.model === "string" ? input.details.model : null,
+          imageSize:
+            typeof input.details?.size === "string" ? input.details.size : null,
+          imageQuality:
+            typeof input.details?.quality === "string" ? input.details.quality : null,
+          endpoint:
+            typeof input.details?.endpoint === "string" ? input.details.endpoint : null,
+          method:
+            typeof input.details?.method === "string" ? input.details.method : null,
           failedAt: new Date().toISOString()
         }
       }
@@ -273,6 +294,7 @@ export async function generateCoverImageForResource(resourceId: string) {
           ? error.code
           : "image-generation-failed",
       message: reason,
+      details: error instanceof ResourceGenerationError ? error.details : undefined,
       existingMetadata
     });
 

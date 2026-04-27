@@ -891,8 +891,14 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
             />
             <DiagnosticValue label="content model" value={diagnostics.resourceContentModel} />
             <DiagnosticValue label="image model" value={diagnostics.resourceImageModel} />
+            <DiagnosticValue
+              label="fallback image model"
+              value={diagnostics.resourceImageFallbackModel || "not configured"}
+            />
             <DiagnosticValue label="image size" value={diagnostics.resourceImageSize} />
             <DiagnosticValue label="image quality" value={diagnostics.resourceImageQuality} />
+            <DiagnosticValue label="image endpoint" value={diagnostics.resourceImageEndpoint} />
+            <DiagnosticValue label="image method" value={diagnostics.resourceImageMethod} />
           </div>
           <div className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-xs text-muted">
             <p>Missing tables: {diagnostics.missingTables.join(", ") || "none"}</p>
@@ -907,6 +913,16 @@ export default async function AdminResourcesPage({ searchParams }: PageProps) {
             <p>
               Image generation unavailable reasons:{" "}
               {diagnostics.imageGenerationUnavailableReasons.join("; ") || "none"}
+            </p>
+            <p>
+              Last image provider error:{" "}
+              {diagnostics.lastImageProviderError
+                ? `${diagnostics.lastImageProviderError.resourceTitle}: ${
+                    diagnostics.lastImageProviderError.message ||
+                    diagnostics.lastImageProviderError.code ||
+                    "unknown error"
+                  }`
+                : "none"}
             </p>
           </div>
         </CardContent>

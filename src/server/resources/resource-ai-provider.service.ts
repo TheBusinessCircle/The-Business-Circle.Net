@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   RESOURCE_CONTENT_MODEL,
   RESOURCE_GENERATION_PROVIDER,
+  RESOURCE_IMAGE_FALLBACK_MODEL,
   RESOURCE_IMAGE_MODEL,
   RESOURCE_IMAGE_QUALITY,
   RESOURCE_IMAGE_SIZE
@@ -10,26 +11,15 @@ import { ResourceGenerationError } from "@/server/resources/resource-generation-
 
 const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
+const OPENAI_IMAGES_METHOD = "POST /v1/images/generations";
 const OPENAI_API_KEY_MIN_LENGTH = 20;
 const TRUE_ENV_VALUES = new Set(["1", "true", "yes"]);
-const SUPPORTED_RESOURCE_IMAGE_SIZES = new Set([
-  "auto",
-  "256x256",
-  "512x512",
-  "1024x1024",
-  "1024x1536",
-  "1536x1024",
-  "1024x1792",
-  "1792x1024"
-]);
-const SUPPORTED_RESOURCE_IMAGE_QUALITIES = new Set([
-  "auto",
-  "low",
-  "medium",
-  "high",
-  "standard",
-  "hd"
-]);
+const GPT_IMAGE_SIZES = new Set(["auto", "1024x1024", "1536x1024", "1024x1536"]);
+const GPT_IMAGE_QUALITIES = new Set(["auto", "low", "medium", "high"]);
+const DALLE_2_SIZES = new Set(["256x256", "512x512", "1024x1024"]);
+const DALLE_2_QUALITIES = new Set(["standard"]);
+const DALLE_3_SIZES = new Set(["1024x1024", "1792x1024", "1024x1792"]);
+const DALLE_3_QUALITIES = new Set(["standard", "hd"]);
 
 export type ResourceAiProviderDiagnostics = {
   resourceGenerationProviderPresent: boolean;
@@ -42,10 +32,14 @@ export type ResourceAiProviderDiagnostics = {
   openAiApiKeyPreview: string;
   contentModel: string;
   imageModel: string;
+  imageFallbackModel: string;
   imageSize: string;
   imageQuality: string;
+  imageEndpoint: string;
+  imageMethod: string;
   imageGenerationDisabled: boolean;
   imageModelSupported: boolean;
+  imageFallbackModelSupported: boolean;
   imageSizeSupported: boolean;
   imageQualitySupported: boolean;
   contentProviderAvailable: boolean;
@@ -73,6 +67,19 @@ export type ProviderGeneratedImage = {
   url?: string;
   mimeType: string;
   metadata: Record<string, unknown>;
+};
+
+export type OpenAiProviderFailureDetails = {
+  status: number;
+  providerErrorCode: string | null;
+  providerErrorType: string | null;
+  providerErrorMessage: string;
+  message: string;
+  model: string;
+  size?: string;
+  quality?: string;
+  endpoint: string;
+  method: string;
 };
 
 function envValue(name: string) {
@@ -110,16 +117,31 @@ function getOpenAiErrorPayload(rawMessage: string) {
   }
 }
 
-async function getOpenAiFailureDetails(response: Response) {
+async function getOpenAiFailureDetails(
+  response: Response,
+  context: {
+    model: string;
+    size?: string;
+    quality?: string;
+    endpoint: string;
+    method: string;
+  }
+): Promise<OpenAiProviderFailureDetails> {
   const rawMessage = await response.text().catch(() => "");
   const sanitizedMessage = redactSecrets(rawMessage).slice(0, 500);
   const errorPayload = getOpenAiErrorPayload(rawMessage);
+  const providerErrorMessage = redactSecrets(errorPayload?.message ?? sanitizedMessage).slice(
+    0,
+    500
+  );
 
   return {
     status: response.status,
     providerErrorCode: errorPayload?.code ?? null,
     providerErrorType: errorPayload?.type ?? null,
-    message: sanitizedMessage
+    providerErrorMessage,
+    message: sanitizedMessage,
+    ...context
   };
 }
 
@@ -137,13 +159,105 @@ export function isSupportedResourceImageModel(model = RESOURCE_IMAGE_MODEL) {
   );
 }
 
-function isSupportedResourceImageSize(size = RESOURCE_IMAGE_SIZE) {
-  return SUPPORTED_RESOURCE_IMAGE_SIZES.has(size.trim().toLowerCase());
+function isDalle2Model(model: string) {
+  return model.trim().toLowerCase() === "dall-e-2";
 }
 
-function isSupportedResourceImageQuality(quality = RESOURCE_IMAGE_QUALITY) {
+function isDalle3Model(model: string) {
+  return model.trim().toLowerCase() === "dall-e-3";
+}
+
+function allowedImageSizesForModel(model: string) {
+  if (isDalle2Model(model)) {
+    return DALLE_2_SIZES;
+  }
+
+  if (isDalle3Model(model)) {
+    return DALLE_3_SIZES;
+  }
+
+  return GPT_IMAGE_SIZES;
+}
+
+function allowedImageQualitiesForModel(model: string) {
+  if (isDalle2Model(model)) {
+    return DALLE_2_QUALITIES;
+  }
+
+  if (isDalle3Model(model)) {
+    return DALLE_3_QUALITIES;
+  }
+
+  return GPT_IMAGE_QUALITIES;
+}
+
+function isSupportedResourceImageSizeForModel(
+  size = RESOURCE_IMAGE_SIZE,
+  model = RESOURCE_IMAGE_MODEL
+) {
+  return allowedImageSizesForModel(model).has(size.trim().toLowerCase());
+}
+
+function isSupportedResourceImageQualityForModel(
+  quality = RESOURCE_IMAGE_QUALITY,
+  model = RESOURCE_IMAGE_MODEL
+) {
   const trimmed = quality.trim().toLowerCase();
-  return !trimmed || SUPPORTED_RESOURCE_IMAGE_QUALITIES.has(trimmed);
+  return !trimmed || allowedImageQualitiesForModel(model).has(trimmed);
+}
+
+function chooseImageSizeForModel(model: string) {
+  const requested = RESOURCE_IMAGE_SIZE.trim().toLowerCase() || "auto";
+  if (isSupportedResourceImageSizeForModel(requested, model)) {
+    return requested;
+  }
+
+  if (isDalle2Model(model) || isDalle3Model(model)) {
+    return "1024x1024";
+  }
+
+  return "1024x1024";
+}
+
+function chooseImageQualityForModel(model: string) {
+  const requested = RESOURCE_IMAGE_QUALITY.trim().toLowerCase() || "auto";
+  if (isSupportedResourceImageQualityForModel(requested, model)) {
+    return requested;
+  }
+
+  if (isDalle2Model(model)) {
+    return "standard";
+  }
+
+  if (isDalle3Model(model)) {
+    return "standard";
+  }
+
+  return "medium";
+}
+
+function shouldRetryImageWithFallback(details: Record<string, unknown> | undefined) {
+  if (!details) {
+    return false;
+  }
+
+  const status = typeof details.status === "number" ? details.status : 0;
+  const normalized = [
+    details.providerErrorCode,
+    details.providerErrorType,
+    details.providerErrorMessage
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    status === 403 ||
+    status === 404 ||
+    normalized.includes("unsupported") ||
+    normalized.includes("model") ||
+    normalized.includes("access")
+  );
 }
 
 export function getResourceAiProviderDiagnostics(): ResourceAiProviderDiagnostics {
@@ -175,8 +289,11 @@ export function getResourceAiProviderDiagnostics(): ResourceAiProviderDiagnostic
 
   const imageGenerationDisabled = isTruthyEnvValue(envValue("RESOURCE_IMAGE_GENERATION_DISABLED"));
   const imageModelSupported = isSupportedResourceImageModel();
-  const imageSizeSupported = isSupportedResourceImageSize();
-  const imageQualitySupported = isSupportedResourceImageQuality();
+  const imageFallbackModelSupported =
+    !RESOURCE_IMAGE_FALLBACK_MODEL.trim() ||
+    isSupportedResourceImageModel(RESOURCE_IMAGE_FALLBACK_MODEL);
+  const imageSizeSupported = isSupportedResourceImageSizeForModel();
+  const imageQualitySupported = isSupportedResourceImageQualityForModel();
   const imageReasons = [...baseReasons];
 
   if (imageGenerationDisabled) {
@@ -189,12 +306,22 @@ export function getResourceAiProviderDiagnostics(): ResourceAiProviderDiagnostic
     imageReasons.push(`RESOURCE_IMAGE_MODEL unsupported (${RESOURCE_IMAGE_MODEL})`);
   }
 
+  if (RESOURCE_IMAGE_FALLBACK_MODEL && !imageFallbackModelSupported) {
+    imageReasons.push(
+      `RESOURCE_IMAGE_FALLBACK_MODEL unsupported (${RESOURCE_IMAGE_FALLBACK_MODEL})`
+    );
+  }
+
   if (!imageSizeSupported) {
-    imageReasons.push(`RESOURCE_IMAGE_SIZE unsupported (${RESOURCE_IMAGE_SIZE})`);
+    imageReasons.push(
+      `RESOURCE_IMAGE_SIZE unsupported for ${RESOURCE_IMAGE_MODEL} (${RESOURCE_IMAGE_SIZE})`
+    );
   }
 
   if (!imageQualitySupported) {
-    imageReasons.push(`RESOURCE_IMAGE_QUALITY unsupported (${RESOURCE_IMAGE_QUALITY})`);
+    imageReasons.push(
+      `RESOURCE_IMAGE_QUALITY unsupported for ${RESOURCE_IMAGE_MODEL} (${RESOURCE_IMAGE_QUALITY})`
+    );
   }
 
   return {
@@ -208,10 +335,14 @@ export function getResourceAiProviderDiagnostics(): ResourceAiProviderDiagnostic
     openAiApiKeyPreview: maskOpenAiApiKeyForDiagnostics(openAiApiKey),
     contentModel: RESOURCE_CONTENT_MODEL,
     imageModel: RESOURCE_IMAGE_MODEL,
+    imageFallbackModel: RESOURCE_IMAGE_FALLBACK_MODEL,
     imageSize: RESOURCE_IMAGE_SIZE,
     imageQuality: RESOURCE_IMAGE_QUALITY || "default",
+    imageEndpoint: OPENAI_IMAGES_URL,
+    imageMethod: OPENAI_IMAGES_METHOD,
     imageGenerationDisabled,
     imageModelSupported,
+    imageFallbackModelSupported,
     imageSizeSupported,
     imageQualitySupported,
     contentProviderAvailable: baseReasons.length === 0,
@@ -258,13 +389,23 @@ export function describeResourceProviderError(error: unknown, label = "provider"
       typeof details.providerErrorCode === "string" ? details.providerErrorCode : null;
     const providerType =
       typeof details.providerErrorType === "string" ? details.providerErrorType : null;
+    const providerMessage =
+      typeof details.providerErrorMessage === "string"
+        ? details.providerErrorMessage
+        : typeof details.message === "string"
+          ? details.message
+          : null;
 
     if (status) {
-      return [
-        `${label} returned`,
-        String(status),
-        providerCode || providerType || "API error"
-      ].join(" ");
+      if (label.toLowerCase().includes("image")) {
+        return `OpenAI image error ${status}: ${
+          providerMessage || providerCode || providerType || "API error"
+        }`;
+      }
+
+      return `${label} returned ${status}: ${
+        providerMessage || providerCode || providerType || "API error"
+      }`;
     }
 
     const reasons = Array.isArray(details.reasons)
@@ -278,6 +419,29 @@ export function describeResourceProviderError(error: unknown, label = "provider"
   }
 
   return error instanceof Error ? error.message : "Provider call failed.";
+}
+
+export function getSafeOpenAiErrorDetails(error: unknown) {
+  if (!(error instanceof ResourceGenerationError)) {
+    return null;
+  }
+
+  const details =
+    typeof error.details === "object" && error.details !== null
+      ? (error.details as Record<string, unknown>)
+      : {};
+
+  return {
+    status: details.status ?? null,
+    errorCode: details.providerErrorCode ?? null,
+    errorType: details.providerErrorType ?? null,
+    errorMessage: details.providerErrorMessage ?? details.message ?? null,
+    model: details.model ?? null,
+    size: details.size ?? null,
+    quality: details.quality ?? null,
+    endpoint: details.endpoint ?? null,
+    method: details.method ?? null
+  };
 }
 
 function stripJsonFence(value: string) {
@@ -346,7 +510,11 @@ export async function generateResourceContentFromProvider(prompt: string) {
     throw new ResourceGenerationError(
       "Generation provider failed while creating resource content.",
       "content-generation-failed",
-      await getOpenAiFailureDetails(response)
+      await getOpenAiFailureDetails(response, {
+        model: RESOURCE_CONTENT_MODEL,
+        endpoint: OPENAI_CHAT_COMPLETIONS_URL,
+        method: "POST /v1/chat/completions"
+      })
     );
   }
 
@@ -431,7 +599,11 @@ export async function runResourceTextProviderSmokeTest() {
     throw new ResourceGenerationError(
       "Generation provider failed during the smoke test.",
       "content-smoke-test-failed",
-      await getOpenAiFailureDetails(response)
+      await getOpenAiFailureDetails(response, {
+        model: RESOURCE_CONTENT_MODEL,
+        endpoint: OPENAI_CHAT_COMPLETIONS_URL,
+        method: "POST /v1/chat/completions"
+      })
     );
   }
 
@@ -464,6 +636,76 @@ async function fetchImageUrlAsBuffer(url: string) {
   return Buffer.from(await response.arrayBuffer());
 }
 
+async function callOpenAiImageGeneration(input: {
+  prompt: string;
+  model: string;
+  isFallback: boolean;
+}) {
+  const size = chooseImageSizeForModel(input.model);
+  const quality = chooseImageQualityForModel(input.model);
+  const requestBody = {
+    model: input.model,
+    prompt: input.prompt,
+    n: 1,
+    size,
+    ...(quality ? { quality } : {})
+  };
+
+  const response = await fetch(OPENAI_IMAGES_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${getOpenAiApiKey()}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const details = await getOpenAiFailureDetails(response, {
+      model: input.model,
+      size,
+      quality,
+      endpoint: OPENAI_IMAGES_URL,
+      method: OPENAI_IMAGES_METHOD
+    });
+    console.error("[resources] OpenAI image generation failed", details);
+    throw new ResourceGenerationError(
+      "Image generation failed, prompt saved.",
+      "image-generation-failed",
+      details
+    );
+  }
+
+  const payload = (await response.json()) as {
+    data?: Array<{ b64_json?: string; url?: string; revised_prompt?: string }>;
+  };
+  const item = payload.data?.[0];
+
+  if (!item?.b64_json && !item?.url) {
+    const details = {
+      model: input.model,
+      size,
+      quality,
+      endpoint: OPENAI_IMAGES_URL,
+      method: OPENAI_IMAGES_METHOD
+    };
+    console.error("[resources] OpenAI image generation returned no image data", details);
+    throw new ResourceGenerationError(
+      "Image generation returned no usable image.",
+      "image-generation-empty",
+      details
+    );
+  }
+
+  return {
+    item,
+    model: input.model,
+    size,
+    quality,
+    isFallback: input.isFallback
+  };
+}
+
 export async function generateResourceCoverImageFromProvider(
   prompt: string
 ): Promise<ProviderGeneratedImage> {
@@ -480,49 +722,51 @@ export async function generateResourceCoverImageFromProvider(
     );
   }
 
-  const response = await fetch(OPENAI_IMAGES_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${getOpenAiApiKey()}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: RESOURCE_IMAGE_MODEL,
+  let generated: Awaited<ReturnType<typeof callOpenAiImageGeneration>>;
+  try {
+    generated = await callOpenAiImageGeneration({
       prompt,
-      n: 1,
-      size: RESOURCE_IMAGE_SIZE,
-      ...(RESOURCE_IMAGE_QUALITY ? { quality: RESOURCE_IMAGE_QUALITY } : {})
-    })
-  });
-
-  if (!response.ok) {
-    throw new ResourceGenerationError(
-      "Image generation failed, prompt saved.",
-      "image-generation-failed",
-      await getOpenAiFailureDetails(response)
-    );
+      model: RESOURCE_IMAGE_MODEL,
+      isFallback: false
+    });
+  } catch (error) {
+    if (
+      RESOURCE_IMAGE_FALLBACK_MODEL &&
+      RESOURCE_IMAGE_FALLBACK_MODEL !== RESOURCE_IMAGE_MODEL &&
+      error instanceof ResourceGenerationError &&
+      shouldRetryImageWithFallback(error.details)
+    ) {
+      console.warn(
+        "[resources] Primary image model failed, retrying fallback model.",
+        {
+          primaryModel: RESOURCE_IMAGE_MODEL,
+          fallbackModel: RESOURCE_IMAGE_FALLBACK_MODEL,
+          reason: describeResourceProviderError(error, "image provider")
+        }
+      );
+      generated = await callOpenAiImageGeneration({
+        prompt,
+        model: RESOURCE_IMAGE_FALLBACK_MODEL,
+        isFallback: true
+      });
+    } else {
+      throw error;
+    }
   }
 
-  const payload = (await response.json()) as {
-    data?: Array<{ b64_json?: string; url?: string; revised_prompt?: string }>;
-  };
-  const item = payload.data?.[0];
-
-  if (!item?.b64_json && !item?.url) {
-    throw new ResourceGenerationError(
-      "Image generation returned no usable image.",
-      "image-generation-empty"
-    );
-  }
+  const { item, model, size, quality, isFallback } = generated;
 
   if (item.b64_json) {
     return {
       bytes: Buffer.from(item.b64_json, "base64"),
       mimeType: "image/png",
       metadata: {
-        model: RESOURCE_IMAGE_MODEL,
-        imageSize: RESOURCE_IMAGE_SIZE,
-        imageQuality: RESOURCE_IMAGE_QUALITY,
+        model,
+        imageSize: size,
+        imageQuality: quality,
+        endpoint: OPENAI_IMAGES_URL,
+        method: OPENAI_IMAGES_METHOD,
+        fallbackModelUsed: isFallback,
         revisedPrompt: item.revised_prompt ?? null
       }
     };
@@ -535,9 +779,12 @@ export async function generateResourceCoverImageFromProvider(
     url: item.url,
     mimeType: "image/png",
     metadata: {
-      model: RESOURCE_IMAGE_MODEL,
-      imageSize: RESOURCE_IMAGE_SIZE,
-      imageQuality: RESOURCE_IMAGE_QUALITY,
+      model,
+      imageSize: size,
+      imageQuality: quality,
+      endpoint: OPENAI_IMAGES_URL,
+      method: OPENAI_IMAGES_METHOD,
+      fallbackModelUsed: isFallback,
       revisedPrompt: item.revised_prompt ?? null
     }
   };

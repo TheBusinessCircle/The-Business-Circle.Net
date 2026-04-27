@@ -35,11 +35,17 @@ async function main() {
   console.log(`OPENAI_API_KEY preview: ${ai.openAiApiKeyPreview}`);
   console.log(`content model: ${ai.contentModel}`);
   console.log(`image model: ${ai.imageModel}`);
+  console.log(`image fallback model: ${ai.imageFallbackModel || "not configured"}`);
+  console.log(
+    `image fallback model supported by app: ${yesNo(ai.imageFallbackModelSupported)}`
+  );
   console.log(`image model supported by app: ${yesNo(ai.imageModelSupported)}`);
   console.log(`image size: ${ai.imageSize}`);
   console.log(`image size supported by app: ${yesNo(ai.imageSizeSupported)}`);
   console.log(`image quality: ${ai.imageQuality}`);
   console.log(`image quality supported by app: ${yesNo(ai.imageQualitySupported)}`);
+  console.log(`image endpoint: ${ai.imageEndpoint}`);
+  console.log(`image method: ${ai.imageMethod}`);
   console.log(`image generation disabled: ${yesNo(ai.imageGenerationDisabled)}`);
   console.log(`Cloudinary configured: ${yesNo(cloudinary.configured)}`);
   console.log(`CLOUDINARY_CLOUD_NAME present: ${yesNo(cloudinary.cloudNamePresent)}`);

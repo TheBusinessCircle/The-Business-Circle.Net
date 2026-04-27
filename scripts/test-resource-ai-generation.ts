@@ -51,6 +51,7 @@ async function main() {
     describeResourceProviderError,
     generateResourceCoverImageFromProvider,
     getResourceAiProviderDiagnostics,
+    getSafeOpenAiErrorDetails,
     runResourceTextProviderSmokeTest
   } = await import("@/server/resources/resource-ai-provider.service");
 
@@ -64,8 +65,11 @@ async function main() {
   console.log(`Image provider available: ${yesNo(ai.imageProviderAvailable)}`);
   console.log(`Content model: ${ai.contentModel}`);
   console.log(`Image model: ${ai.imageModel}`);
+  console.log(`Image fallback model: ${ai.imageFallbackModel || "not configured"}`);
   console.log(`Image size: ${ai.imageSize}`);
   console.log(`Image quality: ${ai.imageQuality}`);
+  console.log(`Image endpoint: ${ai.imageEndpoint}`);
+  console.log(`Image method: ${ai.imageMethod}`);
   console.log(`Generate image: ${yesNo(options.image)}`);
   console.log(`Cloudinary configured: ${yesNo(cloudinary.configured)}`);
   console.log("");
@@ -108,6 +112,18 @@ async function main() {
     console.log("Generating one test cover image...");
     const generated = await generateResourceCoverImageFromProvider(SMOKE_IMAGE_PROMPT);
 
+    console.log(`OpenAI returned image data: ${yesNo(Boolean(generated.bytes))}`);
+    console.log(`OpenAI model used: ${String(generated.metadata.model ?? "unknown")}`);
+    console.log(`OpenAI image size used: ${String(generated.metadata.imageSize ?? "unknown")}`);
+    console.log(
+      `OpenAI image quality used: ${String(generated.metadata.imageQuality ?? "unknown")}`
+    );
+    console.log(`OpenAI endpoint: ${String(generated.metadata.endpoint ?? ai.imageEndpoint)}`);
+    console.log(`OpenAI method: ${String(generated.metadata.method ?? ai.imageMethod)}`);
+    console.log(
+      `Fallback model used: ${yesNo(Boolean(generated.metadata.fallbackModelUsed))}`
+    );
+
     if (!generated.bytes) {
       throw new Error("Image provider returned no binary image data.");
     }
@@ -130,12 +146,17 @@ async function main() {
 
     console.log(`Cloudinary URL: ${uploadedImageUrl}`);
   } catch (error) {
+    const details = getSafeOpenAiErrorDetails(error);
     console.error(
       `FAILED image provider smoke test: ${describeResourceProviderError(
         error,
         "image provider"
       )}`
     );
+    if (details) {
+      console.error("Safe OpenAI error details:");
+      console.error(JSON.stringify(details, null, 2));
+    }
     process.exitCode = 1;
   }
 }

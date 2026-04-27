@@ -1,6 +1,7 @@
 import { getCloudinaryConfigDiagnostics } from "@/lib/media/cloudinary";
 import {
   RESOURCE_CONTENT_MODEL,
+  RESOURCE_IMAGE_FALLBACK_MODEL,
   RESOURCE_IMAGE_MODEL,
   RESOURCE_IMAGE_QUALITY,
   RESOURCE_IMAGE_SIZE
@@ -38,6 +39,14 @@ type TableRow = {
   table_name: string;
 };
 
+function metadataRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
+}
+
 export type ResourceWorkflowDiagnostics = {
   migrationReady: boolean;
   missingTables: string[];
@@ -50,8 +59,22 @@ export type ResourceWorkflowDiagnostics = {
   openAiApiKeyStartsWithSk: boolean;
   resourceContentModel: string;
   resourceImageModel: string;
+  resourceImageFallbackModel: string;
   resourceImageSize: string;
   resourceImageQuality: string;
+  resourceImageEndpoint: string;
+  resourceImageMethod: string;
+  lastImageProviderError: {
+    resourceTitle: string;
+    resourceId: string;
+    status: string | null;
+    code: string | null;
+    message: string | null;
+    failedAt: string | null;
+    model: string | null;
+    endpoint: string | null;
+    method: string | null;
+  } | null;
   imageProviderUnavailableReasons: string[];
   contentProviderUnavailableReasons: string[];
   imageGenerationUnavailableReasons: string[];
@@ -94,6 +117,26 @@ export async function getResourceWorkflowDiagnostics(): Promise<ResourceWorkflow
     ...cloudinaryDiagnostics.unavailableReasons
   ];
 
+  const latestFailedImage =
+    migrationReady
+      ? await db.resource.findFirst({
+          where: {
+            imageStatus: "FAILED"
+          },
+          orderBy: {
+            updatedAt: "desc"
+          },
+          select: {
+            id: true,
+            title: true,
+            generationMetadata: true
+          }
+        })
+      : null;
+  const latestImageGeneration = metadataRecord(
+    metadataRecord(latestFailedImage?.generationMetadata).imageGeneration
+  );
+
   return {
     migrationReady,
     missingTables,
@@ -106,8 +149,47 @@ export async function getResourceWorkflowDiagnostics(): Promise<ResourceWorkflow
     openAiApiKeyStartsWithSk: aiDiagnostics.openAiApiKeyStartsWithSk,
     resourceContentModel: RESOURCE_CONTENT_MODEL,
     resourceImageModel: RESOURCE_IMAGE_MODEL,
+    resourceImageFallbackModel: RESOURCE_IMAGE_FALLBACK_MODEL,
     resourceImageSize: RESOURCE_IMAGE_SIZE,
     resourceImageQuality: RESOURCE_IMAGE_QUALITY || "default",
+    resourceImageEndpoint: aiDiagnostics.imageEndpoint,
+    resourceImageMethod: aiDiagnostics.imageMethod,
+    lastImageProviderError: latestFailedImage
+      ? {
+          resourceTitle: latestFailedImage.title,
+          resourceId: latestFailedImage.id,
+          status:
+            typeof latestImageGeneration.status === "string"
+              ? latestImageGeneration.status
+              : null,
+          code:
+            typeof latestImageGeneration.code === "string"
+              ? latestImageGeneration.code
+              : null,
+          message:
+            typeof latestImageGeneration.message === "string"
+              ? latestImageGeneration.message
+              : typeof latestImageGeneration.reason === "string"
+                ? latestImageGeneration.reason
+                : null,
+          failedAt:
+            typeof latestImageGeneration.failedAt === "string"
+              ? latestImageGeneration.failedAt
+              : null,
+          model:
+            typeof latestImageGeneration.model === "string"
+              ? latestImageGeneration.model
+              : null,
+          endpoint:
+            typeof latestImageGeneration.endpoint === "string"
+              ? latestImageGeneration.endpoint
+              : null,
+          method:
+            typeof latestImageGeneration.method === "string"
+              ? latestImageGeneration.method
+              : null
+        }
+      : null,
     imageProviderUnavailableReasons: aiDiagnostics.imageProviderUnavailableReasons,
     contentProviderUnavailableReasons: aiDiagnostics.contentProviderUnavailableReasons,
     imageGenerationUnavailableReasons,
