@@ -12,7 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { VisualMediaAdminPreviewFamily, VisualMediaUploadMode } from "@/lib/visual-media/types";
+import type {
+  VisualMediaAdminPreviewFamily,
+  VisualMediaGenerationTarget,
+  VisualMediaUploadMode
+} from "@/lib/visual-media/types";
 
 type VisualMediaUploadPanelProps = {
   placementKey: string;
@@ -22,7 +26,8 @@ type VisualMediaUploadPanelProps = {
   family: VisualMediaAdminPreviewFamily;
   savedImageUrl: string | null;
   altText: string;
-  generationPrompt: string;
+  generationPrompts: Record<VisualMediaGenerationTarget, string>;
+  defaultGenerationTarget: VisualMediaGenerationTarget;
 };
 
 type InlineMessage =
@@ -48,6 +53,7 @@ type GenerateResponse =
       ok: true;
       message: string;
       imageUrl: string;
+      target: VisualMediaGenerationTarget;
       prompt: string;
       metadata?: Record<string, unknown>;
     }
@@ -96,7 +102,8 @@ export function VisualMediaUploadPanel({
   family,
   savedImageUrl,
   altText,
-  generationPrompt
+  generationPrompts,
+  defaultGenerationTarget
 }: VisualMediaUploadPanelProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -106,7 +113,11 @@ export function VisualMediaUploadPanel({
   const [inlineMessage, setInlineMessage] = useState<InlineMessage>(null);
   const [pendingAction, setPendingAction] = useState<"upload" | "remove" | "generate" | null>(null);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
-  const [generationPromptValue, setGenerationPromptValue] = useState(generationPrompt);
+  const [generationTarget, setGenerationTarget] =
+    useState<VisualMediaGenerationTarget>(defaultGenerationTarget);
+  const [generationPromptValue, setGenerationPromptValue] = useState(
+    generationPrompts[defaultGenerationTarget]
+  );
   const [lastGeneratedImageUrl, setLastGeneratedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -125,8 +136,9 @@ export function VisualMediaUploadPanel({
   }, [savedImageUrl]);
 
   useEffect(() => {
-    setGenerationPromptValue(generationPrompt);
-  }, [generationPrompt]);
+    setGenerationTarget(defaultGenerationTarget);
+    setGenerationPromptValue(generationPrompts[defaultGenerationTarget]);
+  }, [defaultGenerationTarget, generationPrompts]);
 
   function resetSelection() {
     if (selectedPreviewUrl) {
@@ -254,6 +266,7 @@ export function VisualMediaUploadPanel({
         body: JSON.stringify({
           key: placementKey,
           mode,
+          target: generationTarget,
           prompt
         }),
         signal: controller.signal
@@ -266,7 +279,9 @@ export function VisualMediaUploadPanel({
       });
 
       if (result.ok) {
-        setCurrentSavedImageUrl(result.imageUrl);
+        if (result.target === mode || result.target === "both") {
+          setCurrentSavedImageUrl(result.imageUrl);
+        }
         setLastGeneratedImageUrl(result.imageUrl);
         setGenerationPromptValue(result.prompt);
         resetSelection();
@@ -289,6 +304,11 @@ export function VisualMediaUploadPanel({
       setIsGenerating(false);
       setPendingAction(null);
     }
+  }
+
+  function handleGenerationTargetChange(nextTarget: VisualMediaGenerationTarget) {
+    setGenerationTarget(nextTarget);
+    setGenerationPromptValue(generationPrompts[nextTarget]);
   }
 
   function handleRemove() {
@@ -332,6 +352,10 @@ export function VisualMediaUploadPanel({
   const isBusy = isUploading || isPending || isGenerating;
   const hasSelectedFile = Boolean(selectedFileName);
   const hasSavedAsset = Boolean(currentSavedImageUrl);
+  const generateButtonLabel =
+    generationTarget === "both"
+      ? "Generate once and attach both"
+      : `Generate and attach ${generationTarget}`;
   const modeIcon =
     mode === "desktop" ? (
       <Monitor size={14} className="text-silver" />
@@ -452,6 +476,45 @@ export function VisualMediaUploadPanel({
 
         {isPromptOpen ? (
           <div className="space-y-3 border-t border-white/8 pt-3">
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium text-foreground">
+                Apply generated image to
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {[
+                  ["desktop", "Desktop"],
+                  ["mobile", "Mobile"],
+                  ["both", "Both desktop and mobile"]
+                ].map(([value, label]) => (
+                  <label
+                    key={value}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
+                      generationTarget === value
+                        ? "border-gold/35 bg-gold/12 text-gold"
+                        : "border-white/10 bg-background/22 text-foreground/82 hover:border-silver/25"
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name={`${placementKey}-${mode}-generation-target`}
+                      value={value}
+                      checked={generationTarget === value}
+                      disabled={isBusy}
+                      onChange={() =>
+                        handleGenerationTargetChange(value as VisualMediaGenerationTarget)
+                      }
+                      className="h-4 w-4 border-border/90 bg-background/35 accent-gold"
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs leading-5 text-muted">
+                Using Both generates one image and applies it to both placements to reduce API cost. You can replace either version later if needed.
+              </p>
+            </fieldset>
+
             <div className="space-y-2">
               <Label htmlFor={`${placementKey}-${mode}-generation-prompt`}>
                 Generation prompt
@@ -465,7 +528,7 @@ export function VisualMediaUploadPanel({
                 className="min-h-[220px] text-xs leading-6"
               />
               <p className="text-xs leading-5 text-muted">
-                This is a deliberate one-image action. It will replace the saved {mode} image for this slot.
+                This is a deliberate one-image action. It will replace the selected saved placement image{generationTarget === "both" ? "s" : ""} for this slot.
               </p>
             </div>
 
@@ -484,7 +547,7 @@ export function VisualMediaUploadPanel({
                 ) : (
                   <>
                     <Sparkles size={14} className="mr-1" />
-                    Generate and attach {mode}
+                    {generateButtonLabel}
                   </>
                 )}
               </Button>
@@ -493,7 +556,7 @@ export function VisualMediaUploadPanel({
                 size="sm"
                 variant="outline"
                 disabled={isBusy}
-                onClick={() => setGenerationPromptValue(generationPrompt)}
+                onClick={() => setGenerationPromptValue(generationPrompts[generationTarget])}
               >
                 Reset prompt
               </Button>

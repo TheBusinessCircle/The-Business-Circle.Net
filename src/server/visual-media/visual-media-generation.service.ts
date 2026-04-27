@@ -9,7 +9,7 @@ import {
   getVisualMediaPlacementDefinition,
   type VisualMediaPlacementKey
 } from "@/lib/visual-media";
-import type { VisualMediaUploadMode } from "@/lib/visual-media/types";
+import type { VisualMediaGenerationTarget } from "@/lib/visual-media/types";
 import {
   describeResourceProviderError,
   generateResourceCoverImageFromProvider,
@@ -19,7 +19,7 @@ import {
 import { ResourceGenerationError } from "@/server/resources/resource-generation-guards";
 import {
   getVisualMediaPlacement,
-  replaceVisualMediaPlacementStoredAsset
+  replaceVisualMediaPlacementStoredAssetForTarget
 } from "@/server/visual-media/visual-media.service";
 
 const CLOUDINARY_VISUAL_MEDIA_FOLDER =
@@ -62,7 +62,7 @@ function safeProviderDetails(error: unknown) {
 
 export async function generateVisualMediaPlacementAsset(input: {
   key: VisualMediaPlacementKey;
-  mode: VisualMediaUploadMode;
+  target: VisualMediaGenerationTarget;
   prompt: string;
 }) {
   const placement = await getVisualMediaPlacement(input.key);
@@ -79,8 +79,9 @@ export async function generateVisualMediaPlacementAsset(input: {
     input.prompt.trim() ||
       buildVisualMediaImagePrompt({
         definition,
-        mode: input.mode
-      })
+        target: input.target
+      }),
+    { target: input.target }
   );
 
   const providerDiagnostics = getResourceAiProviderDiagnostics();
@@ -140,12 +141,12 @@ export async function generateVisualMediaPlacementAsset(input: {
   const uploadResult = await uploadImageBufferAssetToCloudinary({
     bytes: generated.bytes,
     folder: `${CLOUDINARY_VISUAL_MEDIA_FOLDER}/${keySegment}`,
-    publicIdPrefix: `${keySegment}-${input.mode}-generated`
+    publicIdPrefix: `${keySegment}-${input.target}-generated`
   });
 
-  const updatedPlacement = await replaceVisualMediaPlacementStoredAsset({
+  const updatedPlacement = await replaceVisualMediaPlacementStoredAssetForTarget({
     key: input.key,
-    mode: input.mode,
+    target: input.target,
     current: placement,
     stored: {
       url: uploadResult.secureUrl,
@@ -156,7 +157,7 @@ export async function generateVisualMediaPlacementAsset(input: {
 
   console.info("[visual-media] generated image attached", {
     key: input.key,
-    mode: input.mode,
+    target: input.target,
     model: generated.metadata.model ?? null,
     fallbackModelUsed: generated.metadata.fallbackModelUsed ?? false,
     publicId: uploadResult.publicId
@@ -166,6 +167,7 @@ export async function generateVisualMediaPlacementAsset(input: {
     placement: updatedPlacement,
     imageUrl: uploadResult.secureUrl,
     storageKey: uploadResult.publicId,
+    target: input.target,
     prompt: imagePrompt,
     metadata: generated.metadata
   };

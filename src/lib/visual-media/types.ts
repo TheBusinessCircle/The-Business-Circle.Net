@@ -105,3 +105,5 @@ export type VisualMediaRenderablePlacement = Pick<
 >;
 
 export type VisualMediaUploadMode = "desktop" | "mobile";
+
+export type VisualMediaGenerationTarget = VisualMediaUploadMode | "both";

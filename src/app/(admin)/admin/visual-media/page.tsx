@@ -538,10 +538,23 @@ export default async function AdminVisualMediaPage({ searchParams }: PageProps) 
                                 family={previewFamily}
                                 savedImageUrl={placement.imageUrl}
                                 altText={placement.altText?.trim() || placement.label}
-                                generationPrompt={buildVisualMediaImagePrompt({
-                                  definition,
-                                  mode: "desktop"
-                                })}
+                                generationPrompts={{
+                                  desktop: buildVisualMediaImagePrompt({
+                                    definition,
+                                    target: "desktop"
+                                  }),
+                                  mobile: buildVisualMediaImagePrompt({
+                                    definition,
+                                    target: "mobile"
+                                  }),
+                                  both: buildVisualMediaImagePrompt({
+                                    definition,
+                                    target: "both"
+                                  })
+                                }}
+                                defaultGenerationTarget={
+                                  placement.supportsMobile ? "desktop" : "both"
+                                }
                               />
                               {placement.supportsMobile ? (
                                 <VisualMediaUploadPanel
@@ -552,10 +565,21 @@ export default async function AdminVisualMediaPage({ searchParams }: PageProps) 
                                   family={previewFamily}
                                   savedImageUrl={placement.mobileImageUrl}
                                   altText={placement.altText?.trim() || placement.label}
-                                  generationPrompt={buildVisualMediaImagePrompt({
-                                    definition,
-                                    mode: "mobile"
-                                  })}
+                                  generationPrompts={{
+                                    desktop: buildVisualMediaImagePrompt({
+                                      definition,
+                                      target: "desktop"
+                                    }),
+                                    mobile: buildVisualMediaImagePrompt({
+                                      definition,
+                                      target: "mobile"
+                                    }),
+                                    both: buildVisualMediaImagePrompt({
+                                      definition,
+                                      target: "both"
+                                    })
+                                  }}
+                                  defaultGenerationTarget="mobile"
                                 />
                               ) : (
                                 <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-background/12 p-5 text-sm text-muted">

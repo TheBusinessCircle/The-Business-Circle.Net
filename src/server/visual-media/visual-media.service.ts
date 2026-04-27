@@ -10,7 +10,10 @@ import {
   VISUAL_MEDIA_PLACEMENT_LIST,
   type VisualMediaPlacementKey
 } from "@/lib/visual-media/constants";
-import type { VisualMediaPlacementRecord } from "@/lib/visual-media/types";
+import type {
+  VisualMediaGenerationTarget,
+  VisualMediaPlacementRecord
+} from "@/lib/visual-media/types";
 import {
   deleteVisualMediaPlacementByKey,
   findVisualMediaPlacementByKey,
@@ -282,22 +285,64 @@ export async function replaceVisualMediaPlacementStoredAsset(input: {
   stored: StoredVisualMediaAsset;
   current?: VisualMediaPlacementRecord | null;
 }) {
+  return replaceVisualMediaPlacementStoredAssetForTarget({
+    key: input.key,
+    target: input.mode,
+    stored: input.stored,
+    current: input.current
+  });
+}
+
+function targetModes(target: VisualMediaGenerationTarget): Array<"desktop" | "mobile"> {
+  return target === "both" ? ["desktop", "mobile"] : [target];
+}
+
+function uniqueStorageKeysToDelete(input: {
+  current: VisualMediaPlacementRecord;
+  target: VisualMediaGenerationTarget;
+  newStorageKey: string;
+}) {
+  const modes = targetModes(input.target);
+  const replacedKeys = modes
+    .map((mode) =>
+      mode === "desktop" ? input.current.desktopStorageKey : input.current.mobileStorageKey
+    )
+    .filter((value): value is string => Boolean(value));
+  const retainedKeys = (["desktop", "mobile"] as const)
+    .filter((mode) => !modes.includes(mode))
+    .map((mode) =>
+      mode === "desktop" ? input.current.desktopStorageKey : input.current.mobileStorageKey
+    )
+    .filter((value): value is string => Boolean(value));
+
+  return Array.from(new Set(replacedKeys)).filter(
+    (key) => key !== input.newStorageKey && !retainedKeys.includes(key)
+  );
+}
+
+export async function replaceVisualMediaPlacementStoredAssetForTarget(input: {
+  key: VisualMediaPlacementKey;
+  target: VisualMediaGenerationTarget;
+  stored: StoredVisualMediaAsset;
+  current?: VisualMediaPlacementRecord | null;
+}) {
   const current = input.current ?? (await getVisualMediaPlacement(input.key));
 
   if (!current) {
     throw new Error("visual-media-placement-not-found");
   }
 
-  const previousStorageKey =
-    input.mode === "desktop" ? current.desktopStorageKey : current.mobileStorageKey;
-
-  if (previousStorageKey) {
+  for (const previousStorageKey of uniqueStorageKeysToDelete({
+    current,
+    target: input.target,
+    newStorageKey: input.stored.storageKey
+  })) {
     try {
       await deleteManagedVisualMediaAsset(current.storageProvider, previousStorageKey);
     } catch (error) {
       console.warn("[visual-media] previous asset cleanup failed after replacement", {
         key: input.key,
-        mode: input.mode,
+        target: input.target,
         storageProvider: current.storageProvider,
         storageKey: previousStorageKey,
         message: error instanceof Error ? error.message : "unknown-error"
@@ -307,28 +352,31 @@ export async function replaceVisualMediaPlacementStoredAsset(input: {
 
   console.info("[visual-media] placement DB update starting", {
     key: input.key,
-    mode: input.mode
+    target: input.target
   });
 
   await upsertVisualMediaPlacement(
     createPlacementSeedInput(input.key),
     {
       storageProvider: input.stored.storageProvider,
-      ...(input.mode === "desktop"
+      ...(input.target === "desktop" || input.target === "both"
         ? {
             imageUrl: input.stored.url,
             desktopStorageKey: input.stored.storageKey
           }
-        : {
+        : {}),
+      ...(input.target === "mobile" || input.target === "both"
+        ? {
             mobileImageUrl: input.stored.url,
             mobileStorageKey: input.stored.storageKey
-          })
+          }
+        : {})
     }
   );
 
   console.info("[visual-media] placement DB update completed", {
     key: input.key,
-    mode: input.mode
+    target: input.target
   });
 
   revalidateTag(CACHE_TAGS.visualMedia);
@@ -371,10 +419,17 @@ export async function removeVisualMediaPlacementAsset(input: {
     throw new Error("visual-media-placement-not-found");
   }
 
+  const storageKeyToRemove =
+    input.mode === "desktop" ? current.desktopStorageKey : current.mobileStorageKey;
+  const retainedStorageKey =
+    input.mode === "desktop" ? current.mobileStorageKey : current.desktopStorageKey;
+
   if (input.mode === "desktop") {
-    await deleteManagedVisualMediaAsset(current.storageProvider, current.desktopStorageKey);
-  } else {
-    await deleteManagedVisualMediaAsset(current.storageProvider, current.mobileStorageKey);
+    if (storageKeyToRemove && storageKeyToRemove !== retainedStorageKey) {
+      await deleteManagedVisualMediaAsset(current.storageProvider, storageKeyToRemove);
+    }
+  } else if (storageKeyToRemove && storageKeyToRemove !== retainedStorageKey) {
+    await deleteManagedVisualMediaAsset(current.storageProvider, storageKeyToRemove);
   }
 
   await upsertVisualMediaPlacement(createPlacementSeedInput(input.key), {

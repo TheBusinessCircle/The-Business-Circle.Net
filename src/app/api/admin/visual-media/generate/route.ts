@@ -13,8 +13,11 @@ export const dynamic = "force-dynamic";
 
 const generateRequestSchema = z.object({
   key: visualMediaPlacementKeySchema,
-  mode: z.enum(["desktop", "mobile"]),
+  mode: z.enum(["desktop", "mobile"]).optional(),
+  target: z.enum(["desktop", "mobile", "both"]).optional(),
   prompt: z.string().trim().max(12000).optional().default("")
+}).refine((value) => Boolean(value.target || value.mode), {
+  message: "Choose a generation target."
 });
 
 function statusForGenerationError(error: VisualMediaGenerationError) {
@@ -63,13 +66,21 @@ export async function POST(request: Request) {
 
     console.info("[visual-media] generation request started", {
       key: parsed.data.key,
-      mode: parsed.data.mode,
+      target: parsed.data.target ?? parsed.data.mode,
       promptLength: parsed.data.prompt.length
     });
 
+    const target = parsed.data.target ?? parsed.data.mode;
+
+    if (!target) {
+      return errorResponse("Choose a generation target.", 400, {
+        error: "invalid-target"
+      });
+    }
+
     const result = await generateVisualMediaPlacementAsset({
       key: parsed.data.key,
-      mode: parsed.data.mode,
+      target,
       prompt: parsed.data.prompt
     });
 
@@ -78,10 +89,13 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       message:
-        parsed.data.mode === "desktop"
-          ? "Desktop image generated and attached."
-          : "Mobile image generated and attached.",
+        target === "both"
+          ? "Generated once and attached to desktop and mobile."
+          : target === "desktop"
+            ? "Desktop image generated and attached."
+            : "Mobile image generated and attached.",
       imageUrl: result.imageUrl,
+      target: result.target,
       prompt: result.prompt,
       metadata: result.metadata
     });
