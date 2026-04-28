@@ -1,5 +1,6 @@
 import { BusinessStage, BusinessStatus, MemberRoleTag } from "@prisma/client";
 import { z } from "zod";
+import { ACCENT_THEME_VALUES, DEFAULT_ACCENT_THEME, isAccentTheme } from "@/lib/accent-themes";
 import { credentialsSignInSchema, registerMemberSchema } from "@/lib/auth/schemas";
 
 export const signInSchema = credentialsSignInSchema;
@@ -36,6 +37,10 @@ const checkboxBoolean = z.preprocess(
   (value) => value === true || value === "true" || value === "on",
   z.boolean()
 );
+const accentThemeSchema = z.preprocess(
+  (value) => (typeof value === "string" && isAccentTheme(value) ? value : DEFAULT_ACCENT_THEME),
+  z.enum(ACCENT_THEME_VALUES)
+);
 
 export const contactSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -59,6 +64,7 @@ export const profileSchema = z.object({
   facebook: optionalUrl,
   youtube: optionalUrl,
   customLinks: optionalJsonArray,
+  accentTheme: accentThemeSchema,
   collaborationNeeds: optionalText(600),
   collaborationOffers: optionalText(600),
   partnershipInterests: optionalText(600),

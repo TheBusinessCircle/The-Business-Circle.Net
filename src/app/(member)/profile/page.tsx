@@ -5,6 +5,7 @@ import { CommunityRecognitionPanel } from "@/components/profile";
 import { ProfileForm } from "@/components/platform/profile-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FoundingBadge } from "@/components/ui/founding-badge";
+import { isAccentTheme, resolveAccentTheme } from "@/lib/accent-themes";
 import { buildMemberProfilePath } from "@/lib/member-paths";
 import { roleToTier } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -47,7 +48,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/80 to-card/70">
+      <Card className="border-primary/35 bg-gradient-to-br from-primary/10 via-card/80 to-card/70">
         <CardHeader>
           <CardTitle className="font-display text-3xl">Profile Settings</CardTitle>
           <CardDescription className="text-base">
@@ -90,6 +91,7 @@ export default async function ProfilePage() {
           facebook: user.profile?.facebook || "",
           youtube: user.profile?.youtube || "",
           customLinks: JSON.stringify(user.profile?.customLinks ?? []),
+          accentTheme: resolveAccentTheme(user.profile?.accentTheme),
           collaborationNeeds: user.profile?.collaborationNeeds || "",
           collaborationOffers: user.profile?.collaborationOffers || "",
           partnershipInterests: user.profile?.partnershipInterests || "",
@@ -103,6 +105,7 @@ export default async function ProfilePage() {
           businessStage: user.profile?.business?.stage || "",
           acceptedRules: Boolean(user.acceptedRulesAt)
         }}
+        initialAccentThemeConfirmed={isAccentTheme(user.profile?.accentTheme)}
         membershipTier={effectiveTier}
         memberProfileHref={memberProfileHref}
       />

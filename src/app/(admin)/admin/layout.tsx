@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ArrowUpRight, ShieldCheck, Sparkles } from "lucide-react";
 import { AdminLivePanel, AdminNavigation } from "@/components/admin";
-import { BackgroundModeToggle } from "@/components/background-mode/background-mode-toggle";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { AppShell } from "@/components/shell/app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +36,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               <ShieldCheck size={12} className="mr-1" />
               Administrator
             </Badge>
-            <BackgroundModeToggle labelClassName="hidden sm:inline" />
             <form action={signOutAction}>
               <Button variant="ghost" size="sm" type="submit">
                 Sign Out

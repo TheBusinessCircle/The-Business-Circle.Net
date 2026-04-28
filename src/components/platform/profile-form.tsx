@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { MembershipTier } from "@prisma/client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowUpRight, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Check, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Avatar } from "@/components/ui/avatar";
@@ -16,12 +16,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { MemberRoleBadge } from "@/components/ui/member-role-badge";
+import { ACCENT_THEMES, isAccentTheme } from "@/lib/accent-themes";
 import { getMemberRoleDescription, getMemberRoleLabel } from "@/lib/member-role";
 import { getProfileCompletion } from "@/lib/profile";
+import { cn } from "@/lib/utils";
 import { profileSchema, type ProfileFormValues } from "@/lib/validators";
 
 type ProfileFormProps = {
   initialValues: ProfileFormValues;
+  initialAccentThemeConfirmed: boolean;
   membershipTier: MembershipTier;
   memberProfileHref: string;
 };
@@ -73,12 +76,18 @@ async function createProfileImagePreview(file: File) {
   }
 }
 
-export function ProfileForm({ initialValues, membershipTier, memberProfileHref }: ProfileFormProps) {
+export function ProfileForm({
+  initialValues,
+  initialAccentThemeConfirmed,
+  membershipTier,
+  memberProfileHref
+}: ProfileFormProps) {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedProfileImagePreview, setSelectedProfileImagePreview] = useState<string | null>(null);
   const [selectedProfileImageName, setSelectedProfileImageName] = useState<string | null>(null);
   const [customLinkDraft, setCustomLinkDraft] = useState("");
+  const [accentThemeTouched, setAccentThemeTouched] = useState(false);
   const [isPending, startTransition] = useTransition();
   const profileImageUploadRef = useRef<HTMLInputElement | null>(null);
 
@@ -121,6 +130,10 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
         facebook: values.facebook,
         youtube: values.youtube,
         customLinks: customLinkList,
+        accentTheme:
+          initialAccentThemeConfirmed || accentThemeTouched || form.formState.dirtyFields.accentTheme
+            ? values.accentTheme
+            : null,
         collaborationNeeds: values.collaborationNeeds,
         collaborationOffers: values.collaborationOffers,
         partnershipInterests: values.partnershipInterests,
@@ -135,7 +148,11 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
       customLinkList,
       values.experience,
       values.facebook,
+      values.accentTheme,
+      accentThemeTouched,
+      form.formState.dirtyFields.accentTheme,
       values.industry,
+      initialAccentThemeConfirmed,
       values.instagram,
       values.linkedin,
       values.location,
@@ -158,6 +175,19 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
   }, [selectedProfileImagePreview]);
 
   const missingFields = completion.fields.filter((field) => !field.complete).slice(0, 5);
+  const selectedAccentTheme = isAccentTheme(values.accentTheme)
+    ? values.accentTheme
+    : initialValues.accentTheme;
+
+  function selectAccentTheme(theme: ProfileFormValues["accentTheme"]) {
+    setAccentThemeTouched(true);
+    form.setValue("accentTheme", theme, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    });
+    form.clearErrors("accentTheme");
+  }
 
   async function handleProfileImageUploadChange(event: React.ChangeEvent<HTMLInputElement>) {
     const nextFile = event.target.files?.[0];
@@ -312,7 +342,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
   return (
     <form className="relative space-y-6" onSubmit={onSubmit}>
       {isPending ? (
-        <div className="absolute inset-0 z-20 rounded-2xl border border-gold/30 bg-background/70 p-4 backdrop-blur-sm">
+        <div className="absolute inset-0 z-20 rounded-2xl border border-primary/30 bg-background/70 p-4 backdrop-blur-sm">
           <p className="text-sm font-medium text-foreground">Saving profile updates...</p>
           <div className="mt-3 space-y-3">
             <Skeleton className="h-10 w-full" />
@@ -327,7 +357,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
           <section className="premium-surface p-5">
             <div className="flex items-center gap-3">
               <Avatar
-                className="h-24 w-24"
+                className="member-profile-ring h-24 w-24"
                 name={values.name || "Member"}
                 image={previewImage}
               />
@@ -389,7 +419,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
                 </p>
               </div>
               {values.acceptedRules ? (
-                <span className="inline-flex items-center gap-2 rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-xs text-gold">
+                <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-primary">
                   <ShieldCheck size={14} />
                   Accepted
                 </span>
@@ -398,7 +428,7 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
 
             <label
               htmlFor="acceptedRules"
-              className="mt-5 flex items-start gap-3 rounded-2xl border border-gold/20 bg-background/25 px-4 py-4 text-sm leading-relaxed text-foreground"
+              className="mt-5 flex items-start gap-3 rounded-2xl border border-primary/20 bg-background/25 px-4 py-4 text-sm leading-relaxed text-foreground"
             >
               <input
                 id="acceptedRules"
@@ -417,6 +447,68 @@ export function ProfileForm({ initialValues, membershipTier, memberProfileHref }
             <p className="mt-3 text-xs leading-relaxed text-muted">
               This is part of profile completion and keeps discussion areas aligned with the BCN standard.
             </p>
+          </section>
+
+          <section className="premium-surface member-accent-panel p-5">
+            <input type="hidden" {...form.register("accentTheme")} />
+            <div className="max-w-3xl">
+              <p className="mb-2 text-xs tracking-[0.1em] text-silver uppercase">
+                Member Accent Theme
+              </p>
+              <h2 className="font-display text-2xl text-foreground">
+                Personalise Your Member Space
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                Choose the accent theme that best fits how you want your member profile and workspace to feel. The Business Circle stays premium and focused, but your account can carry your own visual signature.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5" role="radiogroup" aria-label="Accent theme">
+              {ACCENT_THEMES.map((theme) => {
+                const selected = selectedAccentTheme === theme.value;
+
+                return (
+                  <button
+                    key={theme.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    className={cn(
+                      "group flex min-h-[5.25rem] items-center justify-between gap-3 rounded-2xl border bg-background/24 px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:bg-background/38 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80",
+                      selected
+                        ? "border-primary/60 bg-primary/12 shadow-inner-surface"
+                        : "border-border/80"
+                    )}
+                    onClick={() => selectAccentTheme(theme.value)}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span
+                        className="h-8 w-8 shrink-0 rounded-full border border-white/15 shadow-inner-surface"
+                        style={{ background: theme.swatch }}
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-foreground">{theme.label}</span>
+                        <span className="mt-1 block text-xs text-muted">
+                          {theme.value === "royal-blue" ? "BCN default" : "Member accent"}
+                        </span>
+                      </span>
+                    </span>
+                    <span
+                      className={cn(
+                        "grid h-6 w-6 shrink-0 place-items-center rounded-full border transition-colors",
+                        selected
+                          ? "border-primary bg-primary text-buttonForeground"
+                          : "border-border/80 text-transparent"
+                      )}
+                    >
+                      <Check size={13} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <FieldError message={form.formState.errors.accentTheme?.message} />
           </section>
 
           <section className="premium-surface p-5">

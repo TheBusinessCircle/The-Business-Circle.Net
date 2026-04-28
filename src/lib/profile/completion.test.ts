@@ -22,5 +22,26 @@ describe("getProfileCompletion", () => {
       complete: true
     });
   });
-});
 
+  it("counts a valid confirmed accent theme as a small profile completion item", () => {
+    const incomplete = getProfileCompletion({
+      name: "Trevor Newton",
+      accentTheme: null
+    });
+    const complete = getProfileCompletion({
+      name: "Trevor Newton",
+      accentTheme: "royal-blue"
+    });
+
+    expect(incomplete.fields).toContainEqual({
+      key: "accentTheme",
+      label: "Choose your accent theme",
+      complete: false
+    });
+    expect(complete.fields).toContainEqual({
+      key: "accentTheme",
+      label: "Choose your accent theme",
+      complete: true
+    });
+  });
+});

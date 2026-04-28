@@ -172,6 +172,7 @@ model Profile {
   facebook             String?
   youtube              String?
   customLinks          String[]  @default([])
+  accentTheme          String?
   collaborationNeeds   String?
   collaborationOffers  String?
   partnershipInterests String?

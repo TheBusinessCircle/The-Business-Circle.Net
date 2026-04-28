@@ -5,7 +5,6 @@ import { startTransition, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import type { NavigationItem } from "@/types";
-import { BackgroundModeToggle } from "@/components/background-mode/background-mode-toggle";
 import { NavbarBrand } from "@/components/public/navbar-brand";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { signOutAction } from "@/lib/actions/auth-actions";
@@ -72,8 +71,6 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
         </nav>
 
         <div className="hidden flex-none items-center gap-2 lg:flex">
-          <BackgroundModeToggle />
-          <div className="h-7 w-px bg-border/70" />
           {isAuthenticated ? (
             <>
               <Link
@@ -104,7 +101,6 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
         </div>
 
         <div className="relative flex shrink-0 items-center gap-1.5 min-[420px]:gap-2 lg:hidden">
-          <BackgroundModeToggle showLabel={false} className="hidden min-[420px]:inline-flex" />
           <button
             type="button"
             aria-expanded={mobileMenuOpen}
@@ -143,8 +139,7 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                 ))}
               </nav>
               <div className="gold-divider my-3" />
-              <BackgroundModeToggle fullWidth />
-              <div className="mt-3 flex flex-col gap-2">
+              <div className="flex flex-col gap-2">
                 {isAuthenticated ? (
                   <>
                     <button

@@ -1,3 +1,5 @@
+import { isAccentTheme } from "@/lib/accent-themes";
+
 export type ProfileCompletionInput = {
   name?: string | null;
   bio?: string | null;
@@ -14,6 +16,7 @@ export type ProfileCompletionInput = {
   facebook?: string | null;
   youtube?: string | null;
   customLinks?: string[] | null;
+  accentTheme?: string | null;
   collaborationNeeds?: string | null;
   collaborationOffers?: string | null;
   partnershipInterests?: string | null;
@@ -36,6 +39,7 @@ export type ProfileCompletionFieldKey =
   | "facebook"
   | "youtube"
   | "customLinks"
+  | "accentTheme"
   | "collaborationNeeds"
   | "collaborationOffers"
   | "partnershipInterests"
@@ -70,6 +74,7 @@ const PROFILE_COMPLETION_FIELDS: Array<{ key: ProfileCompletionFieldKey; label: 
   { key: "facebook", label: "Facebook" },
   { key: "youtube", label: "YouTube" },
   { key: "customLinks", label: "Other Links" },
+  { key: "accentTheme", label: "Choose your accent theme" },
   { key: "collaborationNeeds", label: "Need Help With" },
   { key: "collaborationOffers", label: "Can Help With" },
   { key: "partnershipInterests", label: "Partnership Interests" },
@@ -90,6 +95,8 @@ export function getProfileCompletion(input: ProfileCompletionInput): ProfileComp
     complete:
       field.key === "acceptedRules"
         ? Boolean(input.acceptedRulesAt)
+        : field.key === "accentTheme"
+          ? isAccentTheme(input.accentTheme)
         : hasContent(input[field.key])
   }));
   const completedCount = fields.filter((field) => field.complete).length;

@@ -164,11 +164,11 @@ export default async function DirectoryPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/75 to-card/65">
+      <Card className="border-primary/35 bg-gradient-to-br from-primary/10 via-card/75 to-card/65">
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <Badge variant="outline" className="border-gold/35 bg-gold/12 text-gold">
+              <Badge variant="outline" className="border-primary/35 bg-primary/12 text-primary">
                 <Compass size={12} className="mr-1" />
                 Private Member Network
               </Badge>
@@ -388,4 +388,3 @@ export default async function DirectoryPage({ searchParams }: PageProps) {
     </div>
   );
 }
-

@@ -88,14 +88,14 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
               "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all duration-200",
               horizontal ? "shrink-0" : "w-full",
               active
-                ? "border-gold/45 bg-gold/14 text-gold shadow-inner-surface"
+                ? "border-primary/45 bg-primary/14 text-primary shadow-inner-surface"
                 : "border-border/70 bg-background/20 text-muted hover:border-border hover:bg-background/40 hover:text-foreground"
             )}
           >
             <Icon size={16} />
             <span>{item.label}</span>
             {item.badgeCount ? (
-              <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[11px] text-gold">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary">
                 {item.badgeCount}
               </span>
             ) : null}

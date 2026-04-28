@@ -35,6 +35,7 @@ export async function getMemberProfile(userId: string): Promise<MemberProfileMod
     facebook: user.profile?.facebook,
     youtube: user.profile?.youtube,
     customLinks: user.profile?.customLinks ?? [],
+    accentTheme: user.profile?.accentTheme,
     companyName: user.profile?.business?.companyName,
     companyDescription: user.profile?.business?.description,
     industry: user.profile?.business?.industry,

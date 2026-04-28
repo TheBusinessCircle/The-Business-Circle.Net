@@ -57,10 +57,10 @@ export function MemberProfileCard({
   const stageLabel = stage ? toTitleCase(stage.replaceAll("_", " ")) : null;
 
   return (
-    <Card className={`interactive-card h-full ${tierCardClassName}`}>
+    <Card className={`interactive-card member-accent-card relative h-full overflow-hidden ${tierCardClassName}`}>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <Avatar name={name} image={image} className="h-14 w-14 shrink-0" />
+          <Avatar name={name} image={image} className="member-profile-ring h-14 w-14 shrink-0" />
           <div className="min-w-0">
             <CardTitle className="truncate text-lg">{name}</CardTitle>
             <p className={`truncate text-xs ${tierAccentTextClassName}`}>

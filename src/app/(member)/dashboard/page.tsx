@@ -286,6 +286,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     facebook: member?.profile?.facebook,
     youtube: member?.profile?.youtube,
     customLinks: member?.profile?.customLinks,
+    accentTheme: member?.profile?.accentTheme,
     collaborationNeeds: member?.profile?.collaborationNeeds,
     collaborationOffers: member?.profile?.collaborationOffers,
     partnershipInterests: member?.profile?.partnershipInterests,

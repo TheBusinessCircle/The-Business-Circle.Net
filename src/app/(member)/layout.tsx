@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { MembershipTier } from "@prisma/client";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import { BackgroundModeToggle } from "@/components/background-mode/background-mode-toggle";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { MemberNavigation, RulesEntryOverlay } from "@/components/member";
 import { AppShell } from "@/components/shell/app-shell";
@@ -16,8 +15,10 @@ import { Separator } from "@/components/ui/separator";
 import { SITE_CONFIG } from "@/config/site";
 import { getMembershipTierLabel } from "@/config/membership";
 import { signOutAction } from "@/lib/actions/auth-actions";
+import { resolveAccentTheme } from "@/lib/accent-themes";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
 import {
   BCN_RULES_ACCEPTANCE_PATH,
   hasAcceptedBcnRules
@@ -33,10 +34,15 @@ export const metadata: Metadata = {
 export default async function MemberLayout({ children }: { children: ReactNode }) {
   const session = await requireUser();
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
-  const [messageCounts, rulesAccepted] = await Promise.all([
+  const [messageCounts, rulesAccepted, profileTheme] = await Promise.all([
     getDirectMessageNavCounts(session.user.id),
-    hasAcceptedBcnRules(session.user.id)
+    hasAcceptedBcnRules(session.user.id),
+    prisma.profile.findUnique({
+      where: { userId: session.user.id },
+      select: { accentTheme: true }
+    })
   ]);
+  const accentTheme = resolveAccentTheme(profileTheme?.accentTheme);
 
   const visibleNavItems = PLATFORM_NAV.filter((item) => {
     const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
@@ -88,7 +94,6 @@ export default async function MemberLayout({ children }: { children: ReactNode }
               {membershipBadge}
             </Badge>
             <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
-            <BackgroundModeToggle labelClassName="hidden sm:inline" />
             {session.user.role === "ADMIN" ? (
               <Link href="/admin">
                 <Button variant="outline" size="sm">
@@ -114,7 +119,11 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   const sidebar = (
     <aside className="premium-surface hidden p-4 lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-background/25 p-3">
-        <Avatar name={session.user.name ?? session.user.email ?? "Member"} image={session.user.image} />
+        <Avatar
+          className="member-profile-ring"
+          name={session.user.name ?? session.user.email ?? "Member"}
+          image={session.user.image}
+        />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground">
             {session.user.name ?? "Business Circle Member"}
@@ -152,35 +161,37 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   );
 
   return (
-    <AppShell header={header} sidebar={sidebar} contentClassName="py-7 lg:py-9">
-      <div className="space-y-6">
-        {showRulesWelcome ? (
-          <>
-            <RulesEntryOverlay reviewHref={BCN_RULES_ACCEPTANCE_PATH} />
-            <section className="premium-surface border-gold/30 bg-gradient-to-br from-gold/12 via-card/84 to-card/70 p-5">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="max-w-3xl">
-                  <p className="text-xs uppercase tracking-[0.1em] text-gold">
-                    Accept BCN Rules to access conversations
-                  </p>
-                  <h2 className="mt-2 font-display text-2xl text-foreground">
-                    Review the BCN Rules
-                  </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">
-                    Messaging, chat, and calls unlock once you accept the BCN Rules.
-                  </p>
+    <div className="member-accent-theme" data-member-accent-theme={accentTheme}>
+      <AppShell header={header} sidebar={sidebar} contentClassName="py-7 lg:py-9">
+        <div className="space-y-6">
+          {showRulesWelcome ? (
+            <>
+              <RulesEntryOverlay reviewHref={BCN_RULES_ACCEPTANCE_PATH} />
+              <section className="premium-surface border-primary/30 bg-gradient-to-br from-primary/12 via-card/84 to-card/70 p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="max-w-3xl">
+                    <p className="text-xs uppercase tracking-[0.1em] text-primary">
+                      Accept BCN Rules to access conversations
+                    </p>
+                    <h2 className="mt-2 font-display text-2xl text-foreground">
+                      Review the BCN Rules
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                      Messaging, chat, and calls unlock once you accept the BCN Rules.
+                    </p>
+                  </div>
+                  <Link href={BCN_RULES_ACCEPTANCE_PATH}>
+                    <Button className="w-full md:w-auto">
+                      Review BCN Rules <ArrowRight size={16} />
+                    </Button>
+                  </Link>
                 </div>
-                <Link href={BCN_RULES_ACCEPTANCE_PATH}>
-                  <Button className="w-full md:w-auto">
-                    Review BCN Rules <ArrowRight size={16} />
-                  </Button>
-                </Link>
-              </div>
-            </section>
-          </>
-        ) : null}
-        {children}
-      </div>
-    </AppShell>
+              </section>
+            </>
+          ) : null}
+          {children}
+        </div>
+      </AppShell>
+    </div>
   );
 }

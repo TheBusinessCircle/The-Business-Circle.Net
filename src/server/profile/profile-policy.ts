@@ -18,6 +18,7 @@ export function calculateProfileCompletion(profile: MemberProfileModel): number 
     facebook: profile.facebook,
     youtube: profile.youtube,
     customLinks: profile.customLinks,
+    accentTheme: profile.accentTheme,
     collaborationNeeds: profile.collaborationNeeds,
     collaborationOffers: profile.collaborationOffers,
     partnershipInterests: profile.partnershipInterests,
