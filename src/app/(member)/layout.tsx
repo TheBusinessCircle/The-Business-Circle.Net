@@ -39,10 +39,11 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     hasAcceptedBcnRules(session.user.id),
     prisma.profile.findUnique({
       where: { userId: session.user.id },
-      select: { accentTheme: true }
+      select: { accentTheme: true, workspaceAtmosphereEnabled: true }
     })
   ]);
   const accentTheme = resolveAccentTheme(profileTheme?.accentTheme);
+  const workspaceAtmosphereEnabled = profileTheme?.workspaceAtmosphereEnabled ?? false;
   const accentThemeStyle = getAccentThemeCssVariables(accentTheme) as CSSProperties;
 
   const visibleNavItems = PLATFORM_NAV.filter((item) => {
@@ -77,7 +78,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   });
 
   const header = (
-    <header className="border-b border-border/80 bg-background/78 backdrop-blur-xl">
+    <header className="member-shell-header border-b border-border/80 bg-background/78 backdrop-blur-xl">
       <div className="flex w-full flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 2xl:px-12">
         <div className="flex items-center justify-between gap-4">
           <Link href="/dashboard" className="inline-flex items-center gap-3">
@@ -165,6 +166,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     <div
       className="member-accent-theme"
       data-member-accent-theme={accentTheme}
+      data-member-workspace-atmosphere={workspaceAtmosphereEnabled ? "true" : "false"}
       style={accentThemeStyle}
     >
       <AppShell header={header} sidebar={sidebar} contentClassName="py-7 lg:py-9">

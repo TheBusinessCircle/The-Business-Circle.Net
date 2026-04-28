@@ -83,8 +83,13 @@ async function createProfileImagePreview(file: File) {
   }
 }
 
-function applyAccentThemeToElement(element: HTMLElement, theme: AccentTheme) {
+function applyAccentThemeToElement(
+  element: HTMLElement,
+  theme: AccentTheme,
+  workspaceAtmosphereEnabled: boolean
+) {
   element.dataset.memberAccentTheme = theme;
+  element.dataset.memberWorkspaceAtmosphere = workspaceAtmosphereEnabled ? "true" : "false";
 
   for (const [property, value] of Object.entries(getAccentThemeCssVariables(theme))) {
     element.style.setProperty(property, value);
@@ -119,7 +124,9 @@ export function ProfileForm({
   const profileImageUploadRef = useRef<HTMLInputElement | null>(null);
   const previewThemeRootRef = useRef<HTMLElement | null>(null);
   const originalPreviewThemeRef = useRef<AccentTheme>(initialValues.accentTheme);
+  const originalWorkspaceAtmosphereRef = useRef<boolean>(initialValues.workspaceAtmosphereEnabled);
   const savedAccentThemeRef = useRef<AccentTheme>(initialValues.accentTheme);
+  const savedWorkspaceAtmosphereRef = useRef<boolean>(initialValues.workspaceAtmosphereEnabled);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -145,6 +152,7 @@ export function ProfileForm({
   const selectedAccentTheme = isAccentTheme(values.accentTheme)
     ? values.accentTheme
     : initialValues.accentTheme;
+  const workspaceAtmosphereEnabled = Boolean(values.workspaceAtmosphereEnabled);
   const selectedAccentThemeStyle = getAccentThemeCssVariables(selectedAccentTheme) as CSSProperties;
   const completion = useMemo(
     () =>
@@ -209,9 +217,14 @@ export function ProfileForm({
 
     previewThemeRootRef.current = root;
     originalPreviewThemeRef.current = resolveAccentTheme(root.dataset.memberAccentTheme);
+    originalWorkspaceAtmosphereRef.current = root.dataset.memberWorkspaceAtmosphere === "true";
 
     return () => {
-      applyAccentThemeToElement(root, savedAccentThemeRef.current || originalPreviewThemeRef.current);
+      applyAccentThemeToElement(
+        root,
+        savedAccentThemeRef.current || originalPreviewThemeRef.current,
+        savedWorkspaceAtmosphereRef.current ?? originalWorkspaceAtmosphereRef.current
+      );
       previewThemeRootRef.current = null;
     };
   }, []);
@@ -221,8 +234,12 @@ export function ProfileForm({
       return;
     }
 
-    applyAccentThemeToElement(previewThemeRootRef.current, selectedAccentTheme);
-  }, [selectedAccentTheme]);
+    applyAccentThemeToElement(
+      previewThemeRootRef.current,
+      selectedAccentTheme,
+      workspaceAtmosphereEnabled
+    );
+  }, [selectedAccentTheme, workspaceAtmosphereEnabled]);
 
   useEffect(() => {
     return () => {
@@ -237,6 +254,26 @@ export function ProfileForm({
   function selectAccentTheme(theme: ProfileFormValues["accentTheme"]) {
     setAccentThemeTouched(true);
     form.setValue("accentTheme", theme, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    });
+    form.setValue("workspaceAtmosphereEnabled", false, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    });
+    form.clearErrors("accentTheme");
+  }
+
+  function applyWorkspaceAtmosphere(theme: ProfileFormValues["accentTheme"]) {
+    setAccentThemeTouched(true);
+    form.setValue("accentTheme", theme, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    });
+    form.setValue("workspaceAtmosphereEnabled", true, {
       shouldDirty: true,
       shouldTouch: true,
       shouldValidate: true
@@ -387,6 +424,7 @@ export function ProfileForm({
         }
 
         savedAccentThemeRef.current = submitted.accentTheme;
+        savedWorkspaceAtmosphereRef.current = submitted.workspaceAtmosphereEnabled;
         setNotice("Profile updated successfully.");
         router.refresh();
       } catch {
@@ -399,6 +437,7 @@ export function ProfileForm({
     <form
       className="member-accent-theme relative space-y-6"
       data-member-accent-theme={selectedAccentTheme}
+      data-member-workspace-atmosphere={workspaceAtmosphereEnabled ? "true" : "false"}
       style={selectedAccentThemeStyle}
       onSubmit={onSubmit}
     >
@@ -512,6 +551,7 @@ export function ProfileForm({
 
           <section className="premium-surface member-accent-panel p-5">
             <input type="hidden" {...form.register("accentTheme")} />
+            <input type="hidden" {...form.register("workspaceAtmosphereEnabled")} />
             <div className="max-w-3xl">
               <p className="mb-2 text-xs tracking-[0.1em] text-silver uppercase">
                 Member Accent Theme
@@ -527,70 +567,97 @@ export function ProfileForm({
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5" role="radiogroup" aria-label="Accent theme">
               {ACCENT_THEMES.map((theme) => {
                 const selected = selectedAccentTheme === theme.value;
+                const atmosphereSelected = selected && workspaceAtmosphereEnabled;
 
                 return (
-                  <button
+                  <div
                     key={theme.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
                     data-selected={selected ? "true" : "false"}
+                    data-atmosphere-selected={atmosphereSelected ? "true" : "false"}
                     style={getThemeOptionStyle(theme)}
                     className={cn(
-                      "accent-theme-option group relative flex min-h-[9.5rem] flex-col justify-between overflow-hidden rounded-2xl border px-4 py-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/42 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80",
+                      "accent-theme-option group relative flex min-h-[13.25rem] flex-col overflow-hidden rounded-2xl border px-4 py-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/42",
                       selected ? "border-primary/60" : "border-border/80"
                     )}
-                    onClick={() => selectAccentTheme(theme.value)}
                   >
-                    <span className="flex w-full items-start justify-between gap-3">
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-foreground">{theme.label}</span>
-                        <span className="mt-1 block text-xs leading-relaxed text-muted">
-                          {theme.mood}
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      className="flex min-h-0 flex-1 flex-col justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80"
+                      onClick={() => selectAccentTheme(theme.value)}
+                    >
+                      <span className="flex w-full items-start justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-foreground">{theme.label}</span>
+                          <span className="mt-1 block text-xs leading-relaxed text-muted">
+                            {theme.mood}
+                          </span>
+                        </span>
+                        <span
+                          className={cn(
+                            "inline-flex max-w-[8rem] shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-center text-[10px] leading-tight uppercase tracking-[0.08em] transition-colors",
+                            selected
+                              ? "border-primary/35 bg-primary/14 text-primary"
+                              : "border-border/80 bg-background/24 text-muted"
+                          )}
+                        >
+                          {selected ? <Check size={11} /> : null}
+                          {selected ? (workspaceAtmosphereEnabled ? "Workspace Atmosphere" : "Accent only") : "Preview"}
                         </span>
                       </span>
+
+                      <span className="mt-4 block w-full">
+                        <span
+                          className="accent-theme-swatch relative block h-12 overflow-hidden rounded-xl border border-white/10"
+                          aria-hidden="true"
+                        >
+                          <span className="absolute inset-x-3 bottom-2 flex items-center gap-1.5">
+                            {[
+                              theme.palette.strong,
+                              theme.palette.primary,
+                              theme.palette.soft,
+                              theme.palette.highlight,
+                              theme.palette.metal
+                            ].map((color) => (
+                              <span
+                                key={`${theme.value}-${color}`}
+                                className="h-2.5 flex-1 rounded-full border border-white/10"
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </span>
+                        </span>
+                        <span className="mt-3 flex items-center justify-between text-[11px] text-muted">
+                          <span>Layered finish</span>
+                          <span className="text-silver/80">
+                            {theme.value === "royal-blue" ? "BCN default" : "Private workspace"}
+                          </span>
+                        </span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={atmosphereSelected}
+                      data-selected={atmosphereSelected ? "true" : "false"}
+                      className="workspace-atmosphere-choice mt-4 flex items-center gap-2 rounded-xl border border-border/80 bg-background/28 px-3 py-2 text-left text-[11px] font-medium text-muted transition-all duration-200 hover:border-primary/35 hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80"
+                      onClick={() => applyWorkspaceAtmosphere(theme.value)}
+                    >
                       <span
                         className={cn(
-                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.08em] transition-colors",
-                          selected
-                            ? "border-primary/35 bg-primary/14 text-primary"
-                            : "border-border/80 bg-background/24 text-muted"
+                          "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                          atmosphereSelected
+                            ? "border-primary/60 bg-primary/20 text-primary"
+                            : "border-border bg-background/50 text-transparent"
                         )}
-                      >
-                        {selected ? <Check size={11} /> : null}
-                        {selected ? "Selected" : "Preview"}
-                      </span>
-                    </span>
-
-                    <span className="mt-4 block w-full">
-                      <span
-                        className="accent-theme-swatch relative block h-12 overflow-hidden rounded-xl border border-white/10"
                         aria-hidden="true"
                       >
-                        <span className="absolute inset-x-3 bottom-2 flex items-center gap-1.5">
-                          {[
-                            theme.palette.strong,
-                            theme.palette.primary,
-                            theme.palette.soft,
-                            theme.palette.highlight,
-                            theme.palette.metal
-                          ].map((color) => (
-                            <span
-                              key={`${theme.value}-${color}`}
-                              className="h-2.5 flex-1 rounded-full border border-white/10"
-                              style={{ backgroundColor: color }}
-                            />
-                          ))}
-                        </span>
+                        <Check size={11} />
                       </span>
-                      <span className="mt-3 flex items-center justify-between text-[11px] text-muted">
-                        <span>Layered finish</span>
-                        <span className="text-silver/80">
-                          {theme.value === "royal-blue" ? "BCN default" : "Private workspace"}
-                        </span>
-                      </span>
-                    </span>
-                  </button>
+                      <span>Apply full workspace atmosphere</span>
+                    </button>
+                  </div>
                 );
               })}
             </div>

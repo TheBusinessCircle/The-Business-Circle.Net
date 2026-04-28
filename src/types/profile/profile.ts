@@ -20,6 +20,7 @@ export interface MemberProfileModel {
   youtube?: string | null;
   customLinks: string[];
   accentTheme?: string | null;
+  workspaceAtmosphereEnabled?: boolean | null;
   companyName?: string | null;
   companyDescription?: string | null;
   industry?: string | null;
@@ -48,6 +49,7 @@ export interface MemberProfileFormModel {
   youtube: string;
   customLinks: string;
   accentTheme: AccentTheme;
+  workspaceAtmosphereEnabled: boolean;
   collaborationNeeds: string;
   collaborationOffers: string;
   partnershipInterests: string;

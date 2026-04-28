@@ -36,6 +36,7 @@ export async function getMemberProfile(userId: string): Promise<MemberProfileMod
     youtube: user.profile?.youtube,
     customLinks: user.profile?.customLinks ?? [],
     accentTheme: user.profile?.accentTheme,
+    workspaceAtmosphereEnabled: user.profile?.workspaceAtmosphereEnabled ?? false,
     companyName: user.profile?.business?.companyName,
     companyDescription: user.profile?.business?.description,
     industry: user.profile?.business?.industry,

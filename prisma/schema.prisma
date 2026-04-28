@@ -173,6 +173,7 @@ model Profile {
   youtube              String?
   customLinks          String[]  @default([])
   accentTheme          String?
+  workspaceAtmosphereEnabled Boolean @default(false)
   collaborationNeeds   String?
   collaborationOffers  String?
   partnershipInterests String?

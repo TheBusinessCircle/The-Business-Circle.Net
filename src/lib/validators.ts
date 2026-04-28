@@ -65,6 +65,7 @@ export const profileSchema = z.object({
   youtube: optionalUrl,
   customLinks: optionalJsonArray,
   accentTheme: accentThemeSchema,
+  workspaceAtmosphereEnabled: checkboxBoolean.optional().default(false),
   collaborationNeeds: optionalText(600),
   collaborationOffers: optionalText(600),
   partnershipInterests: optionalText(600),

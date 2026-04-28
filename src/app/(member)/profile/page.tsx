@@ -92,6 +92,7 @@ export default async function ProfilePage() {
           youtube: user.profile?.youtube || "",
           customLinks: JSON.stringify(user.profile?.customLinks ?? []),
           accentTheme: resolveAccentTheme(user.profile?.accentTheme),
+          workspaceAtmosphereEnabled: user.profile?.workspaceAtmosphereEnabled ?? false,
           collaborationNeeds: user.profile?.collaborationNeeds || "",
           collaborationOffers: user.profile?.collaborationOffers || "",
           partnershipInterests: user.profile?.partnershipInterests || "",

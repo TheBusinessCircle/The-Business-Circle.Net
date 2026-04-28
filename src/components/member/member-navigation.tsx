@@ -84,8 +84,9 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
           <Link
             key={item.href}
             href={item.href}
+            data-active={active ? "true" : "false"}
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all duration-200",
+              "member-nav-item inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all duration-200",
               horizontal ? "shrink-0" : "w-full",
               active
                 ? "border-primary/45 bg-primary/14 text-primary shadow-inner-surface"
