@@ -31,12 +31,48 @@ function resolveObjectPosition(placement: VisualMediaRenderablePlacement) {
   return "center center";
 }
 
-function resolveAltText(placement: VisualMediaRenderablePlacement, decorative: boolean) {
+const UNSAFE_PUBLIC_ALT_TEXT_PATTERN =
+  /^(?:test|image:\s*test|image|business network)$/i;
+
+function fallbackAltTextForPlacement(placement: VisualMediaRenderablePlacement) {
+  if (placement.key.startsWith("membership.")) {
+    return "The Business Circle Network membership room preview";
+  }
+
+  if (placement.key.startsWith("join.")) {
+    return "The Business Circle Network membership access preview";
+  }
+
+  if (placement.key.startsWith("about.") || placement.key.startsWith("services.")) {
+    return "Founder-led business environment inside The Business Circle Network";
+  }
+
+  if (
+    placement.key.includes("platform") ||
+    placement.key.includes("resources") ||
+    placement.key.includes("community") ||
+    placement.key.includes("intelligence")
+  ) {
+    return "Premium founder workspace inside The Business Circle Network";
+  }
+
+  return "Business owners collaborating inside a private digital environment";
+}
+
+export function resolveVisualPlacementAltText(
+  placement: VisualMediaRenderablePlacement,
+  decorative: boolean
+) {
   if (decorative) {
     return "";
   }
 
-  return placement.altText?.trim() || placement.label;
+  const suppliedAltText = placement.altText?.trim();
+  if (suppliedAltText && !UNSAFE_PUBLIC_ALT_TEXT_PATTERN.test(suppliedAltText)) {
+    return suppliedAltText;
+  }
+
+  return fallbackAltTextForPlacement(placement);
 }
 
 function overlayClassNameForPlacement(placement: VisualMediaRenderablePlacement) {
@@ -139,7 +175,7 @@ export function VisualPlacement({
     typeof overlayClassName === "string"
       ? overlayClassName
       : overlayClassNameForPlacement(placement);
-  const alt = resolveAltText(placement, decorative);
+  const alt = resolveVisualPlacementAltText(placement, decorative);
 
   return (
     <div className={cn("relative overflow-hidden", className)}>

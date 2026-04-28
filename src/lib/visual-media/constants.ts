@@ -193,7 +193,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     recommendedSubjectMatter: [
       "desktop and mobile platform mockup",
       "refined dashboard view",
-      "dark-mode member environment",
+      "dark premium member environment",
       "ecosystem interface",
       "structured digital experience"
     ],
@@ -219,7 +219,7 @@ export const VISUAL_MEDIA_PLACEMENTS = {
       styleSummary: "Premium platform and ecosystem visual.",
       sceneType: "Premium product-led platform mockup.",
       subject:
-        "High-end dark mode business dashboard displayed on a modern laptop and mobile device.",
+        "High-end dark premium business dashboard displayed on a modern laptop and mobile device.",
       environment:
         "Clean premium interface environment with glassmorphism elements, minimal layout, and controlled reflections.",
       lighting: "Cinematic lighting with sharp screen detail.",

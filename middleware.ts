@@ -140,8 +140,8 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Member route groups also call requireUser in their server layout; this matcher
-  // keeps public crawlers and unauthenticated visitors out before page render.
+  // Admin-only routes are enforced here; member route groups also call requireUser
+  // in their server layout so protection remains explicit if routing changes later.
   matcher: [
     "/login",
     "/register",

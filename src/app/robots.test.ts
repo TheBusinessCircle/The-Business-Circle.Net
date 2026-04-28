@@ -18,4 +18,14 @@ describe("robots output", () => {
       ])
     );
   });
+
+  it("does not block public marketing routes", () => {
+    const result = robots();
+    const rules = Array.isArray(result.rules) ? result.rules[0] : result.rules;
+    const disallow = Array.isArray(rules.disallow) ? rules.disallow : [rules.disallow];
+
+    expect(disallow).not.toEqual(
+      expect.arrayContaining(["/", "/about", "/membership", "/join", "/faq", "/insights", "/contact"])
+    );
+  });
 });

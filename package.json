@@ -19,6 +19,7 @@
     "db:seed": "prisma db seed",
     "email:test": "tsx scripts/test-email.ts",
     "email:test:verification": "tsx scripts/test-verification-email.ts",
+    "audit:public-output": "tsx scripts/audit-public-output.ts",
     "docker:up": "docker compose up -d --build",
     "docker:up:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build",
     "docker:down": "docker compose down",

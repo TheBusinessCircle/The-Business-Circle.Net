@@ -37,7 +37,7 @@ vi.mock("@/components/privacy/cookie-settings-button", () => ({
   }) => createElement("button", { className, type: "button" }, children)
 }));
 
-import { TERMS_LABEL } from "@/config/legal";
+import { PUBLIC_TRUST_PHRASE, TERMS_LABEL, TRUST_LEGAL_GROUP_LABEL } from "@/config/legal";
 import { Footer } from "@/components/public/footer";
 
 describe("public footer", () => {
@@ -53,9 +53,11 @@ describe("public footer", () => {
     });
   });
 
-  it("includes the BCN Rules link in the trust and legal section", async () => {
+  it("uses the shared footer trust and legal source of truth", async () => {
     const html = renderToStaticMarkup(await Footer());
 
+    expect(html).toContain(PUBLIC_TRUST_PHRASE);
+    expect(html).toContain(TRUST_LEGAL_GROUP_LABEL.replace("&", "&amp;"));
     expect(html).toContain('href="/rules"');
     expect(html).toContain("BCN Rules");
     expect(html).toContain(TERMS_LABEL);
