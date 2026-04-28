@@ -21,5 +21,8 @@ describe("rules page", () => {
     expect(html).toContain("Ready to enter");
     expect(html).toContain("Accept and Continue to Dashboard");
     expect(html).toContain("Back to dashboard");
+    expect(html).toContain("WELCOME TO THE BUSINESS CIRCLE NETWORK");
+    expect(html).toContain("You&#x27;re in the right room.");
+    expect(html).toContain("Skip intro");
   });
 });
