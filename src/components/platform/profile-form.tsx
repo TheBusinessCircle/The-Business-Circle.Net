@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { MembershipTier } from "@prisma/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowUpRight, Check, ShieldCheck } from "lucide-react";
@@ -16,7 +16,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { MemberRoleBadge } from "@/components/ui/member-role-badge";
-import { ACCENT_THEMES, isAccentTheme } from "@/lib/accent-themes";
+import {
+  ACCENT_THEMES,
+  getAccentThemeCssVariables,
+  isAccentTheme,
+  resolveAccentTheme,
+  type AccentTheme,
+  type AccentThemeOption
+} from "@/lib/accent-themes";
 import { getMemberRoleDescription, getMemberRoleLabel } from "@/lib/member-role";
 import { getProfileCompletion } from "@/lib/profile";
 import { cn } from "@/lib/utils";
@@ -76,6 +83,26 @@ async function createProfileImagePreview(file: File) {
   }
 }
 
+function applyAccentThemeToElement(element: HTMLElement, theme: AccentTheme) {
+  element.dataset.memberAccentTheme = theme;
+
+  for (const [property, value] of Object.entries(getAccentThemeCssVariables(theme))) {
+    element.style.setProperty(property, value);
+  }
+}
+
+function getThemeOptionStyle(theme: AccentThemeOption): CSSProperties {
+  return {
+    "--theme-primary": theme.cssVariables["--member-accent"],
+    "--theme-soft": theme.cssVariables["--member-accent-soft"],
+    "--theme-strong": theme.cssVariables["--member-accent-strong"],
+    "--theme-glow": theme.cssVariables["--member-accent-glow"],
+    "--theme-border": theme.cssVariables["--member-accent-border"],
+    "--theme-metal": theme.cssVariables["--member-accent-metal"],
+    "--theme-highlight": theme.cssVariables["--member-accent-highlight"]
+  } as CSSProperties;
+}
+
 export function ProfileForm({
   initialValues,
   initialAccentThemeConfirmed,
@@ -90,6 +117,9 @@ export function ProfileForm({
   const [accentThemeTouched, setAccentThemeTouched] = useState(false);
   const [isPending, startTransition] = useTransition();
   const profileImageUploadRef = useRef<HTMLInputElement | null>(null);
+  const previewThemeRootRef = useRef<HTMLElement | null>(null);
+  const originalPreviewThemeRef = useRef<AccentTheme>(initialValues.accentTheme);
+  const savedAccentThemeRef = useRef<AccentTheme>(initialValues.accentTheme);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -112,6 +142,10 @@ export function ProfileForm({
     }
   }, [values.customLinks]);
   const previewImage = selectedProfileImagePreview || values.profileImage || undefined;
+  const selectedAccentTheme = isAccentTheme(values.accentTheme)
+    ? values.accentTheme
+    : initialValues.accentTheme;
+  const selectedAccentThemeStyle = getAccentThemeCssVariables(selectedAccentTheme) as CSSProperties;
   const completion = useMemo(
     () =>
       getProfileCompletion({
@@ -167,6 +201,30 @@ export function ProfileForm({
   );
 
   useEffect(() => {
+    const root = document.querySelector<HTMLElement>(".member-accent-theme");
+
+    if (!root) {
+      return;
+    }
+
+    previewThemeRootRef.current = root;
+    originalPreviewThemeRef.current = resolveAccentTheme(root.dataset.memberAccentTheme);
+
+    return () => {
+      applyAccentThemeToElement(root, savedAccentThemeRef.current || originalPreviewThemeRef.current);
+      previewThemeRootRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!previewThemeRootRef.current) {
+      return;
+    }
+
+    applyAccentThemeToElement(previewThemeRootRef.current, selectedAccentTheme);
+  }, [selectedAccentTheme]);
+
+  useEffect(() => {
     return () => {
       if (selectedProfileImagePreview) {
         URL.revokeObjectURL(selectedProfileImagePreview);
@@ -175,9 +233,6 @@ export function ProfileForm({
   }, [selectedProfileImagePreview]);
 
   const missingFields = completion.fields.filter((field) => !field.complete).slice(0, 5);
-  const selectedAccentTheme = isAccentTheme(values.accentTheme)
-    ? values.accentTheme
-    : initialValues.accentTheme;
 
   function selectAccentTheme(theme: ProfileFormValues["accentTheme"]) {
     setAccentThemeTouched(true);
@@ -331,6 +386,7 @@ export function ProfileForm({
           return;
         }
 
+        savedAccentThemeRef.current = submitted.accentTheme;
         setNotice("Profile updated successfully.");
         router.refresh();
       } catch {
@@ -340,7 +396,12 @@ export function ProfileForm({
   });
 
   return (
-    <form className="relative space-y-6" onSubmit={onSubmit}>
+    <form
+      className="member-accent-theme relative space-y-6"
+      data-member-accent-theme={selectedAccentTheme}
+      style={selectedAccentThemeStyle}
+      onSubmit={onSubmit}
+    >
       {isPending ? (
         <div className="absolute inset-0 z-20 rounded-2xl border border-primary/30 bg-background/70 p-4 backdrop-blur-sm">
           <p className="text-sm font-medium text-foreground">Saving profile updates...</p>
@@ -473,36 +534,61 @@ export function ProfileForm({
                     type="button"
                     role="radio"
                     aria-checked={selected}
+                    data-selected={selected ? "true" : "false"}
+                    style={getThemeOptionStyle(theme)}
                     className={cn(
-                      "group flex min-h-[5.25rem] items-center justify-between gap-3 rounded-2xl border bg-background/24 px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:bg-background/38 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80",
-                      selected
-                        ? "border-primary/60 bg-primary/12 shadow-inner-surface"
-                        : "border-border/80"
+                      "accent-theme-option group relative flex min-h-[9.5rem] flex-col justify-between overflow-hidden rounded-2xl border px-4 py-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/42 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80",
+                      selected ? "border-primary/60" : "border-border/80"
                     )}
                     onClick={() => selectAccentTheme(theme.value)}
                   >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span
-                        className="h-8 w-8 shrink-0 rounded-full border border-white/15 shadow-inner-surface"
-                        style={{ background: theme.swatch }}
-                        aria-hidden="true"
-                      />
+                    <span className="flex w-full items-start justify-between gap-3">
                       <span className="min-w-0">
-                        <span className="block text-sm font-medium text-foreground">{theme.label}</span>
-                        <span className="mt-1 block text-xs text-muted">
-                          {theme.value === "royal-blue" ? "BCN default" : "Member accent"}
+                        <span className="block text-sm font-semibold text-foreground">{theme.label}</span>
+                        <span className="mt-1 block text-xs leading-relaxed text-muted">
+                          {theme.mood}
                         </span>
                       </span>
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.08em] transition-colors",
+                          selected
+                            ? "border-primary/35 bg-primary/14 text-primary"
+                            : "border-border/80 bg-background/24 text-muted"
+                        )}
+                      >
+                        {selected ? <Check size={11} /> : null}
+                        {selected ? "Selected" : "Preview"}
+                      </span>
                     </span>
-                    <span
-                      className={cn(
-                        "grid h-6 w-6 shrink-0 place-items-center rounded-full border transition-colors",
-                        selected
-                          ? "border-primary bg-primary text-buttonForeground"
-                          : "border-border/80 text-transparent"
-                      )}
-                    >
-                      <Check size={13} />
+
+                    <span className="mt-4 block w-full">
+                      <span
+                        className="accent-theme-swatch relative block h-12 overflow-hidden rounded-xl border border-white/10"
+                        aria-hidden="true"
+                      >
+                        <span className="absolute inset-x-3 bottom-2 flex items-center gap-1.5">
+                          {[
+                            theme.palette.strong,
+                            theme.palette.primary,
+                            theme.palette.soft,
+                            theme.palette.highlight,
+                            theme.palette.metal
+                          ].map((color) => (
+                            <span
+                              key={`${theme.value}-${color}`}
+                              className="h-2.5 flex-1 rounded-full border border-white/10"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </span>
+                      </span>
+                      <span className="mt-3 flex items-center justify-between text-[11px] text-muted">
+                        <span>Layered finish</span>
+                        <span className="text-silver/80">
+                          {theme.value === "royal-blue" ? "BCN default" : "Private workspace"}
+                        </span>
+                      </span>
                     </span>
                   </button>
                 );

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { MembershipTier } from "@prisma/client";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { SITE_CONFIG } from "@/config/site";
 import { getMembershipTierLabel } from "@/config/membership";
 import { signOutAction } from "@/lib/actions/auth-actions";
-import { resolveAccentTheme } from "@/lib/accent-themes";
+import { getAccentThemeCssVariables, resolveAccentTheme } from "@/lib/accent-themes";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -43,6 +43,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     })
   ]);
   const accentTheme = resolveAccentTheme(profileTheme?.accentTheme);
+  const accentThemeStyle = getAccentThemeCssVariables(accentTheme) as CSSProperties;
 
   const visibleNavItems = PLATFORM_NAV.filter((item) => {
     const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
@@ -161,7 +162,11 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   );
 
   return (
-    <div className="member-accent-theme" data-member-accent-theme={accentTheme}>
+    <div
+      className="member-accent-theme"
+      data-member-accent-theme={accentTheme}
+      style={accentThemeStyle}
+    >
       <AppShell header={header} sidebar={sidebar} contentClassName="py-7 lg:py-9">
         <div className="space-y-6">
           {showRulesWelcome ? (
