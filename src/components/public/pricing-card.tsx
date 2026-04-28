@@ -118,7 +118,7 @@ export function PricingCard({
   return (
     <article
       className={cn(
-        "interactive-card relative flex h-full flex-col rounded-3xl border bg-card/75 p-6 shadow-panel sm:p-7",
+        "interactive-card relative flex h-full flex-col rounded-3xl border bg-card/75 p-6 shadow-panel lg:p-8",
         tierCardClassName,
         featured ? tierSelectionClassName : "",
         selected ? tierSelectionClassName : "",

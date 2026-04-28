@@ -544,26 +544,25 @@ export function MembershipGuidedSelector({
   );
 
   return (
-    <div className="w-full min-w-0 space-y-14 pb-16 sm:space-y-16 lg:space-y-20">
+    <div className="w-full min-w-0 space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <JourneyRail
         currentStep="membership"
         note="Use this page to place the business properly. When the fit feels clear, the selected room carries straight into join."
         nextAction={{ href: selectedJoinHref, label: "Continue To Join" }}
       />
 
-      <section className="relative overflow-hidden rounded-[2.2rem] border border-border/80 bg-card/60 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+      <section className="relative overflow-hidden rounded-[2.2rem] border border-border/80 bg-card/60 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
-        <div className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-silver/10 blur-[96px]" />
-        <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-foundation/14 blur-[120px]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
 
         <div className="relative grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.36fr)] xl:items-end">
           <div className="space-y-5">
             <div className="space-y-4">
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership</p>
-              <h1 className="max-w-4xl font-display text-[clamp(2.05rem,7.6vw,4rem)] leading-tight text-foreground sm:text-5xl">
+              <h1 className="max-w-5xl font-display text-[clamp(2.65rem,7.6vw,5rem)] leading-[0.96] tracking-tight text-foreground">
                 Choose the environment that matches the business now.
               </h1>
-              <p className="max-w-3xl text-lg leading-relaxed text-muted">
+              <p className="max-w-3xl text-lg leading-relaxed text-white/80">
                 Different businesses need different environments. This page is here to help owners
                 place themselves clearly, understand the room that fits now, and move toward join
                 with confidence.
@@ -631,7 +630,7 @@ export function MembershipGuidedSelector({
         </div>
       </section>
 
-      <section className="space-y-6">
+      <section className="space-y-10 py-20 lg:py-28">
         <div
           className={cn(
             "gap-6 xl:items-center",
@@ -640,12 +639,12 @@ export function MembershipGuidedSelector({
               : "max-w-3xl"
           )}
         >
-          <div className="max-w-3xl space-y-3">
+          <div className="max-w-3xl space-y-5">
             <p className="premium-kicker">Position Selection</p>
-            <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+            <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
               Select the room first. Read the depth second.
             </h2>
-            <p className="text-base leading-relaxed text-muted">
+            <p className="text-lg leading-relaxed text-white/80">
               This is structured to reduce overload. Cards stay light and scannable. Depth appears
               after you choose where the business fits now.
             </p>
@@ -740,7 +739,7 @@ export function MembershipGuidedSelector({
         </div>
       </section>
 
-      <section className="space-y-6">
+      <section className="space-y-10 py-20 lg:py-28">
         <div
           className={cn(
             "gap-6 xl:items-center",
@@ -751,10 +750,10 @@ export function MembershipGuidedSelector({
         >
           <div className="space-y-4">
             <p className="premium-kicker">Tier Guidance</p>
-            <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+            <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
               Choose by stage, not status.
             </h2>
-            <p className="max-w-3xl text-base leading-relaxed text-muted">
+            <p className="max-w-3xl text-lg leading-relaxed text-white/80">
               Foundation is not the weak option. Core is not the default. Each room is designed to
               suit a different level of access, pace, and business responsibility.
             </p>
@@ -801,7 +800,7 @@ export function MembershipGuidedSelector({
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-border/80 bg-card/56 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
+      <section className="rounded-[2rem] border border-border/80 bg-card/56 px-6 py-20 shadow-panel sm:px-8 lg:px-10 lg:py-28">
         <div
           className={cn(
             "gap-6 xl:items-start",
@@ -812,10 +811,10 @@ export function MembershipGuidedSelector({
         >
           <div className="max-w-3xl space-y-4">
             <p className="premium-kicker">Founder Perspective</p>
-            <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+            <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
               Why this is structured this way
             </h2>
-            <div className="space-y-3 text-base leading-relaxed text-muted">
+            <div className="space-y-4 text-lg leading-relaxed text-white/80">
               {FOUNDER_PERSPECTIVE_LINES.map((line) => (
                 <p key={line}>{line}</p>
               ))}
@@ -831,13 +830,13 @@ export function MembershipGuidedSelector({
         </div>
       </section>
 
-      <section className="space-y-6">
-        <div className="max-w-3xl space-y-3">
+      <section className="space-y-10 py-20 lg:py-28">
+        <div className="max-w-3xl space-y-5">
           <p className="premium-kicker">Reassurance</p>
-          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+          <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
             This is based on stage, not status.
           </h2>
-          <p className="text-base leading-relaxed text-muted">
+          <p className="text-lg leading-relaxed text-white/80">
             The point is structured progression, not hierarchy. A room stays useful when placement
             is clear, and the ecosystem grows properly when each business moves deeper only when it
             genuinely needs to.
@@ -850,7 +849,7 @@ export function MembershipGuidedSelector({
 
             return (
               <Card key={item.title} className="border-border/80 bg-card/66 shadow-panel-soft">
-                <CardContent className="space-y-4 p-6 sm:p-7">
+                <CardContent className="space-y-4 p-6 lg:p-8">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-background/24 text-silver">
                     <Icon size={18} />
                   </span>
@@ -872,16 +871,16 @@ export function MembershipGuidedSelector({
         items={faqItems}
       />
 
-      <section className="relative overflow-hidden rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/12 via-card/74 to-card/70 px-6 py-8 shadow-gold-soft sm:px-8 sm:py-10">
-        <div className="pointer-events-none absolute -right-20 top-0 h-60 w-60 rounded-full bg-foundation/12 blur-[110px]" />
-        <div className="pointer-events-none absolute -left-16 bottom-0 h-52 w-52 rounded-full bg-gold/14 blur-[96px]" />
+      <section className="relative overflow-hidden rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/12 via-card/74 to-card/70 px-6 py-28 shadow-gold-soft sm:px-8 lg:px-10 lg:py-36">
+        <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.42)_100%),linear-gradient(180deg,rgba(0,0,0,0.24)_0%,rgba(0,0,0,0.52)_100%)]" />
 
         <div className="relative max-w-3xl space-y-5">
           <p className="premium-kicker">Final Step</p>
-          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+          <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
             When the fit feels clear, continue to join.
           </h2>
-          <p className="text-base leading-relaxed text-muted sm:text-lg">
+          <p className="text-lg leading-relaxed text-white/80">
             Your selected room and billing interval carry straight into join. The next page keeps
             account setup, pricing confirmation, and secure Stripe checkout in one clear flow.
           </p>

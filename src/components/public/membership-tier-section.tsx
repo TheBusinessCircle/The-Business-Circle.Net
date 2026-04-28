@@ -94,7 +94,7 @@ export function MembershipTierSection({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-[2rem] border bg-card/62 px-6 py-7 shadow-panel sm:px-8 sm:py-9",
+        "relative overflow-hidden rounded-[2rem] border bg-card/62 p-6 shadow-panel lg:p-8",
         tierCardClassName,
         featured ? "shadow-silver-soft" : "",
         selected || featured ? tierSelectionRingClassName : ""
@@ -102,8 +102,8 @@ export function MembershipTierSection({
     >
       <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-[0.04]" />
 
-      <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)] lg:items-start lg:gap-10">
-        <div className="space-y-5">
+      <div className="relative grid gap-10 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)] lg:items-start lg:gap-12">
+        <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-3">
             <TierBadge tier={tier} />
             <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
@@ -126,17 +126,17 @@ export function MembershipTierSection({
             ) : null}
           </div>
 
-          <div className="space-y-4">
-            <h2 className="font-display text-[2.15rem] leading-tight text-foreground sm:text-[2.45rem]">
+          <div className="space-y-5">
+            <h2 className="font-display text-[2.35rem] leading-tight tracking-tight text-foreground sm:text-[2.75rem]">
               {title}
             </h2>
-            <p className="max-w-2xl text-base leading-relaxed text-muted">{description}</p>
+            <p className="max-w-2xl text-lg leading-relaxed text-white/80">{description}</p>
             {narrative ? (
-              <p className="max-w-2xl text-sm leading-relaxed text-silver">{narrative}</p>
+              <p className="max-w-2xl text-base leading-relaxed text-silver">{narrative}</p>
             ) : null}
           </div>
 
-          <p className="max-w-xl text-sm leading-relaxed text-muted">{trustLine}</p>
+          <p className="max-w-xl text-base leading-relaxed text-white/70">{trustLine}</p>
         </div>
 
         <div className="rounded-[1.8rem] border border-white/10 bg-background/18 p-5 shadow-panel-soft sm:p-6">

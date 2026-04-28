@@ -78,7 +78,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
   } as const;
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <JsonLd
         data={buildCollectionPageSchema({
           title: "Membership For Business Owners",

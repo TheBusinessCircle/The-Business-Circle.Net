@@ -98,7 +98,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
   } as const;
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <PublicTopVisual
         placement={joinHeroPlacement}
         eyebrow="Join"

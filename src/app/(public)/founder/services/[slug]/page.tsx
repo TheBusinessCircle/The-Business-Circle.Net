@@ -113,7 +113,7 @@ export default async function FounderServicePage({
   const isApplicationOnly = pricing.isApplicationOnly || service.intakeMode === "APPLICATION";
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <PublicTopVisual
         placement={founderHeroPlacement}
         eyebrow="Founder Service"
@@ -123,9 +123,9 @@ export default async function FounderServicePage({
         fallbackLabel="Founder top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-card/56 px-6 py-8 shadow-panel sm:px-8 sm:py-10">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-card/56 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
-        <div className="pointer-events-none absolute -right-20 top-0 h-64 w-64 rounded-full bg-gold/16 blur-[110px]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
 
         <div className="relative space-y-5">
           <Badge variant="outline" className="border-gold/35 bg-gold/12 text-gold">
@@ -133,10 +133,10 @@ export default async function FounderServicePage({
           </Badge>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl space-y-3">
-              <h1 className="font-display text-4xl text-foreground sm:text-5xl">
+              <h1 className="font-display text-4xl tracking-tight text-foreground sm:text-5xl">
                 {service.title}
               </h1>
-              <p className="text-lg leading-relaxed text-muted">{service.fullDescription}</p>
+              <p className="text-lg leading-relaxed text-white/80">{service.fullDescription}</p>
             </div>
 
             <Card className="border-gold/35 bg-gold/10">

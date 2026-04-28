@@ -27,17 +27,19 @@ export function CTASection({
   return (
     <section
       className={cn(
-        "surface-accent relative overflow-hidden rounded-[2.2rem] p-6 sm:p-10 lg:p-12",
+        "surface-accent relative overflow-hidden rounded-[2.35rem] px-6 py-28 sm:px-8 lg:px-10 lg:py-36",
         className
       )}
     >
-      <div className="pointer-events-none absolute -right-16 -top-14 h-60 w-60 rounded-full bg-gold/25 blur-[90px] sm:-right-24 sm:-top-20 sm:h-80 sm:w-80 sm:blur-[110px]" />
-      <div className="pointer-events-none absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-silver/10 blur-[90px] sm:-left-24 sm:h-72 sm:w-72 sm:blur-[100px]" />
+      <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.42)_100%),linear-gradient(180deg,rgba(0,0,0,0.3)_0%,rgba(0,0,0,0.52)_100%)]" />
 
       <div className="relative mx-auto max-w-4xl space-y-6 text-center">
         <p className="premium-kicker mx-auto">Next step</p>
-        <h2 className="font-display text-2xl leading-tight text-foreground sm:text-4xl">{title}</h2>
-        <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted">{description}</p>
+        <h2 className="font-display text-4xl leading-[1.02] tracking-tight text-foreground lg:text-5xl">
+          {title}
+        </h2>
+        <p className="mx-auto max-w-3xl text-lg leading-relaxed text-white/80">{description}</p>
         <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <Link
             href={primaryAction.href}

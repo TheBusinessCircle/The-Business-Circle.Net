@@ -64,7 +64,7 @@ export default async function FounderPage() {
   const services = allServices.filter((service) => isGrowthArchitectServiceSlug(service.slug));
 
   return (
-    <div className="space-y-12 pb-16 sm:space-y-14">
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <JsonLd data={buildFounderSchema()} />
 
       <PublicTopVisual
@@ -76,9 +76,9 @@ export default async function FounderPage() {
         fallbackLabel="Founder top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/58 px-6 py-8 shadow-panel sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+      <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/58 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
-        <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
 
         <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] xl:items-start">
           <div className="space-y-6">
@@ -87,10 +87,10 @@ export default async function FounderPage() {
             </Badge>
 
             <div className="space-y-4">
-              <h1 className="max-w-4xl font-display text-4xl leading-tight text-foreground sm:text-5xl lg:text-6xl">
+              <h1 className="max-w-4xl font-display text-4xl leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 My name is Trevor Newton.
               </h1>
-              <div className="max-w-3xl space-y-4 text-lg leading-relaxed text-muted">
+              <div className="max-w-3xl space-y-4 text-lg leading-relaxed text-white/80">
                 <p>
                   I built The Business Circle Network because most business owners do not need more
                   information.

@@ -108,7 +108,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
       <JsonLd data={breadcrumbSchema} />
       <JsonLd data={articleSchema} />
 
-      <div className="space-y-10 pb-14 lg:space-y-12 lg:pb-16">
+      <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
         <PublicTopVisual
           placement={insightsHeroPlacement}
           eyebrow="Insight Article"
@@ -149,9 +149,9 @@ export default async function InsightArticlePage({ params }: PageProps) {
           </Link>
         </div>
 
-        <section className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 p-8 shadow-panel sm:p-10 lg:p-12">
+        <section className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
           <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
-          <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
           <div className="relative space-y-6">
             <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-muted">
               <span className="rounded-full border border-border/70 bg-background/28 px-3 py-1">
@@ -169,10 +169,10 @@ export default async function InsightArticlePage({ params }: PageProps) {
             </div>
 
             <div className="space-y-4">
-              <h1 className="max-w-5xl font-display text-4xl leading-tight text-foreground sm:text-5xl">
+              <h1 className="max-w-5xl font-display text-4xl leading-tight tracking-tight text-foreground sm:text-5xl">
                 {insight.title}
               </h1>
-              <p className="max-w-3xl text-lg leading-relaxed text-muted">
+              <p className="max-w-3xl text-lg leading-relaxed text-white/80">
                 {insight.summary}
               </p>
             </div>

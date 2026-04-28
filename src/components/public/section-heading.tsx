@@ -23,7 +23,7 @@ export function SectionHeading({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col gap-4 sm:gap-5",
+        "flex min-w-0 flex-col gap-5 sm:gap-6",
         isCentered ? "items-center text-center" : "items-start text-left",
         className
       )}
@@ -33,12 +33,12 @@ export function SectionHeading({
           {label}
         </p>
       ) : null}
-      <div className={cn("min-w-0 space-y-3", isCentered ? "max-w-3xl" : "max-w-[44rem]")}>
-        <h2 className="font-display text-[clamp(1.95rem,6vw,3rem)] leading-tight text-foreground sm:text-4xl">
+      <div className={cn("min-w-0 space-y-6", isCentered ? "max-w-4xl" : "max-w-[48rem]")}>
+        <h2 className="font-display text-[clamp(2.25rem,6vw,3.75rem)] leading-[1.02] tracking-tight text-foreground">
           {title}
         </h2>
         {description ? (
-          <p className="text-[0.98rem] leading-relaxed text-muted sm:text-base">{description}</p>
+          <p className="text-lg leading-relaxed text-white/80">{description}</p>
         ) : null}
       </div>
       {action ? <div>{action}</div> : null}

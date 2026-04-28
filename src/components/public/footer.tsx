@@ -64,7 +64,7 @@ export async function Footer() {
 
   return (
     <footer className="border-t border-border/80 bg-background/92">
-      <div className="grid w-full gap-8 px-4 py-12 sm:gap-10 sm:px-6 sm:py-14 lg:grid-cols-[1.25fr_0.8fr_0.8fr_0.9fr] lg:px-8 lg:py-16 2xl:px-12">
+      <div className="mx-auto grid w-full max-w-[1400px] gap-10 px-6 py-20 lg:grid-cols-[1.25fr_0.8fr_0.8fr_0.9fr] lg:px-10 lg:py-28">
         <div className="space-y-5">
           <div className="flex items-center gap-3">
             <BrandMark placement="footer" />
@@ -151,7 +151,7 @@ export async function Footer() {
       </div>
 
       <div className="border-t border-border/80">
-        <div className="flex w-full flex-col gap-2 px-4 py-5 text-xs text-muted sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 2xl:px-12">
+        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-2 px-6 py-6 text-xs text-muted lg:flex-row lg:items-center lg:justify-between lg:px-10">
           <p>&copy; {new Date().getFullYear()} {SITE_CONFIG.name}. All rights reserved.</p>
           <p>{footerContent.bottomLine}</p>
           <p>{formatCompanyTrustLine()}</p>

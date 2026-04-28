@@ -103,7 +103,7 @@ export default async function AboutPage() {
   ]);
 
   return (
-    <div className="space-y-20 pb-20 sm:space-y-24 lg:space-y-28">
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <JsonLd
         data={buildCollectionPageSchema({
           title: "About The Business Circle Network",
@@ -130,18 +130,17 @@ export default async function AboutPage() {
         fallbackLabel="About top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2.3rem] border border-border/80 bg-card/55 px-6 py-10 shadow-panel sm:px-10 sm:py-14 lg:px-14 lg:py-16">
+      <section className="relative overflow-hidden rounded-[2.3rem] border border-border/80 bg-card/55 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
-        <div className="pointer-events-none absolute -left-20 top-12 h-56 w-56 rounded-full bg-silver/10 blur-[90px]" />
-        <div className="pointer-events-none absolute -right-20 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
 
         <div className="relative max-w-5xl space-y-6">
           <p className="premium-kicker">About The Business Circle Network</p>
           <div className="space-y-5">
-            <h1 className="max-w-4xl text-4xl leading-[0.98] text-foreground sm:text-5xl lg:text-7xl">
+            <h1 className="max-w-4xl font-display text-4xl leading-[0.98] tracking-tight text-foreground sm:text-5xl lg:text-7xl">
               Built for owners who are tired of being visible everywhere and properly supported nowhere.
             </h1>
-            <p className="max-w-3xl text-lg leading-relaxed text-muted sm:text-xl">
+            <p className="max-w-3xl text-lg leading-relaxed text-white/80 sm:text-xl">
               The Business Circle Network is a private founder-led business environment for owners
               who want a calmer, more structured room around growth. It was built for people who
               want better conversations, clearer placement, and stronger momentum in a room they
@@ -193,7 +192,7 @@ export default async function AboutPage() {
         ) : null}
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <div className="max-w-3xl space-y-4">
           <p className="premium-kicker">The problem</p>
           <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
@@ -218,11 +217,11 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden rounded-[2.1rem] border border-gold/25 bg-gradient-to-br from-gold/10 via-card/75 to-card/70 px-6 py-8 shadow-gold-soft sm:px-10 sm:py-12 lg:px-12 lg:py-14">
-        <div className="pointer-events-none absolute -right-16 top-0 h-60 w-60 rounded-full bg-gold/16 blur-[90px]" />
+      <section className="relative overflow-hidden rounded-[2.1rem] border border-gold/25 bg-gradient-to-br from-gold/10 via-card/75 to-card/70 px-6 py-20 shadow-gold-soft sm:px-8 lg:px-10 lg:py-28">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.34)_100%),linear-gradient(180deg,rgba(0,0,0,0.12)_0%,rgba(0,0,0,0.38)_100%)]" />
         <div className="relative max-w-4xl space-y-5">
           <p className="premium-kicker">The shift</p>
-          <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
+          <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
             So this had to be built differently.
           </h2>
           <p className="text-base leading-relaxed text-muted sm:text-lg">
@@ -237,7 +236,7 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <div className="max-w-4xl space-y-4">
           <p className="premium-kicker">What this actually is</p>
           <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
@@ -271,7 +270,7 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <div className="max-w-4xl space-y-4">
           <p className="premium-kicker">Built For Better Rooms</p>
           <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
@@ -339,7 +338,7 @@ export default async function AboutPage() {
         </Card>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <div className="max-w-3xl space-y-4">
           <p className="premium-kicker">Who it is for</p>
           <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">

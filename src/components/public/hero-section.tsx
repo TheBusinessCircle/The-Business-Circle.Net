@@ -43,17 +43,16 @@ export function HeroSection({
   return (
     <section
       className={cn(
-        "surface-card-strong relative overflow-hidden rounded-[2.2rem] p-6 sm:p-9 lg:p-14",
+        "surface-card-strong relative overflow-hidden rounded-[2.35rem] px-6 py-28 shadow-[0_34px_100px_rgba(2,6,23,0.3)] sm:px-8 lg:px-10 lg:py-36",
         className
       )}
     >
       <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-15" />
-      <div className="pointer-events-none absolute -right-16 -top-14 h-56 w-56 rounded-full bg-gold/20 blur-[90px] sm:-right-24 sm:-top-20 sm:h-72 sm:w-72 sm:blur-[100px]" />
-      <div className="pointer-events-none absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-silver/10 blur-[90px] sm:-left-24 sm:h-72 sm:w-72 sm:blur-[110px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_34%,rgba(0,0,0,0.58)_100%),linear-gradient(180deg,rgba(0,0,0,0.6)_0%,rgba(0,0,0,0.72)_44%,rgba(0,0,0,0.85)_100%)]" />
 
       <div
         className={cn(
-          "relative grid min-w-0 items-start gap-8 sm:gap-10 lg:gap-12",
+          "relative grid min-w-0 items-start gap-10 sm:gap-12 lg:gap-14",
           aside ? "lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch" : "grid-cols-1"
         )}
       >
@@ -64,11 +63,11 @@ export function HeroSection({
             </p>
           ) : null}
 
-          <div className="space-y-5">
-            <h1 className="max-w-4xl font-display text-[clamp(2rem,8.5vw,4.5rem)] leading-[0.98] text-foreground lg:text-6xl">
+          <div className="space-y-6">
+            <h1 className="max-w-5xl font-display text-[clamp(2.65rem,8vw,5rem)] leading-[0.95] tracking-tight text-foreground">
               {title}
             </h1>
-            <p className="max-w-3xl text-[0.98rem] leading-relaxed text-muted sm:text-lg">
+            <p className="max-w-3xl text-lg leading-relaxed text-white/80 sm:text-xl">
               {description}
             </p>
           </div>
@@ -118,7 +117,7 @@ export function HeroSection({
           ) : null}
 
           {supportLine ? (
-            <p className="max-w-3xl text-sm leading-relaxed text-muted">{supportLine}</p>
+            <p className="max-w-3xl text-base leading-relaxed text-white/70">{supportLine}</p>
           ) : null}
 
           {metrics?.length ? (
@@ -126,7 +125,7 @@ export function HeroSection({
               {metrics.map((metric) => (
                 <div
                   key={metric.label}
-                  className="surface-subtle min-w-0 rounded-[1.35rem] px-4 py-3.5 hover:border-gold/30"
+                  className="surface-subtle min-w-0 rounded-[1.35rem] px-5 py-4 hover:border-gold/30 lg:px-6"
                 >
                   <p className="font-display text-2xl text-foreground">{metric.value}</p>
                   <p className="mt-1 text-xs tracking-wide text-muted uppercase">{metric.label}</p>

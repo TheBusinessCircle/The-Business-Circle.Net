@@ -224,7 +224,7 @@ function PreviewMediaCard({
       ) : (
         <div className="relative flex aspect-[16/10] items-end overflow-hidden border-b border-border/70 bg-gradient-to-br from-primary/12 via-card/90 to-background/70 p-5">
           <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-[0.14]" />
-          <div className="pointer-events-none absolute -right-10 top-0 h-36 w-36 rounded-full bg-gold/16 blur-[70px]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(0,0,0,0.36)_100%),linear-gradient(180deg,rgba(0,0,0,0.06)_0%,rgba(0,0,0,0.38)_100%)]" />
           <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/28 bg-gold/10 text-gold">
             <Icon size={18} />
           </span>
@@ -321,7 +321,7 @@ export default async function HomePage() {
   };
 
   return (
-    <div className="w-full min-w-0 space-y-14 pb-28 sm:space-y-16 sm:pb-32 lg:space-y-20 lg:pb-20">
+    <div className="w-full min-w-0 space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <JsonLd
         data={buildCollectionPageSchema({
           title: "The Business Circle Network",
@@ -410,7 +410,7 @@ export default async function HomePage() {
         nextAction={{ href: "/membership", label: "Go To Membership" }}
       />
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <div
           className={cn(
             "gap-6 xl:items-center",
@@ -476,7 +476,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <div
           className={cn(
             "gap-6 xl:items-start",
@@ -520,7 +520,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <SectionHeading
           label="What You Actually Gain"
           title="Immediate value now. Ongoing value as the room compounds."
@@ -558,7 +558,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <SectionHeading
           label="See What Happens Inside"
           title="The Business Circle is built around the things owners actually need."
@@ -579,7 +579,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <SectionHeading
           label="Connected Environment"
           title="The Business Circle Works As One Connected Environment"
@@ -599,7 +599,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section id="how-it-works" className="space-y-8">
+      <section id="how-it-works" className="space-y-10 py-20 lg:py-28">
         <SectionHeading
           label="How It Works"
           title="Three calm steps into the right environment."
@@ -625,7 +625,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <SectionHeading
           label="Who It's For"
           title="Built for people who are serious about the business and the room around it."
@@ -663,7 +663,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <div
           className={cn(
             "gap-6 xl:items-start",

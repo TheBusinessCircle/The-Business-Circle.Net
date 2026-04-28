@@ -47,7 +47,7 @@ export default async function FounderThanksPage({ searchParams }: PageProps) {
   const isApplicationOnly = request.service.intakeMode === "APPLICATION";
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/85 to-card/70 shadow-panel-soft">
         <CardHeader>
           <Badge variant="outline" className="w-fit border-gold/35 bg-gold/15 text-gold">

@@ -35,7 +35,7 @@ export default async function JoinCompletePage({
   const initialStatus = await getPendingRegistrationStatusByCheckoutSessionId(sessionId);
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <JoinCompletionStatus sessionId={sessionId} initialStatus={initialStatus} />
     </div>
   );

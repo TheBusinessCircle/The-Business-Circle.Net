@@ -57,7 +57,7 @@ export default async function InsightsPage() {
   const remainingInsights = insights.filter((insight) => insight.slug !== startHereInsight?.slug);
 
   return (
-    <div className="space-y-14 pb-14 sm:space-y-16 lg:space-y-16 lg:pb-16">
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <PublicTopVisual
         placement={insightsHeroPlacement}
         eyebrow="BCN Intelligence"
@@ -67,21 +67,21 @@ export default async function InsightsPage() {
         fallbackLabel="Insights top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 p-8 shadow-panel sm:p-10 lg:p-12">
+      <section className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
-        <div className="pointer-events-none absolute -right-16 top-0 h-72 w-72 rounded-full bg-gold/18 blur-[110px]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
         <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
           <div className="space-y-6">
             <p className="premium-kicker">You&apos;re In The Insights Layer</p>
             <div className="space-y-4">
-              <h1 className="max-w-4xl font-display text-4xl leading-tight text-foreground sm:text-5xl">
+              <h1 className="max-w-4xl font-display text-4xl leading-tight tracking-tight text-foreground sm:text-5xl">
                 {INSIGHT_SECTION_COPY.title}
               </h1>
-              <p className="max-w-3xl text-lg leading-relaxed text-muted">
+              <p className="max-w-3xl text-lg leading-relaxed text-white/80">
                 {INSIGHT_SECTION_COPY.description}
               </p>
             </div>
-            <p className="max-w-3xl text-base leading-relaxed text-muted">
+            <p className="max-w-3xl text-base leading-relaxed text-white/75">
               {INSIGHT_SECTION_COPY.supportLine}
             </p>
             <div className="flex flex-wrap gap-3">

@@ -101,7 +101,7 @@ export default async function FaqPage() {
   ]);
 
   return (
-    <div className="space-y-10 pb-16">
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
       <JsonLd data={buildFaqSchema(faqItems)} />
 
       <PublicTopVisual
@@ -112,15 +112,19 @@ export default async function FaqPage() {
         tone="anchored"
       />
 
-      <section className="public-panel space-y-4 p-8 sm:p-10">
-        <p className="premium-kicker">FAQ</p>
-        <h1 className="font-display text-4xl leading-tight text-foreground sm:text-5xl">
-          Questions worth settling before you enter.
-        </h1>
-        <p className="max-w-3xl text-base leading-relaxed text-muted">
-          Clear answers for business owners who want to understand billing, access, privacy, calls,
-          resources, and the quality of the environment before they join.
-        </p>
+      <section className="public-panel relative overflow-hidden px-6 py-28 sm:px-8 lg:px-10 lg:py-36">
+        <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
+        <div className="relative space-y-6">
+          <p className="premium-kicker">FAQ</p>
+          <h1 className="max-w-4xl font-display text-4xl leading-tight tracking-tight text-foreground sm:text-5xl">
+            Questions worth settling before you enter.
+          </h1>
+          <p className="max-w-3xl text-lg leading-relaxed text-white/80">
+            Clear answers for business owners who want to understand billing, access, privacy, calls,
+            resources, and the quality of the environment before they join.
+          </p>
+        </div>
       </section>
 
       <section className="space-y-6">

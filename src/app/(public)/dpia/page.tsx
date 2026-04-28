@@ -89,12 +89,12 @@ export default async function DpiaPage() {
   const footerContent = await getSiteContentSection("footer");
 
   return (
-    <div className="space-y-16 pb-16">
-      <section className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 p-8 shadow-panel sm:p-10 lg:p-12">
-        <div className="pointer-events-none absolute -right-16 top-0 h-72 w-72 rounded-full bg-gold/16 blur-[105px]" />
-        <div className="pointer-events-none absolute -left-20 bottom-0 h-72 w-72 rounded-full bg-silver/10 blur-[110px]" />
+    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
+      <section className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
+        <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.44)_100%),linear-gradient(180deg,rgba(0,0,0,0.3)_0%,rgba(0,0,0,0.58)_100%)]" />
 
-        <div className="relative space-y-8">
+        <div className="relative space-y-10">
           <SectionHeading
             label="Trust & Privacy"
             title="DPIA & Data Protection"
@@ -118,7 +118,7 @@ export default async function DpiaPage() {
         </div>
       </section>
 
-      <section className="space-y-8">
+      <section className="space-y-10 py-20 lg:py-28">
         <FeatureGrid columns={3} items={[...DPIA_FOUNDATION_ITEMS]} />
       </section>
 
