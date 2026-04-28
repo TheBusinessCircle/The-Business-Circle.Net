@@ -6,7 +6,7 @@ import {
   BCN_RULES_CONTENT,
   BCN_RULES_LAST_UPDATED
 } from "@/config/legal";
-import { CinematicWelcomeIntro } from "@/components/onboarding/cinematic-welcome-intro";
+import { CinematicEntrance } from "@/components/cinematic/cinematic-entrance";
 import { LegalDocument } from "@/components/public";
 import { Button } from "@/components/ui/button";
 import { SITE_CONFIG } from "@/config/site";
@@ -21,7 +21,7 @@ export const metadata: Metadata = createPageMetadata({
 export default function RulesPage() {
   return (
     <>
-      <CinematicWelcomeIntro />
+      <CinematicEntrance />
 
       <LegalDocument
         label={BCN_RULES_CONTENT.label}

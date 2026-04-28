@@ -21,8 +21,11 @@ describe("rules page", () => {
     expect(html).toContain("Ready to enter");
     expect(html).toContain("Accept and Continue to Dashboard");
     expect(html).toContain("Back to dashboard");
-    expect(html).toContain("WELCOME TO THE BUSINESS CIRCLE NETWORK");
-    expect(html).toContain("You&#x27;re in the right room.");
+    expect(html).toContain("THE BUSINESS CIRCLE NETWORK");
+    expect(html).toContain("You\u2019re in the right room.");
+    expect(html).toContain("Every room has standards.");
+    expect(html).toContain("This is what protects this one.");
+    expect(html).toContain("Enter the standards");
     expect(html).toContain("Skip intro");
   });
 });
