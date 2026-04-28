@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
+type AuditMode = "source" | "rendered";
+
 type PublicOutputCheck = {
   route: string;
   files: string[];
@@ -8,13 +10,28 @@ type PublicOutputCheck = {
 
 type MatchResult = {
   route: string;
-  file: string;
+  target: string;
   phrase: string;
   line: number;
   text: string;
 };
 
 const root = process.cwd();
+
+const publicRoutes = [
+  "/",
+  "/about",
+  "/membership",
+  "/join",
+  "/faq",
+  "/insights",
+  "/terms-of-service",
+  "/privacy-policy",
+  "/cookie-policy",
+  "/contact",
+  "/robots.txt",
+  "/sitemap.xml"
+] as const;
 
 const stalePhrases = [
   "Dark",
@@ -36,7 +53,7 @@ const stalePhrases = [
   "Founder Led Growth Ecosystem"
 ] as const;
 
-const publicOutputChecks: PublicOutputCheck[] = [
+const sourceChecks: PublicOutputCheck[] = [
   {
     route: "/",
     files: [
@@ -79,14 +96,42 @@ const publicOutputChecks: PublicOutputCheck[] = [
     files: ["src/app/(public)/privacy-policy/page.tsx", "src/config/legal.ts"]
   },
   {
-    route: "/cookies",
+    route: "/cookie-policy",
     files: ["src/app/(public)/cookie-policy/page.tsx", "src/config/legal.ts"]
   },
   {
     route: "/contact",
     files: ["src/app/(public)/contact/page.tsx", "src/components/public/footer.tsx"]
+  },
+  {
+    route: "/robots.txt",
+    files: ["src/app/robots.ts"]
+  },
+  {
+    route: "/sitemap.xml",
+    files: ["src/app/sitemap.ts"]
   }
 ];
+
+function parseMode(argv: string[]): AuditMode {
+  if (argv.includes("--rendered")) {
+    return "rendered";
+  }
+
+  if (argv.includes("--source")) {
+    return "source";
+  }
+
+  return process.env.AUDIT_PUBLIC_OUTPUT_MODE === "rendered" ? "rendered" : "source";
+}
+
+function baseUrlFromEnv() {
+  return (
+    process.env.APP_URL ||
+    process.env.AUDIT_PUBLIC_OUTPUT_BASE_URL ||
+    "http://127.0.0.1:3000"
+  ).replace(/\/+$/, "");
+}
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -100,13 +145,71 @@ function matcherForPhrase(phrase: string) {
   return new RegExp(escapeRegExp(phrase), "gi");
 }
 
-function findPhraseMatches(route: string, file: string, phrase: string): MatchResult[] {
+function decodeHtmlEntities(value: string) {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
+function renderedTextFromHtml(route: string, html: string) {
+  if (route.endsWith(".txt") || route.endsWith(".xml")) {
+    return decodeHtmlEntities(html);
+  }
+
+  return decodeHtmlEntities(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+      .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+function lineForIndex(text: string, index: number) {
+  return text.slice(0, index).split(/\r?\n/).length;
+}
+
+function findPhraseMatches(route: string, target: string, text: string): MatchResult[] {
+  const matches: MatchResult[] = [];
+
+  for (const phrase of stalePhrases) {
+    const matcher = matcherForPhrase(phrase);
+    let match: RegExpExecArray | null;
+
+    while ((match = matcher.exec(text)) !== null) {
+      const start = Math.max(0, match.index - 80);
+      const end = Math.min(text.length, match.index + phrase.length + 80);
+      matches.push({
+        route,
+        target,
+        phrase,
+        line: lineForIndex(text, match.index),
+        text: text.slice(start, end).replace(/\s+/g, " ").trim()
+      });
+
+      if (matcher.lastIndex === match.index) {
+        matcher.lastIndex += 1;
+      }
+    }
+  }
+
+  return matches;
+}
+
+function findSourceMatches(route: string, file: string): MatchResult[] {
   const absolutePath = join(root, file);
   if (!existsSync(absolutePath)) {
     return [
       {
         route,
-        file,
+        target: file,
         phrase: "missing file",
         line: 0,
         text: file
@@ -114,36 +217,90 @@ function findPhraseMatches(route: string, file: string, phrase: string): MatchRe
     ];
   }
 
-  const matcher = matcherForPhrase(phrase);
-  const lines = readFileSync(absolutePath, "utf8").split(/\r?\n/);
-  const matches: MatchResult[] = [];
+  const text = readFileSync(absolutePath, "utf8");
+  return findPhraseMatches(route, file, text);
+}
 
-  lines.forEach((lineText, index) => {
-    if (matcher.test(lineText)) {
+function countSelectedPath(text: string) {
+  return text.match(/\bSelected Path\b/g)?.length ?? 0;
+}
+
+async function fetchRenderedRoute(baseUrl: string, route: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(`${baseUrl}${route}`, {
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "user-agent": "BCN launch readiness audit"
+      }
+    });
+
+    const body = await response.text();
+    return { status: response.status, body };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function auditRenderedOutput() {
+  const baseUrl = baseUrlFromEnv();
+  const matches: MatchResult[] = [];
+  let membershipSelectedPathCount = 0;
+
+  console.log(`[mode] rendered`);
+  console.log(`[base] ${baseUrl}`);
+
+  for (const route of publicRoutes) {
+    const { status, body } = await fetchRenderedRoute(baseUrl, route);
+    const renderedText = renderedTextFromHtml(route, body);
+
+    console.log(`[checked] ${route} status=${status}`);
+
+    if (status < 200 || status >= 400) {
       matches.push({
         route,
-        file,
-        phrase,
-        line: index + 1,
-        text: lineText.trim()
+        target: `${baseUrl}${route}`,
+        phrase: `HTTP ${status}`,
+        line: 0,
+        text: `Unexpected response status ${status}`
       });
     }
 
-    matcher.lastIndex = 0;
-  });
+    matches.push(...findPhraseMatches(route, `${baseUrl}${route}`, renderedText));
 
-  return matches;
+    if (route === "/membership") {
+      membershipSelectedPathCount = countSelectedPath(renderedText);
+    }
+  }
+
+  if (membershipSelectedPathCount !== 1) {
+    matches.push({
+      route: "/membership",
+      target: `${baseUrl}/membership`,
+      phrase: "duplicate selected membership output",
+      line: 0,
+      text: `Expected "Selected Path" once, found ${membershipSelectedPathCount}.`
+    });
+  }
+
+  console.log(`[checked] /membership Selected Path count=${membershipSelectedPathCount}`);
+  report(matches, "rendered public output audit");
 }
 
-function auditPublicOutput() {
+function auditSourceOutput() {
   const matches: MatchResult[] = [];
 
-  for (const check of publicOutputChecks) {
+  console.log(`[mode] source`);
+
+  for (const check of sourceChecks) {
     const uniqueFiles = [...new Set(check.files)];
+    console.log(`[checked] ${check.route}`);
     for (const file of uniqueFiles) {
-      for (const phrase of stalePhrases) {
-        matches.push(...findPhraseMatches(check.route, file, phrase));
-      }
+      console.log(`  - ${relative(root, join(root, file))}`);
+      matches.push(...findSourceMatches(check.route, file));
     }
   }
 
@@ -154,30 +311,26 @@ function auditPublicOutput() {
   if (selectedPanelCount !== 1) {
     matches.push({
       route: "/membership",
-      file: selectorPath,
+      target: selectorPath,
       phrase: "duplicate selected membership output",
       line: 0,
       text: `Expected 1 SelectedPathPanel render, found ${selectedPanelCount}.`
     });
   }
 
-  for (const check of publicOutputChecks) {
-    console.log(`[checked] ${check.route}`);
-    for (const file of [...new Set(check.files)]) {
-      console.log(`  - ${relative(root, join(root, file))}`);
-    }
-  }
-
   console.log(`[checked] /membership duplicate selected output (${selectedPanelCount})`);
+  report(matches, "source public output audit");
+}
 
+function report(matches: MatchResult[], label: string) {
   if (!matches.length) {
-    console.log("PASS public output audit");
+    console.log(`PASS ${label}`);
     return;
   }
 
-  console.error("FAIL public output audit");
+  console.error(`FAIL ${label}`);
   for (const match of matches) {
-    const location = match.line > 0 ? `${match.file}:${match.line}` : match.file;
+    const location = match.line > 0 ? `${match.target}:${match.line}` : match.target;
     console.error(
       `- ${match.route} | ${location} | ${match.phrase} | ${match.text}`
     );
@@ -186,4 +339,14 @@ function auditPublicOutput() {
   process.exitCode = 1;
 }
 
-auditPublicOutput();
+const mode = parseMode(process.argv.slice(2));
+
+if (mode === "rendered") {
+  auditRenderedOutput().catch((error) => {
+    console.error("FAIL rendered public output audit");
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+} else {
+  auditSourceOutput();
+}
