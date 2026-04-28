@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { formatCompanyTrustLine } from "@/config/company";
+import {
+  LEGAL_FOOTER_LINKS,
+  PUBLIC_TRUST_PHRASE,
+  TRUST_LEGAL_GROUP_LABEL
+} from "@/config/legal";
 import { SITE_CONFIG } from "@/config/site";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { CookieSettingsButton } from "@/components/privacy/cookie-settings-button";
@@ -29,12 +34,9 @@ type TrustLinkItem =
     };
 
 const TRUST_LINKS: TrustLinkItem[] = [
-  { kind: "link", label: "Privacy Policy", href: "/privacy-policy" },
-  { kind: "link", label: "Terms & Conditions", href: "/terms-of-service" },
-  { kind: "link", label: "BCN Rules", href: "/rules" },
-  { kind: "link", label: "Cookie Policy", href: "/cookie-policy" },
+  ...LEGAL_FOOTER_LINKS.slice(0, 4).map((link) => ({ kind: "link" as const, ...link })),
   { kind: "button", label: "Cookie settings" },
-  { kind: "link", label: "DPIA & Data Protection", href: "/dpia" }
+  ...LEGAL_FOOTER_LINKS.slice(4).map((link) => ({ kind: "link" as const, ...link }))
 ];
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -69,7 +71,7 @@ export async function Footer() {
             <div>
               <p className="font-display text-lg text-foreground">{SITE_CONFIG.name}</p>
               <p className="text-[11px] uppercase tracking-[0.1em] text-muted">
-                Private founder-led business environment
+                {PUBLIC_TRUST_PHRASE}
               </p>
             </div>
           </div>
@@ -95,7 +97,7 @@ export async function Footer() {
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.1em] text-silver">Trust & legal</p>
+          <p className="text-xs uppercase tracking-[0.1em] text-silver">{TRUST_LEGAL_GROUP_LABEL}</p>
           <ul className="space-y-2 text-sm text-muted">
             {TRUST_LINKS.map((link) => (
               <li key={link.label}>

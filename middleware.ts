@@ -19,9 +19,11 @@ const MEMBER_ROUTE_PREFIXES = [
   "/directory",
   "/community",
   "/member/bcn-updates",
+  "/messages",
   "/profile",
   "/events",
-  "/calls"
+  "/calls",
+  "/wins"
 ];
 const VERIFIED_MEMBER_ROUTE_PREFIXES = ["/community", "/member/bcn-updates", "/directory"];
 const ADMIN_ROUTE_PREFIX = "/admin";
@@ -138,6 +140,8 @@ export default auth((req) => {
 });
 
 export const config = {
+  // Member route groups also call requireUser in their server layout; this matcher
+  // keeps public crawlers and unauthenticated visitors out before page render.
   matcher: [
     "/login",
     "/register",
@@ -153,9 +157,13 @@ export const config = {
     "/community/:path*",
     "/member/bcn-updates",
     "/member/bcn-updates/:path*",
+    "/messages",
+    "/messages/:path*",
     "/profile/:path*",
     "/events/:path*",
     "/calls/:path*",
+    "/wins",
+    "/wins/:path*",
     "/inner-circle/:path*",
     "/admin",
     "/admin/:path*"

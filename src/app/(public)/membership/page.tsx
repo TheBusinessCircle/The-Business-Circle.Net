@@ -25,7 +25,7 @@ const MEMBERSHIP_KEYWORDS = [
   "business network for owners",
   "private business community UK",
   "business owners network",
-  "founder-led business network",
+  "private founder-led business environment",
   "entrepreneur community UK",
   "business growth membership",
   "connect with business owners",
@@ -36,7 +36,7 @@ const MEMBERSHIP_KEYWORDS = [
 export const metadata: Metadata = createPageMetadata({
   title: "Membership For Business Owners",
   description:
-    "Choose the right room inside a founder-led private business environment for owners. Compare Foundation, Inner Circle, and Core for clearer structure, stronger context, and more controlled momentum.",
+    "Choose the right room inside a private founder-led business environment for owners. Compare Foundation, Inner Circle, and Core for clearer structure, stronger context, and more controlled momentum.",
   keywords: [...MEMBERSHIP_KEYWORDS],
   path: "/membership"
 });

@@ -108,6 +108,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     metadataBase: new URL(SITE_CONFIG.url),
     title,
     description,
+    robots: {
+      index: false,
+      follow: false
+    },
     alternates: {
       canonical: profilePath
     },

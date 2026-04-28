@@ -146,7 +146,7 @@ const REASSURANCE_ITEMS = [
   {
     title: "Protected by design",
     description:
-      "A founder-led private business environment stays useful when each room keeps the right level of context, pace, and conversation quality."
+      "A private founder-led business environment stays useful when each room keeps the right level of context, pace, and conversation quality."
   },
   {
     title: "Move when it makes sense",
@@ -723,22 +723,9 @@ export function MembershipGuidedSelector({
               );
             })}
 
-            <div className="lg:hidden">
-              <AnimatePresence mode="wait" initial={false}>
-                <SelectedPathPanel
-                  key={`${selectedTier}-${billingInterval}-mobile`}
-                  guide={selectedGuide}
-                  billingInterval={billingInterval}
-                  offer={selectedOffer}
-                  joinHref={selectedJoinHref}
-                  reducedMotion={reducedMotion}
-                  compact
-                />
-              </AnimatePresence>
-            </div>
           </div>
 
-          <aside className="hidden lg:sticky lg:top-8 lg:block lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
+          <aside className="min-w-0 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
             <AnimatePresence mode="wait" initial={false}>
               <SelectedPathPanel
                 key={`${selectedTier}-${billingInterval}`}

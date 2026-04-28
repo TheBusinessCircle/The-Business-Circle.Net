@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PUBLIC_TRUST_PHRASE } from "@/config/legal";
 import { SITE_CONFIG } from "@/config/site";
 
 const faqItemSchema = z.object({
@@ -216,9 +217,9 @@ export const siteContentDefaults: SiteContentValueMap = {
           "Yes. You can start with Foundation, then move into Inner Circle or Core later when the business needs more protected access, stronger context, or deeper discussion."
       },
       {
-        question: "Do both plans include collaboration opportunities?",
+        question: "Do all membership rooms include collaboration opportunities?",
         answer:
-          "Yes. Collaboration sits inside the wider environment. Deeper tiers add more protected access and stronger context around those relationships."
+          "Yes. Collaboration sits inside all membership rooms. Inner Circle and Core add more protected access and stronger context around those relationships."
       },
       {
         question: "Is Inner Circle only for large or established businesses?",
@@ -237,10 +238,10 @@ export const siteContentDefaults: SiteContentValueMap = {
   },
   footer: {
     brandBlurb:
-      "A founder-led private business environment for owners who want clearer structure, stronger relationships, and steadier momentum.",
+      `${PUBLIC_TRUST_PHRASE} for owners who want clearer structure, stronger relationships, and steadier momentum.`,
     supportEmail: SITE_CONFIG.supportEmail,
     supportLine: "Membership, billing, partnerships, and serious business enquiries",
-    trustLine: "Private Business Environment. Clear placement. Founder-led standards.",
+    trustLine: `${PUBLIC_TRUST_PHRASE}. Clear placement. Founder-led standards.`,
     founderLine: "Built and led by Trev Newton.",
     bottomLine:
       "Built for business owners building with intent across the UK."

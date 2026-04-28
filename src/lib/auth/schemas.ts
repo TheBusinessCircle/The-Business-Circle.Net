@@ -1,5 +1,6 @@
 import { BusinessStage, BusinessStatus } from "@prisma/client";
 import { z } from "zod";
+import { TERMS_LABEL } from "@/config/legal";
 
 const passwordRequirements =
   "Password must include uppercase, lowercase, number, and symbol characters.";
@@ -11,7 +12,7 @@ export const membershipBillingIntervalSchema = z.enum(membershipBillingIntervalV
 
 const coreAccessConfirmationMessage =
   "Please confirm that you are actively running a business or generating revenue to continue to Core.";
-const acceptedTermsMessage = "You must accept the Terms & Conditions to continue.";
+const acceptedTermsMessage = `You must accept the ${TERMS_LABEL} to continue.`;
 
 export const emailSchema = z.string().trim().email().max(254);
 

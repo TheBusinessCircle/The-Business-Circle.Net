@@ -34,7 +34,7 @@ import { getSiteContentSection } from "@/server/site-content";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Private Business Environment For Owners In The UK",
+  title: "Private Founder-Led Business Environment For Owners In The UK",
   description:
     "The Business Circle Network is a private business environment for UK business owners who want clearer thinking, better conversations, and more controlled business progress.",
   path: "/",
@@ -42,7 +42,7 @@ export const metadata: Metadata = createPageMetadata({
     "business network for owners",
     "business owners network UK",
     "private business community UK",
-    "founder-led business network",
+    "private founder-led business environment",
     "business growth network",
     "membership for business owners",
     "entrepreneur community UK",
@@ -326,13 +326,13 @@ export default async function HomePage() {
         data={buildCollectionPageSchema({
           title: "The Business Circle Network",
           description:
-            "A structured founder-led private business environment for owners moving from first impression to membership fit and confident join.",
+            "A structured private founder-led business environment for owners moving from first impression to membership fit and confident join.",
           path: "/",
           keywords: [
             "business network for owners",
             "business owners network UK",
             "private business community UK",
-            "founder-led business network"
+            "private founder-led business environment"
           ],
           itemPaths: ["/about", "/membership", "/join", "/contact"]
         })}

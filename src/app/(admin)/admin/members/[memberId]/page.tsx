@@ -23,6 +23,7 @@ import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { TERMS_LABEL } from "@/config/legal";
 import { buildMemberProfilePath } from "@/lib/member-paths";
 import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
@@ -437,7 +438,7 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
                   <p className="text-[11px] uppercase tracking-[0.08em] text-muted">
-                    Terms & Conditions
+                    {TERMS_LABEL}
                   </p>
                   {renderLegalAcceptanceSummary({
                     acceptedAt: member.acceptedTermsAt,

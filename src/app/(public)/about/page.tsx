@@ -18,7 +18,7 @@ const ABOUT_KEYWORDS = [
   "business network for owners",
   "business owners network UK",
   "private business community UK",
-  "founder-led business network",
+  "private founder-led business environment",
   "business growth network",
   "entrepreneur community UK",
   "structured business support",
@@ -142,7 +142,7 @@ export default async function AboutPage() {
               Built for owners who are tired of being visible everywhere and properly supported nowhere.
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-muted sm:text-xl">
-              The Business Circle Network is a founder-led private business environment for owners
+              The Business Circle Network is a private founder-led business environment for owners
               who want a calmer, more structured room around growth. It was built for people who
               want better conversations, clearer placement, and stronger momentum in a room they
               can actually use.

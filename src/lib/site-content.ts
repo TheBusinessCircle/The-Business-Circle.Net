@@ -5,6 +5,8 @@ import {
   type SiteContentValueMap
 } from "@/config/site-content";
 
+const staleMembershipPlanPhrasePattern = new RegExp(`\\b${["both", "plans"].join(" ")}\\b`, "gi");
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -62,6 +64,17 @@ export function normalizeSiteContentSections<K extends SiteContentSlug>(
 
   const parsed = siteContentSchemas[slug].safeParse(merged);
   if (parsed.success) {
+    if (slug === "membership") {
+      const membershipContent = parsed.data as SiteContentValueMap["membership"];
+      return {
+        ...membershipContent,
+        faqs: membershipContent.faqs.map((item) => ({
+          question: item.question.replace(staleMembershipPlanPhrasePattern, "all membership rooms"),
+          answer: item.answer.replace(staleMembershipPlanPhrasePattern, "all membership rooms")
+        }))
+      } as SiteContentValueMap[K];
+    }
+
     return parsed.data as SiteContentValueMap[K];
   }
 

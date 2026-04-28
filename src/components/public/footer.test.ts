@@ -37,6 +37,7 @@ vi.mock("@/components/privacy/cookie-settings-button", () => ({
   }) => createElement("button", { className, type: "button" }, children)
 }));
 
+import { TERMS_LABEL } from "@/config/legal";
 import { Footer } from "@/components/public/footer";
 
 describe("public footer", () => {
@@ -57,6 +58,6 @@ describe("public footer", () => {
 
     expect(html).toContain('href="/rules"');
     expect(html).toContain("BCN Rules");
-    expect(html).toContain("Terms &amp; Conditions");
+    expect(html).toContain(TERMS_LABEL);
   });
 });

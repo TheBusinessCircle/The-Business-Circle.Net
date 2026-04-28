@@ -1,7 +1,7 @@
 import { Role, SubscriptionStatus } from "@prisma/client";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { RegistrationServiceError, createPendingRegistration } from "@/lib/auth/register";
-import { BCN_RULES_VERSION, TERMS_VERSION } from "@/config/legal";
+import { BCN_RULES_VERSION, TERMS_LABEL, TERMS_VERSION } from "@/config/legal";
 
 const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
@@ -200,7 +200,7 @@ describe("createPendingRegistration", () => {
       })
     ).rejects.toMatchObject({
       code: "INVALID_INPUT",
-      message: "You must accept the Terms & Conditions to continue."
+      message: `You must accept the ${TERMS_LABEL} to continue.`
     } satisfies Partial<RegistrationServiceError>);
   });
 

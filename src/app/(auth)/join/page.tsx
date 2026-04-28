@@ -36,7 +36,7 @@ export const metadata: Metadata = createPageMetadata({
     "business owner membership checkout",
     "private business network join",
     "membership for business owners",
-    "founder-led business network"
+    "private founder-led business environment"
   ],
   path: "/join",
   noIndex: true

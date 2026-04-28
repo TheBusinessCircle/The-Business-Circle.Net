@@ -1,4 +1,5 @@
 import type { NavigationItem, SiteConfig } from "@/types";
+import { PUBLIC_TRUST_PHRASE } from "@/config/legal";
 import { CANONICAL_SITE_URL } from "@/config/site-constants";
 
 const publicNavigation: NavigationItem[] = [
@@ -50,7 +51,7 @@ export const SITE_CONFIG: SiteConfig = {
   name: "The Business Circle Network",
   shortName: "Business Circle",
   description:
-    "A founder-led private business environment for owners who want better structure, stronger relationships, and steadier momentum.",
+    `${PUBLIC_TRUST_PHRASE} for owners who want better structure, stronger relationships, and steadier momentum.`,
   url: CANONICAL_SITE_URL,
   supportEmail: "support@businesscircle.network",
   publicNavigation,

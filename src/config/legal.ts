@@ -3,6 +3,17 @@ export const TERMS_VERSION = "2026-04-25";
 export const BCN_RULES_VERSION = "2026-04-25";
 export const TERMS_LAST_UPDATED = "25 April 2026";
 export const BCN_RULES_LAST_UPDATED = "25 April 2026";
+export const PUBLIC_TRUST_PHRASE = "Private founder-led business environment";
+export const TRUST_LEGAL_GROUP_LABEL = "Trust & legal";
+export const TERMS_LABEL = "Terms of Service";
+
+export const LEGAL_FOOTER_LINKS = [
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: TERMS_LABEL, href: "/terms-of-service" },
+  { label: "BCN Rules", href: "/rules" },
+  { label: "Cookie Policy", href: "/cookie-policy" },
+  { label: "DPIA & Data Protection", href: "/dpia" }
+] as const;
 
 export const PRIVACY_POLICY_CONTENT = {
   label: "Privacy Policy",
@@ -72,8 +83,8 @@ export const PRIVACY_POLICY_CONTENT = {
 } as const;
 
 export const TERMS_OF_SERVICE_CONTENT = {
-  label: "Terms Of Service",
-  title: "Terms of Service",
+  label: TERMS_LABEL,
+  title: TERMS_LABEL,
   description:
     "The terms that govern website use, membership access, subscriptions, founder service requests, acceptable use, and platform conduct within The Business Circle Network.",
   intro:
@@ -103,11 +114,11 @@ export const TERMS_OF_SERVICE_CONTENT = {
       title: "Subscriptions, billing, and upgrades",
       paragraphs: [
         "All membership access requires Stripe Checkout. Accounts are only activated after a successful checkout, including when a discount reduces the total to GBP 0.",
-        "Subscriptions renew automatically unless cancelled through the Stripe billing portal or other supported workflow.",
+        "Subscriptions renew automatically unless cancelled through the Stripe billing portal or another supported workflow.",
         "Discounts, coupons, or promotion codes can reduce the price, including to GBP 0. Discounted memberships remain subscriptions and are still tied to Stripe customer and subscription records.",
-        "If a payment fails, is reversed, or a subscription ends, access to member areas is restricted when Stripe marks the subscription as no longer active. If cancellation is set to end at period end, access continues until the current billing period ends.",
+        "Cancelling a subscription stops future renewals. If Stripe records the cancellation as ending at the end of the current billing period, access continues until that period ends. If Stripe records the subscription as cancelled, unpaid, incomplete, past due, or otherwise not active, member access may be restricted.",
         "Plan changes, upgrades, or account access are subject to the current subscription status and platform rules in force at the time.",
-        "Payments are non-refundable unless a refund is required by law or a specific written refund commitment has been agreed in advance."
+        "Already-paid membership fees are not automatically refundable once digital access has been provided. Refunds are only issued where required by law, where a specific written refund commitment has been agreed in advance, or where The Business Circle Network chooses to make a discretionary case-by-case refund. This does not affect any statutory rights."
       ]
     },
     {
@@ -234,7 +245,7 @@ export const BCN_RULES_CONTENT = {
       paragraphs: [
         "BCN is a curated business environment.",
         "If a member's behaviour lowers the quality, safety, or trust of the space, action may be taken.",
-        "Where removal is due to rule violations, refunds may not be issued, subject to the Terms & Conditions and applicable law."
+        "Where removal is due to rule violations, refunds may not be issued, subject to the Terms of Service and applicable law."
       ],
       bullets: [
         "A warning",

@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { TERMS_LABEL } from "@/config/legal";
 import {
   formatMembershipPrice,
   getMembershipTierLabel,
@@ -541,7 +542,7 @@ export function RegisterForm({
               <span className="min-w-0">
                 I agree to the{" "}
                 <Link href="/terms-of-service" className="text-primary hover:underline">
-                  Terms & Conditions
+                  {TERMS_LABEL}
                 </Link>
               </span>
             </label>
@@ -553,7 +554,7 @@ export function RegisterForm({
             <p className="text-xs leading-relaxed text-muted">
               By continuing, you agree to the{" "}
               <Link href="/terms-of-service" className="text-primary hover:underline">
-                Terms & Conditions
+                {TERMS_LABEL}
               </Link>{" "}
               and will be required to accept the{" "}
               <Link href="/rules" className="text-primary hover:underline">
@@ -581,7 +582,7 @@ export function RegisterForm({
             </p>
           ) : !canSubmitRegistration ? (
             <p className="text-xs text-muted">
-              Complete the required details and accept the Terms & Conditions to continue.
+              Complete the required details and accept the {TERMS_LABEL} to continue.
             </p>
           ) : null}
         </form>

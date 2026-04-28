@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TERMS_VERSION } from "@/config/legal";
+import { TERMS_LABEL, TERMS_VERSION } from "@/config/legal";
 
 const createPendingRegistrationMock = vi.hoisted(() => vi.fn());
 const createStripeCheckoutSessionForPendingRegistrationMock = vi.hoisted(() => vi.fn());
@@ -62,7 +62,7 @@ describe("register route", () => {
     createPendingRegistrationMock.mockRejectedValueOnce(
       new MockRegistrationServiceError(
         "INVALID_INPUT",
-        "You must accept the Terms & Conditions to continue."
+        `You must accept the ${TERMS_LABEL} to continue.`
       )
     );
 
@@ -79,7 +79,7 @@ describe("register route", () => {
 
     expect(response.status).toBe(400);
     expect(payload).toEqual({
-      error: "You must accept the Terms & Conditions to continue."
+      error: `You must accept the ${TERMS_LABEL} to continue.`
     });
     expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
   });
