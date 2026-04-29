@@ -28,8 +28,8 @@ export function LegalDocument({
   children
 }: LegalDocumentProps) {
   return (
-    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
-      <section className="public-panel relative overflow-hidden px-6 py-28 sm:px-8 lg:px-10 lg:py-36">
+    <div className="public-page-stack">
+      <section className="public-panel public-hero-spacing relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.44)_100%),linear-gradient(180deg,rgba(0,0,0,0.3)_0%,rgba(0,0,0,0.58)_100%)]" />
         <div className="relative">
@@ -52,7 +52,7 @@ export function LegalDocument({
 
       <section className="space-y-6">
         {sections.map((section) => (
-          <article key={section.title} className="public-panel p-6 lg:p-8">
+          <article key={section.title} className="public-panel p-5 sm:p-6 lg:p-7">
             <h2 className="font-display text-3xl tracking-tight text-foreground">
               {section.title}
             </h2>

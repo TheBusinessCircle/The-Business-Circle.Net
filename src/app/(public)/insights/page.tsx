@@ -57,7 +57,7 @@ export default async function InsightsPage() {
   const remainingInsights = insights.filter((insight) => insight.slug !== startHereInsight?.slug);
 
   return (
-    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
+    <div className="public-page-stack">
       <PublicTopVisual
         placement={insightsHeroPlacement}
         eyebrow="BCN Intelligence"
@@ -67,11 +67,11 @@ export default async function InsightsPage() {
         fallbackLabel="Insights top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
+      <section className="public-hero-spacing relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
-        <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
-          <div className="space-y-6">
+        <div className="relative grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+          <div className="space-y-5">
             <p className="premium-kicker">You&apos;re In The Insights Layer</p>
             <div className="space-y-4">
               <h1 className="max-w-4xl font-display text-4xl leading-tight tracking-tight text-foreground sm:text-5xl">
@@ -100,7 +100,7 @@ export default async function InsightsPage() {
           </div>
 
           <div className="grid gap-4">
-            <article className="rounded-[1.75rem] border border-silver/20 bg-background/28 p-5">
+            <article className="rounded-[1.55rem] border border-silver/20 bg-background/28 p-4 sm:p-5">
               <p className="premium-kicker">Browse topics</p>
               <h2 className="mt-4 font-display text-2xl text-foreground">
                 Clarity, strategy, and better decisions for founders
@@ -110,7 +110,7 @@ export default async function InsightsPage() {
                 topic before you read deeper.
               </p>
             </article>
-            <article className="rounded-[1.75rem] border border-border/80 bg-background/22 p-5">
+            <article className="rounded-[1.55rem] border border-border/80 bg-background/22 p-4 sm:p-5">
               <p className="premium-kicker">Most relevant right now</p>
               <p className="mt-3 text-sm leading-relaxed text-muted">
                 {topicClusters.length} topic paths connect the public insight layer to the deeper
@@ -140,7 +140,7 @@ export default async function InsightsPage() {
         />
         <div className="grid gap-4 lg:grid-cols-3">
           {topicClusters.map((cluster) => (
-            <article key={cluster.slug} className="public-panel interactive-card p-6">
+            <article key={cluster.slug} className="public-panel interactive-card p-5 sm:p-6">
               <p className="premium-kicker">{cluster.title}</p>
               <h2 className="mt-4 font-display text-2xl text-foreground">
                 {cluster.title}
@@ -181,7 +181,7 @@ export default async function InsightsPage() {
         />
         <div className="grid gap-4 md:grid-cols-3">
           {journeyItems.map((item) => (
-            <article key={item.title} className="public-panel interactive-card p-6">
+            <article key={item.title} className="public-panel interactive-card p-5 sm:p-6">
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
                 <item.icon size={18} />
               </span>

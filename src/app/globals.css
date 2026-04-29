@@ -457,6 +457,98 @@ a:hover {
 }
 
 @layer components {
+  .public-page-stack {
+    @apply w-full min-w-0 pb-20 lg:pb-24;
+  }
+
+  .public-content-stack {
+    @apply w-full min-w-0;
+  }
+
+  .public-page-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
+    margin-top: 2.5rem;
+  }
+
+  .public-content-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
+    margin-top: 2rem;
+  }
+
+  @media (min-width: 640px) {
+    .public-page-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
+      margin-top: 3rem;
+    }
+
+    .public-content-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
+      margin-top: 2.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .public-page-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
+      margin-top: 3.5rem;
+    }
+
+    .public-content-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
+      margin-top: 3rem;
+    }
+  }
+
+  .public-page-top {
+    @apply w-full;
+  }
+
+  .public-page-top + * {
+    margin-top: 1.25rem !important;
+  }
+
+  @media (min-width: 640px) {
+    .public-page-top + * {
+      margin-top: 1.5rem !important;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .public-page-top + * {
+      margin-top: 2rem !important;
+    }
+  }
+
+  .public-visual-shell {
+    @apply w-full;
+  }
+
+  .public-visual-frame {
+    @apply min-h-[16rem] rounded-[1.65rem] sm:min-h-[18rem] sm:rounded-[1.85rem] lg:min-h-[21rem] lg:rounded-[2rem] 2xl:min-h-[22rem];
+  }
+
+  .public-section {
+    @apply space-y-7 py-10 sm:space-y-8 sm:py-12 lg:space-y-9 lg:py-14;
+  }
+
+  .public-section-tight {
+    @apply space-y-6 py-8 sm:py-10 lg:py-12;
+  }
+
+  .public-section-compact {
+    @apply space-y-5 py-6 sm:py-8 lg:py-10;
+  }
+
+  .public-grid-gap {
+    @apply gap-4 sm:gap-5 lg:gap-6;
+  }
+
+  .public-card-spacing {
+    @apply p-5 sm:p-6 lg:p-7;
+  }
+
+  .public-hero-spacing {
+    @apply px-6 py-10 sm:px-8 sm:py-12 lg:px-10 lg:py-16;
+  }
+
+  .public-hero-spacing-tight {
+    @apply px-6 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12;
+  }
+
   .premium-surface {
     @apply rounded-3xl border border-border/90 bg-card/75 shadow-panel backdrop-blur transition-colors duration-300;
   }

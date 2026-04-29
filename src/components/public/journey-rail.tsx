@@ -34,11 +34,11 @@ export function JourneyRail({
   return (
     <div
       className={cn(
-        "surface-subtle overflow-hidden rounded-[1.6rem] px-4 py-4 sm:px-5 sm:py-5",
+        "surface-subtle overflow-hidden rounded-[1.45rem] px-4 py-3.5 sm:px-5 sm:py-4",
         className
       )}
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 space-y-3">
           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Public journey</p>
           <div className="flex flex-wrap items-center gap-2">

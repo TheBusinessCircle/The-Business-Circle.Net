@@ -27,14 +27,14 @@ export function CTASection({
   return (
     <section
       className={cn(
-        "surface-accent relative overflow-hidden rounded-[2.35rem] px-6 py-28 sm:px-8 lg:px-10 lg:py-36",
+        "surface-accent public-hero-spacing relative overflow-hidden rounded-[2.1rem]",
         className
       )}
     >
       <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.42)_100%),linear-gradient(180deg,rgba(0,0,0,0.3)_0%,rgba(0,0,0,0.52)_100%)]" />
 
-      <div className="relative mx-auto max-w-4xl space-y-6 text-center">
+      <div className="relative mx-auto max-w-4xl space-y-5 text-center sm:space-y-6">
         <p className="premium-kicker mx-auto">Next step</p>
         <h2 className="font-display text-4xl leading-[1.02] tracking-tight text-foreground lg:text-5xl">
           {title}

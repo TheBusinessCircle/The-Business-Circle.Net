@@ -30,7 +30,7 @@ export default async function ContactPage() {
   ]);
 
   return (
-    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
+    <div className="public-page-stack">
       <PublicTopVisual
         placement={publicTopPlacement}
         eyebrow="Contact"
@@ -39,7 +39,7 @@ export default async function ContactPage() {
         tone="anchored"
       />
 
-      <section className="relative overflow-hidden rounded-[2.2rem] border border-border/80 bg-card/60 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
+      <section className="public-hero-spacing relative overflow-hidden rounded-[2.05rem] border border-border/80 bg-card/60 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
 
@@ -92,7 +92,7 @@ export default async function ContactPage() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <aside className="public-panel space-y-5 p-6">
+        <aside className="public-panel space-y-5 p-5 sm:p-6">
           <h2 className="font-display text-2xl text-foreground">What to contact us about</h2>
           <p className="text-sm leading-relaxed text-muted">
             The strongest enquiries are clear, intentional, and grounded in the actual next step

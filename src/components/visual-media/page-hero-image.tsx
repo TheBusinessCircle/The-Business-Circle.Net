@@ -65,8 +65,8 @@ export function PageHeroImage({
       priority={priority}
       sizes={sizes}
       className={cn(
-        "hero-visual-shell min-h-[28rem] rounded-[2.45rem] border bg-background/18 shadow-panel sm:min-h-[32rem] lg:min-h-[36rem]",
-        "before:pointer-events-none before:absolute before:inset-[1px] before:z-[1] before:rounded-[2.35rem] before:border before:border-border/60 before:content-['']",
+        "hero-visual-shell public-visual-frame border bg-background/18 shadow-panel",
+        "before:pointer-events-none before:absolute before:inset-[1px] before:z-[1] before:rounded-[1.55rem] before:border before:border-border/60 before:content-[''] sm:before:rounded-[1.75rem] lg:before:rounded-[1.9rem]",
         treatment.containerClassName,
         className
       )}

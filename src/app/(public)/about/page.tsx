@@ -103,7 +103,7 @@ export default async function AboutPage() {
   ]);
 
   return (
-    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
+    <div className="public-page-stack">
       <JsonLd
         data={buildCollectionPageSchema({
           title: "About The Business Circle Network",
@@ -130,7 +130,7 @@ export default async function AboutPage() {
         fallbackLabel="About top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2.3rem] border border-border/80 bg-card/55 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
+      <section className="public-hero-spacing relative overflow-hidden rounded-[2.05rem] border border-border/80 bg-card/55 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
 
@@ -187,12 +187,12 @@ export default async function AboutPage() {
           <SectionFeatureImage
             placement={aboutStoryPlacement}
             tone="story"
-            className="min-h-[18rem]"
+            className="min-h-[15rem]"
           />
         ) : null}
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div className="max-w-3xl space-y-4">
           <p className="premium-kicker">The problem</p>
           <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
@@ -217,7 +217,7 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden rounded-[2.1rem] border border-gold/25 bg-gradient-to-br from-gold/10 via-card/75 to-card/70 px-6 py-20 shadow-gold-soft sm:px-8 lg:px-10 lg:py-28">
+      <section className="public-hero-spacing-tight relative overflow-hidden rounded-[1.9rem] border border-gold/25 bg-gradient-to-br from-gold/10 via-card/75 to-card/70 shadow-gold-soft">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.34)_100%),linear-gradient(180deg,rgba(0,0,0,0.12)_0%,rgba(0,0,0,0.38)_100%)]" />
         <div className="relative max-w-4xl space-y-5">
           <p className="premium-kicker">The shift</p>
@@ -236,7 +236,7 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div className="max-w-4xl space-y-4">
           <p className="premium-kicker">What this actually is</p>
           <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
@@ -256,7 +256,7 @@ export default async function AboutPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {environmentPillars.map((item) => (
             <Card key={item.title} className="border-border/90 bg-card/68 shadow-panel-soft">
-              <CardContent className="space-y-4 p-6 sm:p-7">
+              <CardContent className="space-y-4 p-5 sm:p-6">
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
                   <item.icon size={18} />
                 </span>
@@ -270,7 +270,7 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div className="max-w-4xl space-y-4">
           <p className="premium-kicker">Built For Better Rooms</p>
           <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
@@ -303,7 +303,7 @@ export default async function AboutPage() {
 
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.92fr)]">
         <Card className="border-border/90 bg-card/72 shadow-panel-soft">
-          <CardContent className="space-y-5 p-6 sm:p-8">
+          <CardContent className="space-y-5 p-5 sm:p-6">
             <p className="premium-kicker">How it is led</p>
             <h2 className="max-w-2xl text-3xl leading-tight text-foreground sm:text-4xl">
               Founder-led does not mean founder-centred.
@@ -320,7 +320,7 @@ export default async function AboutPage() {
         </Card>
 
         <Card className="border-gold/30 bg-gradient-to-br from-gold/10 via-card/82 to-card/74 shadow-gold-soft">
-          <CardContent className="space-y-5 p-6 sm:p-8">
+          <CardContent className="space-y-5 p-5 sm:p-6">
             <p className="text-sm leading-relaxed text-silver">
               &ldquo;{TREV_FOUNDER_CONTENT.quote}&rdquo;
             </p>
@@ -338,7 +338,7 @@ export default async function AboutPage() {
         </Card>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div className="max-w-3xl space-y-4">
           <p className="premium-kicker">Who it is for</p>
           <h2 className="text-3xl leading-tight text-foreground sm:text-4xl">
@@ -353,7 +353,7 @@ export default async function AboutPage() {
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="border-gold/25 bg-card/70 shadow-panel-soft">
-            <CardContent className="space-y-5 p-6 sm:p-8">
+            <CardContent className="space-y-5 p-5 sm:p-6">
               <p className="text-[11px] uppercase tracking-[0.08em] text-gold">This is for</p>
               <div className="space-y-3">
                 {forAudience.map((item) => (
@@ -369,7 +369,7 @@ export default async function AboutPage() {
           </Card>
 
           <Card className="border-border/90 bg-card/70 shadow-panel-soft">
-            <CardContent className="space-y-5 p-6 sm:p-8">
+            <CardContent className="space-y-5 p-5 sm:p-6">
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">This is not for</p>
               <div className="space-y-3">
                 {notForAudience.map((item) => (

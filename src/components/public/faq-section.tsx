@@ -22,7 +22,7 @@ export function FAQSection({
   items
 }: FAQSectionProps) {
   return (
-    <section id={id} className="space-y-10 py-20 lg:py-28">
+    <section id={id} className="public-section">
       <SectionHeading
         align="center"
         label={label}
@@ -35,13 +35,13 @@ export function FAQSection({
             key={item.question}
             className="group public-panel overflow-hidden p-0 transition-colors group-open:border-gold/20"
           >
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-left lg:px-8 lg:py-6">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left sm:px-6 lg:px-7 lg:py-5">
               <span className="font-medium text-foreground">{item.question}</span>
               <span className="surface-pill flex h-9 w-9 shrink-0 items-center justify-center rounded-full p-0 transition-transform duration-200 group-open:rotate-180">
                 <ChevronDown size={16} />
               </span>
             </summary>
-            <div className="border-t border-border/70 px-6 py-5 text-base leading-relaxed text-white/75 lg:px-8 lg:py-6">
+            <div className="border-t border-border/70 px-5 py-4 text-base leading-relaxed text-white/75 sm:px-6 lg:px-7 lg:py-5">
               {item.answer}
             </div>
           </details>

@@ -333,7 +333,7 @@ export default async function HomePage() {
   };
 
   return (
-    <div className="w-full min-w-0 space-y-20 pb-28 lg:space-y-28 lg:pb-36">
+    <div className="public-page-stack">
       <JsonLd
         data={buildCollectionPageSchema({
           title: "The Business Circle Network",
@@ -416,7 +416,7 @@ export default async function HomePage() {
         }
       />
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <SectionHeading
           label="What You Actually Get Inside"
           title="The useful parts of BCN are visible before you join."
@@ -443,7 +443,7 @@ export default async function HomePage() {
         nextAction={{ href: "/membership", label: "Go To Membership" }}
       />
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div
           className={cn(
             "gap-6 xl:items-center",
@@ -459,7 +459,7 @@ export default async function HomePage() {
               description="It is not a feed or a directory. It is a controlled place for owners to bring real business context."
             />
 
-            <article className="rounded-[2rem] border border-gold/22 bg-gradient-to-br from-gold/10 via-card/82 to-card/72 p-6 shadow-gold-soft sm:p-8">
+            <article className="rounded-[1.8rem] border border-gold/22 bg-gradient-to-br from-gold/10 via-card/82 to-card/72 p-5 shadow-gold-soft sm:p-6">
               <div className="space-y-4 text-base leading-relaxed text-muted sm:text-lg">
                 <p>
                   The Business Circle gives members a smaller, better-organised place to ask,
@@ -502,14 +502,14 @@ export default async function HomePage() {
             <SectionFeatureImage
               placement={homePlatformPlacement}
               tone="platform"
-              className="min-h-[18rem]"
+              className="min-h-[15rem]"
               sizes="(min-width: 1280px) 30vw, (min-width: 1024px) 38vw, 100vw"
             />
           ) : null}
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div
           className={cn(
             "gap-6 xl:items-start",
@@ -546,14 +546,14 @@ export default async function HomePage() {
               placement={homeJoinPlacement}
               tone="platform"
               aspectClassName="aspect-[16/10] xl:aspect-[4/5]"
-              className="min-h-[18rem]"
+              className="min-h-[15rem]"
               sizes="(min-width: 1280px) 30vw, (min-width: 1024px) 38vw, 100vw"
             />
           ) : null}
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <SectionHeading
           label="Public Preview"
           title="A careful signal of what is active, without exposing private member content."
@@ -561,7 +561,7 @@ export default async function HomePage() {
         />
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
-          <article className="rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
+          <article className="rounded-[1.8rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-5 shadow-gold-soft sm:p-6">
             <p className="premium-kicker">Active discussion themes</p>
             <div className="mt-5 grid gap-3">
               {PUBLIC_PREVIEW_THEMES.map((theme) => (
@@ -613,7 +613,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <SectionHeading
           label="What You Actually Gain"
           title="Immediate value now. Ongoing value as the network compounds."
@@ -621,7 +621,7 @@ export default async function HomePage() {
         />
 
         <div className="grid gap-5 lg:grid-cols-2">
-          <article className="rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
+          <article className="rounded-[1.8rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-5 shadow-gold-soft sm:p-6">
             <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Immediate Value</p>
             <div className="mt-5 grid gap-3">
               {IMMEDIATE_VALUE.map((item) => (
@@ -635,7 +635,7 @@ export default async function HomePage() {
             </div>
           </article>
 
-          <article className="rounded-[2rem] border border-border/80 bg-card/66 p-6 shadow-panel sm:p-8">
+          <article className="rounded-[1.8rem] border border-border/80 bg-card/66 p-5 shadow-panel sm:p-6">
             <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Ongoing Value</p>
             <div className="mt-5 grid gap-3">
               {ONGOING_VALUE.map((item) => (
@@ -651,7 +651,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <SectionHeading
           label="Connected Environment"
           title="The pieces are designed to support each other."
@@ -663,7 +663,7 @@ export default async function HomePage() {
             placement={homeEcosystemPlacement}
             tone="platform"
             aspectClassName="aspect-[16/10]"
-            className="min-h-[18rem]"
+            className="min-h-[15rem]"
             sizes="100vw"
           />
         ) : (
@@ -671,7 +671,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section id="how-it-works" className="space-y-10 py-20 lg:py-28">
+      <section id="how-it-works" className="public-section">
         <SectionHeading
           label="How It Works"
           title="Three calm steps into the right place."
@@ -682,7 +682,7 @@ export default async function HomePage() {
           {HOW_IT_WORKS.map((item) => (
             <article
               key={item.step}
-              className="rounded-[1.9rem] border border-border/80 bg-card/66 p-6 shadow-panel sm:p-7"
+              className="rounded-[1.7rem] border border-border/80 bg-card/66 p-5 shadow-panel sm:p-6"
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[11px] uppercase tracking-[0.12em] text-gold">{item.step}</p>
@@ -697,7 +697,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <SectionHeading
           label="Who It's For"
           title="Built for people who are serious about the business and the standard around it."
@@ -705,7 +705,7 @@ export default async function HomePage() {
         />
 
         <div className="grid gap-5 lg:grid-cols-2">
-          <article className="rounded-[2rem] border border-gold/24 bg-card/70 p-6 shadow-panel-soft sm:p-8">
+          <article className="rounded-[1.8rem] border border-gold/24 bg-card/70 p-5 shadow-panel-soft sm:p-6">
             <p className="text-[11px] uppercase tracking-[0.08em] text-gold">For</p>
             <div className="mt-5 grid gap-3">
               {FOR_AUDIENCE.map((item) => (
@@ -719,7 +719,7 @@ export default async function HomePage() {
             </div>
           </article>
 
-          <article className="rounded-[2rem] border border-border/80 bg-card/66 p-6 shadow-panel sm:p-8">
+          <article className="rounded-[1.8rem] border border-border/80 bg-card/66 p-5 shadow-panel sm:p-6">
             <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Not For</p>
             <div className="mt-5 grid gap-3">
               {NOT_FOR_AUDIENCE.map((item) => (
@@ -735,7 +735,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div
           className={cn(
             "gap-6 xl:items-start",
@@ -744,7 +744,7 @@ export default async function HomePage() {
               : "space-y-6"
           )}
         >
-          <article className="rounded-[2rem] border border-border/80 bg-card/66 p-6 shadow-panel sm:p-8">
+          <article className="rounded-[1.8rem] border border-border/80 bg-card/66 p-5 shadow-panel sm:p-6">
             <p className="premium-kicker inline-flex items-center gap-2">
               <Handshake size={14} />
               Why This Exists
@@ -771,7 +771,7 @@ export default async function HomePage() {
             <SectionFeatureImage
               placement={homeConnectionPlacement}
               tone="founders"
-              className="min-h-[18rem]"
+              className="min-h-[15rem]"
             />
           ) : null}
         </div>

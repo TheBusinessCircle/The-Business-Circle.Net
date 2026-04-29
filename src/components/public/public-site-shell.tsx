@@ -9,7 +9,7 @@ export function PublicSiteShell({ children }: { children: ReactNode }) {
       <div className="page-surface page-surface-public relative flex flex-1 flex-col overflow-x-clip transition-colors duration-200">
         <div className="page-surface-premium-glow pointer-events-none absolute inset-0 -z-10 bg-radial-premium" />
         <div className="page-surface-premium-top pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-gradient-to-b from-gold/10 via-gold/4 to-transparent" />
-        <main className="relative mx-auto flex w-full max-w-[1400px] min-w-0 flex-1 overflow-x-clip px-6 pb-24 pt-8 lg:px-10 lg:pb-32 lg:pt-12">
+        <main className="relative mx-auto flex w-full max-w-[1400px] min-w-0 flex-1 overflow-x-clip px-5 pb-16 pt-2 sm:px-6 sm:pt-3 lg:px-8 lg:pb-20 lg:pt-4">
           {children}
         </main>
         <Footer />

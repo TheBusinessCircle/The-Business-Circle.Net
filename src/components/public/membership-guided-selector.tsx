@@ -544,14 +544,14 @@ export function MembershipGuidedSelector({
   );
 
   return (
-    <div className="w-full min-w-0 space-y-20 pb-28 lg:space-y-28 lg:pb-36">
+    <div className="public-content-stack">
       <JourneyRail
         currentStep="membership"
         note="Use this page to place the business properly. When the fit feels clear, the selected room carries straight into join."
         nextAction={{ href: selectedJoinHref, label: "Continue To Join" }}
       />
 
-      <section className="relative overflow-hidden rounded-[2.2rem] border border-border/80 bg-card/60 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
+      <section className="public-hero-spacing relative overflow-hidden rounded-[2.05rem] border border-border/80 bg-card/60 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
 
@@ -630,7 +630,7 @@ export function MembershipGuidedSelector({
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div
           className={cn(
             "gap-6 xl:items-center",
@@ -654,7 +654,7 @@ export function MembershipGuidedSelector({
               placement={roomsPlacement}
               tone="platform"
               aspectClassName="aspect-[16/11] xl:aspect-[4/5]"
-              className="min-h-[17rem]"
+              className="min-h-[14rem]"
             />
           ) : null}
         </div>
@@ -673,7 +673,7 @@ export function MembershipGuidedSelector({
                     aria-pressed={selected}
                     onClick={() => setSelectedTier(guide.tier)}
                     className={cn(
-                      "group relative flex w-full min-h-[196px] flex-col justify-between overflow-hidden rounded-[1.8rem] border p-5 text-left shadow-panel transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/35 focus-visible:ring-offset-0 sm:min-h-[224px] sm:p-6",
+                      "group relative flex w-full min-h-[168px] flex-col justify-between overflow-hidden rounded-[1.7rem] border p-5 text-left shadow-panel transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/35 focus-visible:ring-offset-0 sm:min-h-[190px] sm:p-6",
                       selectionCardClassName,
                       selected
                         ? cn(
@@ -698,7 +698,7 @@ export function MembershipGuidedSelector({
                       ) : null}
                     </div>
 
-                    <div className="relative mt-7 space-y-4">
+                    <div className="relative mt-5 space-y-3">
                       <h3
                         className={cn(
                           "font-display text-[1.75rem] leading-tight transition-colors duration-300 sm:text-[1.9rem]",
@@ -724,7 +724,7 @@ export function MembershipGuidedSelector({
 
           </div>
 
-          <aside className="min-w-0 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
+          <aside className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
             <AnimatePresence mode="wait" initial={false}>
               <SelectedPathPanel
                 key={`${selectedTier}-${billingInterval}`}
@@ -739,7 +739,7 @@ export function MembershipGuidedSelector({
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div
           className={cn(
             "gap-6 xl:items-center",
@@ -794,13 +794,13 @@ export function MembershipGuidedSelector({
               placement={tierComparisonPlacement}
               tone="platform"
               aspectClassName="aspect-[16/11] xl:aspect-[4/5]"
-              className="min-h-[17rem]"
+              className="min-h-[14rem]"
             />
           ) : null}
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-border/80 bg-card/56 px-6 py-20 shadow-panel sm:px-8 lg:px-10 lg:py-28">
+      <section className="public-hero-spacing-tight rounded-[1.9rem] border border-border/80 bg-card/56 shadow-panel">
         <div
           className={cn(
             "gap-6 xl:items-start",
@@ -824,13 +824,13 @@ export function MembershipGuidedSelector({
             <SectionFeatureImage
               placement={foundersPlacement}
               tone="founders"
-              className="min-h-[17rem]"
+            className="min-h-[14rem]"
             />
           ) : null}
         </div>
       </section>
 
-      <section className="space-y-10 py-20 lg:py-28">
+      <section className="public-section">
         <div className="max-w-3xl space-y-5">
           <p className="premium-kicker">Reassurance</p>
           <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
@@ -849,7 +849,7 @@ export function MembershipGuidedSelector({
 
             return (
               <Card key={item.title} className="border-border/80 bg-card/66 shadow-panel-soft">
-                <CardContent className="space-y-4 p-6 lg:p-8">
+                <CardContent className="space-y-4 p-5 sm:p-6">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-background/24 text-silver">
                     <Icon size={18} />
                   </span>
@@ -871,7 +871,7 @@ export function MembershipGuidedSelector({
         items={faqItems}
       />
 
-      <section className="relative overflow-hidden rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/12 via-card/74 to-card/70 px-6 py-28 shadow-gold-soft sm:px-8 lg:px-10 lg:py-36">
+      <section className="public-hero-spacing relative overflow-hidden rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/12 via-card/74 to-card/70 shadow-gold-soft">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.42)_100%),linear-gradient(180deg,rgba(0,0,0,0.24)_0%,rgba(0,0,0,0.52)_100%)]" />
 

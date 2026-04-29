@@ -43,7 +43,7 @@ export function HeroSection({
   return (
     <section
       className={cn(
-        "surface-card-strong relative overflow-hidden rounded-[2.35rem] px-6 py-28 shadow-[0_34px_100px_rgba(2,6,23,0.3)] sm:px-8 lg:px-10 lg:py-36",
+        "surface-card-strong public-hero-spacing relative overflow-hidden rounded-[2.1rem] shadow-[0_28px_80px_rgba(2,6,23,0.28)]",
         className
       )}
     >
@@ -52,18 +52,18 @@ export function HeroSection({
 
       <div
         className={cn(
-          "relative grid min-w-0 items-start gap-10 sm:gap-12 lg:gap-14",
+          "relative grid min-w-0 items-start gap-7 sm:gap-8 lg:gap-10",
           aside ? "lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch" : "grid-cols-1"
         )}
       >
-        <div className="min-w-0 space-y-6 sm:space-y-8">
+        <div className="min-w-0 space-y-5 sm:space-y-6">
           {eyebrow ? (
             <p className="premium-kicker max-w-fit">
               {eyebrow}
             </p>
           ) : null}
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-5">
             <h1 className="max-w-5xl font-display text-[clamp(2.65rem,8vw,5rem)] leading-[0.95] tracking-tight text-foreground">
               {title}
             </h1>
@@ -121,7 +121,7 @@ export function HeroSection({
           ) : null}
 
           {metrics?.length ? (
-            <div className="grid gap-3 pt-2 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               {metrics.map((metric) => (
                 <div
                   key={metric.label}

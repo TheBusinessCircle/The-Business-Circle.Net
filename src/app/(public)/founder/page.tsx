@@ -64,7 +64,7 @@ export default async function FounderPage() {
   const services = allServices.filter((service) => isGrowthArchitectServiceSlug(service.slug));
 
   return (
-    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
+    <div className="public-page-stack">
       <JsonLd data={buildFounderSchema()} />
 
       <PublicTopVisual
@@ -76,12 +76,12 @@ export default async function FounderPage() {
         fallbackLabel="Founder top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-card/58 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
+      <section className="public-hero-spacing relative overflow-hidden rounded-[2.05rem] border border-white/10 bg-card/58 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
 
-        <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] xl:items-start">
-          <div className="space-y-6">
+        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] xl:items-start">
+          <div className="space-y-5">
             <Badge variant="outline" className="border-gold/35 bg-gold/12 text-gold">
               Founder
             </Badge>
@@ -102,7 +102,7 @@ export default async function FounderPage() {
               </div>
             </div>
 
-            <div className="rounded-[1.6rem] border border-white/8 bg-background/18 p-5">
+            <div className="rounded-[1.45rem] border border-white/8 bg-background/18 p-4 sm:p-5">
               <div className="space-y-3 text-base leading-relaxed text-muted">
                 <p>
                   The point of sharing that is not biography. It is context.
@@ -216,7 +216,7 @@ export default async function FounderPage() {
             placement={servicesApproachPlacement}
             tone="editorial"
             aspectClassName="aspect-[16/10] 2xl:aspect-auto"
-            className="min-h-[17rem] 2xl:h-full"
+            className="min-h-[14rem] 2xl:h-full"
             sizes="(min-width: 1536px) 24vw, (min-width: 1024px) 34vw, 100vw"
           />
         ) : null}
@@ -251,7 +251,7 @@ export default async function FounderPage() {
                     : ""
                 )}
               >
-                <CardHeader className="space-y-4">
+            <CardHeader className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline" className="border-white/10 bg-background/20 text-silver">
                       {service.title}
@@ -287,7 +287,7 @@ export default async function FounderPage() {
                   </div>
                   <p className="text-sm leading-relaxed text-muted">{service.shortDescription}</p>
                 </CardHeader>
-                <CardContent className="space-y-5">
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
                     {service.includes.map((item) => (
                       <div
@@ -358,7 +358,7 @@ export default async function FounderPage() {
         </Card>
 
         <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/84 to-card/74 shadow-gold-soft">
-          <CardContent className="space-y-5 p-6 sm:p-7">
+            <CardContent className="space-y-5 p-5 sm:p-6">
             <p className="premium-kicker">Apply</p>
             <h2 className="font-display text-3xl leading-tight text-foreground">
               Apply to work with me
