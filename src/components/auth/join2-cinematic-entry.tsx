@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   useEffect,
   useMemo,
@@ -11,16 +12,25 @@ import {
 } from "react";
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { safeRedirectPath } from "@/lib/auth/utils";
-import { buildJoinConfirmationHref } from "@/lib/join/routing";
+import {
+  JOIN2_FALLBACK_TIMEOUT_MS,
+  JOIN2_HANDOFF_STORAGE_KEY,
+  buildJoin2ActionHrefs,
+  isJoin2ActivationKey,
+  isJoin2MembershipPath,
+  normalizeJoin2InviteCode,
+  sanitizeJoin2From,
+  shouldShowJoin2FallbackActions,
+  type Join2BillingInterval,
+  type Join2FallbackReason,
+  type Join2MembershipTier,
+  type Join2SceneStage
+} from "@/lib/join/cinematic-entry";
 import styles from "./join2-cinematic-entry.module.css";
 
-type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
-type MembershipBillingInterval = "monthly" | "annual";
-
 type Join2CinematicEntryProps = {
-  initialSelectedTier: MembershipTier;
-  billingInterval: MembershipBillingInterval;
+  initialSelectedTier: Join2MembershipTier;
+  billingInterval: Join2BillingInterval;
   from?: string;
   inviteCode?: string;
   error?: string;
@@ -37,7 +47,6 @@ type JoinHandoff = {
   inviteCode?: string;
 };
 
-type SceneStage = "intro" | "entering" | "choices";
 type PortalStyleVars = CSSProperties & {
   "--join2-portal-left": string;
   "--join2-portal-top": string;
@@ -45,40 +54,17 @@ type PortalStyleVars = CSSProperties & {
 };
 
 const portalEase = [0.2, 0.72, 0.18, 1] as const;
-const joinHandoffStorageKey = "business-circle:join-handoff";
 const portalTarget = {
   centerX: 0.506,
   centerY: 0.411,
   diameter: 0.734
 } as const;
 
-const tierLabels: Record<MembershipTier, string> = {
+const tierLabels: Record<Join2MembershipTier, string> = {
   FOUNDATION: "Foundation",
   INNER_CIRCLE: "Inner Circle",
   CORE: "Core"
 };
-
-function normalizeInviteCode(inviteCode?: string) {
-  const normalized = inviteCode?.trim().toUpperCase();
-  return normalized || undefined;
-}
-
-function withFrom(pathname: string, from?: string) {
-  const safeFrom = from ? safeRedirectPath(from, "") : "";
-
-  if (!safeFrom) {
-    return pathname;
-  }
-
-  const url = new URL(pathname, "http://localhost");
-  url.searchParams.set("from", safeFrom);
-  return `${url.pathname}${url.search}`;
-}
-
-function isMembershipPath(pathname?: string) {
-  const safePath = pathname ? safeRedirectPath(pathname, "") : "";
-  return safePath.startsWith("/membership");
-}
 
 function readJoinHandoff(): JoinHandoff {
   if (typeof window === "undefined") {
@@ -86,18 +72,18 @@ function readJoinHandoff(): JoinHandoff {
   }
 
   try {
-    const raw = window.sessionStorage.getItem(joinHandoffStorageKey);
+    const raw = window.sessionStorage.getItem(JOIN2_HANDOFF_STORAGE_KEY);
 
     if (!raw) {
       return {};
     }
 
     const parsed = JSON.parse(raw) as JoinHandoff;
-    const safeFrom = parsed.from ? safeRedirectPath(parsed.from, "") : "";
+    const safeFrom = sanitizeJoin2From(parsed.from);
 
     return {
-      from: safeFrom || undefined,
-      inviteCode: normalizeInviteCode(parsed.inviteCode)
+      from: safeFrom,
+      inviteCode: normalizeJoin2InviteCode(parsed.inviteCode)
     };
   } catch {
     return {};
@@ -111,36 +97,14 @@ function writeJoinHandoff(value: JoinHandoff) {
 
   try {
     if (!value.from && !value.inviteCode) {
-      window.sessionStorage.removeItem(joinHandoffStorageKey);
+      window.sessionStorage.removeItem(JOIN2_HANDOFF_STORAGE_KEY);
       return;
     }
 
-    window.sessionStorage.setItem(joinHandoffStorageKey, JSON.stringify(value));
+    window.sessionStorage.setItem(JOIN2_HANDOFF_STORAGE_KEY, JSON.stringify(value));
   } catch {
     // Ignore storage failures and keep the membership path working.
   }
-}
-
-function buildJoinHref({
-  tier,
-  billingInterval,
-  billing,
-  from,
-  inviteCode
-}: {
-  tier: MembershipTier;
-  billingInterval: MembershipBillingInterval;
-  billing?: string;
-  from?: string;
-  inviteCode?: string;
-}) {
-  return buildJoinConfirmationHref({
-    tier,
-    period: billingInterval,
-    billing,
-    from,
-    invite: inviteCode
-  });
 }
 
 export function Join2CinematicEntry({
@@ -161,7 +125,8 @@ export function Join2CinematicEntry({
   const portalY = useMotionValue(0);
   const springX = useSpring(portalX, { stiffness: 118, damping: 24, mass: 0.44 });
   const springY = useSpring(portalY, { stiffness: 118, damping: 24, mass: 0.44 });
-  const [sceneStage, setSceneStage] = useState<SceneStage>("intro");
+  const [sceneStage, setSceneStage] = useState<Join2SceneStage>("intro");
+  const [fallbackReason, setFallbackReason] = useState<Join2FallbackReason>(null);
   const [portalReady, setPortalReady] = useState(Boolean(reduceMotion));
   const [portalStyleVars, setPortalStyleVars] = useState<PortalStyleVars>(() => ({
     "--join2-portal-left": "50.6%",
@@ -169,16 +134,13 @@ export function Join2CinematicEntry({
     "--join2-portal-size": "73.4%"
   }));
   const [resolvedContext, setResolvedContext] = useState<JoinHandoff>({
-    from: from ? safeRedirectPath(from, "") || undefined : undefined,
-    inviteCode: normalizeInviteCode(inviteCode)
+    from: sanitizeJoin2From(from),
+    inviteCode: normalizeJoin2InviteCode(inviteCode)
   });
 
-  const initialFrom = useMemo(() => {
-    const safeFrom = from ? safeRedirectPath(from, "") : "";
-    return safeFrom || undefined;
-  }, [from]);
+  const initialFrom = useMemo(() => sanitizeJoin2From(from), [from]);
 
-  const initialInvite = useMemo(() => normalizeInviteCode(inviteCode), [inviteCode]);
+  const initialInvite = useMemo(() => normalizeJoin2InviteCode(inviteCode), [inviteCode]);
 
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -214,7 +176,7 @@ export function Join2CinematicEntry({
 
   useEffect(() => {
     const storedContext = readJoinHandoff();
-    const shouldRestoreStoredContext = billing === "cancelled" || isMembershipPath(initialFrom);
+    const shouldRestoreStoredContext = billing === "cancelled" || isJoin2MembershipPath(initialFrom);
     const nextContext = shouldRestoreStoredContext
       ? {
           from: storedContext.from ?? initialFrom,
@@ -230,6 +192,12 @@ export function Join2CinematicEntry({
   }, [billing, initialFrom, initialInvite]);
 
   useEffect(() => {
+    if (error) {
+      setFallbackReason("error");
+    }
+  }, [error]);
+
+  useEffect(() => {
     const video = videoRef.current;
 
     if (!video) {
@@ -238,7 +206,28 @@ export function Join2CinematicEntry({
 
     void video.play().catch(() => {
       // Muted inline autoplay can still be blocked in some browsers.
+      setFallbackReason("video");
     });
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    const markVideoFallback = () => {
+      setFallbackReason("video");
+    };
+
+    video.addEventListener("error", markVideoFallback);
+    video.addEventListener("stalled", markVideoFallback);
+
+    return () => {
+      video.removeEventListener("error", markVideoFallback);
+      video.removeEventListener("stalled", markVideoFallback);
+    };
   }, []);
 
   useEffect(() => {
@@ -373,12 +362,14 @@ export function Join2CinematicEntry({
 
       const msUntilReveal = Math.max((video.duration - 0.14) * 1000, 3600);
 
-      window.clearTimeout(fallbackTimer);
-      fallbackTimer = window.setTimeout(markReady, msUntilReveal);
+      if (readinessTimer) {
+        window.clearTimeout(readinessTimer);
+      }
+      readinessTimer = window.setTimeout(markReady, msUntilReveal);
       syncPortalReadiness();
     };
 
-    let fallbackTimer = window.setTimeout(markReady, 4700);
+    let readinessTimer: number | null = null;
     const pollTimer = window.setInterval(syncPortalReadiness, 200);
     const video = videoRef.current;
 
@@ -389,13 +380,27 @@ export function Join2CinematicEntry({
 
     return () => {
       active = false;
-      window.clearTimeout(fallbackTimer);
+      if (readinessTimer) {
+        window.clearTimeout(readinessTimer);
+      }
       window.clearInterval(pollTimer);
       video?.removeEventListener("loadedmetadata", handleMetadata);
       video?.removeEventListener("timeupdate", syncPortalReadiness);
       video?.removeEventListener("ended", markReady);
     };
   }, [portalReady, reduceMotion]);
+
+  useEffect(() => {
+    if (portalReady || sceneStage !== "intro") {
+      return;
+    }
+
+    const fallbackTimer = window.setTimeout(() => {
+      setFallbackReason("timeout");
+    }, JOIN2_FALLBACK_TIMEOUT_MS);
+
+    return () => window.clearTimeout(fallbackTimer);
+  }, [portalReady, sceneStage]);
 
   useEffect(
     () => () => {
@@ -406,10 +411,9 @@ export function Join2CinematicEntry({
     []
   );
 
-  const publicSiteHref = "/";
-  const joinHref = useMemo(
+  const actionHrefs = useMemo(
     () =>
-      buildJoinHref({
+      buildJoin2ActionHrefs({
         tier: initialSelectedTier,
         billingInterval,
         billing,
@@ -418,8 +422,6 @@ export function Join2CinematicEntry({
       }),
     [billing, billingInterval, initialSelectedTier, resolvedContext.from, resolvedContext.inviteCode]
   );
-
-  const loginHref = useMemo(() => withFrom("/login", resolvedContext.from), [resolvedContext.from]);
 
   const joinFootnote = useMemo(
     () => `Join opens with ${tierLabels[initialSelectedTier]} already selected.`,
@@ -485,9 +487,24 @@ export function Join2CinematicEntry({
     );
   };
 
+  const handlePortalKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (!isJoin2ActivationKey(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    handlePortalOpen();
+  };
+
   const handleJoinChoice = () => {
     writeJoinHandoff(resolvedContext);
   };
+
+  const showFallbackActions = shouldShowJoin2FallbackActions({
+    reduceMotion,
+    fallbackReason,
+    sceneStage
+  });
 
   return (
     <div
@@ -600,6 +617,7 @@ export function Join2CinematicEntry({
                       type="button"
                       className={styles.portalButton}
                       aria-label="Step inside The Business Circle"
+                      aria-disabled={!portalReady || sceneStage !== "intro"}
                       data-entering={sceneStage === "entering"}
                       disabled={!portalReady || sceneStage !== "intro"}
                       style={{ x: springX, y: springY }}
@@ -609,6 +627,7 @@ export function Join2CinematicEntry({
                       onPointerMove={handlePortalMove}
                       onPointerLeave={resetPortalPosition}
                       onClick={handlePortalOpen}
+                      onKeyDown={handlePortalKeyDown}
                     >
                       <span className={styles.portalRing} aria-hidden="true" />
                       <span className={styles.portalInnerRing} aria-hidden="true" />
@@ -636,6 +655,32 @@ export function Join2CinematicEntry({
                   }
                   transition={{ duration: reduceMotion ? 0.26 : 1.02, ease: portalEase }}
                 />
+
+                {showFallbackActions ? (
+                  <motion.div
+                    className={styles.fallbackActions}
+                    initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: reduceMotion ? 0.18 : 0.42, ease: portalEase }}
+                  >
+                    <p className={styles.fallbackEyebrow}>Direct route</p>
+                    <div className={styles.fallbackActionGrid}>
+                      <Link href={actionHrefs.publicSiteHref} className={styles.fallbackActionLink}>
+                        Explore The Business Circle
+                      </Link>
+                      <Link
+                        href={actionHrefs.joinHref}
+                        className={`${styles.fallbackActionLink} ${styles.fallbackJoinLink}`}
+                        onClick={handleJoinChoice}
+                      >
+                        Continue to join
+                      </Link>
+                      <Link href={actionHrefs.loginHref} className={styles.fallbackActionLink}>
+                        Sign in
+                      </Link>
+                    </div>
+                  </motion.div>
+                ) : null}
               </div>
             </motion.div>
           </motion.section>
@@ -688,7 +733,7 @@ export function Join2CinematicEntry({
                   transition={{ delay: reduceMotion ? 0 : 0.22, duration: 0.82, ease: portalEase }}
                 >
                   <Link
-                    href={publicSiteHref}
+                    href={actionHrefs.publicSiteHref}
                     className={`${styles.pathway} ${styles.pathwayExplore}`}
                   >
                     <span className={styles.pathwayIndex}>01</span>
@@ -713,7 +758,7 @@ export function Join2CinematicEntry({
                   transition={{ delay: reduceMotion ? 0 : 0.32, duration: 0.88, ease: portalEase }}
                 >
                   <Link
-                    href={joinHref}
+                    href={actionHrefs.joinHref}
                     className={`${styles.pathway} ${styles.pathwayJoin}`}
                     onClick={handleJoinChoice}
                   >
@@ -743,7 +788,7 @@ export function Join2CinematicEntry({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: reduceMotion ? 0 : 0.42, duration: 0.72, ease: portalEase }}
               >
-                <Link href={loginHref} className={styles.signInLink}>
+                <Link href={actionHrefs.loginHref} className={styles.signInLink}>
                   Already a member? Sign in
                 </Link>
                 <div className={styles.footerLinks}>

@@ -7,7 +7,6 @@ import {
   Compass,
   Handshake,
   Layers3,
-  MessagesSquare,
   PhoneCall,
   ShieldCheck,
   Sparkles,
@@ -50,46 +49,62 @@ export const metadata: Metadata = createPageMetadata({
   ]
 });
 
-const JOIN_JOURNEY_CARDS = [
+const INSIDE_FEATURE_CARDS = [
   {
-    title: "Access structured discussion rooms",
-    description: "Enter focused spaces where context already exists and conversation starts at a higher level.",
-    icon: Layers3
+    title: "Private Rooms",
+    description: "Focused spaces for introductions, business questions, owner updates, and tier-specific conversations.",
+    placementKey: "rooms",
+    icon: Layers3,
+    tone: "human" as const
   },
   {
-    title: "Join focused business conversations",
-    description: "Talk through decisions, pressure, and next moves with owners who understand the weight of the work.",
-    icon: MessagesSquare
+    title: "Resources",
+    description: "Practical material for decisions, positioning, operations, growth, and the work that follows.",
+    placementKey: "resources",
+    icon: BookOpen,
+    tone: "editorial" as const
   },
   {
-    title: "Use business resources",
-    description: "Work from practical prompts, frameworks, and member resources designed to support progress.",
-    icon: BookOpen
+    title: "1-to-1 Calls",
+    description: "Direct owner-to-owner conversations when a connection, question, or next step deserves more context.",
+    placementKey: "calls",
+    icon: PhoneCall,
+    tone: "human" as const
   },
   {
-    title: "Book 1-to-1 member calls",
-    description: "Move into direct owner-to-owner conversation when sharper context or faster movement matters.",
-    icon: PhoneCall
+    title: "Group Conversations",
+    description: "Live discussions around business pressure, direction, decision-making, and member-led themes.",
+    placementKey: "group",
+    icon: CalendarDays,
+    tone: "platform" as const
   },
   {
-    title: "Join group conversations",
-    description: "Take part in live discussions built around business pressure, direction, and better judgement.",
-    icon: CalendarDays
+    title: "Collaborations",
+    description: "A clearer way to spot useful fit, warm opportunities, and practical reasons to connect.",
+    placementKey: "collaborations",
+    icon: Handshake,
+    tone: "founders" as const
   },
   {
-    title: "Collaborate with aligned owners",
-    description: "Find people, conversations, and opportunities that make commercial sense inside a better room.",
-    icon: Handshake
+    title: "Wins",
+    description: "Visible member progress, useful movement, and the signals that show what is working.",
+    placementKey: "wins",
+    icon: Trophy,
+    tone: "editorial" as const
   },
   {
-    title: "Share wins, problems, and strategies",
-    description: "Bring real progress and real pressure into an environment designed for substance.",
-    icon: Trophy
+    title: "Member Profiles",
+    description: "Business context that makes the right people easier to understand before a conversation starts.",
+    placementKey: "profiles",
+    icon: ShieldCheck,
+    tone: "platform" as const
   },
   {
-    title: "Gain clarity through real input",
-    description: "Use the room to think better, decide better, and keep the business moving well.",
-    icon: Compass
+    title: "Insight Layer",
+    description: "Public insight, member resources, and founder-led signals that help the network keep its shape.",
+    placementKey: "insight",
+    icon: Compass,
+    tone: "editorial" as const
   }
 ] as const;
 
@@ -97,7 +112,7 @@ const IMMEDIATE_VALUE = [
   "Clearer direction",
   "Better conversations",
   "Exposure to how other owners think",
-  "A structured environment that removes noise"
+  "A clearer first action"
 ] as const;
 
 const ONGOING_VALUE = [
@@ -106,51 +121,6 @@ const ONGOING_VALUE = [
   "Collaboration opportunities",
   "Consistent growth-focused input",
   "More confidence in business direction"
-] as const;
-
-const NETWORK_PREVIEW_CARDS = [
-  {
-    title: "Private Rooms",
-    description: "Focused spaces for real business conversations without public noise.",
-    placementKey: "rooms",
-    icon: Layers3,
-    tone: "human" as const
-  },
-  {
-    title: "Resources",
-    description: "Practical business resources designed to help you think clearly and move faster.",
-    placementKey: "resources",
-    icon: BookOpen,
-    tone: "editorial" as const
-  },
-  {
-    title: "1-to-1 Calls",
-    description: "Connect directly with other owners when the fit and timing are right.",
-    placementKey: "calls",
-    icon: PhoneCall,
-    tone: "human" as const
-  },
-  {
-    title: "Group Conversations",
-    description: "Join focused discussions around business pressure, decisions, growth, and direction.",
-    placementKey: "group",
-    icon: CalendarDays,
-    tone: "platform" as const
-  },
-  {
-    title: "Collaborations",
-    description: "Find aligned people, useful conversations, and potential opportunities.",
-    placementKey: "collaborations",
-    icon: Handshake,
-    tone: "founders" as const
-  },
-  {
-    title: "Wins",
-    description: "Share progress, build momentum, and see what is working for others.",
-    placementKey: "wins",
-    icon: TrendingUp,
-    tone: "editorial" as const
-  }
 ] as const;
 
 const ECOSYSTEM_ITEMS = [
@@ -164,23 +134,52 @@ const ECOSYSTEM_ITEMS = [
   "Insights"
 ] as const;
 
+const FIRST_WEEK_STEPS = [
+  {
+    title: "Complete your profile",
+    description: "Add the business context other members need before they connect."
+  },
+  {
+    title: "Find the right room",
+    description: "Start where your current question, stage, or tier naturally fits."
+  },
+  {
+    title: "Read recommended resources",
+    description: "Use the practical material that matches the decision in front of you."
+  },
+  {
+    title: "Join or start a discussion",
+    description: "Bring one useful question, update, or observation into the private space."
+  },
+  {
+    title: "Book or connect where appropriate",
+    description: "Move into direct conversation when there is a clear reason to do so."
+  }
+] as const;
+
+const PUBLIC_PREVIEW_THEMES = [
+  "Business direction and decision quality",
+  "Positioning, visibility, and enquiry flow",
+  "Operations, capacity, and owner focus"
+] as const;
+
 const HOW_IT_WORKS = [
   {
     step: "01",
     title: "Join or apply for access",
-    description: "Choose the room that fits now and move into the right membership path with clarity.",
+    description: "Choose the membership level that fits now and move into the next step with context.",
     icon: Compass
   },
   {
     step: "02",
-    title: "Enter the private environment",
-    description: "Once inside, the rooms, resources, conversations, and next steps are ready to use properly.",
+    title: "Enter the private network",
+    description: "Once inside, profiles, resources, conversations, and next steps are ready to use.",
     icon: ShieldCheck
   },
   {
     step: "03",
     title: "Start connecting, learning, and progressing",
-    description: "Use the room to improve judgement, find the right people, and keep the business moving well.",
+    description: "Use member context to improve judgement, find the right people, and keep moving well.",
     icon: TrendingUp
   }
 ] as const;
@@ -208,8 +207,8 @@ function PreviewMediaCard({
   title: string;
   description: string;
   placement?: VisualMediaRenderablePlacement | null;
-  icon: (typeof NETWORK_PREVIEW_CARDS)[number]["icon"];
-  tone: (typeof NETWORK_PREVIEW_CARDS)[number]["tone"];
+  icon: (typeof INSIDE_FEATURE_CARDS)[number]["icon"];
+  tone: (typeof INSIDE_FEATURE_CARDS)[number]["tone"];
 }) {
   return (
     <article className="overflow-hidden rounded-[1.85rem] border border-border/80 bg-card/72 shadow-panel-soft">
@@ -243,10 +242,10 @@ function EcosystemFallbackDiagram() {
     <div className="overflow-hidden rounded-[2rem] border border-border/80 bg-card/76 p-5 shadow-panel sm:p-6">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-[1.6rem] border border-gold/24 bg-gradient-to-br from-gold/12 via-card/82 to-card/74 p-5">
-          <p className="premium-kicker">Connected environment</p>
+          <p className="premium-kicker">Connected system</p>
           <h3 className="mt-4 font-display text-2xl text-foreground">Everything works together</h3>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            BCN is designed so profiles, rooms, resources, calls, collaboration, wins, and insights reinforce one another rather than living as isolated features.
+            BCN is designed so profiles, resources, calls, collaboration, wins, and insights reinforce one another rather than living as isolated features.
           </p>
         </div>
 
@@ -310,6 +309,17 @@ export default async function HomePage() {
         founderRoomsOpen.length === 1 ? "" : "s"
       }.`
     : "Founding member access closes room by room as allocations are filled.";
+  const discussionPreviewLine = publicTrustSnapshot.activeDiscussionCount
+    ? `${publicTrustSnapshot.activeDiscussionCount}+ active discussion signals this week.`
+    : "Discussion themes are visible publicly without exposing private member content.";
+  const resourcePreviewLine = publicTrustSnapshot.recentResourceCount
+    ? `${publicTrustSnapshot.recentResourceCount}+ fresh resources added this week.`
+    : "Fresh resources are added as the founder-led library develops.";
+  const groupConversationPreviewLine = publicTrustSnapshot.upcomingEventCount
+    ? `${publicTrustSnapshot.upcomingEventCount} upcoming group conversation${
+        publicTrustSnapshot.upcomingEventCount === 1 ? "" : "s"
+      } currently scheduled.`
+    : "Upcoming group conversations will appear here when scheduled.";
 
   const previewPlacements: Record<string, VisualMediaRenderablePlacement | null | undefined> = {
     rooms: homeRoomsPlacement,
@@ -317,7 +327,9 @@ export default async function HomePage() {
     calls: homeCallsPlacement,
     group: homePlatformPlacement,
     collaborations: homeCollaborationsPlacement,
-    wins: homeWinsPlacement
+    wins: homeWinsPlacement,
+    profiles: homeEcosystemPlacement,
+    insight: homeConnectionPlacement
   };
 
   return (
@@ -342,20 +354,20 @@ export default async function HomePage() {
       <PublicTopVisual
         placement={homeHeroPlacement}
         eyebrow="The Business Circle Network"
-        title="Private. Structured. Built for owners who want signal over noise."
-        description="A calm first impression of the environment before the homepage story begins."
+        title="Private. Structured. Built for serious owner conversations."
+        description="A calm first view of the network before the homepage story begins."
         tone="cinematic"
       />
 
       <HeroSection
-        eyebrow="Private business environment"
+        eyebrow="Private membership network"
         title="A Private Network for Business Owners Who Want Clarity, Not Noise"
-        description="A structured environment for real conversations, better decisions, and measurable business progress."
+        description="A structured place for useful conversations, better decisions, and measurable business progress."
         supportLine="For founders, operators, and business owners who are done building alone."
         callouts={[
           "Structured business conversations",
-          "Real insight, not content noise",
-          "Private, quality-controlled environment"
+          "Real insight, not content churn",
+          "Private, quality-controlled space"
         ]}
         primaryAction={{ href: "/membership", label: "Join The Business Circle" }}
         secondaryAction={{ href: "#how-it-works", label: "See How It Works", variant: "outline" }}
@@ -365,13 +377,13 @@ export default async function HomePage() {
             <article className="public-panel p-6 sm:p-7">
               <p className="premium-kicker inline-flex items-center gap-2">
                 <Sparkles size={14} />
-                What changes inside the room
+                What changes after joining
               </p>
               <div className="mt-5 space-y-3">
                 {[
-                  "Less noise around serious work.",
+                  "Fewer distractions around serious work.",
                   "Better context before people speak.",
-                  "A stronger room around the next decision."
+                  "A stronger setting for the next decision."
                 ].map((item) => (
                   <div
                     key={item}
@@ -391,7 +403,7 @@ export default async function HomePage() {
                 {founderAccessLine}
               </p>
               <p className="mt-3 text-sm leading-relaxed text-muted">
-                Early members enter while founder allocation remains open in the current rooms.
+                Early members enter while founder allocation remains open.
               </p>
               <Link
                 href="/membership"
@@ -404,9 +416,30 @@ export default async function HomePage() {
         }
       />
 
+      <section className="space-y-10 py-20 lg:py-28">
+        <SectionHeading
+          label="What You Actually Get Inside"
+          title="The useful parts of BCN are visible before you join."
+          description="Membership opens a practical set of spaces, tools, and connection paths designed to be used from the first week."
+        />
+
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {INSIDE_FEATURE_CARDS.map((item) => (
+            <PreviewMediaCard
+              key={item.title}
+              title={item.title}
+              description={item.description}
+              placement={previewPlacements[item.placementKey]}
+              icon={item.icon}
+              tone={item.tone}
+            />
+          ))}
+        </div>
+      </section>
+
       <JourneyRail
         currentStep="home"
-        note="Start with clarity, understand the environment, then move into the right room with confidence."
+        note="Understand what is inside, choose the right membership path, then enter with the selected tier and billing period preserved."
         nextAction={{ href: "/membership", label: "Go To Membership" }}
       />
 
@@ -422,19 +455,19 @@ export default async function HomePage() {
           <div className="space-y-6">
             <SectionHeading
               label="What The Business Circle Actually Is"
-              title="A private, structured environment where business owners connect, think clearly, and move forward with better decisions."
-              description="This is not a social platform. This is where real business conversations happen."
+              title="A private network with standards, structure, and enough context to make member interaction useful."
+              description="It is not a feed or a directory. It is a controlled place for owners to bring real business context."
             />
 
             <article className="rounded-[2rem] border border-gold/22 bg-gradient-to-br from-gold/10 via-card/82 to-card/72 p-6 shadow-gold-soft sm:p-8">
               <div className="space-y-4 text-base leading-relaxed text-muted sm:text-lg">
                 <p>
-                  The Business Circle is a private, structured environment where business owners can
-                  get better input, better conversations, and a stronger room around real decisions.
+                  The Business Circle gives members a smaller, better-organised place to ask,
+                  respond, learn, connect, and follow through.
                 </p>
                 <p>
-                  It is designed for owners who want signal, judgement, and useful connection, not a
-                  feed, an audience, or another loose networking space.
+                  The value comes from the standard of the space, the context members provide, and
+                  the practical tools around the conversation.
                 </p>
               </div>
             </article>
@@ -447,11 +480,11 @@ export default async function HomePage() {
                 },
                 {
                   title: "Not loose networking",
-                  description: "The room is structured so context improves before the conversation begins."
+                  description: "Profiles, channels, resources, and calls give members more context before they connect."
                 },
                 {
                   title: "Built for real business decisions",
-                  description: "Owners bring actual pressure, progress, and strategy into a more serious environment."
+                  description: "Members bring actual decisions, blockers, movement, and strategy into a more useful setting."
                 }
               ].map((item) => (
                 <article
@@ -487,19 +520,19 @@ export default async function HomePage() {
         >
           <div className="space-y-6">
             <SectionHeading
-              label="What Happens When You Join"
-              title="Membership turns the environment into something you can actually use."
-              description="Structured rooms, useful resources, direct access, and a better layer of conversation."
+              label="First 7 Days Inside BCN"
+              title="The first week is about orientation, useful context, and one clear next move."
+              description="New members do not need to be everywhere. The best start is a simple sequence that makes the network easier to use."
             />
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {JOIN_JOURNEY_CARDS.map((item) => (
+            <div className="grid gap-4 md:grid-cols-5">
+              {FIRST_WEEK_STEPS.map((item, index) => (
                 <article
                   key={item.title}
                   className="rounded-[1.7rem] border border-border/80 bg-card/66 p-5 shadow-panel-soft sm:p-6"
                 >
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/28 bg-gold/10 text-gold">
-                    <item.icon size={18} />
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gold/28 bg-gold/10 text-sm font-semibold text-gold">
+                    {index + 1}
                   </span>
                   <h3 className="mt-4 text-xl text-foreground">{item.title}</h3>
                   <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
@@ -522,9 +555,69 @@ export default async function HomePage() {
 
       <section className="space-y-10 py-20 lg:py-28">
         <SectionHeading
+          label="Public Preview"
+          title="A careful signal of what is active, without exposing private member content."
+          description="The homepage can show movement in the network while keeping member conversations, profiles, and private context protected."
+        />
+
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+          <article className="rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
+            <p className="premium-kicker">Active discussion themes</p>
+            <div className="mt-5 grid gap-3">
+              {PUBLIC_PREVIEW_THEMES.map((theme) => (
+                <div
+                  key={theme}
+                  className="rounded-[1.3rem] border border-border/80 bg-background/22 px-4 py-3 text-sm text-foreground"
+                >
+                  {theme}
+                </div>
+              ))}
+            </div>
+            <p className="mt-5 text-sm leading-relaxed text-muted">
+              {discussionPreviewLine}
+            </p>
+          </article>
+
+          <div className="grid gap-4">
+            {[
+              {
+                label: "Fresh resources",
+                value: publicTrustSnapshot.recentResourceCount
+                  ? `${publicTrustSnapshot.recentResourceCount}+`
+                  : "Building",
+                description: resourcePreviewLine
+              },
+              {
+                label: "Group conversations",
+                value: publicTrustSnapshot.upcomingEventCount
+                  ? publicTrustSnapshot.upcomingEventCount.toString()
+                  : "Next",
+                description: groupConversationPreviewLine
+              },
+              {
+                label: "Founder allocation",
+                value: founderRoomsOpen.length ? "Open" : "Managed",
+                description: founderAccessLine
+              }
+            ].map((item) => (
+              <article
+                key={item.label}
+                className="rounded-[1.7rem] border border-border/80 bg-card/66 p-5 shadow-panel-soft sm:p-6"
+              >
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{item.label}</p>
+                <p className="mt-3 font-display text-3xl text-foreground">{item.value}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-10 py-20 lg:py-28">
+        <SectionHeading
           label="What You Actually Gain"
-          title="Immediate value now. Ongoing value as the room compounds."
-          description="The first win is clearer direction. The longer-term win is a stronger environment around the business."
+          title="Immediate value now. Ongoing value as the network compounds."
+          description="The first win is a clearer next move. The longer-term win is stronger context around the business."
         />
 
         <div className="grid gap-5 lg:grid-cols-2">
@@ -560,30 +653,9 @@ export default async function HomePage() {
 
       <section className="space-y-10 py-20 lg:py-28">
         <SectionHeading
-          label="See What Happens Inside"
-          title="The Business Circle is built around the things owners actually need."
-          description="Better conversations, useful resources, focused calls, collaboration, and visible progress all sit inside one premium operating environment."
-        />
-
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {NETWORK_PREVIEW_CARDS.map((item) => (
-            <PreviewMediaCard
-              key={item.title}
-              title={item.title}
-              description={item.description}
-              placement={previewPlacements[item.placementKey]}
-              icon={item.icon}
-              tone={item.tone}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-10 py-20 lg:py-28">
-        <SectionHeading
           label="Connected Environment"
-          title="The Business Circle Works As One Connected Environment"
-          description="Profiles, rooms, resources, calls, collaborations, wins, and insights are designed to support each other rather than sit as isolated features."
+          title="The pieces are designed to support each other."
+          description="Profiles, rooms, resources, calls, collaborations, wins, and insights do more when they are connected by shared standards."
         />
 
         {homeEcosystemPlacement?.isActive && homeEcosystemPlacement.imageUrl ? (
@@ -602,7 +674,7 @@ export default async function HomePage() {
       <section id="how-it-works" className="space-y-10 py-20 lg:py-28">
         <SectionHeading
           label="How It Works"
-          title="Three calm steps into the right environment."
+          title="Three calm steps into the right place."
           description="The path is simple on purpose so the next move feels obvious."
         />
 
@@ -628,8 +700,8 @@ export default async function HomePage() {
       <section className="space-y-10 py-20 lg:py-28">
         <SectionHeading
           label="Who It's For"
-          title="Built for people who are serious about the business and the room around it."
-          description="The fit matters because the environment only stays useful when the standards stay clear."
+          title="Built for people who are serious about the business and the standard around it."
+          description="Fit matters because the network only stays useful when the standards stay clear."
         />
 
         <div className="grid gap-5 lg:grid-cols-2">

@@ -1,5 +1,67 @@
 import type { NextConfig } from "next";
 
+function uniqueTokens(tokens: string[]) {
+  return Array.from(new Set(tokens.filter(Boolean)));
+}
+
+function cspSourceFromUrl(value: string | undefined, allowedProtocols: string[]) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value);
+    return allowedProtocols.includes(url.protocol) ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildContentSecurityPolicy() {
+  const liveKitConnectSource = cspSourceFromUrl(process.env.LIVEKIT_URL, [
+    "ws:",
+    "wss:",
+    "http:",
+    "https:"
+  ]);
+  const connectSources = uniqueTokens([
+    "'self'",
+    "https://checkout.stripe.com",
+    "https://billing.stripe.com",
+    "https://api.stripe.com",
+    "https://*.ably.io",
+    "wss://*.ably.io",
+    "https://*.ably-realtime.com",
+    "wss://*.ably-realtime.com",
+    "http://localhost:7880",
+    "ws://localhost:7880",
+    "https://rtc.thebusinesscircle.net",
+    "wss://rtc.thebusinesscircle.net",
+    "https://*.livekit.cloud",
+    "wss://*.livekit.cloud",
+    "https://*.livekit.io",
+    "wss://*.livekit.io",
+    liveKitConnectSource ?? ""
+  ]);
+
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "form-action 'self' https://checkout.stripe.com https://billing.stripe.com",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https://images.unsplash.com https://res.cloudinary.com",
+    "media-src 'self' blob: https://res.cloudinary.com",
+    "font-src 'self' data:",
+    `connect-src ${connectSources.join(" ")}`,
+    "frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://billing.stripe.com",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'"
+  ].join("; ");
+}
+
 function buildSecurityHeaders() {
   return [
     {
@@ -36,8 +98,7 @@ function buildSecurityHeaders() {
     },
     {
       key: "Content-Security-Policy",
-      value:
-        "base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+      value: buildContentSecurityPolicy()
     }
   ] as const;
 }
