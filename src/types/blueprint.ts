@@ -5,6 +5,7 @@ import type {
 } from "@prisma/client";
 
 export type BlueprintVoteCounts = Record<BlueprintVoteType, number>;
+export type BlueprintPriorityVoteType = "SUPPORT" | "HIGH_PRIORITY";
 
 export type BlueprintStatusModel = {
   id: string;
@@ -57,7 +58,8 @@ export type BlueprintCardModel = {
   isHidden: boolean;
   status: BlueprintStatusModel | null;
   voteCounts: BlueprintVoteCounts;
-  viewerVote: BlueprintVoteType | null;
+  viewerPriorityVote: BlueprintPriorityVoteType | null;
+  viewerNeedsDiscussionVote: boolean;
   discussionUnlocked: boolean;
   comments: BlueprintDiscussionCommentModel[];
 };

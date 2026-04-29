@@ -10,12 +10,13 @@ import type {
   BlueprintVoteCounts
 } from "@/types/blueprint";
 import {
-  BLUEPRINT_DISCUSSION_UNLOCK_THRESHOLD,
-  BLUEPRINT_VOTE_TYPES
+  BLUEPRINT_DISCUSSION_REQUEST_THRESHOLD
 } from "@/config/blueprint";
 
 export {
-  BLUEPRINT_DISCUSSION_UNLOCK_THRESHOLD,
+  BLUEPRINT_DISCUSSION_REQUEST_THRESHOLD,
+  BLUEPRINT_DISCUSSION_VOTE_TYPE,
+  BLUEPRINT_PRIORITY_VOTE_TYPES,
   BLUEPRINT_VOTE_LABELS,
   BLUEPRINT_VOTE_TYPES
 } from "@/config/blueprint";
@@ -63,11 +64,7 @@ export function isBlueprintDiscussionUnlocked(input: {
     return true;
   }
 
-  const categoriesAtThreshold = BLUEPRINT_VOTE_TYPES.filter(
-    (voteType) => input.voteCounts[voteType] >= BLUEPRINT_DISCUSSION_UNLOCK_THRESHOLD
-  );
-
-  return categoriesAtThreshold.length >= 2;
+  return input.voteCounts.NEEDS_DISCUSSION >= BLUEPRINT_DISCUSSION_REQUEST_THRESHOLD;
 }
 
 export function filterPublicBlueprintRoadmapSections(

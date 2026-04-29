@@ -1,5 +1,6 @@
 import {
   BlueprintSectionType,
+  BlueprintVoteGroup,
   BlueprintVoteType,
   MembershipTier,
   Prisma,
@@ -25,6 +26,7 @@ import type {
   BlueprintPageModel,
   BlueprintRoadmapSectionModel,
   BlueprintStatusModel,
+  BlueprintPriorityVoteType,
   BlueprintVoteCounts
 } from "@/types/blueprint";
 
@@ -335,6 +337,16 @@ function makeVoteCountsByCard(
   return byCardId;
 }
 
+function isPriorityVoteType(value: BlueprintVoteType): value is BlueprintPriorityVoteType {
+  return value === BlueprintVoteType.SUPPORT || value === BlueprintVoteType.HIGH_PRIORITY;
+}
+
+function resolveVoteGroup(voteType: BlueprintVoteType): BlueprintVoteGroup {
+  return voteType === BlueprintVoteType.NEEDS_DISCUSSION
+    ? BlueprintVoteGroup.DISCUSSION
+    : BlueprintVoteGroup.BUILD_PRIORITY;
+}
+
 async function ensureDefaultBlueprint() {
   const [statusCount, sectionCount] = await Promise.all([
     db.blueprintStatus.count(),
@@ -542,14 +554,29 @@ export async function getBlueprintPageData(input: {
           },
           select: {
             cardId: true,
-            voteType: true
+            voteType: true,
+            voteGroup: true
           }
         })
       : []
   ]);
 
   const voteCountsByCard = makeVoteCountsByCard(voteRows);
-  const viewerVoteByCard = new Map(viewerVotes.map((vote) => [vote.cardId, vote.voteType]));
+  const viewerPriorityVoteByCard = new Map<string, BlueprintPriorityVoteType>();
+  const viewerNeedsDiscussionVoteByCard = new Set<string>();
+
+  for (const vote of viewerVotes) {
+    if (vote.voteGroup === BlueprintVoteGroup.BUILD_PRIORITY && isPriorityVoteType(vote.voteType)) {
+      viewerPriorityVoteByCard.set(vote.cardId, vote.voteType);
+    }
+
+    if (
+      vote.voteGroup === BlueprintVoteGroup.DISCUSSION &&
+      vote.voteType === BlueprintVoteType.NEEDS_DISCUSSION
+    ) {
+      viewerNeedsDiscussionVoteByCard.add(vote.cardId);
+    }
+  }
   const unlockedCardIds = roadmapSections
     .flatMap((section) => section.cards)
     .filter((card) =>
@@ -627,7 +654,8 @@ export async function getBlueprintPageData(input: {
         isHidden: card.isHidden,
         status: card.status && (includeHidden || !card.status.isHidden) ? mapStatus(card.status) : null,
         voteCounts,
-        viewerVote: viewerVoteByCard.get(card.id) ?? null,
+        viewerPriorityVote: viewerPriorityVoteByCard.get(card.id) ?? null,
+        viewerNeedsDiscussionVote: viewerNeedsDiscussionVoteByCard.has(card.id),
         discussionUnlocked,
         comments: viewerCanVote && discussionUnlocked ? commentsByCard.get(card.id) ?? [] : []
       };
@@ -692,22 +720,132 @@ export async function castBlueprintVote(input: {
     throw new Error("blueprint-card-not-found");
   }
 
-  return db.blueprintVote.upsert({
-    where: {
-      cardId_userId: {
+  const voteGroup = resolveVoteGroup(input.voteType);
+
+  if (voteGroup === BlueprintVoteGroup.BUILD_PRIORITY && !isPriorityVoteType(input.voteType)) {
+    throw new Error("blueprint-vote-invalid");
+  }
+
+  if (voteGroup === BlueprintVoteGroup.DISCUSSION) {
+    const existingVote = await db.blueprintVote.findUnique({
+      where: {
+        cardId_userId_voteGroup: {
+          cardId: input.cardId,
+          userId: input.userId,
+          voteGroup
+        }
+      },
+      select: {
+        cardId: true
+      }
+    });
+
+    if (existingVote) {
+      await db.blueprintVote.delete({
+        where: {
+          cardId_userId_voteGroup: {
+            cardId: input.cardId,
+            userId: input.userId,
+            voteGroup
+          }
+        }
+      });
+      return getBlueprintVoteState({
         cardId: input.cardId,
         userId: input.userId
+      });
+    }
+
+    await db.blueprintVote.create({
+      data: {
+        cardId: input.cardId,
+        userId: input.userId,
+        voteGroup,
+        voteType: BlueprintVoteType.NEEDS_DISCUSSION
+      }
+    });
+    return getBlueprintVoteState({
+      cardId: input.cardId,
+      userId: input.userId
+    });
+  }
+
+  await db.blueprintVote.upsert({
+    where: {
+      cardId_userId_voteGroup: {
+        cardId: input.cardId,
+        userId: input.userId,
+        voteGroup
       }
     },
     create: {
       cardId: input.cardId,
       userId: input.userId,
+      voteGroup,
       voteType: input.voteType
     },
     update: {
       voteType: input.voteType
     }
   });
+
+  return getBlueprintVoteState({
+    cardId: input.cardId,
+    userId: input.userId
+  });
+}
+
+export async function getBlueprintVoteState(input: { cardId: string; userId: string }) {
+  const [voteRows, viewerVotes, card] = await Promise.all([
+    db.blueprintVote.groupBy({
+      by: ["cardId", "voteType"],
+      where: {
+        cardId: input.cardId
+      },
+      _count: {
+        _all: true
+      }
+    }),
+    db.blueprintVote.findMany({
+      where: {
+        cardId: input.cardId,
+        userId: input.userId
+      },
+      select: {
+        voteType: true,
+        voteGroup: true
+      }
+    }),
+    db.blueprintCard.findUnique({
+      where: {
+        id: input.cardId
+      },
+      select: {
+        discussionMode: true
+      }
+    })
+  ]);
+
+  const voteCounts = makeVoteCountsByCard(voteRows).get(input.cardId) ?? createEmptyBlueprintVoteCounts();
+  const priorityVote =
+    viewerVotes.find(
+      (vote) => vote.voteGroup === BlueprintVoteGroup.BUILD_PRIORITY && isPriorityVoteType(vote.voteType)
+    )?.voteType ?? null;
+  const needsDiscussionVote = viewerVotes.some(
+    (vote) =>
+      vote.voteGroup === BlueprintVoteGroup.DISCUSSION &&
+      vote.voteType === BlueprintVoteType.NEEDS_DISCUSSION
+  );
+
+  return {
+    voteCounts,
+    viewerPriorityVote: priorityVote,
+    viewerNeedsDiscussionVote: needsDiscussionVote,
+    discussionUnlocked: isBlueprintDiscussionUnlocked({
+      discussionMode: card?.discussionMode ?? "AUTO",
+      voteCounts
+    })
+  };
 }
 
 export async function createBlueprintDiscussionComment(input: {

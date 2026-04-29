@@ -1016,15 +1016,16 @@ model BlueprintCard {
 model BlueprintVote {
   cardId    String
   userId    String
+  voteGroup BlueprintVoteGroup @default(BUILD_PRIORITY)
   voteType  BlueprintVoteType
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  card      BlueprintCard     @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  card      BlueprintCard      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@id([cardId, userId])
+  @@id([cardId, userId, voteGroup])
   @@index([userId, createdAt])
-  @@index([cardId, voteType])
+  @@index([cardId, voteGroup, voteType])
 }
 
 model BlueprintDiscussionComment {
@@ -1886,6 +1887,11 @@ enum BlueprintVoteType {
   SUPPORT
   HIGH_PRIORITY
   NEEDS_DISCUSSION
+}
+
+enum BlueprintVoteGroup {
+  BUILD_PRIORITY
+  DISCUSSION
 }
 
 enum BlueprintDiscussionMode {

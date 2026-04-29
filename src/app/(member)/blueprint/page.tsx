@@ -2,21 +2,20 @@ import type { Metadata } from "next";
 import {
   GitBranch,
   HeartHandshake,
-  Lock,
   MessageSquare,
   Sparkles
 } from "lucide-react";
 import {
-  castBlueprintVoteAction,
   createBlueprintDiscussionCommentAction,
   deleteBlueprintDiscussionCommentAction,
   toggleBlueprintDiscussionLikeAction
 } from "@/actions/blueprint";
+import { BlueprintVotingPanel } from "@/components/blueprint/blueprint-voting-panel";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { BLUEPRINT_VOTE_LABELS, BLUEPRINT_VOTE_TYPES } from "@/config/blueprint";
+import { BLUEPRINT_DISCUSSION_REQUEST_THRESHOLD } from "@/config/blueprint";
 import { getMembershipTierLabel } from "@/config/membership";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
@@ -43,8 +42,6 @@ export const metadata: Metadata = createPageMetadata({
 export const dynamic = "force-dynamic";
 
 const RETURN_PATH = "/blueprint";
-const FOUNDATION_LOCKED_MESSAGE =
-  "Voting is available to Inner Circle and Core members, where deeper platform direction is shaped with the founder.";
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -162,56 +159,6 @@ function IntroTimeline({ sections }: { sections: BlueprintIntroSectionModel[] })
         </article>
       ))}
     </section>
-  );
-}
-
-function VotePanel({
-  card,
-  viewerCanVote
-}: {
-  card: BlueprintCardModel;
-  viewerCanVote: boolean;
-}) {
-  if (!viewerCanVote) {
-    return (
-      <div className="rounded-2xl border border-gold/20 bg-gold/10 p-4 text-sm leading-6 text-gold/90">
-        <Lock size={14} className="mb-2" />
-        {FOUNDATION_LOCKED_MESSAGE}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-3">
-        {BLUEPRINT_VOTE_TYPES.map((voteType) => {
-          const active = card.viewerVote === voteType;
-
-          return (
-            <form key={voteType} action={castBlueprintVoteAction}>
-              <input type="hidden" name="returnPath" value={`${RETURN_PATH}#blueprint-card-${card.id}`} />
-              <input type="hidden" name="cardId" value={card.id} />
-              <input type="hidden" name="voteType" value={voteType} />
-              <Button
-                type="submit"
-                variant={active ? "default" : "outline"}
-                size="sm"
-                className="w-full justify-between gap-2"
-                aria-pressed={active}
-              >
-                <span>{BLUEPRINT_VOTE_LABELS[voteType]}</span>
-                <span className="rounded-full bg-background/20 px-2 py-0.5 text-[11px]">
-                  {card.voteCounts[voteType]}
-                </span>
-              </Button>
-            </form>
-          );
-        })}
-      </div>
-      <p className="text-xs text-muted">
-        One signal per card. Change it any time as the build becomes clearer.
-      </p>
-    </div>
   );
 }
 
@@ -350,10 +297,13 @@ function DiscussionPanel({
   if (!card.discussionUnlocked) {
     return (
       <div className="rounded-2xl border border-silver/14 bg-background/18 p-4 text-sm leading-6 text-muted">
-        Discussion unlocks when at least two vote categories reach 10 signals, or when the founder opens it manually.
+        Discussion opens when Needs Discussion reaches 5 member signals, or when the founder opens it manually.
       </div>
     );
   }
+
+  const openedByMemberSignal =
+    card.voteCounts.NEEDS_DISCUSSION >= BLUEPRINT_DISCUSSION_REQUEST_THRESHOLD;
 
   return (
     <div className="space-y-4 rounded-2xl border border-gold/20 bg-gold/10 p-4">
@@ -361,6 +311,11 @@ function DiscussionPanel({
         <MessageSquare size={15} className="text-gold" />
         <p className="text-sm font-medium text-foreground">Unlocked discussion</p>
       </div>
+      <p className="text-sm leading-6 text-gold/90">
+        {openedByMemberSignal
+          ? "Discussion opened because enough members requested deeper input."
+          : "Discussion opened by the founder for deeper member input."}
+      </p>
       {card.comments.length ? (
         <CommentThread comments={card.comments} viewerIsAdmin={viewerIsAdmin} />
       ) : (
@@ -421,7 +376,14 @@ function BlueprintCard({
         <p className="mt-3 text-sm leading-7 text-foreground/80">{card.detail}</p>
       ) : null}
       <div className="mt-5 space-y-4">
-        <VotePanel card={card} viewerCanVote={viewerCanVote} />
+        <BlueprintVotingPanel
+          cardId={card.id}
+          viewerCanVote={viewerCanVote}
+          initialVoteCounts={card.voteCounts}
+          initialPriorityVote={card.viewerPriorityVote}
+          initialNeedsDiscussionVote={card.viewerNeedsDiscussionVote}
+          initialDiscussionUnlocked={card.discussionUnlocked}
+        />
         <DiscussionPanel
           card={card}
           viewerCanDiscuss={viewerCanDiscuss}
