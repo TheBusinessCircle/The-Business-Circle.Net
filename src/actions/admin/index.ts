@@ -6,3 +6,4 @@ export * from "@/actions/admin/event.actions";
 export * from "@/actions/admin/site-content.actions";
 export * from "@/actions/admin/community-moderation.actions";
 export * from "@/actions/admin/calling.actions";
+export * from "@/actions/admin/blueprint.actions";

@@ -89,6 +89,7 @@ export * from "@/types/events/event";
 export * from "@/types/community/chat";
 export * from "@/types/community/feed";
 export * from "@/types/community/recognition";
+export * from "@/types/blueprint";
 export * from "@/types/profile/profile";
 export * from "@/types/founder/service";
 export * from "@/types/founding/offer";

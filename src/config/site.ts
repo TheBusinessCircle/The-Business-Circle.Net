@@ -13,6 +13,7 @@ const publicNavigation: NavigationItem[] = [
 
 const memberNavigation: NavigationItem[] = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Circle Blueprint", href: "/blueprint" },
   { label: "Community", href: "/community" },
   { label: "Messages", href: "/messages" },
   { label: "Directory", href: "/directory" },
@@ -28,6 +29,7 @@ const memberNavigation: NavigationItem[] = [
 
 const adminNavigation: NavigationItem[] = [
   { label: "Overview", href: "/admin" },
+  { label: "Blueprint Manager", href: "/admin/blueprint" },
   { label: "Members", href: "/admin/members" },
   { label: "Community", href: "/admin/community" },
   { label: "Messages", href: "/admin/messages" },

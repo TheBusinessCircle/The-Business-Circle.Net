@@ -15,6 +15,7 @@ const AUTH_ROUTES = [
   "/reset-password"
 ];
 const MEMBER_ROUTE_PREFIXES = [
+  "/blueprint",
   "/dashboard",
   "/directory",
   "/community",
@@ -153,6 +154,8 @@ export const config = {
     "/forgot-password",
     "/reset-password",
     "/dashboard/:path*",
+    "/blueprint",
+    "/blueprint/:path*",
     "/directory/:path*",
     "/community/:path*",
     "/member/bcn-updates",

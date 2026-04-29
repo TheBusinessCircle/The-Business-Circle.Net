@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Compass,
   Crown,
+  GitBranch,
   LayoutGrid,
   MessageSquare,
   Sparkles,
@@ -28,6 +29,9 @@ function iconForHref(href: string) {
   }
   if (href.startsWith("/dashboard")) {
     return LayoutGrid;
+  }
+  if (href.startsWith("/blueprint")) {
+    return GitBranch;
   }
   if (href.startsWith("/resources")) {
     return Search;

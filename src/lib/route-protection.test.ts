@@ -8,6 +8,7 @@ const robotsSource = readFileSync(join(process.cwd(), "src/app/robots.ts"), "utf
 const intentionallyPublicMemberNavLinks = new Set(["/founder"]);
 
 const privateRoutes = [
+  "/blueprint",
   "/dashboard",
   "/dashboard/resources",
   "/community",

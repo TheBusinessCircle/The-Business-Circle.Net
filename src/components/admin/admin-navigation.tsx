@@ -6,6 +6,7 @@ import {
   Briefcase,
   CalendarDays,
   FileText,
+  GitBranch,
   LayoutGrid,
   MessageSquare,
   ImageIcon,
@@ -28,6 +29,9 @@ type AdminNavigationProps = {
 function iconForHref(href: string) {
   if (href === "/admin") {
     return LayoutGrid;
+  }
+  if (href.startsWith("/admin/blueprint")) {
+    return GitBranch;
   }
   if (href.startsWith("/admin/founding")) {
     return Sparkles;
