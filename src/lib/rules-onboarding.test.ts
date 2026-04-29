@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { shouldShowRulesWelcomeOverlay } from "@/lib/rules-onboarding";
 
@@ -27,5 +29,14 @@ describe("rules onboarding trigger", () => {
         rulesAccepted: false
       })
     ).toBe(false);
+  });
+
+  it("keeps unaccepted paid members pointed at the BCN Rules route from the member layout", () => {
+    const source = readFileSync(join(process.cwd(), "src/app/(member)/layout.tsx"), "utf8");
+
+    expect(source).toContain("hasAcceptedBcnRules");
+    expect(source).toContain("shouldShowRulesWelcomeOverlay");
+    expect(source).toContain("RulesEntryOverlay");
+    expect(source).toContain("BCN_RULES_ACCEPTANCE_PATH");
   });
 });

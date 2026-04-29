@@ -138,4 +138,33 @@ describe("register route", () => {
       })
     );
   });
+
+  it("does not create a pending registration when Stripe billing is unavailable", async () => {
+    isBillingEnabledMock.mockReturnValueOnce(false);
+
+    const response = await POST(
+      new Request("http://localhost/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: "Trevor Newton",
+          email: "trev@example.com",
+          password: "ValidPassword1!",
+          tier: "FOUNDATION",
+          billingInterval: "monthly",
+          acceptedTerms: true
+        })
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(payload).toEqual({
+      error: "Stripe billing is not configured."
+    });
+    expect(createPendingRegistrationMock).not.toHaveBeenCalled();
+    expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
+  });
 });

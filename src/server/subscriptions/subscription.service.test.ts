@@ -172,6 +172,7 @@ describe("subscription service", () => {
   it("routes webhook event types to the expected handlers", async () => {
     const processors = {
       handleCheckoutSessionCompleted: vi.fn(async () => {}),
+      handleCheckoutSessionExpired: vi.fn(async () => {}),
       handleSubscriptionChanged: vi.fn(async () => {}),
       handleInvoiceEvent: vi.fn(async () => {})
     };
@@ -182,6 +183,17 @@ describe("subscription service", () => {
         type: "checkout.session.completed",
         data: {
           object: { id: "cs_123" }
+        }
+      } as unknown as Stripe.Event,
+      processors
+    );
+
+    await processStripeWebhookEvent(
+      {
+        id: "evt_expired",
+        type: "checkout.session.expired",
+        data: {
+          object: { id: "cs_expired" }
         }
       } as unknown as Stripe.Event,
       processors
@@ -210,6 +222,7 @@ describe("subscription service", () => {
     );
 
     expect(processors.handleCheckoutSessionCompleted).toHaveBeenCalledTimes(1);
+    expect(processors.handleCheckoutSessionExpired).toHaveBeenCalledTimes(1);
     expect(processors.handleSubscriptionChanged).toHaveBeenCalledTimes(1);
     expect(processors.handleInvoiceEvent).toHaveBeenCalledTimes(1);
   });

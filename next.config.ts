@@ -17,7 +17,7 @@ function cspSourceFromUrl(value: string | undefined, allowedProtocols: string[])
   }
 }
 
-function buildContentSecurityPolicy() {
+export function buildContentSecurityPolicy() {
   const liveKitConnectSource = cspSourceFromUrl(process.env.LIVEKIT_URL, [
     "ws:",
     "wss:",

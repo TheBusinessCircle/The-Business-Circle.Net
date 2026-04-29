@@ -44,6 +44,24 @@ describe("join-mobile cinematic fallback", () => {
     ).toBe(true);
   });
 
+  it("shows the fallback action layer if portal readiness times out or errors", () => {
+    expect(
+      shouldShowJoin2FallbackActions({
+        reduceMotion: false,
+        fallbackReason: "timeout",
+        sceneStage: "intro"
+      })
+    ).toBe(true);
+
+    expect(
+      shouldShowJoin2FallbackActions({
+        reduceMotion: false,
+        fallbackReason: "error",
+        sceneStage: "intro"
+      })
+    ).toBe(true);
+  });
+
   it("treats keyboard activation keys as valid portal entry input", () => {
     expect(isJoin2ActivationKey("Enter")).toBe(true);
     expect(isJoin2ActivationKey(" ")).toBe(true);
@@ -58,5 +76,10 @@ describe("join-mobile cinematic fallback", () => {
 
     expect(source).toContain("onKeyDown={handlePortalKeyDown}");
     expect(source).toContain('setSceneStage("choices")');
+    expect(source).toContain("Explore The Business Circle");
+    expect(source).toContain("Continue to join");
+    expect(source).toContain("Sign in");
+    expect(source).toContain('video.addEventListener("error", markVideoFallback)');
+    expect(source).toContain("JOIN2_FALLBACK_TIMEOUT_MS");
   });
 });
