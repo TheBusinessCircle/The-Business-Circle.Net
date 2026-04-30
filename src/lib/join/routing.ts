@@ -49,6 +49,7 @@ function buildSelectionHref(
   interval?: string;
   period?: string;
   billing?: string;
+  source?: string;
   invite?: string;
   auth?: string;
   coreAccessConfirmed?: string | boolean;
@@ -76,6 +77,10 @@ function buildSelectionHref(
     search.set("billing", input.billing);
   }
 
+  if (input.source === "audit") {
+    search.set("source", "audit");
+  }
+
   if (invite) {
     search.set("invite", invite);
   }
@@ -97,6 +102,7 @@ export function buildMembershipDecisionHref(input: {
   interval?: string;
   period?: string;
   billing?: string;
+  source?: string;
   invite?: string;
   auth?: string;
   coreAccessConfirmed?: string | boolean;
@@ -110,6 +116,7 @@ export function buildJoinConfirmationHref(input: {
   interval?: string;
   period?: string;
   billing?: string;
+  source?: string;
   invite?: string;
   auth?: string;
   coreAccessConfirmed?: string | boolean;
@@ -123,6 +130,7 @@ export function buildJoinConfirmationRedirect(input: {
   interval?: string;
   period?: string;
   billing?: string;
+  source?: string;
   invite?: string;
   auth?: string;
   coreAccessConfirmed?: string | boolean;

@@ -9,7 +9,6 @@ import { buildJoin2ActionHrefs, isJoin2ActivationKey } from "@/lib/join/cinemati
 const removedJoinMobilePanelText = [
   ["DIRECT", "ROUTE"].join(" "),
   ["Direct", "route"].join(" "),
-  ["Explore", "The Business Circle"].join(" "),
   ["Continue", "to join"].join(" "),
   ["Sign", "in"].join(" ")
 ];
@@ -25,6 +24,7 @@ describe("join-mobile cinematic entry", () => {
     });
 
     expect(hrefs.publicSiteHref).toBe("/");
+    expect(hrefs.auditHref).toBe("/audit");
     expect(hrefs.loginHref).toBe("/login?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly");
     expect(hrefs.joinHref).toBe(
       "/join?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly&tier=inner-circle&period=annual&billing=cancelled&invite=BCN-TEST&auth=register"
@@ -61,12 +61,12 @@ describe("join-mobile cinematic entry", () => {
     );
 
     expect(source).toContain("onKeyDown={handlePortalKeyDown}");
-    expect(source).toContain("window.location.assign(joinHref)");
+    expect(source).toContain('setSceneStage("choices")');
     expect(source).toContain('video.addEventListener("error", markVideoFallback)');
     expect(source).toContain("JOIN2_FALLBACK_TIMEOUT_MS");
   });
 
-  it("keeps the mobile source free of duplicated route-panel copy", () => {
+  it("keeps the mobile source free of the removed floating route panel", () => {
     const source = readFileSync(
       join(process.cwd(), "src/components/auth/join2-cinematic-entry.tsx"),
       "utf8"
@@ -78,6 +78,18 @@ describe("join-mobile cinematic entry", () => {
     });
     expect(source).not.toContain(["fallback", "Actions"].join(""));
     expect(source).not.toContain(["shouldShowJoin2", "FallbackActions"].join(""));
+  });
+
+  it("adds the founder audit as the third post-cinematic route card", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/components/auth/join2-cinematic-entry.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain("Explore The Business Circle");
+    expect(source).toContain("Go straight to join");
+    expect(source).toContain("Run the Founder Audit");
+    expect(source).toContain("actionHrefs.auditHref");
   });
 
   it("uses the lower portal alignment for the Step Inside overlay", () => {

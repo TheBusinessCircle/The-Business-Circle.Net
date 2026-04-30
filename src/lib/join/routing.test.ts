@@ -46,6 +46,24 @@ describe("public to paid join routing", () => {
     ).toBe("/join?tier=core&period=monthly&billing=cancelled&invite=CORE-123&auth=register");
   });
 
+  it("preserves the audit source marker on membership selection links only when expected", () => {
+    expect(
+      buildMembershipDecisionHref({
+        tier: "FOUNDATION",
+        period: "monthly",
+        source: "audit"
+      })
+    ).toBe("/membership?tier=foundation&period=monthly&source=audit");
+
+    expect(
+      buildMembershipDecisionHref({
+        tier: "CORE",
+        period: "annual",
+        source: "newsletter"
+      })
+    ).toBe("/membership?tier=core&period=annual");
+  });
+
   it("uses mobile join only for mobile-sized or mobile user-agent requests", () => {
     expect(
       shouldUseMobileJoin(

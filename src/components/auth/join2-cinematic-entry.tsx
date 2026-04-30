@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -10,6 +11,7 @@ import {
   useState
 } from "react";
 import { motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import {
   JOIN2_FALLBACK_TIMEOUT_MS,
   JOIN2_HANDOFF_STORAGE_KEY,
@@ -395,7 +397,7 @@ export function Join2CinematicEntry({
     []
   );
 
-  const joinHref = useMemo(
+  const actionHrefs = useMemo(
     () =>
       buildJoin2ActionHrefs({
         tier: initialSelectedTier,
@@ -403,9 +405,11 @@ export function Join2CinematicEntry({
         billing,
         from: resolvedContext.from,
         inviteCode: resolvedContext.inviteCode
-      }).joinHref,
+      }),
     [billing, billingInterval, initialSelectedTier, resolvedContext.from, resolvedContext.inviteCode]
   );
+
+  const joinHref = actionHrefs.joinHref;
 
   const handlePortalMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (reduceMotion || sceneStage !== "intro") {
@@ -435,7 +439,7 @@ export function Join2CinematicEntry({
     setSceneStage("entering");
 
     transitionTimerRef.current = window.setTimeout(
-      () => window.location.assign(joinHref),
+      () => setSceneStage("choices"),
       reduceMotion ? 160 : 1120
     );
   };
@@ -468,7 +472,7 @@ export function Join2CinematicEntry({
         key="intro-scene"
         className={styles.heroScene}
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        animate={{ opacity: sceneStage === "choices" ? 0 : 1 }}
         transition={{ duration: reduceMotion ? 0.25 : 0.65, ease: portalEase }}
       >
         <motion.div
@@ -594,6 +598,77 @@ export function Join2CinematicEntry({
           </div>
         </motion.div>
       </motion.section>
+
+      {sceneStage === "choices" ? (
+        <motion.section
+          key="choice-scene"
+          className={styles.choiceScene}
+          initial={reduceMotion ? false : { opacity: 0, y: 22, filter: "blur(12px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.78, ease: portalEase }}
+          aria-label="Choose how to enter The Business Circle"
+        >
+          <div className={styles.choiceShell}>
+            <div className={styles.choiceIntro}>
+              <p className={styles.choiceKicker}>Choose your route</p>
+              <h1 className={styles.choiceTitle}>Enter the room with the right level of clarity.</h1>
+              <p className={styles.choiceText}>
+                Explore the wider business environment, move straight into join, or run a short
+                founder audit before you choose.
+              </p>
+            </div>
+
+            <div className={styles.pathGrid}>
+              <Link href={actionHrefs.publicSiteHref} className={styles.pathway}>
+                <span className={styles.pathNumber}>01</span>
+                <span className={styles.pathEyebrow}>PUBLIC CIRCLE</span>
+                <span className={styles.pathHeading}>Explore The Business Circle</span>
+                <span className={styles.pathBody}>
+                  See the wider environment, the founder context, and how the private rooms are
+                  designed before you choose a route.
+                </span>
+                <span className={styles.pathSupport}>Start with the wider picture.</span>
+                <span className={styles.pathCta}>
+                  Explore the circle
+                  <ArrowRight size={15} aria-hidden="true" />
+                </span>
+              </Link>
+
+              <Link href={joinHref} className={`${styles.pathway} ${styles.pathwayPrimary}`}>
+                <span className={styles.pathNumber}>02</span>
+                <span className={styles.pathEyebrow}>MEMBERSHIP ROUTE</span>
+                <span className={styles.pathHeading}>Go straight to join</span>
+                <span className={styles.pathBody}>
+                  If the fit is already clear, continue into the selected membership room and carry
+                  your choice into checkout.
+                </span>
+                <span className={styles.pathSupport}>Your selected room stays with you.</span>
+                <span className={styles.pathCta}>
+                  Go to join
+                  <ArrowRight size={15} aria-hidden="true" />
+                </span>
+              </Link>
+
+              <Link href={actionHrefs.auditHref} className={`${styles.pathway} ${styles.pathwayAudit}`}>
+                <span className={styles.pathNumber}>03</span>
+                <span className={styles.pathEyebrow}>CLARITY CHECKPOINT</span>
+                <span className={styles.pathHeading}>Run the Founder Audit</span>
+                <span className={styles.pathBody}>
+                  Take 2 minutes to understand where your business currently sits, what may be
+                  slowing you down, and which room inside The Business Circle fits you best.
+                </span>
+                <span className={styles.pathSupport}>
+                  No fluff. Just clarity before you choose your next move.
+                </span>
+                <span className={styles.pathCta}>
+                  Start the audit
+                  <ArrowRight size={15} aria-hidden="true" />
+                </span>
+              </Link>
+            </div>
+          </div>
+        </motion.section>
+      ) : null}
     </div>
   );
 }

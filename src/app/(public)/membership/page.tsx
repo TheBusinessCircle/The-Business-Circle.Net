@@ -49,6 +49,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
   const params = await searchParams;
   const billing = firstValue(params.billing);
   const from = firstValue(params.from);
+  const source = firstValue(params.source) === "audit" ? "audit" : undefined;
   const inviteCode = (firstValue(params.invite) ?? "").trim().toUpperCase() || undefined;
   const selectedTier = resolveMembershipTierInput(firstValue(params.tier));
   const billingInterval = resolveMembershipBillingInterval(
@@ -140,6 +141,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         initialSelectedTier={selectedTier}
         initialBillingInterval={billingInterval}
         billing={billing}
+        source={source}
         from={from}
         inviteCode={inviteCode}
         foundingOfferByTier={foundingOfferByTier}

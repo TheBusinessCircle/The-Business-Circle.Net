@@ -50,6 +50,7 @@ type MembershipGuidedSelectorProps = {
   initialSelectedTier: MembershipTier;
   initialBillingInterval: MembershipBillingInterval;
   billing?: string;
+  source?: "audit";
   from?: string;
   inviteCode?: string;
   foundingOfferByTier: Record<MembershipTier, FoundingOfferTierSnapshot>;
@@ -280,6 +281,7 @@ function SelectedPathPanel({
   offer,
   joinHref,
   reducedMotion,
+  source,
   compact = false
 }: {
   guide: TierGuide;
@@ -287,6 +289,7 @@ function SelectedPathPanel({
   offer: FoundingOfferTierSnapshot;
   joinHref: string;
   reducedMotion: boolean;
+  source?: "audit";
   compact?: boolean;
 }) {
   const selectedDisplayPrice = selectedPriceForInterval(offer, billingInterval);
@@ -294,6 +297,7 @@ function SelectedPathPanel({
   const selectedDefinition = getMembershipTierDefinition(guide.tier);
   const selectedTierAccentClassName = getTierAccentTextClassName(guide.tier);
   const selectedTierIconClassName = getTierIconClassName(guide.tier);
+  const cameFromAudit = source === "audit";
 
   return (
     <motion.article
@@ -314,6 +318,11 @@ function SelectedPathPanel({
             <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
               Selected
             </span>
+            {cameFromAudit ? (
+              <span className="rounded-full border border-gold/24 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
+                Recommended based on your audit
+              </span>
+            ) : null}
           </div>
           <div className="space-y-2">
             <h2 className="font-display text-2xl text-foreground sm:text-[2.1rem]">
@@ -485,6 +494,7 @@ export function MembershipGuidedSelector({
   initialSelectedTier,
   initialBillingInterval,
   billing,
+  source,
   from,
   inviteCode,
   foundingOfferByTier,
@@ -514,10 +524,11 @@ export function MembershipGuidedSelector({
         tier: getMembershipTierSlug(selectedTier),
         period: billingInterval,
         billing,
+        source,
         from,
         invite: inviteCode
       }),
-    [billing, billingInterval, from, inviteCode, selectedTier]
+    [billing, billingInterval, from, inviteCode, selectedTier, source]
   );
 
   useEffect(() => {
@@ -693,7 +704,7 @@ export function MembershipGuidedSelector({
                       </span>
                       {selected ? (
                         <span className="rounded-full border border-white/12 bg-background/28 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-foreground">
-                          Selected
+                          {source === "audit" ? "Recommended based on your audit" : "Selected"}
                         </span>
                       ) : null}
                     </div>
@@ -733,6 +744,7 @@ export function MembershipGuidedSelector({
                 offer={selectedOffer}
                 joinHref={selectedJoinHref}
                 reducedMotion={reducedMotion}
+                source={source}
               />
             </AnimatePresence>
           </aside>
