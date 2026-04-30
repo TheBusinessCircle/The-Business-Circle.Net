@@ -90,10 +90,22 @@ describe("join-mobile cinematic entry", () => {
       "utf8"
     );
 
-    expect(source).toContain("centerY: 0.465");
-    expect(styles).toContain("--join2-portal-top: 46.5%");
-    expect(styles).toContain("--join2-portal-top: 46.2%");
-    expect(styles).toContain("--join2-portal-top: 46.7%");
-    expect(styles).toContain("--join2-portal-top: 47.2%");
+    expect(source).toContain("centerY: 0.445");
+    expect(styles).toContain("--join2-portal-top: 44.5%");
+    expect(styles).toContain("--join2-portal-top: 44.2%");
+    expect(styles).toContain("--join2-portal-top: 44.7%");
+    expect(styles).toContain("--join2-portal-top: 45.2%");
+  });
+
+  it("keeps the Step Inside label slightly enlarged without changing the portal ring", () => {
+    const styles = readFileSync(
+      join(process.cwd(), "src/components/auth/join2-cinematic-entry.module.css"),
+      "utf8"
+    );
+
+    expect(styles).toContain("padding: 0.9rem 1.3rem;");
+    expect(styles).toContain("font-size: 0.7rem;");
+    expect(styles).toContain("padding: 0.78rem 1.04rem;");
+    expect(styles).toContain("font-size: 0.61rem;");
   });
 });

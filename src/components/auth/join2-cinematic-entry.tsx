@@ -47,7 +47,7 @@ type PortalStyleVars = CSSProperties & {
 const portalEase = [0.2, 0.72, 0.18, 1] as const;
 const portalTarget = {
   centerX: 0.506,
-  centerY: 0.465,
+  centerY: 0.445,
   diameter: 0.734
 } as const;
 
@@ -114,7 +114,7 @@ export function Join2CinematicEntry({
   const [portalReady, setPortalReady] = useState(Boolean(reduceMotion));
   const [portalStyleVars, setPortalStyleVars] = useState<PortalStyleVars>(() => ({
     "--join2-portal-left": "50.6%",
-    "--join2-portal-top": "46.5%",
+    "--join2-portal-top": "44.5%",
     "--join2-portal-size": "73.4%"
   }));
   const [resolvedContext, setResolvedContext] = useState<JoinHandoff>({

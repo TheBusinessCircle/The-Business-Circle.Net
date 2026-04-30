@@ -93,7 +93,7 @@
 
 .heroStage {
   --join2-portal-left: 50.2%;
-  --join2-portal-top: 46.5%;
+  --join2-portal-top: 44.5%;
   --join2-portal-size: 79%;
   --join2-copy-left: 8%;
   --join2-copy-right: 8%;
@@ -399,15 +399,15 @@
   justify-content: center;
   border: 1px solid rgba(215, 180, 107, 0.3);
   border-radius: 999px;
-  padding: 0.82rem 1.14rem;
+  padding: 0.9rem 1.3rem;
   background: rgba(2, 7, 17, 0.48);
   color: var(--join2-gold);
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.28em;
   text-transform: uppercase;
   box-shadow:
-    0 16px 34px rgba(0, 0, 0, 0.3),
+    0 18px 38px rgba(0, 0, 0, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(16px);
 }
@@ -497,7 +497,7 @@
 @media (min-width: 1280px) {
   .heroStage {
     --join2-portal-left: 50.1%;
-    --join2-portal-top: 46.2%;
+    --join2-portal-top: 44.2%;
     --join2-portal-size: 78.5%;
     --join2-copy-left: 8.5%;
     --join2-copy-right: 10%;
@@ -507,7 +507,7 @@
 @media (max-width: 900px) {
   .heroStage {
     --join2-portal-left: 50.4%;
-    --join2-portal-top: 46.7%;
+    --join2-portal-top: 44.7%;
     --join2-portal-size: 79.4%;
     --join2-copy-left: 7%;
     --join2-copy-right: 7%;
@@ -523,7 +523,7 @@
 
   .heroStage {
     --join2-portal-left: 50.35%;
-    --join2-portal-top: 47.2%;
+    --join2-portal-top: 45.2%;
     --join2-portal-size: 79.8%;
     --join2-copy-left: 6%;
     --join2-copy-right: 6%;
@@ -548,9 +548,9 @@
   }
 
   .portalLabel {
-    padding: 0.72rem 0.92rem;
-    font-size: 0.58rem;
-    letter-spacing: 0.22em;
+    padding: 0.78rem 1.04rem;
+    font-size: 0.61rem;
+    letter-spacing: 0.24em;
   }
 
 }
