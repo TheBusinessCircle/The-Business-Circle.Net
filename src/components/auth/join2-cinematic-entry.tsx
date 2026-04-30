@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -10,8 +9,7 @@ import {
   useRef,
   useState
 } from "react";
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import {
   JOIN2_FALLBACK_TIMEOUT_MS,
   JOIN2_HANDOFF_STORAGE_KEY,
@@ -35,11 +33,6 @@ type Join2CinematicEntryProps = {
   billing?: string;
 };
 
-type JoinNotice = {
-  tone: "gold" | "muted";
-  text: string;
-};
-
 type JoinHandoff = {
   from?: string;
   inviteCode?: string;
@@ -57,12 +50,6 @@ const portalTarget = {
   centerY: 0.465,
   diameter: 0.734
 } as const;
-
-const tierLabels: Record<Join2MembershipTier, string> = {
-  FOUNDATION: "Foundation",
-  INNER_CIRCLE: "Inner Circle",
-  CORE: "Core"
-};
 
 function readJoinHandoff(): JoinHandoff {
   if (typeof window === "undefined") {
@@ -408,7 +395,7 @@ export function Join2CinematicEntry({
     []
   );
 
-  const actionHrefs = useMemo(
+  const joinHref = useMemo(
     () =>
       buildJoin2ActionHrefs({
         tier: initialSelectedTier,
@@ -416,41 +403,9 @@ export function Join2CinematicEntry({
         billing,
         from: resolvedContext.from,
         inviteCode: resolvedContext.inviteCode
-      }),
+      }).joinHref,
     [billing, billingInterval, initialSelectedTier, resolvedContext.from, resolvedContext.inviteCode]
   );
-
-  const joinFootnote = useMemo(
-    () => `Join opens with ${tierLabels[initialSelectedTier]} already selected.`,
-    [initialSelectedTier]
-  );
-
-  const notices = useMemo(() => {
-    const nextNotices: JoinNotice[] = [];
-
-    if (error === "suspended") {
-      nextNotices.push({
-        tone: "gold",
-        text: "Your account is currently suspended. Sign in or contact support to reactivate access."
-      });
-    }
-
-    if (billing === "cancelled") {
-      nextNotices.push({
-        tone: "muted",
-        text: "Stripe checkout was cancelled. You can continue into membership again from here."
-      });
-    }
-
-    if (resolvedContext.inviteCode) {
-      nextNotices.push({
-        tone: "gold",
-        text: `Member invite ${resolvedContext.inviteCode} is attached to this path.`
-      });
-    }
-
-    return nextNotices;
-  }, [billing, error, resolvedContext.inviteCode]);
 
   const handlePortalMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (reduceMotion || sceneStage !== "intro") {
@@ -476,10 +431,11 @@ export function Join2CinematicEntry({
     }
 
     resetPortalPosition();
+    writeJoinHandoff(resolvedContext);
     setSceneStage("entering");
 
     transitionTimerRef.current = window.setTimeout(
-      () => setSceneStage("choices"),
+      () => window.location.assign(joinHref),
       reduceMotion ? 160 : 1120
     );
   };
@@ -491,10 +447,6 @@ export function Join2CinematicEntry({
 
     event.preventDefault();
     handlePortalOpen();
-  };
-
-  const handleJoinChoice = () => {
-    writeJoinHandoff(resolvedContext);
   };
 
   return (
@@ -512,261 +464,136 @@ export function Join2CinematicEntry({
         <div className={styles.ambientHaze} />
       </div>
 
-      <AnimatePresence mode="wait" initial={false}>
-        {sceneStage !== "choices" ? (
-          <motion.section
-            key="intro-scene"
-            className={styles.heroScene}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0.25 : 0.65, ease: portalEase }}
-          >
+      <motion.section
+        key="intro-scene"
+        className={styles.heroScene}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: reduceMotion ? 0.25 : 0.65, ease: portalEase }}
+      >
+        <motion.div
+          className={styles.heroStage}
+          style={{
+            ...portalStyleVars,
+            transformOrigin: `${portalStyleVars["--join2-portal-left"]} ${portalStyleVars["--join2-portal-top"]}`
+          }}
+          initial={false}
+          animate={
+            sceneStage === "entering"
+              ? {
+                  opacity: 0.12,
+                  scale: 1.36,
+                  y: -26,
+                  filter: "blur(20px)"
+                }
+              : {
+                  opacity: 1,
+                  scale: 1,
+                  y: 0,
+                  filter: "blur(0px)"
+                }
+          }
+          transition={{ duration: reduceMotion ? 0.26 : 1.08, ease: portalEase }}
+        >
+          <div ref={heroFrameRef} className={styles.heroFrame}>
+            <div className={styles.heroMedia}>
+              <video
+                ref={videoRef}
+                className={styles.heroVideo}
+                autoPlay
+                muted
+                playsInline
+                preload="auto"
+                poster="/branding/the-business-circle-logo.webp"
+                aria-hidden="true"
+              >
+                <source src="/branding/join-hero-atmosphere.mp4" type="video/mp4" />
+              </video>
+
+              <motion.div
+                className={styles.heroVideoVeil}
+                aria-hidden="true"
+                initial={false}
+                animate={sceneStage === "entering" ? { opacity: 0.18, scale: 1.06 } : { opacity: 1, scale: 1 }}
+                transition={{ duration: reduceMotion ? 0.26 : 1.08, ease: portalEase }}
+              />
+            </div>
+
+            <div className={styles.heroFrameBorder} aria-hidden="true" />
+            <div className={styles.heroFrameGlow} aria-hidden="true" />
+
             <motion.div
-              className={styles.heroStage}
-              style={{
-                ...portalStyleVars,
-                transformOrigin: `${portalStyleVars["--join2-portal-left"]} ${portalStyleVars["--join2-portal-top"]}`
-              }}
+              className={styles.waterCopy}
+              initial={reduceMotion ? false : { opacity: 0, y: 16, filter: "blur(10px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ delay: reduceMotion ? 0 : 0.38, duration: 0.96, ease: portalEase }}
+            >
+              <p className={styles.copyLead}>Not every room is worth entering.</p>
+              <p className={styles.copySupport}>
+                This one is built for business owners moving with intent.
+              </p>
+            </motion.div>
+
+            <div className={styles.portalAnchor}>
+              <motion.div
+                className={styles.portalAssembly}
+                initial={false}
+                animate={
+                  sceneStage === "entering"
+                    ? { opacity: 1, scale: 1.04 }
+                    : portalReady
+                      ? { opacity: 1, scale: 1 }
+                      : { opacity: 0, scale: 0.94 }
+                }
+                transition={{ duration: reduceMotion ? 0.2 : 0.76, ease: portalEase }}
+              >
+                <span className={styles.portalCharge} aria-hidden="true" />
+                <span className={styles.portalShadow} aria-hidden="true" />
+                <motion.button
+                  type="button"
+                  className={styles.portalButton}
+                  aria-label="Step inside The Business Circle"
+                  aria-disabled={!portalReady || sceneStage !== "intro"}
+                  data-entering={sceneStage === "entering"}
+                  disabled={!portalReady || sceneStage !== "intro"}
+                  style={{ x: springX, y: springY }}
+                  whileHover={reduceMotion || !portalReady ? undefined : { scale: 1.01 }}
+                  whileTap={reduceMotion || !portalReady ? undefined : { scale: 0.994 }}
+                  transition={{ duration: 0.3, ease: portalEase }}
+                  onPointerMove={handlePortalMove}
+                  onPointerLeave={resetPortalPosition}
+                  onClick={handlePortalOpen}
+                  onKeyDown={handlePortalKeyDown}
+                >
+                  <span className={styles.portalRing} aria-hidden="true" />
+                  <span className={styles.portalInnerRing} aria-hidden="true" />
+                  <span className={styles.portalCore} aria-hidden="true" />
+                  <span className={styles.portalSweep} aria-hidden="true" />
+                  <span className={styles.portalLabel}>Step inside</span>
+                </motion.button>
+              </motion.div>
+            </div>
+
+            <motion.div
+              className={styles.warpBloom}
+              aria-hidden="true"
               initial={false}
               animate={
                 sceneStage === "entering"
                   ? {
-                      opacity: 0.12,
-                      scale: 1.36,
-                      y: -26,
-                      filter: "blur(20px)"
+                      opacity: [0, 0.3, 0.72],
+                      scale: [0.92, 1.02, 1.44]
                     }
                   : {
-                      opacity: 1,
-                      scale: 1,
-                      y: 0,
-                      filter: "blur(0px)"
+                      opacity: 0,
+                      scale: 0.92
                     }
               }
-              transition={{ duration: reduceMotion ? 0.26 : 1.08, ease: portalEase }}
-            >
-              <div ref={heroFrameRef} className={styles.heroFrame}>
-                <div className={styles.heroMedia}>
-                  <video
-                    ref={videoRef}
-                    className={styles.heroVideo}
-                    autoPlay
-                    muted
-                    playsInline
-                    preload="auto"
-                    poster="/branding/the-business-circle-logo.webp"
-                    aria-hidden="true"
-                  >
-                    <source src="/branding/join-hero-atmosphere.mp4" type="video/mp4" />
-                  </video>
-
-                  <motion.div
-                    className={styles.heroVideoVeil}
-                    aria-hidden="true"
-                    initial={false}
-                    animate={
-                      sceneStage === "entering"
-                        ? { opacity: 0.18, scale: 1.06 }
-                        : { opacity: 1, scale: 1 }
-                    }
-                    transition={{ duration: reduceMotion ? 0.26 : 1.08, ease: portalEase }}
-                  />
-                </div>
-
-                <div className={styles.heroFrameBorder} aria-hidden="true" />
-                <div className={styles.heroFrameGlow} aria-hidden="true" />
-
-                <motion.div
-                  className={styles.waterCopy}
-                  initial={reduceMotion ? false : { opacity: 0, y: 16, filter: "blur(10px)" }}
-                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  transition={{ delay: reduceMotion ? 0 : 0.38, duration: 0.96, ease: portalEase }}
-                >
-                  <p className={styles.copyLead}>Not every room is worth entering.</p>
-                  <p className={styles.copySupport}>
-                    This one is built for business owners moving with intent.
-                  </p>
-                </motion.div>
-
-                <div className={styles.portalAnchor}>
-                  <motion.div
-                    className={styles.portalAssembly}
-                    initial={false}
-                    animate={
-                      sceneStage === "entering"
-                        ? { opacity: 1, scale: 1.04 }
-                        : portalReady
-                          ? { opacity: 1, scale: 1 }
-                          : { opacity: 0, scale: 0.94 }
-                    }
-                    transition={{ duration: reduceMotion ? 0.2 : 0.76, ease: portalEase }}
-                  >
-                    <span className={styles.portalCharge} aria-hidden="true" />
-                    <span className={styles.portalShadow} aria-hidden="true" />
-                    <motion.button
-                      type="button"
-                      className={styles.portalButton}
-                      aria-label="Step inside The Business Circle"
-                      aria-disabled={!portalReady || sceneStage !== "intro"}
-                      data-entering={sceneStage === "entering"}
-                      disabled={!portalReady || sceneStage !== "intro"}
-                      style={{ x: springX, y: springY }}
-                      whileHover={reduceMotion || !portalReady ? undefined : { scale: 1.01 }}
-                      whileTap={reduceMotion || !portalReady ? undefined : { scale: 0.994 }}
-                      transition={{ duration: 0.3, ease: portalEase }}
-                      onPointerMove={handlePortalMove}
-                      onPointerLeave={resetPortalPosition}
-                      onClick={handlePortalOpen}
-                      onKeyDown={handlePortalKeyDown}
-                    >
-                      <span className={styles.portalRing} aria-hidden="true" />
-                      <span className={styles.portalInnerRing} aria-hidden="true" />
-                      <span className={styles.portalCore} aria-hidden="true" />
-                      <span className={styles.portalSweep} aria-hidden="true" />
-                      <span className={styles.portalLabel}>Step inside</span>
-                    </motion.button>
-                  </motion.div>
-                </div>
-
-                <motion.div
-                  className={styles.warpBloom}
-                  aria-hidden="true"
-                  initial={false}
-                  animate={
-                    sceneStage === "entering"
-                      ? {
-                          opacity: [0, 0.3, 0.72],
-                          scale: [0.92, 1.02, 1.44]
-                        }
-                      : {
-                          opacity: 0,
-                          scale: 0.92
-                        }
-                  }
-                  transition={{ duration: reduceMotion ? 0.26 : 1.02, ease: portalEase }}
-                />
-
-              </div>
-            </motion.div>
-          </motion.section>
-        ) : (
-          <motion.section
-            key="choice-scene"
-            className={styles.choiceScene}
-            initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.975, y: 28 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0.24 : 0.94, ease: portalEase }}
-          >
-            <div className={styles.choiceShell}>
-              <motion.header
-                className={styles.choiceHeader}
-                initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: reduceMotion ? 0 : 0.08, duration: 0.76, ease: portalEase }}
-              >
-                <h2 className={styles.choiceTitle}>Choose your path</h2>
-                <p className={styles.choiceCopy}>
-                  Explore the public side of The Business Circle first, or move straight into join if you already know your room.
-                </p>
-              </motion.header>
-
-              {notices.length ? (
-                <motion.div
-                  className={styles.noticeStack}
-                  initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: reduceMotion ? 0 : 0.16, duration: 0.72, ease: portalEase }}
-                >
-                  {notices.map((notice) => (
-                    <p
-                      key={notice.text}
-                      className={
-                        notice.tone === "muted" ? `${styles.notice} ${styles.mutedNotice}` : styles.notice
-                      }
-                    >
-                      {notice.text}
-                    </p>
-                  ))}
-                </motion.div>
-              ) : null}
-
-              <div className={styles.pathGrid}>
-                <motion.div
-                  initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: reduceMotion ? 0 : 0.22, duration: 0.82, ease: portalEase }}
-                >
-                  <Link
-                    href={actionHrefs.publicSiteHref}
-                    className={`${styles.pathway} ${styles.pathwayExplore}`}
-                  >
-                    <span className={styles.pathwayIndex}>01</span>
-                    <span className={styles.pathwayOrbit} aria-hidden="true" />
-                    <div className={styles.pathwayBody}>
-                      <span className={styles.pathwayEyebrow}>Public site</span>
-                      <h3 className={styles.pathwayTitle}>Explore The Business Circle</h3>
-                      <p className={styles.pathwayDescription}>
-                        Enter the non-member side of the site, starting with the homepage and the wider public sections.
-                      </p>
-                    </div>
-                    <span className={styles.pathwayAction}>
-                      Enter the homepage
-                      <ArrowRight size={15} />
-                    </span>
-                  </Link>
-                </motion.div>
-
-                <motion.div
-                  initial={reduceMotion ? false : { opacity: 0, y: 24 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: reduceMotion ? 0 : 0.32, duration: 0.88, ease: portalEase }}
-                >
-                  <Link
-                    href={actionHrefs.joinHref}
-                    className={`${styles.pathway} ${styles.pathwayJoin}`}
-                    onClick={handleJoinChoice}
-                  >
-                    <span className={styles.pathwayIndex}>02</span>
-                    <span className={styles.pathwayOrbit} aria-hidden="true" />
-                    <div className={styles.pathwayBody}>
-                      <span className={styles.pathwayEyebrow}>Direct route</span>
-                      <h3 className={styles.pathwayTitle}>Go straight to join</h3>
-                      <p className={styles.pathwayDescription}>
-                        Enter the sign-up and pricing confirmation page with your selection already in place.
-                      </p>
-                    </div>
-                    <div className={styles.pathwayMeta}>
-                      <span className={styles.pathwayFootnote}>{joinFootnote}</span>
-                      <span className={styles.pathwayAction}>
-                        Continue to join
-                        <ArrowRight size={15} />
-                      </span>
-                    </div>
-                  </Link>
-                </motion.div>
-              </div>
-
-              <motion.footer
-                className={styles.choiceFooter}
-                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: reduceMotion ? 0 : 0.42, duration: 0.72, ease: portalEase }}
-              >
-                <Link href={actionHrefs.loginHref} className={styles.signInLink}>
-                  Already a member? Sign in
-                </Link>
-                <div className={styles.footerLinks}>
-                  <Link href="/privacy-policy">Privacy</Link>
-                  <span aria-hidden="true">/</span>
-                  <Link href="/terms-of-service">Terms</Link>
-                </div>
-              </motion.footer>
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
+              transition={{ duration: reduceMotion ? 0.26 : 1.02, ease: portalEase }}
+            />
+          </div>
+        </motion.div>
+      </motion.section>
     </div>
   );
 }

@@ -24,7 +24,7 @@ Stripe subscriptions should use Billing APIs with Checkout Sessions. Do not test
 
 1. Confirm required environment variables exist for the selected tier and interval price IDs.
 2. Create or use an unpaid test user and choose Foundation monthly from `/membership`.
-3. Continue to join/account setup and start Stripe Checkout.
+3. Proceed to join/account setup and start Stripe Checkout.
 4. Complete Checkout with a Stripe test card.
 5. Confirm `checkout.session.completed` reaches `/api/stripe/webhook` with a valid signature.
 6. Confirm the webhook creates/updates the local subscription, Stripe customer ID, subscription ID, price ID, status, billing interval, and membership tier.

@@ -516,7 +516,7 @@ export function JoinCinematicEntry({
                     <div className={styles.choiceContent}>
                       <div className={styles.choiceHeadingBlock}>
                         <span className={styles.choiceEyebrow}>Public site</span>
-                        <h3 className={styles.choiceHeading}>Explore The Business Circle</h3>
+                        <h3 className={styles.choiceHeading}>Explore the public site</h3>
                         <p className={styles.choiceDescription}>
                           Enter the non-member side of the site, starting with the homepage and the wider public sections.
                         </p>
@@ -547,7 +547,7 @@ export function JoinCinematicEntry({
                     <span className={styles.choiceOrbit} aria-hidden="true" />
                     <div className={styles.choiceContent}>
                       <div className={styles.choiceHeadingBlock}>
-                        <span className={styles.choiceEyebrow}>Direct route</span>
+                        <span className={styles.choiceEyebrow}>Membership route</span>
                         <h3 className={styles.choiceHeading}>Go straight to join</h3>
                         <p className={styles.choiceDescription}>
                           Enter the sign-up and pricing confirmation page with your selection already in place.
@@ -557,7 +557,7 @@ export function JoinCinematicEntry({
                       <div className={styles.choiceMeta}>
                         <span className={styles.choiceFootnote}>{joinFootnote}</span>
                         <span className={styles.choiceAction}>
-                          Continue to join
+                          Continue your join
                           <ArrowRight size={15} />
                         </span>
                       </div>

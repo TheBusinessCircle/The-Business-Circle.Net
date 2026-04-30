@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { Join2CinematicEntry } from "@/components/auth/join2-cinematic-entry";
 import { buildJoin2ActionHrefs, isJoin2ActivationKey } from "@/lib/join/cinematic-entry";
+
+const removedJoinMobilePanelText = [
+  ["DIRECT", "ROUTE"].join(" "),
+  ["Direct", "route"].join(" "),
+  ["Explore", "The Business Circle"].join(" "),
+  ["Continue", "to join"].join(" "),
+  ["Sign", "in"].join(" ")
+];
 
 describe("join-mobile cinematic entry", () => {
   it("preserves selected tier, billing period, invite, and from in the join href", () => {
@@ -26,31 +37,63 @@ describe("join-mobile cinematic entry", () => {
     expect(isJoin2ActivationKey("Escape")).toBe(false);
   });
 
-  it("wires keyboard activation into the portal button choice transition", () => {
+  it("renders the mobile cinematic entrance without route-panel text", () => {
+    const markup = renderToStaticMarkup(
+      createElement(Join2CinematicEntry, {
+        initialSelectedTier: "FOUNDATION",
+        billingInterval: "monthly"
+      })
+    );
+
+    expect(markup).toContain("Step inside");
+    expect(markup).toContain("Not every room is worth entering.");
+    expect(markup).toContain("This one is built for business owners moving with intent.");
+
+    removedJoinMobilePanelText.forEach((text) => {
+      expect(markup).not.toContain(text);
+    });
+  });
+
+  it("wires keyboard activation into the portal button join transition", () => {
     const source = readFileSync(
       join(process.cwd(), "src/components/auth/join2-cinematic-entry.tsx"),
       "utf8"
     );
 
     expect(source).toContain("onKeyDown={handlePortalKeyDown}");
-    expect(source).toContain('setSceneStage("choices")');
-    expect(source).toContain("Explore The Business Circle");
-    expect(source).toContain("Continue to join");
-    expect(source).toContain("Sign in");
+    expect(source).toContain("window.location.assign(joinHref)");
     expect(source).toContain('video.addEventListener("error", markVideoFallback)');
     expect(source).toContain("JOIN2_FALLBACK_TIMEOUT_MS");
   });
 
-  it("keeps fallback readiness on the Step Inside button instead of rendering a direct-route panel", () => {
+  it("keeps the mobile source free of duplicated route-panel copy", () => {
     const source = readFileSync(
       join(process.cwd(), "src/components/auth/join2-cinematic-entry.tsx"),
       "utf8"
     );
 
     expect(source).toContain("setPortalReady(true)");
-    expect(source).not.toContain("fallbackActions");
-    expect(source).not.toContain("fallbackActionGrid");
-    expect(source).not.toContain("fallbackActionLink");
-    expect(source).not.toContain("shouldShowJoin2FallbackActions");
+    removedJoinMobilePanelText.forEach((text) => {
+      expect(source).not.toContain(text);
+    });
+    expect(source).not.toContain(["fallback", "Actions"].join(""));
+    expect(source).not.toContain(["shouldShowJoin2", "FallbackActions"].join(""));
+  });
+
+  it("uses the lower portal alignment for the Step Inside overlay", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/components/auth/join2-cinematic-entry.tsx"),
+      "utf8"
+    );
+    const styles = readFileSync(
+      join(process.cwd(), "src/components/auth/join2-cinematic-entry.module.css"),
+      "utf8"
+    );
+
+    expect(source).toContain("centerY: 0.465");
+    expect(styles).toContain("--join2-portal-top: 46.5%");
+    expect(styles).toContain("--join2-portal-top: 46.2%");
+    expect(styles).toContain("--join2-portal-top: 46.7%");
+    expect(styles).toContain("--join2-portal-top: 47.2%");
   });
 });
