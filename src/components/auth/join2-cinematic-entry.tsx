@@ -409,8 +409,6 @@ export function Join2CinematicEntry({
     [billing, billingInterval, initialSelectedTier, resolvedContext.from, resolvedContext.inviteCode]
   );
 
-  const joinHref = actionHrefs.joinHref;
-
   const handlePortalMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (reduceMotion || sceneStage !== "intro") {
       return;
@@ -621,30 +619,31 @@ export function Join2CinematicEntry({
             <div className={styles.pathGrid}>
               <Link href={actionHrefs.publicSiteHref} className={styles.pathway}>
                 <span className={styles.pathNumber}>01</span>
-                <span className={styles.pathEyebrow}>PUBLIC CIRCLE</span>
+                <span className={styles.pathEyebrow}>EXPLORE</span>
                 <span className={styles.pathHeading}>Explore The Business Circle</span>
                 <span className={styles.pathBody}>
-                  See the wider environment, the founder context, and how the private rooms are
-                  designed before you choose a route.
+                  See what The Business Circle is, how it works, and why it exists for business
+                  owners who want better rooms, clearer conversations, and stronger direction.
                 </span>
-                <span className={styles.pathSupport}>Start with the wider picture.</span>
                 <span className={styles.pathCta}>
                   Explore the circle
                   <ArrowRight size={15} aria-hidden="true" />
                 </span>
               </Link>
 
-              <Link href={joinHref} className={`${styles.pathway} ${styles.pathwayPrimary}`}>
+              <Link
+                href={actionHrefs.membershipHref}
+                className={`${styles.pathway} ${styles.pathwayPrimary}`}
+              >
                 <span className={styles.pathNumber}>02</span>
-                <span className={styles.pathEyebrow}>MEMBERSHIP ROUTE</span>
+                <span className={styles.pathEyebrow}>JOIN</span>
                 <span className={styles.pathHeading}>Go straight to join</span>
                 <span className={styles.pathBody}>
-                  If the fit is already clear, continue into the selected membership room and carry
-                  your choice into checkout.
+                  If you already know this is the room you want to enter, continue to the
+                  membership page and choose the tier that fits your stage.
                 </span>
-                <span className={styles.pathSupport}>Your selected room stays with you.</span>
                 <span className={styles.pathCta}>
-                  Go to join
+                  View membership
                   <ArrowRight size={15} aria-hidden="true" />
                 </span>
               </Link>
@@ -664,6 +663,14 @@ export function Join2CinematicEntry({
                   Start the audit
                   <ArrowRight size={15} aria-hidden="true" />
                 </span>
+              </Link>
+            </div>
+
+            <div className={styles.signInRow}>
+              <span>Already a member?</span>
+              <Link href={actionHrefs.loginHref} className={styles.signInLink}>
+                Sign in
+                <ArrowRight size={14} aria-hidden="true" />
               </Link>
             </div>
           </div>

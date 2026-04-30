@@ -50,6 +50,7 @@ export function buildJoin2ActionHrefs({
 }) {
   return {
     publicSiteHref: "/",
+    membershipHref: "/membership",
     auditHref: "/audit",
     joinHref: buildJoinConfirmationHref({
       tier,
@@ -58,7 +59,7 @@ export function buildJoin2ActionHrefs({
       from: sanitizeJoin2From(from),
       invite: normalizeJoin2InviteCode(inviteCode)
     }),
-    loginHref: withJoin2From("/login", from)
+    loginHref: "/login"
   };
 }
 

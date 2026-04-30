@@ -501,14 +501,14 @@
 
 .pathGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(0.85rem, 1.6vw, 1.1rem);
 }
 
 .pathway {
   position: relative;
   display: grid;
-  min-height: 19rem;
+  min-height: 21rem;
   align-content: start;
   gap: 0.85rem;
   overflow: hidden;
@@ -570,8 +570,6 @@
 }
 
 .pathwayAudit {
-  grid-column: 1 / -1;
-  min-height: 16.5rem;
   background:
     radial-gradient(circle at 18% 0%, rgba(32, 74, 138, 0.24), transparent 18rem),
     radial-gradient(circle at 92% 0%, rgba(215, 180, 107, 0.1), transparent 14rem),
@@ -601,6 +599,41 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+}
+
+.signInRow {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  justify-self: center;
+  border: 1px solid rgba(217, 225, 237, 0.1);
+  border-radius: 999px;
+  padding: 0.7rem 0.85rem 0.7rem 1rem;
+  background: rgba(2, 7, 17, 0.28);
+  color: var(--join2-faint);
+  font-size: 0.86rem;
+  line-height: 1.2;
+  backdrop-filter: blur(14px);
+}
+
+.signInLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  color: var(--join2-gold);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.signInLink:focus-visible {
+  outline: 2px solid rgba(215, 180, 107, 0.55);
+  outline-offset: 4px;
 }
 
 .pathHeading {
@@ -744,6 +777,11 @@
   .pathCta {
     width: 100%;
     justify-content: center;
+  }
+
+  .signInRow {
+    width: 100%;
+    justify-self: stretch;
   }
 }
 

@@ -9,7 +9,10 @@ import { buildJoin2ActionHrefs, isJoin2ActivationKey } from "@/lib/join/cinemati
 const removedJoinMobilePanelText = [
   ["DIRECT", "ROUTE"].join(" "),
   ["Direct", "route"].join(" "),
-  ["Continue", "to join"].join(" "),
+  ["Continue", "to join"].join(" ")
+];
+
+const removedInitialScreenText = [
   ["Sign", "in"].join(" ")
 ];
 
@@ -24,8 +27,9 @@ describe("join-mobile cinematic entry", () => {
     });
 
     expect(hrefs.publicSiteHref).toBe("/");
+    expect(hrefs.membershipHref).toBe("/membership");
     expect(hrefs.auditHref).toBe("/audit");
-    expect(hrefs.loginHref).toBe("/login?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly");
+    expect(hrefs.loginHref).toBe("/login");
     expect(hrefs.joinHref).toBe(
       "/join?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly&tier=inner-circle&period=annual&billing=cancelled&invite=BCN-TEST&auth=register"
     );
@@ -52,6 +56,9 @@ describe("join-mobile cinematic entry", () => {
     removedJoinMobilePanelText.forEach((text) => {
       expect(markup).not.toContain(text);
     });
+    removedInitialScreenText.forEach((text) => {
+      expect(markup).not.toContain(text);
+    });
   });
 
   it("wires keyboard activation into the portal button join transition", () => {
@@ -62,6 +69,7 @@ describe("join-mobile cinematic entry", () => {
 
     expect(source).toContain("onKeyDown={handlePortalKeyDown}");
     expect(source).toContain('setSceneStage("choices")');
+    expect(source).not.toContain("window.location.assign");
     expect(source).toContain('video.addEventListener("error", markVideoFallback)');
     expect(source).toContain("JOIN2_FALLBACK_TIMEOUT_MS");
   });
@@ -86,10 +94,15 @@ describe("join-mobile cinematic entry", () => {
       "utf8"
     );
 
+    expect(source).toContain("<span className={styles.pathEyebrow}>EXPLORE</span>");
     expect(source).toContain("Explore The Business Circle");
+    expect(source).toContain("<span className={styles.pathEyebrow}>JOIN</span>");
     expect(source).toContain("Go straight to join");
+    expect(source).toContain("actionHrefs.membershipHref");
     expect(source).toContain("Run the Founder Audit");
     expect(source).toContain("actionHrefs.auditHref");
+    expect(source).toContain("Already a member?");
+    expect(source).toContain("actionHrefs.loginHref");
   });
 
   it("uses the lower portal alignment for the Step Inside overlay", () => {
