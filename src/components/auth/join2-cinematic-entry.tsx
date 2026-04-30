@@ -5,7 +5,9 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState
@@ -104,6 +106,7 @@ export function Join2CinematicEntry({
 }: Join2CinematicEntryProps) {
   const reduceMotion = useReducedMotion();
   const routeRef = useRef<HTMLDivElement | null>(null);
+  const choiceSceneRef = useRef<HTMLElement | null>(null);
   const heroFrameRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const transitionTimerRef = useRef<number | null>(null);
@@ -127,6 +130,20 @@ export function Join2CinematicEntry({
   const initialFrom = useMemo(() => sanitizeJoin2From(from), [from]);
 
   const initialInvite = useMemo(() => normalizeJoin2InviteCode(inviteCode), [inviteCode]);
+
+  const resetSceneScroll = useCallback(() => {
+    const route = routeRef.current;
+
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+
+    if (!route) {
+      return;
+    }
+
+    route.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    route.scrollTop = 0;
+    route.scrollLeft = 0;
+  }, []);
 
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -397,6 +414,36 @@ export function Join2CinematicEntry({
     []
   );
 
+  useLayoutEffect(() => {
+    if (sceneStage !== "choices") {
+      return;
+    }
+
+    resetSceneScroll();
+    choiceSceneRef.current?.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" });
+    resetSceneScroll();
+  }, [resetSceneScroll, sceneStage]);
+
+  useEffect(() => {
+    if (sceneStage !== "choices") {
+      return;
+    }
+
+    const resetAfterPaint = () => {
+      resetSceneScroll();
+      choiceSceneRef.current?.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" });
+      resetSceneScroll();
+    };
+
+    const frameId = window.requestAnimationFrame(resetAfterPaint);
+    const timerId = window.setTimeout(resetAfterPaint, 120);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timerId);
+    };
+  }, [resetSceneScroll, sceneStage]);
+
   const actionHrefs = useMemo(
     () =>
       buildJoin2ActionHrefs({
@@ -434,6 +481,7 @@ export function Join2CinematicEntry({
 
     resetPortalPosition();
     writeJoinHandoff(resolvedContext);
+    resetSceneScroll();
     setSceneStage("entering");
 
     transitionTimerRef.current = window.setTimeout(
@@ -599,6 +647,7 @@ export function Join2CinematicEntry({
 
       {sceneStage === "choices" ? (
         <motion.section
+          ref={choiceSceneRef}
           key="choice-scene"
           className={styles.choiceScene}
           initial={reduceMotion ? false : { opacity: 0, y: 22, filter: "blur(12px)" }}
