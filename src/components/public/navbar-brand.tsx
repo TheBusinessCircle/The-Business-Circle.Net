@@ -6,11 +6,11 @@ import { BrandMark } from "@/components/branding/brand-mark";
 
 export function NavbarBrand() {
   const pathname = usePathname();
-  const shine = pathname === "/";
+  const shine = pathname === "/home";
 
   return (
     <Link
-      href="/"
+      href="/home"
       className="group flex min-w-0 max-w-[calc(100%-2.5rem)] flex-1 items-center gap-1.5 overflow-hidden pr-2 sm:max-w-none sm:gap-3 lg:max-w-[18rem] lg:flex-none lg:pr-0 xl:max-w-[19rem]"
     >
       <BrandMark

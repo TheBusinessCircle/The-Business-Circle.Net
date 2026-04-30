@@ -83,7 +83,7 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
   const [featuredSupportingInsight, ...remainingSupportingInsights] = clusterInsights;
 
   const breadcrumbSchema = buildBreadcrumbSchema([
-    { name: "Home", path: "/" },
+    { name: "Home", path: "/home" },
     { name: "Insights", path: "/insights" },
     { name: cluster.title, path: cluster.href }
   ]);
@@ -111,7 +111,7 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
 
         <div className="space-y-4">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-muted">
-            <Link href="/" className="hover:text-foreground">
+            <Link href="/home" className="hover:text-foreground">
               Home
             </Link>
             <span>/</span>

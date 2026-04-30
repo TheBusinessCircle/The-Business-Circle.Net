@@ -12,7 +12,7 @@ import { getSiteContentSection } from "@/server/site-content";
 import { nonEmpty } from "@/lib/utils";
 
 const EXPLORE_LINKS = [
-  { label: "Home", href: "/" },
+  { label: "Home", href: "/home" },
   { label: "About", href: "/about" },
   { label: "Membership", href: "/membership" },
   { label: "Join", href: "/join" },

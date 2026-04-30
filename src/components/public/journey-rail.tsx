@@ -19,7 +19,7 @@ const JOURNEY_STEPS: Array<{
   label: string;
   href: string;
 }> = [
-  { key: "home", label: "Home", href: "/" },
+  { key: "home", label: "Home", href: "/home" },
   { key: "about", label: "About", href: "/about" },
   { key: "membership", label: "Membership", href: "/membership" },
   { key: "join", label: "Join", href: "/join" }

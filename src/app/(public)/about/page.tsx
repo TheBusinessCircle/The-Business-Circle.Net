@@ -116,7 +116,7 @@ export default async function AboutPage() {
       />
       <JsonLd
         data={buildBreadcrumbSchema([
-          { name: "Home", path: "/" },
+          { name: "Home", path: "/home" },
           { name: "About", path: "/about" }
         ])}
       />

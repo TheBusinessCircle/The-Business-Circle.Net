@@ -90,7 +90,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
       ].filter((item) => item.slug !== insight.slug)
     : [];
   const breadcrumbSchema = buildBreadcrumbSchema([
-    { name: "Home", path: "/" },
+    { name: "Home", path: "/home" },
     { name: "Insights", path: "/insights" },
     ...(topicCluster ? [{ name: topicCluster.title, path: topicCluster.href }] : []),
     { name: insight.title, path: `/insights/${insight.slug}` }
@@ -122,7 +122,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
             aria-label="Breadcrumb"
             className="flex flex-wrap items-center gap-2 text-sm text-muted"
           >
-            <Link href="/" className="hover:text-foreground">
+            <Link href="/home" className="hover:text-foreground">
               Home
             </Link>
             <span>/</span>

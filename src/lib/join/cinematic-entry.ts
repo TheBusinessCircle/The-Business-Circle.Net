@@ -49,7 +49,7 @@ export function buildJoin2ActionHrefs({
   inviteCode?: string;
 }) {
   return {
-    publicSiteHref: "/",
+    publicSiteHref: "/home",
     membershipHref: "/membership",
     auditHref: "/audit",
     joinHref: buildJoinConfirmationHref({

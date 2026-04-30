@@ -3,7 +3,7 @@ import { PUBLIC_TRUST_PHRASE } from "@/config/legal";
 import { CANONICAL_SITE_URL } from "@/config/site-constants";
 
 const publicNavigation: NavigationItem[] = [
-  { label: "Home", href: "/" },
+  { label: "Home", href: "/home" },
   { label: "About", href: "/about" },
   { label: "Membership", href: "/membership" },
   { label: "Founder", href: "/founder" },

@@ -8,7 +8,7 @@ function readSource(path: string) {
 }
 
 const targetPages = [
-  ["home", "src/app/(public)/page.tsx"],
+  ["home", "src/app/(public)/home/page.tsx"],
   ["about", "src/app/(public)/about/page.tsx"],
   ["membership", "src/app/(public)/membership/page.tsx"],
   ["founder", "src/app/(public)/founder/page.tsx"],
@@ -35,7 +35,7 @@ describe("public marketing spacing system", () => {
 
   it("keeps invisible JSON-LD scripts from creating top visual dead space", () => {
     const pagesWithJsonLdBeforeVisual = [
-      readSource("src/app/(public)/page.tsx"),
+      readSource("src/app/(public)/home/page.tsx"),
       readSource("src/app/(public)/about/page.tsx"),
       readSource("src/app/(public)/membership/page.tsx"),
       readSource("src/app/(public)/founder/page.tsx")
@@ -88,9 +88,16 @@ describe("public marketing spacing system", () => {
     expect(membershipSelector).toContain("updateMembershipUrl(selectionHref)");
   });
 
+  it("keeps the root route as the device-aware cinematic entry gateway", () => {
+    const rootPage = readSource("src/app/(public)/page.tsx");
+
+    expect(rootPage).toContain("shouldUseMobileJoin");
+    expect(rootPage).toContain('redirect(shouldUseMobileJoin(headersList) ? "/join-mobile" : "/join-desktop")');
+  });
+
   it("keeps the public navigation routes available", () => {
     expect(SITE_CONFIG.publicNavigation.map((item) => item.href)).toEqual([
-      "/",
+      "/home",
       "/about",
       "/membership",
       "/founder",

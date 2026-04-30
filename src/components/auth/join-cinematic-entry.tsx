@@ -11,7 +11,6 @@ import {
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { safeRedirectPath } from "@/lib/auth/utils";
-import { buildJoinConfirmationHref } from "@/lib/join/routing";
 import { cn } from "@/lib/utils";
 import styles from "./join-cinematic-entry.module.css";
 
@@ -40,27 +39,9 @@ type JoinHandoff = {
 const portalEase = [0.2, 0.72, 0.18, 1] as const;
 const joinHandoffStorageKey = "business-circle:join-handoff";
 
-const tierLabels: Record<MembershipTier, string> = {
-  FOUNDATION: "Foundation",
-  INNER_CIRCLE: "Inner Circle",
-  CORE: "Core"
-};
-
 function normalizeInviteCode(inviteCode?: string) {
   const normalized = inviteCode?.trim().toUpperCase();
   return normalized || undefined;
-}
-
-function withFrom(pathname: string, from?: string) {
-  const safeFrom = from ? safeRedirectPath(from, "") : "";
-
-  if (!safeFrom) {
-    return pathname;
-  }
-
-  const url = new URL(pathname, "http://localhost");
-  url.searchParams.set("from", safeFrom);
-  return `${url.pathname}${url.search}`;
 }
 
 function isMembershipPath(pathname?: string) {
@@ -109,31 +90,7 @@ function writeJoinHandoff(value: JoinHandoff) {
   }
 }
 
-function buildJoinHref({
-  tier,
-  billingInterval,
-  billing,
-  from,
-  inviteCode
-}: {
-  tier: MembershipTier;
-  billingInterval: MembershipBillingInterval;
-  billing?: string;
-  from?: string;
-  inviteCode?: string;
-}) {
-  return buildJoinConfirmationHref({
-    tier,
-    period: billingInterval,
-    billing,
-    from,
-    invite: inviteCode
-  });
-}
-
 export function JoinCinematicEntry({
-  initialSelectedTier,
-  billingInterval,
   from,
   inviteCode,
   error,
@@ -243,22 +200,10 @@ export function JoinCinematicEntry({
     };
   }, [portalOpened]);
 
-  const publicSiteHref = "/";
-  const joinHref = useMemo(
-    () =>
-      buildJoinHref({
-        tier: initialSelectedTier,
-        billingInterval,
-        billing,
-        from: resolvedContext.from,
-        inviteCode: resolvedContext.inviteCode
-      }),
-    [billing, billingInterval, initialSelectedTier, resolvedContext.from, resolvedContext.inviteCode]
-  );
-
-  const loginHref = useMemo(() => withFrom("/login", resolvedContext.from), [resolvedContext.from]);
-
-  const joinFootnote = useMemo(() => `Join opens with ${tierLabels[initialSelectedTier]} already selected.`, [initialSelectedTier]);
+  const publicSiteHref = "/home";
+  const membershipHref = "/membership";
+  const auditHref = "/audit";
+  const loginHref = "/login";
 
   const notices = useMemo(() => {
     const nextNotices: JoinNotice[] = [];
@@ -326,10 +271,6 @@ export function JoinCinematicEntry({
   const handlePortalOpen = () => {
     resetPortalPosition();
     setPortalOpened(true);
-  };
-
-  const handleJoinChoice = () => {
-    writeJoinHandoff(resolvedContext);
   };
 
   return (
@@ -478,7 +419,8 @@ export function JoinCinematicEntry({
                 <span className={styles.kicker}>Entry Point</span>
                 <h2 className={styles.choiceTitle}>Choose your path</h2>
                 <p className={styles.choiceCopy}>
-                  Explore the public side of The Business Circle first, or move straight into join if you already know your room.
+                  Explore the public side of The Business Circle first, move toward membership, or
+                  run the Founder Audit before you choose.
                 </p>
               </motion.header>
 
@@ -515,16 +457,18 @@ export function JoinCinematicEntry({
                     <span className={styles.choiceOrbit} aria-hidden="true" />
                     <div className={styles.choiceContent}>
                       <div className={styles.choiceHeadingBlock}>
-                        <span className={styles.choiceEyebrow}>Public site</span>
-                        <h3 className={styles.choiceHeading}>Explore the public site</h3>
+                        <span className={styles.choiceEyebrow}>Explore</span>
+                        <h3 className={styles.choiceHeading}>Explore The Business Circle</h3>
                         <p className={styles.choiceDescription}>
-                          Enter the non-member side of the site, starting with the homepage and the wider public sections.
+                          See what The Business Circle is, how it works, and why it exists for
+                          business owners who want better rooms, clearer conversations, and stronger
+                          direction.
                         </p>
                       </div>
 
                       <div className={styles.choiceMeta}>
                         <span className={styles.choiceAction}>
-                          Enter the homepage
+                          Explore the circle
                           <ArrowRight size={15} />
                         </span>
                       </div>
@@ -539,25 +483,60 @@ export function JoinCinematicEntry({
                   transition={{ delay: reduceMotion ? 0 : 0.38, duration: 0.82, ease: portalEase }}
                 >
                   <Link
-                    href={joinHref}
+                    href={membershipHref}
                     className={cn(styles.choicePanel, styles.joinChoicePanel)}
-                    onClick={handleJoinChoice}
                   >
                     <span className={styles.choiceIndex}>02</span>
                     <span className={styles.choiceOrbit} aria-hidden="true" />
                     <div className={styles.choiceContent}>
                       <div className={styles.choiceHeadingBlock}>
-                        <span className={styles.choiceEyebrow}>Membership route</span>
+                        <span className={styles.choiceEyebrow}>Join</span>
                         <h3 className={styles.choiceHeading}>Go straight to join</h3>
                         <p className={styles.choiceDescription}>
-                          Enter the sign-up and pricing confirmation page with your selection already in place.
+                          If you already know this is the room you want to enter, continue to the
+                          membership page and choose the tier that fits your stage.
                         </p>
                       </div>
 
                       <div className={styles.choiceMeta}>
-                        <span className={styles.choiceFootnote}>{joinFootnote}</span>
                         <span className={styles.choiceAction}>
-                          Continue your join
+                          View membership
+                          <ArrowRight size={15} />
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+
+                <motion.div
+                  className={styles.choiceColumn}
+                  initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: reduceMotion ? 0 : 0.48, duration: 0.82, ease: portalEase }}
+                >
+                  <Link
+                    href={auditHref}
+                    className={cn(styles.choicePanel, styles.auditChoicePanel)}
+                  >
+                    <span className={styles.choiceIndex}>03</span>
+                    <span className={styles.choiceOrbit} aria-hidden="true" />
+                    <div className={styles.choiceContent}>
+                      <div className={styles.choiceHeadingBlock}>
+                        <span className={styles.choiceEyebrow}>Clarity checkpoint</span>
+                        <h3 className={styles.choiceHeading}>Run the Founder Audit</h3>
+                        <p className={styles.choiceDescription}>
+                          Take 2 minutes to understand where your business currently sits, what may
+                          be slowing you down, and which room inside The Business Circle fits you
+                          best.
+                        </p>
+                      </div>
+
+                      <div className={styles.choiceMeta}>
+                        <span className={styles.choiceFootnote}>
+                          No fluff. Just clarity before you choose your next move.
+                        </span>
+                        <span className={styles.choiceAction}>
+                          Start the audit
                           <ArrowRight size={15} />
                         </span>
                       </div>
@@ -572,13 +551,12 @@ export function JoinCinematicEntry({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: reduceMotion ? 0 : 0.5, duration: 0.72, ease: portalEase }}
               >
-                <Link href={loginHref} className={styles.signInLink}>
-                  Already a member? Sign in
-                </Link>
-                <div className={styles.footerLinks}>
-                  <Link href="/privacy-policy">Privacy</Link>
-                  <span aria-hidden="true">/</span>
-                  <Link href="/terms-of-service">Terms</Link>
+                <div className={styles.signInPrompt}>
+                  <span>Already a member?</span>
+                  <Link href={loginHref} className={styles.signInLink}>
+                    Sign in
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </Link>
                 </div>
               </motion.footer>
             </div>

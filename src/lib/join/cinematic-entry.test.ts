@@ -26,7 +26,7 @@ describe("join-mobile cinematic entry", () => {
       inviteCode: " bcn-test "
     });
 
-    expect(hrefs.publicSiteHref).toBe("/");
+    expect(hrefs.publicSiteHref).toBe("/home");
     expect(hrefs.membershipHref).toBe("/membership");
     expect(hrefs.auditHref).toBe("/audit");
     expect(hrefs.loginHref).toBe("/login");
@@ -103,6 +103,24 @@ describe("join-mobile cinematic entry", () => {
     expect(source).toContain("actionHrefs.auditHref");
     expect(source).toContain("Already a member?");
     expect(source).toContain("actionHrefs.loginHref");
+  });
+
+  it("keeps the desktop cinematic choices aligned with the mobile route options", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/components/auth/join-cinematic-entry.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain('const publicSiteHref = "/home";');
+    expect(source).toContain('const membershipHref = "/membership";');
+    expect(source).toContain('const auditHref = "/audit";');
+    expect(source).toContain('const loginHref = "/login";');
+    expect(source).toContain("Explore The Business Circle");
+    expect(source).toContain("Go straight to join");
+    expect(source).toContain("Run the Founder Audit");
+    expect(source).toContain("Already a member?");
+    expect(source).not.toContain("window.location.assign");
+    expect(source).not.toContain("buildJoinConfirmationHref");
   });
 
   it("uses the lower portal alignment for the Step Inside overlay", () => {
