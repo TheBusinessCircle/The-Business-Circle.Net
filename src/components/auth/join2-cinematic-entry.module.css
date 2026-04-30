@@ -889,6 +889,64 @@
 
 }
 
+@media (max-width: 1099px) {
+  .route[data-scene="choices"] {
+    min-height: auto;
+  }
+
+  .route[data-scene="choices"] .heroScene {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    pointer-events: none;
+    contain: layout paint;
+  }
+
+  .route[data-scene="choices"] .heroStage {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .route[data-scene="choices"] .heroFrame {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    aspect-ratio: auto;
+    box-shadow: none;
+  }
+
+  .route[data-scene="choices"] .heroMedia {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .route[data-scene="choices"] .choiceScene {
+    display: flex;
+    flex-direction: column;
+    min-height: auto;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding-top: clamp(1.25rem, 4vw, 2.25rem);
+  }
+
+  .route[data-scene="choices"] .choiceShell {
+    position: relative;
+    z-index: 2;
+    align-self: stretch;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .portalButton::before,
   .portalRing,
