@@ -94,7 +94,7 @@
 
 .heroStage {
   --join2-portal-left: 50.2%;
-  --join2-portal-top: 36.5%;
+  --join2-portal-top: 46.5%;
   --join2-portal-size: 79%;
   --join2-copy-left: 8%;
   --join2-copy-right: 8%;
@@ -419,81 +419,6 @@
     radial-gradient(circle at var(--join2-portal-left) var(--join2-portal-top), rgba(255, 247, 222, 0.24), rgba(215, 180, 107, 0.18) 8%, rgba(44, 91, 160, 0.16) 14%, transparent 24%);
   opacity: 0;
   mix-blend-mode: screen;
-}
-
-.fallbackActions {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(1rem, 3.5vw, 2.1rem);
-  z-index: 5;
-  width: min(calc(100% - 2rem), 34rem);
-  transform: translateX(-50%);
-  border: 1px solid rgba(217, 225, 237, 0.14);
-  border-radius: 1.35rem;
-  padding: 0.85rem;
-  background:
-    linear-gradient(145deg, rgba(3, 8, 18, 0.82), rgba(3, 9, 20, 0.62)),
-    rgba(2, 7, 17, 0.76);
-  box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(22px);
-}
-
-.fallbackEyebrow {
-  margin: 0 0 0.65rem;
-  color: var(--join2-faint);
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.fallbackActionGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.55rem;
-}
-
-.fallbackActionLink {
-  display: inline-flex;
-  min-height: 2.8rem;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(217, 225, 237, 0.12);
-  border-radius: 0.95rem;
-  padding: 0.72rem 0.75rem;
-  background: rgba(255, 255, 255, 0.035);
-  color: var(--join2-silver);
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.25;
-  text-align: center;
-  text-decoration: none;
-  transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    background 180ms ease,
-    color 180ms ease;
-}
-
-.fallbackJoinLink {
-  border-color: rgba(215, 180, 107, 0.32);
-  background: rgba(215, 180, 107, 0.11);
-  color: var(--join2-gold);
-}
-
-.fallbackActionLink:hover,
-.fallbackActionLink:focus-visible {
-  border-color: rgba(215, 180, 107, 0.42);
-  background: rgba(215, 180, 107, 0.1);
-  color: var(--join2-gold);
-  transform: translateY(-1px);
-}
-
-.fallbackActionLink:focus-visible {
-  outline: 2px solid rgba(215, 180, 107, 0.62);
-  outline-offset: 3px;
 }
 
 .route[data-scene="entering"] .portalCharge {
@@ -866,7 +791,7 @@
 @media (min-width: 1280px) {
   .heroStage {
     --join2-portal-left: 50.1%;
-    --join2-portal-top: 36.2%;
+    --join2-portal-top: 46.2%;
     --join2-portal-size: 78.5%;
     --join2-copy-left: 8.5%;
     --join2-copy-right: 10%;
@@ -876,7 +801,7 @@
 @media (max-width: 900px) {
   .heroStage {
     --join2-portal-left: 50.4%;
-    --join2-portal-top: 40.2%;
+    --join2-portal-top: 46.7%;
     --join2-portal-size: 79.4%;
     --join2-copy-left: 7%;
     --join2-copy-right: 7%;
@@ -904,7 +829,7 @@
 
   .heroStage {
     --join2-portal-left: 50.35%;
-    --join2-portal-top: 40.7%;
+    --join2-portal-top: 47.2%;
     --join2-portal-size: 79.8%;
     --join2-copy-left: 6%;
     --join2-copy-right: 6%;
@@ -969,19 +894,6 @@
     align-items: flex-start;
   }
 
-  .fallbackActions {
-    bottom: 0.85rem;
-    width: min(calc(100% - 1.2rem), 28rem);
-    padding: 0.7rem;
-  }
-
-  .fallbackActionGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .fallbackActionLink {
-    min-height: 2.55rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -996,7 +908,6 @@
   .heroVideoVeil,
   .portalAnchor,
   .pathway,
-  .fallbackActionLink,
   .signInLink,
   .footerLinks a {
     transition: none !important;

@@ -1,23 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  buildJoin2ActionHrefs,
-  isJoin2ActivationKey,
-  shouldShowJoin2FallbackActions
-} from "@/lib/join/cinematic-entry";
+import { buildJoin2ActionHrefs, isJoin2ActivationKey } from "@/lib/join/cinematic-entry";
 
-describe("join-mobile cinematic fallback", () => {
-  it("shows the fallback action layer for reduced motion users", () => {
-    expect(
-      shouldShowJoin2FallbackActions({
-        reduceMotion: true,
-        fallbackReason: null,
-        sceneStage: "intro"
-      })
-    ).toBe(true);
-  });
-
+describe("join-mobile cinematic entry", () => {
   it("preserves selected tier, billing period, invite, and from in the join href", () => {
     const hrefs = buildJoin2ActionHrefs({
       tier: "INNER_CIRCLE",
@@ -32,34 +18,6 @@ describe("join-mobile cinematic fallback", () => {
     expect(hrefs.joinHref).toBe(
       "/join?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly&tier=inner-circle&period=annual&billing=cancelled&invite=BCN-TEST&auth=register"
     );
-  });
-
-  it("shows the fallback action layer if video playback fails", () => {
-    expect(
-      shouldShowJoin2FallbackActions({
-        reduceMotion: false,
-        fallbackReason: "video",
-        sceneStage: "intro"
-      })
-    ).toBe(true);
-  });
-
-  it("shows the fallback action layer if portal readiness times out or errors", () => {
-    expect(
-      shouldShowJoin2FallbackActions({
-        reduceMotion: false,
-        fallbackReason: "timeout",
-        sceneStage: "intro"
-      })
-    ).toBe(true);
-
-    expect(
-      shouldShowJoin2FallbackActions({
-        reduceMotion: false,
-        fallbackReason: "error",
-        sceneStage: "intro"
-      })
-    ).toBe(true);
   });
 
   it("treats keyboard activation keys as valid portal entry input", () => {
@@ -81,5 +39,18 @@ describe("join-mobile cinematic fallback", () => {
     expect(source).toContain("Sign in");
     expect(source).toContain('video.addEventListener("error", markVideoFallback)');
     expect(source).toContain("JOIN2_FALLBACK_TIMEOUT_MS");
+  });
+
+  it("keeps fallback readiness on the Step Inside button instead of rendering a direct-route panel", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/components/auth/join2-cinematic-entry.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain("setPortalReady(true)");
+    expect(source).not.toContain("fallbackActions");
+    expect(source).not.toContain("fallbackActionGrid");
+    expect(source).not.toContain("fallbackActionLink");
+    expect(source).not.toContain("shouldShowJoin2FallbackActions");
   });
 });

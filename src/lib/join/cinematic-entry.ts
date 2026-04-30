@@ -4,7 +4,6 @@ import { buildJoinConfirmationHref } from "@/lib/join/routing";
 export type Join2MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
 export type Join2BillingInterval = "monthly" | "annual";
 export type Join2SceneStage = "intro" | "entering" | "choices";
-export type Join2FallbackReason = "video" | "timeout" | "error" | null;
 
 export const JOIN2_FALLBACK_TIMEOUT_MS = 4700;
 export const JOIN2_HANDOFF_STORAGE_KEY = "business-circle:join-handoff";
@@ -60,14 +59,6 @@ export function buildJoin2ActionHrefs({
     }),
     loginHref: withJoin2From("/login", from)
   };
-}
-
-export function shouldShowJoin2FallbackActions(input: {
-  reduceMotion: boolean | null;
-  fallbackReason: Join2FallbackReason;
-  sceneStage: Join2SceneStage;
-}) {
-  return input.sceneStage !== "choices" && (Boolean(input.reduceMotion) || Boolean(input.fallbackReason));
 }
 
 export function isJoin2ActivationKey(key: string) {

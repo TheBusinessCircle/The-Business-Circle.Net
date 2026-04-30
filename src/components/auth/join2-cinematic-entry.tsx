@@ -20,9 +20,7 @@ import {
   isJoin2MembershipPath,
   normalizeJoin2InviteCode,
   sanitizeJoin2From,
-  shouldShowJoin2FallbackActions,
   type Join2BillingInterval,
-  type Join2FallbackReason,
   type Join2MembershipTier,
   type Join2SceneStage
 } from "@/lib/join/cinematic-entry";
@@ -56,7 +54,7 @@ type PortalStyleVars = CSSProperties & {
 const portalEase = [0.2, 0.72, 0.18, 1] as const;
 const portalTarget = {
   centerX: 0.506,
-  centerY: 0.411,
+  centerY: 0.465,
   diameter: 0.734
 } as const;
 
@@ -126,11 +124,10 @@ export function Join2CinematicEntry({
   const springX = useSpring(portalX, { stiffness: 118, damping: 24, mass: 0.44 });
   const springY = useSpring(portalY, { stiffness: 118, damping: 24, mass: 0.44 });
   const [sceneStage, setSceneStage] = useState<Join2SceneStage>("intro");
-  const [fallbackReason, setFallbackReason] = useState<Join2FallbackReason>(null);
   const [portalReady, setPortalReady] = useState(Boolean(reduceMotion));
   const [portalStyleVars, setPortalStyleVars] = useState<PortalStyleVars>(() => ({
     "--join2-portal-left": "50.6%",
-    "--join2-portal-top": "41.1%",
+    "--join2-portal-top": "46.5%",
     "--join2-portal-size": "73.4%"
   }));
   const [resolvedContext, setResolvedContext] = useState<JoinHandoff>({
@@ -193,7 +190,7 @@ export function Join2CinematicEntry({
 
   useEffect(() => {
     if (error) {
-      setFallbackReason("error");
+      setPortalReady(true);
     }
   }, [error]);
 
@@ -206,7 +203,7 @@ export function Join2CinematicEntry({
 
     void video.play().catch(() => {
       // Muted inline autoplay can still be blocked in some browsers.
-      setFallbackReason("video");
+      setPortalReady(true);
     });
   }, []);
 
@@ -218,7 +215,7 @@ export function Join2CinematicEntry({
     }
 
     const markVideoFallback = () => {
-      setFallbackReason("video");
+      setPortalReady(true);
     };
 
     video.addEventListener("error", markVideoFallback);
@@ -396,7 +393,7 @@ export function Join2CinematicEntry({
     }
 
     const fallbackTimer = window.setTimeout(() => {
-      setFallbackReason("timeout");
+      setPortalReady(true);
     }, JOIN2_FALLBACK_TIMEOUT_MS);
 
     return () => window.clearTimeout(fallbackTimer);
@@ -499,12 +496,6 @@ export function Join2CinematicEntry({
   const handleJoinChoice = () => {
     writeJoinHandoff(resolvedContext);
   };
-
-  const showFallbackActions = shouldShowJoin2FallbackActions({
-    reduceMotion,
-    fallbackReason,
-    sceneStage
-  });
 
   return (
     <div
@@ -656,31 +647,6 @@ export function Join2CinematicEntry({
                   transition={{ duration: reduceMotion ? 0.26 : 1.02, ease: portalEase }}
                 />
 
-                {showFallbackActions ? (
-                  <motion.div
-                    className={styles.fallbackActions}
-                    initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: reduceMotion ? 0.18 : 0.42, ease: portalEase }}
-                  >
-                    <p className={styles.fallbackEyebrow}>Direct route</p>
-                    <div className={styles.fallbackActionGrid}>
-                      <Link href={actionHrefs.publicSiteHref} className={styles.fallbackActionLink}>
-                        Explore The Business Circle
-                      </Link>
-                      <Link
-                        href={actionHrefs.joinHref}
-                        className={`${styles.fallbackActionLink} ${styles.fallbackJoinLink}`}
-                        onClick={handleJoinChoice}
-                      >
-                        Continue to join
-                      </Link>
-                      <Link href={actionHrefs.loginHref} className={styles.fallbackActionLink}>
-                        Sign in
-                      </Link>
-                    </div>
-                  </motion.div>
-                ) : null}
               </div>
             </motion.div>
           </motion.section>
