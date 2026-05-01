@@ -91,8 +91,12 @@ describe("public marketing spacing system", () => {
   it("keeps the root route as the device-aware cinematic entry gateway", () => {
     const rootPage = readSource("src/app/(public)/page.tsx");
 
+    expect(rootPage).toContain('redirect("/dashboard")');
     expect(rootPage).toContain("shouldUseMobileJoin");
     expect(rootPage).toContain('redirect(shouldUseMobileJoin(headersList) ? "/join-mobile" : "/join-desktop")');
+    expect(rootPage.indexOf('redirect("/dashboard")')).toBeLessThan(
+      rootPage.indexOf("const headersList = await headers()")
+    );
   });
 
   it("keeps the public navigation routes available", () => {
