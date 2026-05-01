@@ -155,19 +155,19 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
         {mobileMenuOpen ? (
           <div
             id="member-mobile-navigation-menu"
-            className="fixed inset-0 z-[110] min-h-dvh overflow-y-auto overflow-x-hidden bg-[linear-gradient(180deg,hsl(var(--member-atmosphere-from)/0.99)_0%,hsl(var(--member-atmosphere-via)/0.985)_48%,hsl(var(--member-atmosphere-to)/0.995)_100%)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(5.25rem,env(safe-area-inset-top))] text-foreground shadow-2xl backdrop-blur-md lg:hidden"
+            className="fixed inset-0 isolate z-[1000] min-h-dvh overflow-y-auto overflow-x-hidden bg-[hsl(var(--member-atmosphere-to))] bg-[linear-gradient(180deg,hsl(var(--member-atmosphere-from))_0%,hsl(var(--member-atmosphere-via))_46%,hsl(var(--member-atmosphere-to))_100%)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(5.25rem,env(safe-area-inset-top))] text-foreground shadow-2xl lg:hidden"
           >
             <button
               type="button"
               aria-label="Close member navigation"
               onClick={closeMobileMenu}
-              className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/10 text-[hsl(var(--member-accent-muted))] shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.48)] hover:bg-[hsl(var(--member-accent)/0.12)] hover:text-[hsl(var(--member-accent-text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
+              className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--member-accent-border)/0.36)] bg-[hsl(var(--member-atmosphere-to)/0.96)] text-[hsl(var(--member-accent-muted))] shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.58)] hover:bg-[hsl(var(--member-accent-strong)/0.92)] hover:text-[hsl(var(--member-accent-text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
             >
               <X size={18} />
             </button>
 
             <div className="mx-auto flex min-h-[calc(100svh-6.5rem)] w-full max-w-md flex-col">
-              <div className="rounded-3xl border border-[hsl(var(--member-accent-border)/0.32)] bg-[linear-gradient(145deg,hsl(var(--member-accent)/0.18),rgba(255,255,255,0.045)_42%,hsl(var(--member-accent-strong)/0.72))] p-4 shadow-[0_22px_64px_var(--member-accent-glow)]">
+              <div className="rounded-3xl border border-[hsl(var(--member-accent-border)/0.42)] bg-[linear-gradient(145deg,hsl(var(--member-accent-strong)/0.94),hsl(var(--member-atmosphere-via)/0.98)_44%,hsl(var(--member-atmosphere-to)))] p-4 shadow-[0_22px_64px_var(--member-accent-glow)]">
                 <p className="text-[11px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-text))]">
                   Member Workspace
                 </p>
@@ -193,8 +193,8 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
                       className={cn(
                         "flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-base font-medium shadow-inner-surface transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]",
                         active
-                          ? "border-[hsl(var(--member-accent-border)/0.66)] bg-[linear-gradient(135deg,hsl(var(--member-accent)/0.22),hsl(var(--member-accent-strong)/0.36))] text-[hsl(var(--member-accent-text))] shadow-[0_18px_48px_var(--member-accent-glow)]"
-                          : "border-white/10 bg-white/[0.055] text-foreground hover:border-[hsl(var(--member-accent-border)/0.42)] hover:bg-[hsl(var(--member-accent)/0.12)] hover:text-[hsl(var(--member-accent-text))]"
+                          ? "border-[hsl(var(--member-accent-border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--member-accent)/0.28),hsl(var(--member-accent-strong)/0.92))] text-[hsl(var(--member-accent-text))] shadow-[0_18px_48px_var(--member-accent-glow)]"
+                          : "border-[hsl(var(--member-accent-border)/0.22)] bg-[hsl(var(--member-atmosphere-via)/0.9)] text-foreground hover:border-[hsl(var(--member-accent-border)/0.5)] hover:bg-[hsl(var(--member-accent-strong)/0.84)] hover:text-[hsl(var(--member-accent-text))]"
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-3">
@@ -202,8 +202,8 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
                           className={cn(
                             "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
                             active
-                              ? "border-[hsl(var(--member-accent-border)/0.48)] bg-[hsl(var(--member-accent)/0.18)] text-[hsl(var(--member-accent-text))]"
-                              : "border-white/10 bg-white/[0.06] text-[hsl(var(--member-accent-muted))]"
+                              ? "border-[hsl(var(--member-accent-border)/0.56)] bg-[hsl(var(--member-accent)/0.24)] text-[hsl(var(--member-accent-text))]"
+                              : "border-[hsl(var(--member-accent-border)/0.2)] bg-[hsl(var(--member-atmosphere-to)/0.72)] text-[hsl(var(--member-accent-muted))]"
                           )}
                         >
                           <Icon size={17} />
@@ -229,7 +229,7 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
               </nav>
 
               <div className="mt-auto pt-6">
-                <div className="rounded-3xl border border-white/10 bg-black/20 p-3">
+                <div className="rounded-3xl border border-[hsl(var(--member-accent-border)/0.24)] bg-[hsl(var(--member-atmosphere-via)/0.94)] p-3">
                   <form action={signOutAction} onSubmit={closeMobileMenu}>
                     <Button
                       type="submit"
