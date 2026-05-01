@@ -78,44 +78,46 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   });
 
   const header = (
-    <header className="member-shell-header border-b border-border/80 bg-background/78 backdrop-blur-xl">
-      <div className="flex w-full flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 2xl:px-12">
-        <div className="flex items-center justify-between gap-4">
-          <Link href="/dashboard" className="inline-flex items-center gap-3">
-            <BrandMark placement="workspace" />
-            <div>
-              <p className="font-display text-base text-foreground">Member Workspace</p>
-              <p className="text-[11px] tracking-[0.08em] text-muted uppercase">
-                The Business Circle Network
-              </p>
-            </div>
-          </Link>
+    <>
+      <header className="member-shell-header border-b border-border/80 bg-background/78 backdrop-blur-xl">
+        <div className="flex w-full flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 2xl:px-12">
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/dashboard" className="inline-flex items-center gap-3">
+              <BrandMark placement="workspace" />
+              <div>
+                <p className="font-display text-base text-foreground">Member Workspace</p>
+                <p className="text-[11px] tracking-[0.08em] text-muted uppercase">
+                  The Business Circle Network
+                </p>
+              </div>
+            </Link>
 
-          <div className="flex items-center gap-2">
-            <Badge variant="muted" className="hidden sm:inline-flex">
-              {membershipBadge}
-            </Badge>
-            <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
-            {session.user.role === "ADMIN" ? (
-              <Link href="/admin">
-                <Button variant="outline" size="sm">
-                  Admin
+            <div className="flex items-center gap-2">
+              <Badge variant="muted" className="hidden sm:inline-flex">
+                {membershipBadge}
+              </Badge>
+              <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
+              {session.user.role === "ADMIN" ? (
+                <Link href="/admin">
+                  <Button variant="outline" size="sm">
+                    Admin
+                  </Button>
+                </Link>
+              ) : null}
+              <form action={signOutAction}>
+                <Button type="submit" variant="ghost" size="sm">
+                  Sign Out
                 </Button>
-              </Link>
-            ) : null}
-            <form action={signOutAction}>
-              <Button type="submit" variant="ghost" size="sm">
-                Sign Out
-              </Button>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
+      </header>
 
-        <div className="lg:hidden">
-          <MemberNavigation items={visibleNavItems} orientation="horizontal" />
-        </div>
+      <div className="border-b border-border/80 bg-background/94 px-4 py-3 sm:px-6 lg:hidden">
+        <MemberNavigation items={visibleNavItems} orientation="horizontal" />
       </div>
-    </header>
+    </>
   );
 
   const sidebar = (

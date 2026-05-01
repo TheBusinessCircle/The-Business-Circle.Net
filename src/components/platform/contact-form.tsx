@@ -9,6 +9,7 @@ import { contactSchema } from "@/lib/validators";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
@@ -26,6 +27,11 @@ type ContactApiResponse = {
 type SubmitState = "idle" | "success" | "error";
 const CONTACT_FORM_FIELDS: Array<keyof Values> = ["name", "email", "company", "message"];
 
+type ContactSubjectOption = {
+  label: string;
+  value: string;
+};
+
 type ContactFormProps = {
   title?: string;
   description?: string;
@@ -34,6 +40,11 @@ type ContactFormProps = {
   successDescription?: string;
   successNotice?: string;
   defaultValues?: Partial<Values>;
+  subject?: string;
+  subjectLabel?: string;
+  subjectOptions?: ContactSubjectOption[];
+  source?: string;
+  sourcePath?: string;
 };
 
 export function ContactForm({
@@ -43,11 +54,19 @@ export function ContactForm({
   successTitle = "Contact The Team",
   successDescription = "Your message is in our queue.",
   successNotice,
-  defaultValues
+  defaultValues,
+  subject,
+  subjectLabel = "Message type",
+  subjectOptions,
+  source,
+  sourcePath
 }: ContactFormProps = {}) {
   const [status, setStatus] = useState<SubmitState>("idle");
   const [notice, setNotice] = useState<string | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState(
+    subject ?? subjectOptions?.[0]?.value ?? ""
+  );
   const [isPending, startTransition] = useTransition();
   const resolvedDefaultValues: Values = {
     name: "",
@@ -77,7 +96,9 @@ export function ContactForm({
           },
           body: JSON.stringify({
             ...values,
-            sourcePath: window.location.pathname
+            source,
+            sourcePath: sourcePath ?? window.location.pathname,
+            subject: selectedSubject || subject
           })
         });
 
@@ -182,6 +203,24 @@ export function ContactForm({
               <p className="text-xs text-destructive">{form.formState.errors.company.message}</p>
             ) : null}
           </div>
+
+          {subjectOptions?.length ? (
+            <div className="space-y-2">
+              <Label htmlFor="contact-subject">{subjectLabel}</Label>
+              <Select
+                id="contact-subject"
+                value={selectedSubject}
+                disabled={isPending}
+                onChange={(event) => setSelectedSubject(event.target.value)}
+              >
+                {subjectOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="contact-message">Message</Label>

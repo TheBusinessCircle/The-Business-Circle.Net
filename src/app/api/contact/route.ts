@@ -14,7 +14,9 @@ import { createContactSubmission } from "@/server/contact";
 export const runtime = "nodejs";
 
 const contactSubmissionSchema = contactSchema.extend({
-  sourcePath: z.string().trim().min(1).max(280).optional()
+  sourcePath: z.string().trim().min(1).max(280).optional(),
+  source: z.string().trim().max(80).optional().or(z.literal("")),
+  subject: z.string().trim().max(160).optional().or(z.literal(""))
 });
 
 export async function POST(request: Request) {
@@ -75,7 +77,16 @@ export async function POST(request: Request) {
     const saved = await createContactSubmission({
       ...parsed.data,
       userId: session?.user?.id ?? null,
-      sourcePath
+      sourcePath,
+      source: parsed.data.source || null,
+      subject: parsed.data.subject || null,
+      memberContext: session?.user
+        ? {
+            membershipTier: session.user.membershipTier,
+            role: session.user.role,
+            email: session.user.email ?? null
+          }
+        : null
     });
 
     return NextResponse.json({

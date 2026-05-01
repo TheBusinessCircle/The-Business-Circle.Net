@@ -12,6 +12,12 @@ export type CreateContactSubmissionInput = ContactFormInput & {
   userId?: string | null;
   sourcePath?: string | null;
   subject?: string | null;
+  source?: string | null;
+  memberContext?: {
+    membershipTier?: string | null;
+    role?: string | null;
+    email?: string | null;
+  } | null;
 };
 
 type SavedContactSubmission = {
@@ -28,10 +34,20 @@ async function sendContactSubmissionEmails(input: CreateContactSubmissionInput) 
   const normalizedEmail = normalizeEmail(input.email);
   const notifyRecipient = process.env.CONTACT_NOTIFY_EMAIL?.trim() || process.env.ADMIN_EMAIL?.trim();
   const sourcePath = toNullableText(input.sourcePath) ?? "/contact";
+  const source = toNullableText(input.source) ?? "website";
   const company = toNullableText(input.company) ?? "N/A";
   const subject = toNullableText(input.subject) ?? "General enquiry";
   const trimmedMessage = input.message.trim();
   const trimmedName = input.name.trim();
+  const memberContextLines = input.memberContext
+    ? [
+        input.memberContext.membershipTier
+          ? `Membership tier: ${input.memberContext.membershipTier}`
+          : null,
+        input.memberContext.role ? `Role: ${input.memberContext.role}` : null,
+        input.memberContext.email ? `Signed-in email: ${input.memberContext.email}` : null
+      ].filter((line): line is string => Boolean(line))
+    : [];
 
   if (notifyRecipient) {
     const adminNotificationTemplate = createElement(ContactNotificationEmail, {
@@ -58,6 +74,8 @@ async function sendContactSubmissionEmails(input: CreateContactSubmissionInput) 
           `Company: ${company}`,
           `Subject: ${subject}`,
           `Source: ${sourcePath}`,
+          `Source type: ${source}`,
+          ...memberContextLines,
           "",
           "Message:",
           trimmedMessage
@@ -67,7 +85,7 @@ async function sendContactSubmissionEmails(input: CreateContactSubmissionInput) 
       react: adminNotificationTemplate,
       tags: [
         { name: "type", value: "contact-notification" },
-        { name: "source", value: "website" }
+        { name: "source", value: source.slice(0, 64) }
       ]
     });
 
@@ -101,7 +119,7 @@ async function sendContactSubmissionEmails(input: CreateContactSubmissionInput) 
     react: receiptTemplate,
     tags: [
       { name: "type", value: "contact-auto-reply" },
-      { name: "source", value: "website" }
+      { name: "source", value: source.slice(0, 64) }
     ]
   });
 

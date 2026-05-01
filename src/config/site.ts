@@ -13,7 +13,6 @@ const publicNavigation: NavigationItem[] = [
 
 const memberNavigation: NavigationItem[] = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Circle Blueprint", href: "/blueprint" },
   { label: "Community", href: "/community" },
   { label: "Messages", href: "/messages" },
   { label: "Directory", href: "/directory" },
@@ -22,9 +21,11 @@ const memberNavigation: NavigationItem[] = [
   { label: "Resources", href: "/dashboard/resources" },
   { label: "Wins", href: "/wins" },
   { label: "BCN Intelligence", href: "/member/bcn-updates" },
-  { label: "Profile", href: "/profile" },
   { label: "Inner Circle", href: "/inner-circle", requiresTier: "INNER_CIRCLE" },
-  { label: "Founder | Trev", href: "/member/growth-architect" }
+  { label: "Founder | Trev", href: "/member/growth-architect" },
+  { label: "Contact", href: "/member/contact" },
+  { label: "Circle Blueprint", href: "/blueprint" },
+  { label: "Profile", href: "/profile" }
 ];
 
 const adminNavigation: NavigationItem[] = [
