@@ -51,6 +51,9 @@ function iconForHref(href: string) {
   if (href.startsWith("/member/bcn-updates")) {
     return Sparkles;
   }
+  if (href.startsWith("/member/growth-architect")) {
+    return Compass;
+  }
   if (href.startsWith("/community")) {
     return MessageSquare;
   }

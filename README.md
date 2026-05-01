@@ -39,7 +39,7 @@ That order matters throughout the product:
 - Core: the highest-level protected room for operators carrying heavier decisions and wanting a calmer, more serious environment
 - Admin: full operational control across site content, members, billing visibility, moderation, and platform management
 
-Route protection is enforced in `middleware.ts` and backed up by server-side checks in actions, loaders, and APIs.
+Route protection is enforced in `src/middleware.ts` and backed up by server-side checks in actions, loaders, and APIs.
 
 ## Membership and billing
 
@@ -89,8 +89,8 @@ Paid membership access is granted only after trusted server-side Stripe confirma
 |   |-- config/
 |   |-- lib/
 |   |-- server/
-|   `-- types/
-|-- middleware.ts
+|   |-- types/
+|   `-- middleware.ts
 `-- .env.example
 ```
 

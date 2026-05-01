@@ -20,6 +20,7 @@ const MEMBER_ROUTE_PREFIXES = [
   "/directory",
   "/community",
   "/member/bcn-updates",
+  "/member/growth-architect",
   "/messages",
   "/profile",
   "/events",
@@ -141,6 +142,7 @@ export default auth((req) => {
 });
 
 export const config = {
+  runtime: "nodejs",
   // Admin-only routes are enforced here; member route groups also call requireUser
   // in their server layout so protection remains explicit if routing changes later.
   matcher: [
@@ -160,6 +162,8 @@ export const config = {
     "/community/:path*",
     "/member/bcn-updates",
     "/member/bcn-updates/:path*",
+    "/member/growth-architect",
+    "/member/growth-architect/:path*",
     "/messages",
     "/messages/:path*",
     "/profile/:path*",

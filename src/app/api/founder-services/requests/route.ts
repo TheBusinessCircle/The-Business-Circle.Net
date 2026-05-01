@@ -7,6 +7,7 @@ import {
   founderServiceRequestSchema,
   type FounderServiceRequestFormValues
 } from "@/lib/validators";
+import { isGrowthArchitectServiceSlug } from "@/lib/founder";
 import {
   clientIpFromHeaders,
   consumeRateLimit,
@@ -118,6 +119,10 @@ export async function POST(request: Request) {
     }
 
     const session = await auth();
+    const useMemberExperience =
+      String(formData.get("experience") || "") === "member" &&
+      Boolean(session?.user && !session.user.suspended) &&
+      isGrowthArchitectServiceSlug(parsed.data.serviceSlug);
     const createdRequest = await createFounderServiceRequest({
       ...parsed.data,
       serviceSlug: parsed.data.serviceSlug,
@@ -150,14 +155,20 @@ export async function POST(request: Request) {
       return NextResponse.json<FounderRequestApiResponse>(
         {
           ok: true,
-          url: absoluteUrl(`/founder/thanks?request=${createdRequest.id}&status=submitted`),
+          url: absoluteUrl(
+            useMemberExperience
+              ? `/member/growth-architect/thanks?request=${createdRequest.id}&status=submitted`
+              : `/founder/thanks?request=${createdRequest.id}&status=submitted`
+          ),
           requestId: createdRequest.id
         },
         { headers }
       );
     }
 
-    const checkout = await createFounderServiceCheckoutSession(createdRequest.id);
+    const checkout = await createFounderServiceCheckoutSession(createdRequest.id, {
+      returnExperience: useMemberExperience ? "member" : "public"
+    });
 
     return NextResponse.json<FounderRequestApiResponse>(
       {

@@ -3,9 +3,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SITE_CONFIG } from "@/config/site";
 
-const middlewareSource = readFileSync(join(process.cwd(), "middleware.ts"), "utf8");
+const middlewareSource = readFileSync(join(process.cwd(), "src/middleware.ts"), "utf8");
 const robotsSource = readFileSync(join(process.cwd(), "src/app/robots.ts"), "utf8");
-const intentionallyPublicMemberNavLinks = new Set(["/founder"]);
+const intentionallyPublicMemberNavLinks = new Set<string>();
 
 const privateRoutes = [
   "/blueprint",
@@ -21,6 +21,7 @@ const privateRoutes = [
   "/inner-circle",
   "/member",
   "/member/bcn-updates",
+  "/member/growth-architect",
   "/admin"
 ] as const;
 

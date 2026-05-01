@@ -113,6 +113,7 @@ export async function createFounderServiceCheckoutSession(
   options: {
     adminDiscountCodeId?: string | null;
     markCheckoutLinkSent?: boolean;
+    returnExperience?: "public" | "member";
   } = {}
 ): Promise<FounderCheckoutSessionResult> {
   const request = await db.founderServiceRequest.findUnique({
@@ -164,9 +165,16 @@ export async function createFounderServiceCheckoutSession(
     slug: request.service.slug,
     storedProductId: request.service.stripeProductId
   });
-  const successUrl = absoluteUrl(`/founder/thanks?request=${request.id}&status=success`);
+  const useMemberReturn = options.returnExperience === "member";
+  const successUrl = absoluteUrl(
+    useMemberReturn
+      ? `/member/growth-architect/thanks?request=${request.id}&status=success`
+      : `/founder/thanks?request=${request.id}&status=success`
+  );
   const cancelUrl = absoluteUrl(
-    `/founder/services/${request.service.slug}?status=cancelled&request=${request.id}`
+    useMemberReturn
+      ? `/member/growth-architect/services/${request.service.slug}?status=cancelled&request=${request.id}`
+      : `/founder/services/${request.service.slug}?status=cancelled&request=${request.id}`
   );
   const canUseStoredStripePrice =
     Boolean(effectiveStripePriceId) &&

@@ -70,6 +70,7 @@ type FounderServiceRequestFormProps = {
   notice?: string | null;
   sourcePage?: string | null;
   sourceSection?: string | null;
+  experience?: "public" | "member";
 };
 
 const FOUNDER_FORM_FIELDS: Array<keyof FounderServiceRequestFormValues> = [
@@ -103,9 +104,11 @@ export function FounderServiceRequestForm({
   sourcePage,
   sourceSection,
   notice,
+  experience = "public",
 }: FounderServiceRequestFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(notice ?? null);
   const [isPending, startTransition] = useTransition();
+  const isMemberExperience = experience === "member";
 
   const form = useForm<FounderServiceRequestFormValues>({
     resolver: zodResolver(founderServiceRequestSchema),
@@ -133,6 +136,7 @@ export function FounderServiceRequestForm({
         for (const [key, value] of Object.entries(values)) {
           payload.set(key, String(value ?? ""));
         }
+        payload.set("experience", experience);
 
         const response = await fetch("/api/founder-services/requests", {
           method: "POST",
@@ -172,15 +176,15 @@ export function FounderServiceRequestForm({
       <Card className="border-border/90 bg-card/72 shadow-panel-soft">
         <CardHeader>
           <Badge variant="outline" className="w-fit">
-            Apply To Work With Me
+            {isMemberExperience ? "Member Request" : "Apply To Work With Me"}
           </Badge>
           <CardTitle className="mt-3 font-display text-3xl">
-            Start with a clear application
+            {isMemberExperience ? "Start a member request" : "Start with a clear application"}
           </CardTitle>
           <CardDescription className="mt-2 text-base">
-            I review every application myself. No booking system. No rushed fit
-            call. Just enough context to understand the business properly before
-            I confirm the next step.
+            {isMemberExperience
+              ? "Share the business context from inside your member workspace. I review the request, confirm the right next step, and keep the journey connected to your Circle account."
+              : "I review every application myself. No booking system. No rushed fit call. Just enough context to understand the business properly before I confirm the next step."}
           </CardDescription>
         </CardHeader>
 
@@ -298,7 +302,7 @@ export function FounderServiceRequestForm({
                   </>
                 ) : (
                   <>
-                    Submit Application
+                    {isMemberExperience ? "Start Member Request" : "Submit Application"}
                     <ArrowRight
                       size={16}
                       className="ml-2 transition-transform group-hover:translate-x-1"
@@ -308,7 +312,9 @@ export function FounderServiceRequestForm({
               </Button>
 
               <p className="text-sm text-muted">
-                I review the business first, then confirm fit and timing.
+                {isMemberExperience
+                  ? "Member preferred rates are applied where eligible."
+                  : "I review the business first, then confirm fit and timing."}
               </p>
             </div>
           </form>
@@ -322,7 +328,7 @@ export function FounderServiceRequestForm({
               variant="outline"
               className="w-fit border-gold/35 bg-gold/12 text-gold"
             >
-              Selected Service
+              {isMemberExperience ? "Selected Member Service" : "Selected Service"}
             </Badge>
             <CardTitle className="mt-3 font-display text-3xl">
               {service.title}
@@ -360,8 +366,9 @@ export function FounderServiceRequestForm({
               ) : null}
 
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                No payment is taken at this stage. I review the application
-                first, confirm fit, then send the right next step manually.
+                {isMemberExperience
+                  ? "Your request stays connected to your Business Circle account. Checkout or follow-up steps use the same secure service flow."
+                  : "No payment is taken at this stage. I review the application first, confirm fit, then send the right next step manually."}
               </p>
             </div>
 
@@ -390,10 +397,21 @@ export function FounderServiceRequestForm({
           </CardHeader>
 
           <CardContent className="space-y-3 text-sm text-muted">
-            <p>1. You apply with the business context I need.</p>
-            <p>2. I review the business and the fit.</p>
-            <p>3. I confirm availability and the right next step.</p>
-            <p>4. We start properly, with structure around the work.</p>
+            {isMemberExperience ? (
+              <>
+                <p>1. Choose the support level that fits the next move.</p>
+                <p>2. Share the member request context.</p>
+                <p>3. I review fit, timing, and priority access.</p>
+                <p>4. We confirm the cleanest route forward.</p>
+              </>
+            ) : (
+              <>
+                <p>1. You apply with the business context I need.</p>
+                <p>2. I review the business and the fit.</p>
+                <p>3. I confirm availability and the right next step.</p>
+                <p>4. We start properly, with structure around the work.</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

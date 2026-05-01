@@ -364,6 +364,7 @@ export async function getFounderServiceRequestSummary(requestId: string) {
     where: { id: requestId },
     select: {
       id: true,
+      userId: true,
       createdAt: true,
       updatedAt: true,
       fullName: true,
