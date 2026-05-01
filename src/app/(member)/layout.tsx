@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { MembershipTier } from "@prisma/client";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
-import { MemberNavigation, RulesEntryOverlay } from "@/components/member";
+import { MemberFooter, MemberNavigation, RulesEntryOverlay } from "@/components/member";
 import { AppShell } from "@/components/shell/app-shell";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,10 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   const accentTheme = resolveAccentTheme(profileTheme?.accentTheme);
   const workspaceAtmosphereEnabled = profileTheme?.workspaceAtmosphereEnabled ?? false;
   const accentThemeStyle = getAccentThemeCssVariables(accentTheme) as CSSProperties;
+  const memberShellStyle = {
+    ...accentThemeStyle,
+    "--member-sticky-top": "6.75rem"
+  } as CSSProperties;
 
   const visibleNavItems = PLATFORM_NAV.filter((item) => {
     const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
@@ -78,7 +82,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   });
 
   const header = (
-    <>
+    <div className="sticky top-0 z-50">
       <header className="member-shell-header border-b border-border/80 bg-background/78 backdrop-blur-xl">
         <div className="flex w-full flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 2xl:px-12">
           <div className="flex items-center justify-between gap-4">
@@ -117,11 +121,11 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       <div className="border-b border-border/80 bg-background/94 px-4 py-3 sm:px-6 lg:hidden">
         <MemberNavigation items={visibleNavItems} orientation="horizontal" />
       </div>
-    </>
+    </div>
   );
 
   const sidebar = (
-    <aside className="premium-surface hidden p-4 lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain">
+    <aside className="premium-surface hidden p-4 lg:sticky lg:top-[var(--member-sticky-top,6.75rem)] lg:block lg:max-h-[calc(100dvh-var(--member-sticky-top,6.75rem)-1rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
       <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-background/25 p-3">
         <Avatar
           className="member-profile-ring"
@@ -169,9 +173,14 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       className="member-accent-theme"
       data-member-accent-theme={accentTheme}
       data-member-workspace-atmosphere={workspaceAtmosphereEnabled ? "true" : "false"}
-      style={accentThemeStyle}
+      style={memberShellStyle}
     >
-      <AppShell header={header} sidebar={sidebar} contentClassName="py-7 lg:py-9">
+      <AppShell
+        header={header}
+        sidebar={sidebar}
+        footer={<MemberFooter />}
+        contentClassName="py-7 lg:py-9"
+      >
         <div className="space-y-6">
           {showRulesWelcome ? (
             <>
