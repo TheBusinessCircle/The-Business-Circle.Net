@@ -24,7 +24,7 @@ const memberNavigation: NavigationItem[] = [
   { label: "BCN Intelligence", href: "/member/bcn-updates" },
   { label: "Profile", href: "/profile" },
   { label: "Inner Circle", href: "/inner-circle", requiresTier: "INNER_CIRCLE" },
-  { label: "Growth Architect", href: "/member/growth-architect" }
+  { label: "Founder | Trev", href: "/member/growth-architect" }
 ];
 
 const adminNavigation: NavigationItem[] = [
