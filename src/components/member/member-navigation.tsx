@@ -32,6 +32,7 @@ type MemberNavigationProps = {
   orientation?: "vertical" | "horizontal";
   accentThemeStyle?: CSSProperties;
   showAdminLink?: boolean;
+  triggerVariant?: "bar" | "icon";
 };
 
 function iconForHref(href: string) {
@@ -95,7 +96,8 @@ export function MemberNavigation({
   items,
   orientation = "vertical",
   accentThemeStyle,
-  showAdminLink = false
+  showAdminLink = false,
+  triggerVariant = "bar"
 }: MemberNavigationProps) {
   const pathname = usePathname();
   const horizontal = orientation === "horizontal";
@@ -277,32 +279,49 @@ export function MemberNavigation({
     return (
       <>
         <div className="lg:hidden">
-          <button
-            type="button"
-            aria-expanded={mobileMenuOpen}
-            aria-controls="member-mobile-navigation-menu"
-            aria-label={mobileMenuOpen ? "Close member navigation" : "Open member navigation"}
-            onClick={() => setMobileMenuOpen((previousState) => !previousState)}
-            className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[#4d246f] bg-[#261039] px-4 py-3 text-left text-foreground shadow-inner-surface transition-all hover:border-[#6d349b] hover:bg-[#301448] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
-          >
-            <span className="flex min-w-0 items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5f2c86] bg-[#34184b] text-[hsl(var(--member-accent-text))]">
-                {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          {triggerVariant === "icon" ? (
+            <button
+              type="button"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="member-mobile-navigation-menu"
+              aria-label={mobileMenuOpen ? "Close member navigation" : "Open member navigation"}
+              title={mobileMenuOpen ? "Close member navigation" : "Open member navigation"}
+              onClick={() => setMobileMenuOpen((previousState) => !previousState)}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#5f2c86] bg-[#261039] text-[hsl(var(--member-accent-text))] shadow-inner-surface transition-all hover:border-[#7a39aa] hover:bg-[#34184b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
+            >
+              <span className="sr-only">
+                {mobileMenuOpen ? "Close member navigation" : "Open member navigation"}
               </span>
-              <span className="min-w-0">
-                <span className="block text-[10px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-muted))]">
-                  Member menu
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="member-mobile-navigation-menu"
+              aria-label={mobileMenuOpen ? "Close member navigation" : "Open member navigation"}
+              onClick={() => setMobileMenuOpen((previousState) => !previousState)}
+              className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[#4d246f] bg-[#261039] px-4 py-3 text-left text-foreground shadow-inner-surface transition-all hover:border-[#6d349b] hover:bg-[#301448] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5f2c86] bg-[#34184b] text-[hsl(var(--member-accent-text))]">
+                  {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
                 </span>
-                <span className="mt-0.5 block truncate text-sm font-medium text-foreground">
-                  {activeItem?.label ?? "Open workspace navigation"}
+                <span className="min-w-0">
+                  <span className="block text-[10px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-muted))]">
+                    Member menu
+                  </span>
+                  <span className="mt-0.5 block truncate text-sm font-medium text-foreground">
+                    {activeItem?.label ?? "Open workspace navigation"}
+                  </span>
                 </span>
               </span>
-            </span>
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full bg-[hsl(var(--member-accent-soft))] shadow-[0_0_24px_var(--member-accent-glow)]"
-              aria-hidden="true"
-            />
-          </button>
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full bg-[hsl(var(--member-accent-soft))] shadow-[0_0_24px_var(--member-accent-glow)]"
+                aria-hidden="true"
+              />
+            </button>
+          )}
         </div>
 
         {portalReady && mobileDrawer ? createPortal(mobileDrawer, document.body) : null}

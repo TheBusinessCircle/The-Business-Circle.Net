@@ -325,6 +325,15 @@ canvas {
   box-shadow: 0 18px 44px rgba(2, 6, 23, 0.24);
 }
 
+@media (max-width: 1023px) {
+  .member-accent-theme .member-mobile-header-solid,
+  .member-accent-theme[data-member-workspace-atmosphere="true"] .member-mobile-header-solid.member-shell-header {
+    background: #10051b;
+    backdrop-filter: none;
+    box-shadow: 0 12px 32px rgba(2, 6, 23, 0.32);
+  }
+}
+
 .member-accent-theme[data-member-workspace-atmosphere="true"] .page-surface-workspace {
   background-color: hsl(var(--member-atmosphere-to));
   background-image:

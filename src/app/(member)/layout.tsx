@@ -84,32 +84,41 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   const header = (
     <div className="lg:sticky lg:top-0 lg:z-50">
       <div className="fixed inset-x-0 top-0 z-50 lg:static">
-        <header className="member-shell-header border-b border-border/80 bg-background/78 backdrop-blur-xl">
+        <header className="member-shell-header member-mobile-header-solid border-b border-border/80 bg-background/78 backdrop-blur-xl">
           <div className="flex w-full flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 2xl:px-12">
             <div className="flex items-center justify-between gap-4">
-              <Link href="/dashboard" className="inline-flex items-center gap-3">
+              <Link href="/dashboard" className="inline-flex min-w-0 items-center gap-3">
                 <BrandMark placement="workspace" />
-                <div>
-                  <p className="font-display text-base text-foreground">Member Workspace</p>
-                  <p className="text-[11px] tracking-[0.08em] text-muted uppercase">
+                <div className="min-w-0">
+                  <p className="truncate font-display text-base text-foreground">
+                    Member Workspace
+                  </p>
+                  <p className="truncate text-[11px] tracking-[0.08em] text-muted uppercase">
                     The Business Circle Network
                   </p>
                 </div>
               </Link>
 
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <Badge variant="muted" className="hidden sm:inline-flex">
                   {membershipBadge}
                 </Badge>
                 <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
+                <MemberNavigation
+                  items={visibleNavItems}
+                  orientation="horizontal"
+                  accentThemeStyle={memberShellStyle}
+                  showAdminLink={session.user.role === "ADMIN"}
+                  triggerVariant="icon"
+                />
                 {session.user.role === "ADMIN" ? (
-                  <Link href="/admin">
+                  <Link href="/admin" className="hidden lg:inline-flex">
                     <Button variant="outline" size="sm">
                       Admin
                     </Button>
                   </Link>
                 ) : null}
-                <form action={signOutAction}>
+                <form action={signOutAction} className="hidden lg:block">
                   <Button type="submit" variant="ghost" size="sm">
                     Sign Out
                   </Button>
@@ -118,16 +127,8 @@ export default async function MemberLayout({ children }: { children: ReactNode }
             </div>
           </div>
         </header>
-        <div className="border-y border-[#28123d] bg-[#10051b] px-4 py-3 sm:px-6 lg:hidden">
-          <MemberNavigation
-            items={visibleNavItems}
-            orientation="horizontal"
-            accentThemeStyle={memberShellStyle}
-            showAdminLink={session.user.role === "ADMIN"}
-          />
-        </div>
       </div>
-      <div className="h-[10.25rem] lg:hidden" aria-hidden="true" />
+      <div className="h-20 lg:hidden" aria-hidden="true" />
     </div>
   );
 
