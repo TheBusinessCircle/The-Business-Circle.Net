@@ -562,6 +562,25 @@ a:hover {
     @apply rounded-3xl border border-border/90 bg-card/75 shadow-panel backdrop-blur transition-colors duration-300;
   }
 
+  .profile-form-shell,
+  .profile-form-shell :where(.premium-surface, .card-surface, aside, section, .profile-form-layout, .profile-form-main, .profile-form-grid, .profile-form-grid > *, .profile-form-row, .profile-form-row > *) {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .profile-form-shell :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .profile-form-shell :where(.profile-link-pill, .profile-link-pill > span) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .public-panel {
     @apply rounded-3xl border border-border/80 bg-card/75 shadow-panel backdrop-blur transition-all duration-300;
   }

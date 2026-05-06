@@ -47,7 +47,7 @@ export default async function ProfilePage() {
   const memberProfileHref = buildMemberProfilePath(user.id);
 
   return (
-    <div className="mx-auto w-full max-w-[calc(100vw-2.5rem)] space-y-4 sm:max-w-none sm:space-y-6">
+    <div className="mx-auto box-border w-full max-w-[calc(100vw-2rem)] min-w-0 space-y-4 sm:max-w-none sm:space-y-6">
       <Card className="overflow-hidden border-primary/35 bg-gradient-to-br from-primary/10 via-card/80 to-card/70">
         <CardHeader className="p-5 pb-3 sm:p-7 sm:pb-4">
           <CardTitle className="font-display text-2xl sm:text-3xl">Profile Settings</CardTitle>

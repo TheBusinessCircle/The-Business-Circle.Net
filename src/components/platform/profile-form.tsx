@@ -438,14 +438,14 @@ export function ProfileForm({
 
   return (
     <form
-      className="member-accent-theme relative space-y-5 sm:space-y-6"
+      className="profile-form-shell member-accent-theme relative mx-auto box-border w-full max-w-full min-w-0 space-y-5 sm:space-y-6"
       data-member-accent-theme={selectedAccentTheme}
       data-member-workspace-atmosphere={workspaceAtmosphereEnabled ? "true" : "false"}
       style={selectedAccentThemeStyle}
       onSubmit={onSubmit}
     >
       {isPending ? (
-        <div className="absolute inset-0 z-20 rounded-2xl border border-primary/30 bg-background/70 p-4 backdrop-blur-sm">
+        <div className="absolute inset-0 z-20 max-w-full rounded-2xl border border-primary/30 bg-background/70 p-4 backdrop-blur-sm">
           <p className="text-sm font-medium text-foreground">Saving profile updates...</p>
           <div className="mt-3 space-y-3">
             <Skeleton className="h-10 w-full" />
@@ -455,8 +455,8 @@ export function ProfileForm({
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:gap-6 xl:grid-cols-[320px_1fr]">
-        <aside className="space-y-3 sm:space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
+      <div className="profile-form-layout grid w-full max-w-full min-w-0 gap-4 sm:gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="w-full max-w-full min-w-0 space-y-3 sm:space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
           <section className="premium-surface p-4 sm:p-5">
             <div className="flex items-center gap-3">
               <Avatar
@@ -507,10 +507,10 @@ export function ProfileForm({
           </section>
         </aside>
 
-        <div className="space-y-3 sm:space-y-4">
+        <div className="profile-form-main w-full max-w-full min-w-0 space-y-3 sm:space-y-4">
           <section id="bcn-rules" className="premium-surface p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-              <div className="max-w-2xl">
+              <div className="max-w-2xl min-w-0">
                 <p className="mb-2 text-xs tracking-[0.1em] text-silver uppercase">
                   BCN Rules Acceptance
                 </p>
@@ -612,7 +612,7 @@ export function ProfileForm({
               id="profile-accent-theme-options"
               className={cn("mt-4 md:mt-5 md:block", accentThemeOptionsOpen ? "block" : "hidden")}
             >
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5" role="radiogroup" aria-label="Accent theme">
+              <div className="profile-form-grid grid w-full max-w-full min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-5" role="radiogroup" aria-label="Accent theme">
                 {ACCENT_THEMES.map((theme) => {
                   const selected = selectedAccentTheme === theme.value;
                   const atmosphereSelected = selected && workspaceAtmosphereEnabled;
@@ -624,7 +624,7 @@ export function ProfileForm({
                       data-atmosphere-selected={atmosphereSelected ? "true" : "false"}
                       style={getThemeOptionStyle(theme)}
                       className={cn(
-                        "accent-theme-option group relative flex min-h-[10.75rem] flex-col overflow-hidden rounded-2xl border px-3 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/42 sm:min-h-[13.25rem] sm:px-4 sm:py-4",
+                        "accent-theme-option group relative flex min-h-[10.75rem] min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border px-3 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/42 sm:min-h-[13.25rem] sm:px-4 sm:py-4",
                         selected ? "border-primary/60" : "border-border/80"
                       )}
                     >
@@ -632,7 +632,7 @@ export function ProfileForm({
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        className="flex min-h-0 flex-1 flex-col justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80"
+                        className="flex min-h-0 min-w-0 flex-1 flex-col justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80"
                         onClick={() => selectAccentTheme(theme.value)}
                       >
                         <span className="flex w-full items-start justify-between gap-2 sm:gap-3">
@@ -676,9 +676,9 @@ export function ProfileForm({
                               ))}
                             </span>
                           </span>
-                          <span className="mt-2 flex items-center justify-between text-[11px] text-muted sm:mt-3">
-                            <span>Layered finish</span>
-                            <span className="text-silver/80">
+                          <span className="mt-2 flex min-w-0 items-center justify-between gap-2 text-[11px] text-muted sm:mt-3">
+                            <span className="min-w-0">Layered finish</span>
+                            <span className="min-w-0 text-right text-silver/80">
                               {theme.value === "royal-blue" ? "BCN default" : "Private workspace"}
                             </span>
                           </span>
@@ -689,7 +689,7 @@ export function ProfileForm({
                         type="button"
                         aria-pressed={atmosphereSelected}
                         data-selected={atmosphereSelected ? "true" : "false"}
-                        className="workspace-atmosphere-choice mt-3 flex items-center gap-2 rounded-xl border border-border/80 bg-background/28 px-3 py-2 text-left text-[11px] font-medium text-muted transition-all duration-200 hover:border-primary/35 hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80 sm:mt-4"
+                        className="workspace-atmosphere-choice mt-3 flex min-w-0 items-center gap-2 rounded-xl border border-border/80 bg-background/28 px-3 py-2 text-left text-[11px] font-medium text-muted transition-all duration-200 hover:border-primary/35 hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/80 sm:mt-4"
                         onClick={() => applyWorkspaceAtmosphere(theme.value)}
                       >
                         <span
@@ -703,7 +703,7 @@ export function ProfileForm({
                         >
                           <Check size={11} />
                         </span>
-                        <span>Apply full workspace atmosphere</span>
+                        <span className="min-w-0">Apply full workspace atmosphere</span>
                       </button>
                     </div>
                   );
@@ -715,7 +715,7 @@ export function ProfileForm({
 
           <section className="premium-surface p-4 sm:p-5">
             <p className="mb-4 text-xs tracking-[0.1em] text-silver uppercase">Identity</p>
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="profile-form-grid grid w-full max-w-full min-w-0 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input id="name" {...form.register("name")} />
@@ -757,13 +757,14 @@ export function ProfileForm({
               </div>
               <div className="space-y-1.5 sm:space-y-2 md:col-span-2">
                 <Label htmlFor="profileImage">Profile Image URL</Label>
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="profile-form-row flex w-full max-w-full min-w-0 flex-col gap-2 sm:flex-row">
                   <Input
                     id="profileImage"
+                    className="sm:flex-1"
                     {...form.register("profileImage")}
                     placeholder="https://images.example.com/avatar.jpg"
                   />
-                  <div className="w-full sm:w-[220px]">
+                  <div className="w-full min-w-0 max-w-full sm:w-[220px] sm:shrink-0">
                     <Input
                       id="profileImageUpload"
                       type="file"
@@ -781,8 +782,8 @@ export function ProfileForm({
                   Best results: use a square image that is at least {RECOMMENDED_PROFILE_IMAGE_DIMENSION}x{RECOMMENDED_PROFILE_IMAGE_DIMENSION}px.
                 </p>
                 {selectedProfileImageName ? (
-                  <div className="flex items-center gap-2 text-xs text-muted">
-                    <span className="truncate">Selected upload: {selectedProfileImageName}</span>
+                  <div className="flex min-w-0 items-center gap-2 text-xs text-muted">
+                    <span className="min-w-0 truncate">Selected upload: {selectedProfileImageName}</span>
                     <button
                       type="button"
                       className="text-primary hover:underline"
@@ -799,7 +800,7 @@ export function ProfileForm({
 
           <section className="premium-surface p-4 sm:p-5">
             <p className="mb-4 text-xs tracking-[0.1em] text-silver uppercase">Business</p>
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+            <div className="profile-form-grid grid w-full max-w-full min-w-0 gap-3 sm:gap-4 md:grid-cols-2">
               <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="companyName">Company</Label>
                 <Input id="companyName" {...form.register("companyName")} />
@@ -864,7 +865,7 @@ export function ProfileForm({
 
           <section className="premium-surface p-4 sm:p-5">
             <p className="mb-4 text-xs tracking-[0.1em] text-silver uppercase">Links & Collaboration</p>
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+            <div className="profile-form-grid grid w-full max-w-full min-w-0 gap-3 sm:gap-4 md:grid-cols-2">
               <input type="hidden" {...form.register("customLinks")} />
               <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="website">Website</Label>
@@ -898,14 +899,15 @@ export function ProfileForm({
               </div>
               <div className="space-y-1.5 sm:space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="customLinkDraft">Other Links</Label>
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="profile-form-row flex w-full max-w-full min-w-0 flex-col gap-2 sm:flex-row">
                   <Input
                     id="customLinkDraft"
+                    className="sm:flex-1"
                     value={customLinkDraft}
                     onChange={(event) => setCustomLinkDraft(event.target.value)}
                     placeholder="https://calendly.com/your-link"
                   />
-                  <Button type="button" variant="outline" onClick={addCustomLink}>
+                  <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={addCustomLink}>
                     Publish
                   </Button>
                 </div>
@@ -913,13 +915,13 @@ export function ProfileForm({
                   Add any other public link you want members to see, then publish it into your profile list.
                 </p>
                 {customLinkList.length ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex max-w-full min-w-0 flex-wrap gap-2">
                     {customLinkList.map((link) => (
                       <span
                         key={link}
-                        className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/50 px-3 py-1 text-xs text-foreground"
+                        className="profile-link-pill inline-flex max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-full border border-border bg-background/50 px-3 py-1 text-xs text-foreground"
                       >
-                        <span className="truncate">{link}</span>
+                        <span className="min-w-0 truncate">{link}</span>
                         <button
                           type="button"
                           className="text-muted hover:text-primary"
@@ -963,12 +965,12 @@ export function ProfileForm({
 
       {notice ? <p className="text-sm text-primary">{notice}</p> : null}
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
+      <div className="profile-form-actions flex w-full min-w-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+        <Button type="submit" className="w-full sm:w-auto" disabled={isPending}>
           {isPending ? "Saving..." : "Save Profile"}
         </Button>
-        <Link href={memberProfileHref} target="_blank" rel="noopener noreferrer">
-          <Button type="button" variant="outline">
+        <Link className="w-full sm:w-auto" href={memberProfileHref} target="_blank" rel="noopener noreferrer">
+          <Button type="button" variant="outline" className="w-full sm:w-auto">
             View Public Profile
           </Button>
         </Link>

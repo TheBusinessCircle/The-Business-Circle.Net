@@ -189,7 +189,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       style={memberShellStyle}
     >
       <AppShell
-        className="overflow-x-visible"
+        className="overflow-x-clip"
         header={header}
         sidebar={sidebar}
         footer={<MemberFooter />}

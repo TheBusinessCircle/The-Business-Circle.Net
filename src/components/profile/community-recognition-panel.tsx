@@ -20,7 +20,7 @@ function RecognitionStat({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/80 bg-background/30 px-3 py-3 sm:px-4">
+    <div className="box-border min-w-0 max-w-full rounded-2xl border border-border/80 bg-background/30 px-3 py-3 sm:px-4">
       <p className="text-[11px] uppercase tracking-[0.08em] text-muted">{label}</p>
       <p className="mt-1 text-base font-semibold text-foreground">{value}</p>
       {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
@@ -35,13 +35,13 @@ export function CommunityRecognitionPanel({
   className
 }: CommunityRecognitionPanelProps) {
   return (
-    <Card className={cn(className)}>
+    <Card className={cn("w-full min-w-0 max-w-full", className)}>
       <CardHeader className="p-5 pb-3 sm:p-7 sm:pb-4">
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 p-5 pt-0 sm:space-y-4 sm:p-7 sm:pt-0">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid min-w-0 gap-3 md:grid-cols-3">
           <RecognitionStat label="Status" value={recognition.statusLevel} />
           <RecognitionStat
             label="Reputation"
@@ -64,12 +64,12 @@ export function CommunityRecognitionPanel({
           </div>
 
           {recognition.badges.length ? (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid min-w-0 gap-3 md:grid-cols-2">
               {recognition.badges.map((badge) => (
                 <div
                   key={badge.slug}
                   title={badge.description}
-                  className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3"
+                  className="min-w-0 rounded-2xl border border-border/80 bg-background/25 px-4 py-3"
                 >
                   <CommunityBadge badge={badge} className="w-fit" />
                   <p className="mt-2 text-sm font-medium text-foreground">{badge.name}</p>
