@@ -438,7 +438,7 @@ export function ProfileForm({
 
   return (
     <form
-      className="member-accent-theme relative space-y-6"
+      className="member-accent-theme relative space-y-5 sm:space-y-6"
       data-member-accent-theme={selectedAccentTheme}
       data-member-workspace-atmosphere={workspaceAtmosphereEnabled ? "true" : "false"}
       style={selectedAccentThemeStyle}
@@ -455,12 +455,12 @@ export function ProfileForm({
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
-        <aside className="space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
-          <section className="premium-surface p-5">
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-[320px_1fr]">
+        <aside className="space-y-3 sm:space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
+          <section className="premium-surface p-4 sm:p-5">
             <div className="flex items-center gap-3">
               <Avatar
-                className="member-profile-ring h-24 w-24"
+                className="member-profile-ring h-20 w-20 sm:h-24 sm:w-24"
                 name={values.name || "Member"}
                 image={previewImage}
               />
@@ -473,7 +473,7 @@ export function ProfileForm({
               </div>
             </div>
 
-            <div className="mt-5 space-y-2">
+            <div className="mt-4 space-y-2 sm:mt-5">
               <div className="flex items-center justify-between text-xs text-muted">
                 <span>Profile Completion</span>
                 <span>
@@ -507,9 +507,9 @@ export function ProfileForm({
           </section>
         </aside>
 
-        <div className="space-y-4">
-          <section id="bcn-rules" className="premium-surface p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-3 sm:space-y-4">
+          <section id="bcn-rules" className="premium-surface p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="max-w-2xl">
                 <p className="mb-2 text-xs tracking-[0.1em] text-silver uppercase">
                   BCN Rules Acceptance
@@ -531,7 +531,7 @@ export function ProfileForm({
 
             <label
               htmlFor="acceptedRules"
-              className="mt-5 flex items-start gap-3 rounded-2xl border border-primary/20 bg-background/25 px-4 py-4 text-sm leading-relaxed text-foreground"
+              className="mt-4 flex items-start gap-3 rounded-2xl border border-primary/20 bg-background/25 px-3 py-3 text-sm leading-relaxed text-foreground sm:mt-5 sm:px-4 sm:py-4"
             >
               <input
                 id="acceptedRules"
@@ -565,12 +565,12 @@ export function ProfileForm({
                   ? "Collapse accent theme options"
                   : "Expand accent theme options"
               }
-              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[hsl(var(--member-accent-border)/0.35)] bg-[hsl(var(--member-atmosphere-to)/0.6)] px-3 py-3 text-left shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)] md:hidden"
+              className="flex w-full items-center justify-between gap-2.5 rounded-[1.25rem] border border-[hsl(var(--member-accent-border)/0.35)] bg-[hsl(var(--member-atmosphere-to)/0.6)] px-3 py-2.5 text-left shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)] md:hidden"
               onClick={() => setAccentThemeOptionsOpen((open) => !open)}
             >
-              <span className="flex min-w-0 items-center gap-3">
+              <span className="flex min-w-0 items-center gap-2.5">
                 <span
-                  className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10"
                   style={getThemeOptionStyle(selectedAccentThemeOption)}
                   aria-hidden="true"
                 >
@@ -578,7 +578,7 @@ export function ProfileForm({
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-foreground">Accent Theme</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-muted">
+                  <span className="mt-0.5 block text-xs leading-snug text-muted">
                     Personalise the look of your private workspace.
                   </span>
                   <span className="mt-1 block truncate text-xs text-[hsl(var(--member-accent-text))]">
@@ -713,20 +713,20 @@ export function ProfileForm({
             <FieldError message={form.formState.errors.accentTheme?.message} />
           </section>
 
-          <section className="premium-surface p-5">
+          <section className="premium-surface p-4 sm:p-5">
             <p className="mb-4 text-xs tracking-[0.1em] text-silver uppercase">Identity</p>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div className="space-y-2">
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input id="name" {...form.register("name")} />
                 <FieldError message={form.formState.errors.name?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="headline">Headline</Label>
                 <Input id="headline" {...form.register("headline")} placeholder="Founder, strategist, operator" />
                 <FieldError message={form.formState.errors.headline?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="memberRoleTag">Role Tag</Label>
                 <Select id="memberRoleTag" {...form.register("memberRoleTag")}>
                   {MEMBER_ROLE_OPTIONS.map((roleTag) => (
@@ -740,30 +740,30 @@ export function ProfileForm({
                 </p>
                 <FieldError message={form.formState.errors.memberRoleTag?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="location">Location</Label>
                 <Input id="location" {...form.register("location")} placeholder="London, United Kingdom" />
                 <FieldError message={form.formState.errors.location?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="experience">Experience</Label>
                 <Input id="experience" {...form.register("experience")} placeholder="8 years building SaaS" />
                 <FieldError message={form.formState.errors.experience?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-1.5 sm:space-y-2 md:col-span-2">
                 <Label htmlFor="bio">Bio</Label>
                 <Textarea id="bio" rows={4} {...form.register("bio")} placeholder="Share your journey, focus, and goals." />
                 <FieldError message={form.formState.errors.bio?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-1.5 sm:space-y-2 md:col-span-2">
                 <Label htmlFor="profileImage">Profile Image URL</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
                     id="profileImage"
                     {...form.register("profileImage")}
                     placeholder="https://images.example.com/avatar.jpg"
                   />
-                  <div className="w-[220px]">
+                  <div className="w-full sm:w-[220px]">
                     <Input
                       id="profileImageUpload"
                       type="file"
@@ -797,15 +797,15 @@ export function ProfileForm({
             </div>
           </section>
 
-          <section className="premium-surface p-5">
+          <section className="premium-surface p-4 sm:p-5">
             <p className="mb-4 text-xs tracking-[0.1em] text-silver uppercase">Business</p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="companyName">Company</Label>
                 <Input id="companyName" {...form.register("companyName")} />
                 <FieldError message={form.formState.errors.companyName?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="businessStatus">Business Status</Label>
                 <Select id="businessStatus" {...form.register("businessStatus")}>
                   <option value="">Select Status</option>
@@ -815,12 +815,12 @@ export function ProfileForm({
                 </Select>
                 <FieldError message={form.formState.errors.businessStatus?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="industry">Industry</Label>
                 <Input id="industry" {...form.register("industry")} placeholder="Technology, Media, Finance..." />
                 <FieldError message={form.formState.errors.industry?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="businessStage">Business Stage</Label>
                 <Select id="businessStage" {...form.register("businessStage")}>
                   <option value="">Select Stage</option>
@@ -832,7 +832,7 @@ export function ProfileForm({
                 </Select>
                 <FieldError message={form.formState.errors.businessStage?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="companyNumber">Company Number</Label>
                 <Input
                   id="companyNumber"
@@ -844,12 +844,12 @@ export function ProfileForm({
                 </p>
                 <FieldError message={form.formState.errors.companyNumber?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="services">Services</Label>
                 <Input id="services" {...form.register("services")} placeholder="Coaching, consulting, development..." />
                 <FieldError message={form.formState.errors.services?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-1.5 sm:space-y-2 md:col-span-2">
                 <Label htmlFor="businessDescription">Business Description</Label>
                 <Textarea
                   id="businessDescription"
@@ -862,43 +862,43 @@ export function ProfileForm({
             </div>
           </section>
 
-          <section className="premium-surface p-5">
+          <section className="premium-surface p-4 sm:p-5">
             <p className="mb-4 text-xs tracking-[0.1em] text-silver uppercase">Links & Collaboration</p>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
               <input type="hidden" {...form.register("customLinks")} />
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="website">Website</Label>
                 <Input id="website" {...form.register("website")} placeholder="https://your-site.com" />
                 <FieldError message={form.formState.errors.website?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="linkedin">LinkedIn</Label>
                 <Input id="linkedin" {...form.register("linkedin")} placeholder="https://linkedin.com/in/..." />
                 <FieldError message={form.formState.errors.linkedin?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="instagram">Instagram</Label>
                 <Input id="instagram" {...form.register("instagram")} placeholder="https://instagram.com/..." />
                 <FieldError message={form.formState.errors.instagram?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="tiktok">TikTok</Label>
                 <Input id="tiktok" {...form.register("tiktok")} placeholder="https://www.tiktok.com/@..." />
                 <FieldError message={form.formState.errors.tiktok?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="facebook">Facebook</Label>
                 <Input id="facebook" {...form.register("facebook")} placeholder="https://facebook.com/..." />
                 <FieldError message={form.formState.errors.facebook?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="youtube">YouTube</Label>
                 <Input id="youtube" {...form.register("youtube")} placeholder="https://youtube.com/@..." />
                 <FieldError message={form.formState.errors.youtube?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2 xl:col-span-3">
+              <div className="space-y-1.5 sm:space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="customLinkDraft">Other Links</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
                     id="customLinkDraft"
                     value={customLinkDraft}
@@ -936,22 +936,22 @@ export function ProfileForm({
                 )}
                 <FieldError message={form.formState.errors.customLinks?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2 xl:col-span-3">
+              <div className="space-y-1.5 sm:space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="collaborationNeeds">What You Need Help With</Label>
                 <Textarea id="collaborationNeeds" rows={3} {...form.register("collaborationNeeds")} />
                 <FieldError message={form.formState.errors.collaborationNeeds?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2 xl:col-span-3">
+              <div className="space-y-1.5 sm:space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="collaborationOffers">What You Can Help With</Label>
                 <Textarea id="collaborationOffers" rows={3} {...form.register("collaborationOffers")} />
                 <FieldError message={form.formState.errors.collaborationOffers?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2 xl:col-span-3">
+              <div className="space-y-1.5 sm:space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="partnershipInterests">Partnership Interests</Label>
                 <Textarea id="partnershipInterests" rows={3} {...form.register("partnershipInterests")} />
                 <FieldError message={form.formState.errors.partnershipInterests?.message} />
               </div>
-              <div className="space-y-2 md:col-span-2 xl:col-span-3">
+              <div className="space-y-1.5 sm:space-y-2 md:col-span-2 xl:col-span-3">
                 <Label htmlFor="collaborationTags">Collaboration Tags (comma separated)</Label>
                 <Input id="collaborationTags" {...form.register("collaborationTags")} placeholder="fundraising, hiring, b2b-sales" />
                 <FieldError message={form.formState.errors.collaborationTags?.message} />

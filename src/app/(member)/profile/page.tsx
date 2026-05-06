@@ -47,15 +47,15 @@ export default async function ProfilePage() {
   const memberProfileHref = buildMemberProfilePath(user.id);
 
   return (
-    <div className="space-y-6">
-      <Card className="border-primary/35 bg-gradient-to-br from-primary/10 via-card/80 to-card/70">
-        <CardHeader>
-          <CardTitle className="font-display text-3xl">Profile Settings</CardTitle>
-          <CardDescription className="text-base">
+    <div className="mx-auto w-full max-w-[calc(100vw-2.5rem)] space-y-4 sm:max-w-none sm:space-y-6">
+      <Card className="overflow-hidden border-primary/35 bg-gradient-to-br from-primary/10 via-card/80 to-card/70">
+        <CardHeader className="p-5 pb-3 sm:p-7 sm:pb-4">
+          <CardTitle className="font-display text-2xl sm:text-3xl">Profile Settings</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
             Build a complete member profile so other founders can find you, trust you, and collaborate faster.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-5 pt-0 sm:p-7 sm:pt-0">
           <div className="mb-3">
             <FoundingBadge tier={session.user.foundingTier} />
           </div>

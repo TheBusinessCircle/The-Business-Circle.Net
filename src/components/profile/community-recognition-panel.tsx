@@ -20,7 +20,7 @@ function RecognitionStat({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/80 bg-background/30 px-4 py-3">
+    <div className="rounded-2xl border border-border/80 bg-background/30 px-3 py-3 sm:px-4">
       <p className="text-[11px] uppercase tracking-[0.08em] text-muted">{label}</p>
       <p className="mt-1 text-base font-semibold text-foreground">{value}</p>
       {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
@@ -36,11 +36,11 @@ export function CommunityRecognitionPanel({
 }: CommunityRecognitionPanelProps) {
   return (
     <Card className={cn(className)}>
-      <CardHeader>
+      <CardHeader className="p-5 pb-3 sm:p-7 sm:pb-4">
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 p-5 pt-0 sm:space-y-4 sm:p-7 sm:pt-0">
         <div className="grid gap-3 md:grid-cols-3">
           <RecognitionStat label="Status" value={recognition.statusLevel} />
           <RecognitionStat

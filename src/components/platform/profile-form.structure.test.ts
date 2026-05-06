@@ -11,6 +11,9 @@ describe("profile form accent theme chooser structure", () => {
     const source = readSource("src/components/platform/profile-form.tsx");
 
     expect(source).toContain("const [accentThemeOptionsOpen, setAccentThemeOptionsOpen] = useState(false)");
+    expect(source).toContain("member-accent-theme relative space-y-5 sm:space-y-6");
+    expect(source).toContain("grid gap-4 sm:gap-6 xl:grid-cols-[320px_1fr]");
+    expect(source).toContain("space-y-3 sm:space-y-4");
     expect(source).toContain("Accent Theme");
     expect(source).toContain("Personalise the look of your private workspace.");
     expect(source).toContain("Current: {selectedAccentThemeOption.label}");
