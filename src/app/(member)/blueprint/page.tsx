@@ -10,6 +10,7 @@ import {
   deleteBlueprintDiscussionCommentAction,
   toggleBlueprintDiscussionLikeAction
 } from "@/actions/blueprint";
+import { BuildHistoryPanel } from "@/components/blueprint/build-history-panel";
 import { BlueprintVotingPanel } from "@/components/blueprint/blueprint-voting-panel";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -508,6 +509,7 @@ export default async function BlueprintPage({ searchParams }: PageProps) {
         </div>
       ) : null}
       <HeroSection />
+      <BuildHistoryPanel sections={blueprint.roadmapSections} />
       <IntroTimeline sections={blueprint.introSections} />
       <RoadmapCanvas
         sections={blueprint.roadmapSections}
