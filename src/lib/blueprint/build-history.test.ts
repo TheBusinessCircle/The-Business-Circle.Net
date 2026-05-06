@@ -113,6 +113,39 @@ describe("BCN build history", () => {
     });
   });
 
+  it("does not treat Not needed alone as member-voted priority progress", () => {
+    const notNeededCounts = createEmptyBlueprintVoteCounts();
+    notNeededCounts.NOT_NEEDED = 6;
+
+    const groups = getBlueprintHistoryProgressGroups([
+      section([card({ id: "negative_only", title: "Low fit idea", voteCounts: notNeededCounts })])
+    ]);
+
+    expect(hasBlueprintHistoryProgress(groups)).toBe(false);
+  });
+
+  it("labels Not needed signals on items that already appear in build history", () => {
+    const counts = createEmptyBlueprintVoteCounts();
+    counts.NOT_NEEDED = 4;
+
+    const groups = getBlueprintHistoryProgressGroups([
+      section([
+        card({
+          id: "live_with_signal",
+          title: "Live item with negative signal",
+          status: status("Live Now"),
+          voteCounts: counts
+        })
+      ])
+    ]);
+
+    expect(groups.find((group) => group.id === "completed")?.items[0]).toMatchObject({
+      title: "Live item with negative signal",
+      notNeededVotes: 4,
+      voteCount: 4
+    });
+  });
+
   it("reports no history progress when no completed, voted, or member-shaped cards exist", () => {
     const groups = getBlueprintHistoryProgressGroups([
       section([card({ id: "future", title: "Future concept", status: status("Future Vision") })])

@@ -85,6 +85,7 @@ export type BlueprintHistoryProgressItem = {
   voteCount: number;
   supportVotes: number;
   highPriorityVotes: number;
+  notNeededVotes: number;
   needsDiscussionVotes: number;
   discussionUnlocked: boolean;
   groupId: BlueprintHistoryProgressGroupId;
@@ -140,6 +141,7 @@ function voteCount(voteCounts: BlueprintVoteCounts) {
   return {
     supportVotes: voteCounts.SUPPORT ?? 0,
     highPriorityVotes: voteCounts.HIGH_PRIORITY ?? 0,
+    notNeededVotes: voteCounts.NOT_NEEDED ?? 0,
     needsDiscussionVotes: voteCounts.NEEDS_DISCUSSION ?? 0
   };
 }
@@ -154,9 +156,10 @@ export function getBlueprintHistoryProgressGroups(
   sections.forEach((section) => {
     section.cards.forEach((card) => {
       const statusLabel = card.status?.label ?? null;
-      const { supportVotes, highPriorityVotes, needsDiscussionVotes } = voteCount(card.voteCounts);
+      const { supportVotes, highPriorityVotes, notNeededVotes, needsDiscussionVotes } =
+        voteCount(card.voteCounts);
       const priorityVoteCount = supportVotes + highPriorityVotes;
-      const totalVoteCount = priorityVoteCount + needsDiscussionVotes;
+      const totalVoteCount = priorityVoteCount + notNeededVotes + needsDiscussionVotes;
       const isCompleted = statusHasAnyTerm(statusLabel, COMPLETED_STATUS_TERMS);
       const isMemberVoted =
         priorityVoteCount > 0 || statusHasAnyTerm(statusLabel, MEMBER_VOTED_STATUS_TERMS);
@@ -187,6 +190,7 @@ export function getBlueprintHistoryProgressGroups(
         voteCount: totalVoteCount,
         supportVotes,
         highPriorityVotes,
+        notNeededVotes,
         needsDiscussionVotes,
         discussionUnlocked: card.discussionUnlocked,
         groupId

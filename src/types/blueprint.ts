@@ -5,7 +5,7 @@ import type {
 } from "@prisma/client";
 
 export type BlueprintVoteCounts = Record<BlueprintVoteType, number>;
-export type BlueprintPriorityVoteType = "SUPPORT" | "HIGH_PRIORITY";
+export type BlueprintPriorityVoteType = "SUPPORT" | "HIGH_PRIORITY" | "NOT_NEEDED";
 
 export type BlueprintStatusModel = {
   id: string;

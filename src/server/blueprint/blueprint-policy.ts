@@ -25,6 +25,7 @@ export function createEmptyBlueprintVoteCounts(): BlueprintVoteCounts {
   return {
     SUPPORT: 0,
     HIGH_PRIORITY: 0,
+    NOT_NEEDED: 0,
     NEEDS_DISCUSSION: 0
   };
 }

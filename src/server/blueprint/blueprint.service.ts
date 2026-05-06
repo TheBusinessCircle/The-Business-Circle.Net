@@ -338,7 +338,11 @@ function makeVoteCountsByCard(
 }
 
 function isPriorityVoteType(value: BlueprintVoteType): value is BlueprintPriorityVoteType {
-  return value === BlueprintVoteType.SUPPORT || value === BlueprintVoteType.HIGH_PRIORITY;
+  return (
+    value === BlueprintVoteType.SUPPORT ||
+    value === BlueprintVoteType.HIGH_PRIORITY ||
+    value === BlueprintVoteType.NOT_NEEDED
+  );
 }
 
 function resolveVoteGroup(voteType: BlueprintVoteType): BlueprintVoteGroup {
@@ -768,6 +772,38 @@ export async function castBlueprintVote(input: {
       cardId: input.cardId,
       userId: input.userId
     });
+  }
+
+  if (input.voteType === BlueprintVoteType.NOT_NEEDED) {
+    const existingVote = await db.blueprintVote.findUnique({
+      where: {
+        cardId_userId_voteGroup: {
+          cardId: input.cardId,
+          userId: input.userId,
+          voteGroup
+        }
+      },
+      select: {
+        voteType: true
+      }
+    });
+
+    if (existingVote?.voteType === BlueprintVoteType.NOT_NEEDED) {
+      await db.blueprintVote.delete({
+        where: {
+          cardId_userId_voteGroup: {
+            cardId: input.cardId,
+            userId: input.userId,
+            voteGroup
+          }
+        }
+      });
+
+      return getBlueprintVoteState({
+        cardId: input.cardId,
+        userId: input.userId
+      });
+    }
   }
 
   await db.blueprintVote.upsert({

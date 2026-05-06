@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { BlueprintRoadmapSectionModel } from "@/types/blueprint";
+import { BLUEPRINT_PRIORITY_VOTE_TYPES, BLUEPRINT_VOTE_LABELS } from "@/config/blueprint";
 import {
   canParticipateInBlueprint,
   canViewBlueprint,
@@ -13,7 +14,9 @@ import {
 
 const dbMock = vi.hoisted(() => ({
   blueprintCard: {
-    findUnique: vi.fn()
+    delete: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn()
   },
   blueprintVote: {
     create: vi.fn(),
@@ -84,6 +87,8 @@ describe("Circle Blueprint policy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dbMock.blueprintCard.findUnique.mockResolvedValue(visibleCard());
+    dbMock.blueprintCard.delete.mockImplementation(async (args) => args);
+    dbMock.blueprintCard.update.mockImplementation(async (args) => args);
     dbMock.blueprintVote.create.mockImplementation(async (args) => args);
     dbMock.blueprintVote.delete.mockImplementation(async (args) => args);
     dbMock.blueprintVote.findMany.mockResolvedValue([]);
@@ -105,6 +110,11 @@ describe("Circle Blueprint policy", () => {
     expect(canParticipateInBlueprint({ role: "MEMBER", membershipTier: "INNER_CIRCLE" })).toBe(true);
     expect(canParticipateInBlueprint({ role: "MEMBER", membershipTier: "CORE" })).toBe(true);
     expect(canParticipateInBlueprint({ role: "ADMIN", membershipTier: "FOUNDATION" })).toBe(true);
+  });
+
+  it("includes Not needed in the build priority vote button group", () => {
+    expect(BLUEPRINT_PRIORITY_VOTE_TYPES).toEqual(["SUPPORT", "HIGH_PRIORITY", "NOT_NEEDED"]);
+    expect(BLUEPRINT_VOTE_LABELS.NOT_NEEDED).toBe("Not needed");
   });
 
   it("rejects Foundation vote attempts before writing a vote", async () => {
@@ -180,6 +190,162 @@ describe("Circle Blueprint policy", () => {
     );
   });
 
+  it("lets Inner Circle vote Not needed as a build priority signal", async () => {
+    await castBlueprintVote({
+      cardId: "card_1",
+      userId: "user_not_needed",
+      userRole: "MEMBER",
+      userTier: "INNER_CIRCLE",
+      voteType: "NOT_NEEDED"
+    });
+
+    expect(dbMock.blueprintVote.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          cardId_userId_voteGroup: {
+            cardId: "card_1",
+            userId: "user_not_needed",
+            voteGroup: "BUILD_PRIORITY"
+          }
+        },
+        create: expect.objectContaining({
+          voteGroup: "BUILD_PRIORITY",
+          voteType: "NOT_NEEDED"
+        }),
+        update: {
+          voteType: "NOT_NEEDED"
+        }
+      })
+    );
+  });
+
+  it("lets Not needed replace Support through the build priority group", async () => {
+    dbMock.blueprintVote.findUnique.mockResolvedValueOnce({ voteType: "SUPPORT" });
+
+    await castBlueprintVote({
+      cardId: "card_1",
+      userId: "user_negative",
+      userRole: "MEMBER",
+      userTier: "CORE",
+      voteType: "NOT_NEEDED"
+    });
+
+    expect(dbMock.blueprintVote.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          cardId_userId_voteGroup: {
+            cardId: "card_1",
+            userId: "user_negative",
+            voteGroup: "BUILD_PRIORITY"
+          }
+        },
+        update: {
+          voteType: "NOT_NEEDED"
+        }
+      })
+    );
+  });
+
+  it("lets Not needed replace High Priority through the build priority group", async () => {
+    dbMock.blueprintVote.findUnique.mockResolvedValueOnce({ voteType: "HIGH_PRIORITY" });
+
+    await castBlueprintVote({
+      cardId: "card_1",
+      userId: "user_negative_priority",
+      userRole: "MEMBER",
+      userTier: "CORE",
+      voteType: "NOT_NEEDED"
+    });
+
+    expect(dbMock.blueprintVote.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          cardId_userId_voteGroup: {
+            cardId: "card_1",
+            userId: "user_negative_priority",
+            voteGroup: "BUILD_PRIORITY"
+          }
+        },
+        update: {
+          voteType: "NOT_NEEDED"
+        }
+      })
+    );
+  });
+
+  it("lets Support replace Not needed through the same build priority group", async () => {
+    await castBlueprintVote({
+      cardId: "card_1",
+      userId: "user_support_again",
+      userRole: "MEMBER",
+      userTier: "CORE",
+      voteType: "SUPPORT"
+    });
+
+    expect(dbMock.blueprintVote.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          cardId_userId_voteGroup: {
+            cardId: "card_1",
+            userId: "user_support_again",
+            voteGroup: "BUILD_PRIORITY"
+          }
+        },
+        update: {
+          voteType: "SUPPORT"
+        }
+      })
+    );
+  });
+
+  it("lets High Priority replace Not needed through the same build priority group", async () => {
+    await castBlueprintVote({
+      cardId: "card_1",
+      userId: "user_priority_again",
+      userRole: "MEMBER",
+      userTier: "CORE",
+      voteType: "HIGH_PRIORITY"
+    });
+
+    expect(dbMock.blueprintVote.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          cardId_userId_voteGroup: {
+            cardId: "card_1",
+            userId: "user_priority_again",
+            voteGroup: "BUILD_PRIORITY"
+          }
+        },
+        update: {
+          voteType: "HIGH_PRIORITY"
+        }
+      })
+    );
+  });
+
+  it("toggles Not needed off when selected again", async () => {
+    dbMock.blueprintVote.findUnique.mockResolvedValueOnce({ voteType: "NOT_NEEDED" });
+
+    await castBlueprintVote({
+      cardId: "card_1",
+      userId: "user_toggle_negative",
+      userRole: "MEMBER",
+      userTier: "INNER_CIRCLE",
+      voteType: "NOT_NEEDED"
+    });
+
+    expect(dbMock.blueprintVote.delete).toHaveBeenCalledWith({
+      where: {
+        cardId_userId_voteGroup: {
+          cardId: "card_1",
+          userId: "user_toggle_negative",
+          voteGroup: "BUILD_PRIORITY"
+        }
+      }
+    });
+    expect(dbMock.blueprintVote.upsert).not.toHaveBeenCalled();
+  });
+
   it("lets a user hold Support plus Needs Discussion", async () => {
     await castBlueprintVote({
       cardId: "card_1",
@@ -253,6 +419,55 @@ describe("Circle Blueprint policy", () => {
     });
   });
 
+  it("lets a user hold Not needed plus Needs Discussion", async () => {
+    await castBlueprintVote({
+      cardId: "card_1",
+      userId: "user_6",
+      userRole: "MEMBER",
+      userTier: "INNER_CIRCLE",
+      voteType: "NOT_NEEDED"
+    });
+
+    await castBlueprintVote({
+      cardId: "card_1",
+      userId: "user_6",
+      userRole: "MEMBER",
+      userTier: "INNER_CIRCLE",
+      voteType: "NEEDS_DISCUSSION"
+    });
+
+    expect(dbMock.blueprintVote.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          voteGroup: "BUILD_PRIORITY",
+          voteType: "NOT_NEEDED"
+        })
+      })
+    );
+    expect(dbMock.blueprintVote.create).toHaveBeenCalledWith({
+      data: {
+        cardId: "card_1",
+        userId: "user_6",
+        voteGroup: "DISCUSSION",
+        voteType: "NEEDS_DISCUSSION"
+      }
+    });
+  });
+
+  it("does not hide, delete, or update a roadmap card when Not needed is cast", async () => {
+    await castBlueprintVote({
+      cardId: "card_1",
+      userId: "user_negative_signal",
+      userRole: "MEMBER",
+      userTier: "INNER_CIRCLE",
+      voteType: "NOT_NEEDED"
+    });
+
+    expect(dbMock.blueprintCard.update).not.toHaveBeenCalled();
+    expect(dbMock.blueprintCard.delete).not.toHaveBeenCalled();
+    expect(dbMock.blueprintVote.upsert).toHaveBeenCalled();
+  });
+
   it("toggles a Needs Discussion vote separately from priority voting", async () => {
     dbMock.blueprintVote.findUnique.mockResolvedValueOnce({ cardId: "card_1" });
 
@@ -282,6 +497,7 @@ describe("Circle Blueprint policy", () => {
         voteCounts: {
           SUPPORT: 20,
           HIGH_PRIORITY: 20,
+          NOT_NEEDED: 20,
           NEEDS_DISCUSSION: 4
         }
       })
@@ -293,6 +509,7 @@ describe("Circle Blueprint policy", () => {
         voteCounts: {
           SUPPORT: 0,
           HIGH_PRIORITY: 0,
+          NOT_NEEDED: 0,
           NEEDS_DISCUSSION: 5
         }
       })
@@ -304,6 +521,7 @@ describe("Circle Blueprint policy", () => {
         voteCounts: {
           SUPPORT: 20,
           HIGH_PRIORITY: 20,
+          NOT_NEEDED: 20,
           NEEDS_DISCUSSION: 20
         }
       })
@@ -315,6 +533,20 @@ describe("Circle Blueprint policy", () => {
         voteCounts: createEmptyBlueprintVoteCounts()
       })
     ).toBe(true);
+  });
+
+  it("does not unlock discussion from Not needed votes alone", () => {
+    expect(
+      isBlueprintDiscussionUnlocked({
+        discussionMode: "AUTO",
+        voteCounts: {
+          SUPPORT: 0,
+          HIGH_PRIORITY: 0,
+          NOT_NEEDED: 99,
+          NEEDS_DISCUSSION: 0
+        }
+      })
+    ).toBe(false);
   });
 
   it("uses inline client voting instead of navigating through the Blueprint page action", () => {

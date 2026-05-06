@@ -125,7 +125,7 @@ function HeroSection() {
         <div className="rounded-2xl border border-silver/14 bg-background/24 p-4">
           <p className="text-xs uppercase tracking-[0.1em] text-silver">Signal rule</p>
           <p className="mt-3 text-sm leading-6 text-muted">
-            Inner Circle and Core members can signal Support, High Priority, or Needs Discussion. Final direction stays founder-led.
+            Inner Circle and Core members can signal Support, High Priority, Not needed, or Needs Discussion. Final direction stays founder-led.
           </p>
         </div>
       </div>

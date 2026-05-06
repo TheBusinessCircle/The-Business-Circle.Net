@@ -65,19 +65,22 @@ function ProgressItemCard({ item }: { item: BlueprintHistoryProgressItem }) {
         ) : null}
         {item.voteCount > 0 ? (
           <Badge variant="muted" className="normal-case tracking-normal">
-            {item.voteCount} member votes
+            {item.voteCount} member signals
           </Badge>
         ) : null}
       </div>
       <h4 className="mt-3 font-display text-lg text-foreground">{item.title}</h4>
       <p className="mt-2 text-sm leading-6 text-muted">{item.shortDescription}</p>
       {item.voteCount > 0 ? (
-        <div className="mt-4 grid gap-2 text-[11px] text-muted min-[420px]:grid-cols-3">
+        <div className="mt-4 grid gap-2 text-[11px] text-muted min-[420px]:grid-cols-2 min-[620px]:grid-cols-4">
           <span className="rounded-xl border border-silver/10 bg-background/22 px-2.5 py-2">
             Support {item.supportVotes}
           </span>
           <span className="rounded-xl border border-silver/10 bg-background/22 px-2.5 py-2">
             Priority {item.highPriorityVotes}
+          </span>
+          <span className="rounded-xl border border-amber-300/16 bg-amber-300/8 px-2.5 py-2 text-amber-100/82">
+            Member signal: Not needed {item.notNeededVotes}
           </span>
           <span className="rounded-xl border border-silver/10 bg-background/22 px-2.5 py-2">
             Discuss {item.needsDiscussionVotes}

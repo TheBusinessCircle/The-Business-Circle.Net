@@ -1886,6 +1886,7 @@ enum BlueprintSectionType {
 enum BlueprintVoteType {
   SUPPORT
   HIGH_PRIORITY
+  NOT_NEEDED
   NEEDS_DISCUSSION
 }
 

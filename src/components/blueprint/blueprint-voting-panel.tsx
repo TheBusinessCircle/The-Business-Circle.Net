@@ -36,6 +36,16 @@ type BlueprintVotingPanelProps = {
 const FOUNDATION_LOCKED_MESSAGE =
   "Voting is available to Inner Circle and Core members, where deeper platform direction is shaped with the founder.";
 
+function priorityVoteButtonClass(voteType: BlueprintVoteType, active: boolean) {
+  if (voteType === "NOT_NEEDED") {
+    return active
+      ? "border-amber-300/34 bg-amber-300/14 text-amber-100 ring-1 ring-amber-300/30 hover:border-amber-300/44 hover:bg-amber-300/18"
+      : "border-silver/16 text-muted hover:border-amber-300/30 hover:bg-amber-300/8 hover:text-amber-100";
+  }
+
+  return active ? "ring-1 ring-gold/40" : "border-silver/16";
+}
+
 function isVoteState(value: unknown): value is BlueprintVoteState {
   if (!value || typeof value !== "object") {
     return false;
@@ -114,7 +124,7 @@ export function BlueprintVotingPanel({
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-2 sm:grid-cols-3">
         {BLUEPRINT_PRIORITY_VOTE_TYPES.map((voteType) => {
           const active = voteState.viewerPriorityVote === voteType;
           const pending = pendingVoteType === voteType;
@@ -123,17 +133,19 @@ export function BlueprintVotingPanel({
             <Button
               key={voteType}
               type="button"
-              variant={active ? "default" : "outline"}
+              variant={active && voteType !== "NOT_NEEDED" ? "default" : "outline"}
               size="sm"
               disabled={isPending}
               aria-pressed={active}
               className={cn(
-                "w-full justify-between gap-2",
-                active ? "ring-1 ring-gold/40" : "border-silver/16"
+                "box-border w-full max-w-full min-w-0 justify-between gap-2",
+                priorityVoteButtonClass(voteType, active)
               )}
               onClick={() => submitVote(voteType)}
             >
-              <span>{pending ? "Saving..." : BLUEPRINT_VOTE_LABELS[voteType]}</span>
+              <span className="min-w-0 truncate">
+                {pending ? "Saving..." : BLUEPRINT_VOTE_LABELS[voteType]}
+              </span>
               <span className="rounded-full bg-background/20 px-2 py-0.5 text-[11px]">
                 {voteState.voteCounts[voteType]}
               </span>

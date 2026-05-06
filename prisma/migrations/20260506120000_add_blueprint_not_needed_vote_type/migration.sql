@@ -1,0 +1,1 @@
+ALTER TYPE "BlueprintVoteType" ADD VALUE 'NOT_NEEDED';
