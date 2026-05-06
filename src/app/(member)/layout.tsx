@@ -121,7 +121,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   );
 
   const mobileNavigation = (
-    <div className="lg:hidden">
+    <div className="-mx-4 border-y border-[#28123d] bg-[#10051b] px-4 py-3 sm:-mx-6 sm:px-6 lg:hidden">
       <MemberNavigation
         items={visibleNavItems}
         orientation="horizontal"

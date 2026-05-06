@@ -283,10 +283,10 @@ export function MemberNavigation({
             aria-controls="member-mobile-navigation-menu"
             aria-label={mobileMenuOpen ? "Close member navigation" : "Open member navigation"}
             onClick={() => setMobileMenuOpen((previousState) => !previousState)}
-            className="member-nav-item flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[hsl(var(--member-accent-border)/0.34)] bg-[hsl(var(--member-accent-strong)/0.36)] px-4 py-3 text-left text-foreground shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.58)] hover:bg-[hsl(var(--member-accent)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
+            className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[#4d246f] bg-[#261039] px-4 py-3 text-left text-foreground shadow-inner-surface transition-all hover:border-[#6d349b] hover:bg-[#301448] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
           >
             <span className="flex min-w-0 items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--member-accent-border)/0.4)] bg-[hsl(var(--member-accent)/0.14)] text-[hsl(var(--member-accent-text))]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5f2c86] bg-[#34184b] text-[hsl(var(--member-accent-text))]">
                 {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
               </span>
               <span className="min-w-0">
