@@ -27,9 +27,9 @@ import { MemberRoleBadge } from "@/components/ui/member-role-badge";
 import { getPresenceSignal } from "@/lib/community-rhythm";
 import { getMemberRoleLabel } from "@/lib/member-role";
 import { getExternalLinkProps } from "@/lib/links";
-import { getTierCardClassName } from "@/lib/tier-styles";
+import { getMemberTierPresentation } from "@/lib/tier-styles";
 import type { ProfileCompletionResult } from "@/lib/profile";
-import { toTitleCase } from "@/lib/utils";
+import { cn, toTitleCase } from "@/lib/utils";
 
 type PublicMemberProfileViewProps = {
   member: {
@@ -107,7 +107,7 @@ export function PublicMemberProfileView({
   isSelfView = false
 }: PublicMemberProfileViewProps) {
   const website = member.website || member.business?.website || null;
-  const tierCardClassName = getTierCardClassName(member.membershipTier);
+  const tierPresentation = getMemberTierPresentation(member.membershipTier);
   const presence = getPresenceSignal(member.lastActiveAt);
   const businessIdentity = member.business?.companyName || member.headline || "Member of The Business Circle Network";
   const stageLabel = member.business?.stage
@@ -117,11 +117,15 @@ export function PublicMemberProfileView({
 
   return (
     <div className="space-y-6">
-      <Card className={`overflow-hidden ${tierCardClassName}`}>
+      <Card className={cn("overflow-hidden", tierPresentation.cardClassName)}>
         <CardContent className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:p-8">
           <div className="space-y-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <Avatar className="h-32 w-32 shrink-0 ring-2 ring-gold/20" name={member.name} image={member.image} />
+              <Avatar
+                className={cn("h-32 w-32 shrink-0", tierPresentation.avatarRingClassName)}
+                name={member.name}
+                image={member.image}
+              />
               <div className="min-w-0 space-y-2">
                 <CardTitle className="font-display text-3xl sm:text-4xl">{member.name}</CardTitle>
                 <CardDescription className="text-base text-foreground/80">
@@ -131,7 +135,15 @@ export function PublicMemberProfileView({
                   {member.bio || member.business?.description || "Business identity and collaboration details are still being completed."}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <TierBadge tier={member.membershipTier} />
+                  <TierBadge tier={member.membershipTier} className={tierPresentation.badgeClassName} />
+                  {tierPresentation.shouldShowProfileSignal ? (
+                    <Badge
+                      variant="outline"
+                      className={cn("normal-case tracking-normal", tierPresentation.signalBadgeClassName)}
+                    >
+                      {tierPresentation.profileLabel}
+                    </Badge>
+                  ) : null}
                   <MemberRoleBadge roleTag={member.memberRoleTag} />
                   <FoundingBadge tier={member.foundingTier} />
                   {presence ? (
@@ -153,6 +165,16 @@ export function PublicMemberProfileView({
                     </Badge>
                   ) : null}
                 </div>
+                {tierPresentation.shouldShowProfileSignal ? (
+                  <div className={cn("max-w-xl rounded-2xl border px-4 py-3", tierPresentation.panelClassName)}>
+                    <p className="text-xs font-medium uppercase tracking-[0.08em]">
+                      {tierPresentation.profileLabel}
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                      {tierPresentation.description}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -192,8 +214,10 @@ export function PublicMemberProfileView({
             </div>
           </div>
 
-          <div className="space-y-3 rounded-3xl border border-border/80 bg-background/24 p-5">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Trust signals</p>
+          <div className={cn("space-y-3 rounded-3xl border p-5", tierPresentation.headerAccentClassName)}>
+            <p className={cn("text-[11px] uppercase tracking-[0.08em]", tierPresentation.accentTextClassName)}>
+              Trust signals
+            </p>
             <div className="rounded-2xl border border-border/80 bg-background/28 px-4 py-4">
               <p className="text-xs text-muted">Profile strength</p>
               <p className="mt-2 text-3xl font-semibold text-foreground">{completion.percentage}%</p>

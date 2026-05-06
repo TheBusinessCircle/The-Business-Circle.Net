@@ -22,6 +22,7 @@ const memberNavigation: NavigationItem[] = [
   { label: "Wins", href: "/wins" },
   { label: "BCN Intelligence", href: "/member/bcn-updates" },
   { label: "Inner Circle", href: "/inner-circle", requiresTier: "INNER_CIRCLE" },
+  { label: "Core", href: "/core", requiresTier: "CORE" },
   { label: "Founder | Trev", href: "/member/growth-architect" },
   { label: "Contact", href: "/member/contact" },
   { label: "Circle Blueprint", href: "/blueprint" },

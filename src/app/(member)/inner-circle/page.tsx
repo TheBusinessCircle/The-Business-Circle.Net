@@ -3,10 +3,12 @@ import Link from "next/link";
 import { MembershipTier, ResourceStatus, ResourceTier } from "@prisma/client";
 import {
   ArrowUpRight,
+  CheckCircle2,
   Crown,
   Lock,
   MessageSquare,
   ShieldCheck,
+  Sparkles,
   Users,
   Video
 } from "lucide-react";
@@ -32,7 +34,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 export const metadata: Metadata = createPageMetadata({
   title: "Inner Circle",
   description:
-    "Your premium space for deeper strategy, closer access to Trev, exclusive resources, and high-level business growth.",
+    "Inner Circle gives serious business owners a closer room for sharper conversations, stronger visibility, and more consistent progress.",
   path: "/inner-circle"
 });
 
@@ -51,6 +53,41 @@ type InnerCircleEventRecord = {
   isCancelled: boolean;
   replayUrl: string | null;
 };
+
+const INNER_CIRCLE_CHANGE_BULLETS = [
+  "Stronger visibility across the member environment",
+  "Access to higher-signal rooms and discussions",
+  "Better positioning in member discovery",
+  "Priority access to selected group sessions and member opportunities",
+  "A clearer route into strategic conversations"
+] as const;
+
+const INNER_CIRCLE_UPGRADE_CARDS = [
+  {
+    title: "Better conversations",
+    description:
+      "Foundation gets you into the environment. Inner Circle gets you closer to the conversations that move decisions forward."
+  },
+  {
+    title: "Stronger signal",
+    description:
+      "Your profile and presence carry a clearer tier signal so other members know you are operating at a more committed level."
+  },
+  {
+    title: "More momentum",
+    description:
+      "Inner Circle is built for owners who are ready to stop just watching and start taking a more active role inside the network."
+  }
+] as const;
+
+const INNER_CIRCLE_GET_ITEMS = [
+  "Inner Circle rooms and discussions",
+  "Enhanced profile tier badge",
+  "Higher visibility across relevant member areas",
+  "Priority consideration for group sessions",
+  "Access to deeper member prompts, resources, and growth discussions",
+  "Member rate access to Growth Architect services where eligible"
+] as const;
 
 function LockedPreviewCard({
   title,
@@ -79,6 +116,156 @@ function LockedPreviewCard({
           Upgrade to access
         </Badge>
       </div>
+    </div>
+  );
+}
+
+function ValueCard({ title, description }: { title: string; description: string }) {
+  return (
+    <Card className="border-violet-300/22 bg-card/70">
+      <CardHeader>
+        <CardTitle className="text-lg">{title}</CardTitle>
+        <CardDescription className="text-sm leading-relaxed">{description}</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function TierStatusCard({ title, bullets }: { title: string; bullets: readonly string[] }) {
+  return (
+    <Card className="border-violet-300/35 bg-[radial-gradient(circle_at_92%_0%,rgba(139,92,246,0.16),transparent_32%),linear-gradient(145deg,rgba(79,70,229,0.12),rgba(15,8,28,0.82)_56%,rgba(8,4,16,0.88))] shadow-[0_22px_62px_rgba(109,76,255,0.15)]">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>
+          Inner Circle is the step from standard access into clearer momentum, stronger positioning, and better strategic context.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="grid gap-3 text-sm text-muted sm:grid-cols-2">
+          {bullets.map((bullet) => (
+            <li key={bullet} className="flex gap-2">
+              <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-violet-100" />
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InnerCircleValueOverview({
+  hasInnerCircleAccess,
+  hasCoreAccess
+}: {
+  hasInnerCircleAccess: boolean;
+  hasCoreAccess: boolean;
+}) {
+  const cta = hasCoreAccess
+    ? {
+        title: "You already have Core access",
+        description:
+          "Core includes Inner Circle access and adds the strongest member signal inside BCN.",
+        href: "/core",
+        label: "View Core access"
+      }
+    : hasInnerCircleAccess
+      ? {
+          title: "You are already inside Inner Circle",
+          description:
+            "Use the premium rooms, member discovery, and strategy spaces to turn access into visible progress.",
+          href: "/community?channel=inner-circle-chat",
+          label: "Go to Inner Circle rooms"
+        }
+      : {
+          title: "Upgrade into Inner Circle",
+          description:
+            "Move from standard access into stronger conversations, higher visibility, and a more committed room.",
+          href: "/membership?tier=inner-circle",
+          label: "Upgrade to Inner Circle"
+        };
+
+  return (
+    <div className="space-y-6">
+      <Card className="overflow-hidden border-violet-300/35 bg-[radial-gradient(circle_at_88%_0%,rgba(139,92,246,0.2),transparent_34%),linear-gradient(145deg,rgba(79,70,229,0.13),rgba(15,8,28,0.86)_54%,rgba(7,3,14,0.92))] shadow-[0_24px_70px_rgba(109,76,255,0.16)]">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="innerCircle">
+              <Crown size={12} className="mr-1" />
+              Inner Circle
+            </Badge>
+            <Badge variant="outline" className="border-violet-300/35 bg-violet-500/10 text-violet-100">
+              <Sparkles size={12} className="mr-1" />
+              Access to momentum
+            </Badge>
+          </div>
+          <div className="max-w-4xl">
+            <p className="text-xs uppercase tracking-[0.12em] text-violet-100">Inner Circle</p>
+            <CardTitle className="mt-3 font-display text-4xl leading-tight sm:text-5xl">
+              Move from access to momentum.
+            </CardTitle>
+            <CardDescription className="mt-4 text-base leading-relaxed">
+              Inner Circle gives serious business owners a closer room for sharper conversations,
+              stronger visibility, and more consistent progress.
+            </CardDescription>
+          </div>
+        </CardHeader>
+      </Card>
+
+      <TierStatusCard title="What changes at Inner Circle" bullets={INNER_CIRCLE_CHANGE_BULLETS} />
+
+      <section className="space-y-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.1em] text-violet-100">Why upgrade from Foundation?</p>
+          <h2 className="mt-2 font-display text-2xl text-foreground">A closer room for stronger movement.</h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {INNER_CIRCLE_UPGRADE_CARDS.map((card) => (
+            <ValueCard key={card.title} title={card.title} description={card.description} />
+          ))}
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <Card>
+          <CardHeader>
+            <CardTitle>What you get</CardTitle>
+            <CardDescription>
+              Inner Circle builds on Foundation with stronger visibility, better discovery, and deeper member context.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {INNER_CIRCLE_GET_ITEMS.map((item) => (
+                <div key={item} className="rounded-2xl border border-violet-300/22 bg-violet-500/10 px-4 py-3 text-sm text-muted">
+                  <CheckCircle2 size={15} className="mr-2 inline text-violet-100" />
+                  {item}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-violet-300/35 bg-violet-500/10">
+          <CardHeader>
+            <CardTitle>{cta.title}</CardTitle>
+            <CardDescription>{cta.description}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <Link href={cta.href}>
+              <Button variant="innerCircle" className="w-full justify-center">
+                {cta.label}
+                <ArrowUpRight size={14} className="ml-2" />
+              </Button>
+            </Link>
+            <Link href="/dashboard">
+              <Button variant="outline" className="w-full justify-center">
+                Go to Dashboard
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
@@ -131,34 +318,18 @@ export default async function InnerCirclePage() {
 
     return (
       <div className="space-y-6">
-        <Card className="overflow-hidden border-silver/26 bg-gradient-to-br from-silver/14 via-card/82 to-card/72 shadow-silver-soft">
-          <CardHeader className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="innerCircle">
-                <Crown size={12} className="mr-1" />
-                Inner Circle
-              </Badge>
-              <Badge variant="outline" className="border-silver/22 text-silver">
-                More focused access
-              </Badge>
-            </div>
-            <CardTitle className="font-display text-3xl">Inner Circle</CardTitle>
-            <CardDescription className="max-w-4xl text-base">
-              Step into a more focused room when you want stronger signal, better private context,
-              and a calmer level of access than Foundation alone.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Link href="/membership?upgrade=inner-circle">
-              <Button variant="innerCircle">
-                Unlock Inner Circle
-                <ArrowUpRight size={14} className="ml-2" />
-              </Button>
-            </Link>
-            <Link href="/membership?upgrade=inner-circle">
-              <Button variant="outline">
-                {`Upgrade Now - ${formatCurrency(regularPrice, "GBP")}/month`}
-              </Button>
+        <InnerCircleValueOverview
+          hasInnerCircleAccess={hasInnerCircleAccess}
+          hasCoreAccess={hasCoreAccess}
+        />
+
+        <Card className="border-violet-300/22 bg-card/70">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+            <p className="text-sm text-muted">
+              Standard Inner Circle access starts at {formatCurrency(regularPrice, "GBP")}/month.
+            </p>
+            <Link href="/membership?tier=inner-circle">
+              <Button variant="outline">Compare Membership Options</Button>
             </Link>
           </CardContent>
         </Card>
@@ -448,6 +619,11 @@ export default async function InnerCirclePage() {
 
   return (
     <div className="space-y-6">
+      <InnerCircleValueOverview
+        hasInnerCircleAccess={hasInnerCircleAccess}
+        hasCoreAccess={hasCoreAccess}
+      />
+
       <Card className={`overflow-hidden ${premiumTierCardClassName} ${hasCoreAccess ? "shadow-gold-soft" : "shadow-silver-soft"}`}>
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">

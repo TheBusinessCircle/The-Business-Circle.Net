@@ -12,6 +12,7 @@ const privateRoutes = [
   "/dashboard",
   "/dashboard/resources",
   "/community",
+  "/core",
   "/messages",
   "/directory",
   "/events",

@@ -11,6 +11,7 @@ export default function robots(): MetadataRoute.Robots {
         "/blueprint",
         "/dashboard",
         "/community",
+        "/core",
         "/directory",
         "/events",
         "/calls",

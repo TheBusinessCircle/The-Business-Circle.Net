@@ -13,8 +13,8 @@ import { MemberRoleBadge } from "@/components/ui/member-role-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { getPresenceSignal } from "@/lib/community-rhythm";
 import { buildMemberProfilePath } from "@/lib/member-paths";
-import { getTierAccentTextClassName, getTierCardClassName } from "@/lib/tier-styles";
-import { toTitleCase } from "@/lib/utils";
+import { getMemberTierPresentation } from "@/lib/tier-styles";
+import { cn, toTitleCase } from "@/lib/utils";
 
 type MemberProfileCardProps = {
   userId: string;
@@ -51,19 +51,27 @@ export function MemberProfileCard({
   recognition,
   lastActiveAt
 }: MemberProfileCardProps) {
-  const tierCardClassName = getTierCardClassName(membershipTier);
-  const tierAccentTextClassName = getTierAccentTextClassName(membershipTier);
+  const tierPresentation = getMemberTierPresentation(membershipTier);
   const presence = getPresenceSignal(lastActiveAt);
   const stageLabel = stage ? toTitleCase(stage.replaceAll("_", " ")) : null;
 
   return (
-    <Card className={`interactive-card member-accent-card relative h-full overflow-hidden ${tierCardClassName}`}>
+    <Card
+      className={cn(
+        "interactive-card member-accent-card relative h-full overflow-hidden",
+        tierPresentation.cardClassName
+      )}
+    >
       <CardHeader>
         <div className="flex items-center gap-3">
-          <Avatar name={name} image={image} className="member-profile-ring h-14 w-14 shrink-0" />
+          <Avatar
+            name={name}
+            image={image}
+            className={cn("member-profile-ring h-14 w-14 shrink-0", tierPresentation.avatarRingClassName)}
+          />
           <div className="min-w-0">
             <CardTitle className="truncate text-lg">{name}</CardTitle>
-            <p className={`truncate text-xs ${tierAccentTextClassName}`}>
+            <p className={cn("truncate text-xs", tierPresentation.accentTextClassName)}>
               {companyName || "Independent Operator"}
             </p>
             {recognition?.primaryBadge ? (
@@ -80,7 +88,15 @@ export function MemberProfileCard({
         </p>
 
         <div className="flex flex-wrap gap-2">
-          <MembershipTierBadge tier={membershipTier} />
+          <MembershipTierBadge tier={membershipTier} className={tierPresentation.badgeClassName} />
+          {tierPresentation.shouldShowProfileSignal ? (
+            <Badge
+              variant="outline"
+              className={cn("normal-case tracking-normal", tierPresentation.signalBadgeClassName)}
+            >
+              {tierPresentation.profileLabel}
+            </Badge>
+          ) : null}
           <MemberRoleBadge roleTag={memberRoleTag} />
           <FoundingBadge tier={foundingTier} />
           {presence ? (
