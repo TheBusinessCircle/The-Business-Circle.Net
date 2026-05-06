@@ -117,15 +117,17 @@ export default async function MemberLayout({ children }: { children: ReactNode }
           </div>
         </div>
       </header>
+    </div>
+  );
 
-      <div className="border-b border-border/80 bg-background/94 px-4 py-3 sm:px-6 lg:hidden">
-        <MemberNavigation
-          items={visibleNavItems}
-          orientation="horizontal"
-          accentThemeStyle={memberShellStyle}
-          showAdminLink={session.user.role === "ADMIN"}
-        />
-      </div>
+  const mobileNavigation = (
+    <div className="lg:hidden">
+      <MemberNavigation
+        items={visibleNavItems}
+        orientation="horizontal"
+        accentThemeStyle={memberShellStyle}
+        showAdminLink={session.user.role === "ADMIN"}
+      />
     </div>
   );
 
@@ -187,6 +189,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
         contentClassName="py-7 lg:py-9"
       >
         <div className="space-y-6">
+          {mobileNavigation}
           {showRulesWelcome ? (
             <>
               <RulesEntryOverlay reviewHref={BCN_RULES_ACCEPTANCE_PATH} />
