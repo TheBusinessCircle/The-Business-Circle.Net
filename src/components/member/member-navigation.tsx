@@ -141,18 +141,30 @@ export function MemberNavigation({
   }
 
   if (horizontal) {
+    const mobileOverlayStyle = {
+      ...accentThemeStyle,
+      position: "fixed",
+      inset: 0,
+      zIndex: 9999,
+      minHeight: "100dvh",
+      width: "100%",
+      overflowY: "auto",
+      overflowX: "hidden",
+      backgroundColor: "#07020d"
+    } as CSSProperties;
+
     const mobileDrawer = mobileMenuOpen ? (
       <div
         id="member-mobile-navigation-menu"
         role="dialog"
         aria-modal="true"
         aria-label="Member navigation"
-        className="member-accent-theme fixed inset-0 isolate z-[9999] h-dvh min-h-dvh overflow-hidden overscroll-none bg-[#08030f] text-foreground lg:hidden"
-        style={accentThemeStyle}
+        className="member-accent-theme fixed inset-0 z-[9999] min-h-dvh overflow-y-auto overflow-x-hidden overscroll-contain bg-[#07020d] text-foreground"
+        style={mobileOverlayStyle}
       >
-        <div className="relative z-10 flex h-dvh min-h-dvh flex-col overflow-y-auto overflow-x-hidden overscroll-contain bg-[#08030f] bg-[linear-gradient(180deg,#120820_0%,hsl(var(--member-atmosphere-from))_26%,hsl(var(--member-atmosphere-via))_58%,#050208_100%)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] shadow-2xl">
-          <div className="mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-md flex-col">
-            <div className="rounded-3xl border border-[hsl(var(--member-accent-border)/0.42)] bg-[#0b0616] bg-[linear-gradient(145deg,hsl(var(--member-accent-strong))_0%,hsl(var(--member-atmosphere-via))_44%,hsl(var(--member-atmosphere-to))_100%)] p-4 shadow-[0_22px_64px_var(--member-accent-glow)]">
+        <div className="min-h-dvh w-full bg-[#07020d] bg-[linear-gradient(to_bottom,#140822_0%,#09030f_52%,#040108_100%)] px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
+          <div className="mx-auto flex min-h-[calc(100dvh-2.75rem)] w-full max-w-md flex-col">
+            <div className="rounded-2xl border border-[hsl(var(--member-accent-border)/0.42)] bg-[#0b0616] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.42)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <BrandMark
@@ -192,16 +204,12 @@ export function MemberNavigation({
                     key={item.href}
                     href={item.href}
                     data-active={active ? "true" : "false"}
-                    onClick={() => {
-                      if (active) {
-                        closeMobileMenu();
-                      }
-                    }}
+                    onClick={closeMobileMenu}
                     className={cn(
                       "flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-base font-medium shadow-inner-surface transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]",
                       active
-                        ? "border-[hsl(var(--member-accent-border)/0.72)] bg-[#120820] bg-[linear-gradient(135deg,hsl(var(--member-accent-strong))_0%,hsl(var(--member-atmosphere-via))_52%,hsl(var(--member-atmosphere-to))_100%)] text-[hsl(var(--member-accent-text))] shadow-[0_18px_48px_var(--member-accent-glow)]"
-                        : "border-[hsl(var(--member-accent-border)/0.26)] bg-[hsl(var(--member-atmosphere-via))] text-foreground hover:border-[hsl(var(--member-accent-border)/0.5)] hover:bg-[hsl(var(--member-accent-strong))] hover:text-[hsl(var(--member-accent-text))]"
+                        ? "border-[hsl(var(--member-accent-border)/0.72)] bg-[#160725] text-[hsl(var(--member-accent-text))] shadow-[0_18px_48px_rgba(0,0,0,0.36)]"
+                        : "border-[hsl(var(--member-accent-border)/0.26)] bg-[#0d0415] text-foreground hover:border-[hsl(var(--member-accent-border)/0.5)] hover:bg-[#160725] hover:text-[hsl(var(--member-accent-text))]"
                     )}
                   >
                     <span className="flex min-w-0 items-center gap-3">
@@ -242,7 +250,8 @@ export function MemberNavigation({
                 {showAdminLink ? (
                   <Link
                     href="/admin"
-                    className="mb-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--member-accent-border)/0.28)] bg-[hsl(var(--member-accent-strong))] px-4 text-sm font-medium text-[hsl(var(--member-accent-text))] transition-colors hover:bg-[hsl(var(--member-atmosphere-from))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
+                    onClick={closeMobileMenu}
+                    className="mb-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--member-accent-border)/0.28)] bg-[#160725] px-4 text-sm font-medium text-[hsl(var(--member-accent-text))] transition-colors hover:bg-[#1e0a31] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
                   >
                     <Crown size={16} />
                     Admin
@@ -266,36 +275,38 @@ export function MemberNavigation({
     ) : null;
 
     return (
-      <div className="lg:hidden">
-        <button
-          type="button"
-          aria-expanded={mobileMenuOpen}
-          aria-controls="member-mobile-navigation-menu"
-          aria-label={mobileMenuOpen ? "Close member navigation" : "Open member navigation"}
-          onClick={() => setMobileMenuOpen((previousState) => !previousState)}
-          className="member-nav-item flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[hsl(var(--member-accent-border)/0.34)] bg-[hsl(var(--member-accent-strong)/0.36)] px-4 py-3 text-left text-foreground shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.58)] hover:bg-[hsl(var(--member-accent)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
-        >
-          <span className="flex min-w-0 items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--member-accent-border)/0.4)] bg-[hsl(var(--member-accent)/0.14)] text-[hsl(var(--member-accent-text))]">
-              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[10px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-muted))]">
-                Member menu
+      <>
+        <div className="lg:hidden">
+          <button
+            type="button"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="member-mobile-navigation-menu"
+            aria-label={mobileMenuOpen ? "Close member navigation" : "Open member navigation"}
+            onClick={() => setMobileMenuOpen((previousState) => !previousState)}
+            className="member-nav-item flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[hsl(var(--member-accent-border)/0.34)] bg-[hsl(var(--member-accent-strong)/0.36)] px-4 py-3 text-left text-foreground shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.58)] hover:bg-[hsl(var(--member-accent)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--member-accent-border)/0.4)] bg-[hsl(var(--member-accent)/0.14)] text-[hsl(var(--member-accent-text))]">
+                {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
               </span>
-              <span className="mt-0.5 block truncate text-sm font-medium text-foreground">
-                {activeItem?.label ?? "Open workspace navigation"}
+              <span className="min-w-0">
+                <span className="block text-[10px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-muted))]">
+                  Member menu
+                </span>
+                <span className="mt-0.5 block truncate text-sm font-medium text-foreground">
+                  {activeItem?.label ?? "Open workspace navigation"}
+                </span>
               </span>
             </span>
-          </span>
-          <span
-            className="h-2.5 w-2.5 shrink-0 rounded-full bg-[hsl(var(--member-accent-soft))] shadow-[0_0_24px_var(--member-accent-glow)]"
-            aria-hidden="true"
-          />
-        </button>
+            <span
+              className="h-2.5 w-2.5 shrink-0 rounded-full bg-[hsl(var(--member-accent-soft))] shadow-[0_0_24px_var(--member-accent-glow)]"
+              aria-hidden="true"
+            />
+          </button>
+        </div>
 
         {portalReady && mobileDrawer ? createPortal(mobileDrawer, document.body) : null}
-      </div>
+      </>
     );
   }
 
