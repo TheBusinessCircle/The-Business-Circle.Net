@@ -50,11 +50,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     "--member-sticky-top": "6.75rem"
   } as CSSProperties;
 
-  const visibleNavItems = PLATFORM_NAV.filter((item) => {
-    const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
-    const tierAllowed = item.requiresTier ? canAccessTier(effectiveTier, item.requiresTier) : true;
-    return roleAllowed && tierAllowed;
-  }).map((item) => {
+  const applyMemberNavCounts = (item: (typeof PLATFORM_NAV)[number]) => {
     if (item.href === "/messages") {
       return {
         ...item,
@@ -70,7 +66,17 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     }
 
     return item;
-  });
+  };
+
+  const visibleNavItems = PLATFORM_NAV.filter((item) => {
+    const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
+    const tierAllowed = item.requiresTier ? canAccessTier(effectiveTier, item.requiresTier) : true;
+    return roleAllowed && tierAllowed;
+  }).map(applyMemberNavCounts);
+
+  const mobileNavItems = PLATFORM_NAV.filter((item) => {
+    return item.requiresRole ? item.requiresRole === session.user.role : true;
+  }).map(applyMemberNavCounts);
 
   const membershipBadge = `${getMembershipTierLabel(effectiveTier)} Active`;
   const premiumLinkLabel = canAccessTier(effectiveTier, MembershipTier.CORE)
@@ -105,11 +111,10 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                 </Badge>
                 <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
                 <MemberNavigation
-                  items={visibleNavItems}
+                  items={mobileNavItems}
                   orientation="horizontal"
                   accentThemeStyle={memberShellStyle}
                   showAdminLink={session.user.role === "ADMIN"}
-                  triggerVariant="icon"
                 />
                 {session.user.role === "ADMIN" ? (
                   <Link href="/admin" className="hidden lg:inline-flex">
