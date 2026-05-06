@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CalendarDays,
   Compass,
@@ -20,6 +22,7 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import type { NavigationItem } from "@/types";
+import { BrandMark } from "@/components/branding/brand-mark";
 import { Button } from "@/components/ui/button";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { cn } from "@/lib/utils";
@@ -27,6 +30,8 @@ import { cn } from "@/lib/utils";
 type MemberNavigationProps = {
   items: NavigationItem[];
   orientation?: "vertical" | "horizontal";
+  accentThemeStyle?: CSSProperties;
+  showAdminLink?: boolean;
 };
 
 function iconForHref(href: string) {
@@ -86,11 +91,21 @@ function isItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function MemberNavigation({ items, orientation = "vertical" }: MemberNavigationProps) {
+export function MemberNavigation({
+  items,
+  orientation = "vertical",
+  accentThemeStyle,
+  showAdminLink = false
+}: MemberNavigationProps) {
   const pathname = usePathname();
   const horizontal = orientation === "horizontal";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
   const activeItem = items.find((item) => isItemActive(pathname, item.href));
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -101,8 +116,10 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -113,7 +130,8 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [mobileMenuOpen]);
@@ -123,6 +141,130 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
   }
 
   if (horizontal) {
+    const mobileDrawer = mobileMenuOpen ? (
+      <div
+        id="member-mobile-navigation-menu"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Member navigation"
+        className="member-accent-theme fixed inset-0 isolate z-[9999] h-dvh min-h-dvh overflow-hidden overscroll-none bg-[#08030f] text-foreground lg:hidden"
+        style={accentThemeStyle}
+      >
+        <div className="relative z-10 flex h-dvh min-h-dvh flex-col overflow-y-auto overflow-x-hidden overscroll-contain bg-[#08030f] bg-[linear-gradient(180deg,#120820_0%,hsl(var(--member-atmosphere-from))_26%,hsl(var(--member-atmosphere-via))_58%,#050208_100%)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] shadow-2xl">
+          <div className="mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-md flex-col">
+            <div className="rounded-3xl border border-[hsl(var(--member-accent-border)/0.42)] bg-[#0b0616] bg-[linear-gradient(145deg,hsl(var(--member-accent-strong))_0%,hsl(var(--member-atmosphere-via))_44%,hsl(var(--member-atmosphere-to))_100%)] p-4 shadow-[0_22px_64px_var(--member-accent-glow)]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <BrandMark
+                    placement="workspace"
+                    className="border-[hsl(var(--member-accent-border)/0.45)]"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-text))]">
+                      Member Workspace
+                    </p>
+                    <p className="mt-1 font-display text-xl leading-tight text-foreground">
+                      Inside The Business Circle
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close member navigation"
+                  onClick={closeMobileMenu}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[hsl(var(--member-accent-border)/0.4)] bg-[hsl(var(--member-atmosphere-to))] text-[hsl(var(--member-accent-muted))] shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.62)] hover:bg-[hsl(var(--member-accent-strong))] hover:text-[hsl(var(--member-accent-text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--member-accent-muted))]">
+                Move through the rooms without leaving the member environment.
+              </p>
+            </div>
+
+            <nav className="mt-5 flex flex-col gap-2" aria-label="Member mobile navigation">
+              {items.map((item) => {
+                const Icon = iconForHref(item.href);
+                const active = isItemActive(pathname, item.href);
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    data-active={active ? "true" : "false"}
+                    onClick={() => {
+                      if (active) {
+                        closeMobileMenu();
+                      }
+                    }}
+                    className={cn(
+                      "flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-base font-medium shadow-inner-surface transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]",
+                      active
+                        ? "border-[hsl(var(--member-accent-border)/0.72)] bg-[#120820] bg-[linear-gradient(135deg,hsl(var(--member-accent-strong))_0%,hsl(var(--member-atmosphere-via))_52%,hsl(var(--member-atmosphere-to))_100%)] text-[hsl(var(--member-accent-text))] shadow-[0_18px_48px_var(--member-accent-glow)]"
+                        : "border-[hsl(var(--member-accent-border)/0.26)] bg-[hsl(var(--member-atmosphere-via))] text-foreground hover:border-[hsl(var(--member-accent-border)/0.5)] hover:bg-[hsl(var(--member-accent-strong))] hover:text-[hsl(var(--member-accent-text))]"
+                    )}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={cn(
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+                          active
+                            ? "border-[hsl(var(--member-accent-border)/0.56)] bg-[hsl(var(--member-accent-strong))] text-[hsl(var(--member-accent-text))]"
+                            : "border-[hsl(var(--member-accent-border)/0.24)] bg-[hsl(var(--member-atmosphere-to))] text-[hsl(var(--member-accent-muted))]"
+                        )}
+                      >
+                        <Icon size={17} />
+                      </span>
+                      <span className="truncate">{item.label}</span>
+                    </span>
+                    {item.badgeCount ? (
+                      <span className="rounded-full border border-[hsl(var(--member-accent-border)/0.36)] bg-[hsl(var(--member-accent-strong))] px-2 py-0.5 text-[11px] text-[hsl(var(--member-accent-text))]">
+                        {item.badgeCount}
+                      </span>
+                    ) : (
+                      <span
+                        className={cn(
+                          "h-2 w-2 shrink-0 rounded-full",
+                          active
+                            ? "bg-[hsl(var(--member-accent-soft))]"
+                            : "bg-[hsl(var(--member-accent-border)/0.42)]"
+                        )}
+                        aria-hidden="true"
+                      />
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="mt-auto pt-6">
+              <div className="rounded-3xl border border-[hsl(var(--member-accent-border)/0.24)] bg-[hsl(var(--member-atmosphere-via))] p-3">
+                {showAdminLink ? (
+                  <Link
+                    href="/admin"
+                    className="mb-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--member-accent-border)/0.28)] bg-[hsl(var(--member-accent-strong))] px-4 text-sm font-medium text-[hsl(var(--member-accent-text))] transition-colors hover:bg-[hsl(var(--member-atmosphere-from))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
+                  >
+                    <Crown size={16} />
+                    Admin
+                  </Link>
+                ) : null}
+                <form action={signOutAction} onSubmit={closeMobileMenu}>
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="lg"
+                    className="min-h-12 w-full justify-center text-[hsl(var(--member-accent-muted))] hover:bg-[hsl(var(--member-atmosphere-from))] hover:text-foreground"
+                  >
+                    Sign Out
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : null;
+
     return (
       <div className="lg:hidden">
         <button
@@ -152,99 +294,7 @@ export function MemberNavigation({ items, orientation = "vertical" }: MemberNavi
           />
         </button>
 
-        {mobileMenuOpen ? (
-          <div
-            id="member-mobile-navigation-menu"
-            className="fixed inset-0 isolate z-[1000] min-h-dvh overflow-y-auto overflow-x-hidden bg-[hsl(var(--member-atmosphere-to))] bg-[linear-gradient(180deg,hsl(var(--member-atmosphere-from))_0%,hsl(var(--member-atmosphere-via))_46%,hsl(var(--member-atmosphere-to))_100%)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(5.25rem,env(safe-area-inset-top))] text-foreground shadow-2xl lg:hidden"
-          >
-            <button
-              type="button"
-              aria-label="Close member navigation"
-              onClick={closeMobileMenu}
-              className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--member-accent-border)/0.36)] bg-[hsl(var(--member-atmosphere-to)/0.96)] text-[hsl(var(--member-accent-muted))] shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.58)] hover:bg-[hsl(var(--member-accent-strong)/0.92)] hover:text-[hsl(var(--member-accent-text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="mx-auto flex min-h-[calc(100svh-6.5rem)] w-full max-w-md flex-col">
-              <div className="rounded-3xl border border-[hsl(var(--member-accent-border)/0.42)] bg-[linear-gradient(145deg,hsl(var(--member-accent-strong)/0.94),hsl(var(--member-atmosphere-via)/0.98)_44%,hsl(var(--member-atmosphere-to)))] p-4 shadow-[0_22px_64px_var(--member-accent-glow)]">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-text))]">
-                  Member Workspace
-                </p>
-                <p className="mt-2 font-display text-2xl leading-tight text-foreground">
-                  Inside The Business Circle
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-[hsl(var(--member-accent-muted))]">
-                  Move through the rooms without leaving the member environment.
-                </p>
-              </div>
-
-              <nav className="mt-5 flex flex-col gap-2" aria-label="Member mobile navigation">
-                {items.map((item) => {
-                  const Icon = iconForHref(item.href);
-                  const active = isItemActive(pathname, item.href);
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      data-active={active ? "true" : "false"}
-                      onClick={closeMobileMenu}
-                      className={cn(
-                        "flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-base font-medium shadow-inner-surface transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]",
-                        active
-                          ? "border-[hsl(var(--member-accent-border)/0.72)] bg-[linear-gradient(135deg,hsl(var(--member-accent)/0.28),hsl(var(--member-accent-strong)/0.92))] text-[hsl(var(--member-accent-text))] shadow-[0_18px_48px_var(--member-accent-glow)]"
-                          : "border-[hsl(var(--member-accent-border)/0.22)] bg-[hsl(var(--member-atmosphere-via)/0.9)] text-foreground hover:border-[hsl(var(--member-accent-border)/0.5)] hover:bg-[hsl(var(--member-accent-strong)/0.84)] hover:text-[hsl(var(--member-accent-text))]"
-                      )}
-                    >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <span
-                          className={cn(
-                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
-                            active
-                              ? "border-[hsl(var(--member-accent-border)/0.56)] bg-[hsl(var(--member-accent)/0.24)] text-[hsl(var(--member-accent-text))]"
-                              : "border-[hsl(var(--member-accent-border)/0.2)] bg-[hsl(var(--member-atmosphere-to)/0.72)] text-[hsl(var(--member-accent-muted))]"
-                          )}
-                        >
-                          <Icon size={17} />
-                        </span>
-                        <span className="truncate">{item.label}</span>
-                      </span>
-                      {item.badgeCount ? (
-                        <span className="rounded-full border border-[hsl(var(--member-accent-border)/0.36)] bg-[hsl(var(--member-accent)/0.14)] px-2 py-0.5 text-[11px] text-[hsl(var(--member-accent-text))]">
-                          {item.badgeCount}
-                        </span>
-                      ) : (
-                        <span
-                          className={cn(
-                            "h-2 w-2 shrink-0 rounded-full",
-                            active ? "bg-[hsl(var(--member-accent-soft))]" : "bg-white/24"
-                          )}
-                          aria-hidden="true"
-                        />
-                      )}
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              <div className="mt-auto pt-6">
-                <div className="rounded-3xl border border-[hsl(var(--member-accent-border)/0.24)] bg-[hsl(var(--member-atmosphere-via)/0.94)] p-3">
-                  <form action={signOutAction} onSubmit={closeMobileMenu}>
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="lg"
-                      className="min-h-12 w-full justify-center text-[hsl(var(--member-accent-muted))] hover:bg-white/10 hover:text-foreground"
-                    >
-                      Sign Out
-                    </Button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        {portalReady && mobileDrawer ? createPortal(mobileDrawer, document.body) : null}
       </div>
     );
   }

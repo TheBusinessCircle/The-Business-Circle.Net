@@ -119,7 +119,12 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       </header>
 
       <div className="border-b border-border/80 bg-background/94 px-4 py-3 sm:px-6 lg:hidden">
-        <MemberNavigation items={visibleNavItems} orientation="horizontal" />
+        <MemberNavigation
+          items={visibleNavItems}
+          orientation="horizontal"
+          accentThemeStyle={memberShellStyle}
+          showAdminLink={session.user.role === "ADMIN"}
+        />
       </div>
     </div>
   );
