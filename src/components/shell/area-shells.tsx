@@ -12,7 +12,7 @@ export function AuthAreaShell({ children }: { children: ReactNode }) {
     <AppShell
       header={<PublicHeader />}
       footer={<PublicFooter />}
-      contentClassName="max-w-[1440px] px-5 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12 2xl:px-10"
+      contentClassName="py-8 sm:py-10 lg:py-12"
     >
       {children}
     </AppShell>

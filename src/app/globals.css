@@ -485,15 +485,23 @@ a:hover {
   }
 
   .bcn-container {
-    @apply mx-auto w-full max-w-[1440px] min-w-0 px-5 sm:px-6 lg:px-8 2xl:px-10;
+    width: min(calc(100% - 2rem), 1760px);
+    margin-inline: auto;
+    min-width: 0;
+    max-width: none;
   }
 
   .bcn-container-wide {
-    @apply mx-auto w-full max-w-[1536px] min-w-0 px-4 sm:px-6 lg:px-8 2xl:px-10;
+    width: min(calc(100% - 2rem), 1880px);
+    margin-inline: auto;
+    min-width: 0;
+    max-width: none;
   }
 
   .bcn-container-readable {
-    @apply mx-auto w-full max-w-[900px] min-w-0 px-5 sm:px-6 lg:px-8;
+    width: min(calc(100% - 2rem), 900px);
+    margin-inline: auto;
+    min-width: 0;
   }
 
   .bcn-full-bleed {
@@ -501,7 +509,11 @@ a:hover {
   }
 
   .public-page-stack {
-    @apply mx-auto w-full max-w-[1440px] min-w-0 px-5 pb-16 pt-2 sm:px-6 sm:pt-3 lg:px-8 lg:pb-20 lg:pt-4 2xl:px-10;
+    width: min(calc(100% - 2rem), 1760px);
+    margin-inline: auto;
+    min-width: 0;
+    padding-top: 0.5rem;
+    padding-bottom: 4rem;
   }
 
   .public-content-stack {
@@ -517,6 +529,25 @@ a:hover {
   }
 
   @media (min-width: 640px) {
+    .bcn-container,
+    .bcn-container-wide,
+    .bcn-container-readable,
+    .public-page-stack {
+      width: min(calc(100% - 3rem), var(--bcn-container-limit, 1760px));
+    }
+
+    .bcn-container-wide {
+      --bcn-container-limit: 1880px;
+    }
+
+    .bcn-container-readable {
+      --bcn-container-limit: 900px;
+    }
+
+    .public-page-stack {
+      padding-top: 0.75rem;
+    }
+
     .public-page-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
       margin-top: 2rem;
     }
@@ -527,6 +558,24 @@ a:hover {
   }
 
   @media (min-width: 1024px) {
+    .bcn-container {
+      width: min(calc(100% - 4rem), 1760px);
+    }
+
+    .bcn-container-wide {
+      width: min(calc(100% - 3rem), 1880px);
+    }
+
+    .bcn-container-readable {
+      width: min(calc(100% - 4rem), 900px);
+    }
+
+    .public-page-stack {
+      width: min(calc(100% - 4rem), 1760px);
+      padding-top: 1rem;
+      padding-bottom: 5rem;
+    }
+
     .public-page-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
       margin-top: 2.5rem;
     }

@@ -61,6 +61,12 @@ describe("BCN shared layout utilities", () => {
     ]) {
       expect(globals).toContain(className);
     }
+
+    expect(globals).toContain("1760px");
+    expect(globals).toContain("1880px");
+    expect(globals).not.toContain("max-w-[1400px]");
+    expect(globals).not.toContain("max-w-[1440px]");
+    expect(globals).not.toContain("max-w-[1536px]");
   });
 
   it("uses the shared shell containers in public and member chrome", () => {

@@ -74,7 +74,7 @@ describe("public marketing spacing system", () => {
     expect(topVisual).toContain("public-page-top public-visual-shell");
     expect(pageHeroImage).toContain("public-visual-frame");
     expect(publicShell).toContain("bcn-page-shell");
-    expect(globals).toContain("lg:pt-4");
+    expect(globals).toContain("padding-top: 1rem");
 
     for (const source of [hero, cta, topVisual, pageHeroImage]) {
       expect(source).not.toContain("py-28");
