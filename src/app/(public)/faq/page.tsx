@@ -101,7 +101,7 @@ export default async function FaqPage() {
   ]);
 
   return (
-    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
+    <div className="public-page-stack">
       <JsonLd data={buildFaqSchema(faqItems)} />
 
       <PublicTopVisual
@@ -112,7 +112,7 @@ export default async function FaqPage() {
         tone="anchored"
       />
 
-      <section className="public-panel relative overflow-hidden px-6 py-28 sm:px-8 lg:px-10 lg:py-36">
+      <section className="public-panel public-hero-spacing relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
         <div className="relative space-y-6">
@@ -127,7 +127,7 @@ export default async function FaqPage() {
         </div>
       </section>
 
-      <section className="space-y-6">
+      <section className="public-section-tight">
         <div
           className={cn(
             "gap-6 xl:items-center",

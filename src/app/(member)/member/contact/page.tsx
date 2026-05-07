@@ -61,7 +61,7 @@ export default async function MemberContactPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <section className="premium-surface overflow-hidden p-5 sm:p-6 lg:p-7">
         <div className="flex flex-wrap items-center gap-2">
           <Badge

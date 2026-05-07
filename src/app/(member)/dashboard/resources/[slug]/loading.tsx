@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardResourceDetailLoading() {
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Skeleton className="h-4 w-36" />
 
       <Card className="border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/68">
@@ -19,7 +19,7 @@ export default function DashboardResourceDetailLoading() {
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="space-y-6">
+        <div className="member-page-stack">
           {Array.from({ length: 3 }).map((_, index) => (
             <Skeleton key={`resource-detail-${index}`} className="h-56 w-full rounded-3xl" />
           ))}

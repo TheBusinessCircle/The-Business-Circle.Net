@@ -116,7 +116,7 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
   const displayName = authorName(post.user);
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <div>
         <Link
           href={channelPath}

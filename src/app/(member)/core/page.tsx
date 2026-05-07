@@ -74,7 +74,7 @@ export default async function CorePage() {
   const hasCoreAccess = canAccessTier(effectiveTier, MembershipTier.CORE);
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Card className="overflow-hidden border-gold/45 bg-[radial-gradient(circle_at_86%_0%,rgba(214,180,103,0.24),transparent_34%),linear-gradient(145deg,rgba(214,180,103,0.14),rgba(15,8,24,0.88)_52%,rgba(7,3,12,0.94))] shadow-[0_28px_82px_rgba(214,180,103,0.2)]">
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">

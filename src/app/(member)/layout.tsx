@@ -91,7 +91,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     <div className="lg:sticky lg:top-0 lg:z-50">
       <div className="fixed inset-x-0 top-0 z-50 lg:static">
         <header className="member-shell-header member-mobile-header-solid border-b border-border/80 bg-background/78 backdrop-blur-xl">
-          <div className="flex w-full flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 2xl:px-12">
+          <div className="bcn-container-wide flex flex-col gap-4 py-4">
             <div className="flex items-center justify-between gap-4">
               <Link href="/dashboard" className="inline-flex min-w-0 items-center gap-3">
                 <BrandMark placement="workspace" />
@@ -193,9 +193,9 @@ export default async function MemberLayout({ children }: { children: ReactNode }
         header={header}
         sidebar={sidebar}
         footer={<MemberFooter />}
-        contentClassName="py-7 lg:py-9"
+        contentClassName="py-6 sm:py-7 lg:py-8"
       >
-        <div className="space-y-6">
+        <div className="member-page-stack">
           {showRulesWelcome ? (
             <>
               <RulesEntryOverlay reviewHref={BCN_RULES_ACCEPTANCE_PATH} />

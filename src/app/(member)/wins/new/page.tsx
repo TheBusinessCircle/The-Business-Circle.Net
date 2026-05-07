@@ -41,7 +41,7 @@ export default async function NewWinPage({ searchParams }: PageProps) {
   const availableMembers = seed.participants.map((participant) => participant.user);
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Card className="border-gold/30 bg-gradient-to-br from-gold/10 via-card/78 to-card/70">
         <CardContent className="py-6">
           <Badge variant="outline" className="border-gold/35 bg-gold/12 text-gold">

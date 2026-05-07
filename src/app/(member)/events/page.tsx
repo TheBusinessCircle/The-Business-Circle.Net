@@ -29,7 +29,7 @@ export default async function EventsPage() {
   ]);
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/80 to-card/70">
         <CardHeader>
           <CardTitle className="font-display text-3xl">Events</CardTitle>

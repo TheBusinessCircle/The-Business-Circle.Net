@@ -142,7 +142,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
   const latestSignalFreshness = latestSignal ? getBcnFreshnessLabel(latestSignal.createdAt) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Card className="relative overflow-hidden border-gold/28 bg-gradient-to-br from-gold/10 via-card/88 to-card/72">
         <VisualPlacementBackground placement={intelligenceHeroPlacement} tone="editorial" />
         <CardHeader className="relative z-[1] space-y-4">

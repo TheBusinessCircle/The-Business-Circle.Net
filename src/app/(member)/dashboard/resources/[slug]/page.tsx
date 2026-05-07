@@ -133,7 +133,7 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
   });
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <div>
         <Link
           href="/dashboard/resources"
@@ -177,7 +177,7 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="space-y-6">
+        <div className="member-page-stack">
           <ResourceNarratorProvider items={narrationItems}>
             <ResourceNarratorCard sectionId="opening">
               <CardHeader className="gap-4">

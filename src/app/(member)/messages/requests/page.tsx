@@ -78,7 +78,7 @@ export default async function MessageRequestsPage({ searchParams }: PageProps) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <MessagesRealtimeRefresh userId={session.user.id} />
       <Card className="border-gold/30 bg-gradient-to-br from-gold/10 via-card/78 to-card/70">
         <CardHeader>

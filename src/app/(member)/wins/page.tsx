@@ -77,7 +77,7 @@ export default async function WinsPage({ searchParams }: PageProps) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Card className="border-gold/30 bg-gradient-to-br from-gold/10 via-card/78 to-card/70">
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-4">

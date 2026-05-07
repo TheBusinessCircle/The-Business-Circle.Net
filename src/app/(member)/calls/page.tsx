@@ -97,7 +97,7 @@ export default async function CallsPage({ searchParams }: PageProps) {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/80 to-card/70">
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -148,7 +148,7 @@ export default async function CallsPage({ searchParams }: PageProps) {
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(300px,0.92fr)]">
-        <div className="space-y-6">
+        <div className="member-page-stack">
           <Card>
             <CardHeader>
               <CardTitle>1 to 1 calls</CardTitle>
@@ -314,7 +314,7 @@ export default async function CallsPage({ searchParams }: PageProps) {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="member-page-stack">
           <Card>
             <CardHeader>
               <CardTitle>Recent host requests</CardTitle>

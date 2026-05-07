@@ -495,7 +495,7 @@ export default async function BlueprintPage({ searchParams }: PageProps) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       {feedback ? (
         <div
           className={cn(

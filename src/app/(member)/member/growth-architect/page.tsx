@@ -84,7 +84,7 @@ export default async function MemberGrowthArchitectPage() {
   const services = allServices.filter((service) => isGrowthArchitectServiceSlug(service.slug));
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
         <div className="premium-surface overflow-hidden p-5 sm:p-6 lg:p-7">
           <div className="flex flex-wrap items-center gap-2">

@@ -463,7 +463,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       {billing === "success" ? (
         <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold">
           Billing update received. Your membership access is active.{" "}
@@ -779,7 +779,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             Use this space to get oriented quickly, open the right discussion, and keep the business moving without adding noise.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="member-page-stack">
           <div className="flex flex-wrap items-center gap-2">
             <MembershipTierBadge tier={effectiveTier} foundationLabel="Foundation" />
             <Badge variant="muted" className="normal-case tracking-normal">

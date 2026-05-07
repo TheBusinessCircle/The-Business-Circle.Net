@@ -22,6 +22,11 @@ describe("public marketing spacing system", () => {
 
     expect(globals).toContain(".public-page-stack");
     expect(globals).toContain(".public-content-stack");
+    expect(globals).toContain(".bcn-page-shell");
+    expect(globals).toContain(".bcn-container");
+    expect(globals).toContain(".bcn-container-wide");
+    expect(globals).toContain(".bcn-container-readable");
+    expect(globals).toContain(".bcn-full-bleed");
     expect(globals).toContain(".public-section");
     expect(globals).toContain(".public-hero-spacing");
     expect(globals).toContain(".public-hero-spacing-tight");
@@ -61,13 +66,15 @@ describe("public marketing spacing system", () => {
     const topVisual = readSource("src/components/visual-media/public-top-visual.tsx");
     const pageHeroImage = readSource("src/components/visual-media/page-hero-image.tsx");
     const publicShell = readSource("src/components/public/public-site-shell.tsx");
+    const globals = readSource("src/app/globals.css");
 
     expect(hero).toContain("public-hero-spacing");
     expect(cta).toContain("public-hero-spacing");
     expect(faq).toContain("public-section");
     expect(topVisual).toContain("public-page-top public-visual-shell");
     expect(pageHeroImage).toContain("public-visual-frame");
-    expect(publicShell).toContain("pt-2");
+    expect(publicShell).toContain("bcn-page-shell");
+    expect(globals).toContain("lg:pt-4");
 
     for (const source of [hero, cta, topVisual, pageHeroImage]) {
       expect(source).not.toContain("py-28");

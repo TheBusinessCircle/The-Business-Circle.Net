@@ -76,7 +76,7 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
   return (
     <>
       <header className="sticky top-0 z-50 overflow-x-clip border-b border-border/80 bg-background/88 backdrop-blur-xl">
-        <div className="mx-auto flex h-[4.5rem] w-full max-w-[1400px] items-center justify-between gap-3 px-6 sm:h-[5.5rem] sm:gap-6 lg:px-10">
+        <div className="bcn-container flex h-[4.5rem] items-center justify-between gap-3 sm:h-[5.5rem] sm:gap-6">
           <NavbarBrand />
 
           <nav className="hidden flex-1 items-center justify-center px-3 lg:flex">

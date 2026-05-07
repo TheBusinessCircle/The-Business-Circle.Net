@@ -101,7 +101,7 @@ export default async function MemberGrowthArchitectServicePage({
   const isApplicationOnly = pricing.isApplicationOnly || service.intakeMode === "APPLICATION";
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <div>
         <Link
           href="/member/growth-architect"

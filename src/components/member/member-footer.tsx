@@ -30,7 +30,7 @@ function MemberFooterLink({ href, label }: { href: string; label: string }) {
 export function MemberFooter() {
   return (
     <footer className="w-full overflow-x-clip border-t border-[hsl(var(--member-accent-border)/0.24)] bg-[linear-gradient(180deg,hsl(var(--background)/0.72),hsl(var(--member-atmosphere-to)/0.92))]">
-      <div className="mx-auto grid w-full max-w-[1400px] min-w-0 gap-6 px-4 py-7 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.42fr)_minmax(180px,0.32fr)] lg:px-8 2xl:px-12">
+      <div className="bcn-container-wide grid min-w-0 gap-6 py-7 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.42fr)_minmax(180px,0.32fr)]">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <BrandMark placement="workspace" className="border-[hsl(var(--member-accent-border)/0.45)]" />
@@ -65,8 +65,8 @@ export function MemberFooter() {
         </nav>
       </div>
 
-      <div className="border-t border-[hsl(var(--member-accent-border)/0.18)] px-4 py-4 sm:px-6 lg:px-8 2xl:px-12">
-        <div className="mx-auto flex w-full max-w-[1400px] min-w-0 flex-col gap-2 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
+      <div className="border-t border-[hsl(var(--member-accent-border)/0.18)] py-4">
+        <div className="bcn-container-wide flex min-w-0 flex-col gap-2 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; {new Date().getFullYear()} {SITE_CONFIG.name}. All rights reserved.</p>
           <p className="text-[hsl(var(--member-accent-muted))]">Member workspace</p>
         </div>

@@ -14,5 +14,5 @@ export default async function InnerCircleLayout({
 }) {
   await requireUser();
 
-  return <div className="space-y-6">{children}</div>;
+  return <div className="member-page-stack">{children}</div>;
 }

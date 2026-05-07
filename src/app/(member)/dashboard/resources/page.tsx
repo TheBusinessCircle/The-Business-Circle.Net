@@ -251,7 +251,7 @@ export default async function DashboardResourcesPage({ searchParams }: PageProps
   });
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       {error === "upgrade-required" ? (
         <Card className="border-gold/35 bg-gold/10">
           <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">

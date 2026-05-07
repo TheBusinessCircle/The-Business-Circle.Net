@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardLoading() {
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Card className="border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
         <CardHeader className="space-y-3">
           <Skeleton className="h-4 w-28" />

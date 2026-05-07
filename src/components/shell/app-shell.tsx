@@ -28,7 +28,7 @@ export function AppShell({
       <div className="page-surface page-surface-workspace flex-1 overflow-x-clip transition-colors duration-200">
         <main
           className={cn(
-            "w-full min-w-0 overflow-x-clip px-4 py-8 sm:px-6 lg:px-8 lg:py-10 2xl:px-12",
+            "bcn-page-shell bcn-container-wide py-7 sm:py-8 lg:py-10",
             contentClassName
           )}
         >

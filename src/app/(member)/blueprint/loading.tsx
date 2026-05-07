@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function BlueprintLoading() {
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <section className="rounded-[2rem] border border-gold/25 bg-card/72 p-8 shadow-panel backdrop-blur">
         <Skeleton className="h-6 w-48" />
         <Skeleton className="mt-6 h-14 w-full max-w-2xl" />

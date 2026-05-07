@@ -135,7 +135,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Card className="relative overflow-hidden border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
         <VisualPlacementBackground placement={communityHeroPlacement} tone="structured" />
         <CardHeader className="relative z-[1]">

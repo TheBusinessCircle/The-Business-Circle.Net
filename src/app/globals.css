@@ -41,6 +41,12 @@
   --member-surface-border-hover: 213 72% 62%;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 * {
   @apply border-border;
 }
@@ -466,8 +472,36 @@ a:hover {
 }
 
 @layer components {
+  .bcn-page-shell {
+    @apply w-full min-w-0 overflow-x-clip;
+  }
+
+  .bcn-section {
+    @apply w-full min-w-0 py-10 sm:py-12 lg:py-16;
+  }
+
+  .bcn-section-tight {
+    @apply w-full min-w-0 py-8 sm:py-10 lg:py-12;
+  }
+
+  .bcn-container {
+    @apply mx-auto w-full max-w-[1440px] min-w-0 px-5 sm:px-6 lg:px-8 2xl:px-10;
+  }
+
+  .bcn-container-wide {
+    @apply mx-auto w-full max-w-[1536px] min-w-0 px-4 sm:px-6 lg:px-8 2xl:px-10;
+  }
+
+  .bcn-container-readable {
+    @apply mx-auto w-full max-w-[900px] min-w-0 px-5 sm:px-6 lg:px-8;
+  }
+
+  .bcn-full-bleed {
+    @apply w-full min-w-0 max-w-none overflow-x-clip;
+  }
+
   .public-page-stack {
-    @apply w-full min-w-0 pb-20 lg:pb-24;
+    @apply mx-auto w-full max-w-[1440px] min-w-0 px-5 pb-16 pt-2 sm:px-6 sm:pt-3 lg:px-8 lg:pb-20 lg:pt-4 2xl:px-10;
   }
 
   .public-content-stack {
@@ -475,30 +509,30 @@ a:hover {
   }
 
   .public-page-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
-    margin-top: 2.5rem;
+    margin-top: 1.75rem;
   }
 
   .public-content-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
-    margin-top: 2rem;
+    margin-top: 1.5rem;
   }
 
   @media (min-width: 640px) {
     .public-page-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
-      margin-top: 3rem;
+      margin-top: 2rem;
     }
 
     .public-content-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
-      margin-top: 2.5rem;
+      margin-top: 1.75rem;
     }
   }
 
   @media (min-width: 1024px) {
     .public-page-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
-      margin-top: 3.5rem;
+      margin-top: 2.5rem;
     }
 
     .public-content-stack > :where(:not(script):not(style):not(template):not([hidden])) ~ :where(:not(script):not(style):not(template):not([hidden])) {
-      margin-top: 3rem;
+      margin-top: 2rem;
     }
   }
 
@@ -531,15 +565,15 @@ a:hover {
   }
 
   .public-section {
-    @apply space-y-7 py-10 sm:space-y-8 sm:py-12 lg:space-y-9 lg:py-14;
+    @apply w-full min-w-0 space-y-7 py-9 sm:space-y-8 sm:py-10 lg:space-y-9 lg:py-12;
   }
 
   .public-section-tight {
-    @apply space-y-6 py-8 sm:py-10 lg:py-12;
+    @apply w-full min-w-0 space-y-6 py-8 sm:py-9 lg:py-10;
   }
 
   .public-section-compact {
-    @apply space-y-5 py-6 sm:py-8 lg:py-10;
+    @apply w-full min-w-0 space-y-5 py-6 sm:py-7 lg:py-8;
   }
 
   .public-grid-gap {
@@ -551,11 +585,23 @@ a:hover {
   }
 
   .public-hero-spacing {
-    @apply px-6 py-10 sm:px-8 sm:py-12 lg:px-10 lg:py-16;
+    @apply px-5 py-9 sm:px-7 sm:py-11 lg:px-9 lg:py-14;
   }
 
   .public-hero-spacing-tight {
-    @apply px-6 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12;
+    @apply px-5 py-8 sm:px-7 sm:py-9 lg:px-9 lg:py-11;
+  }
+
+  .member-page-stack {
+    @apply w-full min-w-0 space-y-5 sm:space-y-6;
+  }
+
+  .member-section {
+    @apply w-full min-w-0 space-y-4;
+  }
+
+  .member-section-tight {
+    @apply w-full min-w-0 space-y-3;
   }
 
   .premium-surface {
@@ -583,6 +629,18 @@ a:hover {
 
   .public-panel {
     @apply rounded-3xl border border-border/80 bg-card/75 shadow-panel backdrop-blur transition-all duration-300;
+  }
+
+  .premium-surface,
+  .public-panel,
+  .card-surface,
+  .surface-card,
+  .surface-card-strong,
+  .surface-subtle,
+  .surface-accent,
+  .empty-state-panel {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .public-grid-overlay {

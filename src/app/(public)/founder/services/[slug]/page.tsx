@@ -113,7 +113,7 @@ export default async function FounderServicePage({
   const isApplicationOnly = pricing.isApplicationOnly || service.intakeMode === "APPLICATION";
 
   return (
-    <div className="space-y-20 pb-28 lg:space-y-28 lg:pb-36">
+    <div className="public-page-stack">
       <PublicTopVisual
         placement={founderHeroPlacement}
         eyebrow="Founder Service"
@@ -123,7 +123,7 @@ export default async function FounderServicePage({
         fallbackLabel="Founder top visual"
       />
 
-      <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-card/56 px-6 py-28 shadow-panel sm:px-8 lg:px-10 lg:py-36">
+      <section className="public-hero-spacing relative overflow-hidden rounded-[2rem] border border-white/10 bg-card/56 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
 

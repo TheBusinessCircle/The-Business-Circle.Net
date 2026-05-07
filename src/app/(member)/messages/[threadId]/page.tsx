@@ -120,7 +120,7 @@ export default async function DirectMessageThreadPage({ params, searchParams }: 
       : null;
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <MessagesRealtimeRefresh userId={session.user.id} threadId={thread.id} />
 
       {feedback ? (

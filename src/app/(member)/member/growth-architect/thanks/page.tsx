@@ -52,7 +52,7 @@ export default async function MemberGrowthArchitectThanksPage({ searchParams }: 
     : "The request is connected to your Business Circle account and the payment status is reflected below.";
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <section className="premium-surface p-5 sm:p-6 lg:p-7">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="border-gold/35 bg-gold/12 text-gold">

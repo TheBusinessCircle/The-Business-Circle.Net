@@ -96,7 +96,7 @@ export default async function BcnUpdatesPostPage({ params, searchParams }: PageP
   const displayName = authorName(post.user);
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <div>
         <Link
           href={channelPath}

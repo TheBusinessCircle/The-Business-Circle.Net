@@ -186,7 +186,7 @@ function InnerCircleValueOverview({
         };
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <Card className="overflow-hidden border-violet-300/35 bg-[radial-gradient(circle_at_88%_0%,rgba(139,92,246,0.2),transparent_34%),linear-gradient(145deg,rgba(79,70,229,0.13),rgba(15,8,28,0.86)_54%,rgba(7,3,14,0.92))] shadow-[0_24px_70px_rgba(109,76,255,0.16)]">
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -317,7 +317,7 @@ export default async function InnerCirclePage() {
     const regularPrice = getMembershipPlan(MembershipTier.INNER_CIRCLE).monthlyPrice;
 
     return (
-      <div className="space-y-6">
+      <div className="member-page-stack">
         <InnerCircleValueOverview
           hasInnerCircleAccess={hasInnerCircleAccess}
           hasCoreAccess={hasCoreAccess}
@@ -618,7 +618,7 @@ export default async function InnerCirclePage() {
   const mappedReplayEvents = replayEvents.map(mapEventRecord);
 
   return (
-    <div className="space-y-6">
+    <div className="member-page-stack">
       <InnerCircleValueOverview
         hasInnerCircleAccess={hasInnerCircleAccess}
         hasCoreAccess={hasCoreAccess}

@@ -116,7 +116,7 @@ export function PublicMemberProfileView({
   const focusTags = member.collaborationTags.slice(0, 8);
 
   return (
-    <div className="space-y-6">
+    <div className="public-page-stack">
       <Card className={cn("overflow-hidden", tierPresentation.cardClassName)}>
         <CardContent className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:p-8">
           <div className="space-y-5">
