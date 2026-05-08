@@ -3,6 +3,8 @@ import Link from "next/link";
 import { CommunityPostKind, MembershipTier } from "@prisma/client";
 import {
   ArrowRight,
+  CheckCircle2,
+  Circle,
   Crown,
   Link2,
   MessageSquare,
@@ -158,7 +160,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     memberHighlights,
     recentConnectionWins,
     latestMemberPost,
-    latestMemberComment
+    latestMemberComment,
+    resourceReadCount,
+    blueprintVoteCount
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
@@ -266,6 +270,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             }
           }
         }
+      }
+    }),
+    prisma.resourceRead.count({
+      where: {
+        userId: session.user.id
+      }
+    }),
+    prisma.blueprintVote.count({
+      where: {
+        userId: session.user.id
       }
     })
   ]);
@@ -450,6 +464,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         profileCompletion: completion.percentage,
         hasPosted: Boolean(latestMemberPost),
         hasCommented: Boolean(latestMemberComment),
+        hasAcceptedRules: Boolean(member?.acceptedRulesAt),
+        hasAccentTheme: Boolean(member?.profile?.accentTheme),
+        hasReadResource: resourceReadCount > 0,
+        hasBlueprintVote: blueprintVoteCount > 0,
         activeDiscussionCount: activeNowCount,
         contributingMemberCount,
         recentWinCount: recentConnectionWins.length,
@@ -458,7 +476,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           : "/community",
         featuredResourceHref: featuredResource
           ? `/dashboard/resources/${featuredResource.slug}`
-          : "/dashboard/resources"
+          : "/dashboard/resources",
+        showGrowthArchitectAccess: hasInnerCircleAccess
       })
     : null;
 
@@ -607,6 +626,63 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <CardDescription>{onboardingExperience.emphasis}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                        {onboardingExperience.checklistTitle}
+                      </p>
+                      <p className="mt-2 max-w-3xl text-sm text-muted">
+                        {onboardingExperience.checklistDescription}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="w-fit border-silver/18 text-silver">
+                      {
+                        onboardingExperience.checklist.filter((item) => item.complete).length
+                      }
+                      /{onboardingExperience.checklist.length} complete
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 md:grid-cols-2">
+                    {onboardingExperience.checklist.map((item) => {
+                      const StatusIcon = item.complete ? CheckCircle2 : Circle;
+
+                      return (
+                        <Link
+                          key={item.title}
+                          href={item.href}
+                          className="rounded-xl border border-silver/12 bg-background/18 px-3 py-3 transition-colors hover:border-silver/28 hover:bg-background/30"
+                        >
+                          <div className="flex items-start gap-3">
+                            <StatusIcon
+                              size={16}
+                              className={item.complete ? "mt-0.5 text-gold" : "mt-0.5 text-muted"}
+                            />
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-medium text-foreground">{item.title}</p>
+                                {item.optional ? (
+                                  <span className="rounded-full border border-silver/14 bg-background/24 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-silver">
+                                    Optional
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 text-xs leading-relaxed text-muted">
+                                {item.description}
+                              </p>
+                              <span className="mt-2 inline-flex items-center gap-1 text-xs text-silver">
+                                {item.label}
+                                <ArrowRight size={12} />
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="grid gap-3 md:grid-cols-3">
                   {onboardingExperience.actions.map((action) => (
                     <Link

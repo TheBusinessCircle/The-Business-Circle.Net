@@ -15,10 +15,13 @@ import {
 } from "lucide-react";
 import {
   CTASection,
+  CheckoutReassuranceBlock,
   FAQSection,
   HeroSection,
   JourneyRail,
   JsonLd,
+  LaunchTrustProof,
+  MemberPreviewLayer,
   SectionHeading
 } from "@/components/public";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
@@ -416,6 +419,10 @@ export default async function HomePage() {
         }
       />
 
+      <CheckoutReassuranceBlock />
+
+      <MemberPreviewLayer />
+
       <section className="public-section">
         <SectionHeading
           label="What You Actually Get Inside"
@@ -612,6 +619,16 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <LaunchTrustProof
+        proofItems={homeContent.proofItems}
+        activeDiscussionCount={publicTrustSnapshot.activeDiscussionCount}
+        connectionWinsCount={publicTrustSnapshot.connectionWinsCount}
+        recentResourceCount={publicTrustSnapshot.recentResourceCount}
+        upcomingEventCount={publicTrustSnapshot.upcomingEventCount}
+        founderPlacesRemaining={founderPlacesRemaining}
+        founderRoomCount={founderRoomsOpen.length}
+      />
 
       <section className="public-section">
         <SectionHeading

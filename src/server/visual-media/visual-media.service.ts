@@ -4,6 +4,10 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { CACHE_TAGS, visualMediaTag } from "@/lib/cache";
 import {
+  isRecoverableDatabaseError,
+  logRecoverableDatabaseFallback
+} from "@/lib/db-errors";
+import {
   getVisualMediaPlacementDefinition,
   VISUAL_MEDIA_LEGACY_KEY_MAP,
   VISUAL_MEDIA_PLACEMENT_KEYS,
@@ -62,6 +66,48 @@ function toVisualMediaRecord(
     supportsMobile: definition?.supportsMobile ?? false,
     recommendedAspectRatio: definition?.recommendedAspectRatio ?? "16:10"
   };
+}
+
+function createFallbackVisualMediaRecord(
+  key: VisualMediaPlacementKey
+): VisualMediaPlacementRecord | null {
+  const definition = getVisualMediaPlacementDefinition(key);
+
+  if (!definition) {
+    return null;
+  }
+
+  return {
+    id: null,
+    key: definition.key,
+    label: definition.label,
+    page: definition.page,
+    section: definition.section,
+    variant: definition.variant,
+    imageUrl: null,
+    mobileImageUrl: null,
+    desktopStorageKey: null,
+    mobileStorageKey: null,
+    storageProvider: null,
+    altText: null,
+    isActive: false,
+    sortOrder: definition.sortOrder,
+    overlayStyle: definition.defaultOverlayStyle ?? null,
+    objectPosition: null,
+    focalPointX: null,
+    focalPointY: null,
+    adminHelperText: definition.adminHelperText ?? null,
+    createdAt: null,
+    updatedAt: null,
+    supportsMobile: definition.supportsMobile,
+    recommendedAspectRatio: definition.recommendedAspectRatio
+  };
+}
+
+function isVisualMediaRecord(
+  value: VisualMediaPlacementRecord | null
+): value is VisualMediaPlacementRecord {
+  return Boolean(value);
 }
 
 function createPlacementSeedInput(key: VisualMediaPlacementKey) {
@@ -231,7 +277,16 @@ export async function getVisualMediaPlacement(key: VisualMediaPlacementKey) {
     }
   );
 
-  return getCachedPlacement();
+  try {
+    return await getCachedPlacement();
+  } catch (error) {
+    if (!isRecoverableDatabaseError(error)) {
+      throw error;
+    }
+
+    logRecoverableDatabaseFallback(`visual-media-placement:${key}`, error);
+    return createFallbackVisualMediaRecord(key);
+  }
 }
 
 export async function listRegisteredVisualMediaPlacements() {
@@ -243,7 +298,18 @@ export async function listRegisteredVisualMediaPlacements() {
     }
   );
 
-  return getCachedPlacements();
+  try {
+    return await getCachedPlacements();
+  } catch (error) {
+    if (!isRecoverableDatabaseError(error)) {
+      throw error;
+    }
+
+    logRecoverableDatabaseFallback("visual-media-placements", error);
+    return VISUAL_MEDIA_PLACEMENT_KEYS.map(createFallbackVisualMediaRecord).filter(
+      isVisualMediaRecord
+    );
+  }
 }
 
 export async function uploadVisualMediaPlacementAsset(input: {

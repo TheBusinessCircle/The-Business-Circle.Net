@@ -11,8 +11,10 @@ import {
 } from "@/lib/join/routing";
 import { createPageMetadata } from "@/lib/seo";
 import {
+  buildBreadcrumbSchema,
   buildCollectionPageSchema,
-  buildFaqSchema
+  buildFaqSchema,
+  buildMembershipProductsSchema
 } from "@/lib/structured-data";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { getSiteContentSection } from "@/server/site-content";
@@ -90,7 +92,44 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
           itemPaths: ["/join", "/founder", "/about"]
         })}
       />
+      <JsonLd data={buildBreadcrumbSchema([{ name: "Membership", path: "/membership" }])} />
       <JsonLd data={buildFaqSchema(membershipContent.faqs)} />
+      <JsonLd
+        data={buildMembershipProductsSchema({
+          tiers: [
+            {
+              tier: "FOUNDATION",
+              monthlyPrice: foundingOffer.foundation.available
+                ? foundingOffer.foundation.foundingPrice
+                : foundingOffer.foundation.standardPrice,
+              annualPrice: foundingOffer.foundation.available
+                ? foundingOffer.foundation.foundingAnnualPrice
+                : foundingOffer.foundation.standardAnnualPrice,
+              foundingAvailable: foundingOffer.foundation.available
+            },
+            {
+              tier: "INNER_CIRCLE",
+              monthlyPrice: foundingOffer.innerCircle.available
+                ? foundingOffer.innerCircle.foundingPrice
+                : foundingOffer.innerCircle.standardPrice,
+              annualPrice: foundingOffer.innerCircle.available
+                ? foundingOffer.innerCircle.foundingAnnualPrice
+                : foundingOffer.innerCircle.standardAnnualPrice,
+              foundingAvailable: foundingOffer.innerCircle.available
+            },
+            {
+              tier: "CORE",
+              monthlyPrice: foundingOffer.core.available
+                ? foundingOffer.core.foundingPrice
+                : foundingOffer.core.standardPrice,
+              annualPrice: foundingOffer.core.available
+                ? foundingOffer.core.foundingAnnualPrice
+                : foundingOffer.core.standardAnnualPrice,
+              foundingAvailable: foundingOffer.core.available
+            }
+          ]
+        })}
+      />
 
       <PublicTopVisual
         placement={membershipHeroPlacement}

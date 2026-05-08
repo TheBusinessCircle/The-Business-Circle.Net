@@ -100,7 +100,8 @@ describe("public marketing spacing system", () => {
 
     expect(rootPage).toContain('redirect("/dashboard")');
     expect(rootPage).toContain("shouldUseMobileJoin");
-    expect(rootPage).toContain('redirect(shouldUseMobileJoin(headersList) ? "/join-mobile" : "/join-desktop")');
+    expect(rootPage).toContain('const destination = shouldUseMobileJoin(headersList) ? "/join-mobile" : "/join-desktop"');
+    expect(rootPage).toContain("redirect(destination)");
     expect(rootPage.indexOf('redirect("/dashboard")')).toBeLessThan(
       rootPage.indexOf("const headersList = await headers()")
     );

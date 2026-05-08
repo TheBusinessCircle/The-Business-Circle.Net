@@ -1,4 +1,6 @@
 import { TREV_FOUNDER_CONTENT } from "@/config/founder";
+import type { MembershipTier } from "@prisma/client";
+import { getMembershipTierDefinition } from "@/config/membership";
 import { SITE_CONFIG } from "@/config/site";
 import { absoluteUrl, nonEmpty } from "@/lib/utils";
 
@@ -30,6 +32,17 @@ type CollectionPageSchemaInput = {
   path: string;
   keywords?: string[];
   itemPaths?: string[];
+};
+
+type MembershipProductTierSchemaInput = {
+  tier: MembershipTier;
+  monthlyPrice: number;
+  annualPrice: number;
+  foundingAvailable: boolean;
+};
+
+type MembershipProductsSchemaInput = {
+  tiers: MembershipProductTierSchemaInput[];
 };
 
 export function buildPublicSiteSchemaGraph(input: PublicSiteSchemaInput = {}) {
@@ -168,5 +181,54 @@ export function buildCollectionPageSchema(input: CollectionPageSchemaInput) {
     isPartOf: {
       "@id": absoluteUrl("/#website")
     }
+  };
+}
+
+export function buildMembershipProductsSchema(input: MembershipProductsSchemaInput) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": input.tiers.map((item) => {
+      const definition = getMembershipTierDefinition(item.tier);
+      const tierPath = `/membership?tier=${definition.slug}`;
+      const availability = item.foundingAvailable
+        ? "https://schema.org/LimitedAvailability"
+        : "https://schema.org/InStock";
+
+      return {
+        "@type": "Product",
+        "@id": absoluteUrl(`${tierPath}#product`),
+        name: `${SITE_CONFIG.name} ${definition.name} membership`,
+        description: definition.content.description,
+        category: "Membership",
+        brand: {
+          "@id": absoluteUrl("/#organization")
+        },
+        url: absoluteUrl(tierPath),
+        offers: [
+          {
+            "@type": "Offer",
+            name: `${definition.name} monthly membership`,
+            url: absoluteUrl(`${tierPath}&period=monthly`),
+            price: item.monthlyPrice,
+            priceCurrency: "GBP",
+            availability,
+            seller: {
+              "@id": absoluteUrl("/#organization")
+            }
+          },
+          {
+            "@type": "Offer",
+            name: `${definition.name} annual membership`,
+            url: absoluteUrl(`${tierPath}&period=annual`),
+            price: item.annualPrice,
+            priceCurrency: "GBP",
+            availability,
+            seller: {
+              "@id": absoluteUrl("/#organization")
+            }
+          }
+        ]
+      };
+    })
   };
 }

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import { cn } from "@/lib/utils";
 import styles from "./join-cinematic-entry.module.css";
@@ -270,6 +271,9 @@ export function JoinCinematicEntry({
 
   const handlePortalOpen = () => {
     resetPortalPosition();
+    trackAnalyticsEvent(ANALYTICS_EVENTS.joinDesktopStepInside, {
+      hasInvite: Boolean(resolvedContext.inviteCode)
+    });
     setPortalOpened(true);
   };
 

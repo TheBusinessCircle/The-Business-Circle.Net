@@ -33,6 +33,36 @@ Stripe subscriptions should use Billing APIs with Checkout Sessions. Do not test
 9. Repeat tier access checks for Inner Circle and Core using test prices.
 10. Test cancellation/update through the Stripe billing portal and confirm member access updates after webhook delivery.
 
+## Launch Route Checklist
+
+Run each route on desktop and mobile widths. Check the logged-out state first, then repeat member routes with active Foundation, Inner Circle, and Core test users where relevant.
+
+| Route | Logged out | Logged in |
+| --- | --- | --- |
+| `/` | Redirects to `/join-mobile` or `/join-desktop` based on device; no broken visual shell. | Redirects to `/dashboard` for active unsuspended members. |
+| `/home` | Homepage loads, member preview and trust proof show no empty testimonial areas. | Public page remains readable; no member-only data leaks. |
+| `/join-mobile` | Step-inside path opens route choices; membership and audit links preserve invite/from context. | Sign-in mode and billing-cancelled notices remain usable. |
+| `/join-desktop` | Step-inside path opens route choices; desktop visual remains scrollable and non-overlapping. | Sign-in mode and billing-cancelled notices remain usable. |
+| `/audit` | Audit start, completion, and recommended tier CTA work; result routes to `/membership`. | Same behavior unless user chooses to sign in from the join path. |
+| `/membership` | Tier selection, founder allocation copy, member preview, FAQ, and reassurance blocks render. | Active members can start Stripe checkout or open billing portal without tier logic changes. |
+| `/login` | Login errors and redirects remain clear. | Successful login returns to requested route or dashboard. |
+| `/dashboard` | Redirects to login/membership according to auth and billing state. | First-entry checklist, billing notices, profile progress, discussions, resources, and quick actions render. |
+| `/profile` | Redirects to login. | Profile save, BCN Rules acceptance, and accent theme selection persist. |
+| `/blueprint` | Redirects to login. | Inner Circle/Core voting works; Foundation sees the existing gated message. |
+| `/directory` | Redirects to login. | Directory cards and filters load on desktop and mobile. |
+| `/inner-circle` | Redirects to login or membership according to existing permissions. | Inner Circle/Core access works; Foundation sees existing upgrade path. |
+| `/core` | Redirects to login or membership according to existing permissions. | Core access works; lower tiers see existing upgrade path. |
+| `/member/growth-architect` | Redirects to login. | Member Growth Architect route loads; service cards preserve member request flow. |
+
+## Flow Checklist
+
+1. Checkout handoff: select each membership tier and interval, continue through account setup if logged out, and confirm Stripe opens with the expected tier and billing interval.
+2. Profile save: update rules acceptance, accent theme, profile basics, business details, and a profile image URL/upload in a non-production account.
+3. Blueprint voting: vote Support, High Priority, Not Needed, and Needs Discussion as an eligible member; confirm counts update and Foundation remains gated.
+4. Dashboard onboarding: use a newly paid test member and confirm checklist items update for accepted rules, profile completion, accent theme selection, resource read, first discussion, and Blueprint vote.
+5. Founder service request: open `/member/growth-architect`, start a request, submit application/checkout services, and confirm the success or Stripe path remains connected to the member experience.
+6. Public proof: confirm homepage proof areas show either real admin proof content or safe static placeholders, never empty testimonial slots.
+
 ## Member Accent Theme Regression
 
 1. Sign in as an active member and open `/profile`.

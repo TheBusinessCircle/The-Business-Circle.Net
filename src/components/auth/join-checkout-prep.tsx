@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import type { FoundingOfferTierSnapshot } from "@/types";
 import { RegisterForm } from "@/components/auth/register-form";
 import { MembershipPlanAction } from "@/components/billing";
+import { CheckoutReassuranceBlock } from "@/components/public/launch-readiness";
 import { TierBadge } from "@/components/public/tier-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ import {
   MEMBERSHIP_TIER_ORDER,
   type MembershipBillingInterval
 } from "@/config/membership";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { getFounderRoomPricingNote } from "@/lib/founding-offer-copy";
 import { buildJoinConfirmationHref } from "@/lib/join/routing";
 import {
@@ -318,6 +320,8 @@ function renderTierDetailPanel(input: {
           </div>
         ))}
       </div>
+
+      <CheckoutReassuranceBlock compact className="mt-5" />
     </article>
   );
 }
@@ -438,7 +442,14 @@ export function JoinCheckoutPrep({
               <button
                 key={tier}
                 type="button"
-                onClick={() => setSelectedTier(tier)}
+                onClick={() => {
+                  setSelectedTier(tier);
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.membershipTierSelected, {
+                    source: "join",
+                    tier,
+                    billingInterval
+                  });
+                }}
                 className={cn(
                   "rounded-[1.8rem] border bg-card/70 p-5 text-left shadow-panel transition-transform hover:-translate-y-0.5",
                   getTierCardClassName(tier),

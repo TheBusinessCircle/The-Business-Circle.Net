@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { DEFAULT_AUTH_ERROR_MESSAGE, resolveAuthErrorMessage } from "@/lib/auth/client";
 import { type CredentialsSignInInput, credentialsSignInSchema } from "@/lib/auth/schemas";
 import { safeRedirectPath } from "@/lib/auth/utils";
@@ -71,6 +72,9 @@ export function LoginForm({
           return;
         }
 
+        trackAnalyticsEvent(ANALYTICS_EVENTS.loginSuccess, {
+          destination: targetPath
+        });
         router.push(targetPath);
         router.refresh();
       } catch (error) {

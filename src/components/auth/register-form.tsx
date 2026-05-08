@@ -23,6 +23,7 @@ import {
   type RegisterMemberFormInput,
   registerMemberFormSchema
 } from "@/lib/auth/schemas";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import { cn } from "@/lib/utils";
 
@@ -245,6 +246,12 @@ export function RegisterForm({
     startTransition(async () => {
       const payload = buildRegisterPayload(values);
 
+      trackAnalyticsEvent(ANALYTICS_EVENTS.registrationStarted, {
+        tier: payload.tier,
+        billingInterval: payload.billingInterval,
+        hasInvite: Boolean(payload.inviteCode)
+      });
+
       const response = await fetch("/api/register", {
         method: "POST",
         headers: {
@@ -260,6 +267,11 @@ export function RegisterForm({
       }
 
       if (data.checkoutUrl) {
+        trackAnalyticsEvent(ANALYTICS_EVENTS.checkoutStarted, {
+          source: "registration",
+          tier: payload.tier,
+          billingInterval: payload.billingInterval
+        });
         window.location.assign(data.checkoutUrl);
         return;
       }

@@ -18,6 +18,10 @@ import {
 import type { FoundingOfferTierSnapshot } from "@/types";
 import { FAQSection } from "@/components/public/faq-section";
 import { JourneyRail } from "@/components/public/journey-rail";
+import {
+  CheckoutReassuranceBlock,
+  MemberPreviewLayer
+} from "@/components/public/launch-readiness";
 import { TierBadge } from "@/components/public/tier-badge";
 import { SectionFeatureImage } from "@/components/visual-media";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +40,7 @@ import {
   getFounderRoomAvailabilitySummary,
   getFounderRoomPricingNote
 } from "@/lib/founding-offer-copy";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import {
   getTierAccentTextClassName,
   getTierButtonVariant,
@@ -484,6 +489,7 @@ function SelectedPathPanel({
           <p className="text-sm leading-relaxed text-muted">
             Secure Stripe checkout is next. Access only opens after payment is confirmed, and you can still switch rooms before that if another level fits more clearly.
           </p>
+          <CheckoutReassuranceBlock compact />
         </div>
       </div>
     </motion.article>
@@ -682,7 +688,14 @@ export function MembershipGuidedSelector({
                   <button
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => setSelectedTier(guide.tier)}
+                    onClick={() => {
+                      setSelectedTier(guide.tier);
+                      trackAnalyticsEvent(ANALYTICS_EVENTS.membershipTierSelected, {
+                        source: "membership",
+                        tier: guide.tier,
+                        billingInterval
+                      });
+                    }}
                     className={cn(
                       "group relative flex w-full min-h-[168px] flex-col justify-between overflow-hidden rounded-[1.7rem] border p-5 text-left shadow-panel transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/35 focus-visible:ring-offset-0 sm:min-h-[190px] sm:p-6",
                       selectionCardClassName,
@@ -750,6 +763,8 @@ export function MembershipGuidedSelector({
           </aside>
         </div>
       </section>
+
+      <MemberPreviewLayer />
 
       <section className="public-section">
         <div

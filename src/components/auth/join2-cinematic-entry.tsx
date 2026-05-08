@@ -14,6 +14,7 @@ import {
 } from "react";
 import { motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import {
   JOIN2_FALLBACK_TIMEOUT_MS,
   JOIN2_HANDOFF_STORAGE_KEY,
@@ -482,6 +483,11 @@ export function Join2CinematicEntry({
     resetPortalPosition();
     writeJoinHandoff(resolvedContext);
     resetSceneScroll();
+    trackAnalyticsEvent(ANALYTICS_EVENTS.joinMobileStepInside, {
+      tier: initialSelectedTier,
+      billingInterval,
+      hasInvite: Boolean(resolvedContext.inviteCode)
+    });
     setSceneStage("entering");
 
     transitionTimerRef.current = window.setTimeout(

@@ -25,6 +25,7 @@ import {
   type AccentTheme,
   type AccentThemeOption
 } from "@/lib/accent-themes";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { getMemberRoleDescription, getMemberRoleLabel } from "@/lib/member-role";
 import { getProfileCompletion } from "@/lib/profile";
 import { cn } from "@/lib/utils";
@@ -428,6 +429,11 @@ export function ProfileForm({
 
         savedAccentThemeRef.current = submitted.accentTheme;
         savedWorkspaceAtmosphereRef.current = submitted.workspaceAtmosphereEnabled;
+        trackAnalyticsEvent(ANALYTICS_EVENTS.profileSaved, {
+          accentTheme: submitted.accentTheme,
+          acceptedRules: submitted.acceptedRules,
+          workspaceAtmosphereEnabled: submitted.workspaceAtmosphereEnabled
+        });
         setNotice("Profile updated successfully.");
         router.refresh();
       } catch {

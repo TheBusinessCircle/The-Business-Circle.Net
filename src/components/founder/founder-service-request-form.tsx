@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Loader2 } from "lucide-react";
 
 import { formatFounderServicePrice } from "@/lib/founder";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import type {
   FounderServiceModel,
   FounderServicePricingSummary,
@@ -108,6 +109,7 @@ export function FounderServiceRequestForm({
 }: FounderServiceRequestFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(notice ?? null);
   const [isPending, startTransition] = useTransition();
+  const requestStartedRef = useRef(false);
   const isMemberExperience = experience === "member";
 
   const form = useForm<FounderServiceRequestFormValues>({
@@ -128,6 +130,7 @@ export function FounderServiceRequestForm({
   const onSubmit = form.handleSubmit((values) => {
     setSubmitError(null);
     form.clearErrors();
+    markRequestStarted();
 
     startTransition(async () => {
       try {
@@ -164,12 +167,29 @@ export function FounderServiceRequestForm({
           return;
         }
 
+        trackAnalyticsEvent(ANALYTICS_EVENTS.founderServiceRequestSubmitted, {
+          serviceSlug: service.slug,
+          experience,
+          intakeMode: service.intakeMode
+        });
         window.location.assign(result.url);
       } catch {
         setSubmitError("Unable to submit your application right now.");
       }
     });
   });
+
+  function markRequestStarted() {
+    if (requestStartedRef.current) {
+      return;
+    }
+
+    requestStartedRef.current = true;
+    trackAnalyticsEvent(ANALYTICS_EVENTS.founderServiceRequestStarted, {
+      serviceSlug: service.slug,
+      experience
+    });
+  }
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
@@ -189,7 +209,7 @@ export function FounderServiceRequestForm({
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={onSubmit} className="space-y-6">
+          <form onSubmit={onSubmit} onFocusCapture={markRequestStarted} className="space-y-6">
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Name</Label>

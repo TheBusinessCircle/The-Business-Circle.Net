@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, RotateCcw } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import {
   FOUNDER_AUDIT_QUESTIONS,
@@ -52,6 +53,10 @@ export function FounderAuditClient() {
     }
 
     if (currentIndex === totalQuestions - 1) {
+      trackAnalyticsEvent(ANALYTICS_EVENTS.auditComplete, {
+        score: totalScore,
+        tier: recommendation.tierName
+      });
       setStage("result");
       return;
     }
@@ -104,7 +109,10 @@ export function FounderAuditClient() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <button
                 type="button"
-                onClick={() => setStage("questions")}
+                onClick={() => {
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.auditStart);
+                  setStage("questions");
+                }}
                 className={cn(buttonVariants({ variant: "default", size: "lg" }), "group")}
               >
                 Start the audit
@@ -166,6 +174,13 @@ export function FounderAuditClient() {
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link
                 href={recommendation.membershipHref}
+                onClick={() =>
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.recommendedTierClicked, {
+                    source: "audit",
+                    score: totalScore,
+                    tier: recommendation.tierName
+                  })
+                }
                 className={cn(
                   buttonVariants({ variant: "default", size: "lg" }),
                   "group w-full whitespace-normal text-center sm:w-auto"

@@ -11,6 +11,7 @@ import {
   BLUEPRINT_PRIORITY_VOTE_TYPES,
   BLUEPRINT_VOTE_LABELS
 } from "@/config/blueprint";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import type {
   BlueprintPriorityVoteType,
@@ -107,6 +108,10 @@ export function BlueprintVotingPanel({
       }
 
       setVoteState(payload);
+      trackAnalyticsEvent(ANALYTICS_EVENTS.blueprintVote, {
+        cardId,
+        voteType
+      });
       startRefresh(() => {
         router.refresh();
       });

@@ -7,11 +7,23 @@ export type DashboardOnboardingAction = {
   label: string;
 };
 
+export type DashboardOnboardingChecklistItem = {
+  title: string;
+  description: string;
+  href: string;
+  label: string;
+  complete: boolean;
+  optional?: boolean;
+};
+
 export type DashboardOnboardingExperience = {
   eyebrow: string;
   title: string;
   description: string;
   emphasis: string;
+  checklistTitle: string;
+  checklistDescription: string;
+  checklist: DashboardOnboardingChecklistItem[];
   actions: DashboardOnboardingAction[];
   profileTitle: string;
   profileDescription: string;
@@ -34,11 +46,16 @@ type DashboardOnboardingInput = {
   profileCompletion: number;
   hasPosted: boolean;
   hasCommented: boolean;
+  hasAcceptedRules: boolean;
+  hasAccentTheme: boolean;
+  hasReadResource: boolean;
+  hasBlueprintVote: boolean;
   activeDiscussionCount: number;
   contributingMemberCount: number;
   recentWinCount: number;
   featuredDiscussionHref?: string | null;
   featuredResourceHref?: string | null;
+  showGrowthArchitectAccess?: boolean;
 };
 
 function onboardingTone(tier: MembershipTier) {
@@ -78,12 +95,97 @@ export function getDashboardOnboardingExperience(
   const profileIncomplete = input.profileCompletion < 85;
   const communityHref = input.featuredDiscussionHref ?? "/community";
   const resourceHref = input.featuredResourceHref ?? "/dashboard/resources";
+  const hasJoinedFirstDiscussion = input.hasPosted || input.hasCommented;
+  const checklist: DashboardOnboardingChecklistItem[] = [
+    {
+      title: "Accept BCN Rules",
+      description: input.hasAcceptedRules
+        ? "Rules accepted. Conversation access can open normally."
+        : "Accept the standards that protect the room before normal member use.",
+      href: "/profile#bcn-rules",
+      label: input.hasAcceptedRules ? "Review rules" : "Accept rules",
+      complete: input.hasAcceptedRules
+    },
+    {
+      title: "Complete profile",
+      description:
+        input.profileCompletion >= 85
+          ? "Your profile has enough context for stronger member discovery."
+          : "Add the business context members need before they connect.",
+      href: "/profile",
+      label: input.profileCompletion >= 85 ? "Review profile" : "Complete profile",
+      complete: input.profileCompletion >= 85
+    },
+    {
+      title: "Choose accent theme",
+      description: input.hasAccentTheme
+        ? "Your member workspace theme has been chosen."
+        : "Pick the accent that makes the workspace feel like yours.",
+      href: "/profile",
+      label: input.hasAccentTheme ? "Review theme" : "Choose theme",
+      complete: input.hasAccentTheme
+    },
+    {
+      title: "Visit Directory",
+      description:
+        "Open the directory once to understand who is already inside.",
+      href: "/directory",
+      label: "Open directory",
+      complete: false
+    },
+    {
+      title: "Join first discussion",
+      description: hasJoinedFirstDiscussion
+        ? "You have already posted or replied inside the Circle."
+        : "Reply once or open one useful conversation to start cleanly.",
+      href: communityHref,
+      label: hasJoinedFirstDiscussion ? "Return to discussion" : "Join discussion",
+      complete: hasJoinedFirstDiscussion
+    },
+    {
+      title: "View resources",
+      description: input.hasReadResource
+        ? "You have marked at least one resource as read."
+        : "Open one resource and mark it as read when it has helped.",
+      href: resourceHref,
+      label: input.hasReadResource ? "Open resources" : "View resources",
+      complete: input.hasReadResource
+    },
+    {
+      title: "Vote on the Blueprint",
+      description: input.hasBlueprintVote
+        ? "Your Blueprint signal has been saved."
+        : input.membershipTier === MembershipTier.FOUNDATION
+          ? "Foundation can preview the Blueprint; voting opens in Inner Circle and Core."
+          : "Cast one build signal to help shape what gets prioritised next.",
+      href: "/blueprint",
+      label: input.hasBlueprintVote ? "View Blueprint" : "Open Blueprint",
+      complete: input.hasBlueprintVote,
+      optional: input.membershipTier === MembershipTier.FOUNDATION
+    }
+  ];
+
+  if (input.showGrowthArchitectAccess) {
+    checklist.push({
+      title: "Read Growth Architect access",
+      description:
+        "Review the member Growth Architect route before you need deeper support.",
+      href: "/member/growth-architect",
+      label: "Open access",
+      complete: false,
+      optional: true
+    });
+  }
 
   return {
     eyebrow: "Start here",
     title: tone.title,
     description: tone.description,
     emphasis: tone.emphasis,
+    checklistTitle: "First-entry checklist",
+    checklistDescription:
+      "A simple path for the first visit, using the member progress BCN can confirm cleanly today.",
+    checklist,
     actions: [
       {
         title:

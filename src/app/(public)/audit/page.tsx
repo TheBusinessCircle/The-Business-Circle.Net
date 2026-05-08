@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/public";
 import { createPageMetadata } from "@/lib/seo";
-import { buildCollectionPageSchema } from "@/lib/structured-data";
+import { buildBreadcrumbSchema, buildCollectionPageSchema } from "@/lib/structured-data";
 import { FounderAuditClient } from "./founder-audit-client";
 
 export const metadata: Metadata = createPageMetadata({
@@ -28,6 +28,12 @@ export default function AuditPage() {
           ],
           itemPaths: ["/membership", "/about", "/join-mobile"]
         })}
+      />
+      <JsonLd
+        data={buildBreadcrumbSchema([
+          { name: "Home", path: "/home" },
+          { name: "Founder Audit", path: "/audit" }
+        ])}
       />
       <FounderAuditClient />
     </div>
