@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  FOUNDER_AUDIT_CATEGORY_MAP,
   FOUNDER_AUDIT_QUESTIONS,
   calculateFounderAuditScore,
+  getFounderAuditBottleneck,
   getFounderAuditRecommendation
 } from "./audit-data";
 
@@ -23,6 +25,45 @@ describe("founder audit data and scoring", () => {
     expect(getFounderAuditRecommendation(23).tierSlug).toBe("inner-circle");
     expect(getFounderAuditRecommendation(24).tierSlug).toBe("core");
     expect(getFounderAuditRecommendation(30).tierSlug).toBe("core");
+  });
+
+  it("maps audit questions to the expected diagnostic categories", () => {
+    expect(
+      FOUNDER_AUDIT_QUESTIONS.map((question) => FOUNDER_AUDIT_CATEGORY_MAP[question.id].category)
+    ).toEqual([
+      "Direction",
+      "Structure",
+      "Decision-making",
+      "Environment",
+      "Momentum",
+      "Visibility",
+      "Support",
+      "Growth readiness",
+      "Collaboration",
+      "Owner pressure"
+    ]);
+  });
+
+  it("uses the lowest scoring answer as the likely bottleneck", () => {
+    expect(getFounderAuditBottleneck([3, 3, 3, 1, 3, 3, 3, 3, 3, 3])).toMatchObject({
+      questionId: "circle",
+      category: "Environment",
+      score: 1
+    });
+
+    expect(getFounderAuditBottleneck([3, 3, 3, 3, 3, 3, 3, 2, 1, 3])).toMatchObject({
+      questionId: "network-opportunity",
+      category: "Collaboration",
+      score: 1
+    });
+  });
+
+  it("keeps bottleneck ties stable by question order", () => {
+    expect(getFounderAuditBottleneck([2, 3, 2, 3, 3, 3, 3, 3, 3, 3])).toMatchObject({
+      questionId: "direction",
+      category: "Direction",
+      score: 2
+    });
   });
 
   it("calculates the selected answer score and keeps audit copy free of em dashes", () => {

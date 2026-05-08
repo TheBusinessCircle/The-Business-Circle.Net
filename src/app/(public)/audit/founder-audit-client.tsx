@@ -2,13 +2,23 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, RotateCcw } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  Compass,
+  DoorOpen,
+  RotateCcw
+} from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import {
   FOUNDER_AUDIT_QUESTIONS,
   calculateFounderAuditScore,
+  getFounderAuditBottleneck,
   getFounderAuditRecommendation
 } from "./audit-data";
 
@@ -38,6 +48,7 @@ export function FounderAuditClient() {
     [answers]
   );
   const recommendation = getFounderAuditRecommendation(totalScore || totalQuestions);
+  const bottleneck = useMemo(() => getFounderAuditBottleneck(answers), [answers]);
 
   const selectAnswer = (score: number) => {
     setAnswers((current) => {
@@ -143,91 +154,167 @@ export function FounderAuditClient() {
 
   if (stage === "result") {
     return (
-      <section className="public-hero-spacing relative overflow-hidden rounded-[2.05rem] border border-gold/22 bg-gradient-to-br from-gold/10 via-card/72 to-card/60 shadow-gold-soft">
+      <section className="public-hero-spacing-tight relative overflow-hidden rounded-[2.05rem] border border-gold/22 bg-gradient-to-br from-gold/10 via-card/72 to-card/60 shadow-gold-soft">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(32,74,138,0.22),transparent_24rem),linear-gradient(180deg,rgba(0,0,0,0.12),rgba(0,0,0,0.58))]" />
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.36fr)] lg:items-start">
-          <div className="max-w-4xl space-y-6">
+        <div className="relative space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <p className="premium-kicker">Audit Result</p>
               <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
                 Score {totalScore} of 30
               </span>
             </div>
-            <div className="space-y-5">
-              <h1 className="font-display text-4xl leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                {recommendation.headline}
-              </h1>
-              <p className="max-w-3xl text-lg leading-relaxed text-white/82">
-                {recommendation.summary}
+            <button
+              type="button"
+              onClick={restartAudit}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-background/24 px-4 py-2 text-sm text-silver transition-colors hover:border-gold/24 hover:text-foreground"
+            >
+              <RotateCcw size={14} />
+              Start again
+            </button>
+          </div>
+
+          <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.43fr)] lg:items-start">
+            <div className="min-w-0 space-y-5">
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full border border-gold/22 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
+                    Current phase
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
+                    Recommended: {recommendation.tierName}
+                  </span>
+                </div>
+                <h1 className="max-w-4xl font-display text-3xl leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                  {recommendation.headline}
+                </h1>
+                <p className="max-w-3xl text-base leading-relaxed text-white/82 sm:text-lg">
+                  {recommendation.summary}
+                </p>
+              </div>
+
+              <div className="rounded-[1.45rem] border border-gold/22 bg-background/30 p-4 shadow-panel-soft sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/24 bg-gold/10 text-gold">
+                    <AlertTriangle size={17} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                      Likely bottleneck
+                    </p>
+                    <h2 className="mt-2 font-display text-2xl text-foreground">
+                      {bottleneck.category}
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                      {bottleneck.signal}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Link
+                  href={recommendation.membershipHref}
+                  onClick={() =>
+                    trackAnalyticsEvent(ANALYTICS_EVENTS.recommendedTierClicked, {
+                      source: "audit",
+                      score: totalScore,
+                      tier: recommendation.tierName
+                    })
+                  }
+                  className={cn(
+                    buttonVariants({ variant: "default", size: "lg" }),
+                    "group w-full whitespace-normal text-center sm:w-auto"
+                  )}
+                >
+                  Continue with recommended tier
+                  <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <Link
+                  href="/membership"
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    "w-full whitespace-normal text-center sm:w-auto"
+                  )}
+                >
+                  Compare all tiers
+                </Link>
+                <Link
+                  href="/home#how-it-works"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "lg" }),
+                    "w-full whitespace-normal text-center sm:w-auto"
+                  )}
+                >
+                  See how The Business Circle works
+                </Link>
+              </div>
+
+              <p className="rounded-[1.1rem] border border-white/10 bg-background/22 px-4 py-3 text-sm leading-relaxed text-silver">
+                Founder access is currently open while allocation remains.
               </p>
-              <div className="rounded-[1.5rem] border border-white/10 bg-background/24 p-5">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                  Recommended room
-                </p>
-                <p className="mt-3 text-base leading-relaxed text-silver">
-                  {recommendation.tierFit}
-                </p>
+
+              <div className="rounded-[1.45rem] border border-white/10 bg-background/24 p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-card/54 text-silver">
+                    <Compass size={17} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                      What this means
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
+                      {recommendation.phaseRisk}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link
-                href={recommendation.membershipHref}
-                onClick={() =>
-                  trackAnalyticsEvent(ANALYTICS_EVENTS.recommendedTierClicked, {
-                    source: "audit",
-                    score: totalScore,
-                    tier: recommendation.tierName
-                  })
-                }
-                className={cn(
-                  buttonVariants({ variant: "default", size: "lg" }),
-                  "group w-full whitespace-normal text-center sm:w-auto"
-                )}
-              >
-                {recommendation.primaryCta}
-                <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <Link
-                href="/membership"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "w-full whitespace-normal text-center sm:w-auto"
-                )}
-              >
-                Compare all tiers
-              </Link>
-              <Link
-                href="/about"
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "lg" }),
-                  "w-full whitespace-normal text-center sm:w-auto"
-                )}
-              >
-                See how The Business Circle works
-              </Link>
-            </div>
-          </div>
+            <aside className="min-w-0 rounded-[1.7rem] border border-white/10 bg-background/24 p-5 shadow-panel-soft backdrop-blur">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Recommended room</p>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <p className="font-display text-3xl text-foreground">{recommendation.tierName}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{recommendation.tierFit}</p>
+                </div>
 
-          <aside className="rounded-[1.7rem] border border-white/10 bg-background/24 p-5 shadow-panel-soft backdrop-blur">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">{recommendation.phase}</p>
-            <div className="mt-4 space-y-3">
-              <p className="font-display text-3xl text-foreground">{recommendation.tierName}</p>
-              <p className="text-sm leading-relaxed text-muted">
-                Your recommendation is based on the answers you selected across clarity, structure,
-                network, and readiness.
-              </p>
-              <button
-                type="button"
-                onClick={restartAudit}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-background/24 px-4 py-2 text-sm text-silver transition-colors hover:border-gold/24 hover:text-foreground"
-              >
-                <RotateCcw size={14} />
-                Start again
-              </button>
-            </div>
-          </aside>
+                <div className="rounded-[1.2rem] border border-white/10 bg-card/42 p-4">
+                  <div className="flex items-start gap-3">
+                    <DoorOpen size={17} className="mt-0.5 shrink-0 text-gold" />
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                        What changes
+                      </p>
+                      <p className="mt-2 text-sm leading-relaxed text-muted">
+                        {recommendation.roomChange}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.2rem] border border-white/10 bg-card/42 p-4">
+                  <div className="flex items-center gap-2">
+                    <Clock3 size={16} className="text-gold" />
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                      First 7 days
+                    </p>
+                  </div>
+                  <ol className="mt-3 space-y-2">
+                    {recommendation.firstSevenDays.map((step, index) => (
+                      <li key={step} className="flex gap-3 text-sm leading-relaxed text-muted">
+                        <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gold/20 bg-gold/10 text-[11px] text-gold">
+                          {index + 1}
+                        </span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
       </section>
     );
