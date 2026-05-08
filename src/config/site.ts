@@ -31,6 +31,7 @@ const memberNavigation: NavigationItem[] = [
 
 const adminNavigation: NavigationItem[] = [
   { label: "Overview", href: "/admin" },
+  { label: "Launch Command", href: "/admin/launch" },
   { label: "Blueprint Manager", href: "/admin/blueprint" },
   { label: "Members", href: "/admin/members" },
   { label: "Community", href: "/admin/community" },

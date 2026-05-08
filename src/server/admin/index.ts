@@ -3,3 +3,4 @@ export * from "@/server/admin/admin-operations.service";
 export * from "@/server/admin/admin-dashboard.service";
 export * from "@/server/admin/admin-members.service";
 export * from "@/server/admin/admin-email-tests.service";
+export * from "@/server/admin/launch-command.service";
