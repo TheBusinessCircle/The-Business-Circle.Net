@@ -6,6 +6,7 @@ import { SITE_CONFIG } from "@/config/site";
 import { buildMemberProfilePath } from "@/lib/member-paths";
 import { absoluteUrl } from "@/lib/utils";
 import { getProfileCompletion } from "@/lib/profile";
+import { SOCIAL_SHARE_IMAGE } from "@/lib/seo";
 import { prisma } from "@/lib/prisma";
 import { getRecentActivityByUserIds } from "@/server/community/member-activity.service";
 import { getCommunityRecognitionForUser } from "@/server/community-recognition";
@@ -102,7 +103,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const shareImage =
     member.image && /^https?:\/\//i.test(member.image)
       ? member.image
-      : absoluteUrl(member.image || "/opengraph-image");
+      : absoluteUrl(member.image || SOCIAL_SHARE_IMAGE.path);
 
   return {
     metadataBase: new URL(SITE_CONFIG.url),

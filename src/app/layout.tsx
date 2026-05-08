@@ -3,6 +3,7 @@ import { Sora, Plus_Jakarta_Sans } from "next/font/google";
 import { CookieConsent } from "@/components/privacy/cookie-consent";
 import { Providers } from "@/components/providers";
 import { SITE_CONFIG } from "@/config/site";
+import { getOpenGraphShareImage, getTwitterShareImage } from "@/lib/seo";
 import "./globals.css";
 
 const display = Sora({
@@ -15,33 +16,56 @@ const sans = Plus_Jakarta_Sans({
   variable: "--font-jakarta"
 });
 
+const openGraphShareImage = getOpenGraphShareImage();
+const twitterShareImage = getTwitterShareImage();
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_CONFIG.url),
+  applicationName: SITE_CONFIG.name,
   title: {
     default: SITE_CONFIG.seo.defaultTitle,
     template: SITE_CONFIG.seo.titleTemplate
   },
   description: SITE_CONFIG.description,
+  alternates: {
+    canonical: "/"
+  },
+  authors: [{ name: SITE_CONFIG.name, url: SITE_CONFIG.url }],
+  creator: SITE_CONFIG.name,
+  publisher: SITE_CONFIG.name,
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" }
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ]
+  },
   openGraph: {
     title: SITE_CONFIG.seo.defaultTitle,
     description: SITE_CONFIG.description,
     url: SITE_CONFIG.url,
     siteName: SITE_CONFIG.name,
     type: "website",
-    images: [
-      {
-        url: new URL("/opengraph-image", SITE_CONFIG.url).toString(),
-        width: 1200,
-        height: 630,
-        alt: `${SITE_CONFIG.name} preview`
-      }
-    ]
+    images: [openGraphShareImage]
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_CONFIG.seo.defaultTitle,
     description: SITE_CONFIG.description,
-    images: [new URL("/opengraph-image", SITE_CONFIG.url).toString()]
+    images: [twitterShareImage]
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large"
+    }
   }
 };
 

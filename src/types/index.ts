@@ -31,6 +31,8 @@ export interface SiteConfig {
   seo: {
     titleTemplate: string;
     defaultTitle: string;
+    shareImagePath: string;
+    shareImageAlt: string;
   };
 }
 

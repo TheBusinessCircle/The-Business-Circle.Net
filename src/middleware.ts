@@ -76,6 +76,13 @@ export default auth((req) => {
   }
 
   const { nextUrl } = req;
+  if (nextUrl.pathname === "/opengraph-image") {
+    const shareImageUrl = nextUrl.clone();
+    shareImageUrl.pathname = "/social-share.png";
+    shareImageUrl.search = "";
+    return NextResponse.redirect(shareImageUrl, 308);
+  }
+
   const session = req.auth;
   const pathname = nextUrl.pathname;
   const requestedPath = `${pathname}${nextUrl.search ?? ""}`;
@@ -157,6 +164,7 @@ export const config = {
     "/sign-up",
     "/forgot-password",
     "/reset-password",
+    "/opengraph-image",
     "/dashboard/:path*",
     "/blueprint",
     "/blueprint/:path*",

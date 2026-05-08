@@ -73,6 +73,9 @@ export const SITE_CONFIG: SiteConfig = {
   },
   seo: {
     titleTemplate: "%s | The Business Circle Network",
-    defaultTitle: "The Business Circle Network"
+    defaultTitle: "The Business Circle Network",
+    shareImagePath: "/social-share.png",
+    shareImageAlt:
+      "The Business Circle Network social preview for a private founder ecosystem"
   }
 };
