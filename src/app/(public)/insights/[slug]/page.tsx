@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, Compass, Lock, MoveLeft, NotebookTabs } from "lucide-react";
 import { notFound } from "next/navigation";
-import { InsightCard, JsonLd } from "@/components/public";
+import { InsightCard, InsightsRoomCta, JsonLd } from "@/components/public";
 import { PublicTopVisual } from "@/components/visual-media";
 import { Button } from "@/components/ui/button";
 import { SITE_CONFIG } from "@/config/site";
@@ -216,6 +216,8 @@ export default async function InsightArticlePage({ params }: PageProps) {
                 </p>
               ))}
             </section>
+
+            <InsightsRoomCta />
 
             <section id="breakdown" className="public-panel scroll-mt-28 space-y-6 p-6 sm:p-8">
               <h2 className="font-display text-3xl text-foreground">{insight.breakdownTitle}</h2>

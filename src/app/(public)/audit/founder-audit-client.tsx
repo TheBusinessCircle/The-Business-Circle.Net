@@ -13,6 +13,7 @@ import {
   RotateCcw
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { FirstSevenDaysBlock } from "@/components/public/launch-cro-blocks";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import {
@@ -315,6 +316,8 @@ export function FounderAuditClient() {
               </div>
             </aside>
           </div>
+
+          <FirstSevenDaysBlock frame="panel" variant="audit" />
         </div>
       </section>
     );

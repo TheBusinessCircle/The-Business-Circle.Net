@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { CommunityRecognitionPanel } from "@/components/profile";
+import { CommunityRecognitionPanel, MemberTestimonialSubmission } from "@/components/profile";
 import { ProfileForm } from "@/components/platform/profile-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FoundingBadge } from "@/components/ui/founding-badge";
@@ -12,6 +12,11 @@ import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
 import { getCommunityRecognitionForUser } from "@/server/community-recognition";
+import { getLatestMemberTestimonial } from "@/server/testimonials";
+
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export const metadata: Metadata = createPageMetadata({
   title: "Member Profile",
@@ -22,10 +27,19 @@ export const metadata: Metadata = createPageMetadata({
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
-  const session = await requireUser();
+function firstValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
 
-  const [user, recognition] = await Promise.all([
+  return value ?? "";
+}
+
+export default async function ProfilePage({ searchParams }: PageProps) {
+  const session = await requireUser();
+  const params = await searchParams;
+
+  const [user, recognition, latestTestimonial] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       include: {
@@ -36,7 +50,8 @@ export default async function ProfilePage() {
         }
       }
     }),
-    getCommunityRecognitionForUser(session.user.id)
+    getCommunityRecognitionForUser(session.user.id),
+    getLatestMemberTestimonial(session.user.id)
   ]);
 
   if (!user) {
@@ -73,6 +88,12 @@ export default async function ProfilePage() {
       <CommunityRecognitionPanel
         recognition={recognition}
         description="Your visible standing across the community, member directory, and chat."
+      />
+
+      <MemberTestimonialSubmission
+        latestStatus={latestTestimonial?.status}
+        latestCreatedAt={latestTestimonial?.createdAt}
+        feedback={firstValue(params.testimonial) as "sent" | "invalid" | ""}
       />
 
       <ProfileForm

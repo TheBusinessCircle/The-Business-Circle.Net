@@ -90,6 +90,9 @@ model User {
   callAuditLogs                  CallAuditLog[]               @relation("CallAuditActor")
   targetedCallAuditLogs          CallAuditLog[]               @relation("CallAuditTarget")
   redeemedDiscounts              BillingDiscount[]            @relation("BillingDiscountRedeemer")
+  memberTestimonials             Testimonial[]                @relation("MemberTestimonials")
+  requestedTestimonials          Testimonial[]                @relation("TestimonialRequestedByAdmin")
+  approvedTestimonials           Testimonial[]                @relation("TestimonialApprovedByAdmin")
 
   @@index([role])
   @@index([memberRoleTag])
@@ -1545,10 +1548,67 @@ model VisualMediaPlacement {
   @@index([isActive, page])
 }
 
+model Testimonial {
+  id                  String                  @id @default(cuid())
+  sourceType          TestimonialSourceType
+  proofType           TestimonialProofType
+  status              TestimonialStatus       @default(PENDING)
+  memberId            String?
+  authorName          String
+  authorRole          String?
+  businessName        String?
+  businessWebsite     String?
+  quote               String                  @db.Text
+  outcome             String?                 @db.Text
+  rating              Int?
+  permissionToDisplay Boolean
+  displayPublicName   Boolean                 @default(true)
+  displayBusinessName Boolean                 @default(true)
+  displayProfileImage Boolean                 @default(false)
+  imageUrl            String?
+  adminNotes          String?                 @db.Text
+  submittedEmail      String?
+  requestToken        String?                 @unique
+  requestedByAdminId  String?
+  approvedByAdminId   String?
+  approvedAt          DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  member              User?                   @relation("MemberTestimonials", fields: [memberId], references: [id], onDelete: SetNull)
+  requestedByAdmin    User?                   @relation("TestimonialRequestedByAdmin", fields: [requestedByAdminId], references: [id], onDelete: SetNull)
+  approvedByAdmin     User?                   @relation("TestimonialApprovedByAdmin", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([proofType, status, createdAt])
+  @@index([status, createdAt])
+  @@index([sourceType, createdAt])
+  @@index([memberId, createdAt])
+  @@index([approvedByAdminId, approvedAt])
+  @@index([requestedByAdminId, createdAt])
+}
+
 enum Role {
   MEMBER
   INNER_CIRCLE
   ADMIN
+}
+
+enum TestimonialSourceType {
+  MEMBER_PROFILE
+  EXTERNAL_REQUEST
+  ADMIN_CREATED
+}
+
+enum TestimonialProofType {
+  BCN_MEMBER
+  GROWTH_ARCHITECT
+  GENERAL
+}
+
+enum TestimonialStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
 }
 
 enum MembershipTier {

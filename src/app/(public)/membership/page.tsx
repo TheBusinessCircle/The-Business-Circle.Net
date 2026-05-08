@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { JsonLd } from "@/components/public";
+import { TestimonialProofType } from "@prisma/client";
+import { FirstSevenDaysBlock, JsonLd, TierOutcomeComparison } from "@/components/public";
+import { TestimonialSection } from "@/components/public/testimonial-section";
 import { PublicTopVisual } from "@/components/visual-media";
 import { MembershipGuidedSelector } from "@/components/public/membership-guided-selector";
 import {
@@ -190,6 +192,18 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         roomsPlacement={membershipRoomsPlacement}
         tierComparisonPlacement={membershipTierComparisonPlacement}
         foundersPlacement={membershipFoundersPlacement}
+      />
+
+      <FirstSevenDaysBlock />
+
+      <TierOutcomeComparison />
+
+      <TestimonialSection
+        proofType={TestimonialProofType.BCN_MEMBER}
+        eyebrow="WHY MEMBERS JOIN"
+        title="Proof from the people inside the room"
+        intro="Approved member feedback from the private environment."
+        limit={6}
       />
     </div>
   );

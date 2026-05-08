@@ -36,6 +36,7 @@ const adminNavigation: NavigationItem[] = [
   { label: "Community", href: "/admin/community" },
   { label: "Messages", href: "/admin/messages" },
   { label: "Wins", href: "/admin/wins" },
+  { label: "Testimonials", href: "/admin/testimonials" },
   { label: "Resources", href: "/admin/resources" },
   { label: "Events", href: "/admin/events" },
   { label: "Calling", href: "/admin/calling" },

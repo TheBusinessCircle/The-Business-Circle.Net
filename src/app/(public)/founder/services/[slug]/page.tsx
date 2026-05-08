@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { TestimonialProofType } from "@prisma/client";
 import { auth } from "@/auth";
 import { FounderServiceRequestForm } from "@/components/founder";
+import { TestimonialSection } from "@/components/public/testimonial-section";
 import { PublicTopVisual } from "@/components/visual-media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -212,6 +214,14 @@ export default async function FounderServicePage({
         notice={notice}
         sourcePage={sourcePage}
         sourceSection={sourceSection}
+      />
+
+      <TestimonialSection
+        proofType={TestimonialProofType.GROWTH_ARCHITECT}
+        eyebrow="CLIENT PROOF"
+        title="Proof from Growth Architect work"
+        intro="Feedback from business owners who have worked directly with Trevor on clarity, positioning, conversion, or growth direction."
+        limit={6}
       />
     </div>
   );

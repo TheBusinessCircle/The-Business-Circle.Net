@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Compass, MoveLeft } from "lucide-react";
 import { notFound } from "next/navigation";
-import { InsightCard, JsonLd } from "@/components/public";
+import { InsightCard, InsightsRoomCta, JsonLd } from "@/components/public";
 import { PublicTopVisual } from "@/components/visual-media";
 import { Button } from "@/components/ui/button";
 import { INSIGHT_TOPIC_PILLARS } from "@/config/insight-pillars";
@@ -150,6 +150,8 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
             </div>
           </div>
         </section>
+
+        <InsightsRoomCta />
 
         <section className="space-y-5">
           {pillar.sections.map((section) => {

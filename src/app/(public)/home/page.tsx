@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TestimonialProofType } from "@prisma/client";
 import {
   ArrowRight,
   BookOpen,
@@ -20,10 +21,12 @@ import {
   HeroSection,
   JourneyRail,
   JsonLd,
+  FirstSevenDaysBlock,
   LaunchTrustProof,
   MemberPreviewLayer,
   SectionHeading
 } from "@/components/public";
+import { TestimonialSection } from "@/components/public/testimonial-section";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
@@ -135,29 +138,6 @@ const ECOSYSTEM_ITEMS = [
   "Collaborations",
   "Wins",
   "Insights"
-] as const;
-
-const FIRST_WEEK_STEPS = [
-  {
-    title: "Complete your profile",
-    description: "Add the business context other members need before they connect."
-  },
-  {
-    title: "Find the right room",
-    description: "Start where your current question, stage, or tier naturally fits."
-  },
-  {
-    title: "Read recommended resources",
-    description: "Use the practical material that matches the decision in front of you."
-  },
-  {
-    title: "Join or start a discussion",
-    description: "Bring one useful question, update, or observation into the private space."
-  },
-  {
-    title: "Book or connect where appropriate",
-    description: "Move into direct conversation when there is a clear reason to do so."
-  }
 ] as const;
 
 const PUBLIC_PREVIEW_THEMES = [
@@ -521,32 +501,11 @@ export default async function HomePage() {
           className={cn(
             "gap-6 xl:items-start",
             homeJoinPlacement?.isActive && homeJoinPlacement.imageUrl
-              ? "grid xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.62fr)]"
+              ? "grid xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.52fr)]"
               : "space-y-6"
           )}
         >
-          <div className="space-y-6">
-            <SectionHeading
-              label="First 7 Days Inside BCN"
-              title="The first week is about orientation, useful context, and one clear next move."
-              description="New members do not need to be everywhere. The best start is a simple sequence that makes the network easier to use."
-            />
-
-            <div className="grid gap-4 md:grid-cols-5">
-              {FIRST_WEEK_STEPS.map((item, index) => (
-                <article
-                  key={item.title}
-                  className="rounded-[1.7rem] border border-border/80 bg-card/66 p-5 shadow-panel-soft sm:p-6"
-                >
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gold/28 bg-gold/10 text-sm font-semibold text-gold">
-                    {index + 1}
-                  </span>
-                  <h3 className="mt-4 text-xl text-foreground">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-                </article>
-              ))}
-            </div>
-          </div>
+          <FirstSevenDaysBlock frame="panel" />
 
           {homeJoinPlacement?.isActive && homeJoinPlacement.imageUrl ? (
             <SectionFeatureImage
@@ -628,6 +587,14 @@ export default async function HomePage() {
         upcomingEventCount={publicTrustSnapshot.upcomingEventCount}
         founderPlacesRemaining={founderPlacesRemaining}
         founderRoomCount={founderRoomsOpen.length}
+      />
+
+      <TestimonialSection
+        proofType={TestimonialProofType.BCN_MEMBER}
+        eyebrow="MEMBER PROOF"
+        title="What owners are saying inside The Business Circle"
+        intro="Real feedback from business owners using BCN to find clearer conversations, stronger direction, and better rooms."
+        limit={6}
       />
 
       <section className="public-section">

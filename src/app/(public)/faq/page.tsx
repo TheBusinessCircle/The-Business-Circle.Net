@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { FAQSection, JsonLd } from "@/components/public";
+import { AuditFitCta, FAQSection, JsonLd } from "@/components/public";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { createPageMetadata } from "@/lib/seo";
 import { buildFaqSchema } from "@/lib/structured-data";
@@ -178,6 +178,8 @@ export default async function FaqPage() {
         description="Short answers designed to make the next decision clearer, faster, and more confident."
         items={faqItems}
       />
+
+      <AuditFitCta />
     </div>
   );
 }

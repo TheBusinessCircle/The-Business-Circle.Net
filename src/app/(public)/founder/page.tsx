@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TestimonialProofType } from "@prisma/client";
 import { auth } from "@/auth";
 import {
   ArrowRight,
@@ -8,7 +9,8 @@ import {
   Compass,
   ShieldCheck
 } from "lucide-react";
-import { JsonLd } from "@/components/public";
+import { GrowthArchitectSupportCta, JsonLd } from "@/components/public";
+import { TestimonialSection } from "@/components/public/testimonial-section";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -222,6 +224,8 @@ export default async function FounderPage() {
         ) : null}
       </section>
 
+      <GrowthArchitectSupportCta href="/founder/services/growth-architect-clarity-audit?sourcePage=Founder%20Page&sourceSection=Launch%20Review%20CTA" />
+
       <section id="services" className="space-y-6">
         <div className="max-w-3xl space-y-3">
           <p className="premium-kicker">Services</p>
@@ -312,6 +316,14 @@ export default async function FounderPage() {
           })}
         </div>
       </section>
+
+      <TestimonialSection
+        proofType={TestimonialProofType.GROWTH_ARCHITECT}
+        eyebrow="CLIENT PROOF"
+        title="Proof from Growth Architect work"
+        intro="Feedback from business owners who have worked directly with Trevor on clarity, positioning, conversion, or growth direction."
+        limit={6}
+      />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {HOW_IT_WORKS.map((step, index) => {

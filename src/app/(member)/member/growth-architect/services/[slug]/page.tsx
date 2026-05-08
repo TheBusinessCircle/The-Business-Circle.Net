@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { TestimonialProofType } from "@prisma/client";
 import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 import { FounderServiceRequestForm } from "@/components/founder";
+import { TestimonialSection } from "@/components/public/testimonial-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -232,6 +234,15 @@ export default async function MemberGrowthArchitectServicePage({
           experience="member"
         />
       </section>
+
+      <TestimonialSection
+        proofType={TestimonialProofType.GROWTH_ARCHITECT}
+        eyebrow="GROWTH ARCHITECT PROOF"
+        title="Member and client feedback"
+        intro="Approved feedback from Growth Architect work and strategic support."
+        limit={6}
+        variant="member"
+      />
     </div>
   );
 }

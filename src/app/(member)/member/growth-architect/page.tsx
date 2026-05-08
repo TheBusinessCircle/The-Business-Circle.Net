@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TestimonialProofType } from "@prisma/client";
 import { ArrowRight, BadgeCheck, Compass, ShieldCheck, Sparkles } from "lucide-react";
+import { GrowthArchitectSupportCta } from "@/components/public/launch-cro-blocks";
+import { TestimonialSection } from "@/components/public/testimonial-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -141,6 +144,11 @@ export default async function MemberGrowthArchitectPage() {
         </Card>
       </section>
 
+      <GrowthArchitectSupportCta
+        href="/member/growth-architect/services/growth-architect-clarity-audit?sourcePage=Member%20Growth%20Architect&sourceSection=Launch%20Review%20CTA"
+        variant="member"
+      />
+
       <section className="space-y-4">
         <div className="border-b border-silver/12 pb-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -258,6 +266,15 @@ export default async function MemberGrowthArchitectPage() {
           member rates.
         </div>
       </section>
+
+      <TestimonialSection
+        proofType={TestimonialProofType.GROWTH_ARCHITECT}
+        eyebrow="GROWTH ARCHITECT PROOF"
+        title="Member and client feedback"
+        intro="Approved feedback from Growth Architect work and strategic support."
+        limit={6}
+        variant="member"
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Mail, MessageSquare, ShieldCheck } from "lucide-react";
+import { AuditFitCta } from "@/components/public";
 import { PublicTopVisual } from "@/components/visual-media";
 import { formatCompanyTrustLine } from "@/config/company";
 import { ContactForm } from "@/components/platform/contact-form";
@@ -90,6 +91,8 @@ export default async function ContactPage() {
           </aside>
         </div>
       </section>
+
+      <AuditFitCta />
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <aside className="public-panel space-y-5 p-5 sm:p-6">
