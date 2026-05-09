@@ -51,6 +51,9 @@ function iconForHref(href: string) {
   if (href.startsWith("/admin/community")) {
     return MessageSquare;
   }
+  if (href.startsWith("/admin/intelligence")) {
+    return Sparkles;
+  }
   if (href.startsWith("/admin/messages")) {
     return MessageSquare;
   }

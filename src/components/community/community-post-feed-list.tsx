@@ -196,24 +196,34 @@ export function CommunityPostFeedList({
             )}
           >
             <CardHeader className="space-y-4">
-              <div className="flex items-start gap-3">
-                <Link
-                  href={buildMemberProfilePath(post.user.id)}
-                  className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl transition-colors hover:text-foreground"
-                >
-                  <Avatar name={displayName} image={post.user.image} className="h-11 w-11" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-base font-medium text-foreground">{displayName}</p>
-                      <MembershipTierBadge tier={post.user.membershipTier} className="shrink-0" />
-                      <FoundingBadge tier={post.user.foundingTier} />
-                      {postKindBadge(post.kind, post.tags)}
+              {isBcnUpdatesFeed ? (
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <Badge variant="outline" className="border-gold/24 bg-gold/10 text-gold">
+                    Commercial signal
+                  </Badge>
+                  <span>{post.intelligenceSourceName ?? post.sourceDomain ?? "BCN source"}</span>
+                  <span>{formatDate(post.intelligencePublishedAt ?? post.createdAt)}</span>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <Link
+                    href={buildMemberProfilePath(post.user.id)}
+                    className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl transition-colors hover:text-foreground"
+                  >
+                    <Avatar name={displayName} image={post.user.image} className="h-11 w-11" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-base font-medium text-foreground">{displayName}</p>
+                        <MembershipTierBadge tier={post.user.membershipTier} className="shrink-0" />
+                        <FoundingBadge tier={post.user.foundingTier} />
+                        {postKindBadge(post.kind, post.tags)}
+                      </div>
+                      <CommunityUserSignals user={post.user} />
+                      <p className="mt-1 text-xs text-muted">{formatDate(post.createdAt)}</p>
                     </div>
-                    <CommunityUserSignals user={post.user} />
-                    <p className="mt-1 text-xs text-muted">{formatDate(post.createdAt)}</p>
-                  </div>
-                </Link>
-              </div>
+                  </Link>
+                </div>
+              )}
 
               <button
                 type="button"
@@ -235,6 +245,19 @@ export function CommunityPostFeedList({
                       {isFeaturedSignal ? (
                         <Badge variant="outline" className="border-gold/24 bg-gold/10 text-gold">
                           Most relevant now
+                        </Badge>
+                      ) : null}
+                      {post.intelligenceLabel ? (
+                        <Badge variant="outline" className="border-gold/18 bg-gold/10 text-gold">
+                          {post.intelligenceLabel}
+                        </Badge>
+                      ) : null}
+                      {post.intelligenceSourceName || post.sourceDomain ? (
+                        <Badge
+                          variant="outline"
+                          className="border-silver/14 bg-background/16 normal-case tracking-normal text-muted"
+                        >
+                          {post.intelligenceSourceName ?? post.sourceDomain}
                         </Badge>
                       ) : null}
                       {visiblePrimaryTag ? (
@@ -264,23 +287,23 @@ export function CommunityPostFeedList({
                         previewImageUrl={post.previewImageUrl}
                         sourceUrl={post.sourceUrl}
                         sourceDomain={post.sourceDomain}
+                        sourceName={post.intelligenceSourceName}
+                        category={post.intelligencePrimaryCategory}
                         compact
                       />
                       <div className="rounded-2xl border border-gold/18 bg-gold/10 px-4 py-3">
-                        <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                          Article detail
-                        </p>
+                        <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Key detail</p>
                         <p className="mt-2 line-clamp-4 text-sm leading-7 text-foreground/88">
-                          {parsedBcn.articleDetail || parsedBcn.whatHappened}
+                          {post.intelligenceKeyDetail ?? parsedBcn.keyDetail ?? parsedBcn.whatHappened}
                         </p>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         <div className="rounded-2xl border border-silver/12 bg-background/18 px-4 py-3">
                           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                            Key detail
+                            What happened
                           </p>
                           <p className="mt-2 line-clamp-3 text-sm leading-7 text-foreground/85">
-                            {parsedBcn.keyDetail}
+                            {post.intelligenceShortSummary ?? parsedBcn.whatHappened}
                           </p>
                         </div>
                         <div className="rounded-2xl border border-silver/12 bg-background/18 px-4 py-3">
@@ -288,20 +311,22 @@ export function CommunityPostFeedList({
                             Why this matters
                           </p>
                           <p className="mt-2 line-clamp-3 text-sm leading-7 text-foreground/85">
-                            {parsedBcn.whyThisMatters}
+                            {post.intelligenceWhyThisMatters ?? parsedBcn.whyThisMatters}
                           </p>
                         </div>
                         <div className="rounded-2xl border border-silver/12 bg-background/18 px-4 py-3">
                           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                            Who this affects
+                            Founder takeaway
                           </p>
                           <p className="mt-2 line-clamp-3 text-sm leading-7 text-foreground/85">
-                            {parsedBcn.whoThisAffects}
+                            {post.intelligenceFounderTakeaway ??
+                              parsedBcn.founderTakeaway ??
+                              parsedBcn.whoThisAffects}
                           </p>
                         </div>
                       </div>
                       <p className="text-sm leading-7 text-gold/85">
-                        {parsedBcn.whatToWatchNext}
+                        {post.intelligenceWhatToWatchNext ?? parsedBcn.whatToWatchNext}
                       </p>
                     </div>
                   ) : (

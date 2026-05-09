@@ -16,6 +16,14 @@ const BCN_SECTION_DEFINITIONS = [
     aliases: ["why this matters"]
   },
   {
+    key: "business owner impact",
+    aliases: ["business owner impact", "what it could affect"]
+  },
+  {
+    key: "founder takeaway",
+    aliases: ["founder takeaway", "operator takeaway"]
+  },
+  {
     key: "who this affects",
     aliases: ["who this affects"]
   },
@@ -26,6 +34,22 @@ const BCN_SECTION_DEFINITIONS = [
   {
     key: "what to watch next",
     aliases: ["what to watch next", "watch next"]
+  },
+  {
+    key: "possible opportunities",
+    aliases: ["possible opportunities", "opportunities"]
+  },
+  {
+    key: "possible risks",
+    aliases: ["possible risks", "risks"]
+  },
+  {
+    key: "discussion prompt",
+    aliases: ["discussion prompt", "suggested discussion prompt"]
+  },
+  {
+    key: "recommended room",
+    aliases: ["recommended room", "recommended bcn room"]
   },
   {
     key: "source",
@@ -48,8 +72,17 @@ const BCN_DISPLAY_TAGS = {
   technology: "AI",
   founders: "Leadership",
   commerce: "Retail",
-  markets: "Economy",
-  finance: "Economy"
+  markets: "Global Markets",
+  finance: "Economy",
+  tax: "Tax",
+  funding: "Funding",
+  "consumer-behaviour": "Consumer Behaviour",
+  "supply-chain": "Supply Chain",
+  energy: "Energy",
+  property: "Property",
+  cybersecurity: "Cybersecurity",
+  "uk-business": "UK Business",
+  "global-markets": "Global Markets"
 } as const;
 
 const BCN_META_TAGS = new Set([
@@ -66,9 +99,15 @@ export type BcnStructuredContent = {
   whatHappened: string;
   keyDetail: string;
   whyThisMatters: string;
+  businessOwnerImpact: string;
+  founderTakeaway: string;
   whoThisAffects: string;
   bcnView: string;
   whatToWatchNext: string;
+  possibleOpportunities: string;
+  possibleRisks: string;
+  suggestedDiscussionPrompt: string;
+  recommendedRoom: string;
   source: string;
 };
 
@@ -77,6 +116,11 @@ type BcnSignalLike = {
   content: string;
   tags: string[];
   createdAt: string;
+  intelligenceBusinessOwnerScore?: number | null;
+  intelligenceCommercialImpactScore?: number | null;
+  intelligenceRelevanceScore?: number | null;
+  intelligenceUrgencyScore?: number | null;
+  intelligenceSourceCredibilityScore?: number | null;
   commentCount?: number;
   likeCount?: number;
 };
@@ -160,9 +204,15 @@ export function parseBcnStructuredContent(content: string): BcnStructuredContent
     whatHappened: normalizeWhitespace((sections.get("what happened") ?? []).join(" ")),
     keyDetail: normalizeWhitespace((sections.get("key detail") ?? []).join(" ")),
     whyThisMatters: normalizeWhitespace((sections.get("why this matters") ?? []).join(" ")),
+    businessOwnerImpact: normalizeWhitespace((sections.get("business owner impact") ?? []).join(" ")),
+    founderTakeaway: normalizeWhitespace((sections.get("founder takeaway") ?? []).join(" ")),
     whoThisAffects: normalizeWhitespace((sections.get("who this affects") ?? []).join(" ")),
     bcnView: normalizeWhitespace((sections.get("bcn view") ?? []).join(" ")),
     whatToWatchNext: normalizeWhitespace((sections.get("what to watch next") ?? []).join(" ")),
+    possibleOpportunities: normalizeWhitespace((sections.get("possible opportunities") ?? []).join(" ")),
+    possibleRisks: normalizeWhitespace((sections.get("possible risks") ?? []).join(" ")),
+    suggestedDiscussionPrompt: normalizeWhitespace((sections.get("discussion prompt") ?? []).join(" ")),
+    recommendedRoom: normalizeWhitespace((sections.get("recommended room") ?? []).join(" ")),
     source: normalizeWhitespace((sections.get("source") ?? []).join(" "))
   };
 
@@ -171,8 +221,8 @@ export function parseBcnStructuredContent(content: string): BcnStructuredContent
     !parsed.whatHappened ||
     !parsed.keyDetail ||
     !parsed.whyThisMatters ||
-    !parsed.whoThisAffects ||
-    !parsed.bcnView ||
+    (!parsed.whoThisAffects && !parsed.businessOwnerImpact) ||
+    (!parsed.bcnView && !parsed.founderTakeaway) ||
     !parsed.whatToWatchNext
   ) {
     return null;
@@ -209,6 +259,10 @@ function bcnRecencyWeight(createdAt: string) {
 }
 
 export function scoreBcnSignal(signal: BcnSignalLike) {
+  if (typeof signal.intelligenceBusinessOwnerScore === "number") {
+    return signal.intelligenceBusinessOwnerScore;
+  }
+
   const parsed = parseBcnStructuredContent(signal.content);
   const visibleTags = getVisibleCommunityTags(signal.tags);
   const tagWeight = visibleTags.reduce(
@@ -225,8 +279,45 @@ export function scoreBcnSignal(signal: BcnSignalLike) {
     ? countSpecificSignals(`${signal.title} ${parsed.articleDetail} ${parsed.keyDetail}`)
     : countSpecificSignals(`${signal.title} ${signal.content}`);
   const engagementWeight = (signal.commentCount ?? 0) * 0.08 + (signal.likeCount ?? 0) * 0.04;
+  const storedScoreWeight =
+    (signal.intelligenceCommercialImpactScore ?? 0) * 0.32 +
+    (signal.intelligenceRelevanceScore ?? 0) * 0.26 +
+    (signal.intelligenceUrgencyScore ?? 0) * 0.2 +
+    (signal.intelligenceSourceCredibilityScore ?? 0) * 0.12;
 
-  return (tagWeight + detailWeight + specificityWeight * 0.12 + engagementWeight) * bcnRecencyWeight(signal.createdAt);
+  return (
+    tagWeight +
+    detailWeight +
+    specificityWeight * 0.12 +
+    engagementWeight +
+    storedScoreWeight
+  ) * bcnRecencyWeight(signal.createdAt);
+}
+
+export function getBcnSignalLabel(signal: BcnSignalLike & { intelligenceLabel?: string | null }) {
+  if (signal.intelligenceLabel) {
+    return signal.intelligenceLabel;
+  }
+
+  const tags = new Set(signal.tags.map((tag) => tag.toLowerCase()));
+
+  if (tags.has("regulation") || tags.has("tax")) {
+    return "Regulation watch";
+  }
+
+  if (tags.has("ai")) {
+    return "AI signal";
+  }
+
+  if (tags.has("global-markets") || tags.has("economy")) {
+    return "Market movement";
+  }
+
+  if (scoreBcnSignal(signal) >= 8) {
+    return "Most relevant now";
+  }
+
+  return "Worth watching";
 }
 
 export function sortBcnSignals<T extends BcnSignalLike>(signals: T[]) {

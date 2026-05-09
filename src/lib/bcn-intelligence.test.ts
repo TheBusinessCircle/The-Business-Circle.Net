@@ -43,10 +43,16 @@ describe("BCN intelligence helpers", () => {
       whatHappened: "Demand is softening across retail categories.",
       keyDetail: "Several national chains are cutting inventory commitments for the summer range.",
       whyThisMatters: "This affects pricing, stock levels, and margin planning.",
+      businessOwnerImpact: "",
+      founderTakeaway: "",
       whoThisAffects: "Retail operators and owner-led teams.",
       bcnView: "Worth watching for what it says about live consumer confidence.",
       whatToWatchNext:
         "Watch the next retail trading updates for whether discounting spreads further.",
+      possibleOpportunities: "",
+      possibleRisks: "",
+      suggestedDiscussionPrompt: "",
+      recommendedRoom: "",
       source: "Reuters - https://example.com/story"
     });
   });

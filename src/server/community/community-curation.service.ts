@@ -1,7 +1,12 @@
 import { revalidatePath } from "next/cache";
-import { CommunityPostKind } from "@prisma/client";
+import { CommunityPostKind, type IntelligenceSourceState } from "@prisma/client";
 import { BCN_UPDATES_CHANNEL_SLUG, BCN_UPDATES_MEMBER_ROUTE } from "@/config/community";
-import { parseBcnStructuredContent } from "@/lib/bcn-intelligence";
+import { getBcnSignalLabel, parseBcnStructuredContent } from "@/lib/bcn-intelligence";
+import {
+  getBcnIntelligenceSourceRegistry,
+  type BcnIntelligenceCategory,
+  type BcnIntelligenceSourceRegistryEntry
+} from "@/lib/bcn-intelligence-sources";
 import { buildCommunityPostPath } from "@/lib/community-paths";
 import {
   buildBcnCuratedCandidate,
@@ -16,7 +21,7 @@ import { ensureCommunityChannels, resolveCommunityAutomationAuthorId } from "@/s
 import { resolveCommunitySourcePreviewMetadata } from "@/server/community/community-source-preview.service";
 
 const DEFAULT_BCN_CURATION_THROTTLE_MS = 5 * 60 * 1000;
-const DEFAULT_BCN_CURATION_MAX_POSTS_PER_RUN = 2;
+const DEFAULT_BCN_CURATION_MAX_POSTS_PER_RUN = 6;
 
 const BCN_STOP_WORDS = new Set([
   "the",
@@ -113,7 +118,11 @@ export type PublishBcnCuratedPostsResult = {
   message: string;
 };
 
-type ResolvedBcnSource = ReturnType<typeof resolveBcnSources>[number];
+type ResolvedBcnSource = BcnIntelligenceSourceRegistryEntry & {
+  url: string;
+  label: string;
+  enabledByAdmin: boolean;
+};
 
 type QueuedBcnSourceItem = {
   item: CommunityCurationSourceItem;
@@ -144,19 +153,120 @@ function bcnSourceName() {
   return process.env.BCN_COMMUNITY_SOURCE_NAME?.trim() || "BCN Source";
 }
 
-function resolveBcnSources() {
+function createLegacySourceId(url: string) {
+  return url
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 64);
+}
+
+function safeSourceDomain(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
+  } catch {
+    return "configured-source";
+  }
+}
+
+function bcnAdditionalSourceUrls() {
+  return (process.env.BCN_INTELLIGENCE_EXTRA_SOURCE_URLS ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function bcnRegistryEnabled() {
+  return process.env.BCN_INTELLIGENCE_SOURCE_REGISTRY_ENABLED?.trim().toLowerCase() !== "false";
+}
+
+function sourceEnabledByState(
+  source: BcnIntelligenceSourceRegistryEntry,
+  state: IntelligenceSourceState | undefined
+) {
+  return state?.enabledOverride ?? source.enabled;
+}
+
+function sourceStateMap(states: IntelligenceSourceState[]) {
+  return new Map(states.map((state) => [state.id, state]));
+}
+
+async function loadSourceStates() {
+  try {
+    return await db.intelligenceSourceState.findMany();
+  } catch {
+    return [];
+  }
+}
+
+async function resolveBcnSources() {
   const legacyUrl = bcnSourceUrl();
   const legacyLabel = bcnSourceName();
+  const states = sourceStateMap(await loadSourceStates());
+  const registrySources = bcnRegistryEnabled()
+    ? getBcnIntelligenceSourceRegistry()
+        .filter((source) => source.type === "RSS" && source.feedUrl)
+        .filter((source) => sourceEnabledByState(source, states.get(source.id)))
+        .map((source) => ({
+          ...source,
+          url: source.feedUrl!,
+          label: source.name,
+          enabledByAdmin: states.get(source.id)?.enabledOverride ?? source.enabled
+        }))
+    : [];
+
   const configured = [
+    ...registrySources,
     ...bcnSourceUrls().map((url) => ({
+      id: `legacy-${createLegacySourceId(url)}`,
+      name: buildBcnCurationSourceLabel(url),
+      domain: safeSourceDomain(url),
+      type: "RSS" as const,
+      feedUrl: url,
+      enabled: true,
+      categoryHints: [] as BcnIntelligenceCategory[],
+      credibilityTier: "manual" as const,
+      defaultRegion: "Global" as const,
+      defaultWeight: 0.78,
+      commercialRelevanceWeight: 0.82,
       url,
-      label: buildBcnCurationSourceLabel(url)
+      label: buildBcnCurationSourceLabel(url),
+      enabledByAdmin: true
+    })),
+    ...bcnAdditionalSourceUrls().map((url) => ({
+      id: `extra-${createLegacySourceId(url)}`,
+      name: buildBcnCurationSourceLabel(url),
+      domain: safeSourceDomain(url),
+      type: "RSS" as const,
+      feedUrl: url,
+      enabled: true,
+      categoryHints: [] as BcnIntelligenceCategory[],
+      credibilityTier: "manual" as const,
+      defaultRegion: "Global" as const,
+      defaultWeight: 0.78,
+      commercialRelevanceWeight: 0.82,
+      url,
+      label: buildBcnCurationSourceLabel(url),
+      enabledByAdmin: true
     })),
     ...(legacyUrl
       ? [
           {
+            id: `legacy-${createLegacySourceId(legacyUrl)}`,
+            name: buildBcnCurationSourceLabel(legacyUrl, legacyLabel),
+            domain: safeSourceDomain(legacyUrl),
+            type: "RSS" as const,
+            feedUrl: legacyUrl,
+            enabled: true,
+            categoryHints: [] as BcnIntelligenceCategory[],
+            credibilityTier: "manual" as const,
+            defaultRegion: "Global" as const,
+            defaultWeight: 0.78,
+            commercialRelevanceWeight: 0.82,
             url: legacyUrl,
-            label: buildBcnCurationSourceLabel(legacyUrl, legacyLabel)
+            label: buildBcnCurationSourceLabel(legacyUrl, legacyLabel),
+            enabledByAdmin: true
           }
         ]
       : [])
@@ -192,7 +302,7 @@ function bcnMaxPostsPerRun() {
     return DEFAULT_BCN_CURATION_MAX_POSTS_PER_RUN;
   }
 
-  return Math.max(1, Math.min(5, Math.floor(value)));
+  return Math.max(1, Math.min(12, Math.floor(value)));
 }
 
 function bcnLookbackHours() {
@@ -218,19 +328,86 @@ function isWithinLookbackWindow(publishedAt: string | null, now: Date) {
   return publishedDate.getTime() >= cutoff;
 }
 
-async function fetchSourcePayload(sourceUrl: string, fetchImpl: typeof fetch) {
-  const response = await fetchImpl(sourceUrl, {
-    headers: {
-      accept: "application/json, application/xml, text/xml, application/rss+xml"
-    },
-    cache: "no-store"
-  });
+function bcnSourceFetchTimeoutMs() {
+  const value = Number(process.env.BCN_INTELLIGENCE_SOURCE_TIMEOUT_MS ?? 7000);
+  return Number.isFinite(value) ? Math.max(2500, Math.min(20000, Math.floor(value))) : 7000;
+}
 
-  if (!response.ok) {
-    throw new Error(`bcn-source-fetch-failed:${response.status}`);
+async function fetchSourcePayload(sourceUrl: string, fetchImpl: typeof fetch) {
+  const attempts = 2;
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), bcnSourceFetchTimeoutMs());
+
+    try {
+      const response = await fetchImpl(sourceUrl, {
+        headers: {
+          accept: "application/json, application/xml, text/xml, application/rss+xml, application/atom+xml",
+          "user-agent": "The Business Circle Network intelligence feed bot"
+        },
+        cache: "no-store",
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        throw new Error(`bcn-source-fetch-failed:${response.status}`);
+      }
+
+      return response.text();
+    } catch (error) {
+      lastError = error;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
-  return response.text();
+  throw lastError instanceof Error ? lastError : new Error("bcn-source-fetch-failed");
+}
+
+async function recordSourceHealth(
+  source: ResolvedBcnSource,
+  input: {
+    status: "healthy" | "degraded" | "failed";
+    fetchedCount?: number;
+    candidateCount?: number;
+    publishedCount?: number;
+    error?: string;
+  }
+) {
+  try {
+    await db.intelligenceSourceState.upsert({
+      where: {
+        id: source.id
+      },
+      update: {
+        healthStatus: input.status,
+        lastFetchAt: new Date(),
+        lastSuccessAt: input.status === "healthy" ? new Date() : undefined,
+        lastErrorAt: input.status === "failed" || input.status === "degraded" ? new Date() : undefined,
+        lastError: input.error,
+        fetchedCount: input.fetchedCount,
+        candidateCount: input.candidateCount,
+        publishedCount: input.publishedCount,
+        disabledReason: source.disabledReason
+      },
+      create: {
+        id: source.id,
+        healthStatus: input.status,
+        lastFetchAt: new Date(),
+        lastSuccessAt: input.status === "healthy" ? new Date() : undefined,
+        lastErrorAt: input.status === "failed" || input.status === "degraded" ? new Date() : undefined,
+        lastError: input.error,
+        fetchedCount: input.fetchedCount ?? 0,
+        candidateCount: input.candidateCount ?? 0,
+        publishedCount: input.publishedCount ?? 0,
+        disabledReason: source.disabledReason
+      }
+    });
+  } catch {
+    // Health writes must never block the intelligence refresh itself.
+  }
 }
 
 function baseResult(
@@ -328,6 +505,18 @@ function overlapShare(left: Set<string>, right: Set<string>) {
 }
 
 function sourceCredibilityScore(source: ResolvedBcnSource) {
+  const tierScore: Record<string, number> = {
+    official: 1.34,
+    primary: 1.26,
+    major: 1.12,
+    specialist: 1.02,
+    manual: 0.95
+  };
+  const configuredTierScore = tierScore[source.credibilityTier];
+  if (configuredTierScore) {
+    return configuredTierScore * source.defaultWeight;
+  }
+
   const haystack = `${source.label} ${source.url}`.toLowerCase();
 
   if (haystack.includes("reuters")) {
@@ -469,6 +658,7 @@ function buildPreparedBcnCandidate(
     freshnessScore(queuedItem.item) * 1.1 +
     detailRichnessScore(queuedItem.item, candidate) * 1.2 +
     sourceCredibility * 0.95 +
+    queuedItem.source.commercialRelevanceWeight * 0.8 +
     noveltyScore({
       item: queuedItem.item,
       source: queuedItem.source,
@@ -621,7 +811,7 @@ function revalidateBcnUpdateSurfaces(postIds: string[]) {
 export async function publishBcnCuratedPosts(options?: {
   fetchImpl?: typeof fetch;
 }): Promise<PublishBcnCuratedPostsResult> {
-  const sources = resolveBcnSources();
+  const sources = await resolveBcnSources();
   const sourceConfigured = sources.length > 0;
   const lookbackHours = bcnLookbackHours();
   const maxPostsPerRun = bcnMaxPostsPerRun();
@@ -709,6 +899,8 @@ export async function publishBcnCuratedPosts(options?: {
   const seenChecksums = new Set<string>();
   const queuedItems: QueuedBcnSourceItem[] = [];
   const preparedCandidates: PreparedBcnCandidate[] = [];
+  const candidateCountBySource = new Map<string, number>();
+  const publishedCountBySource = new Map<string, number>();
 
   for (const source of sources) {
     let payload: string;
@@ -719,6 +911,10 @@ export async function publishBcnCuratedPosts(options?: {
         sourceUrl: source.url
       });
       errors.push(`Fetch failed for ${source.label}: ${source.url}`);
+      await recordSourceHealth(source, {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Fetch failed"
+      });
       continue;
     }
 
@@ -731,6 +927,10 @@ export async function publishBcnCuratedPosts(options?: {
         sourceName: source.label
       });
       errors.push(`Unsupported payload from ${source.label}: ${source.url}`);
+      await recordSourceHealth(source, {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unsupported payload"
+      });
       continue;
     }
 
@@ -739,10 +939,19 @@ export async function publishBcnCuratedPosts(options?: {
         sourceUrl: source.url
       });
       errors.push(`No valid feed items were found in ${source.label}: ${source.url}`);
+      await recordSourceHealth(source, {
+        status: "degraded",
+        fetchedCount: 0,
+        error: "No valid feed items found"
+      });
       continue;
     }
 
     fetchedCount += items.length;
+    await recordSourceHealth(source, {
+      status: "healthy",
+      fetchedCount: items.length
+    });
     queuedItems.push(...items.map((item) => ({ item, source })));
   }
 
@@ -784,6 +993,7 @@ export async function publishBcnCuratedPosts(options?: {
     }
 
     candidateCount += 1;
+    candidateCountBySource.set(source.id, (candidateCountBySource.get(source.id) ?? 0) + 1);
     preparedCandidates.push(buildPreparedBcnCandidate(queuedItem, candidate));
   }
 
@@ -802,10 +1012,20 @@ export async function publishBcnCuratedPosts(options?: {
     });
 
   const selectedCandidates: PreparedBcnCandidate[] = [];
+  const selectedCountBySource = new Map<string, number>();
+  const softPerSourceLimit = Math.max(1, Math.ceil(maxPostsPerRun / 3));
 
   for (const prepared of clusterWinners) {
     if (selectedCandidates.length >= maxPostsPerRun) {
       break;
+    }
+
+    const currentSourceCount = selectedCountBySource.get(prepared.source.id) ?? 0;
+    const hasOtherSourcesAvailable = clusterWinners.some(
+      (candidate) => candidate.source.id !== prepared.source.id
+    );
+    if (hasOtherSourcesAvailable && currentSourceCount >= softPerSourceLimit) {
+      continue;
     }
 
     if (selectedCandidates.some((selected) => candidatesAreNearDuplicates(selected, prepared))) {
@@ -819,6 +1039,26 @@ export async function publishBcnCuratedPosts(options?: {
     }
 
     selectedCandidates.push(prepared);
+    selectedCountBySource.set(prepared.source.id, currentSourceCount + 1);
+  }
+
+  if (selectedCandidates.length < maxPostsPerRun) {
+    for (const prepared of clusterWinners) {
+      if (selectedCandidates.length >= maxPostsPerRun) {
+        break;
+      }
+
+      if (selectedCandidates.includes(prepared)) {
+        continue;
+      }
+
+      if (selectedCandidates.some((selected) => candidatesAreNearDuplicates(selected, prepared))) {
+        duplicateCount += 1;
+        continue;
+      }
+
+      selectedCandidates.push(prepared);
+    }
   }
 
   for (const prepared of selectedCandidates) {
@@ -849,7 +1089,20 @@ export async function publishBcnCuratedPosts(options?: {
           {
             automationSource: source.label,
             automationExternalId: candidate.externalId
-          }
+          },
+          {
+            intelligenceDedupeKey: candidate.checksum
+          },
+          ...(candidate.sourceUrl
+            ? [
+                {
+                  sourceUrl: candidate.sourceUrl
+                },
+                {
+                  intelligenceCanonicalUrl: candidate.sourceUrl
+                }
+              ]
+            : [])
         ]
       },
       select: {
@@ -871,7 +1124,26 @@ export async function publishBcnCuratedPosts(options?: {
       title: candidate.title,
       sourceName: source.label,
       sourceUrl: candidate.sourceUrl ?? item.url,
+      candidateImageUrl: item.imageUrl,
+      category: candidate.primaryCategory,
       fetchImpl: options?.fetchImpl
+    });
+    const sourceCredibility = Math.min(10, Math.max(5, sourceCredibilityScore(source) * 7));
+    const businessOwnerScore = Math.min(
+      10,
+      candidate.commercialImpactScore * 0.32 +
+        candidate.relevanceScore * 0.24 +
+        candidate.urgencyScore * 0.15 +
+        sourceCredibility * 0.17 +
+        candidate.confidenceScore * 0.12
+    );
+    const label = getBcnSignalLabel({
+      title: candidate.title,
+      content: candidate.content,
+      tags: candidate.tags,
+      createdAt: item.publishedAt ?? new Date().toISOString(),
+      intelligenceBusinessOwnerScore: businessOwnerScore,
+      intelligenceLabel: candidate.label
     });
 
     const createdPost = await db.communityPost.create({
@@ -885,6 +1157,35 @@ export async function publishBcnCuratedPosts(options?: {
         automationSource: source.label,
         automationExternalId: candidate.externalId,
         automationChecksum: candidate.checksum,
+        intelligenceSourceId: source.id,
+        intelligenceSourceName: source.name,
+        intelligenceCanonicalUrl: candidate.sourceUrl,
+        intelligenceDedupeKey: candidate.checksum,
+        intelligenceAuthor: item.author,
+        intelligencePublishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
+        intelligencePrimaryCategory: candidate.primaryCategory,
+        intelligenceSecondaryCategories: candidate.secondaryCategories,
+        intelligenceLabel: label,
+        intelligenceShortSummary: candidate.shortSummary,
+        intelligenceKeyDetail: candidate.keyDetail,
+        intelligenceWhyThisMatters: candidate.whyThisMatters,
+        intelligenceBusinessOwnerImpact: candidate.businessOwnerImpact,
+        intelligenceFounderTakeaway: candidate.founderTakeaway,
+        intelligenceWhatToWatchNext: candidate.whatToWatchNext,
+        intelligencePossibleRisks: candidate.possibleRisks,
+        intelligencePossibleOpportunities: candidate.possibleOpportunities,
+        intelligenceAffectedBusinessAreas: candidate.affectedBusinessAreas,
+        intelligenceSuggestedDiscussionPrompt: candidate.suggestedDiscussionPrompt,
+        intelligenceRecommendedRoom: candidate.recommendedRoom,
+        intelligenceUrgencyScore: candidate.urgencyScore,
+        intelligenceRelevanceScore: candidate.relevanceScore,
+        intelligenceCommercialImpactScore: candidate.commercialImpactScore,
+        intelligenceConfidenceScore: candidate.confidenceScore,
+        intelligenceSourceCredibilityScore: sourceCredibility,
+        intelligenceBusinessOwnerScore: businessOwnerScore,
+        intelligenceRegion: source.defaultRegion,
+        intelligenceSectorsAffected: candidate.sectorsAffected,
+        intelligenceEnrichedAt: new Date(),
         sourceUrl: sourcePreview.sourceUrl,
         sourceDomain: sourcePreview.sourceDomain,
         previewImageUrl: sourcePreview.previewImageUrl,
@@ -898,7 +1199,18 @@ export async function publishBcnCuratedPosts(options?: {
     });
 
     publishedPostIds.push(createdPost.id);
+    publishedCountBySource.set(source.id, (publishedCountBySource.get(source.id) ?? 0) + 1);
   }
+
+  await Promise.all(
+    sources.map((source) =>
+      recordSourceHealth(source, {
+        status: errors.some((error) => error.includes(source.url)) ? "degraded" : "healthy",
+        candidateCount: candidateCountBySource.get(source.id) ?? 0,
+        publishedCount: publishedCountBySource.get(source.id) ?? 0
+      })
+    )
+  );
 
   if (publishedPostIds.length) {
     revalidateBcnUpdateSurfaces(publishedPostIds);

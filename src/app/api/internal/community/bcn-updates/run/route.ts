@@ -5,13 +5,14 @@ import { publishBcnCuratedPosts } from "@/server/community/community-curation.se
 function isAuthorized(request: Request): boolean {
   const secret = process.env.COMMUNITY_AUTOMATION_SECRET?.trim();
   const cronSecret = process.env.CRON_SECRET?.trim();
+  const intelligenceCronSecret = process.env.INTELLIGENCE_CRON_SECRET?.trim();
 
-  if (!secret && !cronSecret) {
+  if (!secret && !cronSecret && !intelligenceCronSecret) {
     return false;
   }
 
   return isAuthorizedInternalAutomationRequest(request, {
-    bearerSecrets: [secret ?? "", cronSecret ?? ""],
+    bearerSecrets: [secret ?? "", cronSecret ?? "", intelligenceCronSecret ?? ""],
     headerSecrets: secret
       ? [
           {

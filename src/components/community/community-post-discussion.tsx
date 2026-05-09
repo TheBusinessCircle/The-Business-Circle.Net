@@ -359,7 +359,23 @@ export function CommunityPostBody({
 }: {
   post: Pick<
     CommunityPostSummaryModel,
-    "title" | "content" | "tags" | "previewImageUrl" | "sourceUrl" | "sourceDomain"
+    | "title"
+    | "content"
+    | "tags"
+    | "previewImageUrl"
+    | "sourceUrl"
+    | "sourceDomain"
+    | "intelligenceSourceName"
+    | "intelligencePrimaryCategory"
+    | "intelligenceShortSummary"
+    | "intelligenceWhyThisMatters"
+    | "intelligenceBusinessOwnerImpact"
+    | "intelligenceFounderTakeaway"
+    | "intelligenceWhatToWatchNext"
+    | "intelligencePossibleRisks"
+    | "intelligencePossibleOpportunities"
+    | "intelligenceSuggestedDiscussionPrompt"
+    | "intelligenceRecommendedRoom"
   >;
   showTags?: boolean;
 }) {
@@ -419,21 +435,41 @@ export function CommunityPostBody({
       },
       {
         title: "Why this matters",
-        content: parsedBcnContent.whyThisMatters
+        content: post.intelligenceWhyThisMatters ?? parsedBcnContent.whyThisMatters
       },
       {
-        title: "Who this affects",
-        content: parsedBcnContent.whoThisAffects
+        title: "Founder takeaway",
+        content:
+          post.intelligenceFounderTakeaway ??
+          parsedBcnContent.founderTakeaway ??
+          parsedBcnContent.bcnView
       },
       {
-        title: "BCN view",
-        content: parsedBcnContent.bcnView
+        title: "What it could affect",
+        content:
+          post.intelligenceBusinessOwnerImpact ??
+          parsedBcnContent.businessOwnerImpact ??
+          parsedBcnContent.whoThisAffects
       },
       {
-        title: "What to watch next",
-        content: parsedBcnContent.whatToWatchNext
+        title: "What to watch",
+        content: post.intelligenceWhatToWatchNext ?? parsedBcnContent.whatToWatchNext
+      },
+      {
+        title: "Possible opportunities",
+        content:
+          post.intelligencePossibleOpportunities.length > 0
+            ? post.intelligencePossibleOpportunities.join(" ")
+            : parsedBcnContent.possibleOpportunities
+      },
+      {
+        title: "Possible risks",
+        content:
+          post.intelligencePossibleRisks.length > 0
+            ? post.intelligencePossibleRisks.join(" ")
+            : parsedBcnContent.possibleRisks
       }
-    ];
+    ].filter((section) => Boolean(section.content));
 
     return (
       <div className="space-y-5">
@@ -443,11 +479,14 @@ export function CommunityPostBody({
           previewImageUrl={post.previewImageUrl}
           sourceUrl={post.sourceUrl}
           sourceDomain={post.sourceDomain}
+          sourceName={post.intelligenceSourceName}
+          category={post.intelligencePrimaryCategory}
         />
         <div className="rounded-2xl border border-gold/22 bg-gold/10 px-4 py-4">
           <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Article detail</p>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
-            {parsedBcnContent.articleDetail || parsedBcnContent.whatHappened}
+            {post.intelligenceShortSummary ??
+              (parsedBcnContent.articleDetail || parsedBcnContent.whatHappened)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -481,6 +520,21 @@ export function CommunityPostBody({
             <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
               {parsedBcnContent.source}
             </p>
+          </div>
+        ) : null}
+        {(post.intelligenceSuggestedDiscussionPrompt ?? parsedBcnContent.suggestedDiscussionPrompt) ? (
+          <div className="rounded-2xl border border-gold/22 bg-gold/10 px-4 py-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+              Worth a member discussion
+            </p>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+              {post.intelligenceSuggestedDiscussionPrompt ?? parsedBcnContent.suggestedDiscussionPrompt}
+            </p>
+            {(post.intelligenceRecommendedRoom ?? parsedBcnContent.recommendedRoom) ? (
+              <p className="mt-3 text-xs text-muted">
+                Recommended room: {post.intelligenceRecommendedRoom ?? parsedBcnContent.recommendedRoom}
+              </p>
+            ) : null}
           </div>
         ) : null}
         {showTags ? <CommunityPostTags tags={post.tags} /> : null}

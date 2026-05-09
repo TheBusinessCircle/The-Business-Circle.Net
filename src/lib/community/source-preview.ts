@@ -28,6 +28,10 @@ function sanitizeImageUrl(value: string | null | undefined) {
     return trimmed;
   }
 
+  if (trimmed.startsWith("/")) {
+    return trimmed;
+  }
+
   try {
     const url = new URL(trimmed);
     if (url.protocol === "https:" || url.protocol === "http:") {
@@ -38,6 +42,23 @@ function sanitizeImageUrl(value: string | null | undefined) {
   }
 
   return null;
+}
+
+function shouldProxyPreviewImage(value: string) {
+  if (value.startsWith("/") || value.startsWith("data:image/")) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.hostname !== "res.cloudinary.com";
+  } catch {
+    return false;
+  }
+}
+
+export function buildProxiedPreviewImageUrl(value: string) {
+  return `/api/intelligence/preview-image?src=${encodeURIComponent(value)}`;
 }
 
 function extractDomain(value: string | null | undefined) {
@@ -94,10 +115,12 @@ export function buildCommunitySourcePreviewPlaceholder(input: {
   title: string;
   sourceName?: string | null;
   sourceDomain?: string | null;
+  category?: string | null;
 }) {
   const title = escapeXml(input.title);
   const sourceName = escapeXml(normalizeWhitespace(input.sourceName) || "BCN Intelligence");
   const sourceDomain = escapeXml(normalizeWhitespace(input.sourceDomain) || "source reporting");
+  const category = escapeXml(normalizeWhitespace(input.category) || "Commercial signal");
 
   return buildSvgDataUri(`
     <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" fill="none">
@@ -117,6 +140,8 @@ export function buildCommunitySourcePreviewPlaceholder(input: {
       <rect x="64" y="64" width="1472" height="772" rx="34" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.08)"/>
       <rect x="124" y="124" width="260" height="40" rx="20" fill="rgba(122,166,217,0.14)" stroke="rgba(122,166,217,0.24)"/>
       <text x="156" y="151" fill="#d7e9ff" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="600" letter-spacing="1.5">BCN INTELLIGENCE</text>
+      <rect x="410" y="124" width="260" height="40" rx="20" fill="rgba(212,175,55,0.12)" stroke="rgba(212,175,55,0.22)"/>
+      <text x="442" y="151" fill="#f6d982" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="600" letter-spacing="1.5">${category}</text>
       <text x="124" y="268" fill="#f8fafc" font-family="Georgia, 'Times New Roman', serif" font-size="62" font-weight="700">${title}</text>
       <rect x="124" y="640" width="512" height="118" rx="26" fill="rgba(6,13,24,0.72)" stroke="rgba(255,255,255,0.08)"/>
       <text x="164" y="694" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="600">${sourceName}</text>
@@ -132,7 +157,10 @@ export function resolveCommunitySourcePreview(input: CommunitySourcePreviewInput
 
   if (previewImageUrl) {
     return {
-      url: previewImageUrl,
+      url: shouldProxyPreviewImage(previewImageUrl)
+        ? buildProxiedPreviewImageUrl(previewImageUrl)
+        : previewImageUrl,
+      rawUrl: previewImageUrl,
       sourceUrl: input.sourceUrl ?? null,
       sourceDomain: sourceDomain || null,
       sourceName,

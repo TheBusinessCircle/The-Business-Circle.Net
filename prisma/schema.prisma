@@ -894,6 +894,37 @@ model CommunityPost {
   previewImageUrl       String?
   previewImageKind      String?
   previewGeneratedAt    DateTime?
+  intelligenceSourceId  String?
+  intelligenceSourceName String?
+  intelligenceCanonicalUrl String?
+  intelligenceDedupeKey String?                @unique
+  intelligenceAuthor    String?
+  intelligencePublishedAt DateTime?
+  intelligencePrimaryCategory String?
+  intelligenceSecondaryCategories String[]     @default([])
+  intelligenceLabel     String?
+  intelligenceShortSummary String?             @db.Text
+  intelligenceKeyDetail String?                @db.Text
+  intelligenceWhyThisMatters String?           @db.Text
+  intelligenceBusinessOwnerImpact String?      @db.Text
+  intelligenceFounderTakeaway String?          @db.Text
+  intelligenceWhatToWatchNext String?          @db.Text
+  intelligencePossibleRisks String[]           @default([])
+  intelligencePossibleOpportunities String[]   @default([])
+  intelligenceAffectedBusinessAreas String[]   @default([])
+  intelligenceSuggestedDiscussionPrompt String? @db.Text
+  intelligenceRecommendedRoom String?
+  intelligenceUrgencyScore Float?
+  intelligenceRelevanceScore Float?
+  intelligenceCommercialImpactScore Float?
+  intelligenceConfidenceScore Float?
+  intelligenceSourceCredibilityScore Float?
+  intelligenceBusinessOwnerScore Float?
+  intelligenceRegion    String?
+  intelligenceSectorsAffected String[]         @default([])
+  intelligenceFeatured  Boolean                @default(false)
+  intelligenceStatus    String                 @default("PUBLISHED")
+  intelligenceEnrichedAt DateTime?
   automatedAt           DateTime?
   deletedAt             DateTime?
   createdAt             DateTime               @default(now())
@@ -912,8 +943,32 @@ model CommunityPost {
   @@index([kind, createdAt])
   @@index([automationSource, automationExternalId])
   @@index([sourceDomain, createdAt])
+  @@index([intelligenceSourceId, intelligencePublishedAt])
+  @@index([intelligencePrimaryCategory, intelligenceBusinessOwnerScore])
+  @@index([intelligenceStatus, intelligenceBusinessOwnerScore])
+  @@index([intelligenceFeatured, intelligenceBusinessOwnerScore])
+  @@index([intelligenceCanonicalUrl])
   @@index([deletedAt])
   @@index([deletedAt, createdAt])
+}
+
+model IntelligenceSourceState {
+  id              String   @id
+  enabledOverride Boolean?
+  healthStatus    String   @default("unknown")
+  lastFetchAt     DateTime?
+  lastSuccessAt   DateTime?
+  lastErrorAt     DateTime?
+  lastError       String?  @db.Text
+  fetchedCount    Int      @default(0)
+  candidateCount  Int      @default(0)
+  publishedCount  Int      @default(0)
+  disabledReason  String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([healthStatus])
+  @@index([lastFetchAt])
 }
 
 model CommunityComment {

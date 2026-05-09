@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, MessagesSquare, Sparkles, Workflow } from "lucide-react";
+import { ArrowUpRight, MessagesSquare, RefreshCw, Sparkles, Workflow } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
@@ -12,6 +12,7 @@ import {
   BCN_UPDATES_CHANNEL_SLUG,
   BCN_UPDATES_MEMBER_ROUTE
 } from "@/config/community";
+import { getBcnCategoryLabel } from "@/lib/bcn-intelligence-sources";
 import {
   getBcnFreshnessLabel,
   getBcnTagLabel,
@@ -27,8 +28,7 @@ import { requireUser } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 import {
   ensureCommunityChannels,
-  getCommunityFeedPage,
-  maybePublishBcnCuratedPosts
+  getCommunityFeedPage
 } from "@/server/community";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
@@ -83,6 +83,58 @@ function feedbackMessage(input: { notice: string; error: string }) {
   return null;
 }
 
+function sourceNameForPost(post: {
+  intelligenceSourceName: string | null;
+  sourceDomain: string | null;
+}) {
+  return post.intelligenceSourceName ?? post.sourceDomain ?? "BCN source";
+}
+
+function signalPublishedTime(post: {
+  intelligencePublishedAt: string | null;
+  createdAt: string;
+}) {
+  return post.intelligencePublishedAt ?? post.createdAt;
+}
+
+function isWithinHours(dateValue: string, hours: number) {
+  const value = new Date(dateValue).getTime();
+  if (Number.isNaN(value)) {
+    return false;
+  }
+
+  return Date.now() - value <= hours * 60 * 60 * 1000;
+}
+
+function buildFilterHref(params: URLSearchParams, updates: Record<string, string | null>) {
+  const next = new URLSearchParams(params);
+  for (const [key, value] of Object.entries(updates)) {
+    if (value) {
+      next.set(key, value);
+    } else {
+      next.delete(key);
+    }
+  }
+
+  const query = next.toString();
+  return query ? `${BCN_UPDATES_MEMBER_ROUTE}?${query}` : BCN_UPDATES_MEMBER_ROUTE;
+}
+
+const QUICK_FILTERS: Array<{
+  label: string;
+  updates: Record<string, string | null>;
+}> = [
+  { label: "All", updates: { filter: null, category: null } },
+  { label: "Within 24h", updates: { filter: "24h", category: null } },
+  { label: "Economy", updates: { filter: null, category: "economy" } },
+  { label: "AI", updates: { filter: null, category: "ai" } },
+  { label: "Hiring", updates: { filter: null, category: "hiring" } },
+  { label: "Regulation", updates: { filter: null, category: "regulation" } },
+  { label: "Marketing", updates: { filter: null, category: "marketing" } },
+  { label: "UK Business", updates: { filter: null, category: "uk-business" } },
+  { label: "Global Markets", updates: { filter: null, category: "global-markets" } }
+];
+
 export default async function BcnUpdatesPage({ searchParams }: PageProps) {
   const session = await requireUser();
   const params = await searchParams;
@@ -90,7 +142,6 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
   const tiers = allowedResourceTiers(effectiveTier);
 
   await ensureCommunityChannels();
-  await maybePublishBcnCuratedPosts();
 
   const expandedPostId = typeof params.post === "string" ? params.post : null;
   const [feed, intelligenceHeroPlacement] = await Promise.all([
@@ -117,10 +168,62 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
     notice: firstValue(params.notice),
     error: firstValue(params.error)
   });
+  const urlParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    const resolvedValue = firstValue(value);
+    if (resolvedValue) {
+      urlParams.set(key, resolvedValue);
+    }
+  }
+  const activeFilter = firstValue(params.filter) || "all";
+  const activeCategory = getBcnCategoryLabel(firstValue(params.category)) || "";
+  const activeSource = firstValue(params.source);
+  const activeSort = firstValue(params.sort) || "relevant";
   const rankedPosts = sortBcnSignals(feed.posts);
+  const sourceOptions = Array.from(
+    new Map(
+      rankedPosts.map((post) => [
+        post.intelligenceSourceId ?? post.sourceDomain ?? sourceNameForPost(post),
+        sourceNameForPost(post)
+      ])
+    ).entries()
+  ).filter(([, label]) => Boolean(label));
+  const filteredPosts = rankedPosts
+    .filter((post) => {
+      if (activeFilter === "24h" && !isWithinHours(signalPublishedTime(post), 24)) {
+        return false;
+      }
+
+      if (
+        activeCategory &&
+        post.intelligencePrimaryCategory !== activeCategory &&
+        !post.intelligenceSecondaryCategories.includes(activeCategory) &&
+        !getVisibleCommunityTags(post.tags).some((tag) => getBcnCategoryLabel(tag) === activeCategory)
+      ) {
+        return false;
+      }
+
+      if (
+        activeSource &&
+        activeSource !== post.intelligenceSourceId &&
+        activeSource !== post.sourceDomain &&
+        activeSource !== sourceNameForPost(post)
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((left, right) => {
+      if (activeSort === "newest") {
+        return signalPublishedTime(right).localeCompare(signalPublishedTime(left));
+      }
+
+      return 0;
+    });
   const selectedChannel = feed.selectedChannel;
-  const discussionReadyCount = rankedPosts.filter((post) => post.commentCount > 0).length;
-  const latestSignal = rankedPosts[0] ?? null;
+  const discussionReadyCount = filteredPosts.filter((post) => post.commentCount > 0).length;
+  const latestSignal = filteredPosts[0] ?? rankedPosts[0] ?? null;
   const mostDiscussedSignal =
     [...rankedPosts].sort(
       (left, right) =>
@@ -140,6 +243,12 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
     .slice(0, 4);
   const latestSignalPreview = latestSignal ? parseBcnStructuredContent(latestSignal.content) : null;
   const latestSignalFreshness = latestSignal ? getBcnFreshnessLabel(latestSignal.createdAt) : null;
+  const recentlyRefreshedAt =
+    rankedPosts
+      .map((post) => signalPublishedTime(post))
+      .filter(Boolean)
+      .sort()
+      .at(-1) ?? null;
 
   return (
     <div className="member-page-stack">
@@ -212,11 +321,72 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
         <div className="space-y-5">
           <Card className="border-silver/18 bg-card/68">
             <CardHeader>
-              <CardTitle className="text-2xl">What matters this morning</CardTitle>
+              <CardTitle className="text-2xl">Signal board</CardTitle>
               <CardDescription className="max-w-3xl text-sm leading-relaxed">
-                The page is ordered to help members catch the highest commercial signal fast, then drop into the detail only where it is genuinely worth their attention.
+                Ranked for business-owner usefulness first, with source detail, BCN interpretation, and member discussion kept together.
               </CardDescription>
             </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {QUICK_FILTERS.map(({ label, updates }) => {
+                  const isActive =
+                    (label === "All" && activeFilter === "all" && !activeCategory) ||
+                    (label === "Within 24h" && activeFilter === "24h") ||
+                    (typeof updates.category === "string" &&
+                      activeCategory === getBcnCategoryLabel(updates.category));
+
+                  return (
+                    <Link
+                      key={label}
+                      href={buildFilterHref(urlParams, updates)}
+                      className={
+                        isActive
+                          ? "rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
+                          : "rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
+                      }
+                    >
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={buildFilterHref(urlParams, { sort: "relevant" })}
+                  className={
+                    activeSort === "relevant"
+                      ? "rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
+                      : "rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
+                  }
+                >
+                  Most relevant
+                </Link>
+                <Link
+                  href={buildFilterHref(urlParams, { sort: "newest" })}
+                  className={
+                    activeSort === "newest"
+                      ? "rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
+                      : "rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
+                  }
+                >
+                  Newest
+                </Link>
+                {sourceOptions.slice(0, 6).map(([sourceId, label]) => (
+                  <Link
+                    key={sourceId}
+                    href={buildFilterHref(urlParams, { source: sourceId })}
+                    className={
+                      activeSource === sourceId
+                        ? "rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
+                        : "rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
+                    }
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
           </Card>
 
           {latestSignal ? (
@@ -253,7 +423,8 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                     {latestSignal.title}
                   </CardTitle>
                   <CardDescription className="max-w-4xl text-sm leading-relaxed text-foreground/80">
-                    {latestSignalPreview?.articleDetail ??
+                    {latestSignal.intelligenceShortSummary ??
+                      latestSignalPreview?.articleDetail ??
                       latestSignalPreview?.keyDetail ??
                       "Selected because it has a direct operator angle for founders, leaders, and owner-led teams."}
                   </CardDescription>
@@ -268,26 +439,32 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                       previewImageUrl={latestSignal.previewImageUrl}
                       sourceUrl={latestSignal.sourceUrl}
                       sourceDomain={latestSignal.sourceDomain}
+                      sourceName={latestSignal.intelligenceSourceName}
+                      category={latestSignal.intelligencePrimaryCategory}
                     />
                   ) : null}
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
                       <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Key detail</p>
                       <p className="mt-2 text-sm leading-7 text-foreground/88">
-                        {latestSignalPreview?.keyDetail ?? latestSignalPreview?.whatHappened}
+                        {latestSignal.intelligenceKeyDetail ??
+                          latestSignalPreview?.keyDetail ??
+                          latestSignalPreview?.whatHappened}
                       </p>
                     </div>
                     <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4">
                       <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Why this matters</p>
                       <p className="mt-2 text-sm leading-7 text-foreground/88">
-                        {latestSignalPreview?.whyThisMatters ??
+                        {latestSignal.intelligenceWhyThisMatters ??
+                          latestSignalPreview?.whyThisMatters ??
                           "Worth discussing when the signal changes pricing, demand, staffing, execution, or strategic timing."}
                       </p>
                     </div>
                     <div className="rounded-2xl border border-silver/14 bg-background/16 px-4 py-4 md:col-span-2">
                       <p className="text-[11px] uppercase tracking-[0.08em] text-silver">What to watch next</p>
                       <p className="mt-2 text-sm leading-7 text-foreground/88">
-                        {latestSignalPreview?.whatToWatchNext ??
+                        {latestSignal.intelligenceWhatToWatchNext ??
+                          latestSignalPreview?.whatToWatchNext ??
                           "Watch for whether the next updates show a wider operating shift rather than a single headline."}
                       </p>
                     </div>
@@ -311,9 +488,9 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
             </Card>
           ) : null}
 
-          {feed.posts.length ? (
+          {filteredPosts.length ? (
             <CommunityPostFeedList
-              posts={rankedPosts}
+              posts={filteredPosts}
               channelSlug={BCN_UPDATES_CHANNEL_SLUG}
               currentUserId={session.user.id}
               viewerCanContinuePrivately={
@@ -325,8 +502,8 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
           ) : (
             <EmptyState
               icon={MessagesSquare}
-              title="No BCN Signals yet"
-              description="Once the BCN automation catches relevant stories inside the last 24 hours, they will appear here as clean discussion-ready intelligence items."
+              title="No signals found for this filter yet"
+              description="Clear the filter or check again after the next intelligence refresh."
             />
           )}
         </div>
@@ -349,6 +526,15 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
               <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
                 Community remains the place for normal member-started rooms and broader conversation.
               </div>
+              {session.user.role === "ADMIN" ? (
+                <Link
+                  href="/admin/intelligence"
+                  className="inline-flex w-full items-center justify-between rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm font-medium text-gold transition-colors hover:border-gold/38"
+                >
+                  Refresh intelligence
+                  <RefreshCw size={14} />
+                </Link>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -396,7 +582,28 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                 </div>
               </div>
 
-              {rankedPosts.slice(0, 3).map((post) => (
+              <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Sources monitored</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {sourceOptions.slice(0, 5).map(([sourceId, label]) => (
+                    <Badge
+                      key={sourceId}
+                      variant="outline"
+                      className="border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
+                    >
+                      {label}
+                    </Badge>
+                  ))}
+                  {!sourceOptions.length ? (
+                    <span className="text-sm text-muted">Sources appear after the first refresh.</span>
+                  ) : null}
+                </div>
+                <p className="mt-3 text-xs text-muted">
+                  Recently refreshed {recentlyRefreshedAt ? formatDate(recentlyRefreshedAt) : "after the next scheduled run"}.
+                </p>
+              </div>
+
+              {filteredPosts.slice(0, 3).map((post) => (
                 <Link
                   key={post.id}
                   href={buildCommunityFeedPostPath(BCN_UPDATES_CHANNEL_SLUG, post.id)}

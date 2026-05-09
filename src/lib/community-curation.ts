@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import {
+  bcnCategoryToTag,
+  inferBcnCategories,
+  type BcnIntelligenceCategory
+} from "@/lib/bcn-intelligence-sources";
 
 const BCN_RELEVANCE_THEMES = [
   {
@@ -355,6 +360,8 @@ export type CommunityCurationSourceItem = {
   content: string;
   url: string | null;
   sourceName: string | null;
+  imageUrl?: string | null;
+  author?: string | null;
   publishedAt: string | null;
 };
 
@@ -368,6 +375,28 @@ export type CommunityCurationCandidate = {
   relevanceReasons: string[];
   sourceUrl: string | null;
   sourceName: string;
+  primaryCategory: string;
+  secondaryCategories: string[];
+  label: string;
+  shortSummary: string;
+  keyDetail: string;
+  whyThisMatters: string;
+  businessOwnerImpact: string;
+  founderTakeaway: string;
+  whatToWatchNext: string;
+  possibleRisks: string[];
+  possibleOpportunities: string[];
+  affectedBusinessAreas: string[];
+  suggestedDiscussionPrompt: string;
+  recommendedRoom: string;
+  urgencyScore: number;
+  relevanceScore: number;
+  commercialImpactScore: number;
+  confidenceScore: number;
+  sourceCredibilityScore: number;
+  businessOwnerScore: number;
+  region: string;
+  sectorsAffected: string[];
 };
 
 type BcnRelevanceTheme = (typeof BCN_RELEVANCE_THEMES)[number];
@@ -646,6 +675,14 @@ function sentenceSpecificityScore(value: string) {
   return normalized.length / 120 + numberSignals * 1.1 + yearSignals * 0.7 + properNounSignals * 0.35 + keywordSignals * 0.8;
 }
 
+function countSpecificSignals(value: string) {
+  return (
+    (value.match(/\b(?:19|20)\d{2}\b/g) ?? []).length +
+    (value.match(/\b\d+(?:,\d{3})*(?:\.\d+)?%?\b/g) ?? []).length +
+    (value.match(/\b[A-Z][A-Za-z0-9&.-]+(?:\s+[A-Z][A-Za-z0-9&.-]+){0,2}\b/g) ?? []).length
+  );
+}
+
 function selectDistinctSentences(sentences: string[], limit: number) {
   const unique = Array.from(new Set(sentences.map((sentence) => normalizeWhitespace(sentence)).filter(Boolean)));
   const ranked = unique
@@ -882,9 +919,187 @@ function buildWhatToWatchNext(
   );
 }
 
-function buildBcnCandidateTags(matchedThemes: BcnMatchedTheme[]) {
+function splitBusinessAreas(matchedThemes: BcnMatchedTheme[]) {
+  const areas = new Set<string>();
+  const haystack = matchedThemes.map((theme) => theme.slug);
+
+  if (haystack.includes("growth") || haystack.includes("marketing") || haystack.includes("e-commerce")) {
+    areas.add("Demand generation");
+    areas.add("Pricing and margin");
+  }
+  if (haystack.includes("operations") || haystack.includes("retail")) {
+    areas.add("Operations");
+    areas.add("Customer delivery");
+  }
+  if (haystack.includes("hiring")) {
+    areas.add("Hiring and team design");
+  }
+  if (haystack.includes("regulation")) {
+    areas.add("Compliance");
+    areas.add("Governance");
+  }
+  if (haystack.includes("economy")) {
+    areas.add("Cash flow planning");
+    areas.add("Buying confidence");
+  }
+  if (haystack.includes("ai")) {
+    areas.add("Technology adoption");
+    areas.add("Productivity");
+  }
+
+  return Array.from(areas).slice(0, 5);
+}
+
+function buildBusinessOwnerImpact(primaryCategory: BcnIntelligenceCategory, matchedThemes: BcnMatchedTheme[]) {
+  const areas = splitBusinessAreas(matchedThemes);
+  const areaText = areas.length
+    ? areas.join(", ").toLowerCase()
+    : "pricing, demand, staffing, compliance, or delivery decisions";
+
+  return truncateText(
+    `For business owners, this is a ${primaryCategory.toLowerCase()} signal because it can influence ${areaText}. The useful question is whether this changes a decision in the next quarter, not whether the headline is noisy today.`,
+    340
+  );
+}
+
+function buildFounderTakeaway(primaryCategory: BcnIntelligenceCategory, keyDetail: string) {
+  return truncateText(
+    `Treat this as an operator signal rather than background news. ${keyDetail} Owners should check whether it changes timing, costs, demand, risk, or the assumptions behind current plans.`,
+    340
+  );
+}
+
+function buildRisks(primaryCategory: BcnIntelligenceCategory, matchedThemes: BcnMatchedTheme[]) {
+  const risks = new Set<string>();
+  if (primaryCategory === "Tax") {
+    risks.add("Missed compliance deadlines or unexpected admin burden");
+  }
+  if (primaryCategory === "Regulation") {
+    risks.add("New reporting, governance, or customer protection duties");
+  }
+  if (primaryCategory === "Economy" || primaryCategory === "Global Markets") {
+    risks.add("Higher finance costs, weaker demand, or slower buyer decisions");
+  }
+  if (primaryCategory === "AI" || primaryCategory === "Technology") {
+    risks.add("Tooling choices, platform dependency, or workflow disruption");
+  }
+  if (matchedThemes.some((theme) => theme.slug === "hiring")) {
+    risks.add("Wage pressure or slower hiring decisions");
+  }
+  if (matchedThemes.some((theme) => theme.slug === "operations")) {
+    risks.add("Delivery delays, margin pressure, or supplier reliability issues");
+  }
+
+  risks.add("Misreading a single source as a settled trend");
+  return Array.from(risks).slice(0, 3);
+}
+
+function buildOpportunities(primaryCategory: BcnIntelligenceCategory, matchedThemes: BcnMatchedTheme[]) {
+  const opportunities = new Set<string>();
+  if (primaryCategory === "Tax" || primaryCategory === "Regulation") {
+    opportunities.add("Prepare earlier than competitors and reduce last-minute admin");
+  }
+  if (primaryCategory === "AI" || primaryCategory === "Technology") {
+    opportunities.add("Improve workflow, delivery speed, or service positioning");
+  }
+  if (primaryCategory === "Funding") {
+    opportunities.add("Review finance options before demand becomes obvious");
+  }
+  if (matchedThemes.some((theme) => theme.slug === "marketing" || theme.slug === "growth")) {
+    opportunities.add("Adjust messaging, pricing, or demand generation before the market catches up");
+  }
+  if (matchedThemes.some((theme) => theme.slug === "retail" || theme.slug === "e-commerce")) {
+    opportunities.add("Use demand signals to tighten inventory, offers, and conversion planning");
+  }
+
+  opportunities.add("Bring the signal into a member discussion before it becomes a rushed decision");
+  return Array.from(opportunities).slice(0, 3);
+}
+
+function buildDiscussionPrompt(primaryCategory: BcnIntelligenceCategory, matchedThemes: BcnMatchedTheme[]) {
+  if (primaryCategory === "Tax" || primaryCategory === "Regulation") {
+    return "Is this changing any admin, compliance, or reporting work in your business this month?";
+  }
+
+  if (primaryCategory === "AI" || primaryCategory === "Technology") {
+    return "Where are you seeing this kind of technology shift create practical advantage or unnecessary distraction?";
+  }
+
+  if (matchedThemes.some((theme) => theme.slug === "hiring")) {
+    return "Are you seeing hiring, wage, or team-capacity decisions getting easier or tighter this month?";
+  }
+
+  if (primaryCategory === "Economy" || primaryCategory === "Global Markets") {
+    return "Are buyers moving faster, slower, or more cautiously in your market right now?";
+  }
+
+  return "What does this change, if anything, in the way you are planning the next 30 to 90 days?";
+}
+
+function recommendedRoomForCategory(primaryCategory: BcnIntelligenceCategory) {
+  const roomMap: Partial<Record<BcnIntelligenceCategory, string>> = {
+    AI: "Business Support / Operations",
+    Technology: "Business Support / Operations",
+    Cybersecurity: "Business Support / Operations",
+    Marketing: "Marketing / Visibility",
+    Hiring: "Business Conversations",
+    Tax: "Business Support / Operations",
+    Regulation: "Business Support / Operations",
+    Funding: "Business Conversations",
+    Leadership: "Founder Strategy"
+  };
+
+  return roomMap[primaryCategory] ?? "Business Conversations";
+}
+
+function labelForCategory(primaryCategory: BcnIntelligenceCategory) {
+  if (primaryCategory === "Tax" || primaryCategory === "Regulation") {
+    return "Regulation watch";
+  }
+  if (primaryCategory === "AI") {
+    return "AI signal";
+  }
+  if (primaryCategory === "Economy" || primaryCategory === "Global Markets") {
+    return "Market movement";
+  }
+  if (primaryCategory === "UK Business") {
+    return "Quiet but important";
+  }
+
+  return "Worth watching";
+}
+
+function computeCategoryScore(categories: BcnIntelligenceCategory[]) {
+  const categoryWeights: Partial<Record<BcnIntelligenceCategory, number>> = {
+    Tax: 1.18,
+    Regulation: 1.16,
+    "UK Business": 1.1,
+    Economy: 1.08,
+    AI: 1.06,
+    Cybersecurity: 1.06,
+    Funding: 1.04,
+    Hiring: 1.02,
+    "Global Markets": 1
+  };
+
+  return categoryWeights[categories[0] ?? "UK Business"] ?? 0.96;
+}
+
+function candidateTagImportanceForThemes(matchedThemes: BcnMatchedTheme[]) {
+  return matchedThemes.reduce((score, theme) => score + theme.priority * 0.18, 0);
+}
+
+function buildBcnCandidateTags(
+  matchedThemes: BcnMatchedTheme[],
+  categories: BcnIntelligenceCategory[]
+) {
   return Array.from(
-    new Set(["bcn-update", "curated", ...matchedThemes.map((theme) => theme.slug)])
+    new Set([
+      "bcn-update",
+      "curated",
+      ...categories.map(bcnCategoryToTag),
+      ...matchedThemes.map((theme) => theme.slug)
+    ])
   ).slice(0, 5);
 }
 
@@ -952,6 +1167,9 @@ function buildSourceItem(input: Partial<CommunityCurationSourceItem>) {
     return null;
   }
 
+  const imageUrl = canonicalizeUrl(input.imageUrl ?? null);
+  const author = normalizeSourceName(input.author);
+
   return {
     sourceId,
     title,
@@ -959,8 +1177,25 @@ function buildSourceItem(input: Partial<CommunityCurationSourceItem>) {
     content: content || summary,
     url,
     sourceName: normalizeSourceName(input.sourceName),
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(author ? { author } : {}),
     publishedAt: input.publishedAt ?? null
   } satisfies CommunityCurationSourceItem;
+}
+
+function extractXmlAttributeValue(block: string, tagNames: string[], attributeName: string) {
+  for (const tagName of tagNames) {
+    const matcher = new RegExp(`<${tagName}\\b([^>]*)\\/?>`, "gi");
+    for (const match of block.matchAll(matcher)) {
+      const attributes = match[1] ?? "";
+      const attributeMatch = attributes.match(new RegExp(`\\b${attributeName}=["']([^"']+)["']`, "i"));
+      if (attributeMatch?.[1]) {
+        return attributeMatch[1];
+      }
+    }
+  }
+
+  return "";
 }
 
 function parseXmlFeed(payload: string): CommunityCurationSourceItem[] {
@@ -970,7 +1205,7 @@ function parseXmlFeed(payload: string): CommunityCurationSourceItem[] {
   const feedTitle = extractXmlTagValue(payload, ["title"]);
 
   return blocks
-    .map((block, index) => {
+    .map<CommunityCurationSourceItem | null>((block, index) => {
       try {
         const rawContent = extractXmlTagRawValue(block, [
           "content:encoded",
@@ -988,6 +1223,8 @@ function parseXmlFeed(payload: string): CommunityCurationSourceItem[] {
           content: rawContent,
           url: extractXmlLink(block),
           sourceName: extractXmlTagValue(payload, ["title"]),
+          imageUrl: extractXmlAttributeValue(block, ["media:content", "media:thumbnail", "enclosure"], "url"),
+          author: extractXmlTagValue(block, ["author", "dc:creator"]),
           publishedAt: normalizeDateValue(
             extractXmlTagValue(block, [
               "pubDate",
@@ -1055,7 +1292,7 @@ function parseJsonFeed(payload: string): CommunityCurationSourceItem[] {
   const rows = resolveJsonRows(parsed);
 
   return rows
-    .map((row, index) => {
+    .map<CommunityCurationSourceItem | null>((row, index) => {
       try {
         if (!row || typeof row !== "object") {
           return null;
@@ -1107,6 +1344,26 @@ function parseJsonFeed(payload: string): CommunityCurationSourceItem[] {
                 "links.self.href"
               ])
             ) ?? null,
+          imageUrl:
+            canonicalizeUrl(
+              readObjectValue(record, [
+                "image",
+                "imageUrl",
+                "image_url",
+                "thumbnail",
+                "thumbnailUrl",
+                "media.thumbnail",
+                "media.url",
+                "enclosure.url"
+              ])
+            ) ?? null,
+          author: readObjectValue(record, [
+            "author",
+            "author.name",
+            "byline",
+            "creator",
+            "dc.creator"
+          ]),
           sourceName: readObjectValue(record, [
             "source.name",
             "source.title",
@@ -1259,13 +1516,53 @@ export function buildBcnCuratedCandidate(
   const primaryThemes = matchedThemes.slice(0, 2);
   const relevanceReasons = primaryThemes.map((theme) => theme.label);
   const sourceName = item.sourceName ?? defaultSourceName;
+  const categories = inferBcnCategories({
+    title: item.title,
+    summary: item.summary,
+    content: item.content,
+    sourceName,
+    sourceDomain: item.url
+  });
+  const primaryCategory = categories[0] ?? "UK Business";
+  const secondaryCategories = categories.slice(1, 4);
   const articleDetail = buildArticleDetail(item, takeaways);
   const whatHappened = buildWhatHappened(item, takeaways, articleDetail);
   const whyThisMatters = buildWhyThisMatters(takeaways, primaryThemes);
   const whoThisAffects = buildWhoThisAffects(primaryThemes);
   const keyDetail = buildKeyDetail(item, takeaways, articleDetail, whatHappened);
   const bcnView = buildBcnView(primaryThemes);
+  const businessOwnerImpact = buildBusinessOwnerImpact(primaryCategory, primaryThemes);
+  const founderTakeaway = buildFounderTakeaway(primaryCategory, keyDetail);
   const whatToWatchNext = buildWhatToWatchNext(item, primaryThemes);
+  const possibleRisks = buildRisks(primaryCategory, primaryThemes);
+  const possibleOpportunities = buildOpportunities(primaryCategory, primaryThemes);
+  const affectedBusinessAreas = splitBusinessAreas(primaryThemes);
+  const suggestedDiscussionPrompt = buildDiscussionPrompt(primaryCategory, primaryThemes);
+  const recommendedRoom = recommendedRoomForCategory(primaryCategory);
+  const specificity = countSpecificSignals(`${item.title} ${item.summary} ${item.content}`);
+  const categoryScore = computeCategoryScore(categories);
+  const commercialImpactScore = Math.min(
+    10,
+    4.8 + candidateTagImportanceForThemes(primaryThemes) + specificity * 0.36 + categoryScore
+  );
+  const urgencyScore = Math.min(10, 4 + (item.publishedAt ? 1.2 : 0.4) + specificity * 0.22);
+  const relevanceScore = Math.min(10, 4.5 + primaryThemes.length * 1.1 + categoryScore);
+  const confidenceScore = Math.min(10, 6 + Math.min(takeaways.length, 3) * 0.45 + (item.url ? 0.45 : 0));
+  const sourceCredibilityScore = 7;
+  const businessOwnerScore = Math.min(
+    10,
+    commercialImpactScore * 0.34 +
+      relevanceScore * 0.26 +
+      urgencyScore * 0.14 +
+      sourceCredibilityScore * 0.16 +
+      confidenceScore * 0.1
+  );
+  const sectorsAffected = Array.from(
+    new Set([
+      ...primaryThemes.map((theme) => theme.slug),
+      ...categories.map((category) => category.toLowerCase())
+    ])
+  ).slice(0, 5);
   const sourceLine = item.url ? `${sourceName} - ${item.url}` : sourceName;
   const publishedLine = item.publishedAt
     ? `Published: ${new Date(item.publishedAt).toISOString().slice(0, 10)}`
@@ -1294,6 +1591,12 @@ export function buildBcnCuratedCandidate(
       "Why this matters:",
       whyThisMatters,
       "",
+      "Business owner impact:",
+      businessOwnerImpact,
+      "",
+      "Founder takeaway:",
+      founderTakeaway,
+      "",
       "Who this affects:",
       whoThisAffects,
       "",
@@ -1303,13 +1606,47 @@ export function buildBcnCuratedCandidate(
       "What to watch next:",
       whatToWatchNext,
       "",
+      "Possible opportunities:",
+      possibleOpportunities.join(" "),
+      "",
+      "Possible risks:",
+      possibleRisks.join(" "),
+      "",
+      "Discussion prompt:",
+      suggestedDiscussionPrompt,
+      "",
+      "Recommended room:",
+      recommendedRoom,
+      "",
       "Source:",
       sourceLine,
       ...(publishedLine ? ["", publishedLine] : [])
     ].join("\n"),
-    tags: buildBcnCandidateTags(matchedThemes),
+    tags: buildBcnCandidateTags(matchedThemes, categories),
     relevanceReasons,
     sourceUrl: canonicalizeUrl(item.url),
-    sourceName
+    sourceName,
+    primaryCategory,
+    secondaryCategories,
+    label: labelForCategory(primaryCategory),
+    shortSummary: whatHappened,
+    keyDetail,
+    whyThisMatters,
+    businessOwnerImpact,
+    founderTakeaway,
+    whatToWatchNext,
+    possibleRisks,
+    possibleOpportunities,
+    affectedBusinessAreas,
+    suggestedDiscussionPrompt,
+    recommendedRoom,
+    urgencyScore,
+    relevanceScore,
+    commercialImpactScore,
+    confidenceScore,
+    sourceCredibilityScore,
+    businessOwnerScore,
+    region: "UK",
+    sectorsAffected
   };
 }

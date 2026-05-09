@@ -9,6 +9,10 @@ const dbMock = vi.hoisted(() => ({
   communityPost: {
     findFirst: vi.fn(),
     create: vi.fn()
+  },
+  intelligenceSourceState: {
+    findMany: vi.fn(),
+    upsert: vi.fn()
   }
 }));
 
@@ -50,6 +54,8 @@ describe("community curation service", () => {
     process.env.BCN_COMMUNITY_SOURCE_URL = "https://example.com/feed.json";
     process.env.BCN_COMMUNITY_SOURCE_URLS = "";
     process.env.BCN_COMMUNITY_SOURCE_NAME = "BCN Source";
+    process.env.BCN_INTELLIGENCE_SOURCE_REGISTRY_ENABLED = "false";
+    process.env.BCN_INTELLIGENCE_EXTRA_SOURCE_URLS = "";
     process.env.BCN_COMMUNITY_LOOKBACK_HOURS = "24";
     process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "2";
     process.env.BCN_COMMUNITY_AUTOMATION_THROTTLE_MS = "300000";
@@ -63,6 +69,8 @@ describe("community curation service", () => {
     dbMock.communityPost.create.mockResolvedValue({
       id: "post_bcn_1"
     });
+    dbMock.intelligenceSourceState.findMany.mockResolvedValue([]);
+    dbMock.intelligenceSourceState.upsert.mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -213,6 +221,53 @@ describe("community curation service", () => {
       candidateCount: 2
     });
     expect(dbMock.communityPost.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("continues when one configured source fails", async () => {
+    process.env.BCN_COMMUNITY_SOURCE_URL = "";
+    process.env.BCN_COMMUNITY_SOURCE_URLS =
+      "https://bad-source.example.com/feed.xml, https://good-source.example.com/feed.xml";
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("bad-source")) {
+        return {
+          ok: false,
+          status: 503,
+          text: vi.fn()
+        } as unknown as Response;
+      }
+
+      return {
+        ok: true,
+        text: vi.fn().mockResolvedValue(`
+          <rss>
+            <channel>
+              <title>Good Source</title>
+              <item>
+                <guid>good-1</guid>
+                <title>Companies House reporting rules change compliance planning</title>
+                <description>Companies House updates are changing reporting work and compliance timing for directors and small businesses.</description>
+                <link>https://example.com/good-1</link>
+                <pubDate>Fri, 18 Apr 2026 10:00:00 GMT</pubDate>
+              </item>
+            </channel>
+          </rss>
+        `)
+      } as unknown as Response;
+    });
+
+    const result = await publishBcnCuratedPosts({
+      fetchImpl: fetchImpl as typeof fetch
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      sourceCount: 2,
+      publishedCount: 1,
+      fetchedCount: 1
+    });
+    expect(result.errors[0]).toContain("Fetch failed");
   });
 
   it("prefers the richer source when two feeds cover the same story", async () => {
@@ -375,6 +430,85 @@ describe("community curation service", () => {
           title.toLowerCase().includes("chip") || title.toLowerCase().includes("semiconductor")
       ).length
     ).toBeLessThanOrEqual(1);
+  });
+
+  it("balances selected stories so one source does not dominate when alternatives exist", async () => {
+    process.env.BCN_COMMUNITY_SOURCE_URL = "";
+    process.env.BCN_COMMUNITY_SOURCE_URLS =
+      "https://source-a.example.com/feed.xml, https://source-b.example.com/feed.xml";
+    process.env.BCN_COMMUNITY_MAX_POSTS_PER_RUN = "3";
+    dbMock.communityPost.create
+      .mockResolvedValueOnce({ id: "post_a_1" })
+      .mockResolvedValueOnce({ id: "post_b_1" })
+      .mockResolvedValueOnce({ id: "post_a_2" });
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      return {
+        ok: true,
+        text: vi.fn().mockResolvedValue(
+          url.includes("source-a")
+            ? `
+                <rss>
+                  <channel>
+                    <title>Source A</title>
+                    <item>
+                      <guid>a-1</guid>
+                      <title>AI regulation changes enterprise software compliance planning</title>
+                      <description>Large software vendors are adjusting AI compliance workflows, procurement messaging, and customer assurance processes for European enterprise buyers.</description>
+                      <link>https://example.com/a-1</link>
+                      <pubDate>Fri, 18 Apr 2026 11:00:00 GMT</pubDate>
+                    </item>
+                    <item>
+                      <guid>a-2</guid>
+                      <title>Cloud software groups review pricing as enterprise demand slows</title>
+                      <description>Cloud software businesses are reviewing pricing, sales capacity, and margin planning after enterprise buying cycles slowed across several sectors.</description>
+                      <link>https://example.com/a-2</link>
+                      <pubDate>Fri, 18 Apr 2026 10:40:00 GMT</pubDate>
+                    </item>
+                    <item>
+                      <guid>a-3</guid>
+                      <title>Chip suppliers raise investment as AI infrastructure demand improves</title>
+                      <description>Semiconductor suppliers are increasing investment plans as AI infrastructure demand and cloud procurement activity improves.</description>
+                      <link>https://example.com/a-3</link>
+                      <pubDate>Fri, 18 Apr 2026 10:20:00 GMT</pubDate>
+                    </item>
+                  </channel>
+                </rss>
+              `
+            : `
+                <rss>
+                  <channel>
+                    <title>Source B</title>
+                    <item>
+                      <guid>b-1</guid>
+                      <title>HMRC confirms payroll reporting change for small employers</title>
+                      <description>HMRC says small employers will need to prepare for updated payroll reporting rules, changing compliance planning and admin timing.</description>
+                      <link>https://example.com/b-1</link>
+                      <pubDate>Fri, 18 Apr 2026 10:50:00 GMT</pubDate>
+                    </item>
+                  </channel>
+                </rss>
+              `
+        )
+      } as unknown as Response;
+    });
+
+    const result = await publishBcnCuratedPosts({
+      fetchImpl: fetchImpl as typeof fetch
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      publishedCount: 3
+    });
+
+    const publishedSources = dbMock.communityPost.create.mock.calls.map(
+      ([input]) => input.data.intelligenceSourceName
+    );
+    expect(publishedSources).toContain("Source B");
+    expect(publishedSources.filter((source) => source === "Source A").length).toBeLessThan(3);
   });
 
   it("skips likely non-English items to keep BCN updates in English", async () => {

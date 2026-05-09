@@ -6,6 +6,7 @@ import {
   Role
 } from "@prisma/client";
 import {
+  BCN_UPDATES_CHANNEL_SLUG,
   COMMUNITY_CHANNEL_BLUEPRINTS,
   getCommunityChannelBlueprintBySlug,
   isStandaloneCommunityChannelSlug
@@ -22,12 +23,14 @@ import { buildReplyThreadMeta } from "@/lib/community-reply-thread";
 import { sortPromptsByRhythm } from "@/lib/community-rhythm";
 import { CONNECTION_WIN_TAG } from "@/lib/connection-wins";
 import { parseBcnStructuredContent } from "@/lib/bcn-intelligence";
-import { parseCommunitySourceAttribution } from "@/lib/community/source-preview";
+import {
+  buildCommunitySourcePreviewPlaceholder,
+  parseCommunitySourceAttribution
+} from "@/lib/community/source-preview";
 import { db } from "@/lib/db";
 import { assertNoBlockedProfanity } from "@/lib/moderation/profanity";
 import { logServerWarning } from "@/lib/security/logging";
 import { getCommunityRecognitionForUsers } from "@/server/community-recognition";
-import { resolveCommunitySourcePreviewMetadata } from "@/server/community/community-source-preview.service";
 import { listUpcomingEventsForTiers } from "@/server/events";
 import { getDirectMessageRelationshipStateMap } from "@/server/messages";
 import type {
@@ -145,7 +148,7 @@ async function resolveHydratedCommunitySourcePreview(post: {
     } satisfies CommunitySourcePreviewFields;
   }
 
-  if (post.previewImageUrl && post.previewImageKind === "screenshot") {
+  if (post.previewImageUrl) {
     return {
       sourceUrl,
       sourceDomain: sourceDomain ?? post.sourceDomain,
@@ -154,38 +157,15 @@ async function resolveHydratedCommunitySourcePreview(post: {
     } satisfies CommunitySourcePreviewFields;
   }
 
-  const preview = await resolveCommunitySourcePreviewMetadata({
-    title: post.title,
-    sourceName: sourceAttribution.sourceName,
-    sourceUrl,
-    sourceDomain
-  });
-
-  if (
-    preview.previewImageUrl !== post.previewImageUrl ||
-    preview.previewImageKind !== post.previewImageKind ||
-    preview.sourceUrl !== post.sourceUrl ||
-    preview.sourceDomain !== post.sourceDomain
-  ) {
-    await db.communityPost.update({
-      where: {
-        id: post.id
-      },
-      data: {
-        sourceUrl: preview.sourceUrl,
-        sourceDomain: preview.sourceDomain,
-        previewImageUrl: preview.previewImageUrl,
-        previewImageKind: preview.previewImageKind,
-        previewGeneratedAt: preview.previewGeneratedAt
-      }
-    });
-  }
-
   return {
-    sourceUrl: preview.sourceUrl,
-    sourceDomain: preview.sourceDomain,
-    previewImageUrl: preview.previewImageUrl,
-    previewImageKind: preview.previewImageKind
+    sourceUrl,
+    sourceDomain: sourceDomain ?? post.sourceDomain,
+    previewImageUrl: buildCommunitySourcePreviewPlaceholder({
+      title: post.title,
+      sourceName: sourceAttribution.sourceName,
+      sourceDomain
+    }),
+    previewImageKind: "placeholder"
   } satisfies CommunitySourcePreviewFields;
 }
 
@@ -211,6 +191,40 @@ function mapFeedChannel(channel: FeedChannelRecord): CommunityFeedChannelModel {
     ...mapChannelBase(channel),
     postCount: channel._count.communityPosts,
     lastActivityAt: channel.communityPosts[0]?.createdAt.toISOString() ?? null
+  };
+}
+
+function emptyCommunityIntelligenceFields() {
+  return {
+    intelligenceSourceId: null,
+    intelligenceSourceName: null,
+    intelligenceCanonicalUrl: null,
+    intelligenceAuthor: null,
+    intelligencePublishedAt: null,
+    intelligencePrimaryCategory: null,
+    intelligenceSecondaryCategories: [],
+    intelligenceLabel: null,
+    intelligenceShortSummary: null,
+    intelligenceKeyDetail: null,
+    intelligenceWhyThisMatters: null,
+    intelligenceBusinessOwnerImpact: null,
+    intelligenceFounderTakeaway: null,
+    intelligenceWhatToWatchNext: null,
+    intelligencePossibleRisks: [],
+    intelligencePossibleOpportunities: [],
+    intelligenceAffectedBusinessAreas: [],
+    intelligenceSuggestedDiscussionPrompt: null,
+    intelligenceRecommendedRoom: null,
+    intelligenceUrgencyScore: null,
+    intelligenceRelevanceScore: null,
+    intelligenceCommercialImpactScore: null,
+    intelligenceConfidenceScore: null,
+    intelligenceSourceCredibilityScore: null,
+    intelligenceBusinessOwnerScore: null,
+    intelligenceRegion: null,
+    intelligenceSectorsAffected: [],
+    intelligenceFeatured: false,
+    intelligenceStatus: "PUBLISHED"
   };
 }
 
@@ -639,10 +653,18 @@ export async function getCommunityFeedPage(input: {
     };
   }
 
+  const intelligenceVisibilityWhere =
+    selectedChannel.slug === BCN_UPDATES_CHANNEL_SLUG
+      ? {
+          intelligenceStatus: "PUBLISHED"
+        }
+      : {};
+
   const posts = await db.communityPost.findMany({
     where: {
       channelId: selectedChannel.id,
-      deletedAt: null
+      deletedAt: null,
+      ...intelligenceVisibilityWhere
     },
     orderBy: {
       createdAt: "desc"
@@ -662,6 +684,35 @@ export async function getCommunityFeedPage(input: {
       sourceDomain: true,
       previewImageUrl: true,
       previewImageKind: true,
+      intelligenceSourceId: true,
+      intelligenceSourceName: true,
+      intelligenceCanonicalUrl: true,
+      intelligenceAuthor: true,
+      intelligencePublishedAt: true,
+      intelligencePrimaryCategory: true,
+      intelligenceSecondaryCategories: true,
+      intelligenceLabel: true,
+      intelligenceShortSummary: true,
+      intelligenceKeyDetail: true,
+      intelligenceWhyThisMatters: true,
+      intelligenceBusinessOwnerImpact: true,
+      intelligenceFounderTakeaway: true,
+      intelligenceWhatToWatchNext: true,
+      intelligencePossibleRisks: true,
+      intelligencePossibleOpportunities: true,
+      intelligenceAffectedBusinessAreas: true,
+      intelligenceSuggestedDiscussionPrompt: true,
+      intelligenceRecommendedRoom: true,
+      intelligenceUrgencyScore: true,
+      intelligenceRelevanceScore: true,
+      intelligenceCommercialImpactScore: true,
+      intelligenceConfidenceScore: true,
+      intelligenceSourceCredibilityScore: true,
+      intelligenceBusinessOwnerScore: true,
+      intelligenceRegion: true,
+      intelligenceSectorsAffected: true,
+      intelligenceFeatured: true,
+      intelligenceStatus: true,
       createdAt: true,
       updatedAt: true,
       user: {
@@ -714,6 +765,35 @@ export async function getCommunityFeedPage(input: {
         sourceDomain: previewFields.sourceDomain,
         previewImageUrl: previewFields.previewImageUrl,
         previewImageKind: previewFields.previewImageKind,
+        intelligenceSourceId: post.intelligenceSourceId,
+        intelligenceSourceName: post.intelligenceSourceName,
+        intelligenceCanonicalUrl: post.intelligenceCanonicalUrl,
+        intelligenceAuthor: post.intelligenceAuthor,
+        intelligencePublishedAt: post.intelligencePublishedAt?.toISOString() ?? null,
+        intelligencePrimaryCategory: post.intelligencePrimaryCategory,
+        intelligenceSecondaryCategories: post.intelligenceSecondaryCategories,
+        intelligenceLabel: post.intelligenceLabel,
+        intelligenceShortSummary: post.intelligenceShortSummary,
+        intelligenceKeyDetail: post.intelligenceKeyDetail,
+        intelligenceWhyThisMatters: post.intelligenceWhyThisMatters,
+        intelligenceBusinessOwnerImpact: post.intelligenceBusinessOwnerImpact,
+        intelligenceFounderTakeaway: post.intelligenceFounderTakeaway,
+        intelligenceWhatToWatchNext: post.intelligenceWhatToWatchNext,
+        intelligencePossibleRisks: post.intelligencePossibleRisks,
+        intelligencePossibleOpportunities: post.intelligencePossibleOpportunities,
+        intelligenceAffectedBusinessAreas: post.intelligenceAffectedBusinessAreas,
+        intelligenceSuggestedDiscussionPrompt: post.intelligenceSuggestedDiscussionPrompt,
+        intelligenceRecommendedRoom: post.intelligenceRecommendedRoom,
+        intelligenceUrgencyScore: post.intelligenceUrgencyScore,
+        intelligenceRelevanceScore: post.intelligenceRelevanceScore,
+        intelligenceCommercialImpactScore: post.intelligenceCommercialImpactScore,
+        intelligenceConfidenceScore: post.intelligenceConfidenceScore,
+        intelligenceSourceCredibilityScore: post.intelligenceSourceCredibilityScore,
+        intelligenceBusinessOwnerScore: post.intelligenceBusinessOwnerScore,
+        intelligenceRegion: post.intelligenceRegion,
+        intelligenceSectorsAffected: post.intelligenceSectorsAffected,
+        intelligenceFeatured: post.intelligenceFeatured,
+        intelligenceStatus: post.intelligenceStatus,
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),
         likeCount: post._count.likes,
@@ -763,6 +843,35 @@ export async function listRecentCommunityPostsForTiers(input: {
       sourceDomain: true,
       previewImageUrl: true,
       previewImageKind: true,
+      intelligenceSourceId: true,
+      intelligenceSourceName: true,
+      intelligenceCanonicalUrl: true,
+      intelligenceAuthor: true,
+      intelligencePublishedAt: true,
+      intelligencePrimaryCategory: true,
+      intelligenceSecondaryCategories: true,
+      intelligenceLabel: true,
+      intelligenceShortSummary: true,
+      intelligenceKeyDetail: true,
+      intelligenceWhyThisMatters: true,
+      intelligenceBusinessOwnerImpact: true,
+      intelligenceFounderTakeaway: true,
+      intelligenceWhatToWatchNext: true,
+      intelligencePossibleRisks: true,
+      intelligencePossibleOpportunities: true,
+      intelligenceAffectedBusinessAreas: true,
+      intelligenceSuggestedDiscussionPrompt: true,
+      intelligenceRecommendedRoom: true,
+      intelligenceUrgencyScore: true,
+      intelligenceRelevanceScore: true,
+      intelligenceCommercialImpactScore: true,
+      intelligenceConfidenceScore: true,
+      intelligenceSourceCredibilityScore: true,
+      intelligenceBusinessOwnerScore: true,
+      intelligenceRegion: true,
+      intelligenceSectorsAffected: true,
+      intelligenceFeatured: true,
+      intelligenceStatus: true,
       createdAt: true,
       updatedAt: true,
       channel: {
@@ -810,6 +919,35 @@ export async function listRecentCommunityPostsForTiers(input: {
     sourceDomain: post.sourceDomain,
     previewImageUrl: post.previewImageUrl,
     previewImageKind: post.previewImageKind,
+    intelligenceSourceId: post.intelligenceSourceId,
+    intelligenceSourceName: post.intelligenceSourceName,
+    intelligenceCanonicalUrl: post.intelligenceCanonicalUrl,
+    intelligenceAuthor: post.intelligenceAuthor,
+    intelligencePublishedAt: post.intelligencePublishedAt?.toISOString() ?? null,
+    intelligencePrimaryCategory: post.intelligencePrimaryCategory,
+    intelligenceSecondaryCategories: post.intelligenceSecondaryCategories,
+    intelligenceLabel: post.intelligenceLabel,
+    intelligenceShortSummary: post.intelligenceShortSummary,
+    intelligenceKeyDetail: post.intelligenceKeyDetail,
+    intelligenceWhyThisMatters: post.intelligenceWhyThisMatters,
+    intelligenceBusinessOwnerImpact: post.intelligenceBusinessOwnerImpact,
+    intelligenceFounderTakeaway: post.intelligenceFounderTakeaway,
+    intelligenceWhatToWatchNext: post.intelligenceWhatToWatchNext,
+    intelligencePossibleRisks: post.intelligencePossibleRisks,
+    intelligencePossibleOpportunities: post.intelligencePossibleOpportunities,
+    intelligenceAffectedBusinessAreas: post.intelligenceAffectedBusinessAreas,
+    intelligenceSuggestedDiscussionPrompt: post.intelligenceSuggestedDiscussionPrompt,
+    intelligenceRecommendedRoom: post.intelligenceRecommendedRoom,
+    intelligenceUrgencyScore: post.intelligenceUrgencyScore,
+    intelligenceRelevanceScore: post.intelligenceRelevanceScore,
+    intelligenceCommercialImpactScore: post.intelligenceCommercialImpactScore,
+    intelligenceConfidenceScore: post.intelligenceConfidenceScore,
+    intelligenceSourceCredibilityScore: post.intelligenceSourceCredibilityScore,
+    intelligenceBusinessOwnerScore: post.intelligenceBusinessOwnerScore,
+    intelligenceRegion: post.intelligenceRegion,
+    intelligenceSectorsAffected: post.intelligenceSectorsAffected,
+    intelligenceFeatured: post.intelligenceFeatured,
+    intelligenceStatus: post.intelligenceStatus,
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
     likeCount: post._count.likes,
@@ -862,6 +1000,35 @@ export async function listRecentConnectionWinsForTiers(input: {
       sourceDomain: true,
       previewImageUrl: true,
       previewImageKind: true,
+      intelligenceSourceId: true,
+      intelligenceSourceName: true,
+      intelligenceCanonicalUrl: true,
+      intelligenceAuthor: true,
+      intelligencePublishedAt: true,
+      intelligencePrimaryCategory: true,
+      intelligenceSecondaryCategories: true,
+      intelligenceLabel: true,
+      intelligenceShortSummary: true,
+      intelligenceKeyDetail: true,
+      intelligenceWhyThisMatters: true,
+      intelligenceBusinessOwnerImpact: true,
+      intelligenceFounderTakeaway: true,
+      intelligenceWhatToWatchNext: true,
+      intelligencePossibleRisks: true,
+      intelligencePossibleOpportunities: true,
+      intelligenceAffectedBusinessAreas: true,
+      intelligenceSuggestedDiscussionPrompt: true,
+      intelligenceRecommendedRoom: true,
+      intelligenceUrgencyScore: true,
+      intelligenceRelevanceScore: true,
+      intelligenceCommercialImpactScore: true,
+      intelligenceConfidenceScore: true,
+      intelligenceSourceCredibilityScore: true,
+      intelligenceBusinessOwnerScore: true,
+      intelligenceRegion: true,
+      intelligenceSectorsAffected: true,
+      intelligenceFeatured: true,
+      intelligenceStatus: true,
       createdAt: true,
       updatedAt: true,
       channel: {
@@ -909,6 +1076,7 @@ export async function listRecentConnectionWinsForTiers(input: {
     sourceDomain: post.sourceDomain,
     previewImageUrl: post.previewImageUrl,
     previewImageKind: post.previewImageKind,
+    ...emptyCommunityIntelligenceFields(),
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
     likeCount: post._count.likes,
@@ -941,6 +1109,35 @@ export async function getCommunityPostDetail(input: {
       sourceDomain: true,
       previewImageUrl: true,
       previewImageKind: true,
+      intelligenceSourceId: true,
+      intelligenceSourceName: true,
+      intelligenceCanonicalUrl: true,
+      intelligenceAuthor: true,
+      intelligencePublishedAt: true,
+      intelligencePrimaryCategory: true,
+      intelligenceSecondaryCategories: true,
+      intelligenceLabel: true,
+      intelligenceShortSummary: true,
+      intelligenceKeyDetail: true,
+      intelligenceWhyThisMatters: true,
+      intelligenceBusinessOwnerImpact: true,
+      intelligenceFounderTakeaway: true,
+      intelligenceWhatToWatchNext: true,
+      intelligencePossibleRisks: true,
+      intelligencePossibleOpportunities: true,
+      intelligenceAffectedBusinessAreas: true,
+      intelligenceSuggestedDiscussionPrompt: true,
+      intelligenceRecommendedRoom: true,
+      intelligenceUrgencyScore: true,
+      intelligenceRelevanceScore: true,
+      intelligenceCommercialImpactScore: true,
+      intelligenceConfidenceScore: true,
+      intelligenceSourceCredibilityScore: true,
+      intelligenceBusinessOwnerScore: true,
+      intelligenceRegion: true,
+      intelligenceSectorsAffected: true,
+      intelligenceFeatured: true,
+      intelligenceStatus: true,
       createdAt: true,
       updatedAt: true,
       deletedAt: true,
@@ -986,6 +1183,7 @@ export async function getCommunityPostDetail(input: {
     !post ||
     post.deletedAt ||
     post.channel.isArchived ||
+    (post.channel.slug === BCN_UPDATES_CHANNEL_SLUG && post.intelligenceStatus !== "PUBLISHED") ||
     !canTierAccess(input.viewerTier, post.channel.accessTier)
   ) {
     return null;
@@ -1027,6 +1225,35 @@ export async function getCommunityPostDetail(input: {
     sourceDomain: previewFields.sourceDomain,
     previewImageUrl: previewFields.previewImageUrl,
     previewImageKind: previewFields.previewImageKind,
+    intelligenceSourceId: post.intelligenceSourceId,
+    intelligenceSourceName: post.intelligenceSourceName,
+    intelligenceCanonicalUrl: post.intelligenceCanonicalUrl,
+    intelligenceAuthor: post.intelligenceAuthor,
+    intelligencePublishedAt: post.intelligencePublishedAt?.toISOString() ?? null,
+    intelligencePrimaryCategory: post.intelligencePrimaryCategory,
+    intelligenceSecondaryCategories: post.intelligenceSecondaryCategories,
+    intelligenceLabel: post.intelligenceLabel,
+    intelligenceShortSummary: post.intelligenceShortSummary,
+    intelligenceKeyDetail: post.intelligenceKeyDetail,
+    intelligenceWhyThisMatters: post.intelligenceWhyThisMatters,
+    intelligenceBusinessOwnerImpact: post.intelligenceBusinessOwnerImpact,
+    intelligenceFounderTakeaway: post.intelligenceFounderTakeaway,
+    intelligenceWhatToWatchNext: post.intelligenceWhatToWatchNext,
+    intelligencePossibleRisks: post.intelligencePossibleRisks,
+    intelligencePossibleOpportunities: post.intelligencePossibleOpportunities,
+    intelligenceAffectedBusinessAreas: post.intelligenceAffectedBusinessAreas,
+    intelligenceSuggestedDiscussionPrompt: post.intelligenceSuggestedDiscussionPrompt,
+    intelligenceRecommendedRoom: post.intelligenceRecommendedRoom,
+    intelligenceUrgencyScore: post.intelligenceUrgencyScore,
+    intelligenceRelevanceScore: post.intelligenceRelevanceScore,
+    intelligenceCommercialImpactScore: post.intelligenceCommercialImpactScore,
+    intelligenceConfidenceScore: post.intelligenceConfidenceScore,
+    intelligenceSourceCredibilityScore: post.intelligenceSourceCredibilityScore,
+    intelligenceBusinessOwnerScore: post.intelligenceBusinessOwnerScore,
+    intelligenceRegion: post.intelligenceRegion,
+    intelligenceSectorsAffected: post.intelligenceSectorsAffected,
+    intelligenceFeatured: post.intelligenceFeatured,
+    intelligenceStatus: post.intelligenceStatus,
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),
     likeCount: post._count.likes,
