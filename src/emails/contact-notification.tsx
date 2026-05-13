@@ -13,6 +13,8 @@ type ContactNotificationEmailProps = {
   company: string;
   subject: string;
   sourcePath: string;
+  source?: string | null;
+  memberContextLines?: string[];
   message: string;
 };
 
@@ -22,8 +24,26 @@ export function ContactNotificationEmail({
   company,
   subject,
   sourcePath,
+  source,
+  memberContextLines = [],
   message
 }: ContactNotificationEmailProps) {
+  const details = [
+    { label: "Name", value: name },
+    { label: "Email", value: email },
+    { label: "Company", value: company },
+    { label: "Subject", value: subject },
+    { label: "Source", value: sourcePath },
+    source ? { label: "Source type", value: source } : null,
+    ...memberContextLines.map((line) => {
+      const [label, ...valueParts] = line.split(":");
+      return {
+        label: label.trim(),
+        value: valueParts.join(":").trim()
+      };
+    })
+  ].filter((item): item is { label: string; value: string } => Boolean(item?.value));
+
   return (
     <BcnEmailLayout
       previewText="A new contact enquiry has arrived in BCN."
@@ -32,15 +52,7 @@ export function ContactNotificationEmail({
       lead="A new website contact submission has come into The Business Circle Network."
     >
       <EmailPanel title="Submission details">
-        <EmailDetailsList
-          items={[
-            { label: "Name", value: name },
-            { label: "Email", value: email },
-            { label: "Company", value: company },
-            { label: "Subject", value: subject },
-            { label: "Source", value: sourcePath }
-          ]}
-        />
+        <EmailDetailsList items={details} />
       </EmailPanel>
 
       <EmailPanel title="Message">

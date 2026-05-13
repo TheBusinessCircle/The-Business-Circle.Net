@@ -56,6 +56,8 @@ async function sendContactSubmissionEmails(input: CreateContactSubmissionInput) 
       company,
       subject,
       sourcePath,
+      source,
+      memberContextLines,
       message: trimmedMessage
     });
     const adminNotificationHtml = await renderEmailHtml(adminNotificationTemplate);
