@@ -55,6 +55,13 @@ Use a production environment (systemd, PM2, or host-level env manager) and set:
 - `STRIPE_STANDARD_PRICE_ID=price_...`
 - `STRIPE_INNER_CIRCLE_PRICE_ID=price_...`
 
+### Analytics (PostHog EU)
+
+- `NEXT_PUBLIC_POSTHOG_KEY=phc_...`
+- `NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com`
+- `NEXT_PUBLIC_POSTHOG_REPLAY_SAMPLE_RATE=0.25`
+- `NEXT_PUBLIC_POSTHOG_DEBUG=false`
+
 ### Email (Resend)
 
 - `RESEND_API_KEY=re_...`
@@ -203,6 +210,8 @@ Rules:
 - Admin pages load (`/admin`, `/admin/resources`, `/admin/community`).
 - `/admin/security` and `/admin/system-health` show `Shared Redis` for rate limiting.
 - Stripe checkout + portal redirect correctly.
+- PostHog captures `$pageview` on `/`, `/home`, `/membership`, `/audit`, join/auth routes, and `/dashboard` after analytics consent is granted.
+- PostHog session replay appears for sampled sessions without readable password, message, admin, or payment fields.
 - Contact form sends to `contact@thebcnet.co.uk`.
 
 ## 8) Calling network and firewall notes

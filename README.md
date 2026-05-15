@@ -66,6 +66,7 @@ Paid membership access is granted only after trusted server-side Stripe confirma
 - Prisma ORM
 - Auth.js / NextAuth
 - Stripe
+- PostHog
 - Zod
 - React Hook Form
 - Reusable shadcn-style UI components
@@ -125,6 +126,17 @@ Subscribe Stripe to these events:
 - `invoice.payment_failed`
 
 The checkout and webhook flow is designed to stay idempotent and to keep paid access tied to trusted Stripe state.
+
+## PostHog analytics
+
+Client analytics are initialized through `src/components/analytics/posthog-provider.tsx` after analytics cookie consent is granted. Set these in local and production environments:
+
+- `NEXT_PUBLIC_POSTHOG_KEY=phc_...`
+- `NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com`
+- `NEXT_PUBLIC_POSTHOG_REPLAY_SAMPLE_RATE=0.25`
+- `NEXT_PUBLIC_POSTHOG_DEBUG=false`
+
+Pageviews are captured manually for App Router navigation, session replay masks inputs and member-sensitive surfaces, and server-side billing events should use `captureServerAnalyticsEvent` when they are intentionally wired into Stripe webhook handling.
 
 ## Local setup
 

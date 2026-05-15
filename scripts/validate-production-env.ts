@@ -112,6 +112,8 @@ function validateProductionEnv() {
   const adminPassword = env("ADMIN_PASSWORD");
   const stripeSecretKey = env("STRIPE_SECRET_KEY");
   const stripeWebhookSecret = env("STRIPE_WEBHOOK_SECRET");
+  const posthogKey = env("NEXT_PUBLIC_POSTHOG_KEY");
+  const posthogHost = normalizeWebUrl(env("NEXT_PUBLIC_POSTHOG_HOST"));
   const resendApiKey = env("RESEND_API_KEY");
   const resendFromEmail = env("RESEND_FROM_EMAIL");
   const liveKitUrl = env("LIVEKIT_URL");
@@ -195,6 +197,16 @@ function validateProductionEnv() {
 
   if (!stripeWebhookSecret.startsWith("whsec_")) {
     addIssue(issues, "error", "STRIPE_WEBHOOK_SECRET is missing or invalid.");
+  }
+
+  if (!posthogKey || !posthogKey.startsWith("phc_")) {
+    addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_KEY is missing or does not look like a PostHog project key.");
+  }
+
+  if (!isSecureWebUrl(posthogHost)) {
+    addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_HOST must use https:// in production.");
+  } else if (isLoopbackUrl(posthogHost)) {
+    addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_HOST cannot use localhost in production.");
   }
 
   if (!resendApiKey.startsWith("re_")) {

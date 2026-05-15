@@ -139,7 +139,10 @@ export default async function MemberLayout({ children }: { children: ReactNode }
 
   const sidebar = (
     <aside className="premium-surface hidden p-4 lg:sticky lg:top-[var(--member-sticky-top,6.75rem)] lg:block lg:max-h-[calc(100dvh-var(--member-sticky-top,6.75rem)-1rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
-      <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-background/25 p-3">
+      <div
+        data-member-sensitive
+        className="flex items-center gap-3 rounded-2xl border border-border/80 bg-background/25 p-3"
+      >
         <Avatar
           className="member-profile-ring"
           name={session.user.name ?? session.user.email ?? "Member"}

@@ -8,6 +8,7 @@ import {
   ACCEPT_ALL_COOKIE_CONSENT,
   COOKIE_CONSENT_COOKIE_NAME,
   COOKIE_CONSENT_MAX_AGE_SECONDS,
+  COOKIE_CONSENT_UPDATED_EVENT,
   COOKIE_SETTINGS_OPEN_EVENT,
   DEFAULT_COOKIE_CONSENT,
   type CookieConsentState,
@@ -83,6 +84,18 @@ function syncConsentAttributes(consent: CookieConsentState | null) {
   document.documentElement.dataset.cookieAnalytics = resolvedConsent.analytics ? "granted" : "denied";
   document.documentElement.dataset.cookieMarketing = resolvedConsent.marketing ? "granted" : "denied";
   document.documentElement.dataset.cookiePreferences = resolvedConsent.preferences ? "granted" : "denied";
+}
+
+function dispatchConsentUpdated(consent: CookieConsentState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(COOKIE_CONSENT_UPDATED_EVENT, {
+      detail: consent
+    })
+  );
 }
 
 function getFocusableElements(container: HTMLElement) {
@@ -235,6 +248,7 @@ export function CookieConsent() {
   const persistConsent = (consent: CookieConsentState) => {
     writeConsentCookie(consent);
     syncConsentAttributes(consent);
+    dispatchConsentUpdated(consent);
     setStoredConsent(consent);
     setDraftConsent(consent);
     setIsPreferencesOpen(false);

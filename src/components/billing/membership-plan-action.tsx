@@ -5,7 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { MembershipBillingInterval } from "@/config/membership";
-import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
+import { trackMembershipCheckoutStarted } from "@/lib/analytics";
 import { getTierButtonVariant } from "@/lib/tier-styles";
 import { cn } from "@/lib/utils";
 
@@ -168,7 +168,7 @@ export function MembershipPlanAction({
     setNotice(null);
 
     startCheckoutTransition(async () => {
-      trackAnalyticsEvent(ANALYTICS_EVENTS.checkoutStarted, {
+      trackMembershipCheckoutStarted({
         source,
         tier,
         billingInterval

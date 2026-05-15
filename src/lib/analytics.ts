@@ -4,12 +4,17 @@ export const ANALYTICS_EVENTS = {
   joinDesktopStepInside: "join_desktop_step_inside",
   auditStart: "audit_start",
   auditComplete: "audit_complete",
+  founderAuditCompleted: "founder_audit_completed",
   recommendedTierClicked: "recommended_tier_clicked",
   membershipTierSelected: "membership_tier_selected",
+  membershipCheckoutStarted: "membership_checkout_started",
+  membershipSignupCompleted: "membership_signup_completed",
   checkoutStarted: "checkout_started",
   registrationStarted: "registration_started",
   loginSuccess: "login_success",
   profileSaved: "profile_saved",
+  profileViewed: "profile_viewed",
+  memberMessageSent: "member_message_sent",
   blueprintVote: "blueprint_vote",
   founderServiceRequestStarted: "founder_service_request_started",
   founderServiceRequestSubmitted: "founder_service_request_submitted"
@@ -26,6 +31,21 @@ type AnalyticsPayload = {
   timestamp: string;
 };
 
+type MembershipTierValue = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
+type BillingIntervalValue = "monthly" | "annual";
+
+const SENSITIVE_PROPERTY_PATTERNS = [
+  /password/i,
+  /token/i,
+  /secret/i,
+  /authorization/i,
+  /email/i,
+  /phone/i,
+  /address/i,
+  /stripe/i,
+  /checkout[_-]?session/i
+];
+
 declare global {
   interface Window {
     bcnAnalytics?: {
@@ -35,11 +55,15 @@ declare global {
   }
 }
 
+function isSafeAnalyticsPropertyName(name: string) {
+  return !SENSITIVE_PROPERTY_PATTERNS.some((pattern) => pattern.test(name));
+}
+
 function sanitizeProperties(properties: AnalyticsProperties = {}) {
   return Object.fromEntries(
     Object.entries(properties).filter((entry): entry is [string, Exclude<AnalyticsValue, undefined>] => {
-      const [, value] = entry;
-      return value !== undefined;
+      const [key, value] = entry;
+      return value !== undefined && isSafeAnalyticsPropertyName(key);
     })
   );
 }
@@ -90,4 +114,43 @@ export function trackAnalyticsEvent(
   } catch {
     // Analytics must never block product, checkout, auth, or member flows.
   }
+}
+
+export function trackMembershipCheckoutStarted(properties: {
+  source: "membership" | "join" | "dashboard" | "registration";
+  tier: MembershipTierValue;
+  billingInterval: BillingIntervalValue;
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.membershipCheckoutStarted, properties);
+}
+
+export function trackMembershipSignupCompleted(properties: {
+  tier: MembershipTierValue;
+  billingInterval: BillingIntervalValue;
+  source?: "join" | "membership" | "admin";
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.membershipSignupCompleted, properties);
+}
+
+export function trackFounderAuditCompleted(properties: {
+  score: number;
+  tier: string;
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.founderAuditCompleted, properties);
+}
+
+export function trackProfileViewed(properties: {
+  profileUserId: string;
+  viewerIsOwner?: boolean;
+  source?: "public_profile" | "directory" | "message_thread" | "dashboard";
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.profileViewed, properties);
+}
+
+export function trackMemberMessageSent(properties: {
+  surface: "community_channel" | "direct_message" | "message_request";
+  hasAttachment?: boolean;
+  isReply?: boolean;
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.memberMessageSent, properties);
 }

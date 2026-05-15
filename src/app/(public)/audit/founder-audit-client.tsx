@@ -14,7 +14,11 @@ import {
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { FirstSevenDaysBlock } from "@/components/public/launch-cro-blocks";
-import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
+import {
+  ANALYTICS_EVENTS,
+  trackAnalyticsEvent,
+  trackFounderAuditCompleted
+} from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import {
   FOUNDER_AUDIT_QUESTIONS,
@@ -66,6 +70,10 @@ export function FounderAuditClient() {
 
     if (currentIndex === totalQuestions - 1) {
       trackAnalyticsEvent(ANALYTICS_EVENTS.auditComplete, {
+        score: totalScore,
+        tier: recommendation.tierName
+      });
+      trackFounderAuditCompleted({
         score: totalScore,
         tier: recommendation.tierName
       });

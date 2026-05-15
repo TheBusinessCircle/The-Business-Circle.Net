@@ -5,6 +5,7 @@ import type { ChannelMessageModel } from "@/types";
 import { Loader2, SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { trackMemberMessageSent } from "@/lib/analytics";
 
 type MessageComposerProps = {
   onSubmit: (
@@ -40,6 +41,10 @@ export function MessageComposer({
       parentMessageId: replyTarget?.id
     });
     if (didSend) {
+      trackMemberMessageSent({
+        surface: "community_channel",
+        isReply: Boolean(replyTarget?.id)
+      });
       setContent("");
       onCancelReply?.();
     }

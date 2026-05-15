@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
+import { ProfileViewAnalytics } from "@/components/analytics/profile-view-analytics";
 import { PublicMemberProfileView } from "@/components/profile";
 import { SITE_CONFIG } from "@/config/site";
 import { buildMemberProfilePath } from "@/lib/member-paths";
@@ -177,40 +178,43 @@ export default async function PublicMemberProfilePage({ params }: PageProps) {
       : null;
 
   return (
-    <PublicMemberProfileView
-      completion={completion}
-      member={{
-        id: user.id,
-        name: user.name || user.email,
-        image: user.image,
-        membershipTier: user.membershipTier,
-        memberRoleTag: user.memberRoleTag,
-        foundingTier: user.foundingTier,
-        headline: user.profile?.headline,
-        bio: user.profile?.bio,
-        location: user.profile?.location,
-        experience: user.profile?.experience,
-        website: user.profile?.website,
-        instagram: user.profile?.instagram,
-        linkedin: user.profile?.linkedin,
-        tiktok: user.profile?.tiktok,
-        facebook: user.profile?.facebook,
-        youtube: user.profile?.youtube,
-        customLinks: user.profile?.customLinks ?? [],
-        collaborationNeeds: user.profile?.collaborationNeeds,
-        collaborationOffers: user.profile?.collaborationOffers,
-        partnershipInterests: user.profile?.partnershipInterests,
-        collaborationTags: user.profile?.collaborationTags ?? [],
-        business,
-        lastActiveAt: activityByUserId.get(user.id) ?? null
-      }}
-      recognition={recognition}
-      viewerCanStartCall={Boolean(
-        session?.user &&
-          !session.user.suspended &&
-          (session.user.role === "ADMIN" || session.user.hasActiveSubscription)
-      )}
-      isSelfView={isSelfPreview}
-    />
+    <>
+      <ProfileViewAnalytics profileUserId={user.id} viewerIsOwner={isSelfPreview} />
+      <PublicMemberProfileView
+        completion={completion}
+        member={{
+          id: user.id,
+          name: user.name || user.email,
+          image: user.image,
+          membershipTier: user.membershipTier,
+          memberRoleTag: user.memberRoleTag,
+          foundingTier: user.foundingTier,
+          headline: user.profile?.headline,
+          bio: user.profile?.bio,
+          location: user.profile?.location,
+          experience: user.profile?.experience,
+          website: user.profile?.website,
+          instagram: user.profile?.instagram,
+          linkedin: user.profile?.linkedin,
+          tiktok: user.profile?.tiktok,
+          facebook: user.profile?.facebook,
+          youtube: user.profile?.youtube,
+          customLinks: user.profile?.customLinks ?? [],
+          collaborationNeeds: user.profile?.collaborationNeeds,
+          collaborationOffers: user.profile?.collaborationOffers,
+          partnershipInterests: user.profile?.partnershipInterests,
+          collaborationTags: user.profile?.collaborationTags ?? [],
+          business,
+          lastActiveAt: activityByUserId.get(user.id) ?? null
+        }}
+        recognition={recognition}
+        viewerCanStartCall={Boolean(
+          session?.user &&
+            !session.user.suspended &&
+            (session.user.role === "ADMIN" || session.user.hasActiveSubscription)
+        )}
+        isSelfView={isSelfPreview}
+      />
+    </>
   );
 }

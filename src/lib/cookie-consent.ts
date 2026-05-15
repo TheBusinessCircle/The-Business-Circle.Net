@@ -1,6 +1,7 @@
 export const COOKIE_CONSENT_COOKIE_NAME = "bc_cookie_consent";
 export const COOKIE_CONSENT_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
 export const COOKIE_SETTINGS_OPEN_EVENT = "business-circle:cookie-settings-open";
+export const COOKIE_CONSENT_UPDATED_EVENT = "business-circle:cookie-consent-updated";
 
 const COOKIE_CONSENT_VERSION = "v1";
 
