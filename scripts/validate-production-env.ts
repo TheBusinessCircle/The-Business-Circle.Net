@@ -201,6 +201,8 @@ function validateProductionEnv() {
 
   if (!posthogKey || !posthogKey.startsWith("phc_")) {
     addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_KEY is missing or does not look like a PostHog project key.");
+  } else if (posthogKey === "phc_your_real_key_here") {
+    addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_KEY is still the placeholder value.");
   }
 
   if (!isSecureWebUrl(posthogHost)) {
