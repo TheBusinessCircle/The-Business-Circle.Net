@@ -1,3 +1,4 @@
+export * from "@/components/public/answer-block";
 export * from "@/components/public/cta-section";
 export * from "@/components/public/faq-section";
 export * from "@/components/public/feature-grid";

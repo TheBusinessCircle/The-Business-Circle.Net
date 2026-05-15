@@ -36,7 +36,7 @@ describe("launch CRO blocks", () => {
 
     expect(markup).toContain("Still unsure where you fit?");
     expect(markup).toContain("Run the Founder Audit and get a guided room recommendation.");
-    expect(markup).toContain("Start the Founder Audit");
+    expect(markup).toContain("Run the Founder Audit");
     expect(markup).toContain("/audit");
   });
 
@@ -45,7 +45,7 @@ describe("launch CRO blocks", () => {
 
     expect(markup).toContain("You do not need more noise.");
     expect(markup).toContain("You need the right room.");
-    expect(markup).toContain("Start the Founder Audit");
+    expect(markup).toContain("Run the Founder Audit");
     expect(markup).toContain("Explore Membership");
   });
 

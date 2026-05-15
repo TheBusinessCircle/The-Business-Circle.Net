@@ -1,11 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BookOpen, Compass, Lock } from "lucide-react";
-import { CTASection, InsightCard, SectionHeading } from "@/components/public";
+import {
+  AnswerBlock,
+  CTASection,
+  FAQSection,
+  InsightCard,
+  JsonLd,
+  SectionHeading,
+  TwoPathCta
+} from "@/components/public";
 import { PublicTopVisual } from "@/components/visual-media";
 import { Button } from "@/components/ui/button";
 import { INSIGHT_SECTION_COPY } from "@/config/insights";
 import { createPageMetadata } from "@/lib/seo";
+import {
+  buildBreadcrumbSchema,
+  buildCollectionPageSchema,
+  buildFaqSchema,
+  buildWebPageSchema
+} from "@/lib/structured-data";
 import {
   listInsightTopicClusters,
   listPublicInsights
@@ -13,7 +27,7 @@ import {
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Business Growth Insights For Founders",
+  title: "Business Owner Insights | The Business Circle Network",
   description:
     "Business growth insights for founders covering clarity, strategy, better decisions, and the next step into Business Circle membership.",
   keywords: [
@@ -24,6 +38,24 @@ export const metadata: Metadata = createPageMetadata({
   ],
   path: "/insights"
 });
+
+const INSIGHTS_FAQS = [
+  {
+    question: "What is BCN Intelligence?",
+    answer:
+      "BCN Intelligence is the insight layer of The Business Circle Network. It helps business owners understand relevant business news, market shifts and practical issues through a calmer, more useful lens than normal news feeds."
+  },
+  {
+    question: "Why should business owners read BCN Intelligence?",
+    answer:
+      "It helps owners focus on what changed, why it matters, who it could affect and what to think about next without adding more noise."
+  },
+  {
+    question: "Is the deeper insight layer inside membership?",
+    answer:
+      "Yes. Public insights are useful on their own, while membership adds the fuller resources, prompts, rooms and practical follow-through."
+  }
+] as const;
 
 const journeyItems = [
   {
@@ -58,6 +90,40 @@ export default async function InsightsPage() {
 
   return (
     <div className="public-page-stack">
+      <JsonLd
+        data={buildCollectionPageSchema({
+          title: "Business Owner Insights",
+          description:
+            "BCN Intelligence helps owners read business issues through a calmer and more useful lens.",
+          path: "/insights",
+          keywords: [
+            "business owner insights",
+            "BCN Intelligence",
+            "business growth insights",
+            "founder strategy articles"
+          ],
+          itemPaths: insights.map((insight) => `/insights/${insight.slug}`)
+        })}
+      />
+      <JsonLd
+        data={buildWebPageSchema({
+          title: "BCN Intelligence",
+          description:
+            "The insight layer of The Business Circle Network for business owners who want clearer context.",
+          path: "/insights",
+          primaryQuestion: "What is BCN Intelligence?",
+          primaryAnswer:
+            "BCN Intelligence is the insight layer of The Business Circle Network. It helps business owners understand relevant business news, market shifts and practical issues through a calmer, more useful lens than normal news feeds."
+        })}
+      />
+      <JsonLd
+        data={buildBreadcrumbSchema([
+          { name: "Home", path: "/home" },
+          { name: "Insights", path: "/insights" }
+        ])}
+      />
+      <JsonLd data={buildFaqSchema([...INSIGHTS_FAQS])} />
+
       <PublicTopVisual
         placement={insightsHeroPlacement}
         eyebrow="BCN Intelligence"
@@ -118,6 +184,34 @@ export default async function InsightsPage() {
               </p>
             </article>
           </div>
+        </div>
+      </section>
+
+      <AnswerBlock
+        question="What is BCN Intelligence?"
+        answer="BCN Intelligence is the insight layer of The Business Circle Network. It helps business owners understand relevant business news, market shifts and practical issues through a calmer, more useful lens than normal news feeds."
+      />
+
+      <section className="public-section">
+        <SectionHeading
+          label="Why BCN Intelligence matters"
+          title="Business owners do not need more noise. They need useful context."
+          description="The important part is not just what happened. It is why it matters, who it affects, what it could change and what a serious owner should think about next."
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            "What changed",
+            "Why it matters to owners",
+            "Who it affects",
+            "What to watch next"
+          ].map((item) => (
+            <article
+              key={item}
+              className="rounded-[1.4rem] border border-border/80 bg-card/66 p-5 text-sm text-foreground shadow-panel-soft"
+            >
+              {item}
+            </article>
+          ))}
         </div>
       </section>
 
@@ -208,9 +302,19 @@ export default async function InsightsPage() {
       <CTASection
         title="This is just the surface layer"
         description="When you want the full frameworks, clearer sequence, and practical next steps, go deeper inside membership."
-        primaryAction={{ href: "/membership?from=/insights", label: "Go Deeper Inside Membership" }}
-        secondaryAction={{ href: "/founder", label: "Meet The Founder", variant: "outline" }}
+        primaryAction={{ href: "/membership?from=/insights", label: "Join as a founding member" }}
+        secondaryAction={{ href: "/audit", label: "Run the Founder Audit", variant: "outline" }}
+        analyticsSource="insights"
       />
+
+      <FAQSection
+        label="BCN Intelligence"
+        title="Questions about the insight layer"
+        description="Short answers on how public insight connects to the private member environment."
+        items={[...INSIGHTS_FAQS]}
+      />
+
+      <TwoPathCta source="insights" />
     </div>
   );
 }

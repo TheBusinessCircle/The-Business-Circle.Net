@@ -2,11 +2,16 @@ export const ANALYTICS_EVENTS = {
   rootEntry: "root_entry",
   joinMobileStepInside: "join_mobile_step_inside",
   joinDesktopStepInside: "join_desktop_step_inside",
+  publicCtaJoinClicked: "public_cta_join_clicked",
+  publicCtaAuditClicked: "public_cta_audit_clicked",
   auditStart: "audit_start",
+  founderAuditStarted: "founder_audit_started",
   auditComplete: "audit_complete",
   founderAuditCompleted: "founder_audit_completed",
+  founderAuditMembershipClicked: "founder_audit_membership_clicked",
   recommendedTierClicked: "recommended_tier_clicked",
   membershipTierSelected: "membership_tier_selected",
+  membershipTierViewed: "membership_tier_viewed",
   membershipCheckoutStarted: "membership_checkout_started",
   membershipSignupCompleted: "membership_signup_completed",
   checkoutStarted: "checkout_started",
@@ -33,6 +38,17 @@ type AnalyticsPayload = {
 
 type MembershipTierValue = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
 type BillingIntervalValue = "monthly" | "annual";
+type PublicCtaSource =
+  | "home"
+  | "about"
+  | "membership"
+  | "audit"
+  | "insights"
+  | "contact"
+  | "intent"
+  | "navigation"
+  | "footer"
+  | "unknown";
 
 const SENSITIVE_PROPERTY_PATTERNS = [
   /password/i,
@@ -124,6 +140,26 @@ export function trackMembershipCheckoutStarted(properties: {
   trackAnalyticsEvent(ANALYTICS_EVENTS.membershipCheckoutStarted, properties);
 }
 
+export function trackPublicCtaJoinClicked(properties: {
+  source: PublicCtaSource;
+  href: string;
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.publicCtaJoinClicked, properties);
+}
+
+export function trackPublicCtaAuditClicked(properties: {
+  source: PublicCtaSource;
+  href: string;
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.publicCtaAuditClicked, properties);
+}
+
+export function trackFounderAuditStarted(properties?: {
+  source?: PublicCtaSource;
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.founderAuditStarted, properties);
+}
+
 export function trackMembershipSignupCompleted(properties: {
   tier: MembershipTierValue;
   billingInterval: BillingIntervalValue;
@@ -137,6 +173,22 @@ export function trackFounderAuditCompleted(properties: {
   tier: string;
 }) {
   trackAnalyticsEvent(ANALYTICS_EVENTS.founderAuditCompleted, properties);
+}
+
+export function trackFounderAuditMembershipClicked(properties: {
+  score: number;
+  tier: string;
+  href: string;
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.founderAuditMembershipClicked, properties);
+}
+
+export function trackMembershipTierViewed(properties: {
+  source: "membership" | "audit" | "join";
+  tier: MembershipTierValue;
+  billingInterval?: BillingIntervalValue;
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.membershipTierViewed, properties);
 }
 
 export function trackProfileViewed(properties: {

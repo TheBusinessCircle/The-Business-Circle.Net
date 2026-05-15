@@ -17,7 +17,9 @@ import { FirstSevenDaysBlock } from "@/components/public/launch-cro-blocks";
 import {
   ANALYTICS_EVENTS,
   trackAnalyticsEvent,
-  trackFounderAuditCompleted
+  trackFounderAuditCompleted,
+  trackFounderAuditMembershipClicked,
+  trackFounderAuditStarted
 } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import {
@@ -115,15 +117,16 @@ export function FounderAuditClient() {
             <p className="premium-kicker">Founder Audit</p>
             <div className="space-y-5">
               <h1 className="font-display text-4xl leading-[0.98] tracking-tight text-foreground sm:text-5xl lg:text-7xl">
-                Find the room that fits where your business is right now.
+                Use the Founder Audit as a strategic first step into the right room.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-white/80 sm:text-xl">
-                Answer 10 focused questions and get a clear recommendation for where to start
-                inside The Business Circle.
+                Answer 10 focused questions and understand which level of business environment
+                may fit your current stage best.
               </p>
               <p className="max-w-3xl text-sm leading-relaxed text-silver">
-                This is not a test. It is a clarity checkpoint for business owners who want to make
-                their next move with more direction.
+                This is not a full business diagnosis and it does not pretend to know everything
+                about your company. It is a calm starting point for owners who want better context
+                before joining.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -131,6 +134,7 @@ export function FounderAuditClient() {
                 type="button"
                 onClick={() => {
                   trackAnalyticsEvent(ANALYTICS_EVENTS.auditStart);
+                  trackFounderAuditStarted({ source: "audit" });
                   setStage("questions");
                 }}
                 className={cn(buttonVariants({ variant: "default", size: "lg" }), "group")}
@@ -169,7 +173,7 @@ export function FounderAuditClient() {
         <div className="relative space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
-              <p className="premium-kicker">Audit Result</p>
+                <p className="premium-kicker">Audit Result</p>
               <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
                 Score {totalScore} of 30
               </span>
@@ -192,14 +196,14 @@ export function FounderAuditClient() {
                     Current phase
                   </span>
                   <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                    Recommended: {recommendation.tierName}
+                    Your next best room: {recommendation.tierName}
                   </span>
                 </div>
                 <h1 className="max-w-4xl font-display text-3xl leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                  {recommendation.headline}
+                  Based on your answers, your next best room is likely {recommendation.tierName}.
                 </h1>
                 <p className="max-w-3xl text-base leading-relaxed text-white/82 sm:text-lg">
-                  {recommendation.summary}
+                  {recommendation.summary} You can review the membership options before joining.
                 </p>
               </div>
 
@@ -225,19 +229,24 @@ export function FounderAuditClient() {
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href={recommendation.membershipHref}
-                  onClick={() =>
+                  onClick={() => {
+                    trackFounderAuditMembershipClicked({
+                      score: totalScore,
+                      tier: recommendation.tierName,
+                      href: recommendation.membershipHref
+                    });
                     trackAnalyticsEvent(ANALYTICS_EVENTS.recommendedTierClicked, {
                       source: "audit",
                       score: totalScore,
                       tier: recommendation.tierName
-                    })
-                  }
+                    });
+                  }}
                   className={cn(
                     buttonVariants({ variant: "default", size: "lg" }),
                     "group w-full whitespace-normal text-center sm:w-auto"
                   )}
                 >
-                  Continue with recommended tier
+                  Review {recommendation.tierName} membership
                   <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
                 </Link>
                 <Link
@@ -261,7 +270,8 @@ export function FounderAuditClient() {
               </div>
 
               <p className="rounded-[1.1rem] border border-white/10 bg-background/22 px-4 py-3 text-sm leading-relaxed text-silver">
-                Founder access is currently open while allocation remains.
+                If you are cautious, that is sensible. The audit is here to give direction, not
+                pressure. Review the rooms, compare the tiers and only join when the fit is clear.
               </p>
 
               <div className="rounded-[1.45rem] border border-white/10 bg-background/24 p-4 sm:p-5">

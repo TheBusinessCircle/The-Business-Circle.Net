@@ -14,7 +14,11 @@ import { ADMIN_NAV } from "@/lib/constants";
 import { requireAdmin } from "@/lib/session";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_CONFIG.url)
+  metadataBase: new URL(SITE_CONFIG.url),
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {

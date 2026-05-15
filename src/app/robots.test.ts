@@ -25,7 +25,8 @@ describe("robots output", () => {
     const disallow = Array.isArray(rules.disallow) ? rules.disallow : [rules.disallow];
 
     expect(disallow).not.toEqual(
-      expect.arrayContaining(["/", "/about", "/membership", "/join", "/faq", "/insights", "/contact"])
+      expect.arrayContaining(["/", "/about", "/membership", "/audit", "/faq", "/insights", "/contact"])
     );
+    expect(disallow).toEqual(expect.arrayContaining(["/join", "/join-mobile", "/join-desktop", "/api"]));
   });
 });

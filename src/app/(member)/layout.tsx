@@ -28,7 +28,11 @@ import { requireUser } from "@/lib/session";
 import { getDirectMessageNavCounts } from "@/server/messages";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_CONFIG.url)
+  metadataBase: new URL(SITE_CONFIG.url),
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export default async function MemberLayout({ children }: { children: ReactNode }) {

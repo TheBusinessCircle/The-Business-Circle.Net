@@ -64,6 +64,21 @@ const FAQ_SUPPORT_ITEMS = [
     question: "What makes this different from a normal networking group?",
     answer:
       "BCN is a structured private environment, not a loose networking circle. The focus is on quality of room, standards, access, and better business conversations rather than generic visibility."
+  },
+  {
+    question: "Is The Business Circle Network a coaching programme?",
+    answer:
+      "No. BCN is a private business owner environment. Founder-led services may sit alongside the platform, but membership itself is built around rooms, resources, profiles, standards and useful conversation."
+  },
+  {
+    question: "How are member payments handled?",
+    answer:
+      "Membership checkout and billing are handled through Stripe. Member access only opens after the relevant payment or subscription status is confirmed."
+  },
+  {
+    question: "Can I change tiers later?",
+    answer:
+      "Yes. The membership model is designed around stage and fit. Owners can review the room they are in and move deeper when the business genuinely needs more context."
   }
 ] as const;
 

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Mail, MessageSquare, ShieldCheck } from "lucide-react";
-import { AuditFitCta } from "@/components/public";
+import { AnswerBlock, AuditFitCta, FAQSection, JsonLd, TwoPathCta } from "@/components/public";
 import { PublicTopVisual } from "@/components/visual-media";
 import { formatCompanyTrustLine } from "@/config/company";
 import { ContactForm } from "@/components/platform/contact-form";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
+import { buildBreadcrumbSchema, buildFaqSchema, buildWebPageSchema } from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 import { getSiteContentSection } from "@/server/site-content";
 import { getVisualMediaPlacement } from "@/server/visual-media";
@@ -24,6 +25,24 @@ export const metadata: Metadata = createPageMetadata({
   path: "/contact"
 });
 
+const CONTACT_FAQS = [
+  {
+    question: "How can business owners contact The Business Circle Network?",
+    answer:
+      "Business owners can contact The Business Circle Network through the contact page to ask about membership, access, founder-led services or the private business environment."
+  },
+  {
+    question: "Should I run the Founder Audit before contacting BCN?",
+    answer:
+      "You can. The Founder Audit is useful if you want a clearer sense of membership fit before asking a detailed question."
+  },
+  {
+    question: "Can existing members use the contact page?",
+    answer:
+      "Yes. Existing members can use the contact page for access, account, billing or platform questions that need a direct response."
+  }
+] as const;
+
 export default async function ContactPage() {
   const [footerContent, publicTopPlacement] = await Promise.all([
     getSiteContentSection("footer"),
@@ -32,6 +51,25 @@ export default async function ContactPage() {
 
   return (
     <div className="public-page-stack">
+      <JsonLd
+        data={buildWebPageSchema({
+          title: "Contact The Business Circle Network",
+          description:
+            "How business owners can contact BCN about membership, access and founder-led services.",
+          path: "/contact",
+          primaryQuestion: "How can business owners contact The Business Circle Network?",
+          primaryAnswer:
+            "Business owners can contact The Business Circle Network through the contact page to ask about membership, access, founder-led services or the private business environment. The platform is designed for serious owners who want useful connection and clearer business conversations."
+        })}
+      />
+      <JsonLd
+        data={buildBreadcrumbSchema([
+          { name: "Home", path: "/home" },
+          { name: "Contact", path: "/contact" }
+        ])}
+      />
+      <JsonLd data={buildFaqSchema([...CONTACT_FAQS])} />
+
       <PublicTopVisual
         placement={publicTopPlacement}
         eyebrow="Contact"
@@ -63,14 +101,14 @@ export default async function ContactPage() {
                 href="/membership"
                 className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
               >
-                Review Membership
+                Join as a founding member
                 <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
               </Link>
               <Link
-                href="/about"
+                href="/audit"
                 className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
               >
-                Read About
+                Run the Founder Audit
               </Link>
             </div>
           </div>
@@ -91,6 +129,11 @@ export default async function ContactPage() {
           </aside>
         </div>
       </section>
+
+      <AnswerBlock
+        question="How can business owners contact The Business Circle Network?"
+        answer="Business owners can contact The Business Circle Network through the contact page to ask about membership, access, founder-led services or the private business environment. The platform is designed for serious owners who want useful connection and clearer business conversations."
+      />
 
       <AuditFitCta />
 
@@ -153,6 +196,15 @@ export default async function ContactPage() {
           />
         </div>
       </div>
+
+      <FAQSection
+        label="Contact"
+        title="Contact questions, answered clearly"
+        description="Use this page for membership fit, founder-led services, partnerships and support."
+        items={[...CONTACT_FAQS]}
+      />
+
+      <TwoPathCta source="contact" />
     </div>
   );
 }

@@ -255,16 +255,20 @@ export function isSiteContentSlug(value: string): value is SiteContentSlug {
 }
 
 export const SITE_CONTENT_REVALIDATION_PATHS: Record<SiteContentSlug, string[]> = {
-  home: ["/", "/join"],
+  home: ["/", "/home", "/join"],
   about: ["/about"],
   membership: ["/", "/membership", "/join"],
   footer: [
     "/",
+    "/home",
     "/about",
     "/membership",
+    "/audit",
     "/join",
     "/contact",
     "/founder",
+    "/business-networking-uk",
+    "/private-business-network",
     "/dpia",
     "/privacy-policy",
     "/terms-of-service",

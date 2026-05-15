@@ -57,6 +57,18 @@ export function InsightCard({ insight, featured = false }: InsightCardProps) {
         <span>{insight.tierLabel} depth inside membership</span>
       </div>
 
+      <div className="mt-5 grid gap-2 text-xs leading-relaxed text-muted sm:grid-cols-3">
+        <span className="rounded-xl border border-border/70 bg-background/24 px-3 py-2">
+          Why it matters: clearer owner context.
+        </span>
+        <span className="rounded-xl border border-border/70 bg-background/24 px-3 py-2">
+          Who it affects: {insight.category.toLowerCase()} decisions.
+        </span>
+        <span className="rounded-xl border border-border/70 bg-background/24 px-3 py-2">
+          Watch next: {insight.keyword}.
+        </span>
+      </div>
+
       <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground">
         Read insight
         <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />

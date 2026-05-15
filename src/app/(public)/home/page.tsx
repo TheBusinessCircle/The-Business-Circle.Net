@@ -24,13 +24,24 @@ import {
   FirstSevenDaysBlock,
   LaunchTrustProof,
   MemberPreviewLayer,
-  SectionHeading
+  AnswerBlock,
+  MovementInsideRoomSection,
+  NaturalInternalLinks,
+  OutcomeStrip,
+  PrivacyBoundaryNote,
+  SectionHeading,
+  TrustTrailSection
 } from "@/components/public";
 import { TestimonialSection } from "@/components/public/testimonial-section";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
-import { buildBreadcrumbSchema, buildCollectionPageSchema } from "@/lib/structured-data";
+import {
+  buildBreadcrumbSchema,
+  buildCollectionPageSchema,
+  buildFaqSchema,
+  buildWebPageSchema
+} from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 import type { VisualMediaRenderablePlacement } from "@/lib/visual-media/types";
 import { buildPublicTrustDisplay, getPublicTrustSnapshot } from "@/server/public-site";
@@ -39,9 +50,9 @@ import { getSiteContentSection } from "@/server/site-content";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Private Founder-Led Business Environment For Owners In The UK",
+  title: "Private Business Network for Owners",
   description:
-    "The Business Circle Network is a private business environment for UK business owners who want clearer thinking, better conversations, and more controlled business progress.",
+    "A private founder-led business network for UK owners who want better conversations, clearer thinking, trusted relationships and useful business context.",
   path: "/home",
   keywords: [
     "business network for owners",
@@ -140,6 +151,15 @@ const ECOSYSTEM_ITEMS = [
   "Insights"
 ] as const;
 
+const HERO_OUTCOMES = [
+  "Better conversations",
+  "Founder-led standards",
+  "Private member rooms",
+  "Useful business resources",
+  "Profile visibility",
+  "Serious owner connections"
+] as const;
+
 const PUBLIC_PREVIEW_THEMES = [
   "Business direction and decision quality",
   "Positioning, visibility, and enquiry flow",
@@ -149,35 +169,37 @@ const PUBLIC_PREVIEW_THEMES = [
 const HOW_IT_WORKS = [
   {
     step: "01",
-    title: "Join or apply for access",
-    description: "Choose the membership level that fits now and move into the next step with context.",
+    title: "Step inside",
+    description: "Create your account through the membership route and enter a private business owner environment built around standards.",
     icon: Compass
   },
   {
     step: "02",
-    title: "Enter the private network",
-    description: "Once inside, profiles, resources, conversations, and next steps are ready to use.",
+    title: "Build context",
+    description: "Shape your profile, join the right rooms, explore useful resources and start better conversations with other business owners.",
     icon: ShieldCheck
   },
   {
     step: "03",
-    title: "Start connecting, learning, and progressing",
-    description: "Use member context to improve judgement, find the right people, and keep moving well.",
+    title: "Create movement",
+    description: "Use the network to find clearer thinking, trusted relationships, useful introductions and practical business momentum.",
     icon: TrendingUp
   }
 ] as const;
 
 const FOR_AUDIENCE = [
-  "Business owners",
-  "Founders",
-  "Operators",
-  "People responsible for growth"
+  "Owners carrying decisions",
+  "Founders building something serious",
+  "Local and UK business owners who want better people around them",
+  "Operators who want useful conversations, not empty networking",
+  "Business owners who value trust, privacy and standards"
 ] as const;
 
 const NOT_FOR_AUDIENCE = [
-  "Casual browsers",
-  "Shortcut seekers",
-  "Passive content consumers"
+  "People looking for spammy promotion",
+  "People wanting a free social feed",
+  "People who do not respect the room",
+  "People looking for quick hype instead of real relationships"
 ] as const;
 
 function PreviewMediaCard({
@@ -329,32 +351,45 @@ export default async function HomePage() {
             "private business community UK",
             "private founder-led business environment"
           ],
-          itemPaths: ["/about", "/membership", "/join", "/contact"]
+          itemPaths: ["/about", "/membership", "/audit", "/insights", "/contact"]
+        })}
+      />
+      <JsonLd
+        data={buildWebPageSchema({
+          title: "The Business Circle Network",
+          description:
+            "A private founder-led business environment for UK business owners who want clearer thinking, better conversations and trusted relationships.",
+          path: "/home",
+          primaryQuestion: "What is The Business Circle Network?",
+          primaryAnswer:
+            "The Business Circle Network is a private founder-led business environment for UK business owners who want clearer thinking, better conversations, stronger relationships and a calmer place to make better business decisions. It is designed as a structured alternative to noisy networking groups, social feeds and loose business communities."
         })}
       />
       <JsonLd data={buildBreadcrumbSchema([{ name: "Home", path: "/home" }])} />
+      <JsonLd data={buildFaqSchema(homeContent.faqs)} />
 
       <PublicTopVisual
         placement={homeHeroPlacement}
         eyebrow="The Business Circle Network"
-        title="Private. Structured. Built for serious owner conversations."
-        description="A calm first view of the network before the homepage story begins."
+        title="A private business network for serious owners who want better conversations."
+        description="Clearer thinking, trusted relationships, useful resources and a calmer room around the business."
         tone="cinematic"
       />
 
       <HeroSection
-        eyebrow="Private membership network"
-        title="A Private Network for Business Owners Who Want Clarity, Not Noise"
-        description="A structured place for useful conversations, better decisions, and measurable business progress."
-        supportLine="For founders, operators, and business owners who are done building alone."
+        eyebrow="Private founder-led business network"
+        title="A private business network for owners who need better conversations, clearer thinking and the right people around them."
+        description="The Business Circle Network gives serious business owners a calmer, structured place to connect, share context, access useful resources and build trusted relationships without the noise of normal networking."
+        supportLine="Built for business owners, founders and operators who want signal, trust and useful movement."
         callouts={[
-          "Structured business conversations",
-          "Real insight, not content churn",
-          "Private, quality-controlled space"
+          "Better conversations",
+          "Founder-led standards",
+          "Useful business context"
         ]}
-        primaryAction={{ href: "/membership", label: "Join The Business Circle" }}
-        secondaryAction={{ href: "#how-it-works", label: "See How It Works", variant: "outline" }}
+        primaryAction={{ href: "/membership", label: "Join as a founding member" }}
+        secondaryAction={{ href: "/audit", label: "Run the Founder Audit", variant: "outline" }}
         metrics={trustDisplay.items}
+        analyticsSource="home"
         aside={
           <div className="flex h-full flex-col gap-5">
             <article className="public-panel p-6 sm:p-7">
@@ -398,6 +433,15 @@ export default async function HomePage() {
           </div>
         }
       />
+
+      <OutcomeStrip items={HERO_OUTCOMES} />
+
+      <AnswerBlock
+        question="What is The Business Circle Network?"
+        answer="The Business Circle Network is a private founder-led business environment for UK business owners who want clearer thinking, better conversations, stronger relationships and a calmer place to make better business decisions. It is designed as a structured alternative to noisy networking groups, social feeds and loose business communities."
+      />
+
+      <NaturalInternalLinks />
 
       <CheckoutReassuranceBlock />
 
@@ -589,6 +633,10 @@ export default async function HomePage() {
         founderRoomCount={founderRoomsOpen.length}
       />
 
+      <MovementInsideRoomSection />
+
+      <PrivacyBoundaryNote />
+
       <TestimonialSection
         proofType={TestimonialProofType.BCN_MEMBER}
         eyebrow="MEMBER PROOF"
@@ -761,6 +809,8 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <TrustTrailSection />
+
       <FAQSection
         id="faq"
         label="Questions"
@@ -770,10 +820,11 @@ export default async function HomePage() {
       />
 
       <CTASection
-        title="If You're Serious About Your Business, This Is Where You Should Be"
-        description="Founding member access is open for early members."
-        primaryAction={{ href: "/membership", label: "Join The Business Circle" }}
-        secondaryAction={{ href: "/about", label: "Read Why It Exists", variant: "outline" }}
+        title="Ready to choose the room that fits?"
+        description="Join as a founding member if you are ready. Run the Founder Audit first if you want a calmer way to check your fit."
+        primaryAction={{ href: "/membership", label: "Join as a founding member" }}
+        secondaryAction={{ href: "/audit", label: "Run the Founder Audit", variant: "outline" }}
+        analyticsSource="home"
       />
 
       <div className="fixed inset-x-4 bottom-4 z-40 lg:hidden">
@@ -784,7 +835,7 @@ export default async function HomePage() {
             "w-full rounded-[1.35rem] border border-gold/28 shadow-[0_18px_40px_rgba(2,6,23,0.32)] backdrop-blur"
           )}
         >
-          Join The Business Circle
+          Join as a founding member
           <ArrowRight size={16} className="ml-2" />
         </Link>
       </div>
