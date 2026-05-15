@@ -42,9 +42,9 @@ const styles = {
   } satisfies CSSProperties,
   logo: {
     display: "inline-block",
-    width: "84px",
-    height: "84px",
-    borderRadius: "9999px",
+    width: "92px",
+    height: "92px",
+    borderRadius: "20px",
     border: `1px solid ${BCN_EMAIL_THEME.cardBorder}`,
     backgroundColor: BCN_EMAIL_THEME.backgroundAccent,
     objectFit: "contain"
@@ -62,7 +62,8 @@ const styles = {
     fontSize: "12px",
     fontWeight: 700,
     letterSpacing: "0.18em",
-    textAlign: "center"
+    textAlign: "center",
+    textTransform: "uppercase"
   } satisfies CSSProperties,
   heading: {
     margin: "0 0 14px",
@@ -185,7 +186,7 @@ export function BcnEmailLayout({
   children,
   footerText
 }: BcnEmailLayoutProps) {
-  const logoUrl = resolveEmailAssetUrl("/branding/the-business-circle-logo.webp");
+  const logoUrl = resolveEmailAssetUrl("/branding/the-business-circle-logo.png");
 
   return (
     <div style={styles.root}>
@@ -195,8 +196,8 @@ export function BcnEmailLayout({
           <img
             src={logoUrl}
             alt={BCN_EMAIL_FOOTER_NAME}
-            width="84"
-            height="84"
+            width="92"
+            height="92"
             style={styles.logo}
           />
         </div>

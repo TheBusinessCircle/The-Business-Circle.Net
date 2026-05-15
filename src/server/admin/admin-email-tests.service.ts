@@ -8,6 +8,7 @@ import {
   InnerCircleUpgradeEmail,
   PasswordChangedEmail,
   PasswordResetEmail,
+  TestimonialRequestEmail,
   VerifyEmailAddressEmail,
   WelcomeMemberEmail
 } from "@/emails";
@@ -24,6 +25,7 @@ export const ADMIN_EMAIL_TEST_TYPE_IDS = [
   "password-changed-email",
   "contact-auto-reply-email",
   "contact-admin-notification-email",
+  "testimonial-request-email",
   "inner-circle-upgrade-email"
 ] as const;
 
@@ -154,6 +156,17 @@ function buildDefinitionMap(): Record<AdminEmailTestTypeId, AdminEmailTestDefini
       includesCta: false,
       includesFallbackLink: false
     },
+    "testimonial-request-email": {
+      id: "testimonial-request-email",
+      label: "Testimonial request email",
+      categoryLabel: "CTA email",
+      description: "Tests the request email sent when asking a member or client for public proof.",
+      purpose: "Checks testimonial request tone, CTA button, fallback link, and review reassurance.",
+      scenarioName: "Member testimonial request preview",
+      subjectPreview: "BCN Test | Could you share a few words?",
+      includesCta: true,
+      includesFallbackLink: true
+    },
     "inner-circle-upgrade-email": {
       id: "inner-circle-upgrade-email",
       label: "Inner Circle upgrade email",
@@ -248,7 +261,7 @@ async function buildAdminEmailTestPayload(
     case "billing-receipt-email": {
       const react = createElement(BillingReceiptEmail, {
         firstName: "Trevor",
-        amount: "£249.00",
+        amount: "GBP 249.00",
         planName: "Inner Circle Annual Membership",
         dashboardUrl
       });
@@ -261,7 +274,7 @@ async function buildAdminEmailTestPayload(
           eyebrow: "Billing receipt",
           heading: "Your payment has been received",
           bodyLines: [
-            "We have received your payment of £249.00 for Inner Circle Annual Membership.",
+            "We have received your payment of GBP 249.00 for Inner Circle Annual Membership.",
             "Thank you for being part of The Business Circle Network.",
             ...commonPreviewNoteLines()
           ],
@@ -359,6 +372,8 @@ async function buildAdminEmailTestPayload(
         company: "Newton Advisory",
         subject: "Founder strategy session enquiry",
         sourcePath: "/contact",
+        source: "website",
+        memberContextLines: ["Membership tier: Inner Circle", "Role: INNER_CIRCLE"],
         message:
           "Hi BCN team,\n\nI would like to explore a founder strategy session to tighten our delivery rhythm and sharpen how the business operates week to week.\n\nBest regards,\nTrevor"
       });
@@ -376,6 +391,9 @@ async function buildAdminEmailTestPayload(
             "Company: Newton Advisory",
             "Subject: Founder strategy session enquiry",
             "Source: /contact",
+            "Source type: website",
+            "Membership tier: Inner Circle",
+            "Role: INNER_CIRCLE",
             "",
             "Message:",
             "Hi BCN team,",
@@ -386,6 +404,41 @@ async function buildAdminEmailTestPayload(
             "Trevor",
             "",
             ...commonPreviewNoteLines()
+          ]
+        }),
+        html: await renderEmailHtml(react)
+      };
+    }
+    case "testimonial-request-email": {
+      const testimonialUrl = absoluteUrl("/testimonial/bcn_test_preview_token?email-test=1");
+      const react = createElement(TestimonialRequestEmail, {
+        recipientName: "Trevor Newton",
+        proofLabel: "The Business Circle Network",
+        testimonialUrl,
+        contextNote:
+          "This preview shows the member-facing proof request used when an admin asks for a testimonial.",
+        subjectContext: "bcn"
+      });
+
+      return {
+        definition,
+        subject: definition.subjectPreview,
+        text: buildBrandedEmailText({
+          greeting: "Hi Trevor,",
+          eyebrow: "Testimonial request",
+          heading: "Could you share a few words?",
+          bodyLines: [
+            "I hope you are well. This is a simple request for a short testimonial for The Business Circle Network.",
+            "No need to over-polish it. A few honest sentences about what became clearer, easier, or more useful is enough.",
+            "This preview shows the member-facing proof request used when an admin asks for a testimonial.",
+            ...commonPreviewNoteLines()
+          ],
+          ctaLabel: "Share your testimonial",
+          ctaUrl: testimonialUrl,
+          fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
+          noteLines: [
+            "Your response is reviewed before anything is displayed publicly.",
+            "You can choose which name and business details may be shown."
           ]
         }),
         html: await renderEmailHtml(react)

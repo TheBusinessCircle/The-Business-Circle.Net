@@ -15,11 +15,12 @@ import {
   BCN_RULES_VERSION,
   TERMS_VERSION
 } from "@/config/legal";
-import { BillingReceiptEmail } from "@/emails";
+import { BillingReceiptEmail, InnerCircleUpgradeEmail } from "@/emails";
 import {
   getMembershipPlan,
   getMembershipPriceDifference,
   getMembershipStripePriceId,
+  getMembershipTierRank,
   resolveTierFromPriceId,
   type MembershipBillingInterval,
   type MembershipBillingVariant
@@ -485,10 +486,61 @@ async function ensureStripeCustomerIdForPendingRegistration(input: {
   return customer.id;
 }
 
+function crossesIntoInnerCircle(previousTier: MembershipTier, nextTier: MembershipTier) {
+  return (
+    getMembershipTierRank(previousTier) < getMembershipTierRank(MembershipTier.INNER_CIRCLE) &&
+    getMembershipTierRank(nextTier) >= getMembershipTierRank(MembershipTier.INNER_CIRCLE)
+  );
+}
+
+async function sendInnerCircleUpgradeEmail(input: {
+  email: string;
+  firstName: string;
+}) {
+  const innerCircleUrl = absoluteUrl("/inner-circle");
+  const emailTemplate = createElement(InnerCircleUpgradeEmail, {
+    firstName: input.firstName,
+    innerCircleUrl
+  });
+  const html = await renderEmailHtml(emailTemplate);
+
+  const sendResult = await sendTransactionalEmail({
+    to: input.email,
+    subject: "Your Inner Circle access is now active",
+    text: buildBrandedEmailText({
+      greeting: `Hi ${input.firstName},`,
+      eyebrow: "Inner Circle",
+      heading: "Your Inner Circle access is now active",
+      bodyLines: [
+        "Your upgrade is complete. You can now access private channels, premium resources, and the deeper BCN Inner Circle experience."
+      ],
+      ctaLabel: "Enter Inner Circle",
+      ctaUrl: innerCircleUrl,
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
+      noteLines: ["Use the link above to step straight into the member environment."]
+    }),
+    html,
+    react: emailTemplate,
+    tags: [
+      { name: "type", value: "inner-circle-upgrade" },
+      { name: "source", value: "stripe-webhook" }
+    ]
+  });
+
+  if (!sendResult.sent && !sendResult.skipped) {
+    logServerWarning("inner-circle-upgrade-email-delivery-failed");
+  }
+}
+
 async function syncUserMembershipTier(userId: string, tier: MembershipTier) {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { role: true }
+    select: {
+      email: true,
+      membershipTier: true,
+      name: true,
+      role: true
+    }
   });
 
   if (!user) {
@@ -509,6 +561,16 @@ async function syncUserMembershipTier(userId: string, tier: MembershipTier) {
       role: nextRole
     }
   });
+
+  if (
+    user.role !== Role.ADMIN &&
+    crossesIntoInnerCircle(user.membershipTier, tier)
+  ) {
+    await sendInnerCircleUpgradeEmail({
+      email: user.email,
+      firstName: user.name?.trim() || "Member"
+    });
+  }
 }
 
 function resolveRequestedTier(value: string | null | undefined): MembershipTier {
