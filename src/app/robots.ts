@@ -15,6 +15,8 @@ const PUBLIC_ALLOW = [
   "/terms-of-service",
   "/cookie-policy",
   "/dpia",
+  "/business-owner-network-uk",
+  "/founder-community-uk",
   "/business-networking-uk",
   "/private-business-network",
   "/llms.txt"

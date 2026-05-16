@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { PublicIntentPage } from "@/config/public-intent-pages";
 import {
   AnswerBlock,
@@ -47,7 +48,7 @@ export function SeoIntentPage({ page }: { page: PublicIntentPage }) {
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <TrackedPublicCtaLink
               href="/membership"
-              label="Join as a founding member"
+              label="Explore Membership"
               source="intent"
               showArrow
               className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
@@ -62,7 +63,11 @@ export function SeoIntentPage({ page }: { page: PublicIntentPage }) {
         </div>
       </section>
 
-      <AnswerBlock question={page.answerQuestion} answer={page.answerText} />
+      <AnswerBlock
+        label="What this page answers"
+        question={page.answerQuestion}
+        answer={page.answerText}
+      />
 
       <section className="public-section">
         <div className="grid gap-5 lg:grid-cols-2">
@@ -90,6 +95,42 @@ export function SeoIntentPage({ page }: { page: PublicIntentPage }) {
           ))}
         </div>
       </section>
+
+      {page.focusSections?.length ? (
+        <section className="public-section">
+          <div className="grid gap-5 lg:grid-cols-2">
+            {page.focusSections.map((section) => (
+              <article
+                key={section.title}
+                className="rounded-[1.8rem] border border-border/80 bg-card/66 p-5 shadow-panel-soft sm:p-6"
+              >
+                <p className="premium-kicker">{section.label}</p>
+                <h2 className="mt-4 font-display text-3xl text-foreground">{section.title}</h2>
+                <p className="mt-4 text-base leading-relaxed text-muted">{section.copy}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {page.relatedLinks?.length ? (
+        <section className="public-section-tight">
+          <div className="rounded-[1.65rem] border border-border/80 bg-card/62 p-5 shadow-panel-soft">
+            <p className="premium-kicker">Related public pages</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {page.relatedLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-xl border border-border/80 bg-background/24 px-4 py-3 text-sm text-silver transition-colors hover:border-gold/28 hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <HowBcnWorksSection />
       <TrustTrailSection />

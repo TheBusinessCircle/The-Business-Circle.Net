@@ -14,8 +14,7 @@ import {
 } from "@/lib/structured-data";
 import {
   getInsightTopicClusterBySlug,
-  listInsightTopicClusters,
-  listInsightTopicClusterSlugs
+  listInsightTopicClusters
 } from "@/server/insights/insight.service";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
@@ -23,7 +22,9 @@ type PageProps = {
   params: Promise<{ clusterSlug: string }>;
 };
 
-export const dynamicParams = false;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const dynamicParams = true;
 
 function createFallbackMetadata(clusterSlug: string): Metadata {
   return {
@@ -37,10 +38,6 @@ function createFallbackMetadata(clusterSlug: string): Metadata {
   };
 }
 
-export function generateStaticParams() {
-  return listInsightTopicClusterSlugs().map((clusterSlug) => ({ clusterSlug }));
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { clusterSlug } = await params;
   const cluster = getInsightTopicClusterBySlug(clusterSlug);
@@ -49,7 +46,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return createFallbackMetadata(clusterSlug);
   }
 
-  const pillar = INSIGHT_TOPIC_PILLARS[cluster.slug];
+  const pillar = INSIGHT_TOPIC_PILLARS[cluster.slug] ?? {
+    headline: `${cluster.title} insights for serious business owners`
+  };
 
   return {
     ...createPageMetadata({
@@ -69,17 +68,31 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
     notFound();
   }
 
-  const pillar = INSIGHT_TOPIC_PILLARS[cluster.slug];
+  const clusterInsights = [
+    ...(cluster.pillarInsight ? [cluster.pillarInsight] : []),
+    ...cluster.supportingInsights
+  ];
+  const pillar = INSIGHT_TOPIC_PILLARS[cluster.slug] ?? {
+    headline: `${cluster.title} insights for serious business owners`,
+    introduction: [cluster.description, cluster.supportLine],
+    sections: [
+      {
+        title: `Why ${cluster.title.toLowerCase()} matters`,
+        description: cluster.keyword,
+        paragraphs: [
+          "This topic page gathers the public previews that are already published. The aim is to make the signal clear without exposing the deeper member frameworks.",
+          "Each public article is useful on its own, then points towards the protected member resource where the implementation work belongs."
+        ],
+        supportingArticleSlugs: clusterInsights.map((insight) => insight.slug)
+      }
+    ]
+  };
   const insightsHeroPlacement = await getVisualMediaPlacement("intelligence.hero");
   const membershipPath =
     cluster.pillarInsight?.recommendedMembershipHref ?? `/membership?from=${cluster.href}`;
   const relatedClusters = listInsightTopicClusters()
     .filter((item) => item.slug !== cluster.slug)
     .slice(0, 3);
-  const clusterInsights = [
-    ...(cluster.pillarInsight ? [cluster.pillarInsight] : []),
-    ...cluster.supportingInsights
-  ];
   const [featuredSupportingInsight, ...remainingSupportingInsights] = clusterInsights;
 
   const breadcrumbSchema = buildBreadcrumbSchema([
@@ -182,7 +195,7 @@ export default async function InsightTopicClusterPage({ params }: PageProps) {
                       >
                         <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Related article</p>
                         <p className="mt-2 text-base font-medium text-foreground">{insight.title}</p>
-                        <p className="mt-2 text-sm leading-relaxed text-muted">{insight.summary}</p>
+                        <p className="mt-2 text-sm leading-relaxed text-muted">{insight.excerpt}</p>
                       </Link>
                     ))}
                   </div>

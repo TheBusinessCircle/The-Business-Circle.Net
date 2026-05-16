@@ -10,7 +10,12 @@ describe("sitemap route policy", () => {
     expect(source).toContain("/membership");
     expect(source).toContain("/audit");
     expect(PUBLIC_INTENT_PAGE_ROUTES).toEqual(
-      expect.arrayContaining(["/private-business-network", "/business-networking-uk"])
+      expect.arrayContaining([
+        "/private-business-network",
+        "/business-networking-uk",
+        "/business-owner-network-uk",
+        "/founder-community-uk"
+      ])
     );
     expect(source).toContain("PUBLIC_INTENT_PAGE_ROUTES");
     expect(source).toContain("/terms-of-service");

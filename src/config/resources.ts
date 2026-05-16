@@ -117,6 +117,20 @@ export const RESOURCE_TYPE_OPTIONS: ResourceTypeOption[] = [
 
 export const RESOURCE_CATEGORIES_BY_TIER: Record<ResourceTier, string[]> = {
   FOUNDATION: [
+    "Owner Reality",
+    "Founder Clarity",
+    "Business Growth",
+    "Trust and Visibility",
+    "Better Conversations",
+    "Decision Making",
+    "Founder Mindset",
+    "Platform Updates",
+    "The Circle Philosophy",
+    "Startup Pressure",
+    "Sustainable Growth",
+    "Business Clarity",
+    "Member Value",
+    "Calm Business Thinking",
     "Getting Started",
     "Business Foundations",
     "Offer Clarity",
@@ -136,6 +150,10 @@ export const RESOURCE_CATEGORIES_BY_TIER: Record<ResourceTier, string[]> = {
     "Focus and Prioritisation"
   ],
   INNER: [
+    "AI Search and Visibility",
+    "Business Networking",
+    "Local to National Growth",
+    "Strategic Visibility",
     "Offer Positioning",
     "Website and Conversion",
     "Customer Journey",
@@ -157,6 +175,7 @@ export const RESOURCE_CATEGORIES_BY_TIER: Record<ResourceTier, string[]> = {
     "Focus and Prioritisation"
   ],
   CORE: [
+    "Growth Architecture",
     "Scaling and Structure",
     "Decision Making",
     "Time and Energy",

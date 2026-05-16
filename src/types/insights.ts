@@ -3,6 +3,16 @@ export type InsightBreakdownItem = {
   description: string;
 };
 
+export type PublicInsightPreviewSection = {
+  heading: string;
+  body: string[];
+};
+
+export type PublicInsightInternalLink = {
+  label: string;
+  href: string;
+};
+
 export type PublicInsightSeed = {
   slug: string;
   sourceResourceSlug: string;
@@ -38,25 +48,26 @@ export type InsightTopicCluster = {
 
 export type PublicInsightSummary = {
   slug: string;
-  sourceResourceSlug: string;
+  memberResourceSlug: string;
   clusterSlug: string;
   clusterTitle: string;
   clusterHref: string;
   isPillar: boolean;
   title: string;
-  sourceTitle: string;
+  excerpt: string;
   keyword: string;
-  summary: string;
-  metaTitle: string;
-  metaDescription: string;
+  seoTitle: string;
+  seoDescription: string;
   publishedAt: Date;
-  readMinutes: number;
+  publishedAtDate: string;
+  readingTime: number;
   category: string;
   typeLabel: string;
   tierLabel: string;
-  sourceExcerpt: string;
+  memberDepthLabel: string;
   recommendedMembershipHref: string;
   lockedPreviewSections: string[];
+  relatedIntentKeywords: string[];
 };
 
 export type InsightTopicClusterSummary = InsightTopicCluster & {
@@ -67,15 +78,14 @@ export type InsightTopicClusterSummary = InsightTopicCluster & {
 };
 
 export type PublicInsightArticle = PublicInsightSummary & {
-  introduction: string[];
-  problemTitle: string;
-  problem: string[];
-  keyInsightTitle: string;
-  keyInsight: string[];
-  breakdownTitle: string;
-  breakdownItems: InsightBreakdownItem[];
-  lockedTitle: string;
-  lockedDescription: string;
-  lockedBullets: string[];
-  relatedSlugs: string[];
+  aeoSummary: string;
+  publicIntro: string[];
+  publicPreviewSections: PublicInsightPreviewSection[];
+  publicTakeaways: string[];
+  fadeCtaTitle: string;
+  fadeCtaText: string;
+  ctaLabel: string;
+  ctaHref: string;
+  internalLinks: PublicInsightInternalLink[];
+  relatedInsightSlugs: string[];
 };

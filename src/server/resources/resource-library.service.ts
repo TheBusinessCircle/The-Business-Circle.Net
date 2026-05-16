@@ -14,6 +14,7 @@ import {
 import { db } from "@/lib/db";
 import { getAccessibleResourceTiers } from "@/server/resources/resource-policy";
 import { buildResourceReadFilter, type ResourceLibraryView } from "@/server/resources/resource-read.service";
+import { listPublishedMemberInsightResourceCards } from "@/server/resources/member-insight-resources.service";
 
 const DEFAULT_PAGE_SIZE = 12;
 const MAX_PAGE_SIZE = 24;
@@ -45,6 +46,7 @@ export type ResourceLibraryCardItem = {
   publishedAt: Date | null;
   updatedAt: Date;
   isRead: boolean;
+  isMemberInsightResource?: boolean;
 };
 
 export type ResourceLibraryResult = {
@@ -161,16 +163,9 @@ export async function searchResourceLibrary(
     ];
   }
 
-  const total = await db.resource.count({ where });
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const skip = (safePage - 1) * pageSize;
-
   const resources = await db.resource.findMany({
     where,
     orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
-    skip,
-    take: pageSize,
     select: {
       id: true,
       slug: true,
@@ -201,9 +196,15 @@ export async function searchResourceLibrary(
         : {})
     }
   });
-
-  return {
-    items: resources.map((resource) => ({
+  const memberInsightResources = listPublishedMemberInsightResourceCards(membershipTier, {
+    query,
+    tier,
+    category,
+    type,
+    view
+  });
+  const items: ResourceLibraryCardItem[] = [
+    ...resources.map((resource) => ({
       id: resource.id,
       slug: resource.slug,
       title: resource.title,
@@ -220,6 +221,20 @@ export async function searchResourceLibrary(
       updatedAt: resource.updatedAt,
       isRead: "readStates" in resource ? resource.readStates.length > 0 : false
     })),
+    ...memberInsightResources
+  ].sort((left, right) => {
+    const rightTime = right.publishedAt?.getTime() ?? right.updatedAt.getTime();
+    const leftTime = left.publishedAt?.getTime() ?? left.updatedAt.getTime();
+
+    return rightTime - leftTime;
+  });
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const skip = (safePage - 1) * pageSize;
+
+  return {
+    items: items.slice(skip, skip + pageSize),
     total,
     page: safePage,
     pageSize,
