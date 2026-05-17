@@ -4,6 +4,7 @@ import {
   FounderServiceDiscountTag,
   FounderServiceDiscountType,
   FounderServiceStatus,
+  TestimonialProofType,
   type Prisma
 } from "@prisma/client";
 import { normalizeEmail } from "@/lib/auth/utils";
@@ -16,6 +17,7 @@ import type {
   FounderServiceRequestListItem
 } from "@/types";
 import type { FounderServiceRequestFormValues } from "@/lib/validators";
+import { sendTestimonialRequestEmail } from "@/server/testimonials";
 
 type FounderUploadInput = {
   fileUrl: string;
@@ -329,6 +331,7 @@ export async function createFounderServiceRequest(
       auditDueAt: true,
       callScheduledAt: true,
       checkoutUrl: true,
+      cleanCheckoutPath: true,
       checkoutLinkSentAt: true,
       taskAuditChecklistComplete: true,
       taskCallCompleted: true,
@@ -440,6 +443,10 @@ export async function listFounderServiceRequestsForAdmin(
       callScheduledAt: true,
       checkoutUrl: true,
       checkoutLinkSentAt: true,
+      cleanCheckoutPath: true,
+      testimonialRequestSentAt: true,
+      testimonialSubmittedAt: true,
+      testimonialApprovedAt: true,
       taskAuditChecklistComplete: true,
       taskCallCompleted: true,
       taskFollowUpSent: true,
@@ -537,10 +544,14 @@ export async function getFounderServiceRequestDetailsForAdmin(
       },
       stripeCheckoutSessionId: true,
       checkoutUrl: true,
+      cleanCheckoutPath: true,
       stripePaymentIntentId: true,
       stripeSubscriptionId: true,
       stripeInvoiceId: true,
       paidAt: true,
+      testimonialRequestSentAt: true,
+      testimonialSubmittedAt: true,
+      testimonialApprovedAt: true,
       uploads: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -549,6 +560,25 @@ export async function getFounderServiceRequestDetailsForAdmin(
           fileName: true,
           mimeType: true,
           createdAt: true
+        }
+      },
+      testimonial: {
+        select: {
+          id: true,
+          status: true,
+          quote: true,
+          authorName: true,
+          authorRole: true,
+          businessName: true,
+          businessWebsite: true,
+          rating: true,
+          permissionToDisplay: true,
+          displayPublicName: true,
+          displayBusinessName: true,
+          approvedAt: true,
+          submittedEmail: true,
+          createdAt: true,
+          updatedAt: true
         }
       },
       user: {
@@ -567,6 +597,61 @@ export async function getFounderServiceRequestDetailsForAdmin(
       }
     }
   });
+}
+
+export async function sendFounderServiceTestimonialRequest(input: {
+  requestId: string;
+  adminId: string;
+}) {
+  const request = await db.founderServiceRequest.findUnique({
+    where: {
+      id: input.requestId
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      businessName: true,
+      website: true,
+      serviceStatus: true,
+      service: {
+        select: {
+          title: true
+        }
+      },
+      testimonial: {
+        select: {
+          id: true,
+          requestToken: true
+        }
+      }
+    }
+  });
+
+  if (!request) {
+    throw new Error("founder-service-request-not-found");
+  }
+
+  const result = await sendTestimonialRequestEmail({
+    recipientName: request.fullName,
+    recipientEmail: request.email,
+    proofType: TestimonialProofType.GROWTH_ARCHITECT,
+    contextNote: `${request.service.title} for ${request.businessName}`,
+    requestedByAdminId: input.adminId
+  });
+
+  await db.founderServiceRequest.update({
+    where: {
+      id: request.id
+    },
+    data: {
+      testimonialId: result.request.id,
+      testimonialRequestSentAt: new Date(),
+      serviceStatus: FounderServiceStatus.TESTIMONIAL_REQUESTED
+    }
+  });
+
+  return result;
 }
 
 export async function updateFounderServiceRequestForAdmin(

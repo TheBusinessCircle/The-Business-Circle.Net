@@ -117,7 +117,7 @@ export function testimonialRequestSubject(proofType: TestimonialProofType) {
   }
 
   if (proofType === TestimonialProofType.GROWTH_ARCHITECT) {
-    return "Could you share a few words about working with Trevor?";
+    return "Could you share a few words about your Growth Architect audit?";
   }
 
   return "Could you share a few words about your experience?";
@@ -133,6 +133,40 @@ function buildTestimonialRequestText(input: {
   testimonialUrl: string;
   contextNote?: string | null;
 }) {
+  if (input.proofType === TestimonialProofType.GROWTH_ARCHITECT) {
+    const firstName = input.recipientName.trim().split(/\s+/)[0] || input.recipientName.trim();
+
+    return buildBrandedEmailText({
+      eyebrow: "Testimonial request",
+      heading: "Could you share a few words?",
+      bodyLines: [
+        `Hi ${firstName},`,
+        "",
+        "Thank you again for trusting me to review your business.",
+        "",
+        "I hope the audit gave you clearer direction, stronger priorities, and a better understanding of where your website, message, trust signals, visibility, or customer journey can improve.",
+        "",
+        "If you are happy to, I would really appreciate a short testimonial about your experience.",
+        "",
+        "You can share:",
+        "- what made the audit useful",
+        "- what became clearer",
+        "- whether the breakdown felt practical",
+        "- whether you would recommend it to another business owner",
+        "",
+        "Nothing will be published publicly without approval.",
+        "",
+        "Thanks again,",
+        "Trevor Newton",
+        "Founder & Growth Architect",
+        "The Business Circle Network"
+      ],
+      ctaLabel: "Submit your testimonial",
+      ctaUrl: input.testimonialUrl,
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
+    });
+  }
+
   const proofLabel = testimonialProofLabel(input.proofType);
   const bodyLines = [
     `Hi ${input.recipientName.trim().split(/\s+/)[0] || input.recipientName.trim()},`,
@@ -433,7 +467,7 @@ export async function createExternalTestimonial(input: CreateExternalTestimonial
     throw new Error("testimonial-request-completed");
   }
 
-  return db.testimonial.update({
+  const updated = await db.testimonial.update({
     where: {
       id: existing.id
     },
@@ -455,10 +489,22 @@ export async function createExternalTestimonial(input: CreateExternalTestimonial
       approvedByAdminId: null
     }
   });
+
+  await db.founderServiceRequest?.updateMany({
+    where: {
+      testimonialId: updated.id
+    },
+    data: {
+      testimonialSubmittedAt: new Date(),
+      serviceStatus: "TESTIMONIAL_RECEIVED"
+    }
+  });
+
+  return updated;
 }
 
 export async function updateAdminTestimonial(input: UpdateAdminTestimonialInput) {
-  return db.testimonial.update({
+  const updated = await db.testimonial.update({
     where: {
       id: input.testimonialId
     },
@@ -484,10 +530,24 @@ export async function updateAdminTestimonial(input: UpdateAdminTestimonialInput)
         : {})
     }
   });
+
+  if (input.status === TestimonialStatus.APPROVED) {
+    await db.founderServiceRequest?.updateMany({
+      where: {
+        testimonialId: updated.id
+      },
+      data: {
+        testimonialApprovedAt: updated.approvedAt,
+        serviceStatus: "TESTIMONIAL_APPROVED"
+      }
+    });
+  }
+
+  return updated;
 }
 
 export async function approveTestimonial(testimonialId: string, approvedByAdminId: string) {
-  return db.testimonial.update({
+  const updated = await db.testimonial.update({
     where: {
       id: testimonialId
     },
@@ -497,6 +557,18 @@ export async function approveTestimonial(testimonialId: string, approvedByAdminI
       approvedAt: new Date()
     }
   });
+
+  await db.founderServiceRequest?.updateMany({
+    where: {
+      testimonialId: updated.id
+    },
+    data: {
+      testimonialApprovedAt: updated.approvedAt,
+      serviceStatus: "TESTIMONIAL_APPROVED"
+    }
+  });
+
+  return updated;
 }
 
 export async function rejectTestimonial(testimonialId: string) {

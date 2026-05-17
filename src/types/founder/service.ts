@@ -9,7 +9,8 @@ import type {
   FounderServicePaymentStatus,
   FounderServiceStatus,
   MembershipTier,
-  Role
+  Role,
+  TestimonialStatus
 } from "@prisma/client";
 
 export type FounderServiceModel = {
@@ -70,6 +71,7 @@ export type FounderServiceRequestListItem = {
   auditDueAt: Date | null;
   callScheduledAt: Date | null;
   checkoutUrl: string | null;
+  cleanCheckoutPath: string | null;
   checkoutLinkSentAt: Date | null;
   taskAuditChecklistComplete: boolean;
   taskCallCompleted: boolean;
@@ -125,6 +127,26 @@ export type FounderServiceRequestDetailModel = FounderServiceRequestListItem & {
   stripeSubscriptionId: string | null;
   stripeInvoiceId: string | null;
   paidAt: Date | null;
+  testimonialRequestSentAt: Date | null;
+  testimonialSubmittedAt: Date | null;
+  testimonialApprovedAt: Date | null;
+  testimonial: {
+    id: string;
+    status: TestimonialStatus;
+    quote: string;
+    authorName: string;
+    authorRole: string | null;
+    businessName: string | null;
+    businessWebsite: string | null;
+    rating: number | null;
+    permissionToDisplay: boolean;
+    displayPublicName: boolean;
+    displayBusinessName: boolean;
+    approvedAt: Date | null;
+    submittedEmail: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null;
   uploads: Array<{
     id: string;
     fileUrl: string;

@@ -180,32 +180,36 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
                     className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
                   />
                   <span>
-                    I give permission for this testimonial to be reviewed and displayed by{" "}
-                    {SITE_CONFIG.name}.
+                    I confirm I am happy for this testimonial to be reviewed and potentially
+                    displayed publicly on {SITE_CONFIG.name}.
                   </span>
                 </label>
 
                 <div className="rounded-2xl border border-border/80 bg-background/22 p-4">
-                  <p className="mb-3 text-sm font-medium text-foreground">Display consent</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex items-center gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        name="displayPublicName"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-border bg-background accent-primary"
-                      />
-                      Show my name
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        name="displayBusinessName"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-border bg-background accent-primary"
-                      />
-                      Show my business name
-                    </label>
+                  <p className="mb-3 text-sm font-medium text-foreground">Public display preference</p>
+                  <div className="grid gap-3">
+                    {[
+                      ["full", "Use my name and business"],
+                      ["first_business", "Use my first name and business"],
+                      ["business_only", "Use business name only"],
+                      ["initials_only", "Use initials only"]
+                    ].map(([value, label], index) => (
+                      <label key={value} className="flex items-center gap-2 text-sm text-muted">
+                        <input
+                          type="radio"
+                          name="displayPreference"
+                          value={value}
+                          defaultChecked={index === 0}
+                          className="h-4 w-4 border-border bg-background accent-primary"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                    <input type="hidden" name="displayPublicName" value="true" />
+                    <input type="hidden" name="displayBusinessName" value="true" />
+                    <span className="text-xs leading-relaxed text-muted">
+                      Trevor reviews every testimonial before anything is published.
+                    </span>
                   </div>
                 </div>
 

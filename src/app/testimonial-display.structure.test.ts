@@ -29,17 +29,14 @@ describe("testimonial display placement", () => {
       "src/app/(member)/member/growth-architect/services/[slug]/page.tsx"
     );
 
-    for (const source of [
-      founder,
-      founderService,
-      memberGrowthArchitect,
-      memberGrowthArchitectService
-    ]) {
+    for (const source of [founderService, memberGrowthArchitect, memberGrowthArchitectService]) {
       expect(source).toContain("TestimonialSection");
       expect(source).toContain("TestimonialProofType.GROWTH_ARCHITECT");
     }
 
-    expect(founder).toContain("Proof from Growth Architect work");
+    expect(founder).toContain("listApprovedTestimonials(TestimonialProofType.GROWTH_ARCHITECT");
+    expect(founder).toContain("Results, Feedback & Founder Proof");
+    expect(founder).toContain("overflow-x-auto");
     expect(founderService).toContain("Proof from Growth Architect work");
     expect(memberGrowthArchitect).toContain("Member and client feedback");
     expect(memberGrowthArchitectService).toContain("Member and client feedback");

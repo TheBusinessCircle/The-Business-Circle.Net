@@ -15,6 +15,7 @@ import { requireAdmin } from "@/lib/session";
 import {
   createFounderServiceCheckoutSession,
   createFounderServiceDiscountCodeWithStripe,
+  sendFounderServiceTestimonialRequest,
   syncFounderServiceStripeCatalog,
   updateFounderServiceRequestForAdmin
 } from "@/server/founder";
@@ -124,6 +125,11 @@ const createFounderDiscountSchema = z.object({
 const createCheckoutLinkSchema = z.object({
   requestId: z.string().cuid(),
   adminDiscountCodeId: z.string().cuid().optional().or(z.literal("")),
+  returnPath: z.string().optional()
+});
+
+const sendTestimonialRequestSchema = z.object({
+  requestId: z.string().cuid(),
   returnPath: z.string().optional()
 });
 
@@ -316,4 +322,37 @@ export async function createFounderServiceCheckoutLinkAction(formData: FormData)
 
   revalidateFounderServiceAdminPaths(parsed.data.requestId);
   redirectWithNotice(returnPath, "checkout-link-created");
+}
+
+export async function sendFounderServiceTestimonialRequestAction(formData: FormData) {
+  const session = await requireAdmin();
+
+  const parsed = sendTestimonialRequestSchema.safeParse({
+    requestId: formData.get("requestId"),
+    returnPath: formData.get("returnPath")
+  });
+
+  const returnPath = resolveReturnPath(
+    typeof formData.get("returnPath") === "string"
+      ? String(formData.get("returnPath"))
+      : undefined,
+    "/admin/founder-services"
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "testimonial-request-invalid");
+  }
+
+  try {
+    await sendFounderServiceTestimonialRequest({
+      requestId: parsed.data.requestId,
+      adminId: session.user.id
+    });
+  } catch {
+    redirectWithError(returnPath, "testimonial-request-failed");
+  }
+
+  revalidateFounderServiceAdminPaths(parsed.data.requestId);
+  revalidatePath("/admin/testimonials");
+  redirectWithNotice(returnPath, "testimonial-request-sent");
 }

@@ -9,8 +9,10 @@ import {
 import { ArrowLeft, ExternalLink, Link2, UserRound } from "lucide-react";
 import {
   createFounderServiceCheckoutLinkAction,
+  sendFounderServiceTestimonialRequestAction,
   updateFounderServiceRequestAction
 } from "@/actions/admin/founder-service.actions";
+import { CopyLinkButton } from "@/components/admin/copy-link-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +33,7 @@ import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import {
+  buildCleanFounderCheckoutUrl,
   getFounderServiceRequestDetailsForAdmin,
   listFounderServiceDiscountCodes
 } from "@/server/founder";
@@ -88,14 +91,17 @@ function formatBusinessStageValue(value: FounderClientStage | string | null | un
 function feedbackMessage(input: { notice: string; error: string }) {
   const noticeMap: Record<string, string> = {
     "request-updated": "Founder client record updated successfully.",
-    "checkout-link-created": "Manual checkout link generated successfully."
+    "checkout-link-created": "Manual checkout link generated successfully.",
+    "testimonial-request-sent": "Testimonial request email sent successfully."
   };
 
   const errorMap: Record<string, string> = {
     invalid: "The founder client update payload was invalid.",
     "not-found": "That founder client record no longer exists.",
     "checkout-link-invalid": "The checkout link request was invalid.",
-    "checkout-link-failed": "Unable to generate a checkout link for that client."
+    "checkout-link-failed": "Unable to generate a checkout link for that client.",
+    "testimonial-request-invalid": "The testimonial request payload was invalid.",
+    "testimonial-request-failed": "Unable to send the testimonial request email."
   };
 
   if (input.notice && noticeMap[input.notice]) {
@@ -143,6 +149,10 @@ export default async function AdminFounderServiceDetailsPage({
   }
 
   const returnPath = `/admin/founder-services/${request.id}`;
+  const cleanCheckoutUrl = buildCleanFounderCheckoutUrl({
+    serviceSlug: request.service.slug,
+    requestId: request.id
+  });
   const feedback = feedbackMessage({
     notice: firstValue(parsedSearchParams.notice),
     error: firstValue(parsedSearchParams.error)
@@ -386,25 +396,41 @@ export default async function AdminFounderServiceDetailsPage({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {request.checkoutUrl ? (
+              {request.checkoutUrl && cleanCheckoutUrl ? (
                 <div className="rounded-2xl border border-gold/25 bg-gold/10 p-4 text-sm text-gold">
-                  <p>Checkout link ready.</p>
-                  <a
-                    href={request.checkoutUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1 text-sm text-foreground hover:underline"
-                  >
-                    Open checkout link
-                    <ExternalLink size={12} />
-                  </a>
+                  <p>Clean checkout link ready.</p>
+                  <div className="mt-3 rounded-xl border border-white/10 bg-background/35 p-3 text-xs text-foreground break-all">
+                    {cleanCheckoutUrl}
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <CopyLinkButton value={cleanCheckoutUrl} label="Copy clean payment link" />
+                    <a
+                      href={cleanCheckoutUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-foreground hover:underline"
+                    >
+                      Open clean link
+                      <ExternalLink size={12} />
+                    </a>
+                  </div>
+                  <p className="mt-2 text-xs text-muted">
+                    This short BCN link redirects to Stripe Checkout and keeps the raw Stripe URL out of messages.
+                  </p>
                   <p className="mt-2 text-xs text-muted">
                     Last generated {request.checkoutLinkSentAt ? formatDateTime(request.checkoutLinkSentAt) : "recently"}.
                   </p>
+                  <details className="mt-3 text-xs text-muted">
+                    <summary className="cursor-pointer text-foreground">Stripe checkout URL</summary>
+                    <p className="mt-2 break-all">{request.checkoutUrl}</p>
+                  </details>
                 </div>
               ) : (
                 <div className="rounded-2xl border border-border/80 bg-background/22 p-4 text-sm text-muted">
                   No checkout link has been generated for this client yet.
+                  <p className="mt-2 text-xs">
+                    After generation, admin copy/send flows should use the clean BCN payment link.
+                  </p>
                 </div>
               )}
 
@@ -428,6 +454,44 @@ export default async function AdminFounderServiceDetailsPage({
                 </div>
                 <Button type="submit" variant="outline">
                   Generate Checkout Link
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Testimonial workflow</CardTitle>
+              <CardDescription>
+                Request feedback after the audit or strategic work is complete. Nothing appears publicly until it is approved.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 text-sm text-muted">
+                <p>Request sent: {request.testimonialRequestSentAt ? formatDateTime(request.testimonialRequestSentAt) : "Not sent"}</p>
+                <p>Submitted: {request.testimonialSubmittedAt ? formatDateTime(request.testimonialSubmittedAt) : "Not received"}</p>
+                <p>Approved: {request.testimonialApprovedAt ? formatDateTime(request.testimonialApprovedAt) : "Not approved"}</p>
+              </div>
+
+              {request.testimonial ? (
+                <div className="rounded-2xl border border-border/80 bg-background/22 p-4 text-sm text-muted">
+                  <p className="font-medium text-foreground">Linked testimonial: {request.testimonial.status}</p>
+                  {request.testimonial.quote ? (
+                    <p className="mt-2 line-clamp-4">{request.testimonial.quote}</p>
+                  ) : (
+                    <p className="mt-2">The client has not submitted feedback yet.</p>
+                  )}
+                  <Link href="/admin/testimonials" className="mt-3 inline-flex text-primary hover:underline">
+                    Review in testimonials
+                  </Link>
+                </div>
+              ) : null}
+
+              <form action={sendFounderServiceTestimonialRequestAction}>
+                <input type="hidden" name="requestId" value={request.id} />
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <Button type="submit" variant="outline">
+                  Send testimonial request
                 </Button>
               </form>
             </CardContent>

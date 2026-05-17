@@ -47,6 +47,9 @@ const externalTestimonialSchema = z.object({
   outcome: optionalText(600),
   submittedEmail: z.string().trim().email().max(320).optional().or(z.literal("")),
   permissionToDisplay: checkboxBoolean.refine(Boolean),
+  displayPreference: z
+    .enum(["full", "first_business", "business_only", "initials_only"])
+    .default("full"),
   displayPublicName: checkboxBoolean.optional().default(false),
   displayBusinessName: checkboxBoolean.optional().default(false)
 });
@@ -110,6 +113,48 @@ function resolveReturnPath(value: string | undefined, fallback = "/admin/testimo
   return safeRedirectPath(value, fallback);
 }
 
+function initialsFromName(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join(".");
+}
+
+function applyExternalDisplayPreference(input: z.infer<typeof externalTestimonialSchema>) {
+  if (input.displayPreference === "first_business") {
+    return {
+      ...input,
+      authorName: input.authorName.split(/\s+/).filter(Boolean)[0] ?? input.authorName,
+      displayPublicName: true,
+      displayBusinessName: true
+    };
+  }
+
+  if (input.displayPreference === "business_only") {
+    return {
+      ...input,
+      displayPublicName: false,
+      displayBusinessName: true
+    };
+  }
+
+  if (input.displayPreference === "initials_only") {
+    return {
+      ...input,
+      authorName: initialsFromName(input.authorName),
+      displayPublicName: true,
+      displayBusinessName: false
+    };
+  }
+
+  return {
+    ...input,
+    displayPublicName: true,
+    displayBusinessName: true
+  };
+}
+
 export async function submitMemberTestimonialAction(formData: FormData) {
   const session = await requireUser();
 
@@ -150,6 +195,7 @@ export async function submitExternalTestimonialAction(formData: FormData) {
     outcome: getFormValue(formData, "outcome"),
     submittedEmail: getFormValue(formData, "submittedEmail"),
     permissionToDisplay: formData.get("permissionToDisplay"),
+    displayPreference: getFormValue(formData, "displayPreference"),
     displayPublicName: formData.get("displayPublicName"),
     displayBusinessName: formData.get("displayBusinessName")
   });
@@ -159,7 +205,7 @@ export async function submitExternalTestimonialAction(formData: FormData) {
   }
 
   try {
-    await createExternalTestimonial(parsed.data);
+    await createExternalTestimonial(applyExternalDisplayPreference(parsed.data));
   } catch {
     redirect(`/testimonial/${encodeURIComponent(token)}?error=unavailable`);
   }

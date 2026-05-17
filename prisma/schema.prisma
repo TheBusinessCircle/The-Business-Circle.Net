@@ -1463,11 +1463,17 @@ model FounderServiceRequest {
   auditDueAt                 DateTime?
   callScheduledAt            DateTime?
   checkoutLinkSentAt         DateTime?
+  cleanCheckoutPath          String?
   taskAuditChecklistComplete Boolean                     @default(false)
   taskCallCompleted          Boolean                     @default(false)
   taskFollowUpSent           Boolean                     @default(false)
+  testimonialId              String?                     @unique
+  testimonialRequestSentAt   DateTime?
+  testimonialSubmittedAt     DateTime?
+  testimonialApprovedAt      DateTime?
   adminNotes                 String?
   adminDiscountCode          FounderServiceDiscountCode? @relation("FounderDiscountCodeRequests", fields: [adminDiscountCodeId], references: [id], onDelete: SetNull)
+  testimonial                Testimonial?                @relation("FounderServiceRequestTestimonial", fields: [testimonialId], references: [id], onDelete: SetNull)
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @updatedAt
   service                    FounderService              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
@@ -1484,6 +1490,8 @@ model FounderServiceRequest {
   @@index([auditDueAt])
   @@index([callScheduledAt])
   @@index([adminDiscountCodeId])
+  @@index([testimonialRequestSentAt])
+  @@index([testimonialSubmittedAt])
   @@index([email])
 }
 
@@ -1674,6 +1682,7 @@ model Testimonial {
   requestedByAdminId  String?
   approvedByAdminId   String?
   approvedAt          DateTime?
+  founderServiceRequest FounderServiceRequest? @relation("FounderServiceRequestTestimonial")
   createdAt           DateTime                @default(now())
   updatedAt           DateTime                @updatedAt
   member              User?                   @relation("MemberTestimonials", fields: [memberId], references: [id], onDelete: SetNull)
@@ -1901,9 +1910,14 @@ enum FounderServicePaymentStatus {
 enum FounderServiceStatus {
   NEW
   REVIEWED
+  AWAITING_PAYMENT
   IN_PROGRESS
   WAITING_ON_CLIENT
   COMPLETED
+  TESTIMONIAL_REQUESTED
+  TESTIMONIAL_RECEIVED
+  TESTIMONIAL_APPROVED
+  ARCHIVED
   CANCELLED
 }
 

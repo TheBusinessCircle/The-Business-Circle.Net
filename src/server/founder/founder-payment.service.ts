@@ -24,6 +24,19 @@ type FounderCheckoutSessionResult = {
   url: string;
 };
 
+const CLEAN_CHECKOUT_SLUG_TO_SERVICE_SLUG: Record<string, string> = {
+  "clarity-audit": "growth-architect-clarity-audit",
+  "strategy-session": "growth-architect-growth-strategy",
+  "growth-architect": "growth-architect-full-growth-architect"
+};
+
+const SERVICE_SLUG_TO_CLEAN_CHECKOUT_SLUG = Object.fromEntries(
+  Object.entries(CLEAN_CHECKOUT_SLUG_TO_SERVICE_SLUG).map(([cleanSlug, serviceSlug]) => [
+    serviceSlug,
+    cleanSlug
+  ])
+) as Record<string, string>;
+
 type CreateFounderServiceDiscountCodeInput = {
   code: string;
   name?: string;
@@ -108,12 +121,37 @@ function isFounderCheckoutSession(session: Stripe.Checkout.Session): boolean {
   return session.metadata?.checkoutKind === "founder_service";
 }
 
+export function resolveFounderServiceSlugFromCleanCheckoutSlug(cleanSlug: string) {
+  return CLEAN_CHECKOUT_SLUG_TO_SERVICE_SLUG[cleanSlug] ?? null;
+}
+
+export function buildCleanFounderCheckoutPath(input: {
+  serviceSlug: string;
+  requestId: string;
+}) {
+  const cleanSlug = SERVICE_SLUG_TO_CLEAN_CHECKOUT_SLUG[input.serviceSlug];
+  if (!cleanSlug) {
+    return null;
+  }
+
+  return `/founder/checkout/${cleanSlug}?request=${encodeURIComponent(input.requestId)}`;
+}
+
+export function buildCleanFounderCheckoutUrl(input: {
+  serviceSlug: string;
+  requestId: string;
+}) {
+  const path = buildCleanFounderCheckoutPath(input);
+  return path ? absoluteUrl(path) : null;
+}
+
 export async function createFounderServiceCheckoutSession(
   requestId: string,
   options: {
     adminDiscountCodeId?: string | null;
     markCheckoutLinkSent?: boolean;
     returnExperience?: "public" | "member";
+    expectedServiceSlug?: string | null;
   } = {}
 ): Promise<FounderCheckoutSessionResult> {
   const request = await db.founderServiceRequest.findUnique({
@@ -147,6 +185,10 @@ export async function createFounderServiceCheckoutSession(
 
   if (!request) {
     throw new Error("request-not-found");
+  }
+
+  if (options.expectedServiceSlug && request.service.slug !== options.expectedServiceSlug) {
+    throw new Error("request-service-mismatch");
   }
 
   const stripe = requireStripeClient();
@@ -276,6 +318,10 @@ export async function createFounderServiceCheckoutSession(
     data: {
       stripeCheckoutSessionId: session.id,
       checkoutUrl: session.url,
+      cleanCheckoutPath: buildCleanFounderCheckoutPath({
+        serviceSlug: request.service.slug,
+        requestId: request.id
+      }),
       paymentStatus: FounderServicePaymentStatus.PENDING,
       adminDiscountCode: adminDiscountCode
         ? {

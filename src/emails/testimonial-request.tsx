@@ -20,7 +20,7 @@ function leadForContext(context: TestimonialRequestEmailProps["subjectContext"])
   }
 
   if (context === "growth") {
-    return "If our Growth Architect work helped you find clarity, improve positioning, strengthen conversion, or make a cleaner growth decision, I would be grateful for a few words.";
+    return "Thank you again for trusting me to review your business. If the audit gave you clearer direction, stronger priorities, or a better understanding of where your website, message, trust signals, visibility, or customer journey can improve, I would really appreciate a short testimonial.";
   }
 
   return "If your experience with The Business Circle Network has been useful, I would be grateful for a few words.";
@@ -56,12 +56,26 @@ export function TestimonialRequestEmail({
       }
     >
       <EmailParagraph>Hi {firstName},</EmailParagraph>
-      <EmailParagraph>
-        I hope you are well. This is a simple request for a short testimonial for {proofLabel}.
-      </EmailParagraph>
-      <EmailParagraph>
-        No need to over-polish it. A few honest sentences about what became clearer, easier, or more useful is enough.
-      </EmailParagraph>
+      {subjectContext === "growth" ? (
+        <>
+          <EmailParagraph>
+            You can share what made the audit useful, what became clearer, whether the breakdown
+            felt practical, or whether you would recommend it to another business owner.
+          </EmailParagraph>
+          <EmailParagraph>
+            Nothing will be published publicly without approval.
+          </EmailParagraph>
+        </>
+      ) : (
+        <>
+          <EmailParagraph>
+            I hope you are well. This is a simple request for a short testimonial for {proofLabel}.
+          </EmailParagraph>
+          <EmailParagraph>
+            No need to over-polish it. A few honest sentences about what became clearer, easier, or more useful is enough.
+          </EmailParagraph>
+        </>
+      )}
 
       {contextNote?.trim() ? (
         <EmailPanel title="Context">
