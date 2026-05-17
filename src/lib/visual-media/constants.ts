@@ -1474,6 +1474,375 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     }),
     defaultOverlayStyle: "SOFT_DARK"
   },
+  FOUNDER_HERO: {
+    key: "founder.hero",
+    label: "Founder / Growth Architect - Hero",
+    page: "FOUNDER",
+    section: "hero",
+    variant: "HERO",
+    sortOrder: 30,
+    supportsMobile: true,
+    recommendedAspectRatio: "4:5 or 16:10",
+    adminHelperText:
+      "Hero image for Trevor Newton and the Growth Architect positioning.",
+    imageFamilyTag: "founder-conversation",
+    adminPreviewFamily: "hero",
+    imagePurpose:
+      "Place Trevor and the Growth Architect offer in a premium, founder-led context.",
+    bestImageType: "Premium founder portrait or grounded business-owner environment.",
+    emotionalTone: ["confident", "grounded", "founder-led", "calm authority", "high trust"],
+    recommendedSubjectMatter: [
+      "premium founder portrait",
+      "dark editorial business-owner environment",
+      "quiet strategic workspace",
+      "royal blue and gold atmosphere",
+      "confident but approachable founder presence"
+    ],
+    recommendedComposition: [
+      "portrait-led crop with space around the subject",
+      "works beside headline and CTA content",
+      "keeps face and expression clear on mobile",
+      "background detail supports the message without clutter"
+    ],
+    recommendedLightingMood: ["dark editorial", "premium", "royal blue", "gold accents", "calm"],
+    avoid: [
+      "cheesy stock portrait",
+      "bright coworking scene",
+      "loud agency energy",
+      "forced smile or over-posed corporate photography"
+    ],
+    longAdminGuidance:
+      "Use this slot for the main founder-led visual on the /founder page. It should make Trevor feel credible, calm, and strategic without turning the page into an ego piece.",
+    contentLayerNote:
+      "This supports the founder positioning only. The page copy must still carry the offer, proof, and conversion message.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "founder-conversation",
+      isHero: true
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Premium founder portrait for Growth Architect positioning.",
+      sceneType: "Founder portrait in a dark editorial business environment.",
+      subject:
+        "Grounded business founder in a premium strategy workspace, confident but approachable.",
+      environment:
+        "Dark editorial office with subtle royal blue and gold atmosphere, refined materials, and calm depth.",
+      lighting: "Moody editorial lighting with warm gold highlights and controlled blue shadows.",
+      mood: "Calm founder-led authority, trust, clarity, and practical confidence.",
+      style: "Ultra realistic premium editorial photography.",
+      cameraComposition:
+        "Portrait-friendly composition that also works in 16:10, with clean negative space and a strong human focal point.",
+      qualityTags:
+        "Premium founder style, realistic, sharp detail, no watermark, no text in image, high-trust business tone.",
+      negativePrompt:
+        "generic stock portrait, cheesy smile, bright coworking space, cartoon, text overlay, watermark, noisy background"
+    }),
+    defaultOverlayStyle: "CINEMATIC"
+  },
+  FOUNDER_STORY: {
+    key: "founder.story",
+    label: "Founder / Growth Architect - BCN Story",
+    page: "FOUNDER",
+    section: "story",
+    variant: "SECTION",
+    sortOrder: 40,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:9",
+    adminHelperText:
+      "Visual for the Why I Built The Business Circle Network section.",
+    imageFamilyTag: "story-mission",
+    adminPreviewFamily: "founders",
+    imagePurpose:
+      "Support the founder story with a calm, human, reflective business-owner atmosphere.",
+    bestImageType: "Founder reflection or quiet strategy-room image.",
+    emotionalTone: ["reflective", "human", "calm", "private", "serious ownership"],
+    recommendedSubjectMatter: [
+      "founder reflection",
+      "business owner thinking space",
+      "quiet strategy room",
+      "premium dark workspace",
+      "calm personal mission atmosphere"
+    ],
+    recommendedComposition: [
+      "balanced 16:9 scene",
+      "feels personal without being sentimental",
+      "works near story copy",
+      "keep visual noise low"
+    ],
+    recommendedLightingMood: ["soft dark", "warm premium", "reflective", "editorial"],
+    avoid: [
+      "generic team celebration",
+      "conference audience",
+      "hype networking imagery",
+      "overly dramatic lone founder cliche"
+    ],
+    longAdminGuidance:
+      "Use this to support the origin story behind BCN. The image should feel like a serious owner thinking clearly, not a loud networking event.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "story-mission"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Founder reflection and calm business mission.",
+      sceneType: "Reflective business-owner strategy room.",
+      subject:
+        "Business owner or founder in a quiet strategic thinking moment.",
+      environment:
+        "Premium dark workspace with notebook, subtle desk detail, and calm private-room atmosphere.",
+      lighting: "Soft warm editorial lighting with restrained contrast.",
+      mood: "Reflective, calm, serious, and human.",
+      style: "Realistic editorial business photography.",
+      cameraComposition:
+        "Wide 16:9 composition with the subject placed naturally and enough depth to sit beside story copy.",
+      qualityTags:
+        "Premium realism, human, no watermark, no text in image, calm founder-world atmosphere.",
+      negativePrompt:
+        "networking event, crowd, forced emotion, bright coworking, motivational poster style, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  FOUNDER_GROWTH_ARCHITECTURE: {
+    key: "founder.growthArchitecture",
+    label: "Founder / Growth Architect - Growth Architecture",
+    page: "FOUNDER",
+    section: "growth-architecture",
+    variant: "SECTION",
+    sortOrder: 50,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:9",
+    adminHelperText:
+      "Visual for explaining what Growth Architecture means.",
+    imageFamilyTag: "strategy-process",
+    adminPreviewFamily: "editorial",
+    imagePurpose:
+      "Make the Growth Architecture method feel practical, structured, and commercially useful.",
+    bestImageType: "Strategic audit workspace or business analysis scene.",
+    emotionalTone: ["clarity", "analysis", "practical strategy", "visibility", "calm structure"],
+    recommendedSubjectMatter: [
+      "strategic audit workspace",
+      "laptop dashboard and notes",
+      "business analysis",
+      "visibility maps",
+      "website review and positioning work"
+    ],
+    recommendedComposition: [
+      "clean 16:9 composition",
+      "show structure without tiny unreadable text",
+      "supports adjacent methodology copy",
+      "avoid cluttered workshop feel"
+    ],
+    recommendedLightingMood: ["dark premium", "clean", "focused", "consulting feel"],
+    avoid: [
+      "messy whiteboards",
+      "generic SEO charts",
+      "glowing AI gimmicks",
+      "overloaded dashboards"
+    ],
+    longAdminGuidance:
+      "Use this to show the practical clarity layer behind Growth Architect work: review, judgement, structure, and next-step planning.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "strategy-process"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Strategic Growth Architecture workspace.",
+      sceneType: "Premium business audit and analysis workspace.",
+      subject:
+        "Laptop dashboard, strategic notes, website review materials, and visibility mapping in progress.",
+      environment:
+        "Dark premium consulting workspace with clean surfaces and realistic business-analysis tools.",
+      lighting: "Controlled dark editorial lighting with blue and gold accents.",
+      mood: "Structured, clear, practical, and commercially focused.",
+      style: "Ultra realistic editorial product and workspace photography.",
+      cameraComposition:
+        "Clean 16:9 shot with a clear focal plane and enough detail to communicate analysis without clutter.",
+      qualityTags:
+        "Premium consulting feel, realistic detail, no watermark, no text in image, clean strategy atmosphere.",
+      negativePrompt:
+        "messy whiteboard, generic SEO report, neon AI graphics, cartoon dashboard, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  FOUNDER_AUDIT: {
+    key: "founder.audit",
+    label: "Founder / Growth Architect - Audit Services",
+    page: "FOUNDER",
+    section: "audit-services",
+    variant: "SECTION",
+    sortOrder: 60,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:9",
+    adminHelperText:
+      "Visual for the Clarity Audit, Strategy Session, and Growth Architect service area.",
+    imageFamilyTag: "strategy-process",
+    adminPreviewFamily: "editorial",
+    imagePurpose:
+      "Support the paid audit pathway with a premium, practical decision-making visual.",
+    bestImageType: "Business audit, website review, or strategic report visual.",
+    emotionalTone: ["decision clarity", "trust", "practical", "commercial", "focused"],
+    recommendedSubjectMatter: [
+      "business clarity audit",
+      "website review",
+      "strategic report",
+      "scorecards",
+      "owner decision-making"
+    ],
+    recommendedComposition: [
+      "16:9 crop that can sit above or beside pricing cards",
+      "structured details without readable private data",
+      "premium consulting feel",
+      "avoid anything that looks automated or generic"
+    ],
+    recommendedLightingMood: ["premium digital clarity", "dark editorial", "focused", "clean"],
+    avoid: [
+      "generic automated SEO report",
+      "stock marketing charts",
+      "private client data",
+      "bright spreadsheet overload"
+    ],
+    longAdminGuidance:
+      "Use this slot to make the audit services feel tangible and trustworthy. It should suggest a serious review process without showing private data or fake metrics.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "strategy-process"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Business clarity audit and strategic report.",
+      sceneType: "Premium audit and website-review workspace.",
+      subject:
+        "A refined business audit report, laptop website review, notes, and decision-priority cards.",
+      environment:
+        "Dark premium desk environment with clean report materials and no readable private client data.",
+      lighting: "Moody premium lighting with crisp detail.",
+      mood: "Focused, practical, trusted, and conversion-minded.",
+      style: "Realistic editorial business photography.",
+      cameraComposition:
+        "Structured 16:9 composition that works near service cards and preserves clear visual hierarchy.",
+      qualityTags:
+        "Premium audit visual, realistic, no watermark, no text in image, no private data, polished finish.",
+      negativePrompt:
+        "generic seo report, fake analytics text, private data, bright spreadsheet, cartoon, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  FOUNDER_PROOF: {
+    key: "founder.proof",
+    label: "Founder / Growth Architect - Proof",
+    page: "FOUNDER",
+    section: "proof",
+    variant: "SECTION",
+    sortOrder: 70,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:9",
+    adminHelperText:
+      "Visual support for the Results, Feedback & Founder Proof testimonial section.",
+    imageFamilyTag: "founder-conversation",
+    adminPreviewFamily: "human",
+    imagePurpose:
+      "Support testimonial proof with trust-building, collaborative human context.",
+    bestImageType: "Business-owner collaboration or trust-building scene.",
+    emotionalTone: ["trust", "proof", "collaboration", "human", "credible"],
+    recommendedSubjectMatter: [
+      "business owners in discussion",
+      "handshake or agreement moment",
+      "testimonial proof context",
+      "collaboration",
+      "trust-building conversation"
+    ],
+    recommendedComposition: [
+      "warm human scene without looking staged",
+      "fits near horizontal testimonial cards",
+      "keeps faces and gestures natural",
+      "does not compete with testimonial text"
+    ],
+    recommendedLightingMood: ["warm dark", "premium", "human", "credible"],
+    avoid: [
+      "fake handshake stock",
+      "large corporate team",
+      "forced smiling",
+      "event crowd"
+    ],
+    longAdminGuidance:
+      "Use this slot to reinforce proof and trust. It should feel like real business-owner confidence, not generic testimonial marketing.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "founder-conversation"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Human proof and business-owner trust.",
+      sceneType: "Premium business-owner collaboration and testimonial proof scene.",
+      subject:
+        "Two business owners or founder and client in a calm trust-building conversation or agreement moment.",
+      environment:
+        "Premium private business setting with refined materials and a dark editorial atmosphere.",
+      lighting: "Warm controlled lighting with subtle gold highlights.",
+      mood: "Trusted, human, collaborative, and serious.",
+      style: "Ultra realistic editorial business photography.",
+      cameraComposition:
+        "Natural 16:9 composition that supports nearby testimonial cards without overwhelming them.",
+      qualityTags:
+        "Premium realism, natural interaction, no watermark, no text in image, credible business proof.",
+      negativePrompt:
+        "fake handshake stock, forced smiling, large team, conference event, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  FOUNDER_FINAL_CTA: {
+    key: "founder.finalCta",
+    label: "Founder / Growth Architect - Final CTA",
+    page: "FOUNDER",
+    section: "final-cta",
+    variant: "SECTION",
+    sortOrder: 80,
+    supportsMobile: true,
+    recommendedAspectRatio: "21:9 or 16:9",
+    adminHelperText:
+      "Final conversion image for the Clarity Audit and BCN invitation section.",
+    imageFamilyTag: "exclusivity",
+    adminPreviewFamily: "hero",
+    imagePurpose:
+      "Make the final next step feel calm, premium, and invited rather than pressured.",
+    bestImageType: "Private invitation, open doorway, or founder-led growth environment.",
+    emotionalTone: ["invitation", "calm momentum", "private", "premium", "next step"],
+    recommendedSubjectMatter: [
+      "open doorway",
+      "private business circle",
+      "premium invitation",
+      "founder-led growth environment",
+      "calm momentum"
+    ],
+    recommendedComposition: [
+      "wide 21:9 or 16:9 crop",
+      "works behind or beside CTA copy",
+      "clear focal direction toward the next step",
+      "avoid clutter around text areas"
+    ],
+    recommendedLightingMood: ["dark premium", "warm gold", "royal blue", "inviting", "calm"],
+    avoid: [
+      "pushy sales imagery",
+      "literal door stock photo",
+      "event crowd",
+      "bright generic business hallway"
+    ],
+    longAdminGuidance:
+      "Use this final image to make the CTA feel like a considered invitation into a serious founder-led environment.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "exclusivity"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Premium invitation and calm final conversion image.",
+      sceneType: "Founder-led private business invitation atmosphere.",
+      subject:
+        "Open entry into a refined private business room with subtle signs of collaboration and growth.",
+      environment:
+        "Dark premium interior with royal blue shadows, warm gold highlights, and a calm sense of momentum.",
+      lighting: "Cinematic dark lighting with warm invitation cues.",
+      mood: "Inviting, premium, calm, and serious.",
+      style: "Ultra realistic editorial photography.",
+      cameraComposition:
+        "Wide crop-friendly composition with clear visual direction and safe negative space for CTA content.",
+      qualityTags:
+        "Premium invitation, realistic, no watermark, no text in image, calm conversion atmosphere.",
+      negativePrompt:
+        "pushy sales graphic, literal stock doorway, crowded event, bright hallway, cartoon, watermark"
+    }),
+    defaultOverlayStyle: "CINEMATIC"
+  },
   GLOBAL_PUBLIC_TOP: {
     key: "global.public.top",
     label: "Public Page - Top Visual",
@@ -1610,7 +1979,7 @@ export const VISUAL_MEDIA_PAGE_LABELS: Record<VisualMediaPage, string> = {
   JOIN: "Join",
   ABOUT: "About",
   COMMUNITY: "Community",
-  FOUNDER: "Founder",
+  FOUNDER: "Founder / Growth Architect",
   RESOURCES: "Resources",
   INSIGHTS: "Insights",
   GLOBAL: "Shared"

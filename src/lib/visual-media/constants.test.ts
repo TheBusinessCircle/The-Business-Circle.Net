@@ -30,6 +30,24 @@ describe("visual media placement registry", () => {
     expect(VISUAL_MEDIA_PLACEMENTS.SERVICES_APPROACH.key).toBe(
       "services.section.approach"
     );
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_HERO.key).toBe("founder.hero");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_STORY.key).toBe("founder.story");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_GROWTH_ARCHITECTURE.key).toBe(
+      "founder.growthArchitecture"
+    );
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_AUDIT.key).toBe("founder.audit");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_PROOF.key).toBe("founder.proof");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_FINAL_CTA.key).toBe("founder.finalCta");
+  });
+
+  it("keeps founder Growth Architect slots grouped in the founder admin page", () => {
+    const founderSlots = VISUAL_MEDIA_PLACEMENT_LIST.filter((item) =>
+      item.key.startsWith("founder.")
+    );
+
+    expect(founderSlots).toHaveLength(6);
+    expect(founderSlots.every((item) => item.page === "FOUNDER")).toBe(true);
+    expect(founderSlots.every((item) => item.adminHelperText)).toBe(true);
   });
 
   it("recognizes only approved placement keys", () => {

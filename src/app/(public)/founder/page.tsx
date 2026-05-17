@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { TestimonialProofType } from "@prisma/client";
 import { auth } from "@/auth";
@@ -18,7 +19,7 @@ import {
   Users
 } from "lucide-react";
 import { GrowthArchitectSupportCta, JsonLd } from "@/components/public";
-import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
+import { SectionFeatureImage } from "@/components/visual-media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -273,19 +274,71 @@ function FounderSectionHeader({
   );
 }
 
+function FounderVisual({
+  placement,
+  tone = "editorial",
+  className,
+  aspectClassName = "aspect-[16/10]",
+  sizes,
+  children
+}: {
+  placement: Awaited<ReturnType<typeof getVisualMediaPlacement>> | null | undefined;
+  tone?: "human" | "story" | "platform" | "founders" | "editorial";
+  className?: string;
+  aspectClassName?: string;
+  sizes?: string;
+  children?: ReactNode;
+}) {
+  if (placement?.isActive && placement.imageUrl) {
+    return (
+      <SectionFeatureImage
+        placement={placement}
+        tone={tone}
+        aspectClassName={aspectClassName}
+        className={className}
+        sizes={sizes}
+      >
+        {children}
+      </SectionFeatureImage>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "feature-visual-shell relative overflow-hidden rounded-[2rem] border border-silver/20 bg-[radial-gradient(circle_at_20%_18%,rgba(82,146,255,0.18),transparent_34%),radial-gradient(circle_at_82%_22%,rgba(214,180,103,0.16),transparent_30%),linear-gradient(180deg,rgba(12,19,36,0.92),rgba(5,10,24,0.98))] shadow-panel-soft",
+        aspectClassName,
+        className
+      )}
+    >
+      <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.44)_100%)]" />
+      {children ? <div className="relative z-[2] flex h-full items-end">{children}</div> : null}
+    </div>
+  );
+}
+
 export default async function FounderPage() {
   const [
     session,
     allServices,
     growthArchitectTestimonials,
-    servicesHeroPlacement,
-    servicesApproachPlacement
+    founderHeroPlacement,
+    founderStoryPlacement,
+    founderGrowthArchitecturePlacement,
+    founderAuditPlacement,
+    founderProofPlacement,
+    founderFinalCtaPlacement
   ] = await Promise.all([
     auth(),
     listActiveFounderServices().catch(() => []),
     listApprovedTestimonials(TestimonialProofType.GROWTH_ARCHITECT, 8).catch(() => []),
-    getVisualMediaPlacement("services.hero"),
-    getVisualMediaPlacement("services.section.approach")
+    getVisualMediaPlacement("founder.hero"),
+    getVisualMediaPlacement("founder.story"),
+    getVisualMediaPlacement("founder.growthArchitecture"),
+    getVisualMediaPlacement("founder.audit"),
+    getVisualMediaPlacement("founder.proof"),
+    getVisualMediaPlacement("founder.finalCta")
   ]);
   const viewer = session?.user
     ? {
@@ -303,15 +356,6 @@ export default async function FounderPage() {
       <JsonLd data={buildFounderSchema()} />
       <JsonLd data={buildFaqSchema([...AEO_QUESTIONS])} />
       <JsonLd data={buildFounderServicesSchema(services)} />
-
-      <PublicTopVisual
-        placement={servicesHeroPlacement}
-        eyebrow="Founder & Growth Architect"
-        title="Trevor Newton | Founder & Growth Architect"
-        description="Founder of The Business Circle Network, built for owners who want clearer structure, stronger trust, and better growth decisions without the noise."
-        tone="anchored"
-        fallbackLabel="Founder top visual"
-      />
 
       <section className="public-hero-spacing relative overflow-hidden rounded-[2.05rem] border border-white/10 bg-card/64 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
@@ -354,25 +398,27 @@ export default async function FounderPage() {
             </div>
           </div>
 
-          <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/86 to-card/72 shadow-panel-soft">
-            <CardHeader>
-              <CardTitle className="font-display text-3xl text-foreground">
-                Why owners come here
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm leading-relaxed text-muted">
+          <FounderVisual
+            placement={founderHeroPlacement}
+            tone="founders"
+            aspectClassName="aspect-[4/5] sm:aspect-[16/10] xl:aspect-[4/5]"
+            className="min-h-[24rem]"
+            sizes="(min-width: 1280px) 34vw, 100vw"
+          >
+            <div className="w-full space-y-3 p-5 sm:p-6">
+              <p className="premium-kicker">Why owners come here</p>
               {[
                 "They need sharper visibility before spending more money.",
                 "They want a calmer outside view of the business.",
                 "They know trust, positioning, or conversion could be stronger.",
                 "They want practical direction, not a generic report."
               ].map((item) => (
-                <p key={item} className="rounded-2xl border border-white/8 bg-background/20 px-4 py-3">
+                <p key={item} className="rounded-2xl border border-white/10 bg-background/42 px-4 py-3 text-sm text-foreground shadow-panel-soft backdrop-blur">
                   {item}
                 </p>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </FounderVisual>
         </div>
       </section>
 
@@ -422,12 +468,17 @@ export default async function FounderPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-gold/35 bg-gradient-to-br from-gold/10 via-card/84 to-card/74 shadow-gold-soft">
-          <CardContent className="space-y-5 p-5 sm:p-6">
+        <FounderVisual
+          placement={founderStoryPlacement}
+          tone="story"
+          aspectClassName="aspect-[16/10] xl:aspect-auto"
+          className="min-h-[18rem]"
+        >
+          <div className="w-full space-y-4 p-5 sm:p-6">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
               <MessageSquareText size={20} />
             </span>
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-background/42 p-4 backdrop-blur">
               <p className="premium-kicker">Founder note</p>
               <p className="text-base leading-relaxed text-muted">
                 BCN is the wider ecosystem. Growth Architect work is the direct strategic support
@@ -435,16 +486,14 @@ export default async function FounderPage() {
                 business before they make the next move.
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </FounderVisual>
       </section>
 
       <section
         className={cn(
           "gap-6",
-          servicesApproachPlacement?.isActive && servicesApproachPlacement.imageUrl
-            ? "grid 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.52fr)]"
-            : ""
+          "grid 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.52fr)]"
         )}
       >
         <div className="space-y-6">
@@ -473,15 +522,13 @@ export default async function FounderPage() {
           </div>
         </div>
 
-        {servicesApproachPlacement?.isActive && servicesApproachPlacement.imageUrl ? (
-          <SectionFeatureImage
-            placement={servicesApproachPlacement}
-            tone="editorial"
-            aspectClassName="aspect-[16/10] 2xl:aspect-auto"
-            className="min-h-[14rem] 2xl:h-full"
-            sizes="(min-width: 1536px) 24vw, (min-width: 1024px) 34vw, 100vw"
-          />
-        ) : null}
+        <FounderVisual
+          placement={founderGrowthArchitecturePlacement}
+          tone="editorial"
+          aspectClassName="aspect-[16/10] 2xl:aspect-auto"
+          className="min-h-[14rem] 2xl:h-full"
+          sizes="(min-width: 1536px) 24vw, (min-width: 1024px) 34vw, 100vw"
+        />
       </section>
 
       <section className="space-y-6">
@@ -542,6 +589,24 @@ export default async function FounderPage() {
           title="Start with the right level of support"
           intro="The offers stay simple on purpose. Most owners should start with the Clarity Audit, then decide whether a session, ongoing support, or the wider BCN ecosystem is the right next step."
         />
+
+        <FounderVisual
+          placement={founderAuditPlacement}
+          tone="editorial"
+          aspectClassName="aspect-[16/9]"
+          className="min-h-[15rem]"
+          sizes="(min-width: 1280px) 72vw, 100vw"
+        >
+          <div className="w-full p-5 sm:p-6">
+            <div className="max-w-xl rounded-2xl border border-white/10 bg-background/44 p-4 backdrop-blur">
+              <p className="premium-kicker">Audit pathway</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                A clearer view of the website, offer, trust signals, visibility, and next move
+                before you spend more time or money guessing.
+              </p>
+            </div>
+          </div>
+        </FounderVisual>
 
         <div className="grid gap-4 xl:grid-cols-3">
           {services.map((service, index) => {
@@ -671,6 +736,14 @@ export default async function FounderPage() {
           }
         />
 
+        <FounderVisual
+          placement={founderProofPlacement}
+          tone="human"
+          aspectClassName="aspect-[16/9]"
+          className="min-h-[14rem]"
+          sizes="(min-width: 1280px) 72vw, 100vw"
+        />
+
         {growthArchitectTestimonials.length ? (
           <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0">
             {growthArchitectTestimonials.map((testimonial) => (
@@ -727,7 +800,26 @@ export default async function FounderPage() {
         )}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+      <section className="space-y-6">
+        <FounderVisual
+          placement={founderFinalCtaPlacement}
+          tone="founders"
+          aspectClassName="aspect-[16/9] xl:aspect-[21/9]"
+          className="min-h-[15rem]"
+          sizes="100vw"
+        >
+          <div className="w-full p-5 sm:p-6">
+            <div className="max-w-xl rounded-2xl border border-gold/20 bg-background/44 p-4 backdrop-blur">
+              <p className="premium-kicker">Next step</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                Start with clarity, then decide whether the audit, direct support, or the wider
+                BCN ecosystem is the right move.
+              </p>
+            </div>
+          </div>
+        </FounderVisual>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
         <Card className="border-border/90 bg-card/72 shadow-panel-soft">
           <CardHeader>
             <FounderSectionHeader
@@ -777,6 +869,7 @@ export default async function FounderPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </section>
     </div>
   );

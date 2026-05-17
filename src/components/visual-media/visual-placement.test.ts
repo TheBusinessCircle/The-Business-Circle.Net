@@ -42,4 +42,16 @@ describe("visual media alt text", () => {
       "The Business Circle Network membership room preview"
     );
   });
+
+  it("uses descriptive founder defaults when admin alt text is missing", () => {
+    expect(
+      resolveVisualPlacementAltText(
+        placement({
+          key: "founder.audit",
+          altText: null
+        }),
+        false
+      )
+    ).toBe("Business clarity audit and website trust review");
+  });
 });
