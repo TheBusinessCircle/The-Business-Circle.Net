@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { ReactNode } from "react";
-import { ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { TrackedPublicCtaLink } from "@/components/public/tracked-public-cta-link";
 import { cn } from "@/lib/utils";
 
 type HeroAction = {
@@ -24,6 +23,7 @@ type HeroSectionProps = {
   primaryAction: HeroAction;
   secondaryAction?: HeroAction;
   metrics?: HeroMetric[];
+  analyticsSource?: "home" | "about" | "membership" | "audit" | "insights" | "contact" | "intent" | "unknown";
   className?: string;
   aside?: ReactNode;
 };
@@ -37,6 +37,7 @@ export function HeroSection({
   primaryAction,
   secondaryAction,
   metrics,
+  analyticsSource = "unknown",
   className,
   aside
 }: HeroSectionProps) {
@@ -73,8 +74,11 @@ export function HeroSection({
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Link
+            <TrackedPublicCtaLink
               href={primaryAction.href}
+              label={primaryAction.label}
+              source={analyticsSource}
+              showArrow
               className={cn(
                 buttonVariants({
                   size: "lg",
@@ -82,14 +86,13 @@ export function HeroSection({
                 }),
                 "group w-full sm:w-auto"
               )}
-            >
-              {primaryAction.label}
-              <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-            </Link>
+            />
 
             {secondaryAction ? (
-              <Link
+              <TrackedPublicCtaLink
                 href={secondaryAction.href}
+                label={secondaryAction.label}
+                source={analyticsSource}
                 className={cn(
                   buttonVariants({
                     size: "lg",
@@ -97,9 +100,7 @@ export function HeroSection({
                   }),
                   "w-full sm:w-auto"
                 )}
-              >
-                {secondaryAction.label}
-              </Link>
+              />
             ) : null}
           </div>
 

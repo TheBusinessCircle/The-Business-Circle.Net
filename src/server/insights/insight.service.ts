@@ -1,24 +1,32 @@
-import { ResourceTier } from "@prisma/client";
-import { INSIGHT_TOPIC_CLUSTERS, PUBLIC_INSIGHT_ARTICLES } from "@/config/insights";
+import type { ResourceTier } from "@prisma/client";
+import { PUBLIC_INSIGHTS, type PublicInsight } from "@/content/insights/public-insights";
 import { getResourceTierLabel, getResourceTypeLabel } from "@/config/resources";
-import { buildPlannedResourceSeeds } from "@/lib/resources/catalog";
-import { splitResourceContentSections } from "@/lib/resources/markdown";
+import { slugify } from "@/lib/utils";
 import type {
   InsightTopicClusterSummary,
   PublicInsightArticle,
   PublicInsightSummary
 } from "@/types/insights";
 
-const INSIGHT_REFERENCE_DATE = new Date("2026-03-24T12:00:00.000Z");
 const insightDateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",
   year: "numeric"
 });
 
-const resourceMap = new Map(
-  buildPlannedResourceSeeds(INSIGHT_REFERENCE_DATE).map((resource) => [resource.slug, resource])
-);
+const todayPartsFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/London",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+
+function getUkDateKey(date = new Date()) {
+  const parts = todayPartsFormatter.formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
 
 function parsePublishedDate(value: string) {
   return new Date(`${value}T08:00:00.000Z`);
@@ -40,83 +48,82 @@ function buildMembershipHref(tier: ResourceTier, slug: string) {
   return `/membership?${params.toString()}`;
 }
 
-function buildLockedPreviewSections(content?: string) {
-  if (!content) {
-    return ["Deeper framework", "Member next steps"];
-  }
-
-  const parsed = splitResourceContentSections(content);
-  const headings = parsed.sections
-    .slice(2)
-    .map((section) => section.heading.trim())
-    .filter(Boolean);
-
-  return headings.length ? headings : ["Deeper framework", "Member next steps"];
+function getCategoryKeyword(category: string) {
+  return category.toLowerCase().replace(/\s+/g, " ");
 }
 
-function buildInsightArticle(slug: string): PublicInsightArticle | null {
-  const seed = PUBLIC_INSIGHT_ARTICLES.find((item) => item.slug === slug);
+function getClusterTitle(category: string) {
+  return category;
+}
 
-  if (!seed) {
-    return null;
-  }
+function isPublished(insight: Pick<PublicInsight, "publishedAt">, now = new Date()) {
+  return insight.publishedAt <= getUkDateKey(now);
+}
 
-  const source = resourceMap.get(seed.sourceResourceSlug);
-  const tier = source?.tier ?? ResourceTier.FOUNDATION;
-  const cluster = INSIGHT_TOPIC_CLUSTERS.find((item) => item.slug === seed.clusterSlug);
-
-  if (!cluster) {
-    return null;
-  }
-
+function toInsightSummary(insight: PublicInsight): PublicInsightArticle {
   return {
-    slug: seed.slug,
-    sourceResourceSlug: seed.sourceResourceSlug,
-    clusterSlug: cluster.slug,
-    clusterTitle: cluster.title,
-    clusterHref: buildClusterHref(cluster.slug),
-    isPillar: seed.isPillar ?? false,
-    title: seed.title,
-    sourceTitle: source?.title ?? seed.title,
-    keyword: seed.keyword,
-    summary: seed.summary,
-    metaTitle: seed.metaTitle,
-    metaDescription: seed.metaDescription,
-    publishedAt: parsePublishedDate(seed.publishedAt),
-    readMinutes: seed.readMinutes,
-    category: source?.category ?? "Business Insight",
-    typeLabel: source ? getResourceTypeLabel(source.type) : "Insight",
-    tierLabel: getResourceTierLabel(tier),
-    sourceExcerpt: source?.excerpt ?? seed.summary,
-    recommendedMembershipHref: buildMembershipHref(tier, seed.slug),
-    lockedPreviewSections: buildLockedPreviewSections(source?.content),
-    introduction: seed.introduction,
-    problemTitle: seed.problemTitle,
-    problem: seed.problem,
-    keyInsightTitle: seed.keyInsightTitle,
-    keyInsight: seed.keyInsight,
-    breakdownTitle: seed.breakdownTitle,
-    breakdownItems: seed.breakdownItems,
-    lockedTitle: seed.lockedTitle,
-    lockedDescription: seed.lockedDescription,
-    lockedBullets: seed.lockedBullets,
-    relatedSlugs: seed.relatedSlugs
+    slug: insight.slug,
+    memberResourceSlug: insight.memberResourceSlug,
+    clusterSlug: insight.clusterSlug,
+    clusterTitle: getClusterTitle(insight.category),
+    clusterHref: buildClusterHref(insight.clusterSlug),
+    isPillar: false,
+    title: insight.title,
+    excerpt: insight.excerpt,
+    keyword: insight.relatedIntentKeywords[0] ?? getCategoryKeyword(insight.category),
+    seoTitle: insight.seoTitle,
+    seoDescription: insight.seoDescription,
+    publishedAt: parsePublishedDate(insight.publishedAt),
+    publishedAtDate: insight.publishedAt,
+    readingTime: insight.readingTime,
+    category: insight.category,
+    typeLabel: getResourceTypeLabel(insight.resourceType),
+    tierLabel: getResourceTierLabel(insight.minimumTier),
+    memberDepthLabel: insight.memberDepthLabel,
+    recommendedMembershipHref: buildMembershipHref(insight.minimumTier, insight.slug),
+    lockedPreviewSections: [
+      "Full member breakdown",
+      "Practical action layer",
+      "Founder reflection layer",
+      "Member implementation guidance"
+    ],
+    relatedIntentKeywords: insight.relatedIntentKeywords,
+    aeoSummary: insight.aeoSummary,
+    publicIntro: insight.publicIntro,
+    publicPreviewSections: insight.publicPreviewSections,
+    publicTakeaways: insight.publicTakeaways,
+    fadeCtaTitle: insight.fadeCtaTitle,
+    fadeCtaText: insight.fadeCtaText,
+    ctaLabel: insight.ctaLabel,
+    ctaHref: insight.ctaHref,
+    internalLinks: insight.internalLinks,
+    relatedInsightSlugs: insight.relatedInsightSlugs
   };
 }
 
-const publicInsights = PUBLIC_INSIGHT_ARTICLES.map((item) => buildInsightArticle(item.slug))
-  .filter((item): item is PublicInsightArticle => Boolean(item))
-  .sort((left, right) => right.publishedAt.getTime() - left.publishedAt.getTime());
+function getPublishedInsightArticles(now = new Date()) {
+  return PUBLIC_INSIGHTS.filter((insight) => isPublished(insight, now))
+    .map(toInsightSummary)
+    .sort((left, right) => {
+      const timeDifference = right.publishedAt.getTime() - left.publishedAt.getTime();
+
+      if (timeDifference !== 0) {
+        return timeDifference;
+      }
+
+      return left.title.localeCompare(right.title);
+    });
+}
 
 function scoreRelatedInsight(current: PublicInsightArticle, candidate: PublicInsightArticle) {
   let score = 0;
 
   if (current.clusterSlug === candidate.clusterSlug) {
-    score += 4;
+    score += 5;
   }
 
   if (current.category === candidate.category) {
-    score += 3;
+    score += 4;
   }
 
   if (current.typeLabel === candidate.typeLabel) {
@@ -130,62 +137,85 @@ function scoreRelatedInsight(current: PublicInsightArticle, candidate: PublicIns
   return score;
 }
 
-export function listPublicInsights(): PublicInsightSummary[] {
-  return publicInsights;
+export function isPublicInsightPublishedDate(publishedAt: string, now = new Date()) {
+  return publishedAt <= getUkDateKey(now);
 }
 
-export function listPublicInsightSlugs() {
-  return publicInsights.map((insight) => insight.slug);
+export function listPublicInsights(now = new Date()): PublicInsightSummary[] {
+  return getPublishedInsightArticles(now);
 }
 
-export function listInsightTopicClusters(): InsightTopicClusterSummary[] {
-  return INSIGHT_TOPIC_CLUSTERS.map((cluster) => {
-    const clusterInsights = publicInsights.filter((insight) => insight.clusterSlug === cluster.slug);
-    const pillarInsight =
-      clusterInsights.find((insight) => insight.isPillar) ?? clusterInsights[0] ?? null;
-    const supportingInsights = clusterInsights.filter(
-      (insight) => insight.slug !== pillarInsight?.slug
-    );
-
-    return {
-      ...cluster,
-      href: buildClusterHref(cluster.slug),
-      articleCount: clusterInsights.length,
-      pillarInsight,
-      supportingInsights
-    };
-  }).filter((cluster) => cluster.articleCount > 0);
+export function listPublicInsightSlugs(now = new Date()) {
+  return listPublicInsights(now).map((insight) => insight.slug);
 }
 
-export function listInsightTopicClusterSlugs() {
-  return listInsightTopicClusters().map((cluster) => cluster.slug);
+export function listInsightTopicClusters(now = new Date()): InsightTopicClusterSummary[] {
+  const insights = getPublishedInsightArticles(now);
+  const grouped = new Map<string, PublicInsightArticle[]>();
+
+  for (const insight of insights) {
+    const existing = grouped.get(insight.clusterSlug) ?? [];
+    existing.push(insight);
+    grouped.set(insight.clusterSlug, existing);
+  }
+
+  return Array.from(grouped.entries())
+    .map(([clusterSlug, clusterInsights]) => {
+      const firstInsight = clusterInsights[0];
+      const title = firstInsight?.category ?? clusterSlug;
+      const keyword = firstInsight?.relatedIntentKeywords[0] ?? title.toLowerCase();
+      const sortedInsights = [...clusterInsights].sort(
+        (left, right) => right.publishedAt.getTime() - left.publishedAt.getTime()
+      );
+      const pillarInsight = sortedInsights[0] ?? null;
+
+      return {
+        slug: clusterSlug,
+        title,
+        description: `${title} insights from The Business Circle Network, written for serious owners who want clearer thinking before deeper member action.`,
+        supportLine:
+          "The public topic layer gives the signal. The private resource layer carries the frameworks, questions and implementation depth.",
+        keyword,
+        href: buildClusterHref(clusterSlug),
+        articleCount: sortedInsights.length,
+        pillarInsight,
+        supportingInsights: sortedInsights.filter((insight) => insight.slug !== pillarInsight?.slug)
+      };
+    })
+    .sort((left, right) => left.title.localeCompare(right.title));
 }
 
-export function getInsightTopicClusterBySlug(clusterSlug: string) {
-  return listInsightTopicClusters().find((cluster) => cluster.slug === clusterSlug) ?? null;
+export function listInsightTopicClusterSlugs(now = new Date()) {
+  return listInsightTopicClusters(now).map((cluster) => cluster.slug);
 }
 
-export function getPublicInsightBySlug(slug: string) {
-  return publicInsights.find((insight) => insight.slug === slug) ?? null;
+export function getInsightTopicClusterBySlug(clusterSlug: string, now = new Date()) {
+  return listInsightTopicClusters(now).find((cluster) => cluster.slug === clusterSlug) ?? null;
+}
+
+export function getPublicInsightBySlug(slug: string, now = new Date()) {
+  return getPublishedInsightArticles(now).find((insight) => insight.slug === slug) ?? null;
 }
 
 export function getRelatedPublicInsights(
   currentSlug: string,
-  take = 3
+  take = 3,
+  now = new Date()
 ): PublicInsightSummary[] {
-  const current = getPublicInsightBySlug(currentSlug);
+  const insights = getPublishedInsightArticles(now);
+  const current = insights.find((insight) => insight.slug === currentSlug);
 
   if (!current) {
     return [];
   }
 
-  const seededMatches = current.relatedSlugs
-    .map((slug) => getPublicInsightBySlug(slug))
+  const seededMatches = current.relatedInsightSlugs
+    .map((slug) => insights.find((insight) => insight.slug === slug))
     .filter((item): item is PublicInsightArticle => Boolean(item))
     .filter((item) => item.slug !== current.slug);
   const seededMatchSlugs = new Set(seededMatches.map((item) => item.slug));
 
-  const scoredMatches = publicInsights
+  const scoredMatches = insights
     .filter((item) => item.slug !== current.slug && !seededMatchSlugs.has(item.slug))
     .map((item) => ({
       item,
@@ -201,6 +231,10 @@ export function getRelatedPublicInsights(
     .map((entry) => entry.item);
 
   return [...seededMatches, ...scoredMatches].slice(0, take);
+}
+
+export function getInsightTopicSlug(category: string) {
+  return slugify(category);
 }
 
 export function formatInsightDate(value: Date) {

@@ -167,7 +167,7 @@ function buildAnalyticsSignals(input: {
       status: "prepared"
     },
     {
-      event: ANALYTICS_EVENTS.checkoutStarted,
+      event: ANALYTICS_EVENTS.membershipCheckoutStarted,
       label: "Checkout started",
       count: input.checkoutStarted7d,
       source: "Pending registration checkout sessions, last 7 days",

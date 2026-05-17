@@ -15,9 +15,13 @@ const EXPLORE_LINKS = [
   { label: "Home", href: "/home" },
   { label: "About", href: "/about" },
   { label: "Membership", href: "/membership" },
-  { label: "Join", href: "/join" },
+  { label: "Founder Audit", href: "/audit" },
   { label: "Founder", href: "/founder" },
   { label: "Insights", href: "/insights" },
+  { label: "Business Owner Network UK", href: "/business-owner-network-uk" },
+  { label: "Founder Community UK", href: "/founder-community-uk" },
+  { label: "Private Business Network", href: "/private-business-network" },
+  { label: "Business Networking UK", href: "/business-networking-uk" },
   { label: "Contact", href: "/contact" },
   { label: "FAQ", href: "/faq" }
 ];

@@ -43,7 +43,10 @@ export function CommunityChatArea({
   }, [channel.slug]);
 
   return (
-    <section className="flex h-[76vh] min-w-0 flex-col rounded-3xl border border-border/90 bg-card/75 shadow-panel-soft">
+    <section
+      data-member-sensitive
+      className="flex h-[76vh] min-w-0 flex-col rounded-3xl border border-border/90 bg-card/75 shadow-panel-soft"
+    >
       <CommunityHeader
         channel={channel}
         messageCount={messages.length}

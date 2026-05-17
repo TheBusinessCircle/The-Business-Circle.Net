@@ -57,6 +57,8 @@
     "next": "15.5.15",
     "next-auth": "5.0.0-beta.30",
     "pg": "^8.16.3",
+    "posthog-js": "^1.373.4",
+    "posthog-node": "^5.34.1",
     "prisma": "7.7.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",

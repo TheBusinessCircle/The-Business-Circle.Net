@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Prisma } from "@prisma/client";
-import { AlertTriangle, Filter, MessageSquare, Sparkles, Trash2 } from "lucide-react";
 import {
-  deleteModerationMessageAction,
-  runCommunityPromptCheckAction
-} from "@/actions/admin/community-moderation.actions";
-import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
+  AlertTriangle,
+  Filter,
+  MessageCircle,
+  MessageSquareText,
+  ShieldAlert,
+  Trash2
+} from "lucide-react";
+import {
+  CommunityCommentRemoveForm,
+  CommunityPostRemoveForm,
+  CommunityRefreshActions
+} from "@/components/admin/community-safety-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,19 +20,24 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { db } from "@/lib/db";
 import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
+import {
+  listCommunityChannelsForAdmin,
+  listCommunityCommentsForAdmin,
+  listCommunityPostsForAdmin,
+  type CommunityAdminOrder
+} from "@/server/community/community-safety-admin.service";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Admin Community Moderation",
+  title: "Community Safety",
   description:
-    "Moderate member chat messages with searchable channel filters and direct admin delete controls.",
+    "Admin-only tools for launch refresh, community post moderation and community comment moderation.",
   path: "/admin/community"
 });
 
@@ -40,173 +51,33 @@ function firstValue(value: string | string[] | undefined): string {
   return value ?? "";
 }
 
-function feedbackMessage(input: { notice: string; error: string }) {
-  const noticeMap: Record<string, string> = {
-    "message-deleted": "Message removed from the community feed.",
-    "prompt-published": "A quiet-time founder prompt was published.",
-    "prompt-skipped": "No prompt was published because the current safeguards decided to skip it."
-  };
-
-  const errorMap: Record<string, string> = {
-    invalid: "The moderation action payload was invalid.",
-    "not-found": "This message no longer exists or was already deleted."
-  };
-
-  if (input.notice && noticeMap[input.notice]) {
-    return { type: "notice" as const, message: noticeMap[input.notice] };
-  }
-
-  if (input.error && errorMap[input.error]) {
-    return { type: "error" as const, message: errorMap[input.error] };
-  }
-
-  return null;
+function parseOrder(value: string): CommunityAdminOrder {
+  return value === "oldest" ? "oldest" : "newest";
 }
 
-function buildReturnPath(input: {
-  query: string;
-  channelId: string;
-  includeDeleted: boolean;
-}): string {
-  const url = new URL("/admin/community", "http://localhost");
-
-  if (input.query) {
-    url.searchParams.set("q", input.query);
-  }
-  if (input.channelId) {
-    url.searchParams.set("channel", input.channelId);
-  }
-  if (input.includeDeleted) {
-    url.searchParams.set("includeDeleted", "1");
-  }
-
-  return `${url.pathname}${url.search}`;
-}
-
-export default async function AdminCommunityModerationPage({ searchParams }: PageProps) {
+export default async function AdminCommunitySafetyPage({ searchParams }: PageProps) {
   await requireAdmin();
+
   const params = await searchParams;
-  const query = firstValue(params.q).trim();
-  const channelId = firstValue(params.channel);
-  const includeDeleted = firstValue(params.includeDeleted) === "1";
+  const postQuery = firstValue(params.postQ).trim();
+  const commentQuery = firstValue(params.commentQ).trim();
+  const channelId = firstValue(params.channel).trim();
+  const postOrder = parseOrder(firstValue(params.postOrder));
+  const commentOrder = parseOrder(firstValue(params.commentOrder));
 
-  const where: Prisma.MessageWhereInput = {
-    ...(includeDeleted ? {} : { deletedAt: null }),
-    ...(channelId ? { channelId } : {}),
-    ...(query
-      ? {
-          OR: [
-            {
-              content: {
-                contains: query,
-                mode: "insensitive"
-              }
-            },
-            {
-              user: {
-                OR: [
-                  {
-                    name: {
-                      contains: query,
-                      mode: "insensitive"
-                    }
-                  },
-                  {
-                    email: {
-                      contains: query,
-                      mode: "insensitive"
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              channel: {
-                OR: [
-                  {
-                    name: {
-                      contains: query,
-                      mode: "insensitive"
-                    }
-                  },
-                  {
-                    slug: {
-                      contains: query,
-                      mode: "insensitive"
-                    }
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      : {})
-  };
-
-  const [channels, messages, totalVisibleCount, deletedCount] = await Promise.all([
-    db.channel.findMany({
-      where: {
-        isArchived: false
-      },
-      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        slug: true
-      }
+  const [channels, posts, comments] = await Promise.all([
+    listCommunityChannelsForAdmin(),
+    listCommunityPostsForAdmin({
+      query: postQuery,
+      channelId,
+      order: postOrder
     }),
-    db.message.findMany({
-      where,
-      orderBy: {
-        createdAt: "desc"
-      },
-      take: 120,
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        updatedAt: true,
-        deletedAt: true,
-        parentMessageId: true,
-        channel: {
-          select: {
-            id: true,
-            name: true,
-            slug: true
-          }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            membershipTier: true
-          }
-        },
-        _count: {
-          select: {
-            replies: true
-          }
-        }
-      }
-    }),
-    db.message.count({
-      where
-    }),
-    db.message.count({
-      where: {
-        deletedAt: {
-          not: null
-        }
-      }
+    listCommunityCommentsForAdmin({
+      query: commentQuery,
+      channelId,
+      order: commentOrder
     })
   ]);
-
-  const feedback = feedbackMessage({
-    notice: firstValue(params.notice),
-    error: firstValue(params.error)
-  });
-  const returnPath = buildReturnPath({ query, channelId, includeDeleted });
 
   return (
     <div className="space-y-6">
@@ -215,106 +86,118 @@ export default async function AdminCommunityModerationPage({ searchParams }: Pag
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <Badge variant="outline" className="border-gold/35 bg-gold/15 text-gold">
-                <MessageSquare size={12} className="mr-1" />
-                Community Moderation
+                <ShieldAlert size={12} className="mr-1" />
+                Admin Only
               </Badge>
-              <CardTitle className="mt-3 font-display text-3xl">Message Moderation</CardTitle>
-              <CardDescription className="mt-2 text-base">
-                Review community activity and remove problematic messages without joining member chat.
+              <CardTitle className="mt-3 font-display text-3xl">Community Safety</CardTitle>
+              <CardDescription className="mt-2 max-w-3xl text-base">
+                Review, refresh and remove community posts or comments across the full member
+                environment without exposing these controls outside the admin panel.
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="border-silver/35 bg-silver/10 text-silver">
-                {totalVisibleCount} visible in filter
+                {posts.total} posts in filter
               </Badge>
-              <Badge variant="outline" className="border-border text-muted">
-                {deletedCount} deleted total
+              <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold">
+                {comments.total} comments in filter
               </Badge>
             </div>
           </div>
         </CardHeader>
       </Card>
 
-      <Card>
+      <Card className="border-red-500/35 bg-red-500/10">
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2">
-            <Sparkles size={16} />
-            Quiet-Time Prompt Check
+            <AlertTriangle size={18} />
+            Community Refresh
           </CardTitle>
           <CardDescription>
-            Run the same guarded inactivity check used by the automation route. It will only publish if the safeguards allow it.
+            Launch Refresh. Use this to clear testing conversations before opening the community
+            properly.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form action={runCommunityPromptCheckAction}>
-            <input type="hidden" name="returnPath" value={returnPath} />
-            <Button type="submit" variant="outline">
-              Run Quiet-Time Check
-            </Button>
-          </form>
+        <CardContent className="space-y-5">
+          <div className="rounded-2xl border border-red-500/30 bg-background/35 p-4">
+            <p className="text-sm font-medium text-red-100">
+              This is a destructive launch-cleanup tool. Use only when preparing the community for
+              a clean launch or when removing unsafe content.
+            </p>
+          </div>
+          <CommunityRefreshActions />
         </CardContent>
       </Card>
-
-      {feedback ? (
-        <Card className={feedback.type === "error" ? "border-red-500/40 bg-red-500/10" : "border-gold/30 bg-gold/10"}>
-          <CardContent className="py-3">
-            <p className={feedback.type === "error" ? "text-sm text-red-200" : "text-sm text-gold"}>
-              {feedback.message}
-            </p>
-          </CardContent>
-        </Card>
-      ) : null}
 
       <Card>
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2">
             <Filter size={16} />
-            Filter Activity
+            Ongoing Moderation
           </CardTitle>
           <CardDescription>
-            Search by message content, member identity, or channel. Include deleted messages when auditing.
+            Review and remove posts or comments across the full community environment.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form method="GET" className="grid gap-4 md:grid-cols-[1fr_260px_auto]">
+          <form method="GET" className="grid gap-4 lg:grid-cols-[1fr_1fr_220px_170px_170px_auto]">
             <div className="space-y-2">
-              <Label htmlFor="q">Search</Label>
-              <Input id="q" name="q" defaultValue={query} placeholder="Message, member email, or channel" />
+              <Label htmlFor="postQ">Search posts</Label>
+              <Input
+                id="postQ"
+                name="postQ"
+                defaultValue={postQuery}
+                placeholder="Author, title, post, room"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="channel">Channel</Label>
+              <Label htmlFor="commentQ">Search comments</Label>
+              <Input
+                id="commentQ"
+                name="commentQ"
+                defaultValue={commentQuery}
+                placeholder="Comment, author, post, room"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="channel">Community section</Label>
               <Select id="channel" name="channel" defaultValue={channelId}>
-                <option value="">All channels</option>
+                <option value="">All sections</option>
                 {channels.map((channel) => (
                   <option key={channel.id} value={channel.id}>
-                    {channel.name} (#{channel.slug})
+                    {channel.name}
                   </option>
                 ))}
               </Select>
             </div>
 
-            <div className="flex flex-col justify-end gap-2">
-              <label className="inline-flex items-center gap-2 text-xs text-muted">
-                <input
-                  type="checkbox"
-                  name="includeDeleted"
-                  value="1"
-                  defaultChecked={includeDeleted}
-                  className="h-4 w-4 rounded border-border bg-background"
-                />
-                Include deleted
-              </label>
-              <div className="flex gap-2">
-                <Button type="submit" variant="outline" size="sm">
-                  Apply
+            <div className="space-y-2">
+              <Label htmlFor="postOrder">Post order</Label>
+              <Select id="postOrder" name="postOrder" defaultValue={postOrder}>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="commentOrder">Comment order</Label>
+              <Select id="commentOrder" name="commentOrder" defaultValue={commentOrder}>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+              </Select>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <Button type="submit" variant="outline" size="sm">
+                Apply
+              </Button>
+              <Link href="/admin/community">
+                <Button type="button" variant="ghost" size="sm">
+                  Reset
                 </Button>
-                <Link href="/admin/community">
-                  <Button type="button" variant="ghost" size="sm">
-                    Reset
-                  </Button>
-                </Link>
-              </div>
+              </Link>
             </div>
           </form>
         </CardContent>
@@ -322,80 +205,178 @@ export default async function AdminCommunityModerationPage({ searchParams }: Pag
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Messages</CardTitle>
+          <CardTitle className="inline-flex items-center gap-2">
+            <MessageSquareText size={17} />
+            All Posts
+          </CardTitle>
           <CardDescription>
-            Showing up to 120 newest messages for the current filter set.
+            Showing up to {posts.limit} active community posts for the current filter.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {messages.length ? (
-            messages.map((message) => {
-              const displayName = message.user.name || message.user.email;
-              const isDeleted = Boolean(message.deletedAt);
-
-              return (
-                <article key={message.id} className="rounded-xl border border-border/80 bg-background/30 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-foreground">{displayName}</p>
-                      <p className="text-xs text-muted">{message.user.email}</p>
-                      <div className="flex flex-wrap gap-2">
-                        <MembershipTierBadge tier={message.user.membershipTier} />
-                        <Badge variant="outline" className="text-muted normal-case tracking-normal">
-                          #{message.channel.slug}
-                        </Badge>
-                        {message.parentMessageId ? (
-                          <Badge variant="outline" className="text-muted normal-case tracking-normal">
-                            Reply
-                          </Badge>
-                        ) : null}
-                        {message._count.replies > 0 ? (
-                          <Badge variant="outline" className="text-muted normal-case tracking-normal">
-                            {message._count.replies} replies
-                          </Badge>
-                        ) : null}
-                        {isDeleted ? <Badge variant="danger">Deleted</Badge> : null}
-                      </div>
+          {posts.items.length ? (
+            posts.items.map((post) => (
+              <article key={post.id} className="rounded-2xl border border-border/80 bg-background/30 p-4">
+                <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
+                  <div className="min-w-0 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="border-gold/30 bg-gold/10 text-gold">
+                        {post.status}
+                      </Badge>
+                      <Badge variant="outline" className="text-muted normal-case tracking-normal">
+                        {post.channelName}
+                      </Badge>
+                      <Badge variant="outline" className="text-muted normal-case tracking-normal">
+                        {post.commentCount} comments
+                      </Badge>
+                      <Badge variant="outline" className="text-muted normal-case tracking-normal">
+                        {post.kind.replace(/_/g, " ").toLowerCase()}
+                      </Badge>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Link href={`/community?channel=${message.channel.slug}`} target="_blank" rel="noopener noreferrer">
+                    <div>
+                      <h3 className="font-display text-lg text-foreground">
+                        {post.title || post.preview}
+                      </h3>
+                      <p className="mt-2 text-sm leading-relaxed text-muted">{post.preview}</p>
+                    </div>
+
+                    <dl className="grid gap-2 text-xs text-muted sm:grid-cols-2 lg:grid-cols-4">
+                      <div>
+                        <dt className="text-foreground">Author</dt>
+                        <dd>{post.authorName}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-foreground">Email</dt>
+                        <dd className="break-all">{post.authorEmail ?? "Not available"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-foreground">Section</dt>
+                        <dd>{post.channelTopic || post.channelSlug}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-foreground">Created</dt>
+                        <dd>{formatDate(post.createdAt)}</dd>
+                      </div>
+                    </dl>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={post.href} target="_blank" rel="noopener noreferrer">
                         <Button type="button" variant="outline" size="sm">
-                          Open Channel
+                          View related area
                         </Button>
                       </Link>
-                      {!isDeleted ? (
-                        <form action={deleteModerationMessageAction}>
-                          <input type="hidden" name="messageId" value={message.id} />
-                          <input type="hidden" name="returnPath" value={returnPath} />
-                          <Button type="submit" variant="danger" size="sm">
-                            <Trash2 size={13} className="mr-1" />
-                            Delete
-                          </Button>
-                        </form>
-                      ) : null}
+                      <Link href={post.channelHref} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" variant="ghost" size="sm">
+                          Open section
+                        </Button>
+                      </Link>
                     </div>
                   </div>
 
-                  <p className="mt-3 whitespace-pre-wrap rounded-lg border border-border/70 bg-background/40 px-3 py-2 text-sm text-foreground">
-                    {message.content}
-                  </p>
-
-                  <p className="mt-2 text-xs text-muted">
-                    Posted {formatDate(message.createdAt)}
-                    {isDeleted ? ` • Deleted ${formatDate(message.deletedAt as Date)}` : ""}
-                    {!isDeleted && message.updatedAt.getTime() !== message.createdAt.getTime()
-                      ? ` • Updated ${formatDate(message.updatedAt)}`
-                      : ""}
-                  </p>
-                </article>
-              );
-            })
+                  <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-3">
+                    <p className="mb-3 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-red-100">
+                      <Trash2 size={13} />
+                      Remove post
+                    </p>
+                    <CommunityPostRemoveForm postId={post.id} />
+                  </div>
+                </div>
+              </article>
+            ))
           ) : (
             <EmptyState
-              icon={AlertTriangle}
-              title="No messages match this filter"
-              description="Adjust filters or clear search to review recent community activity."
+              icon={MessageSquareText}
+              title="No posts match this filter"
+              description="Adjust the search or section filter to review active community posts."
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="inline-flex items-center gap-2">
+            <MessageCircle size={17} />
+            All Comments
+          </CardTitle>
+          <CardDescription>
+            Showing up to {comments.limit} active community comments for the current filter.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {comments.items.length ? (
+            comments.items.map((comment) => (
+              <article key={comment.id} className="rounded-2xl border border-border/80 bg-background/30 p-4">
+                <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
+                  <div className="min-w-0 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="border-gold/30 bg-gold/10 text-gold">
+                        Active
+                      </Badge>
+                      <Badge variant="outline" className="text-muted normal-case tracking-normal">
+                        {comment.channelName}
+                      </Badge>
+                      <Badge variant="outline" className="text-muted normal-case tracking-normal">
+                        Parent post
+                      </Badge>
+                    </div>
+
+                    <div>
+                      <h3 className="font-display text-lg text-foreground">{comment.preview}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-muted">
+                        On: {comment.postTitle || comment.postPreview}
+                      </p>
+                    </div>
+
+                    <dl className="grid gap-2 text-xs text-muted sm:grid-cols-2 lg:grid-cols-4">
+                      <div>
+                        <dt className="text-foreground">Author</dt>
+                        <dd>{comment.authorName}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-foreground">Email</dt>
+                        <dd className="break-all">{comment.authorEmail ?? "Not available"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-foreground">Section</dt>
+                        <dd>{comment.channelTopic || comment.channelSlug}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-foreground">Created</dt>
+                        <dd>{formatDate(comment.createdAt)}</dd>
+                      </div>
+                    </dl>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={comment.href} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" variant="outline" size="sm">
+                          View related area
+                        </Button>
+                      </Link>
+                      <Link href={comment.channelHref} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" variant="ghost" size="sm">
+                          Open section
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-3">
+                    <p className="mb-3 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-red-100">
+                      <Trash2 size={13} />
+                      Remove comment
+                    </p>
+                    <CommunityCommentRemoveForm commentId={comment.id} />
+                  </div>
+                </div>
+              </article>
+            ))
+          ) : (
+            <EmptyState
+              icon={MessageCircle}
+              title="No comments match this filter"
+              description="Adjust the search or section filter to review active community comments."
             />
           )}
         </CardContent>

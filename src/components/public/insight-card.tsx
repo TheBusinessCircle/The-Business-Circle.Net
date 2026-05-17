@@ -47,14 +47,26 @@ export function InsightCard({ insight, featured = false }: InsightCardProps) {
           {insight.title}
         </h2>
         <p className={cn("leading-relaxed text-muted", featured ? "max-w-3xl text-base" : "text-sm")}>
-          {insight.summary}
+          {insight.excerpt}
         </p>
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.08em] text-silver">
         <span>{insightDateFormatter.format(insight.publishedAt)}</span>
-        <span>{insight.readMinutes} min read</span>
-        <span>{insight.tierLabel} depth inside membership</span>
+        <span>{insight.readingTime} min read</span>
+        <span>{insight.memberDepthLabel}</span>
+      </div>
+
+      <div className="mt-5 grid gap-2 text-xs leading-relaxed text-muted sm:grid-cols-3">
+        <span className="rounded-xl border border-border/70 bg-background/24 px-3 py-2">
+          Why it matters: clearer owner context.
+        </span>
+        <span className="rounded-xl border border-border/70 bg-background/24 px-3 py-2">
+          Who it affects: {insight.category.toLowerCase()} decisions.
+        </span>
+        <span className="rounded-xl border border-border/70 bg-background/24 px-3 py-2">
+          Watch next: {insight.keyword}.
+        </span>
       </div>
 
       <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground">

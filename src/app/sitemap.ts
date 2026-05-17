@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_CONFIG } from "@/config/site";
+import { PUBLIC_INTENT_PAGE_ROUTES } from "@/config/public-intent-pages";
 import {
   listInsightTopicClusters,
   listPublicInsights
@@ -38,6 +39,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9
     },
     {
+      url: `${SITE_CONFIG.url}/audit`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.86
+    },
+    {
+      url: `${SITE_CONFIG.url}/faq`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.65
+    },
+    {
       url: `${SITE_CONFIG.url}/founder`,
       lastModified: now,
       changeFrequency: "weekly",
@@ -48,12 +61,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.7
-    },
-    {
-      url: `${SITE_CONFIG.url}/join`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.9
     },
     {
       url: `${SITE_CONFIG.url}/privacy-policy`,
@@ -87,6 +94,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   ];
 
+  const intentRoutes: MetadataRoute.Sitemap = PUBLIC_INTENT_PAGE_ROUTES.map((path) => ({
+    url: `${SITE_CONFIG.url}${path}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.78
+  }));
+
   try {
     const insights = listPublicInsights();
     const clusters = listInsightTopicClusters();
@@ -94,6 +108,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [
       ...staticRoutes,
+      ...intentRoutes,
       ...clusters.map((cluster) => ({
         url: `${SITE_CONFIG.url}${cluster.href}`,
         lastModified: now,
@@ -114,6 +129,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }))
     ];
   } catch {
-    return staticRoutes;
+    return [...staticRoutes, ...intentRoutes];
   }
 }

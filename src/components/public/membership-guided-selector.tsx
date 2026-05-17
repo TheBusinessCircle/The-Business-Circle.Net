@@ -40,7 +40,11 @@ import {
   getFounderRoomAvailabilitySummary,
   getFounderRoomPricingNote
 } from "@/lib/founding-offer-copy";
-import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
+import {
+  ANALYTICS_EVENTS,
+  trackAnalyticsEvent,
+  trackMembershipTierViewed
+} from "@/lib/analytics";
 import {
   getTierAccentTextClassName,
   getTierButtonVariant,
@@ -79,6 +83,7 @@ type TierGuide = {
   whoItsFor: string;
   whatYouNeed: string;
   whyThisFits: string;
+  chooseThisIf: readonly string[];
   ctaLabel: string;
   icon: LucideIcon;
 };
@@ -87,51 +92,67 @@ const TIER_GUIDES: TierGuide[] = [
   {
     tier: "FOUNDATION",
     title: "Foundation",
-    positioningLine: "A steady room for owners building the structure properly.",
+    positioningLine: "For owners who want a better business room around them.",
     bestForLine:
-      "Best when the business needs a stronger base, better context, and clearer next steps.",
+      "Best for early-stage connection, visibility, resources and joining the environment.",
     detailSummary:
-      "Build the base properly before the business needs more depth.",
+      "A better base for owners who want to step inside without overcomplicating the decision.",
     whoItsFor:
-      "Designed for owners still tightening the foundations of the business, shaping the offer, or building more consistency into growth.",
+      "Designed for owners who want a calmer business room around them, useful resources, profile visibility and better conversations with other serious owners.",
     whatYouNeed:
-      "You need clearer structure, better context, and a room where conversation helps the business move without adding noise.",
+      "You need better context, useful connection and a structured place to begin without stepping straight into the deepest room.",
     whyThisFits:
-      "Foundation gives you the right base around the work so momentum can build cleanly before you need a tighter room.",
+      "Foundation gives you the base environment so you can build trust, understand the room and make your first useful moves.",
+    chooseThisIf: [
+      "You want to enter the environment properly",
+      "You want visibility, resources and owner context",
+      "You want better conversations without a heavier room yet"
+    ],
     ctaLabel: "Enter Foundation",
     icon: Compass
   },
   {
     tier: "INNER_CIRCLE",
     title: "Inner Circle",
-    positioningLine: "A tighter room for businesses already carrying momentum.",
+    positioningLine:
+      "For owners who want stronger context, closer discussion and better business conversations.",
     bestForLine:
-      "Best when stronger signal, deeper conversation, and more relevant context will help the business move better.",
+      "Best for deeper relationship building, more focused rooms and stronger strategic interaction.",
     detailSummary:
-      "Tighten the room around momentum, context, and sharper conversation.",
+      "A tighter room for owners who need more context, stronger signal and closer discussion.",
     whoItsFor:
-      "Designed for businesses with traction that want sharper discussion, stronger positioning, and a more intentional room around the next stage of growth.",
+      "Designed for owners who already know the value of the wider room and want stronger conversation, more focused access and better strategic context.",
     whatYouNeed:
-      "You need higher-signal conversation, stronger visibility, and more useful context than a wider room usually holds.",
+      "You need more relevant discussion, closer relationships and a room where owners bring better context to the conversation.",
     whyThisFits:
-      "Inner Circle raises the quality of context and discussion without turning the membership into a status game.",
+      "Inner Circle gives you a closer environment without turning membership into a status game.",
+    chooseThisIf: [
+      "You want stronger owner-to-owner discussion",
+      "You value deeper relationships over loose access",
+      "You want a more focused room around the business"
+    ],
     ctaLabel: "Enter Inner Circle",
     icon: TrendingUp
   },
   {
     tier: "CORE",
     title: "Core",
-    positioningLine: "A quieter room for operators carrying heavier decisions.",
+    positioningLine: "For owners who want serious proximity, visibility and strategic depth.",
     bestForLine:
-      "Best when proximity, judgement, and the quality of the room matter more than wider access alone.",
+      "Best for owners who want the highest level of access, trust and involvement inside the network.",
     detailSummary:
-      "Protect decision quality with more serious context and less noise.",
+      "The highest-context room for owners carrying more serious decisions and wanting greater proximity.",
     whoItsFor:
-      "Designed for established operators carrying real responsibility who want the calmest room, the best proximity, and more serious conversation.",
+      "Designed for operators carrying real responsibility who want the calmest room, stronger proximity and more strategic depth inside the network.",
     whatYouNeed:
-      "You need a quieter environment where judgement matters, the signal stays high, and the room supports more consequential decisions.",
+      "You need a quieter environment where judgement matters, trust is protected and the room supports more consequential decisions.",
     whyThisFits:
-      "Core protects the conversation, raises the level of proximity, and keeps serious growth discussion inside a more controlled environment.",
+      "Core protects the highest-context layer of the network and keeps serious growth discussion inside a more controlled environment.",
+    chooseThisIf: [
+      "You want the highest level of proximity",
+      "You are carrying more consequential decisions",
+      "You want strategic depth inside a trusted room"
+    ],
     ctaLabel: "Enter Core",
     icon: Crown
   }
@@ -162,11 +183,11 @@ const REASSURANCE_ITEMS = [
 ] as const;
 
 const TIER_GUIDANCE = {
-  FOUNDATION: "For owners who want structure, access, and useful business direction.",
+  FOUNDATION: "For owners who want a better business room around them.",
   INNER_CIRCLE:
-    "For owners who want deeper conversations, stronger access, and more regular support.",
+    "For owners who want stronger context, closer discussion, and better business conversations.",
   CORE:
-    "For owners who want the highest level of access, visibility, and strategic environment."
+    "For owners who want serious proximity, visibility, and strategic depth."
 } as const satisfies Record<MembershipTier, string>;
 
 function findTierGuide(tier: MembershipTier) {
@@ -353,6 +374,19 @@ function SelectedPathPanel({
           <div className="rounded-[1.35rem] border border-white/8 bg-background/18 p-4">
             <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Why This Fits</p>
             <p className="mt-2 text-sm leading-relaxed text-muted">{guide.whyThisFits}</p>
+          </div>
+          <div className="rounded-[1.35rem] border border-gold/18 bg-gold/8 p-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+              Choose this if
+            </p>
+            <ul className="mt-3 space-y-2">
+              {guide.chooseThisIf.map((item) => (
+                <li key={item} className="flex gap-2 text-sm leading-relaxed text-muted">
+                  <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-gold" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
@@ -547,6 +581,14 @@ export function MembershipGuidedSelector({
     () => Object.values(foundingOfferByTier).filter((item) => item.available).length,
     [foundingOfferByTier]
   );
+
+  useEffect(() => {
+    trackMembershipTierViewed({
+      source: source === "audit" ? "audit" : "membership",
+      tier: selectedTier,
+      billingInterval
+    });
+  }, [billingInterval, selectedTier, source]);
 
   const selectedJoinHref = useMemo(
     () =>

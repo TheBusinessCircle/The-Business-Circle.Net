@@ -7,6 +7,11 @@ import {
 import { db } from "@/lib/db";
 import { getAccessibleResourceTiers } from "@/server/resources/resource-policy";
 import { buildResourceReadFilter, type ResourceLibraryView } from "@/server/resources/resource-read.service";
+import {
+  getPublishedMemberInsightResourceBySlug,
+  getRelatedMemberInsightResourceCards,
+  listPublishedMemberInsightResourceCards
+} from "@/server/resources/member-insight-resources.service";
 
 export type PublishedResourceSummary = {
   id: string;
@@ -24,6 +29,7 @@ export type PublishedResourceSummary = {
   publishedAt: Date | null;
   updatedAt: Date;
   isRead: boolean;
+  isMemberInsightResource?: boolean;
 };
 
 export async function listLatestPublishedResources(
@@ -45,7 +51,7 @@ export async function listLatestPublishedResources(
       ...(options?.userId ? buildResourceReadFilter(options.userId, options.view ?? "unread") : {})
     },
     orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
-    take,
+    take: take * 2,
     select: {
       id: true,
       title: true,
@@ -77,7 +83,7 @@ export async function listLatestPublishedResources(
     }
   });
 
-  return resources.map((resource) => ({
+  const dbItems = resources.map((resource) => ({
     id: resource.id,
     title: resource.title,
     slug: resource.slug,
@@ -94,12 +100,24 @@ export async function listLatestPublishedResources(
     updatedAt: resource.updatedAt,
     isRead: "readStates" in resource ? resource.readStates.length > 0 : false
   }));
+  const memberInsightResources = listPublishedMemberInsightResourceCards(membershipTier, {
+    view: options?.view ?? "unread"
+  });
+
+  return [...dbItems, ...memberInsightResources]
+    .sort((left, right) => {
+      const rightTime = right.publishedAt?.getTime() ?? right.updatedAt.getTime();
+      const leftTime = left.publishedAt?.getTime() ?? left.updatedAt.getTime();
+
+      return rightTime - leftTime;
+    })
+    .slice(0, take);
 }
 
 export async function getPublishedResourceBySlug(slug: string, membershipTier: MembershipTier) {
   const visibleTiers = getAccessibleResourceTiers(membershipTier);
 
-  return db.resource.findFirst({
+  const resource = await db.resource.findFirst({
     where: {
       slug,
       status: "PUBLISHED",
@@ -126,11 +144,18 @@ export async function getPublishedResourceBySlug(slug: string, membershipTier: M
       createdAt: true
     }
   });
+
+  if (resource) {
+    return resource;
+  }
+
+  return getPublishedMemberInsightResourceBySlug(slug, membershipTier);
 }
 
 export async function getRelatedPublishedResources(
   resource: {
     id: string;
+    slug?: string;
     tier: ResourceTier;
     category: string;
     type: ResourceType;
@@ -174,7 +199,7 @@ export async function getRelatedPublishedResources(
     take: 24
   });
 
-  return candidates
+  const dbMatches = candidates
     .map((candidate) => ({
       ...candidate,
       score:
@@ -189,6 +214,32 @@ export async function getRelatedPublishedResources(
 
       const rightTime = right.publishedAt?.getTime() ?? right.updatedAt.getTime();
       const leftTime = left.publishedAt?.getTime() ?? left.updatedAt.getTime();
+      return rightTime - leftTime;
+    })
+    .slice(0, take);
+  const memberInsightMatches = getRelatedMemberInsightResourceCards(
+    {
+      slug: resource.slug ?? resource.id,
+      tier: resource.tier,
+      category: resource.category,
+      type: resource.type
+    },
+    membershipTier,
+    take
+  );
+
+  return [...dbMatches, ...memberInsightMatches]
+    .sort((left, right) => {
+      const leftScore = "score" in left ? left.score : 0;
+      const rightScore = "score" in right ? right.score : 0;
+
+      if (rightScore !== leftScore) {
+        return rightScore - leftScore;
+      }
+
+      const rightTime = right.publishedAt?.getTime() ?? right.updatedAt.getTime();
+      const leftTime = left.publishedAt?.getTime() ?? left.updatedAt.getTime();
+
       return rightTime - leftTime;
     })
     .slice(0, take);

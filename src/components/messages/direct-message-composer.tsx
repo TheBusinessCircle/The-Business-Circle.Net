@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Paperclip, SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { trackMemberMessageSent } from "@/lib/analytics";
 
 type DirectMessageComposerProps = {
   threadId: string;
@@ -48,6 +49,10 @@ export function DirectMessageComposer({
         throw new Error(payload.error || "Unable to send the message.");
       }
 
+      trackMemberMessageSent({
+        surface: "direct_message",
+        hasAttachment: files.length > 0
+      });
       setContent("");
       setFiles([]);
       if (fileInputRef.current) {
@@ -66,7 +71,10 @@ export function DirectMessageComposer({
   }
 
   return (
-    <div className="rounded-[26px] border border-silver/16 bg-card/78 p-4 shadow-panel-soft">
+    <div
+      data-member-sensitive
+      className="rounded-[26px] border border-silver/16 bg-card/78 p-4 shadow-panel-soft"
+    >
       <div className="space-y-3">
         <Textarea
           value={content}

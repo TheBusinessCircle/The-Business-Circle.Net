@@ -6,6 +6,7 @@ import {
   MessageCircle
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { TrackedPublicCtaLink } from "@/components/public/tracked-public-cta-link";
 import { cn } from "@/lib/utils";
 
 const FIRST_SEVEN_DAYS_ITEMS = [
@@ -163,10 +164,13 @@ export function AuditFitCta() {
               Run the Founder Audit and get a guided room recommendation.
             </p>
           </div>
-          <Link href="/audit" className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}>
-            Start the Founder Audit
-            <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-          </Link>
+          <TrackedPublicCtaLink
+            href="/audit"
+            label="Run the Founder Audit"
+            source="unknown"
+            showArrow
+            className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
+          />
         </div>
       </div>
     </section>
@@ -188,10 +192,13 @@ export function InsightsRoomCta() {
           </h2>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <Link href="/audit" className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}>
-            Start the Founder Audit
-            <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-          </Link>
+          <TrackedPublicCtaLink
+            href="/audit"
+            label="Run the Founder Audit"
+            source="insights"
+            showArrow
+            className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
+          />
           <Link
             href="/membership"
             className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}

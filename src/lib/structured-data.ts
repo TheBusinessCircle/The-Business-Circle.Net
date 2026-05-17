@@ -1,4 +1,5 @@
 import { TREV_FOUNDER_CONTENT } from "@/config/founder";
+import { COMPANY_CONFIG } from "@/config/company";
 import type { MembershipTier } from "@prisma/client";
 import { getMembershipTierDefinition } from "@/config/membership";
 import { SITE_CONFIG } from "@/config/site";
@@ -34,6 +35,14 @@ type CollectionPageSchemaInput = {
   itemPaths?: string[];
 };
 
+type WebPageSchemaInput = {
+  title: string;
+  description: string;
+  path: string;
+  primaryQuestion?: string;
+  primaryAnswer?: string;
+};
+
 type MembershipProductTierSchemaInput = {
   tier: MembershipTier;
   monthlyPrice: number;
@@ -56,10 +65,15 @@ export function buildPublicSiteSchemaGraph(input: PublicSiteSchemaInput = {}) {
         "@type": "Organization",
         "@id": absoluteUrl("/#organization"),
         name: SITE_CONFIG.name,
+        legalName: COMPANY_CONFIG.legalName,
         url: SITE_CONFIG.url,
         description: SITE_CONFIG.description,
         email: supportEmail,
         sameAs,
+        areaServed: {
+          "@type": "Country",
+          name: "United Kingdom"
+        },
         founder: {
           "@type": "Person",
           name: TREV_FOUNDER_CONTENT.name,
@@ -87,6 +101,34 @@ export function buildPublicSiteSchemaGraph(input: PublicSiteSchemaInput = {}) {
         }
       }
     ]
+  };
+}
+
+export function buildWebPageSchema(input: WebPageSchemaInput) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: input.title,
+    description: input.description,
+    url: absoluteUrl(input.path),
+    mainEntityOfPage: absoluteUrl(input.path),
+    inLanguage: "en-GB",
+    isPartOf: {
+      "@id": absoluteUrl("/#website")
+    },
+    publisher: {
+      "@id": absoluteUrl("/#organization")
+    },
+    mainEntity: input.primaryQuestion
+      ? {
+          "@type": "Question",
+          name: input.primaryQuestion,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: input.primaryAnswer
+          }
+        }
+      : undefined
   };
 }
 

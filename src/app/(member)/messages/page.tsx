@@ -130,7 +130,7 @@ export default async function MessagesPage({ searchParams }: PageProps) {
         </Card>
       ) : null}
 
-      <Card>
+      <Card data-member-sensitive>
         <CardHeader>
           <CardTitle>Inbox</CardTitle>
           <CardDescription>

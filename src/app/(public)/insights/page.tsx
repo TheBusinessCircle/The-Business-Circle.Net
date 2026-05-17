@@ -1,48 +1,73 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Compass, Lock } from "lucide-react";
-import { CTASection, InsightCard, SectionHeading } from "@/components/public";
+import { ArrowRight, Compass, MessageSquareText, SearchCheck } from "lucide-react";
+import {
+  CTASection,
+  InsightCard,
+  JsonLd,
+  SectionHeading,
+  TwoPathCta
+} from "@/components/public";
 import { PublicTopVisual } from "@/components/visual-media";
 import { Button } from "@/components/ui/button";
 import { INSIGHT_SECTION_COPY } from "@/config/insights";
 import { createPageMetadata } from "@/lib/seo";
+import {
+  buildBreadcrumbSchema,
+  buildCollectionPageSchema,
+  buildWebPageSchema
+} from "@/lib/structured-data";
 import {
   listInsightTopicClusters,
   listPublicInsights
 } from "@/server/insights/insight.service";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata: Metadata = createPageMetadata({
-  title: "Business Growth Insights For Founders",
+  title: "Founder-Led Business Insights | The Business Circle Network",
   description:
-    "Business growth insights for founders covering clarity, strategy, better decisions, and the next step into Business Circle membership.",
+    "Founder-led business insights for owners who want clearer thinking, better conversations, stronger trust signals and a calmer environment to grow inside.",
   keywords: [
-    "business growth insights for founders",
-    "founder strategy articles",
-    "business growth insights",
-    "business decision making for founders"
+    "business owner insights",
+    "founder led business thinking",
+    "business owner network UK",
+    "AI search visibility for business"
   ],
   path: "/insights"
 });
 
-const journeyItems = [
+const INSIGHT_AREAS = [
+  "Owner reality",
+  "Founder clarity",
+  "Business growth",
+  "Trust and visibility",
+  "AI search and business visibility",
+  "Better conversations",
+  "Decision making",
+  "The thinking behind The Business Circle Network"
+] as const;
+
+const BUSINESS_SIGNALS = [
+  {
+    icon: SearchCheck,
+    title: "Trust is becoming easier to measure and harder to fake.",
+    description:
+      "Buyers and AI search systems both reward businesses that are clear, structured and supported by real signals."
+  },
+  {
+    icon: MessageSquareText,
+    title: "Better decisions usually come from better conversations.",
+    description:
+      "Owners need rooms where context is understood before advice is offered."
+  },
   {
     icon: Compass,
-    title: "Start here",
+    title: "AI search will reward businesses that are clear and easy to understand.",
     description:
-      "Use the free insights layer to understand the issue clearly before you decide whether to go deeper."
-  },
-  {
-    icon: BookOpen,
-    title: "Go deeper inside membership",
-    description:
-      "Full frameworks, review prompts, and the execution sequence stay inside membership where the deeper structure belongs."
-  },
-  {
-    icon: Lock,
-    title: "This is just the surface layer",
-    description:
-      "The free layer should be useful on its own, while membership makes the next move clearer when you want more depth."
+      "Visibility now depends on public clarity, trusted structure and useful answers that do not become thin content."
   }
 ] as const;
 
@@ -50,19 +75,49 @@ export default async function InsightsPage() {
   const insights = listPublicInsights();
   const topicClusters = listInsightTopicClusters();
   const insightsHeroPlacement = await getVisualMediaPlacement("intelligence.hero");
-  const startHereInsight =
-    insights.find(
-      (insight) => insight.slug === "why-your-business-is-not-growing-even-though-you-are-working-hard"
-    ) ?? insights[0];
-  const remainingInsights = insights.filter((insight) => insight.slug !== startHereInsight?.slug);
+  const featuredInsight = insights[0] ?? null;
+  const latestInsights = insights.filter((insight) => insight.slug !== featuredInsight?.slug).slice(0, 12);
 
   return (
     <div className="public-page-stack">
+      <JsonLd
+        data={buildCollectionPageSchema({
+          title: "Founder-Led Business Insights",
+          description:
+            "Public insight previews from The Business Circle Network for owners who want clearer thinking before deeper member resources.",
+          path: "/insights",
+          keywords: [
+            "business owner insights",
+            "founder clarity",
+            "business growth",
+            "AI search visibility"
+          ],
+          itemPaths: insights.map((insight) => `/insights/${insight.slug}`)
+        })}
+      />
+      <JsonLd
+        data={buildWebPageSchema({
+          title: "Founder-Led Business Insights",
+          description:
+            "The public insight layer of The Business Circle Network for serious business owners.",
+          path: "/insights",
+          primaryQuestion: "What are BCN Insights?",
+          primaryAnswer:
+            "BCN Insights are public preview notes for business owners who want clearer thinking, better conversations and a calmer route into deeper member resources."
+        })}
+      />
+      <JsonLd
+        data={buildBreadcrumbSchema([
+          { name: "Home", path: "/home" },
+          { name: "Insights", path: "/insights" }
+        ])}
+      />
+
       <PublicTopVisual
         placement={insightsHeroPlacement}
-        eyebrow="BCN Intelligence"
-        title="Signal over noise for founders who want clearer decisions."
-        description="Start with a clearer editorial layer before you move deeper into the insight content."
+        eyebrow="BCN Insights"
+        title="Founder-led insight for owners who want clearer thinking."
+        description="A public preview layer for serious business owners, with the full breakdowns kept inside membership."
         tone="anchored"
         fallbackLabel="Insights top visual"
       />
@@ -70,146 +125,180 @@ export default async function InsightsPage() {
       <section className="public-hero-spacing relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/58 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.62)_100%)]" />
-        <div className="relative grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+        <div className="relative grid gap-8 lg:grid-cols-[1fr_0.82fr] lg:items-end">
           <div className="space-y-5">
-            <p className="premium-kicker">You&apos;re In The Insights Layer</p>
-            <div className="space-y-4">
-              <h1 className="max-w-4xl font-display text-4xl leading-tight tracking-tight text-foreground sm:text-5xl">
-                {INSIGHT_SECTION_COPY.title}
-              </h1>
-              <p className="max-w-3xl text-lg leading-relaxed text-white/80">
-                {INSIGHT_SECTION_COPY.description}
-              </p>
-            </div>
-            <p className="max-w-3xl text-base leading-relaxed text-white/75">
+            <p className="premium-kicker">Public preview hub</p>
+            <h1 className="max-w-5xl font-display text-4xl leading-tight tracking-tight text-foreground sm:text-5xl">
+              {INSIGHT_SECTION_COPY.description}
+            </h1>
+            <p className="max-w-3xl text-base leading-relaxed text-white/78 sm:text-lg">
               {INSIGHT_SECTION_COPY.supportLine}
             </p>
             <div className="flex flex-wrap gap-3">
-              <a href="#start-here">
+              <Link href="/membership?from=/insights">
                 <Button size="lg">
-                  Start Here
+                  Explore Membership
                   <ArrowRight size={16} className="ml-2" />
                 </Button>
-              </a>
-              <Link href="/membership?from=/insights">
+              </Link>
+              <Link href="/audit">
                 <Button size="lg" variant="outline">
-                  Go Deeper Inside Membership
+                  Run The Founder Audit
                 </Button>
               </Link>
             </div>
           </div>
 
-          <div className="grid gap-4">
-            <article className="rounded-[1.55rem] border border-silver/20 bg-background/28 p-4 sm:p-5">
-              <p className="premium-kicker">Browse topics</p>
-              <h2 className="mt-4 font-display text-2xl text-foreground">
-                Clarity, strategy, and better decisions for founders
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted">
-                This layer is organised around real business pressure, so it is easier to scan by
-                topic before you read deeper.
-              </p>
-            </article>
-            <article className="rounded-[1.55rem] border border-border/80 bg-background/22 p-4 sm:p-5">
-              <p className="premium-kicker">Most relevant right now</p>
-              <p className="mt-3 text-sm leading-relaxed text-muted">
-                {topicClusters.length} topic paths connect the public insight layer to the deeper
-                membership library without turning the site into SEO noise.
-              </p>
-            </article>
+          <div className="rounded-[1.6rem] border border-gold/24 bg-background/26 p-5">
+            <p className="premium-kicker">What BCN Insights covers</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {INSIGHT_AREAS.map((area) => (
+                <span
+                  key={area}
+                  className="rounded-xl border border-border/70 bg-card/42 px-3 py-2 text-sm text-silver"
+                >
+                  {area}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {startHereInsight ? (
-        <section id="start-here" className="space-y-6">
+      {featuredInsight ? (
+        <section className="space-y-6">
           <SectionHeading
-            label="Start Here"
-            title="Free business growth insight to begin with"
-            description="If you are new to the platform, start with the clearest article first before you browse the wider topic clusters."
+            label="Featured insight"
+            title="The latest public preview"
+            description="Useful enough to stand on its own, but intentionally incomplete. The deeper resource continues inside the protected member library."
           />
-          <InsightCard insight={startHereInsight} featured />
+          <InsightCard insight={featuredInsight} featured />
         </section>
       ) : null}
 
       <section className="space-y-6">
         <SectionHeading
-          label="Browse Topics"
-          title="Business growth topics organised around real business pressure"
-          description="Choose the topic that matches the business pressure you are dealing with right now, then follow the supporting articles underneath it."
+          label="Latest insights"
+          title="Published public previews"
+          description="Only insights with a published date of today or earlier are visible here. Future insight URLs stay unavailable until release."
         />
-        <div className="grid gap-4 lg:grid-cols-3">
-          {topicClusters.map((cluster) => (
-            <article key={cluster.slug} className="public-panel interactive-card p-5 sm:p-6">
-              <p className="premium-kicker">{cluster.title}</p>
-              <h2 className="mt-4 font-display text-2xl text-foreground">
-                {cluster.title}
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{cluster.description}</p>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{cluster.supportLine}</p>
-              <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.08em] text-silver">
-                <span>Topic guide</span>
-                <span>{cluster.articleCount} supporting article{cluster.articleCount === 1 ? "" : "s"}</span>
-              </div>
-              <div className="mt-5 space-y-2">
-                {cluster.supportingInsights.slice(0, 2).map((insight) => (
-                  <Link
-                    key={insight.slug}
-                    href={`/insights/${insight.slug}`}
-                    className="block rounded-xl border border-border/80 bg-background/20 px-3 py-3 text-sm text-muted transition-colors hover:border-silver/24 hover:text-foreground"
-                  >
-                    {insight.title}
-                  </Link>
-                ))}
-              </div>
-              <div className="mt-5">
-                <Link href={cluster.href} className="inline-flex items-center gap-2 text-sm text-silver hover:text-foreground">
-                  Explore this topic
-                  <ArrowRight size={14} />
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
+        {latestInsights.length ? (
+          <div className="grid gap-5 lg:grid-cols-2">
+            {latestInsights.map((insight) => (
+              <InsightCard key={insight.slug} insight={insight} />
+            ))}
+          </div>
+        ) : (
+          <article className="public-panel p-6">
+            <p className="premium-kicker">Daily publishing rhythm</p>
+            <h2 className="mt-3 font-display text-2xl text-foreground">
+              The next public insight releases on the next scheduled day.
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">
+              Published insights remain live permanently. Future previews and their member
+              resources stay hidden until their release date.
+            </p>
+          </article>
+        )}
       </section>
 
       <section className="space-y-6">
         <SectionHeading
-          label="How This Layer Works"
-          title="Free insight first. Membership depth next."
-          description="The experience is built to feel useful in public, then more structured inside membership when you want the full framework."
+          label="Business owner signals"
+          title="Short signals worth holding onto"
+          description="The public layer should make the quality of thinking visible without turning BCN into a generic blog."
         />
-        <div className="grid gap-4 md:grid-cols-3">
-          {journeyItems.map((item) => (
-            <article key={item.title} className="public-panel interactive-card p-5 sm:p-6">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
-                <item.icon size={18} />
-              </span>
-              <h3 className="mt-5 font-display text-2xl text-foreground">{item.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-            </article>
-          ))}
+        <div className="grid gap-4 lg:grid-cols-3">
+          {BUSINESS_SIGNALS.map((signal) => {
+            const Icon = signal.icon;
+
+            return (
+              <article key={signal.title} className="public-panel interactive-card p-5 sm:p-6">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
+                  <Icon size={18} />
+                </span>
+                <h2 className="mt-5 font-display text-2xl text-foreground">{signal.title}</h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted">{signal.description}</p>
+              </article>
+            );
+          })}
         </div>
       </section>
 
-      <section id="latest-insights" className="space-y-6">
-        <SectionHeading
-          label="Latest Insights"
-          title="Start with what's most relevant right now"
-          description="These business growth insights are ordered for calm scanning, current relevance, and a natural move into deeper membership when it fits."
-        />
-        <div className="grid gap-5 lg:grid-cols-2">
-          {remainingInsights.map((insight) => (
-            <InsightCard key={insight.slug} insight={insight} />
-          ))}
+      <section className="public-section">
+        <div className="grid gap-5 lg:grid-cols-[0.85fr_1fr]">
+          <article className="rounded-[1.85rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/76 to-card/68 p-6 shadow-gold-soft">
+            <p className="premium-kicker">From the founder</p>
+            <h2 className="mt-4 font-display text-3xl text-foreground">
+              Trevor Newton | Growth Architect
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted">
+              I am building The Business Circle Network because too many business owners are
+              trying to make serious decisions in noisy rooms. BCN is being built as a calmer,
+              more useful environment for owners who want better conversations, clearer thinking
+              and people around them who understand the pressure.
+            </p>
+          </article>
+
+          <article className="rounded-[1.85rem] border border-border/80 bg-card/66 p-6 shadow-panel-soft">
+            <p className="premium-kicker">Useful public routes</p>
+            <h2 className="mt-4 font-display text-3xl text-foreground">
+              Keep the public journey connected
+            </h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {[
+                { href: "/business-owner-network-uk", label: "Business Owner Network UK" },
+                { href: "/founder-community-uk", label: "Founder Community UK" },
+                { href: "/private-business-network", label: "Private Business Network" },
+                { href: "/business-networking-uk", label: "Business Networking UK" }
+              ].map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-xl border border-border/80 bg-background/24 px-4 py-3 text-sm text-silver transition-colors hover:border-gold/28 hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </article>
         </div>
       </section>
+
+      {topicClusters.length ? (
+        <section className="space-y-6">
+          <SectionHeading
+            label="Browse by signal"
+            title="Topic paths without turning the site into noise"
+            description="Each topic contains only insights that have already reached their published date."
+          />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {topicClusters.slice(0, 9).map((cluster) => (
+              <Link key={cluster.slug} href={cluster.href} className="public-panel interactive-card p-5">
+                <p className="premium-kicker">{cluster.keyword}</p>
+                <h2 className="mt-4 font-display text-2xl text-foreground">{cluster.title}</h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted">{cluster.supportLine}</p>
+                <p className="mt-4 text-xs uppercase tracking-[0.08em] text-silver">
+                  {cluster.articleCount} published insight{cluster.articleCount === 1 ? "" : "s"}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <CTASection
-        title="This is just the surface layer"
-        description="When you want the full frameworks, clearer sequence, and practical next steps, go deeper inside membership."
-        primaryAction={{ href: "/membership?from=/insights", label: "Go Deeper Inside Membership" }}
-        secondaryAction={{ href: "/founder", label: "Meet The Founder", variant: "outline" }}
+        title="Useful public thinking. Deeper member action."
+        description="Explore membership when you want the full resources, implementation prompts and protected room around the work. Run the Founder Audit if you want the calmer starting point first."
+        primaryAction={{ href: "/membership?from=/insights", label: "Explore Membership" }}
+        secondaryAction={{ href: "/audit", label: "Run The Founder Audit", variant: "outline" }}
+        analyticsSource="insights"
+      />
+
+      <TwoPathCta
+        source="insights"
+        title="Choose the next step that fits."
+        description="Review membership if you already know you want the room. Run the Founder Audit if you want a clearer starting point."
       />
     </div>
   );

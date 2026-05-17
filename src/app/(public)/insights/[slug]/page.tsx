@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, Compass, Lock, MoveLeft, NotebookTabs } from "lucide-react";
+import { ArrowRight, CalendarDays, Clock, Lock, MoveLeft, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { InsightCard, InsightsRoomCta, JsonLd } from "@/components/public";
 import { PublicTopVisual } from "@/components/visual-media";
@@ -12,8 +12,7 @@ import {
   formatInsightDate,
   getInsightTopicClusterBySlug,
   getPublicInsightBySlug,
-  getRelatedPublicInsights,
-  listPublicInsightSlugs
+  getRelatedPublicInsights
 } from "@/server/insights/insight.service";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
@@ -21,21 +20,17 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
-const lockedPreviewWidths = ["w-11/12", "w-4/5", "w-10/12"] as const;
-
-export const dynamicParams = false;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const dynamicParams = true;
 
 function createFallbackMetadata(slug: string): Metadata {
   return createPageMetadata({
     title: "Insights",
-    description: "Public business insights from The Business Circle.",
+    description: "Public business insights from The Business Circle Network.",
     path: `/insights/${slug}`,
     noIndex: true
   });
-}
-
-export function generateStaticParams() {
-  return listPublicInsightSlugs().map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -47,27 +42,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const baseMetadata = createPageMetadata({
-    title: insight.metaTitle,
-    description: insight.metaDescription,
-    path: `/insights/${insight.slug}`
+    title: insight.seoTitle,
+    description: insight.seoDescription,
+    path: `/insights/${insight.slug}`,
+    keywords: [
+      insight.keyword,
+      insight.category,
+      ...insight.relatedIntentKeywords,
+      "business owner insights",
+      "founder clarity"
+    ]
   });
 
   return {
     ...baseMetadata,
     metadataBase: new URL(SITE_CONFIG.url),
-    keywords: [
-      insight.keyword,
-      insight.category,
-      insight.typeLabel,
-      "business insights",
-      "business strategy"
-    ],
     openGraph: {
       ...baseMetadata.openGraph,
       type: "article",
       publishedTime: insight.publishedAt.toISOString(),
       section: insight.category,
-      tags: [insight.keyword, insight.typeLabel, insight.tierLabel]
+      tags: insight.relatedIntentKeywords
     }
   };
 }
@@ -83,12 +78,6 @@ export default async function InsightArticlePage({ params }: PageProps) {
   const relatedInsights = getRelatedPublicInsights(insight.slug, 3);
   const topicCluster = getInsightTopicClusterBySlug(insight.clusterSlug);
   const insightsHeroPlacement = await getVisualMediaPlacement("intelligence.hero");
-  const topicInsights = topicCluster
-    ? [
-        ...(topicCluster.pillarInsight ? [topicCluster.pillarInsight] : []),
-        ...topicCluster.supportingInsights
-      ].filter((item) => item.slug !== insight.slug)
-    : [];
   const breadcrumbSchema = buildBreadcrumbSchema([
     { name: "Home", path: "/home" },
     { name: "Insights", path: "/insights" },
@@ -97,10 +86,10 @@ export default async function InsightArticlePage({ params }: PageProps) {
   ]);
   const articleSchema = buildInsightArticleSchema({
     title: insight.title,
-    description: insight.metaDescription,
+    description: insight.seoDescription,
     path: `/insights/${insight.slug}`,
     publishedAt: insight.publishedAt,
-    keywords: [insight.keyword, insight.category, insight.typeLabel]
+    keywords: [insight.keyword, insight.category, ...insight.relatedIntentKeywords]
   });
 
   return (
@@ -111,9 +100,9 @@ export default async function InsightArticlePage({ params }: PageProps) {
       <div className="public-page-stack">
         <PublicTopVisual
           placement={insightsHeroPlacement}
-          eyebrow="Insight Article"
+          eyebrow="Public Insight Preview"
           title={insight.title}
-          description={insight.summary}
+          description={insight.excerpt}
           tone="anchored"
         />
 
@@ -155,16 +144,13 @@ export default async function InsightArticlePage({ params }: PageProps) {
           <div className="relative space-y-6">
             <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-muted">
               <span className="rounded-full border border-border/70 bg-background/28 px-3 py-1">
-                Insights
-              </span>
-              <span className="rounded-full border border-border/70 bg-background/28 px-3 py-1">
                 {insight.category}
               </span>
               <span className="rounded-full border border-border/70 bg-background/28 px-3 py-1">
                 {insight.typeLabel}
               </span>
               <span className="rounded-full border border-border/70 bg-background/28 px-3 py-1">
-                {insight.tierLabel} depth inside membership
+                {insight.memberDepthLabel}
               </span>
             </div>
 
@@ -173,301 +159,174 @@ export default async function InsightArticlePage({ params }: PageProps) {
                 {insight.title}
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-white/80">
-                {insight.summary}
+                {insight.excerpt}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.08em] text-silver">
-              <span>{formatInsightDate(insight.publishedAt)}</span>
-              <span>{insight.readMinutes} min read</span>
-              <span>Topic focus: {insight.keyword}</span>
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays size={14} />
+                {formatInsightDate(insight.publishedAt)}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Clock size={14} />
+                {insight.readingTime} min read
+              </span>
+              <span>Public preview</span>
             </div>
           </div>
         </section>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
           <article className="space-y-6">
-            <section
-              id="introduction"
-              className="public-panel scroll-mt-28 space-y-4 p-6 sm:p-8"
-            >
-              <h2 className="font-display text-3xl text-foreground">Introduction</h2>
-              {insight.introduction.map((paragraph) => (
+            <section className="rounded-[1.85rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/76 to-card/68 p-6 shadow-gold-soft sm:p-8">
+              <p className="premium-kicker">Answer first</p>
+              <h2 className="mt-4 font-display text-3xl text-foreground">
+                The short answer
+              </h2>
+              <p className="mt-4 text-base leading-relaxed text-white/82 sm:text-lg">
+                {insight.aeoSummary}
+              </p>
+            </section>
+
+            <section className="public-panel space-y-4 p-6 sm:p-8">
+              <p className="premium-kicker">Opening note</p>
+              <h2 className="font-display text-3xl text-foreground">
+                The public signal
+              </h2>
+              {insight.publicIntro.map((paragraph) => (
                 <p key={paragraph} className="text-base leading-relaxed text-muted">
                   {paragraph}
                 </p>
               ))}
             </section>
 
-            <section id="problem" className="public-panel scroll-mt-28 space-y-4 p-6 sm:p-8">
-              <h2 className="font-display text-3xl text-foreground">{insight.problemTitle}</h2>
-              {insight.problem.map((paragraph) => (
-                <p key={paragraph} className="text-base leading-relaxed text-muted">
-                  {paragraph}
-                </p>
-              ))}
-            </section>
+            {insight.publicPreviewSections.map((section) => (
+              <section key={section.heading} className="public-panel space-y-4 p-6 sm:p-8">
+                <h2 className="font-display text-3xl text-foreground">{section.heading}</h2>
+                {section.body.map((paragraph) => (
+                  <p key={paragraph} className="text-base leading-relaxed text-muted">
+                    {paragraph}
+                  </p>
+                ))}
+              </section>
+            ))}
 
-            <section id="key-insight" className="public-panel scroll-mt-28 space-y-4 p-6 sm:p-8">
-              <h2 className="font-display text-3xl text-foreground">{insight.keyInsightTitle}</h2>
-              {insight.keyInsight.map((paragraph) => (
-                <p key={paragraph} className="text-base leading-relaxed text-muted">
-                  {paragraph}
-                </p>
-              ))}
+            <section className="public-panel space-y-5 p-6 sm:p-8">
+              <p className="premium-kicker">Public takeaways</p>
+              <h2 className="font-display text-3xl text-foreground">
+                Three useful points to keep
+              </h2>
+              <div className="grid gap-3 md:grid-cols-3">
+                {insight.publicTakeaways.map((takeaway) => (
+                  <div
+                    key={takeaway}
+                    className="rounded-[1.25rem] border border-border/80 bg-background/24 px-4 py-4 text-sm leading-relaxed text-muted"
+                  >
+                    {takeaway}
+                  </div>
+                ))}
+              </div>
             </section>
 
             <InsightsRoomCta />
 
-            <section id="breakdown" className="public-panel scroll-mt-28 space-y-6 p-6 sm:p-8">
-              <h2 className="font-display text-3xl text-foreground">{insight.breakdownTitle}</h2>
-              <div className="grid gap-4 md:grid-cols-3">
-                {insight.breakdownItems.map((item) => (
-                  <article
-                    key={item.title}
-                    className="rounded-[1.75rem] border border-border/80 bg-background/22 p-5"
-                  >
-                    <h3 className="font-display text-2xl text-foreground">{item.title}</h3>
-                    <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section
-              id="inside-circle"
-              className="relative scroll-mt-28 overflow-hidden rounded-[2rem] border border-gold/28 bg-gradient-to-b from-gold/8 via-card/76 to-card/84 p-6 pb-80 shadow-panel sm:p-8 sm:pb-72"
-            >
-              <div className="space-y-4 select-none blur-[3px] opacity-70">
-                {insight.lockedPreviewSections.map((heading) => (
-                  <div
-                    key={heading}
-                    className="rounded-[1.75rem] border border-border/80 bg-background/24 p-5"
-                  >
-                    <p className="premium-kicker">{heading}</p>
-                    <div className="mt-4 space-y-2">
-                      {lockedPreviewWidths.map((widthClassName) => (
-                        <div
-                          key={`${heading}-${widthClassName}`}
-                          className={`h-3 rounded-full bg-background/60 ${widthClassName}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="absolute inset-x-4 bottom-4 sm:inset-x-6 sm:bottom-6">
-                <div className="rounded-[1.75rem] border border-gold/30 bg-background/94 p-6 shadow-panel backdrop-blur">
+            <section className="relative overflow-hidden rounded-[2rem] border border-gold/28 bg-gradient-to-b from-gold/10 via-card/78 to-card/88 p-6 shadow-panel sm:p-8">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.2),transparent_42%)]" />
+              <div className="relative grid gap-6 lg:grid-cols-[1fr_0.72fr] lg:items-end">
+                <div className="space-y-4">
                   <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
                     <Lock size={12} />
-                    Membership depth
+                    Member depth
                   </div>
-                  <h2 className="mt-4 font-display text-3xl text-foreground">
-                    This is just the surface layer
+                  <h2 className="font-display text-3xl text-foreground sm:text-4xl">
+                    {insight.fadeCtaTitle}
                   </h2>
-                  <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">
-                    {insight.lockedDescription} Full frameworks are available inside membership.
+                  <p className="max-w-3xl text-sm leading-relaxed text-muted sm:text-base">
+                    {insight.fadeCtaText}
                   </p>
-                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    {insight.lockedBullets.map((item) => (
+                  <div className="flex flex-wrap gap-3">
+                    <Link href={insight.recommendedMembershipHref}>
+                      <Button size="lg">
+                        {insight.ctaLabel}
+                        <ArrowRight size={16} className="ml-2" />
+                      </Button>
+                    </Link>
+                    <Link href="/audit">
+                      <Button size="lg" variant="outline">
+                        Run The Founder Audit
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.6rem] border border-silver/16 bg-background/24 p-4">
+                  <p className="premium-kicker">Continues inside</p>
+                  <div className="mt-4 space-y-3">
+                    {insight.lockedPreviewSections.map((item) => (
                       <div
                         key={item}
-                        className="rounded-2xl border border-border/80 bg-background/22 px-4 py-3 text-sm text-muted"
+                        className="rounded-xl border border-border/80 bg-card/42 px-4 py-3 text-sm text-silver"
                       >
                         {item}
                       </div>
                     ))}
                   </div>
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    <Link href={insight.recommendedMembershipHref}>
-                      <Button size="lg">Go Deeper Inside Membership</Button>
-                    </Link>
-                    <Link href="/membership">
-                      <Button size="lg" variant="outline">
-                        View Membership
-                      </Button>
-                    </Link>
-                  </div>
                 </div>
-              </div>
-            </section>
-
-            <section id="inside-topic" className="space-y-6 scroll-mt-28">
-              <div className="space-y-2">
-                <p className="premium-kicker">Inside This Topic</p>
-                <h2 className="font-display text-3xl text-foreground">
-                  Keep building the subject properly
-                </h2>
-                <p className="max-w-3xl text-sm leading-relaxed text-muted">
-                  Use the topic page for the wider authority view, then move into membership when you want the deeper structure and execution layer.
-                </p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Link
-                  href={topicCluster?.href ?? "/insights"}
-                  className="rounded-[1.75rem] border border-silver/18 bg-card/62 p-5 transition-colors hover:border-silver/30 hover:bg-card/72"
-                >
-                  <p className="premium-kicker">Topic cluster</p>
-                  <h3 className="mt-4 font-display text-2xl text-foreground">
-                    {topicCluster ? `Open the full ${topicCluster.title} topic guide` : "Browse topic guides"}
-                  </h3>
-                  <p className="mt-3 text-sm leading-relaxed text-muted">
-                    See the wider problem, the supporting angles, and the structured links around this topic.
-                  </p>
-                </Link>
-                <Link
-                  href={insight.recommendedMembershipHref}
-                  className="rounded-[1.75rem] border border-gold/24 bg-gradient-to-br from-gold/8 via-card/72 to-card/68 p-5 transition-colors hover:border-gold/34"
-                >
-                  <p className="premium-kicker">Go deeper inside membership</p>
-                  <h3 className="mt-4 font-display text-2xl text-foreground">
-                    Full frameworks available inside
-                  </h3>
-                  <p className="mt-3 text-sm leading-relaxed text-muted">
-                    Public insight creates understanding. The member library adds the fuller frameworks, review questions, and practical execution depth.
-                  </p>
-                </Link>
-              </div>
-
-              {topicInsights.length ? (
-                <div className="grid gap-5 lg:grid-cols-2">
-                  {topicInsights.slice(0, 3).map((topicInsight) => (
-                    <InsightCard key={topicInsight.slug} insight={topicInsight} />
-                  ))}
-                </div>
-              ) : null}
-            </section>
-
-            <section className="rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/76 to-card/70 p-6 shadow-gold-soft sm:p-8">
-              <p className="premium-kicker">Continue Inside</p>
-              <h2 className="mt-4 font-display text-3xl text-foreground">
-                Continue This Conversation Inside The Business Circle
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted sm:text-base">
-                Insights are only the surface. Inside The Business Circle, business owners can
-                discuss the real decisions, pressure, and next moves behind the topic.
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Link href={insight.recommendedMembershipHref}>
-                  <Button size="lg">Join The Business Circle</Button>
-                </Link>
-                <Link href="/membership">
-                  <Button size="lg" variant="outline">
-                    View Membership Options
-                  </Button>
-                </Link>
               </div>
             </section>
 
             <section className="space-y-6">
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-2">
-                  <p className="premium-kicker">Read Next</p>
-                  <h2 className="font-display text-3xl text-foreground">More insights worth your time</h2>
+              <div className="space-y-2">
+                <p className="premium-kicker">Read next</p>
+                <h2 className="font-display text-3xl text-foreground">
+                  Related public insights
+                </h2>
+              </div>
+              {relatedInsights.length ? (
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {relatedInsights.map((relatedInsight) => (
+                    <InsightCard key={relatedInsight.slug} insight={relatedInsight} />
+                  ))}
                 </div>
-                <Link
-                  href="/insights"
-                  className="hidden text-sm text-muted transition-colors hover:text-foreground md:inline-flex"
-                >
-                  Browse all insights
-                </Link>
-              </div>
-              <div className="grid gap-5 lg:grid-cols-2">
-                {relatedInsights.map((relatedInsight) => (
-                  <InsightCard key={relatedInsight.slug} insight={relatedInsight} />
-                ))}
-              </div>
+              ) : (
+                <p className="text-sm text-muted">
+                  More related public insights will appear as the daily bank publishes.
+                </p>
+              )}
             </section>
           </article>
 
           <aside className="space-y-4">
             <div className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto overscroll-contain pr-1">
               <section className="public-panel p-5">
-                <p className="premium-kicker">Inside This Insight</p>
+                <h2 className="inline-flex items-center gap-2 font-display text-2xl text-foreground">
+                  <Sparkles size={18} className="text-silver" />
+                  Internal routes
+                </h2>
                 <div className="mt-4 space-y-2">
-                  {[ 
-                    { href: "#introduction", label: "Introduction" },
-                    { href: "#problem", label: insight.problemTitle },
-                    { href: "#key-insight", label: insight.keyInsightTitle },
-                    { href: "#breakdown", label: insight.breakdownTitle },
-                    { href: "#inside-circle", label: "Go deeper inside membership" },
-                    { href: "#inside-topic", label: "Inside This Topic" }
-                  ].map((item) => (
-                    <a
-                      key={item.href}
-                      href={item.href}
+                  {insight.internalLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
                       className="block rounded-xl border border-border/80 bg-background/22 px-3 py-3 text-sm text-muted transition-colors hover:border-silver/24 hover:text-foreground"
                     >
-                      {item.label}
-                    </a>
+                      {link.label}
+                    </Link>
                   ))}
                 </div>
               </section>
 
               <section className="public-panel border-silver/22 bg-gradient-to-br from-silver/10 via-card/72 to-card/68 p-5">
-                <p className="premium-kicker">Best place to continue</p>
+                <p className="premium-kicker">Why this stops here</p>
                 <h2 className="mt-4 font-display text-2xl text-foreground">
-                  Free insight first. Membership depth next.
+                  The full resource is member-only.
                 </h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted">
-                  This article gives the thinking. Membership gives the fuller framework, the execution layer, and the more structured next step.
+                  This page only sends the public preview to the browser. The full framework,
+                  action plan, checklist and implementation guidance live behind authentication
+                  and tier access.
                 </p>
-                <div className="mt-4 rounded-2xl border border-border/80 bg-background/22 px-4 py-3 text-sm text-muted">
-                  Source depth: {insight.tierLabel}
-                </div>
-                <div className="mt-4 space-y-2 text-sm text-muted">
-                  <Link
-                    href={insight.recommendedMembershipHref}
-                    className="inline-flex items-center gap-2 transition-colors hover:text-foreground"
-                  >
-                    <BookOpen size={15} />
-                    Go deeper inside membership
-                  </Link>
-                  <Link
-                    href={topicCluster?.href ?? "/insights"}
-                    className="inline-flex items-center gap-2 transition-colors hover:text-foreground"
-                  >
-                    <Compass size={15} />
-                    {topicCluster ? `Explore the ${topicCluster.title} topic` : "Browse topic guides"}
-                  </Link>
-                  <Link
-                    href="/founder"
-                    className="inline-flex items-center gap-2 transition-colors hover:text-foreground"
-                  >
-                    <BookOpen size={15} />
-                    Meet the founder behind the platform
-                  </Link>
-                </div>
-              </section>
-
-              {topicCluster ? (
-                <section className="public-panel p-5">
-                  <p className="premium-kicker">Topic Cluster</p>
-                  <h2 className="mt-4 font-display text-2xl text-foreground">{topicCluster.title}</h2>
-                  <p className="mt-3 text-sm leading-relaxed text-muted">
-                    {topicCluster.description}
-                  </p>
-                  <Link
-                    href={topicCluster.href}
-                    className="mt-4 inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
-                  >
-                    Open this topic cluster
-                    <Compass size={14} />
-                  </Link>
-                </section>
-              ) : null}
-
-              <section className="public-panel p-5">
-                <h2 className="inline-flex items-center gap-2 font-display text-2xl text-foreground">
-                  <NotebookTabs size={18} className="text-silver" />
-                  Source Context
-                </h2>
-                <p className="mt-3 text-sm leading-relaxed text-muted">
-                  This public insight is adapted from a deeper member resource inside the Business Circle library. The public version focuses on understanding. The member version goes further into structure and execution.
-                </p>
-                <p className="mt-4 text-sm text-muted">{insight.sourceExcerpt}</p>
               </section>
             </div>
           </aside>

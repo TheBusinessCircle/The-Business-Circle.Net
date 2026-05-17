@@ -519,12 +519,39 @@ async function syncFounderSettingsFromLaunchState(client: BillingClient) {
   }
 }
 
+const BILLING_CATALOG_SEED_TTL_MS = 60_000;
+let billingCatalogSeededAt = 0;
+let billingCatalogSeedPromise: Promise<void> | null = null;
+
 export async function ensureBillingCatalogSeeded() {
-  await db.$transaction(async (tx) => {
-    await ensureMembershipCatalog(tx);
-    await ensureFounderServiceCatalog(tx);
-    await syncFounderSettingsFromLaunchState(tx);
-  });
+  if (Date.now() - billingCatalogSeededAt < BILLING_CATALOG_SEED_TTL_MS) {
+    return;
+  }
+
+  if (billingCatalogSeedPromise) {
+    return billingCatalogSeedPromise;
+  }
+
+  billingCatalogSeedPromise = db
+    .$transaction(
+      async (tx) => {
+        await ensureMembershipCatalog(tx);
+        await ensureFounderServiceCatalog(tx);
+        await syncFounderSettingsFromLaunchState(tx);
+      },
+      {
+        maxWait: 10_000,
+        timeout: 20_000
+      }
+    )
+    .then(() => {
+      billingCatalogSeededAt = Date.now();
+    })
+    .finally(() => {
+      billingCatalogSeedPromise = null;
+    });
+
+  return billingCatalogSeedPromise;
 }
 
 function mapFounderControl(

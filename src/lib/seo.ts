@@ -60,10 +60,13 @@ export function createPageMetadata(input: PageMetadataInput): Metadata {
   const canonicalUrl = new URL(canonicalPath, SITE_CONFIG.url).toString();
   const openGraphImage = getOpenGraphShareImage();
   const twitterImage = getTwitterShareImage();
+  const title = input.title.includes(SITE_CONFIG.name)
+    ? { absolute: input.title }
+    : input.title;
 
   return {
     metadataBase: new URL(SITE_CONFIG.url),
-    title: input.title,
+    title,
     description: input.description,
     keywords: input.keywords,
     alternates: {

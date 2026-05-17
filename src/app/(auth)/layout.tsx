@@ -5,7 +5,11 @@ import { SITE_CONFIG } from "@/config/site";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_CONFIG.url)
+  metadataBase: new URL(SITE_CONFIG.url),
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export default function AuthLayout({ children }: { children: ReactNode }) {

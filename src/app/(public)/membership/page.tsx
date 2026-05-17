@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import { TestimonialProofType } from "@prisma/client";
-import { FirstSevenDaysBlock, JsonLd, TierOutcomeComparison } from "@/components/public";
+import {
+  AnswerBlock,
+  AuditFitCta,
+  FirstSevenDaysBlock,
+  JsonLd,
+  MovementInsideRoomSection,
+  PrivacyBoundaryNote,
+  TierOutcomeComparison,
+  TrustTrailSection,
+  TwoPathCta
+} from "@/components/public";
 import { TestimonialSection } from "@/components/public/testimonial-section";
 import { PublicTopVisual } from "@/components/visual-media";
 import { MembershipGuidedSelector } from "@/components/public/membership-guided-selector";
@@ -16,7 +26,8 @@ import {
   buildBreadcrumbSchema,
   buildCollectionPageSchema,
   buildFaqSchema,
-  buildMembershipProductsSchema
+  buildMembershipProductsSchema,
+  buildWebPageSchema
 } from "@/lib/structured-data";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { getSiteContentSection } from "@/server/site-content";
@@ -38,7 +49,7 @@ const MEMBERSHIP_KEYWORDS = [
 ] as const;
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Membership For Business Owners",
+  title: "Membership | Join The Business Circle Network",
   description:
     "Choose the right room inside a private founder-led business environment for owners. Compare Foundation, Inner Circle, and Core for clearer structure, stronger context, and more controlled momentum.",
   keywords: [...MEMBERSHIP_KEYWORDS],
@@ -94,6 +105,17 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
           itemPaths: ["/join", "/founder", "/about"]
         })}
       />
+      <JsonLd
+        data={buildWebPageSchema({
+          title: "Membership | Join The Business Circle Network",
+          description:
+            "The membership rooms inside a private founder-led business environment for serious business owners.",
+          path: "/membership",
+          primaryQuestion: "What do members get inside The Business Circle Network?",
+          primaryAnswer:
+            "Members get access to a private business owner environment with structured rooms, member profiles, useful resources, founder-led standards, business conversations, collaboration opportunities and a calmer place to connect with other serious owners."
+        })}
+      />
       <JsonLd data={buildBreadcrumbSchema([{ name: "Membership", path: "/membership" }])} />
       <JsonLd data={buildFaqSchema(membershipContent.faqs)} />
       <JsonLd
@@ -140,6 +162,11 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         description="Start with the atmosphere of the room before you compare the membership paths."
         tone="immersive"
         fallbackLabel="Membership top visual"
+      />
+
+      <AnswerBlock
+        question="What do members get inside The Business Circle Network?"
+        answer="Members get access to a private business owner environment with structured rooms, member profiles, useful resources, founder-led standards, business conversations, collaboration opportunities and a calmer place to connect with other serious owners."
       />
 
       {billing === "required" ? (
@@ -194,9 +221,17 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         foundersPlacement={membershipFoundersPlacement}
       />
 
+      <AuditFitCta />
+
+      <MovementInsideRoomSection />
+
+      <TrustTrailSection />
+
       <FirstSevenDaysBlock />
 
       <TierOutcomeComparison />
+
+      <PrivacyBoundaryNote />
 
       <TestimonialSection
         proofType={TestimonialProofType.BCN_MEMBER}
@@ -204,6 +239,12 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         title="Proof from the people inside the room"
         intro="Approved member feedback from the private environment."
         limit={6}
+      />
+
+      <TwoPathCta
+        source="membership"
+        title="Not sure which room fits?"
+        description="Use the Founder Audit if you want a guided recommendation, or join directly when the room already feels clear."
       />
     </div>
   );

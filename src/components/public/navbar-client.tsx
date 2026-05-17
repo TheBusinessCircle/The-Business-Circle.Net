@@ -80,7 +80,7 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
           <NavbarBrand />
 
           <nav className="hidden flex-1 items-center justify-center px-3 lg:flex">
-            <div className="surface-subtle flex min-w-0 max-w-[36rem] items-center gap-1 rounded-2xl p-1.5">
+            <div className="surface-subtle flex min-w-0 max-w-[44rem] items-center gap-1 rounded-2xl p-1.5">
               <NavigationLinks items={PUBLIC_NAV} />
             </div>
           </nav>
@@ -109,7 +109,7 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                   Sign in
                 </Link>
                 <Link href="/membership" className={buttonVariants({ size: "sm" })}>
-                  Find Your Room
+                  Join
                 </Link>
               </>
             )}
@@ -210,14 +210,14 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                       Sign in
                     </Link>
                     <Link
-                      href="/"
+                      href="/membership"
                       onClick={closeMobileMenu}
                       className={cn(
                         buttonVariants({ size: "lg" }),
                         "min-h-12 w-full justify-center bg-gold text-buttonForeground shadow-gold-soft hover:bg-gold/90"
                       )}
                     >
-                      Find Your Room
+                      Join as a founding member
                     </Link>
                   </div>
                 )}

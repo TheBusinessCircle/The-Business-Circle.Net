@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, MessageSquareLock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { trackMemberMessageSent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 type ContinuePrivatelyButtonProps = {
@@ -81,6 +82,9 @@ export function ContinuePrivatelyButton({
       }
       const result = payload as CreateRequestPayload;
 
+      trackMemberMessageSent({
+        surface: "message_request"
+      });
       setOpen(false);
       setIntroMessage("");
 

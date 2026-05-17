@@ -31,7 +31,7 @@ describe("admin launch command centre structure", () => {
 
     expect(service).toContain("ANALYTICS_EVENTS.auditStart");
     expect(service).toContain("ANALYTICS_EVENTS.auditComplete");
-    expect(service).toContain("ANALYTICS_EVENTS.checkoutStarted");
+    expect(service).toContain("ANALYTICS_EVENTS.membershipCheckoutStarted");
     expect(service).toContain("ANALYTICS_EVENTS.registrationStarted");
     expect(service).toContain("ANALYTICS_EVENTS.profileSaved");
     expect(service).toContain("ANALYTICS_EVENTS.founderServiceRequestSubmitted");

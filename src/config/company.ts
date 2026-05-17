@@ -1,5 +1,6 @@
 export const COMPANY_CONFIG = {
   legalName: "THE BUSINESS CIRCLE NETWORK LTD",
+  displayLegalName: "The Business Circle Network LTD",
   companyNumber: "17135876",
   registration: "Registered in England and Wales"
 } as const;

@@ -34,6 +34,7 @@ import { formatDate } from "@/lib/utils";
 import {
   getResourceReadStateForUser,
   getPublishedResourceBySlug,
+  isMemberInsightResourceId,
   getRelatedPublishedResources,
   listLatestPublishedResources
 } from "@/server/resources";
@@ -106,10 +107,13 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
       view: "all"
     })
   ]);
-  const readState = await getResourceReadStateForUser({
-    userId: session.user.id,
-    resourceId: resource.id
-  });
+  const canTrackReadState = !isMemberInsightResourceId(resource.id);
+  const readState = canTrackReadState
+    ? await getResourceReadStateForUser({
+        userId: session.user.id,
+        resourceId: resource.id
+      })
+    : null;
   const recentlyAdded = latestResources.filter((item) => item.id !== resource.id).slice(0, 3);
   const parsed = splitResourceContentSections(resource.content);
   const narrationItems: ResourceNarrationItem[] = [
@@ -254,16 +258,27 @@ export default async function DashboardResourceDetailPage({ params }: PageProps)
             <CardHeader>
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Library status</p>
               <CardTitle className="text-base">
-                {readState ? "Marked as read" : "Keep this in your unread view"}
+                {!canTrackReadState
+                  ? "Daily insight resource"
+                  : readState
+                    ? "Marked as read"
+                    : "Keep this in your unread view"}
               </CardTitle>
               <CardDescription>
-                {readState
+                {!canTrackReadState
+                  ? "This resource is protected by membership tier and publish date. Read tracking remains attached to database-managed resources."
+                  : readState
                   ? "This resource now lives in your read archive, but you can open it again any time."
                   : "Mark this as read when you have finished with it and want the main view to stay focused on unread resources."}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {readState ? (
+              {!canTrackReadState ? (
+                <div className="rounded-xl border border-silver/14 bg-background/20 px-4 py-3 text-sm leading-relaxed text-muted">
+                  This full insight resource is released from the daily member bank. It stays
+                  available in your resource library while the daily sequence continues.
+                </div>
+              ) : readState ? (
                 <form action={markResourceAsUnreadAction}>
                   <input type="hidden" name="slug" value={resource.slug} />
                   <input type="hidden" name="returnPath" value={`/dashboard/resources/${resource.slug}`} />

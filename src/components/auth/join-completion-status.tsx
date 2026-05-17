@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MembershipTier, PendingRegistrationStatus } from "@prisma/client";
 import { CheckCircle2, Clock3, RefreshCcw, ShieldCheck } from "lucide-react";
 import { LoginForm } from "@/components/auth/login-form";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMembershipTierLabel } from "@/config/membership";
+import { trackMembershipSignupCompleted } from "@/lib/analytics";
 import { buildJoinConfirmationHref } from "@/lib/join/routing";
 
 type PendingRegistrationStatusModel = {
@@ -40,6 +41,7 @@ export function JoinCompletionStatus({
 }: JoinCompletionStatusProps) {
   const [status, setStatus] = useState<PendingRegistrationStatusModel | null>(initialStatus);
   const [notice, setNotice] = useState<string | null>(null);
+  const trackedCompletionRef = useRef(false);
 
   useEffect(() => {
     if (!sessionId || isTerminalStatus(status?.status)) {
@@ -86,6 +88,19 @@ export function JoinCompletionStatus({
       window.clearInterval(pollHandle);
     };
   }, [sessionId, status?.status]);
+
+  useEffect(() => {
+    if (trackedCompletionRef.current || status?.status !== "COMPLETED") {
+      return;
+    }
+
+    trackedCompletionRef.current = true;
+    trackMembershipSignupCompleted({
+      tier: status.selectedTier,
+      billingInterval: status.billingInterval,
+      source: "join"
+    });
+  }, [status?.billingInterval, status?.selectedTier, status?.status]);
 
   const retryHref = useMemo(() => {
     if (!status) {

@@ -6,6 +6,7 @@ const publicNavigation: NavigationItem[] = [
   { label: "Home", href: "/home" },
   { label: "About", href: "/about" },
   { label: "Membership", href: "/membership" },
+  { label: "Founder Audit", href: "/audit" },
   { label: "Founder", href: "/founder" },
   { label: "Insights", href: "/insights" },
   { label: "Contact", href: "/contact" }
@@ -35,7 +36,7 @@ const adminNavigation: NavigationItem[] = [
   { label: "Blueprint Manager", href: "/admin/blueprint" },
   { label: "Members", href: "/admin/members" },
   { label: "BCN Intelligence", href: "/admin/intelligence" },
-  { label: "Community", href: "/admin/community" },
+  { label: "Community Safety", href: "/admin/community" },
   { label: "Messages", href: "/admin/messages" },
   { label: "Wins", href: "/admin/wins" },
   { label: "Testimonials", href: "/admin/testimonials" },
@@ -58,7 +59,7 @@ export const SITE_CONFIG: SiteConfig = {
   name: "The Business Circle Network",
   shortName: "Business Circle",
   description:
-    `${PUBLIC_TRUST_PHRASE} for owners who want better structure, stronger relationships, and steadier momentum.`,
+    `${PUBLIC_TRUST_PHRASE} for UK business owners who want better conversations, clearer thinking, trusted relationships, and a calmer place to make better decisions.`,
   url: CANONICAL_SITE_URL,
   supportEmail: "support@businesscircle.network",
   publicNavigation,

@@ -1,13 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Compass, Shield, TrendingUp, Users } from "lucide-react";
-import { JourneyRail, JsonLd } from "@/components/public";
+import {
+  AnswerBlock,
+  JourneyRail,
+  JsonLd,
+  PrivacyBoundaryNote,
+  TrustTrailSection,
+  TwoPathCta,
+  FAQSection
+} from "@/components/public";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { TREV_FOUNDER_CONTENT } from "@/config/founder";
 import { createPageMetadata } from "@/lib/seo";
-import { buildBreadcrumbSchema, buildCollectionPageSchema } from "@/lib/structured-data";
+import {
+  buildBreadcrumbSchema,
+  buildCollectionPageSchema,
+  buildFaqSchema,
+  buildWebPageSchema
+} from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 import { getSiteContentSection } from "@/server/site-content";
 import { getVisualMediaPlacement } from "@/server/visual-media";
@@ -26,7 +39,7 @@ const ABOUT_KEYWORDS = [
 ] as const;
 
 export const metadata: Metadata = createPageMetadata({
-  title: "About The Business Circle Network",
+  title: "About The Business Circle Network | Founder-Led Business Environment",
   description:
     "Why The Business Circle Network exists, what problem it solves, and how it creates a calmer, more structured private business environment for owners in the UK.",
   keywords: [...ABOUT_KEYWORDS],
@@ -95,6 +108,29 @@ const notForAudience = [
   "Anyone looking for hype, performance, or surface-level networking"
 ] as const;
 
+const ABOUT_FAQS = [
+  {
+    question: "Who is The Business Circle Network for?",
+    answer:
+      "The Business Circle Network is for business owners, founders and operators who want useful conversations, trusted relationships and a more serious environment around business growth."
+  },
+  {
+    question: "Is The Business Circle Network a social media platform?",
+    answer:
+      "No. BCN is a private business owner environment. It uses member profiles, rooms and resources to create better context, not a public feed built around attention."
+  },
+  {
+    question: "Who founded The Business Circle Network?",
+    answer:
+      "The Business Circle Network was founded by Trevor Newton, Growth Architect, to create a calmer and more useful private business environment for serious owners."
+  },
+  {
+    question: "What makes the room different from normal networking?",
+    answer:
+      "The difference is the standard of the room. BCN is built around privacy, clear rules, useful context and better conversations rather than generic visibility or quick promotion."
+  }
+] as const;
+
 export default async function AboutPage() {
   const [aboutContent, aboutHeroPlacement, aboutStoryPlacement] = await Promise.all([
     getSiteContentSection("about"),
@@ -115,11 +151,23 @@ export default async function AboutPage() {
         })}
       />
       <JsonLd
+        data={buildWebPageSchema({
+          title: "About The Business Circle Network",
+          description:
+            "Who The Business Circle Network is for and why the private founder-led business environment exists.",
+          path: "/about",
+          primaryQuestion: "Who is The Business Circle Network for?",
+          primaryAnswer:
+            "The Business Circle Network is for business owners, founders and operators who want useful conversations, trusted relationships and a more serious environment around business growth. It is built for people carrying real decisions who want signal, context and quality connection rather than noise."
+        })}
+      />
+      <JsonLd
         data={buildBreadcrumbSchema([
           { name: "Home", path: "/home" },
           { name: "About", path: "/about" }
         ])}
       />
+      <JsonLd data={buildFaqSchema([...ABOUT_FAQS])} />
 
       <PublicTopVisual
         placement={aboutHeroPlacement}
@@ -149,6 +197,13 @@ export default async function AboutPage() {
           </div>
         </div>
       </section>
+
+      <AnswerBlock
+        question="Who is The Business Circle Network for?"
+        answer="The Business Circle Network is for business owners, founders and operators who want useful conversations, trusted relationships and a more serious environment around business growth. It is built for people carrying real decisions who want signal, context and quality connection rather than noise."
+      />
+
+      <TwoPathCta source="about" />
 
       <JourneyRail
         currentStep="about"
@@ -401,17 +456,28 @@ export default async function AboutPage() {
             href="/membership"
             className={cn(buttonVariants({ variant: "outline", size: "lg" }), "group w-full sm:w-auto")}
           >
-            See The Membership Rooms
+            Join as a founding member
             <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
           </Link>
           <Link
-            href="/contact"
+            href="/audit"
             className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
           >
-            Start A Conversation
+            Run the Founder Audit
           </Link>
         </div>
       </section>
+
+      <TrustTrailSection />
+
+      <PrivacyBoundaryNote />
+
+      <FAQSection
+        label="About BCN"
+        title="Questions owners ask before they trust the room"
+        description="Short answers on fit, founder direction and the difference between BCN and normal networking."
+        items={[...ABOUT_FAQS]}
+      />
     </div>
   );
 }

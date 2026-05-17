@@ -142,10 +142,10 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
                   Review Membership
                 </Link>
                 <Link
-                  href="/about"
+                  href="/audit"
                   className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
                 >
-                  Read Why It Exists
+                  Run the Founder Audit
                   <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>

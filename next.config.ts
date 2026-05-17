@@ -17,6 +17,24 @@ function cspSourceFromUrl(value: string | undefined, allowedProtocols: string[])
   }
 }
 
+function posthogAssetSourceFromHost(value: string | undefined) {
+  const source = cspSourceFromUrl(value, ["https:"]);
+
+  if (!source) {
+    return "https://eu-assets.i.posthog.com";
+  }
+
+  if (source === "https://us.i.posthog.com") {
+    return "https://us-assets.i.posthog.com";
+  }
+
+  if (source === "https://eu.i.posthog.com") {
+    return "https://eu-assets.i.posthog.com";
+  }
+
+  return source;
+}
+
 export function buildContentSecurityPolicy() {
   const liveKitConnectSource = cspSourceFromUrl(process.env.LIVEKIT_URL, [
     "ws:",
@@ -24,6 +42,10 @@ export function buildContentSecurityPolicy() {
     "http:",
     "https:"
   ]);
+  const posthogConnectSource =
+    cspSourceFromUrl(process.env.NEXT_PUBLIC_POSTHOG_HOST, ["https:"]) ??
+    "https://eu.i.posthog.com";
+  const posthogAssetSource = posthogAssetSourceFromHost(process.env.NEXT_PUBLIC_POSTHOG_HOST);
   const connectSources = uniqueTokens([
     "'self'",
     "https://checkout.stripe.com",
@@ -41,7 +63,25 @@ export function buildContentSecurityPolicy() {
     "wss://*.livekit.cloud",
     "https://*.livekit.io",
     "wss://*.livekit.io",
+    posthogConnectSource,
+    posthogAssetSource,
     liveKitConnectSource ?? ""
+  ]);
+  const scriptSources = uniqueTokens([
+    "'self'",
+    "'unsafe-inline'",
+    "'unsafe-eval'",
+    "https://js.stripe.com",
+    posthogAssetSource
+  ]);
+  const imgSources = uniqueTokens([
+    "'self'",
+    "data:",
+    "blob:",
+    "https://images.unsplash.com",
+    "https://res.cloudinary.com",
+    posthogConnectSource,
+    posthogAssetSource
   ]);
 
   return [
@@ -50,9 +90,9 @@ export function buildContentSecurityPolicy() {
     "form-action 'self' https://checkout.stripe.com https://billing.stripe.com",
     "frame-ancestors 'none'",
     "object-src 'none'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+    `script-src ${scriptSources.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://images.unsplash.com https://res.cloudinary.com",
+    `img-src ${imgSources.join(" ")}`,
     "media-src 'self' blob: https://res.cloudinary.com",
     "font-src 'self' data:",
     `connect-src ${connectSources.join(" ")}`,

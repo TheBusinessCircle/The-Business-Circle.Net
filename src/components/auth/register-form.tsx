@@ -23,7 +23,11 @@ import {
   type RegisterMemberFormInput,
   registerMemberFormSchema
 } from "@/lib/auth/schemas";
-import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
+import {
+  ANALYTICS_EVENTS,
+  trackAnalyticsEvent,
+  trackMembershipCheckoutStarted
+} from "@/lib/analytics";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import { cn } from "@/lib/utils";
 
@@ -267,7 +271,7 @@ export function RegisterForm({
       }
 
       if (data.checkoutUrl) {
-        trackAnalyticsEvent(ANALYTICS_EVENTS.checkoutStarted, {
+        trackMembershipCheckoutStarted({
           source: "registration",
           tier: payload.tier,
           billingInterval: payload.billingInterval

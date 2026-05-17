@@ -14,7 +14,11 @@ import { ADMIN_NAV } from "@/lib/constants";
 import { requireAdmin } from "@/lib/session";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_CONFIG.url)
+  metadataBase: new URL(SITE_CONFIG.url),
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -28,7 +32,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <BrandMark placement="admin" />
             <div className="min-w-0">
               <p className="font-display text-lg text-foreground">Admin Control Panel</p>
-              <p className="truncate text-xs text-muted">Signed in as {session.user.email}</p>
+              <p data-member-sensitive className="truncate text-xs text-muted">
+                Signed in as {session.user.email}
+              </p>
             </div>
           </Link>
           <div className="flex items-center gap-2">
@@ -81,7 +87,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <AppShell header={header} sidebar={sidebar} contentClassName="py-7 lg:py-9">
-      <div className="space-y-6">{children}</div>
+      <div data-member-sensitive className="space-y-6">
+        {children}
+      </div>
     </AppShell>
   );
 }
