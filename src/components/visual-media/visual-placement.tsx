@@ -35,23 +35,31 @@ const UNSAFE_PUBLIC_ALT_TEXT_PATTERN =
   /^(?:test|image:\s*test|image|business network)$/i;
 
 function fallbackAltTextForPlacement(placement: VisualMediaRenderablePlacement) {
-  if (placement.key === "founder.hero") {
+  if (placement.key === "founder.hero" || placement.key === "founder.heroMobile") {
     return "Trevor Newton Growth Architect founder of The Business Circle Network";
   }
 
-  if (placement.key === "founder.growthArchitecture") {
+  if (
+    placement.key === "founder.growthArchitecture" ||
+    placement.key === "founder.growthArchitectureMobile"
+  ) {
     return "Growth Architecture strategy for business owners";
   }
 
-  if (placement.key === "founder.audit") {
+  if (placement.key === "founder.audit" || placement.key === "founder.auditMobile") {
     return "Business clarity audit and website trust review";
   }
 
-  if (placement.key === "founder.proof") {
+  if (placement.key === "founder.proof" || placement.key === "founder.proofMobile") {
     return "Founder proof and business owner testimonials";
   }
 
-  if (placement.key === "founder.story" || placement.key === "founder.finalCta") {
+  if (
+    placement.key === "founder.story" ||
+    placement.key === "founder.storyMobile" ||
+    placement.key === "founder.finalCta" ||
+    placement.key === "founder.finalCtaMobile"
+  ) {
     return "Business owner visibility and conversion audit";
   }
 

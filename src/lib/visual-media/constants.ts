@@ -42,6 +42,78 @@ function createPromptTemplate(template: VisualMediaPromptTemplate) {
   return template;
 }
 
+function createFounderMobilePlacement(input: {
+  key: string;
+  label: string;
+  section: string;
+  sortOrder: number;
+  imagePurpose: string;
+  bestImageType: string;
+  subject: string;
+  environment: string;
+  imageFamilyTag: VisualMediaImageFamilyTag;
+}) {
+  return {
+    key: input.key,
+    label: input.label,
+    page: "FOUNDER",
+    section: input.section,
+    variant: "SECTION",
+    sortOrder: input.sortOrder,
+    supportsMobile: false,
+    recommendedAspectRatio: "4:5",
+    adminHelperText:
+      "Optional mobile portrait crop for the Founder / Growth Architect page. If this is empty, the main founder slot is used on mobile.",
+    imageFamilyTag: input.imageFamilyTag,
+    adminPreviewFamily: "human",
+    imagePurpose: input.imagePurpose,
+    bestImageType: input.bestImageType,
+    emotionalTone: ["mobile-friendly", "premium", "calm", "focused", "high trust"],
+    recommendedSubjectMatter: [
+      input.subject,
+      "portrait-friendly composition",
+      "mobile-safe business-owner visual",
+      "dark editorial BCN atmosphere",
+      "royal blue and gold accents"
+    ],
+    recommendedComposition: [
+      "4:5 portrait crop",
+      "clear focal point in the centre third",
+      "safe edges for rounded mobile containers",
+      "no tiny text or details that only work on desktop"
+    ],
+    recommendedLightingMood: ["dark editorial", "premium", "calm", "controlled contrast"],
+    avoid: [
+      "wide desktop-only crops",
+      "important subjects at the far edge",
+      "busy backgrounds",
+      "text baked into the image",
+      "generic stock imagery"
+    ],
+    longAdminGuidance:
+      "Upload a dedicated portrait crop here when the desktop image feels too wide or crowded on mobile. This slot exists to stop mobile portrait layouts depending on one desktop-style image.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: input.imageFamilyTag
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Mobile portrait crop for the Founder / Growth Architect page.",
+      sceneType: "Premium mobile-first founder visual.",
+      subject: input.subject,
+      environment: input.environment,
+      lighting: "Dark editorial lighting with restrained royal blue and gold accents.",
+      mood: "Calm, premium, credible, and focused.",
+      style: "Ultra realistic editorial business photography.",
+      cameraComposition:
+        "4:5 portrait composition with centred subject, safe crop edges, and no important detail near the borders.",
+      qualityTags:
+        "Mobile-first portrait crop, premium BCN tone, realistic, no watermark, no text in image.",
+      negativePrompt:
+        "wide desktop crop, text overlay, watermark, crowded scene, bright generic stock, cartoon"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  } satisfies RegistryItem;
+}
+
 export const VISUAL_MEDIA_PLACEMENTS = {
   HOME_HERO: {
     key: "home.hero",
@@ -1843,6 +1915,90 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     }),
     defaultOverlayStyle: "CINEMATIC"
   },
+  FOUNDER_HERO_MOBILE: createFounderMobilePlacement({
+    key: "founder.heroMobile",
+    label: "Founder / Growth Architect - Hero Mobile",
+    section: "hero-mobile",
+    sortOrder: 31,
+    imagePurpose:
+      "Optional portrait image for the mobile founder hero, keeping Trevor and the Growth Architect positioning readable on small screens.",
+    bestImageType: "Mobile portrait founder visual.",
+    subject:
+      "Grounded business founder in a premium dark editorial workspace, confident but approachable.",
+    environment:
+      "Portrait-friendly premium founder workspace with calm royal blue and gold atmosphere.",
+    imageFamilyTag: "founder-conversation"
+  }),
+  FOUNDER_STORY_MOBILE: createFounderMobilePlacement({
+    key: "founder.storyMobile",
+    label: "Founder / Growth Architect - BCN Story Mobile",
+    section: "story-mobile",
+    sortOrder: 41,
+    imagePurpose:
+      "Optional portrait visual for the Why I Built BCN section on mobile.",
+    bestImageType: "Mobile founder reflection or quiet strategy-room image.",
+    subject:
+      "Business owner or founder in a quiet strategic thinking moment.",
+    environment:
+      "Premium dark workspace with a calm private-room atmosphere and minimal visual clutter.",
+    imageFamilyTag: "story-mission"
+  }),
+  FOUNDER_GROWTH_ARCHITECTURE_MOBILE: createFounderMobilePlacement({
+    key: "founder.growthArchitectureMobile",
+    label: "Founder / Growth Architect - Growth Architecture Mobile",
+    section: "growth-architecture-mobile",
+    sortOrder: 51,
+    imagePurpose:
+      "Optional portrait visual for explaining Growth Architecture on mobile.",
+    bestImageType: "Mobile strategic audit workspace or business analysis scene.",
+    subject:
+      "Laptop dashboard, strategic notes, website review materials, and visibility mapping in progress.",
+    environment:
+      "Dark premium consulting workspace with clean surfaces and realistic business-analysis tools.",
+    imageFamilyTag: "strategy-process"
+  }),
+  FOUNDER_AUDIT_MOBILE: createFounderMobilePlacement({
+    key: "founder.auditMobile",
+    label: "Founder / Growth Architect - Audit Services Mobile",
+    section: "audit-services-mobile",
+    sortOrder: 61,
+    imagePurpose:
+      "Optional portrait visual for the audit and service cards area on mobile.",
+    bestImageType: "Mobile business audit, website review, or strategic report visual.",
+    subject:
+      "A refined business audit report, laptop website review, notes, and decision-priority cards.",
+    environment:
+      "Dark premium desk environment with clean report materials and no readable private client data.",
+    imageFamilyTag: "strategy-process"
+  }),
+  FOUNDER_PROOF_MOBILE: createFounderMobilePlacement({
+    key: "founder.proofMobile",
+    label: "Founder / Growth Architect - Proof Mobile",
+    section: "proof-mobile",
+    sortOrder: 71,
+    imagePurpose:
+      "Optional portrait visual for the testimonial and founder proof area on mobile.",
+    bestImageType: "Mobile business-owner collaboration or trust-building scene.",
+    subject:
+      "Two business owners or founder and client in a calm trust-building conversation.",
+    environment:
+      "Premium private business setting with refined materials and a dark editorial atmosphere.",
+    imageFamilyTag: "founder-conversation"
+  }),
+  FOUNDER_FINAL_CTA_MOBILE: createFounderMobilePlacement({
+    key: "founder.finalCtaMobile",
+    label: "Founder / Growth Architect - Final CTA Mobile",
+    section: "final-cta-mobile",
+    sortOrder: 81,
+    imagePurpose:
+      "Optional portrait final conversion image for mobile visitors.",
+    bestImageType: "Mobile private invitation or founder-led growth environment.",
+    subject:
+      "Open entry into a refined private business room with subtle signs of collaboration and growth.",
+    environment:
+      "Dark premium interior with royal blue shadows, warm gold highlights, and calm momentum.",
+    imageFamilyTag: "exclusivity"
+  }),
   GLOBAL_PUBLIC_TOP: {
     key: "global.public.top",
     label: "Public Page - Top Visual",

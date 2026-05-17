@@ -16,13 +16,22 @@ describe("founder visual media placement wiring", () => {
       "founder.growthArchitecture",
       "founder.audit",
       "founder.proof",
-      "founder.finalCta"
+      "founder.finalCta",
+      "founder.heroMobile",
+      "founder.storyMobile",
+      "founder.growthArchitectureMobile",
+      "founder.auditMobile",
+      "founder.proofMobile",
+      "founder.finalCtaMobile"
     ]) {
       expect(source).toContain(`getVisualMediaPlacement("${key}")`);
     }
 
     expect(source).toContain("function FounderVisual");
+    expect(source).toContain("mobilePlacement");
+    expect(source).toContain("mobileImageUrl");
     expect(source).toContain("public-grid-overlay");
     expect(source).toContain("radial-gradient");
+    expect(source).toContain("overflow-x-clip");
   });
 });

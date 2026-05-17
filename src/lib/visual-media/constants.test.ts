@@ -38,6 +38,16 @@ describe("visual media placement registry", () => {
     expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_AUDIT.key).toBe("founder.audit");
     expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_PROOF.key).toBe("founder.proof");
     expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_FINAL_CTA.key).toBe("founder.finalCta");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_HERO_MOBILE.key).toBe("founder.heroMobile");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_STORY_MOBILE.key).toBe("founder.storyMobile");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_GROWTH_ARCHITECTURE_MOBILE.key).toBe(
+      "founder.growthArchitectureMobile"
+    );
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_AUDIT_MOBILE.key).toBe("founder.auditMobile");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_PROOF_MOBILE.key).toBe("founder.proofMobile");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_FINAL_CTA_MOBILE.key).toBe(
+      "founder.finalCtaMobile"
+    );
   });
 
   it("keeps founder Growth Architect slots grouped in the founder admin page", () => {
@@ -45,9 +55,14 @@ describe("visual media placement registry", () => {
       item.key.startsWith("founder.")
     );
 
-    expect(founderSlots).toHaveLength(6);
+    expect(founderSlots).toHaveLength(12);
     expect(founderSlots.every((item) => item.page === "FOUNDER")).toBe(true);
     expect(founderSlots.every((item) => item.adminHelperText)).toBe(true);
+    expect(
+      founderSlots
+        .filter((item) => item.key.endsWith("Mobile"))
+        .every((item) => item.recommendedAspectRatio === "4:5")
+    ).toBe(true);
   });
 
   it("recognizes only approved placement keys", () => {

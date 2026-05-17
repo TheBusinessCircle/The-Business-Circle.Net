@@ -27,6 +27,7 @@ import { createPageMetadata } from "@/lib/seo";
 import { buildFaqSchema, buildFounderSchema } from "@/lib/structured-data";
 import { absoluteUrl, cn, formatDate } from "@/lib/utils";
 import { getFounderServicePricing, isGrowthArchitectServiceSlug } from "@/lib/founder";
+import type { VisualMediaRenderablePlacement } from "@/lib/visual-media/types";
 import { listActiveFounderServices } from "@/server/founder";
 import { listApprovedTestimonials } from "@/server/testimonials";
 import { getVisualMediaPlacement } from "@/server/visual-media";
@@ -276,6 +277,7 @@ function FounderSectionHeader({
 
 function FounderVisual({
   placement,
+  mobilePlacement,
   tone = "editorial",
   className,
   aspectClassName = "aspect-[16/10]",
@@ -283,19 +285,31 @@ function FounderVisual({
   children
 }: {
   placement: Awaited<ReturnType<typeof getVisualMediaPlacement>> | null | undefined;
+  mobilePlacement?: Awaited<ReturnType<typeof getVisualMediaPlacement>> | null | undefined;
   tone?: "human" | "story" | "platform" | "founders" | "editorial";
   className?: string;
   aspectClassName?: string;
   sizes?: string;
   children?: ReactNode;
 }) {
-  if (placement?.isActive && placement.imageUrl) {
+  const mobileImageUrl =
+    mobilePlacement?.isActive && mobilePlacement.imageUrl ? mobilePlacement.imageUrl : null;
+  const renderablePlacement =
+    placement?.isActive && placement.imageUrl
+      ? ({
+          ...placement,
+          mobileImageUrl: mobileImageUrl ?? placement.mobileImageUrl,
+          supportsMobile: Boolean(mobileImageUrl || placement.supportsMobile)
+        } satisfies VisualMediaRenderablePlacement)
+      : null;
+
+  if (renderablePlacement) {
     return (
       <SectionFeatureImage
-        placement={placement}
+        placement={renderablePlacement}
         tone={tone}
         aspectClassName={aspectClassName}
-        className={className}
+        className={cn("w-full max-w-full min-w-0 overflow-hidden", className)}
         sizes={sizes}
       >
         {children}
@@ -306,14 +320,14 @@ function FounderVisual({
   return (
     <div
       className={cn(
-        "feature-visual-shell relative overflow-hidden rounded-[1.6rem] border border-silver/20 bg-[radial-gradient(circle_at_20%_18%,rgba(82,146,255,0.18),transparent_34%),radial-gradient(circle_at_82%_22%,rgba(214,180,103,0.16),transparent_30%),linear-gradient(180deg,rgba(12,19,36,0.92),rgba(5,10,24,0.98))] shadow-panel-soft",
+        "feature-visual-shell relative w-full max-w-full min-w-0 overflow-hidden rounded-[1.6rem] border border-silver/20 bg-[radial-gradient(circle_at_20%_18%,rgba(82,146,255,0.18),transparent_34%),radial-gradient(circle_at_82%_22%,rgba(214,180,103,0.16),transparent_30%),linear-gradient(180deg,rgba(12,19,36,0.92),rgba(5,10,24,0.98))] shadow-panel-soft",
         aspectClassName,
         className
       )}
     >
       <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.44)_100%)]" />
-      {children ? <div className="relative z-[2] flex h-full items-end">{children}</div> : null}
+      {children ? <div className="relative z-[2] flex h-full min-w-0 items-end">{children}</div> : null}
     </div>
   );
 }
@@ -324,21 +338,33 @@ export default async function FounderPage() {
     allServices,
     growthArchitectTestimonials,
     founderHeroPlacement,
+    founderHeroMobilePlacement,
     founderStoryPlacement,
+    founderStoryMobilePlacement,
     founderGrowthArchitecturePlacement,
+    founderGrowthArchitectureMobilePlacement,
     founderAuditPlacement,
+    founderAuditMobilePlacement,
     founderProofPlacement,
-    founderFinalCtaPlacement
+    founderProofMobilePlacement,
+    founderFinalCtaPlacement,
+    founderFinalCtaMobilePlacement
   ] = await Promise.all([
     auth(),
     listActiveFounderServices().catch(() => []),
     listApprovedTestimonials(TestimonialProofType.GROWTH_ARCHITECT, 8).catch(() => []),
     getVisualMediaPlacement("founder.hero"),
+    getVisualMediaPlacement("founder.heroMobile"),
     getVisualMediaPlacement("founder.story"),
+    getVisualMediaPlacement("founder.storyMobile"),
     getVisualMediaPlacement("founder.growthArchitecture"),
+    getVisualMediaPlacement("founder.growthArchitectureMobile"),
     getVisualMediaPlacement("founder.audit"),
+    getVisualMediaPlacement("founder.auditMobile"),
     getVisualMediaPlacement("founder.proof"),
-    getVisualMediaPlacement("founder.finalCta")
+    getVisualMediaPlacement("founder.proofMobile"),
+    getVisualMediaPlacement("founder.finalCta"),
+    getVisualMediaPlacement("founder.finalCtaMobile")
   ]);
   const viewer = session?.user
     ? {
@@ -352,17 +378,17 @@ export default async function FounderPage() {
   );
 
   return (
-    <div className="public-page-stack">
+    <div className="public-page-stack max-w-full overflow-x-clip">
       <JsonLd data={buildFounderSchema()} />
       <JsonLd data={buildFaqSchema([...AEO_QUESTIONS])} />
       <JsonLd data={buildFounderServicesSchema(services)} />
 
-      <section className="public-hero-spacing-tight relative overflow-hidden rounded-[1.8rem] border border-white/10 bg-card/64 shadow-panel">
+      <section className="public-hero-spacing-tight relative max-w-full overflow-hidden rounded-[1.8rem] border border-white/10 bg-card/64 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.48)_100%),linear-gradient(180deg,rgba(0,0,0,0.28)_0%,rgba(0,0,0,0.6)_100%)]" />
 
-        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.04fr)_minmax(300px,0.64fr)] xl:items-center">
-          <div className="space-y-5">
+        <div className="relative grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.04fr)_minmax(300px,0.64fr)] xl:items-center">
+          <div className="min-w-0 space-y-5">
             <Badge variant="outline" className="w-fit border-gold/35 bg-gold/12 text-gold">
               Trevor Newton | Founder & Growth Architect
             </Badge>
@@ -403,20 +429,27 @@ export default async function FounderPage() {
 
           <FounderVisual
             placement={founderHeroPlacement}
+            mobilePlacement={founderHeroMobilePlacement}
             tone="founders"
-            aspectClassName="aspect-[16/11] sm:aspect-[16/10] xl:aspect-[5/4]"
-            className="min-h-[17rem] max-h-[30rem] xl:min-h-[22rem]"
+            aspectClassName="aspect-[4/5] sm:aspect-[16/10] xl:aspect-[5/4]"
+            className="min-h-[16rem] max-h-[30rem] xl:min-h-[22rem]"
             sizes="(min-width: 1280px) 34vw, 100vw"
           >
-            <div className="w-full space-y-2.5 p-4 sm:p-5">
+            <div className="w-full max-w-full min-w-0 space-y-2 p-3 sm:space-y-2.5 sm:p-5">
               <p className="premium-kicker">Why owners come here</p>
               {[
                 "They need sharper visibility before spending more money.",
                 "They want a calmer outside view of the business.",
                 "They know trust, positioning, or conversion could be stronger.",
                 "They want practical direction, not a generic report."
-              ].map((item) => (
-                <p key={item} className="rounded-2xl border border-white/10 bg-background/42 px-3.5 py-2.5 text-sm text-foreground shadow-panel-soft backdrop-blur">
+              ].map((item, index) => (
+                <p
+                  key={item}
+                  className={cn(
+                    "w-full max-w-full min-w-0 whitespace-normal break-words rounded-2xl border border-white/10 bg-background/42 px-3 py-2 text-[13px] leading-relaxed text-foreground shadow-panel-soft backdrop-blur sm:px-3.5 sm:py-2.5 sm:text-sm",
+                    index === 3 ? "hidden sm:block" : ""
+                  )}
+                >
                   {item}
                 </p>
               ))}
@@ -473,15 +506,16 @@ export default async function FounderPage() {
 
         <FounderVisual
           placement={founderStoryPlacement}
+          mobilePlacement={founderStoryMobilePlacement}
           tone="story"
-          aspectClassName="aspect-[16/10] xl:aspect-auto"
+          aspectClassName="aspect-[4/5] sm:aspect-[16/10] xl:aspect-auto"
           className="min-h-[15rem] max-h-[25rem] xl:h-full"
         >
-          <div className="w-full space-y-3 p-4 sm:p-5">
+          <div className="w-full max-w-full min-w-0 space-y-3 p-3 sm:p-5">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
               <MessageSquareText size={20} />
             </span>
-            <div className="space-y-2.5 rounded-2xl border border-white/10 bg-background/42 p-4 backdrop-blur">
+            <div className="w-full max-w-full min-w-0 space-y-2.5 rounded-2xl border border-white/10 bg-background/42 p-3.5 backdrop-blur sm:p-4">
               <p className="premium-kicker">Founder note</p>
               <p className="text-base leading-relaxed text-muted">
                 BCN is the wider ecosystem. Growth Architect work is the direct strategic support
@@ -526,8 +560,9 @@ export default async function FounderPage() {
 
         <FounderVisual
           placement={founderGrowthArchitecturePlacement}
+          mobilePlacement={founderGrowthArchitectureMobilePlacement}
           tone="editorial"
-          aspectClassName="aspect-[16/10] xl:aspect-auto"
+          aspectClassName="aspect-[4/5] sm:aspect-[16/10] xl:aspect-auto"
           className="min-h-[13rem] max-h-[24rem] xl:h-full"
           sizes="(min-width: 1280px) 26vw, 100vw"
         />
@@ -594,13 +629,14 @@ export default async function FounderPage() {
 
         <FounderVisual
           placement={founderAuditPlacement}
+          mobilePlacement={founderAuditMobilePlacement}
           tone="editorial"
-          aspectClassName="aspect-[16/10] md:aspect-[16/8]"
+          aspectClassName="aspect-[4/5] sm:aspect-[16/10] md:aspect-[16/8]"
           className="min-h-[12rem] max-h-[22rem]"
           sizes="(min-width: 1280px) 72vw, 100vw"
         >
-          <div className="w-full p-4 sm:p-5">
-            <div className="max-w-xl rounded-2xl border border-white/10 bg-background/44 p-3.5 backdrop-blur sm:p-4">
+          <div className="w-full max-w-full min-w-0 p-3 sm:p-5">
+            <div className="w-full max-w-xl min-w-0 rounded-2xl border border-white/10 bg-background/44 p-3.5 backdrop-blur sm:p-4">
               <p className="premium-kicker">Audit pathway</p>
               <p className="mt-2 text-sm leading-relaxed text-muted">
                 A clearer view of the website, offer, trust signals, visibility, and next move
@@ -740,8 +776,9 @@ export default async function FounderPage() {
 
         <FounderVisual
           placement={founderProofPlacement}
+          mobilePlacement={founderProofMobilePlacement}
           tone="human"
-          aspectClassName="aspect-[16/10] md:aspect-[16/8]"
+          aspectClassName="aspect-[4/5] sm:aspect-[16/10] md:aspect-[16/8]"
           className="min-h-[11rem] max-h-[20rem]"
           sizes="(min-width: 1280px) 72vw, 100vw"
         />
@@ -805,13 +842,14 @@ export default async function FounderPage() {
       <section className="space-y-5">
         <FounderVisual
           placement={founderFinalCtaPlacement}
+          mobilePlacement={founderFinalCtaMobilePlacement}
           tone="founders"
-          aspectClassName="aspect-[16/10] md:aspect-[21/8]"
+          aspectClassName="aspect-[4/5] sm:aspect-[16/10] md:aspect-[21/8]"
           className="min-h-[11rem] max-h-[20rem]"
           sizes="100vw"
         >
-          <div className="w-full p-4 sm:p-5">
-            <div className="max-w-xl rounded-2xl border border-gold/20 bg-background/44 p-3.5 backdrop-blur sm:p-4">
+          <div className="w-full max-w-full min-w-0 p-3 sm:p-5">
+            <div className="w-full max-w-xl min-w-0 rounded-2xl border border-gold/20 bg-background/44 p-3.5 backdrop-blur sm:p-4">
               <p className="premium-kicker">Next step</p>
               <p className="mt-2 text-sm leading-relaxed text-muted">
                 Start with clarity, then decide whether the audit, direct support, or the wider
