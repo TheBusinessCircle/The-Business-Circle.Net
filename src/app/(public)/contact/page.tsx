@@ -4,6 +4,7 @@ import { ArrowRight, Mail, MessageSquare, ShieldCheck } from "lucide-react";
 import { AnswerBlock, AuditFitCta, FAQSection, JsonLd, TwoPathCta } from "@/components/public";
 import { PublicTopVisual } from "@/components/visual-media";
 import { formatCompanyTrustLine } from "@/config/company";
+import { SITE_CONFIG } from "@/config/site";
 import { ContactForm } from "@/components/platform/contact-form";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
@@ -44,10 +45,11 @@ const CONTACT_FAQS = [
 ] as const;
 
 export default async function ContactPage() {
-  const [footerContent, publicTopPlacement] = await Promise.all([
+  const [, publicTopPlacement] = await Promise.all([
     getSiteContentSection("footer"),
     getVisualMediaPlacement("global.public.top")
   ]);
+  const publicSupportEmail = SITE_CONFIG.supportEmail;
 
   return (
     <div className="public-page-stack">
@@ -116,10 +118,10 @@ export default async function ContactPage() {
           <aside className="rounded-[1.8rem] border border-border/80 bg-background/24 p-5">
             <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Direct contact</p>
             <a
-              href={`mailto:${footerContent.supportEmail}`}
+              href={`mailto:${publicSupportEmail}`}
               className="mt-3 inline-block text-lg text-foreground transition-colors hover:text-gold"
             >
-              {footerContent.supportEmail}
+              {publicSupportEmail}
             </a>
             <p className="mt-3 text-sm leading-relaxed text-muted">
               Share a little context and the right person will come back to you with the best next

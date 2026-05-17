@@ -3,7 +3,6 @@ import { ReactNode } from "react";
 import { JsonLd } from "@/components/public";
 import { PublicSiteShell } from "@/components/public/public-site-shell";
 import { SITE_CONFIG } from "@/config/site";
-import { getSiteContentSection } from "@/server/site-content";
 import { buildPublicSiteSchemaGraph } from "@/lib/structured-data";
 
 export const dynamic = "force-dynamic";
@@ -12,11 +11,9 @@ export const metadata: Metadata = {
 };
 
 export default async function PublicLayout({ children }: { children: ReactNode }) {
-  const footerContent = await getSiteContentSection("footer");
-
   return (
     <>
-      <JsonLd data={buildPublicSiteSchemaGraph({ supportEmail: footerContent.supportEmail })} />
+      <JsonLd data={buildPublicSiteSchemaGraph({ supportEmail: SITE_CONFIG.supportEmail })} />
       <PublicSiteShell>{children}</PublicSiteShell>
     </>
   );

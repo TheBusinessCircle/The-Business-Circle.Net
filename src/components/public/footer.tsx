@@ -54,6 +54,7 @@ const SOCIAL_LABELS: Record<string, string> = {
 
 export async function Footer() {
   const footerContent = await getSiteContentSection("footer");
+  const publicSupportEmail = SITE_CONFIG.supportEmail;
   const socialLinks = Object.entries(SITE_CONFIG.social).flatMap(([key, href]) =>
     nonEmpty(href)
       ? [
@@ -123,10 +124,10 @@ export async function Footer() {
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.1em] text-silver">Support</p>
             <a
-              href={`mailto:${footerContent.supportEmail}`}
+              href={`mailto:${publicSupportEmail}`}
               className="text-sm text-foreground transition-colors hover:text-gold"
             >
-              {footerContent.supportEmail}
+              {publicSupportEmail}
             </a>
             <p className="text-sm text-muted">{footerContent.supportLine}</p>
             <p className="text-sm text-muted">Questions on membership, access, billing, or fit are handled directly.</p>

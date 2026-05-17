@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 import { CTASection, FeatureGrid, SectionHeading } from "@/components/public";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { SITE_CONFIG } from "@/config/site";
 import { createPageMetadata } from "@/lib/seo";
-import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "DPIA & Data Protection",
@@ -85,8 +85,8 @@ const SAFEGUARD_ITEMS = [
   "Verification and trust measures where identity, entitlement, access level, or platform safety depend on them."
 ] as const;
 
-export default async function DpiaPage() {
-  const footerContent = await getSiteContentSection("footer");
+export default function DpiaPage() {
+  const publicSupportEmail = SITE_CONFIG.supportEmail;
 
   return (
     <div className="public-page-stack">
@@ -259,10 +259,10 @@ export default async function DpiaPage() {
             <p>
               For general support and trust-related questions, email{" "}
               <a
-                href={`mailto:${footerContent.supportEmail}`}
+                href={`mailto:${publicSupportEmail}`}
                 className="text-foreground transition-colors hover:text-gold"
               >
-                {footerContent.supportEmail}
+                {publicSupportEmail}
               </a>{" "}
               or use the contact route below.
             </p>
@@ -273,7 +273,7 @@ export default async function DpiaPage() {
               <Button>Contact Us</Button>
             </Link>
             <a
-              href={`mailto:${footerContent.supportEmail}`}
+              href={`mailto:${publicSupportEmail}`}
               className={buttonVariants({ variant: "outline", size: "lg" })}
             >
               Email Support

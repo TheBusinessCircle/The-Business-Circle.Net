@@ -3,9 +3,9 @@ import {
   TERMS_LAST_UPDATED,
   TERMS_OF_SERVICE_CONTENT
 } from "@/config/legal";
+import { SITE_CONFIG } from "@/config/site";
 import { LegalDocument } from "@/components/public";
 import { createPageMetadata } from "@/lib/seo";
-import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Terms of Service",
@@ -13,16 +13,14 @@ export const metadata: Metadata = createPageMetadata({
   path: "/terms-of-service"
 });
 
-export default async function TermsOfServicePage() {
-  const footerContent = await getSiteContentSection("footer");
-
+export default function TermsOfServicePage() {
   return (
     <LegalDocument
       label={TERMS_OF_SERVICE_CONTENT.label}
       title={TERMS_OF_SERVICE_CONTENT.title}
       intro={TERMS_OF_SERVICE_CONTENT.intro}
       updatedAt={TERMS_LAST_UPDATED}
-      supportEmail={footerContent.supportEmail}
+      supportEmail={SITE_CONFIG.supportEmail}
       sections={TERMS_OF_SERVICE_CONTENT.sections}
     />
   );

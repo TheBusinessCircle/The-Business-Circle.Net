@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { LEGAL_LAST_UPDATED, PRIVACY_POLICY_CONTENT } from "@/config/legal";
+import { SITE_CONFIG } from "@/config/site";
 import { LegalDocument } from "@/components/public";
 import { createPageMetadata } from "@/lib/seo";
-import { getSiteContentSection } from "@/server/site-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Privacy Policy",
@@ -10,16 +10,14 @@ export const metadata: Metadata = createPageMetadata({
   path: "/privacy-policy"
 });
 
-export default async function PrivacyPolicyPage() {
-  const footerContent = await getSiteContentSection("footer");
-
+export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       label={PRIVACY_POLICY_CONTENT.label}
       title={PRIVACY_POLICY_CONTENT.title}
       intro={PRIVACY_POLICY_CONTENT.intro}
       updatedAt={LEGAL_LAST_UPDATED}
-      supportEmail={footerContent.supportEmail}
+      supportEmail={SITE_CONFIG.supportEmail}
       sections={PRIVACY_POLICY_CONTENT.sections}
     />
   );
