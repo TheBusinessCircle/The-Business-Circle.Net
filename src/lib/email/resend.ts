@@ -31,7 +31,7 @@ export class TransactionalEmailError extends Error {
 
 let resendClient: Resend | null | undefined;
 
-function getResendClient(): Resend | null {
+export function getResendClient(): Resend | null {
   if (resendClient !== undefined) {
     return resendClient;
   }
@@ -50,7 +50,7 @@ function isResendDevAddress(value: string) {
   return /@resend\.dev>/i.test(value) || /@resend\.dev$/i.test(value);
 }
 
-function resolveFromAddress(overrideFrom?: string) {
+export function resolveTransactionalFromAddress(overrideFrom?: string) {
   const from = overrideFrom?.trim() || process.env.RESEND_FROM_EMAIL?.trim();
 
   if (from) {
@@ -85,7 +85,7 @@ export async function sendTransactionalEmailOrThrow(
 ) {
   const client = getResendClient();
   const hasRenderableContent = Boolean(input.react || input.html || input.text);
-  const fromAddress = resolveFromAddress(input.from);
+  const fromAddress = resolveTransactionalFromAddress(input.from);
 
   if (!client) {
     throw new TransactionalEmailError("RESEND_API_KEY_MISSING", "RESEND_API_KEY is not configured.");

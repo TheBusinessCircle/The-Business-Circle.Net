@@ -50,7 +50,7 @@ describe("password reset", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES = "60";
-    process.env.APP_URL = "https://thebcnet.co.uk";
+    process.env.APP_URL = "https://thebusinesscircle.net";
 
     prismaMock.user.findUnique.mockResolvedValue(null);
     prismaMock.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 });

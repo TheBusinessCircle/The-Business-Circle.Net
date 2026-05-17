@@ -9,7 +9,7 @@ describe("site content normalisation", () => {
       supportEmail: ["support", ["businesscircle", "network"].join(".")].join("@")
     });
 
-    expect(content.supportEmail).toBe("contact@thebcnet.co.uk");
+    expect(content.supportEmail).toBe("contact@thebusinesscircle.net");
   });
 
   it("normalises stale membership FAQ wording away from both-plan language", () => {

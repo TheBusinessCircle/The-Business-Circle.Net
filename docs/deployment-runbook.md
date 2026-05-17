@@ -65,8 +65,8 @@ Use a production environment (systemd, PM2, or host-level env manager) and set:
 ### Email (Resend)
 
 - `RESEND_API_KEY=re_...`
-- `RESEND_FROM_EMAIL=The Business Circle Network <noreply@thebcnet.co.uk>`
-- `CONTACT_NOTIFY_EMAIL="contact@thebcnet.co.uk"`
+- `RESEND_FROM_EMAIL=The Business Circle Network <noreply@thebusinesscircle.net>`
+- `CONTACT_NOTIFY_EMAIL="contact@thebusinesscircle.net"`
 
 ### Community realtime (optional but recommended)
 
@@ -212,7 +212,7 @@ Rules:
 - Stripe checkout + portal redirect correctly.
 - PostHog captures `$pageview` on `/`, `/home`, `/membership`, `/audit`, join/auth routes, and `/dashboard` after analytics consent is granted.
 - PostHog session replay appears for sampled sessions without readable password, message, admin, or payment fields.
-- Contact form sends to `contact@thebcnet.co.uk`.
+- Contact form sends to `contact@thebusinesscircle.net`.
 
 ## 8) Calling network and firewall notes
 

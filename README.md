@@ -271,7 +271,7 @@ Using Resend:
 1. Add these values in `.env`:
    - `RESEND_API_KEY`
    - `RESEND_FROM_EMAIL`
-   - `CONTACT_NOTIFY_EMAIL="contact@thebcnet.co.uk"`
+   - `CONTACT_NOTIFY_EMAIL="contact@thebusinesscircle.net"`
 2. Send a direct test email:
 
    ```bash

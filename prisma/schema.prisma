@@ -899,6 +899,32 @@ model ContactSubmission {
   @@index([handledById])
 }
 
+model InboundEmail {
+  id            String             @id @default(cuid())
+  resendEmailId String             @unique
+  messageId     String?
+  from          String
+  to            Json
+  cc            Json?
+  bcc           Json?
+  subject       String?
+  textBody      String?            @db.Text
+  htmlBody      String?            @db.Text
+  snippet       String?
+  attachments   Json?
+  status        InboundEmailStatus @default(UNREAD)
+  forwardedTo   String?
+  forwardedAt   DateTime?
+  forwardError  String?
+  receivedAt    DateTime
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([status, receivedAt])
+  @@index([receivedAt])
+  @@index([from])
+}
+
 model FounderService {
   id               String                    @id @default(cuid())
   slug             String                    @unique
@@ -1719,6 +1745,12 @@ enum TestimonialStatus {
   PENDING
   APPROVED
   REJECTED
+  ARCHIVED
+}
+
+enum InboundEmailStatus {
+  UNREAD
+  READ
   ARCHIVED
 }
 

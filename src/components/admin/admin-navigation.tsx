@@ -5,6 +5,7 @@ import {
   Activity,
   Briefcase,
   CalendarDays,
+  Inbox,
   FileText,
   GitBranch,
   LayoutGrid,
@@ -56,6 +57,9 @@ function iconForHref(href: string) {
   }
   if (href.startsWith("/admin/messages")) {
     return MessageSquare;
+  }
+  if (href.startsWith("/admin/emails")) {
+    return Inbox;
   }
   if (href.startsWith("/admin/wins")) {
     return Trophy;

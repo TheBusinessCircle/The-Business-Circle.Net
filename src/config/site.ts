@@ -37,6 +37,7 @@ const adminNavigation: NavigationItem[] = [
   { label: "Members", href: "/admin/members" },
   { label: "BCN Intelligence", href: "/admin/intelligence" },
   { label: "Community Safety", href: "/admin/community" },
+  { label: "Emails", href: "/admin/emails" },
   { label: "Messages", href: "/admin/messages" },
   { label: "Wins", href: "/admin/wins" },
   { label: "Testimonials", href: "/admin/testimonials" },
@@ -61,7 +62,7 @@ export const SITE_CONFIG: SiteConfig = {
   description:
     `${PUBLIC_TRUST_PHRASE} for UK business owners who want better conversations, clearer thinking, trusted relationships, and a calmer place to make better decisions.`,
   url: CANONICAL_SITE_URL,
-  supportEmail: "contact@thebcnet.co.uk",
+  supportEmail: process.env.PUBLIC_CONTACT_EMAIL?.trim() || "contact@thebusinesscircle.net",
   publicNavigation,
   memberNavigation,
   adminNavigation,
