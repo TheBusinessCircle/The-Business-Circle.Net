@@ -66,7 +66,7 @@ Use a production environment (systemd, PM2, or host-level env manager) and set:
 
 - `RESEND_API_KEY=re_...`
 - `RESEND_FROM_EMAIL=The Business Circle Network <noreply@thebcnet.co.uk>`
-- `CONTACT_NOTIFY_EMAIL=contact@thebcnet.co.uk`
+- `CONTACT_NOTIFY_EMAIL="contact@thebcnet.co.uk"`
 
 ### Community realtime (optional but recommended)
 

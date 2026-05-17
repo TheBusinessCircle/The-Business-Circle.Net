@@ -47,7 +47,7 @@ describe("public footer", () => {
       brandBlurb: "Premium founder-led network.",
       trustLine: "Private business environment.",
       founderLine: "Built and led by Trev Newton.",
-      supportEmail: "support@thebusinesscircle.net",
+      supportEmail: "contact@thebcnet.co.uk",
       supportLine: "Support line",
       bottomLine: "Built for business owners."
     });

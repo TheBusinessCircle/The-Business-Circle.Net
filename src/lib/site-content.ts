@@ -6,6 +6,7 @@ import {
 } from "@/config/site-content";
 
 const staleMembershipPlanPhrasePattern = new RegExp(`\\b${["both", "plans"].join(" ")}\\b`, "gi");
+const LEGACY_PUBLIC_SUPPORT_EMAIL = ["support", ["businesscircle", "network"].join(".")].join("@");
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -72,6 +73,17 @@ export function normalizeSiteContentSections<K extends SiteContentSlug>(
           question: item.question.replace(staleMembershipPlanPhrasePattern, "all membership rooms"),
           answer: item.answer.replace(staleMembershipPlanPhrasePattern, "all membership rooms")
         }))
+      } as SiteContentValueMap[K];
+    }
+
+    if (slug === "footer") {
+      const footerContent = parsed.data as SiteContentValueMap["footer"];
+      return {
+        ...footerContent,
+        supportEmail:
+          footerContent.supportEmail.toLowerCase() === LEGACY_PUBLIC_SUPPORT_EMAIL
+            ? siteContentDefaults.footer.supportEmail
+            : footerContent.supportEmail
       } as SiteContentValueMap[K];
     }
 

@@ -305,7 +305,7 @@ const SITE_CONTENT_ROWS: Array<{
     sections: {
       brandBlurb:
         "A private founder network where business operators scale through strategy, accountability, and meaningful collaboration.",
-      supportEmail: "support@businesscircle.network",
+      supportEmail: "contact@thebcnet.co.uk",
       supportLine: "Support, partnerships, and member success enquiries",
       bottomLine: "Built for founders, startups, and established businesses."
     }
@@ -478,7 +478,7 @@ function buildDemoUsers(adminEmail: string): DemoUserSeed[] {
         bio: "Oversees member success systems, community quality, and platform operations.",
         location: "London, UK",
         experience: "12+ years operating founder communities",
-        website: "https://businesscircle.network",
+        website: "https://thebcnet.co.uk",
         linkedin: "https://linkedin.com/company/businesscircle",
         collaborationNeeds: "Feedback on onboarding, referrals, and member retention.",
         collaborationOffers: "Strategic introductions and platform support.",
@@ -494,7 +494,7 @@ function buildDemoUsers(adminEmail: string): DemoUserSeed[] {
         services: "Membership network, strategic support, events",
         stage: BusinessStage.ESTABLISHED,
         location: "London, UK",
-        website: "https://businesscircle.network",
+        website: "https://thebcnet.co.uk",
         teamSize: 14,
         foundedYear: 2021,
         isPublic: false
@@ -1620,7 +1620,7 @@ function buildResourceBlocks(
 export async function seedDemoContent(prisma: PrismaClient): Promise<void> {
   const now = new Date();
   const adminEmail = normalizeEmail(
-    process.env.ADMIN_EMAIL ?? "admin@businesscircle.network"
+    process.env.ADMIN_EMAIL ?? "admin@thebcnet.co.uk"
   );
   const users = buildDemoUsers(adminEmail);
   const resources: DemoResourceSeed[] = [];

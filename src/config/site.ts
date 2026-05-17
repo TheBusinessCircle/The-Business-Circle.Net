@@ -61,7 +61,7 @@ export const SITE_CONFIG: SiteConfig = {
   description:
     `${PUBLIC_TRUST_PHRASE} for UK business owners who want better conversations, clearer thinking, trusted relationships, and a calmer place to make better decisions.`,
   url: CANONICAL_SITE_URL,
-  supportEmail: "support@businesscircle.network",
+  supportEmail: "contact@thebcnet.co.uk",
   publicNavigation,
   memberNavigation,
   adminNavigation,

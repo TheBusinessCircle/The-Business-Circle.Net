@@ -71,7 +71,7 @@ function buildVerificationPreviewUrl() {
 
 function buildPasswordResetPreviewUrl() {
   const url = new URL("/reset-password", getBaseUrl());
-  url.searchParams.set("email", "preview@businesscircle.network");
+  url.searchParams.set("email", "preview@thebcnet.co.uk");
   url.searchParams.set("token", "bcn_test_preview_token_do_not_use");
   url.searchParams.set("preview", "1");
   return url.toString();
