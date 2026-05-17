@@ -17,6 +17,7 @@ type CheckoutApiPayload = {
   billingInterval: MembershipBillingInterval;
   coreAccessConfirmed: boolean;
   source: CheckoutSource;
+  inviteCode?: string;
 };
 
 type CheckoutApiResponse = {
@@ -44,6 +45,7 @@ type MembershipPlanActionProps = {
   unauthenticatedLabel: string;
   joinHref: string;
   loginHref: string;
+  inviteCode?: string;
 };
 
 function withSelectionParams(pathname: string, params: Record<string, string | boolean | undefined>) {
@@ -109,7 +111,8 @@ export function MembershipPlanAction({
   authenticatedLabel,
   unauthenticatedLabel,
   joinHref,
-  loginHref
+  loginHref,
+  inviteCode
 }: MembershipPlanActionProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const [internalCoreAccessConfirmed, setInternalCoreAccessConfirmed] = useState(false);
@@ -178,7 +181,8 @@ export function MembershipPlanAction({
         tier,
         billingInterval,
         coreAccessConfirmed: resolvedCoreAccessConfirmed,
-        source
+        source,
+        inviteCode
       };
 
       const response = await fetch("/api/stripe/checkout", {

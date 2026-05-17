@@ -10,7 +10,7 @@ import {
   Role,
   SubscriptionStatus
 } from "@prisma/client";
-import { WelcomeMemberEmail } from "@/emails";
+import { FoundingAccessWelcomeEmail, WelcomeMemberEmail } from "@/emails";
 import {
   BCN_RULES_VERSION,
   TERMS_VERSION
@@ -31,6 +31,7 @@ import { prisma } from "@/lib/prisma";
 import { logServerWarning } from "@/lib/security/logging";
 import { getBaseUrl } from "@/lib/utils";
 import { recordInviteReferral } from "@/server/community-recognition";
+import { validateInviteCodeForCheckout } from "@/server/invite-codes";
 import { requireStripeClient } from "@/server/stripe/client";
 
 type RegistrationErrorCode =
@@ -314,26 +315,44 @@ async function sendWelcomeMemberEmail(input: {
   email: string;
   firstName: string;
   tier: MembershipTier;
+  foundingAccess?: {
+    trialDays: number;
+    discountPercent: number | null;
+  } | null;
 }) {
   const planName = getMembershipPlan(input.tier).name;
   const dashboardUrl = new URL("/dashboard", getBaseUrl()).toString();
-  const emailTemplate = createElement(WelcomeMemberEmail, {
-    firstName: input.firstName,
-    tier: input.tier,
-    dashboardUrl
-  });
+  const emailTemplate = input.foundingAccess
+    ? createElement(FoundingAccessWelcomeEmail, {
+        firstName: input.firstName,
+        tier: input.tier,
+        dashboardUrl,
+        trialDays: input.foundingAccess.trialDays,
+        founderDiscountPercent: input.foundingAccess.discountPercent
+      })
+    : createElement(WelcomeMemberEmail, {
+        firstName: input.firstName,
+        tier: input.tier,
+        dashboardUrl
+      });
   const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
     to: input.email,
-    subject: "Welcome to The Business Circle",
+    subject: input.foundingAccess
+      ? "Your Founding Access is live"
+      : "Welcome to The Business Circle",
     text: buildBrandedEmailText({
       greeting: `Hi ${input.firstName},`,
       eyebrow: "Welcome to BCN",
       heading: "Your membership is now live",
       bodyLines: [
-        `Welcome to The Business Circle Network. Your membership tier is ${planName}.`,
-        "You can now log in to access your dashboard, resources, and community discussions.",
+        input.foundingAccess
+          ? `Your Founding Access place is confirmed. Your selected tier is ${planName}, with ${input.foundingAccess.trialDays} days included.`
+          : `Welcome to The Business Circle Network. Your membership tier is ${planName}.`,
+        input.foundingAccess
+          ? "After that, your selected tier continues unless cancelled."
+          : "You can now log in to access your dashboard, resources, and community discussions.",
         "Start with one clear move inside the platform and let the rest build from there."
       ],
       ctaLabel: "Open your dashboard",
@@ -460,6 +479,25 @@ export async function createPendingRegistration(
 
   const input = parsed.data;
   const email = normalizeEmail(input.email);
+  const inviteCode = input.inviteCode?.trim() || null;
+
+  if (inviteCode) {
+    const inviteValidation = await validateInviteCodeForCheckout({
+      code: inviteCode,
+      tier: input.tier
+    });
+
+    if (!inviteValidation.valid && inviteValidation.reason !== "missing") {
+      throw new RegistrationServiceError(
+        "INVALID_INPUT",
+        inviteValidation.reason === "limit-reached"
+          ? "This founding access code has already been fully claimed."
+          : inviteValidation.reason === "tier-ineligible"
+            ? "This founding access code is not valid for the selected membership tier."
+            : "This founding access code is not active."
+      );
+    }
+  }
 
   const [existingUser, paymentInProgress] = await Promise.all([
     prisma.user.findUnique({
@@ -800,11 +838,25 @@ export async function finalizePendingRegistrationAccess(input: {
   }
 
   const firstName = input.fullName.trim().split(/\s+/)[0] || "Member";
+  const inviteCodeValidation = input.inviteCode
+    ? await validateInviteCodeForCheckout({
+        code: input.inviteCode,
+        tier: input.selectedTier
+      })
+    : null;
+  const foundingAccess =
+    inviteCodeValidation?.valid && inviteCodeValidation.inviteCode.trialDays > 0
+      ? {
+          trialDays: inviteCodeValidation.inviteCode.trialDays,
+          discountPercent: inviteCodeValidation.inviteCode.discountPercent
+        }
+      : null;
   const [welcomeResult, verificationResult] = await Promise.allSettled([
     sendWelcomeMemberEmail({
       email: input.email,
       firstName,
-      tier: input.selectedTier
+      tier: input.selectedTier,
+      foundingAccess
     }),
     sendEmailVerificationForUser({
       userId: input.userId,

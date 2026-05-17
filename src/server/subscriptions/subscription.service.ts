@@ -48,6 +48,10 @@ import {
   resolveManagedMembershipTierFromStripePriceId,
   recordBillingDiscountRedemption
 } from "@/server/products-pricing";
+import {
+  claimInviteCodeRedemption,
+  validateInviteCodeForCheckout
+} from "@/server/invite-codes";
 import { requireStripeClient } from "@/server/stripe/client";
 
 const WEBHOOK_PROCESSING_STALE_MS = 10 * 60 * 1000;
@@ -62,6 +66,7 @@ type CheckoutSessionInput = {
   successPath?: string;
   cancelPath?: string;
   allowFoundingOffer?: boolean;
+  inviteCode?: string | null;
 };
 
 type PendingRegistrationCheckoutInput = {
@@ -794,6 +799,20 @@ async function completePendingRegistrationFromStripeSubscription(
     stripeSubscriptionId: subscription.id
   });
 
+  if (provisioned.inviteCode && input.checkoutSessionId) {
+    await claimInviteCodeRedemption({
+      code: provisioned.inviteCode,
+      email: provisioned.user.email,
+      tier: provisioned.selectedTier,
+      stripeSessionId: input.checkoutSessionId,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscription.id,
+      userId: provisioned.user.id,
+      pendingRegistrationId: provisioned.pendingRegistrationId,
+      trialEndsAt: toDateFromStripeTimestamp(subscription.trial_end)
+    });
+  }
+
   return true;
 }
 
@@ -998,6 +1017,19 @@ async function upsertSubscriptionFromCheckoutSession(
       await claimFoundingReservation({
         reservationId: foundingReservationId,
         subscriptionId: persisted.id
+      });
+    }
+
+    if (session.metadata?.inviteCodeValue && persisted?.id) {
+      await claimInviteCodeRedemption({
+        code: session.metadata.inviteCodeValue,
+        email: session.customer_details?.email ?? "",
+        tier: persisted.tier,
+        stripeSessionId: session.id,
+        stripeCustomerId: context.customerId,
+        stripeSubscriptionId: subscription.id,
+        userId: context.userId,
+        trialEndsAt: toDateFromStripeTimestamp(subscription.trial_end)
       });
     }
 
@@ -1320,6 +1352,22 @@ export async function createStripeCheckoutSessionForUser(
     billingVariant,
     input.billingInterval
   );
+  const inviteCodeValidation = input.inviteCode
+    ? await validateInviteCodeForCheckout({
+        code: input.inviteCode,
+        tier: input.targetTier
+      })
+    : null;
+
+  if (
+    inviteCodeValidation &&
+    !inviteCodeValidation.valid &&
+    inviteCodeValidation.reason !== "missing"
+  ) {
+    throw new Error(`invite-code-${inviteCodeValidation.reason}`);
+  }
+
+  const appliedInviteCode = inviteCodeValidation?.valid ? inviteCodeValidation.inviteCode : null;
   const priceId = selectedPlan.stripePriceId;
   const planKey = selectedPlan.planKey;
 
@@ -1330,7 +1378,10 @@ export async function createStripeCheckoutSessionForUser(
       payment_method_types: ["card"],
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      allow_promotion_codes: true,
+      allow_promotion_codes: !appliedInviteCode?.stripePromotionCodeId,
+      discounts: appliedInviteCode?.stripePromotionCodeId
+        ? [{ promotion_code: appliedInviteCode.stripePromotionCodeId }]
+        : undefined,
       success_url: absoluteUrl(input.successPath ?? "/dashboard?billing=success"),
       cancel_url: absoluteUrl(input.cancelPath ?? "/join?billing=cancelled"),
       client_reference_id: input.userId,
@@ -1340,6 +1391,13 @@ export async function createStripeCheckoutSessionForUser(
         billingVariant,
         billingInterval: input.billingInterval,
         planKey,
+        inviteCodeId: appliedInviteCode?.id ?? "",
+        inviteCodeValue: appliedInviteCode?.code ?? "",
+        trialDays: appliedInviteCode ? String(appliedInviteCode.trialDays) : "",
+        founderDiscountPercent:
+          appliedInviteCode?.discountPercent !== null && appliedInviteCode?.discountPercent !== undefined
+            ? String(appliedInviteCode.discountPercent)
+            : "",
         ...(foundingReservation
           ? {
               foundingReservationId: foundingReservation.id
@@ -1347,12 +1405,22 @@ export async function createStripeCheckoutSessionForUser(
           : {})
       },
       subscription_data: {
+        trial_period_days: appliedInviteCode?.trialDays
+          ? appliedInviteCode.trialDays
+          : undefined,
         metadata: {
           userId: input.userId,
           targetTier: input.targetTier,
           billingVariant,
           billingInterval: input.billingInterval,
           planKey,
+          inviteCodeId: appliedInviteCode?.id ?? "",
+          inviteCodeValue: appliedInviteCode?.code ?? "",
+          trialDays: appliedInviteCode ? String(appliedInviteCode.trialDays) : "",
+          founderDiscountPercent:
+            appliedInviteCode?.discountPercent !== null && appliedInviteCode?.discountPercent !== undefined
+              ? String(appliedInviteCode.discountPercent)
+              : "",
           ...(foundingReservation
             ? {
                 foundingReservationId: foundingReservation.id
@@ -1443,6 +1511,22 @@ export async function createStripeCheckoutSessionForPendingRegistration(
     billingVariant,
     input.billingInterval
   );
+  const inviteCodeValidation = input.inviteCode
+    ? await validateInviteCodeForCheckout({
+        code: input.inviteCode,
+        tier: input.targetTier
+      })
+    : null;
+
+  if (
+    inviteCodeValidation &&
+    !inviteCodeValidation.valid &&
+    inviteCodeValidation.reason !== "missing"
+  ) {
+    throw new Error(`invite-code-${inviteCodeValidation.reason}`);
+  }
+
+  const appliedInviteCode = inviteCodeValidation?.valid ? inviteCodeValidation.inviteCode : null;
   const priceId = selectedPlan.stripePriceId;
   const planKey = selectedPlan.planKey;
   const metadata: Stripe.MetadataParam = {
@@ -1453,7 +1537,14 @@ export async function createStripeCheckoutSessionForPendingRegistration(
     billingInterval: input.billingInterval,
     planKey,
     coreAccessConfirmed: input.coreAccessConfirmed ? "true" : "false",
-    inviteCode: input.inviteCode ?? ""
+    inviteCode: appliedInviteCode?.code ?? input.inviteCode ?? "",
+    inviteCodeId: appliedInviteCode?.id ?? "",
+    inviteCodeValue: appliedInviteCode?.code ?? "",
+    trialDays: appliedInviteCode ? String(appliedInviteCode.trialDays) : "",
+    founderDiscountPercent:
+      appliedInviteCode?.discountPercent !== null && appliedInviteCode?.discountPercent !== undefined
+        ? String(appliedInviteCode.discountPercent)
+        : ""
   };
 
   Object.assign(
@@ -1477,7 +1568,10 @@ export async function createStripeCheckoutSessionForPendingRegistration(
       payment_method_types: ["card"],
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      allow_promotion_codes: true,
+      allow_promotion_codes: !appliedInviteCode?.stripePromotionCodeId,
+      discounts: appliedInviteCode?.stripePromotionCodeId
+        ? [{ promotion_code: appliedInviteCode.stripePromotionCodeId }]
+        : undefined,
       success_url: absoluteUrl(
         input.successPath ?? "/join/complete?session_id={CHECKOUT_SESSION_ID}"
       ),
@@ -1488,6 +1582,9 @@ export async function createStripeCheckoutSessionForPendingRegistration(
       client_reference_id: input.pendingRegistrationId,
       metadata,
       subscription_data: {
+        trial_period_days: appliedInviteCode?.trialDays
+          ? appliedInviteCode.trialDays
+          : undefined,
         metadata
       }
     };

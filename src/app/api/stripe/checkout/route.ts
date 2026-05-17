@@ -23,7 +23,8 @@ const checkoutPayloadSchema = z.object({
   tier: z.nativeEnum(MembershipTier).optional(),
   billingInterval: z.enum(["monthly", "annual"]).optional(),
   coreAccessConfirmed: z.boolean().optional(),
-  source: z.enum(["membership", "join", "dashboard"]).optional()
+  source: z.enum(["membership", "join", "dashboard"]).optional(),
+  inviteCode: z.string().trim().max(64).optional()
 });
 
 export async function POST(request: Request) {
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
       (parsedPayload.data.billingInterval ?? "monthly") as MembershipBillingInterval;
     const coreAccessConfirmed = parsedPayload.data.coreAccessConfirmed ?? false;
     const source = parsedPayload.data.source ?? "dashboard";
+    const inviteCode = parsedPayload.data.inviteCode?.trim() || null;
     const currentTier = roleToTier(authResult.user.role, authResult.user.membershipTier);
     const currentTierRank = getMembershipTierRank(currentTier);
     const targetTierRank = getMembershipTierRank(targetTier);
@@ -168,6 +170,7 @@ export async function POST(request: Request) {
       targetTier,
       billingInterval,
       coreAccessConfirmed,
+      inviteCode,
       successPath,
       cancelPath,
       allowFoundingOffer: !authResult.user.hasActiveSubscription
@@ -175,6 +178,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url }, { headers });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("invite-code-")) {
+      return NextResponse.json(
+        { error: "This founding access code is no longer available for checkout." },
+        { status: 409, headers }
+      );
+    }
+
     if (error instanceof Error && error.message === "core-access-confirmation-required") {
       return NextResponse.json(
         {

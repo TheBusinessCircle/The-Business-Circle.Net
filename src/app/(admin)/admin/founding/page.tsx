@@ -17,6 +17,7 @@ import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { getFoundingOfferSnapshot, listFoundingMembers } from "@/server/founding";
+import { listInviteCodesForAdmin } from "@/server/invite-codes";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -130,9 +131,10 @@ export default async function AdminFoundingPage({ searchParams }: PageProps) {
   await requireAdmin();
   const params = await searchParams;
 
-  const [foundingOffer, foundingData, pendingQuestions] = await Promise.all([
+  const [foundingOffer, foundingData, inviteCodes, pendingQuestions] = await Promise.all([
     getFoundingOfferSnapshot(),
     listFoundingMembers(),
+    listInviteCodesForAdmin(),
     prisma.innerCircleQuestion.findMany({
       where: {
         isAnswered: false
@@ -357,6 +359,77 @@ export default async function AdminFoundingPage({ searchParams }: PageProps) {
                   <tr>
                     <td colSpan={5} className="px-3 py-10 text-center text-muted">
                       No founding members have claimed a slot yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Founding Access Pass Codes</CardTitle>
+          <CardDescription>
+            Track controlled access codes, successful uses, trial windows, and recent redemptions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-border/70 text-xs uppercase tracking-[0.06em] text-muted">
+                  <th className="px-3 py-2 font-medium">Code</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Uses</th>
+                  <th className="px-3 py-2 font-medium">Trial</th>
+                  <th className="px-3 py-2 font-medium">Recent Redemption</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inviteCodes.length ? (
+                  inviteCodes.map((code) => {
+                    const latestRedemption = code.redemptions[0];
+                    const remaining =
+                      code.maxRedemptions === null
+                        ? "open"
+                        : Math.max(0, code.maxRedemptions - code.successfulUses);
+
+                    return (
+                      <tr key={code.id} className="border-b border-border/70 align-top">
+                        <td className="px-3 py-3">
+                          <p className="font-medium tracking-[0.08em] text-foreground">{code.code}</p>
+                          <p className="text-xs text-muted">{code.name ?? "Invite code"}</p>
+                        </td>
+                        <td className="px-3 py-3 text-muted">{code.status}</td>
+                        <td className="px-3 py-3 text-muted">
+                          {code.successfulUses} / {code.maxRedemptions ?? "unlimited"}
+                          <span className="block text-xs">{remaining} remaining</span>
+                        </td>
+                        <td className="px-3 py-3 text-muted">{code.trialDays} days</td>
+                        <td className="px-3 py-3 text-muted">
+                          {latestRedemption ? (
+                            <>
+                              <p className="text-foreground">{latestRedemption.email}</p>
+                              <p className="text-xs">
+                                {latestRedemption.status} · {getMembershipTierLabel(latestRedemption.tier)}
+                              </p>
+                              {latestRedemption.trialEndsAt ? (
+                                <p className="text-xs">Trial ends {formatDate(latestRedemption.trialEndsAt)}</p>
+                              ) : null}
+                            </>
+                          ) : (
+                            "No successful redemptions yet."
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-10 text-center text-muted">
+                      No access pass codes have been created yet.
                     </td>
                   </tr>
                 )}

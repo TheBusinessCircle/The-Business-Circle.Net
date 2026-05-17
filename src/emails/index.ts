@@ -1,5 +1,6 @@
 export * from "@/emails/bcn-email-layout";
 export * from "@/emails/welcome-member";
+export * from "@/emails/founding-access-welcome";
 export * from "@/emails/billing-receipt";
 export * from "@/emails/inner-circle-upgrade";
 export * from "@/emails/verify-email-address";

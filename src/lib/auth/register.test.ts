@@ -53,6 +53,10 @@ vi.mock("@/server/community-recognition", () => ({
   recordInviteReferral: vi.fn()
 }));
 
+vi.mock("@/server/invite-codes", () => ({
+  validateInviteCodeForCheckout: vi.fn(async () => ({ valid: false, reason: "missing" }))
+}));
+
 describe("createPendingRegistration", () => {
   beforeEach(() => {
     vi.clearAllMocks();

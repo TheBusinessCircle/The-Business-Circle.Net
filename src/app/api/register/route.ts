@@ -81,6 +81,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status, headers });
     }
 
+    if (error instanceof Error && error.message.startsWith("invite-code-")) {
+      return NextResponse.json(
+        { error: "This founding access code is no longer available for checkout." },
+        { status: 409, headers }
+      );
+    }
+
     logServerError("register-route-failed", error);
     return NextResponse.json(
       { error: "Unable to start registration." },

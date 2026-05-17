@@ -538,7 +538,19 @@ export function RegisterForm({
             </p>
           </div>
 
-          <input type="hidden" {...form.register("inviteCode")} />
+          <div className="space-y-2 rounded-2xl border border-gold/20 bg-gold/8 p-4">
+            <Label htmlFor="register-invite-code">Founding Access Code</Label>
+            <Input
+              id="register-invite-code"
+              placeholder="FOUNDING25"
+              autoComplete="off"
+              {...form.register("inviteCode")}
+            />
+            <p className="text-xs leading-relaxed text-muted">
+              When valid, founding access gives 3 months included. After that, your selected tier
+              continues unless cancelled.
+            </p>
+          </div>
 
           <div className="space-y-3 rounded-2xl border border-border/70 bg-background/20 p-4">
             <label

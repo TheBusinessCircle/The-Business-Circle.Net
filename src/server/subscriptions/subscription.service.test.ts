@@ -19,6 +19,10 @@ const attachFoundingReservationToCheckoutSessionMock = vi.hoisted(() => vi.fn(as
 const releaseFoundingReservationMock = vi.hoisted(() => vi.fn(async () => {}));
 const claimFoundingReservationMock = vi.hoisted(() => vi.fn(async () => {}));
 const resolveManagedMembershipPlanMock = vi.hoisted(() => vi.fn());
+const validateInviteCodeForCheckoutMock = vi.hoisted(() =>
+  vi.fn(async () => ({ valid: false, reason: "missing" }))
+);
+const claimInviteCodeRedemptionMock = vi.hoisted(() => vi.fn(async () => null));
 
 vi.hoisted(() => {
   process.env.STRIPE_STANDARD_PRICE_ID = "price_standard_test";
@@ -100,6 +104,11 @@ vi.mock("@/server/founding", () => ({
   claimFoundingReservation: claimFoundingReservationMock,
   releaseFoundingReservation: releaseFoundingReservationMock,
   reserveFoundingSlot: reserveFoundingSlotMock
+}));
+
+vi.mock("@/server/invite-codes", () => ({
+  claimInviteCodeRedemption: claimInviteCodeRedemptionMock,
+  validateInviteCodeForCheckout: validateInviteCodeForCheckoutMock
 }));
 
 import {

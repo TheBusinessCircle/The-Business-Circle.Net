@@ -59,6 +59,7 @@ model User {
   founderServiceRequests         FounderServiceRequest[]
   foundingMembership             FoundingMember?
   foundingReservations           FoundingOfferReservation[]
+  inviteCodeRedemptions           InviteCodeRedemption[]
   completedPendingRegistration   PendingRegistration?         @relation("PendingRegistrationCompletedUser")
   memberInvite                   MemberInvite?
   inviteReferralsSent            InviteReferral[]             @relation("InviteReferrer")
@@ -695,6 +696,52 @@ model FoundingOfferSettings {
   coreFoundingPrice        Int      @default(74)
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+}
+
+model InviteCode {
+  id                    String                 @id @default(cuid())
+  code                  String                 @unique
+  name                  String?
+  status                InviteCodeStatus       @default(ACTIVE)
+  maxRedemptions        Int?
+  successfulUses        Int                    @default(0)
+  trialDays             Int                    @default(0)
+  eligibleTiers         MembershipTier[]
+  discountPercent       Int?
+  discountDuration      String?
+  stripeCouponId        String?                @unique
+  stripePromotionCodeId String?                @unique
+  expiresAt             DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  redemptions           InviteCodeRedemption[]
+
+  @@index([status, expiresAt])
+  @@index([createdAt])
+}
+
+model InviteCodeRedemption {
+  id                   String   @id @default(cuid())
+  inviteCodeId         String
+  userId               String?
+  pendingRegistrationId String?
+  email                String
+  tier                 MembershipTier
+  stripeCustomerId     String?
+  stripeSessionId      String?  @unique
+  stripeSubscriptionId String?
+  status               String   @default("PENDING")
+  trialEndsAt          DateTime?
+  createdAt            DateTime @default(now())
+  completedAt          DateTime?
+  inviteCode           InviteCode @relation(fields: [inviteCodeId], references: [id], onDelete: Cascade)
+  user                 User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([inviteCodeId, status, createdAt])
+  @@index([pendingRegistrationId])
+  @@index([userId])
+  @@index([email])
+  @@index([stripeSubscriptionId])
 }
 
 model MemberInvite {
@@ -1813,6 +1860,11 @@ enum FoundingReservationStatus {
 enum FoundingReservationSource {
   CHECKOUT
   UPGRADE
+}
+
+enum InviteCodeStatus {
+  ACTIVE
+  PAUSED
 }
 
 enum BusinessStage {

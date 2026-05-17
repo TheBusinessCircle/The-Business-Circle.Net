@@ -278,6 +278,7 @@ function renderTierDetailPanel(input: {
             hasActiveSubscription={input.hasActiveSubscription}
             currentBillingInterval={input.currentBillingInterval}
             buttonVariant={getTierButtonVariant(input.selectedTier)}
+            inviteCode={new URL(input.currentJoinHref, "http://localhost").searchParams.get("invite") ?? undefined}
             authenticatedLabel={getAuthenticatedLabel({
               currentTier: input.currentTier,
               currentBillingInterval: input.currentBillingInterval,
