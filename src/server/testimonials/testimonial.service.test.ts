@@ -119,7 +119,7 @@ describe("testimonial service", () => {
       expect.objectContaining({
         where: {
           status: TestimonialStatus.APPROVED,
-          permissionToDisplay: true,
+          permissionToFeaturePublicly: true,
           proofType: TestimonialProofType.BCN_MEMBER
         },
         take: 3
@@ -161,7 +161,7 @@ describe("testimonial service", () => {
     expect(dbMock.testimonial.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          permissionToDisplay: true,
+          permissionToFeaturePublicly: true,
           proofType: TestimonialProofType.GROWTH_ARCHITECT
         })
       })
@@ -384,7 +384,7 @@ describe("testimonial service", () => {
     expect(dbMock.testimonial.update).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        data: { status: TestimonialStatus.REJECTED }
+        data: expect.objectContaining({ status: TestimonialStatus.REJECTED })
       })
     );
     expect(dbMock.testimonial.update).toHaveBeenNthCalledWith(

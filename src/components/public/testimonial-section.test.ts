@@ -37,8 +37,10 @@ describe("TestimonialSection", () => {
 
     expect(markup).toBe("");
     expect(listApprovedTestimonialsMock).toHaveBeenCalledWith(
-      TestimonialProofType.BCN_MEMBER,
-      6
+      expect.objectContaining({
+        proofType: TestimonialProofType.BCN_MEMBER,
+        limit: 6
+      })
     );
   });
 

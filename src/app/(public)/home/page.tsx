@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+<<<<<<< Updated upstream
+=======
+import {
+  TestimonialCategory,
+  TestimonialDisplayLocation,
+  TestimonialProofType
+} from "@prisma/client";
+>>>>>>> Stashed changes
 import {
   ArrowRight,
   BookOpen,
@@ -762,7 +770,23 @@ export default async function HomePage() {
 
       <PrivacyBoundaryNote />
 
+<<<<<<< Updated upstream
       <PublicTrustProofSection source="home" />
+=======
+      <TestimonialSection
+        proofType={TestimonialProofType.BCN_MEMBER}
+        location={TestimonialDisplayLocation.BCN_HOME}
+        category={[
+          TestimonialCategory.BCN_EXPERIENCE,
+          TestimonialCategory.COMMUNITY,
+          TestimonialCategory.COLLABORATION
+        ]}
+        eyebrow="MEMBER PROOF"
+        title="What owners are saying inside The Business Circle"
+        intro="Real feedback from business owners using BCN to find clearer conversations, stronger direction, and better rooms."
+        limit={6}
+      />
+>>>>>>> Stashed changes
 
       <section className="public-section">
         <SectionHeading

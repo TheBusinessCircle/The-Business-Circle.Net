@@ -1,4 +1,8 @@
-import type { TestimonialProofType } from "@prisma/client";
+import type {
+  TestimonialCategory,
+  TestimonialDisplayLocation,
+  TestimonialProofType
+} from "@prisma/client";
 import { Quote, Star, TrendingUp } from "lucide-react";
 import { SectionHeading } from "@/components/public/section-heading";
 import { cn } from "@/lib/utils";
@@ -10,8 +14,12 @@ import {
 type TestimonialSectionVariant = "public" | "compact" | "member";
 
 type TestimonialSectionProps = {
-  proofType: TestimonialProofType;
-  title: string;
+  proofType?: TestimonialProofType;
+  location?: TestimonialDisplayLocation;
+  category?: TestimonialCategory | TestimonialCategory[];
+  highlightedOnly?: boolean;
+  title?: string;
+  heading?: string;
   eyebrow?: string;
   intro?: string;
   limit?: number;
@@ -86,13 +94,23 @@ function TestimonialCard({ testimonial }: { testimonial: ApprovedTestimonial }) 
 
 export async function TestimonialSection({
   proofType,
+  location,
+  category,
+  highlightedOnly,
   title,
+  heading,
   eyebrow,
   intro,
   limit = 6,
   variant = "public"
 }: TestimonialSectionProps) {
-  const testimonials = await listApprovedTestimonials(proofType, limit);
+  const testimonials = await listApprovedTestimonials({
+    proofType,
+    location,
+    category,
+    highlightedOnly,
+    limit
+  });
 
   if (!testimonials.length) {
     return null;
@@ -112,7 +130,7 @@ export async function TestimonialSection({
     >
       <SectionHeading
         label={eyebrow}
-        title={title}
+        title={heading ?? title ?? "Real experiences from business owners"}
         description={intro}
         align={isMember ? "left" : "center"}
       />

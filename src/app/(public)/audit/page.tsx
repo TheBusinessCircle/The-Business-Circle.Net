@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
+import {
+  TestimonialCategory,
+  TestimonialDisplayLocation,
+  TestimonialProofType
+} from "@prisma/client";
 import { AnswerBlock, FAQSection, JsonLd, TwoPathCta } from "@/components/public";
+import { TestimonialSection } from "@/components/public/testimonial-section";
 import { createPageMetadata } from "@/lib/seo";
 import {
   buildBreadcrumbSchema,
@@ -96,6 +102,15 @@ export default function AuditPage() {
         title="Clear answers before you start"
         description="The audit is a soft-entry tool for fit, not a gimmick or a hard sell."
         items={[...AUDIT_FAQS]}
+      />
+      <TestimonialSection
+        proofType={TestimonialProofType.GROWTH_ARCHITECT}
+        location={TestimonialDisplayLocation.AUDIT_PAGE}
+        category={[TestimonialCategory.FOUNDER_AUDIT, TestimonialCategory.GROWTH_ARCHITECT]}
+        eyebrow="FOUNDER WORDS"
+        title="Shared by people who have experienced the work"
+        intro="Approved words from business owners who have used a founder audit, strategy conversation, or Growth Architect work."
+        limit={6}
       />
     </div>
   );

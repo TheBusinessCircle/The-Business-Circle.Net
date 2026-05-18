@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
 import { getCommunityRecognitionForUser } from "@/server/community-recognition";
-import { getLatestMemberTestimonial } from "@/server/testimonials";
+import { getLatestMemberTestimonial, getReviewSettings } from "@/server/testimonials";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -39,7 +39,7 @@ export default async function ProfilePage({ searchParams }: PageProps) {
   const session = await requireUser();
   const params = await searchParams;
 
-  const [user, recognition, latestTestimonial] = await Promise.all([
+  const [user, recognition, latestTestimonial, reviewSettings] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       include: {
@@ -51,7 +51,8 @@ export default async function ProfilePage({ searchParams }: PageProps) {
       }
     }),
     getCommunityRecognitionForUser(session.user.id),
-    getLatestMemberTestimonial(session.user.id)
+    getLatestMemberTestimonial(session.user.id),
+    getReviewSettings()
   ]);
 
   if (!user) {
@@ -93,7 +94,13 @@ export default async function ProfilePage({ searchParams }: PageProps) {
       <MemberTestimonialSubmission
         latestStatus={latestTestimonial?.status}
         latestCreatedAt={latestTestimonial?.createdAt}
+        latestText={latestTestimonial?.testimonialText || latestTestimonial?.quote}
+        submittedTestimonialId={firstValue(params.testimonialId) || latestTestimonial?.id}
         feedback={firstValue(params.testimonial) as "sent" | "invalid" | ""}
+        googleReviewUrl={reviewSettings.googleReviewUrl}
+        googleReviewEnabled={reviewSettings.googleReviewEnabled}
+        showGoogleReviewButton={reviewSettings.showGoogleReviewButton}
+        googleReviewPendingMessage={reviewSettings.googleReviewPendingMessage}
       />
 
       <ProfileForm

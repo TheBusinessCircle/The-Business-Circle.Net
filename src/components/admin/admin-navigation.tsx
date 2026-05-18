@@ -10,6 +10,7 @@ import {
   GitBranch,
   LayoutGrid,
   MessageSquare,
+  MessageSquareQuote,
   ImageIcon,
   ShieldCheck,
   Sparkles,
@@ -57,6 +58,9 @@ function iconForHref(href: string) {
   }
   if (href.startsWith("/admin/messages")) {
     return MessageSquare;
+  }
+  if (href.startsWith("/admin/testimonials")) {
+    return MessageSquareQuote;
   }
   if (href.startsWith("/admin/emails")) {
     return Inbox;

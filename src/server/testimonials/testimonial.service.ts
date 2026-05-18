@@ -4,7 +4,10 @@ import { randomBytes } from "node:crypto";
 import { createElement } from "react";
 import {
   Prisma,
+  TestimonialCategory,
+  TestimonialDisplayLocation,
   TestimonialProofType,
+  TestimonialSource,
   TestimonialSourceType,
   TestimonialStatus
 } from "@prisma/client";
@@ -18,6 +21,8 @@ import { sendTransactionalEmail } from "@/lib/email/resend";
 export type ApprovedTestimonial = {
   id: string;
   proofType: TestimonialProofType;
+  category: TestimonialCategory;
+  displayLocation: TestimonialDisplayLocation;
   quote: string;
   outcome: string | null;
   rating: number | null;
@@ -26,6 +31,7 @@ export type ApprovedTestimonial = {
   businessName: string | null;
   businessWebsite: string | null;
   imageUrl: string | null;
+  isHighlighted: boolean;
   approvedAt: Date | null;
   createdAt: Date;
 };
@@ -34,6 +40,12 @@ export type AdminTestimonialFilters = {
   proofType?: TestimonialProofType;
   status?: TestimonialStatus;
   sourceType?: TestimonialSourceType;
+  source?: TestimonialSource;
+  category?: TestimonialCategory;
+  displayLocation?: TestimonialDisplayLocation;
+  rating?: number;
+  highlighted?: boolean;
+  search?: string;
   limit?: number;
 };
 
@@ -41,24 +53,49 @@ export type CreateMemberTestimonialInput = {
   memberId: string;
   quote: string;
   outcome?: string | null;
-  permissionToDisplay: boolean;
+  category?: TestimonialCategory;
+  displayLocation?: TestimonialDisplayLocation;
+  rating?: number | null;
+  submittedByCompany?: string | null;
+  submittedByRole?: string | null;
+  submittedByWebsite?: string | null;
+  submittedByLinkedIn?: string | null;
+  permissionToFeaturePublicly?: boolean;
+  permissionToUseName?: boolean;
+  permissionToUseCompany?: boolean;
+  permissionToUseImage?: boolean;
+  permissionToUseInMarketing?: boolean;
+  permissionToDisplay?: boolean;
   displayPublicName?: boolean;
   displayBusinessName?: boolean;
   displayProfileImage?: boolean;
 };
 
 export type CreateExternalTestimonialInput = {
-  requestToken: string;
+  requestToken?: string | null;
   authorName: string;
   authorRole?: string | null;
   businessName?: string | null;
   businessWebsite?: string | null;
+  submittedByLinkedIn?: string | null;
   quote: string;
   outcome?: string | null;
   submittedEmail?: string | null;
-  permissionToDisplay: boolean;
+  category?: TestimonialCategory;
+  displayLocation?: TestimonialDisplayLocation;
+  rating?: number | null;
+  source?: TestimonialSource;
+  permissionToFeaturePublicly?: boolean;
+  permissionToUseName?: boolean;
+  permissionToUseCompany?: boolean;
+  permissionToUseImage?: boolean;
+  permissionToUseInMarketing: boolean;
+  permissionToDisplay?: boolean;
   displayPublicName?: boolean;
   displayBusinessName?: boolean;
+  trackingSource?: string | null;
+  campaign?: string | null;
+  ref?: string | null;
 };
 
 export type SendTestimonialRequestEmailInput = {
@@ -78,13 +115,45 @@ export type UpdateAdminTestimonialInput = {
   businessWebsite?: string | null;
   outcome?: string | null;
   proofType: TestimonialProofType;
+  category: TestimonialCategory;
+  displayLocation: TestimonialDisplayLocation;
   status: TestimonialStatus;
   permissionToDisplay: boolean;
+  permissionToFeaturePublicly: boolean;
+  permissionToUseName: boolean;
+  permissionToUseCompany: boolean;
+  permissionToUseImage: boolean;
+  permissionToUseInMarketing: boolean;
   displayPublicName: boolean;
   displayBusinessName: boolean;
   displayProfileImage: boolean;
+  isHighlighted: boolean;
+  rating?: number | null;
   adminNotes?: string | null;
+  rejectionReason?: string | null;
   adminId?: string | null;
+};
+
+export type UpdateReviewSettingsInput = {
+  googleReviewUrl?: string | null;
+  googleReviewEnabled: boolean;
+  showGoogleReviewButton: boolean;
+  googleReviewButtonLabel: string;
+  googleReviewPendingMessage: string;
+  internalTestimonialsEnabled: boolean;
+  publicTestimonialFormEnabled: boolean;
+  requireAdminApproval: boolean;
+  homepageTestimonialsEnabled: boolean;
+  founderPageTestimonialsEnabled: boolean;
+  auditPageTestimonialsEnabled: boolean;
+};
+
+export type PublicTestimonialQuery = {
+  proofType?: TestimonialProofType;
+  category?: TestimonialCategory | TestimonialCategory[];
+  location?: TestimonialDisplayLocation;
+  highlightedOnly?: boolean;
+  limit?: number;
 };
 
 function testimonialProofLabel(proofType: TestimonialProofType) {
@@ -127,70 +196,6 @@ export function buildTestimonialRequestUrl(requestToken: string) {
   return new URL(`/testimonial/${encodeURIComponent(requestToken)}`, SITE_CONFIG.url).toString();
 }
 
-function buildTestimonialRequestText(input: {
-  recipientName: string;
-  proofType: TestimonialProofType;
-  testimonialUrl: string;
-  contextNote?: string | null;
-}) {
-  if (input.proofType === TestimonialProofType.GROWTH_ARCHITECT) {
-    const firstName = input.recipientName.trim().split(/\s+/)[0] || input.recipientName.trim();
-
-    return buildBrandedEmailText({
-      eyebrow: "Testimonial request",
-      heading: "Could you share a few words?",
-      bodyLines: [
-        `Hi ${firstName},`,
-        "",
-        "Thank you again for trusting me to review your business.",
-        "",
-        "I hope the audit gave you clearer direction, stronger priorities, and a better understanding of where your website, message, trust signals, visibility, or customer journey can improve.",
-        "",
-        "If you are happy to, I would really appreciate a short testimonial about your experience.",
-        "",
-        "You can share:",
-        "- what made the audit useful",
-        "- what became clearer",
-        "- whether the breakdown felt practical",
-        "- whether you would recommend it to another business owner",
-        "",
-        "Nothing will be published publicly without approval.",
-        "",
-        "Thanks again,",
-        "Trevor Newton",
-        "Founder & Growth Architect",
-        "The Business Circle Network"
-      ],
-      ctaLabel: "Submit your testimonial",
-      ctaUrl: input.testimonialUrl,
-      fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
-    });
-  }
-
-  const proofLabel = testimonialProofLabel(input.proofType);
-  const bodyLines = [
-    `Hi ${input.recipientName.trim().split(/\s+/)[0] || input.recipientName.trim()},`,
-    "",
-    `I hope you are well. This is a simple request for a short testimonial for ${proofLabel}.`,
-    "A few honest sentences about what became clearer, easier, or more useful is enough.",
-    "Your response is reviewed before anything is displayed publicly.",
-    "You can choose which name and business details may be shown."
-  ];
-
-  if (input.contextNote?.trim()) {
-    bodyLines.push("", "Context:", input.contextNote.trim());
-  }
-
-  return buildBrandedEmailText({
-    eyebrow: "Testimonial request",
-    heading: "Could you share a few words?",
-    bodyLines,
-    ctaLabel: "Share your testimonial",
-    ctaUrl: input.testimonialUrl,
-    fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
-  });
-}
-
 function normalizeOptionalText(value?: string | null) {
   const trimmed = value?.trim() ?? "";
   return trimmed || null;
@@ -200,8 +205,76 @@ function normalizeRequiredText(value: string) {
   return value.trim();
 }
 
+function normalizeRating(value?: number | null) {
+  if (value == null || Number.isNaN(value)) {
+    return null;
+  }
+
+  const rounded = Math.round(value);
+  if (rounded < 1 || rounded > 5) {
+    throw new Error("testimonial-rating-invalid");
+  }
+
+  return rounded;
+}
+
 function createRequestToken() {
   return randomBytes(24).toString("hex");
+}
+
+export function categoryToDisplayLocation(category: TestimonialCategory): TestimonialDisplayLocation {
+  if (
+    category === TestimonialCategory.GROWTH_ARCHITECT ||
+    category === TestimonialCategory.STRATEGY_CALL
+  ) {
+    return TestimonialDisplayLocation.FOUNDER_PAGE;
+  }
+
+  if (category === TestimonialCategory.FOUNDER_AUDIT) {
+    return TestimonialDisplayLocation.AUDIT_PAGE;
+  }
+
+  if (
+    category === TestimonialCategory.BCN_EXPERIENCE ||
+    category === TestimonialCategory.COMMUNITY ||
+    category === TestimonialCategory.COLLABORATION
+  ) {
+    return TestimonialDisplayLocation.BCN_HOME;
+  }
+
+  return TestimonialDisplayLocation.ANYWHERE;
+}
+
+function proofTypeForCategory(category: TestimonialCategory) {
+  if (
+    category === TestimonialCategory.GROWTH_ARCHITECT ||
+    category === TestimonialCategory.FOUNDER_AUDIT ||
+    category === TestimonialCategory.STRATEGY_CALL
+  ) {
+    return TestimonialProofType.GROWTH_ARCHITECT;
+  }
+
+  if (
+    category === TestimonialCategory.BCN_EXPERIENCE ||
+    category === TestimonialCategory.COMMUNITY ||
+    category === TestimonialCategory.COLLABORATION
+  ) {
+    return TestimonialProofType.BCN_MEMBER;
+  }
+
+  return TestimonialProofType.GENERAL;
+}
+
+function categoryForProofType(proofType: TestimonialProofType) {
+  if (proofType === TestimonialProofType.GROWTH_ARCHITECT) {
+    return TestimonialCategory.GROWTH_ARCHITECT;
+  }
+
+  if (proofType === TestimonialProofType.BCN_MEMBER) {
+    return TestimonialCategory.BCN_EXPERIENCE;
+  }
+
+  return TestimonialCategory.OTHER;
 }
 
 function toApprovedTestimonial(
@@ -223,30 +296,96 @@ function toApprovedTestimonial(
   return {
     id: testimonial.id,
     proofType: testimonial.proofType,
-    quote: testimonial.quote,
+    category: testimonial.category,
+    displayLocation: testimonial.displayLocation,
+    quote: testimonial.testimonialText || testimonial.quote,
     outcome: testimonial.outcome,
     rating: testimonial.rating,
-    authorName: testimonial.displayPublicName ? testimonial.authorName : fallbackAuthor,
-    authorRole: testimonial.displayPublicName ? testimonial.authorRole : null,
-    businessName: testimonial.displayBusinessName ? testimonial.businessName : null,
-    businessWebsite: testimonial.displayBusinessName ? testimonial.businessWebsite : null,
-    imageUrl: testimonial.displayProfileImage
-      ? testimonial.imageUrl ?? testimonial.member?.image ?? null
+    authorName: testimonial.permissionToUseName ? testimonial.authorName : fallbackAuthor,
+    authorRole: testimonial.permissionToUseName ? testimonial.authorRole : null,
+    businessName: testimonial.permissionToUseCompany ? testimonial.businessName : null,
+    businessWebsite: testimonial.permissionToUseCompany ? testimonial.businessWebsite : null,
+    imageUrl: testimonial.permissionToUseImage
+      ? testimonial.profileImageUrl ?? testimonial.imageUrl ?? testimonial.member?.image ?? null
       : null,
+    isHighlighted: testimonial.isHighlighted,
     approvedAt: testimonial.approvedAt,
     createdAt: testimonial.createdAt
   };
 }
 
+export async function getReviewSettings() {
+  const existing = await db.siteReviewSettings.findFirst({
+    orderBy: {
+      createdAt: "asc"
+    }
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  return db.siteReviewSettings.create({
+    data: {}
+  });
+}
+
+export async function updateReviewSettings(input: UpdateReviewSettingsInput) {
+  const settings = await getReviewSettings();
+
+  return db.siteReviewSettings.update({
+    where: {
+      id: settings.id
+    },
+    data: {
+      googleReviewUrl: normalizeOptionalText(input.googleReviewUrl),
+      googleReviewEnabled: input.googleReviewEnabled,
+      showGoogleReviewButton: input.showGoogleReviewButton,
+      googleReviewButtonLabel:
+        normalizeOptionalText(input.googleReviewButtonLabel) ?? "Leave a Google review",
+      googleReviewPendingMessage:
+        normalizeOptionalText(input.googleReviewPendingMessage) ??
+        "Google review link coming soon",
+      internalTestimonialsEnabled: input.internalTestimonialsEnabled,
+      publicTestimonialFormEnabled: input.publicTestimonialFormEnabled,
+      requireAdminApproval: input.requireAdminApproval,
+      homepageTestimonialsEnabled: input.homepageTestimonialsEnabled,
+      founderPageTestimonialsEnabled: input.founderPageTestimonialsEnabled,
+      auditPageTestimonialsEnabled: input.auditPageTestimonialsEnabled
+    }
+  });
+}
+
 export async function listApprovedTestimonials(
-  proofType?: TestimonialProofType,
+  proofTypeOrQuery?: TestimonialProofType | PublicTestimonialQuery,
   limit = 6
 ): Promise<ApprovedTestimonial[]> {
+  const query =
+    typeof proofTypeOrQuery === "object" && proofTypeOrQuery !== null
+      ? proofTypeOrQuery
+      : {
+          proofType: proofTypeOrQuery,
+          limit
+        };
+  const categoryFilter = Array.isArray(query.category)
+    ? { in: query.category }
+    : query.category;
+
   const testimonials = await db.testimonial.findMany({
     where: {
       status: TestimonialStatus.APPROVED,
-      permissionToDisplay: true,
-      ...(proofType ? { proofType } : {})
+      permissionToFeaturePublicly: true,
+      ...(query.proofType ? { proofType: query.proofType } : {}),
+      ...(categoryFilter ? { category: categoryFilter } : {}),
+      ...(query.location
+        ? {
+            OR: [
+              { displayLocation: query.location },
+              { displayLocation: TestimonialDisplayLocation.ANYWHERE }
+            ]
+          }
+        : {}),
+      ...(query.highlightedOnly ? { isHighlighted: true } : {})
     },
     include: {
       member: {
@@ -255,18 +394,37 @@ export async function listApprovedTestimonials(
         }
       }
     },
-    orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }],
-    take: Math.min(Math.max(limit, 1), 24)
+    orderBy: [{ isHighlighted: "desc" }, { approvedAt: "desc" }, { createdAt: "desc" }],
+    take: Math.min(Math.max(query.limit ?? limit, 1), 24)
   });
 
-  return testimonials.map(toApprovedTestimonial);
+  return testimonials
+    .filter((testimonial) => (testimonial.testimonialText || testimonial.quote).trim().length > 0)
+    .map(toApprovedTestimonial);
 }
 
 export async function listAdminTestimonials(filters: AdminTestimonialFilters = {}) {
   const where: Prisma.TestimonialWhereInput = {
     ...(filters.proofType ? { proofType: filters.proofType } : {}),
     ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.sourceType ? { sourceType: filters.sourceType } : {})
+    ...(filters.sourceType ? { sourceType: filters.sourceType } : {}),
+    ...(filters.source ? { source: filters.source } : {}),
+    ...(filters.category ? { category: filters.category } : {}),
+    ...(filters.displayLocation ? { displayLocation: filters.displayLocation } : {}),
+    ...(filters.rating ? { rating: filters.rating } : {}),
+    ...(filters.highlighted != null ? { isHighlighted: filters.highlighted } : {}),
+    ...(filters.search
+      ? {
+          OR: [
+            { authorName: { contains: filters.search, mode: "insensitive" } },
+            { businessName: { contains: filters.search, mode: "insensitive" } },
+            { submittedEmail: { contains: filters.search, mode: "insensitive" } },
+            { submittedByEmail: { contains: filters.search, mode: "insensitive" } },
+            { quote: { contains: filters.search, mode: "insensitive" } },
+            { testimonialText: { contains: filters.search, mode: "insensitive" } }
+          ]
+        }
+      : {})
   };
 
   return db.testimonial.findMany({
@@ -323,6 +481,7 @@ export async function createMemberTestimonial(input: CreateMemberTestimonialInpu
       image: true,
       profile: {
         select: {
+          linkedin: true,
           business: {
             select: {
               companyName: true,
@@ -338,22 +497,56 @@ export async function createMemberTestimonial(input: CreateMemberTestimonialInpu
     throw new Error("testimonial-member-not-found");
   }
 
+  const category = input.category ?? TestimonialCategory.BCN_EXPERIENCE;
+  const displayLocation = input.displayLocation ?? categoryToDisplayLocation(category);
+  const quote = normalizeRequiredText(input.quote);
+  const submittedByCompany =
+    normalizeOptionalText(input.submittedByCompany) ?? member.profile?.business?.companyName ?? null;
+  const submittedByWebsite =
+    normalizeOptionalText(input.submittedByWebsite) ?? member.profile?.business?.website ?? null;
+  const submittedByLinkedIn =
+    normalizeOptionalText(input.submittedByLinkedIn) ?? member.profile?.linkedin ?? null;
+  const permissionToFeaturePublicly =
+    input.permissionToFeaturePublicly ?? input.permissionToDisplay ?? false;
+  const permissionToUseName = input.permissionToUseName ?? input.displayPublicName ?? true;
+  const permissionToUseCompany = input.permissionToUseCompany ?? input.displayBusinessName ?? true;
+  const permissionToUseImage = input.permissionToUseImage ?? input.displayProfileImage ?? false;
+
   return db.testimonial.create({
     data: {
       sourceType: TestimonialSourceType.MEMBER_PROFILE,
-      proofType: TestimonialProofType.BCN_MEMBER,
+      source: TestimonialSource.MEMBER_DASHBOARD,
+      proofType: proofTypeForCategory(category),
+      category,
+      displayLocation,
       status: TestimonialStatus.PENDING,
       memberId: member.id,
+      submittedByUserId: member.id,
       authorName: member.name || member.email,
-      businessName: member.profile?.business?.companyName ?? null,
-      businessWebsite: member.profile?.business?.website ?? null,
-      quote: normalizeRequiredText(input.quote),
+      authorRole: normalizeOptionalText(input.submittedByRole),
+      businessName: submittedByCompany,
+      businessWebsite: submittedByWebsite,
+      submittedByName: member.name || member.email,
+      submittedByEmail: member.email,
+      submittedByCompany,
+      submittedByRole: normalizeOptionalText(input.submittedByRole),
+      submittedByWebsite,
+      submittedByLinkedIn,
+      quote,
+      testimonialText: quote,
       outcome: normalizeOptionalText(input.outcome),
-      permissionToDisplay: input.permissionToDisplay,
-      displayPublicName: input.displayPublicName ?? true,
-      displayBusinessName: input.displayBusinessName ?? true,
-      displayProfileImage: input.displayProfileImage ?? false,
+      rating: normalizeRating(input.rating),
+      permissionToDisplay: permissionToFeaturePublicly,
+      permissionToFeaturePublicly,
+      permissionToUseName,
+      permissionToUseCompany,
+      permissionToUseImage,
+      permissionToUseInMarketing: input.permissionToUseInMarketing ?? false,
+      displayPublicName: permissionToUseName,
+      displayBusinessName: permissionToUseCompany,
+      displayProfileImage: permissionToUseImage,
       imageUrl: member.image ?? null,
+      profileImageUrl: member.image ?? null,
       submittedEmail: member.email
     }
   });
@@ -369,17 +562,33 @@ export async function createExternalTestimonialRequest(input: {
   requestedByAdminId?: string | null;
   adminNotes?: string | null;
 }) {
+  const category = categoryForProofType(input.proofType);
+
   return db.testimonial.create({
     data: {
       sourceType: TestimonialSourceType.EXTERNAL_REQUEST,
+      source: TestimonialSource.EMAIL_REQUEST,
       proofType: input.proofType,
+      category,
+      displayLocation: categoryToDisplayLocation(category),
       status: TestimonialStatus.PENDING,
       authorName: normalizeOptionalText(input.authorName) ?? "Client testimonial request",
       authorRole: normalizeOptionalText(input.authorRole),
       businessName: normalizeOptionalText(input.businessName),
       businessWebsite: normalizeOptionalText(input.businessWebsite),
+      submittedByName: normalizeOptionalText(input.authorName),
+      submittedByEmail: normalizeOptionalText(input.submittedEmail),
+      submittedByCompany: normalizeOptionalText(input.businessName),
+      submittedByRole: normalizeOptionalText(input.authorRole),
+      submittedByWebsite: normalizeOptionalText(input.businessWebsite),
       quote: "",
+      testimonialText: "",
       permissionToDisplay: false,
+      permissionToFeaturePublicly: false,
+      permissionToUseName: true,
+      permissionToUseCompany: true,
+      permissionToUseImage: false,
+      permissionToUseInMarketing: false,
       displayPublicName: true,
       displayBusinessName: true,
       displayProfileImage: false,
@@ -388,6 +597,65 @@ export async function createExternalTestimonialRequest(input: {
       requestedByAdminId: normalizeOptionalText(input.requestedByAdminId),
       adminNotes: normalizeOptionalText(input.adminNotes)
     }
+  });
+}
+
+function buildTestimonialRequestText(input: {
+  recipientName: string;
+  proofType: TestimonialProofType;
+  testimonialUrl: string;
+  contextNote?: string | null;
+}) {
+  if (input.proofType === TestimonialProofType.GROWTH_ARCHITECT) {
+    const firstName = input.recipientName.trim().split(/\s+/)[0] || input.recipientName.trim();
+
+    return buildBrandedEmailText({
+      eyebrow: "Testimonial request",
+      heading: "Could you share a few words?",
+      bodyLines: [
+        `Hi ${firstName},`,
+        "",
+        "Thank you again for giving me the chance to look at your business.",
+        "",
+        "If the audit, strategy, or advice gave you clarity or helped you see what to improve next, would you be open to leaving a short testimonial?",
+        "",
+        "You can leave it here:",
+        input.testimonialUrl,
+        "",
+        "Once the Google review link is live, you will also be able to copy the same words across so you do not need to write it twice.",
+        "",
+        "Thank you,",
+        "Trev"
+      ],
+      ctaLabel: "Submit your testimonial",
+      ctaUrl: input.testimonialUrl,
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
+    });
+  }
+
+  const firstName = input.recipientName.trim().split(/\s+/)[0] || input.recipientName.trim();
+
+  return buildBrandedEmailText({
+    eyebrow: "Testimonial request",
+    heading: "Could you share a few words?",
+    bodyLines: [
+      `Hi ${firstName},`,
+      "",
+      "I just wanted to say thank you for being part of the early stages of The Business Circle Network.",
+      "",
+      "If the environment, conversations, insights, or support have helped you in any way, would you be open to sharing a few honest words about your experience?",
+      "",
+      "You can leave it here:",
+      input.testimonialUrl,
+      "",
+      "Your testimonial helps other business owners understand what BCN is really trying to build: a calmer, more trusted place for serious founders to connect, think clearly, and grow properly.",
+      "",
+      "Thank you,",
+      "Trev"
+    ],
+    ctaLabel: "Share your testimonial",
+    ctaUrl: input.testimonialUrl,
+    fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
   });
 }
 
@@ -452,43 +720,95 @@ export async function getExternalTestimonialRequestByToken(requestToken: string)
   });
 }
 
-export async function createExternalTestimonial(input: CreateExternalTestimonialInput) {
-  const existing = await db.testimonial.findUnique({
+export async function getTestimonialCopyState(testimonialId: string) {
+  return db.testimonial.findUnique({
     where: {
-      requestToken: input.requestToken
+      id: testimonialId
+    },
+    select: {
+      id: true,
+      testimonialText: true,
+      quote: true
     }
   });
+}
 
-  if (!existing || existing.sourceType !== TestimonialSourceType.EXTERNAL_REQUEST) {
+export async function createExternalTestimonial(input: CreateExternalTestimonialInput) {
+  const existing = input.requestToken
+    ? await db.testimonial.findUnique({
+        where: {
+          requestToken: input.requestToken
+        }
+      })
+    : null;
+
+  if (input.requestToken && (!existing || existing.sourceType !== TestimonialSourceType.EXTERNAL_REQUEST)) {
     throw new Error("testimonial-request-not-found");
   }
 
-  if (existing.quote.trim().length > 0) {
+  if (existing && existing.quote.trim().length > 0) {
     throw new Error("testimonial-request-completed");
   }
 
-  const updated = await db.testimonial.update({
-    where: {
-      id: existing.id
-    },
-    data: {
-      sourceType: TestimonialSourceType.EXTERNAL_REQUEST,
-      status: TestimonialStatus.PENDING,
-      authorName: normalizeRequiredText(input.authorName),
-      authorRole: normalizeOptionalText(input.authorRole),
-      businessName: normalizeOptionalText(input.businessName),
-      businessWebsite: normalizeOptionalText(input.businessWebsite),
-      quote: normalizeRequiredText(input.quote),
-      outcome: normalizeOptionalText(input.outcome),
-      submittedEmail: normalizeOptionalText(input.submittedEmail),
-      permissionToDisplay: input.permissionToDisplay,
-      displayPublicName: input.displayPublicName ?? true,
-      displayBusinessName: input.displayBusinessName ?? true,
-      displayProfileImage: false,
-      approvedAt: null,
-      approvedByAdminId: null
-    }
-  });
+  const category = input.category ?? existing?.category ?? TestimonialCategory.GROWTH_ARCHITECT;
+  const displayLocation =
+    input.displayLocation ?? existing?.displayLocation ?? categoryToDisplayLocation(category);
+  const quote = normalizeRequiredText(input.quote);
+  const permissionToFeaturePublicly =
+    input.permissionToFeaturePublicly ?? input.permissionToDisplay ?? false;
+  const permissionToUseName = input.permissionToUseName ?? input.displayPublicName ?? true;
+  const permissionToUseCompany = input.permissionToUseCompany ?? input.displayBusinessName ?? true;
+  const trackingNotes = [input.trackingSource, input.campaign, input.ref]
+    .filter(Boolean)
+    .map((value) => `Tracking: ${value}`)
+    .join("\n");
+  const data = {
+    sourceType: TestimonialSourceType.EXTERNAL_REQUEST,
+    source: input.source ?? (input.requestToken ? TestimonialSource.EMAIL_REQUEST : TestimonialSource.PUBLIC_FORM),
+    proofType: proofTypeForCategory(category),
+    category,
+    displayLocation,
+    status: TestimonialStatus.PENDING,
+    authorName: normalizeRequiredText(input.authorName),
+    authorRole: normalizeOptionalText(input.authorRole),
+    businessName: normalizeOptionalText(input.businessName),
+    businessWebsite: normalizeOptionalText(input.businessWebsite),
+    submittedByName: normalizeRequiredText(input.authorName),
+    submittedByRole: normalizeOptionalText(input.authorRole),
+    submittedByCompany: normalizeOptionalText(input.businessName),
+    submittedByWebsite: normalizeOptionalText(input.businessWebsite),
+    submittedByLinkedIn: normalizeOptionalText(input.submittedByLinkedIn),
+    quote,
+    testimonialText: quote,
+    outcome: normalizeOptionalText(input.outcome),
+    submittedEmail: normalizeOptionalText(input.submittedEmail),
+    submittedByEmail: normalizeOptionalText(input.submittedEmail),
+    rating: normalizeRating(input.rating),
+    permissionToDisplay: input.permissionToDisplay ?? permissionToFeaturePublicly,
+    permissionToFeaturePublicly,
+    permissionToUseName,
+    permissionToUseCompany,
+    permissionToUseImage: input.permissionToUseImage ?? false,
+    permissionToUseInMarketing: input.permissionToUseInMarketing,
+    displayPublicName: input.displayPublicName ?? permissionToUseName,
+    displayBusinessName: input.displayBusinessName ?? permissionToUseCompany,
+    displayProfileImage: input.permissionToUseImage ?? false,
+    approvedAt: null,
+    approvedByAdminId: null,
+    approvedByUserId: null,
+    adminNotes: normalizeOptionalText(trackingNotes) ?? existing?.adminNotes ?? null
+  };
+
+  const updated = existing
+    ? await db.testimonial.update({
+        where: {
+          id: existing.id
+        },
+        data
+      })
+    : await db.testimonial.create({
+        data
+      });
 
   await db.founderServiceRequest?.updateMany({
     where: {
@@ -504,28 +824,50 @@ export async function createExternalTestimonial(input: CreateExternalTestimonial
 }
 
 export async function updateAdminTestimonial(input: UpdateAdminTestimonialInput) {
+  const quote = normalizeRequiredText(input.quote);
   const updated = await db.testimonial.update({
     where: {
       id: input.testimonialId
     },
     data: {
-      quote: normalizeRequiredText(input.quote),
+      quote,
+      testimonialText: quote,
       authorName: normalizeRequiredText(input.authorName),
       authorRole: normalizeOptionalText(input.authorRole),
       businessName: normalizeOptionalText(input.businessName),
       businessWebsite: normalizeOptionalText(input.businessWebsite),
+      submittedByName: normalizeRequiredText(input.authorName),
+      submittedByRole: normalizeOptionalText(input.authorRole),
+      submittedByCompany: normalizeOptionalText(input.businessName),
+      submittedByWebsite: normalizeOptionalText(input.businessWebsite),
       outcome: normalizeOptionalText(input.outcome),
       proofType: input.proofType,
+      category: input.category,
+      displayLocation: input.displayLocation,
       status: input.status,
       permissionToDisplay: input.permissionToDisplay,
+      permissionToFeaturePublicly: input.permissionToFeaturePublicly,
+      permissionToUseName: input.permissionToUseName,
+      permissionToUseCompany: input.permissionToUseCompany,
+      permissionToUseImage: input.permissionToUseImage,
+      permissionToUseInMarketing: input.permissionToUseInMarketing,
       displayPublicName: input.displayPublicName,
       displayBusinessName: input.displayBusinessName,
       displayProfileImage: input.displayProfileImage,
+      isHighlighted: input.isHighlighted,
+      rating: normalizeRating(input.rating),
       adminNotes: normalizeOptionalText(input.adminNotes),
+      rejectionReason: normalizeOptionalText(input.rejectionReason),
       ...(input.status === TestimonialStatus.APPROVED
         ? {
             approvedAt: new Date(),
-            approvedByAdminId: normalizeOptionalText(input.adminId)
+            approvedByAdminId: normalizeOptionalText(input.adminId),
+            approvedByUserId: normalizeOptionalText(input.adminId)
+          }
+        : {}),
+      ...(input.status === TestimonialStatus.REJECTED
+        ? {
+            rejectedAt: new Date()
           }
         : {})
     }
@@ -554,6 +896,7 @@ export async function approveTestimonial(testimonialId: string, approvedByAdminI
     data: {
       status: TestimonialStatus.APPROVED,
       approvedByAdminId,
+      approvedByUserId: approvedByAdminId,
       approvedAt: new Date()
     }
   });
@@ -577,7 +920,8 @@ export async function rejectTestimonial(testimonialId: string) {
       id: testimonialId
     },
     data: {
-      status: TestimonialStatus.REJECTED
+      status: TestimonialStatus.REJECTED,
+      rejectedAt: new Date()
     }
   });
 }
@@ -591,4 +935,75 @@ export async function archiveTestimonial(testimonialId: string) {
       status: TestimonialStatus.ARCHIVED
     }
   });
+}
+
+export async function toggleTestimonialHighlight(testimonialId: string, highlighted: boolean) {
+  return db.testimonial.update({
+    where: {
+      id: testimonialId
+    },
+    data: {
+      isHighlighted: highlighted
+    }
+  });
+}
+
+export async function markGoogleReviewIntent(testimonialId: string) {
+  return db.testimonial.update({
+    where: {
+      id: testimonialId
+    },
+    data: {
+      googleReviewIntentClickedAt: new Date()
+    }
+  });
+}
+
+export async function markTestimonialCopiedToGoogle(testimonialId: string) {
+  return db.testimonial.update({
+    where: {
+      id: testimonialId
+    },
+    data: {
+      copiedToGoogleAt: new Date()
+    }
+  });
+}
+
+export async function markGoogleReviewConfirmed(testimonialId: string) {
+  return db.testimonial.update({
+    where: {
+      id: testimonialId
+    },
+    data: {
+      googleReviewCompleted: true,
+      googleReviewConfirmedAt: new Date()
+    }
+  });
+}
+
+export async function getTestimonialTrustStats() {
+  const [pending, approved, featured, googleClicks, googleConfirmed, categories] =
+    await Promise.all([
+      db.testimonial.count({ where: { status: TestimonialStatus.PENDING } }),
+      db.testimonial.count({ where: { status: TestimonialStatus.APPROVED } }),
+      db.testimonial.count({ where: { isHighlighted: true } }),
+      db.testimonial.count({ where: { googleReviewIntentClickedAt: { not: null } } }),
+      db.testimonial.count({ where: { googleReviewCompleted: true } }),
+      db.testimonial.groupBy({
+        by: ["category"],
+        _count: {
+          category: true
+        }
+      })
+    ]);
+
+  return {
+    pending,
+    approved,
+    featured,
+    googleClicks,
+    googleConfirmed,
+    categories
+  };
 }

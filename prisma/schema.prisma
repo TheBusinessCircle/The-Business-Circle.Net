@@ -94,6 +94,8 @@ model User {
   memberTestimonials             Testimonial[]                @relation("MemberTestimonials")
   requestedTestimonials          Testimonial[]                @relation("TestimonialRequestedByAdmin")
   approvedTestimonials           Testimonial[]                @relation("TestimonialApprovedByAdmin")
+  submittedTestimonials          Testimonial[]                @relation("TestimonialSubmittedByUser")
+  reviewApprovedTestimonials     Testimonial[]                @relation("TestimonialApprovedByUser")
 
   @@index([role])
   @@index([memberRoleTag])
@@ -1688,39 +1690,89 @@ model Testimonial {
   id                  String                  @id @default(cuid())
   sourceType          TestimonialSourceType
   proofType           TestimonialProofType
+  category            TestimonialCategory     @default(BCN_EXPERIENCE)
+  displayLocation     TestimonialDisplayLocation @default(ANYWHERE)
   status              TestimonialStatus       @default(PENDING)
   memberId            String?
+  submittedByUserId   String?
+  submittedByEmail    String?
+  submittedByName     String?
+  submittedByCompany  String?
+  submittedByRole     String?
+  submittedByWebsite  String?
+  submittedByLinkedIn String?
+  profileImageUrl     String?
   authorName          String
   authorRole          String?
   businessName        String?
   businessWebsite     String?
+  testimonialText     String?                 @db.Text
   quote               String                  @db.Text
   outcome             String?                 @db.Text
   rating              Int?
+  permissionToFeaturePublicly Boolean         @default(false)
+  permissionToUseName Boolean                 @default(false)
+  permissionToUseCompany Boolean              @default(false)
+  permissionToUseImage Boolean                @default(false)
+  permissionToUseInMarketing Boolean          @default(false)
   permissionToDisplay Boolean
   displayPublicName   Boolean                 @default(true)
   displayBusinessName Boolean                 @default(true)
   displayProfileImage Boolean                 @default(false)
+  isHighlighted       Boolean                 @default(false)
   imageUrl            String?
   adminNotes          String?                 @db.Text
   submittedEmail      String?
   requestToken        String?                 @unique
   requestedByAdminId  String?
   approvedByAdminId   String?
+  approvedByUserId    String?
   approvedAt          DateTime?
+  rejectedAt          DateTime?
+  rejectionReason     String?                 @db.Text
+  source              TestimonialSource       @default(MEMBER_PROFILE)
+  copiedToGoogleAt    DateTime?
+  googleReviewIntentClickedAt DateTime?
+  googleReviewCompleted Boolean               @default(false)
+  googleReviewConfirmedAt DateTime?
   founderServiceRequest FounderServiceRequest? @relation("FounderServiceRequestTestimonial")
   createdAt           DateTime                @default(now())
   updatedAt           DateTime                @updatedAt
   member              User?                   @relation("MemberTestimonials", fields: [memberId], references: [id], onDelete: SetNull)
+  submittedByUser     User?                   @relation("TestimonialSubmittedByUser", fields: [submittedByUserId], references: [id], onDelete: SetNull)
   requestedByAdmin    User?                   @relation("TestimonialRequestedByAdmin", fields: [requestedByAdminId], references: [id], onDelete: SetNull)
   approvedByAdmin     User?                   @relation("TestimonialApprovedByAdmin", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
+  approvedByUser      User?                   @relation("TestimonialApprovedByUser", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([proofType, status, createdAt])
+  @@index([category, status, createdAt])
+  @@index([displayLocation, status, createdAt])
   @@index([status, createdAt])
   @@index([sourceType, createdAt])
+  @@index([source, createdAt])
   @@index([memberId, createdAt])
+  @@index([submittedByUserId, createdAt])
   @@index([approvedByAdminId, approvedAt])
+  @@index([approvedByUserId, approvedAt])
   @@index([requestedByAdminId, createdAt])
+  @@index([isHighlighted, status, createdAt])
+}
+
+model SiteReviewSettings {
+  id                              String   @id @default(cuid())
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+  googleReviewUrl                 String?
+  googleReviewEnabled             Boolean  @default(false)
+  showGoogleReviewButton          Boolean  @default(false)
+  googleReviewButtonLabel         String   @default("Leave a Google review")
+  googleReviewPendingMessage      String   @default("Google review link coming soon")
+  internalTestimonialsEnabled     Boolean  @default(true)
+  publicTestimonialFormEnabled    Boolean  @default(true)
+  requireAdminApproval            Boolean  @default(true)
+  homepageTestimonialsEnabled     Boolean  @default(true)
+  founderPageTestimonialsEnabled  Boolean  @default(true)
+  auditPageTestimonialsEnabled    Boolean  @default(true)
 }
 
 enum Role {
@@ -1739,6 +1791,32 @@ enum TestimonialProofType {
   BCN_MEMBER
   GROWTH_ARCHITECT
   GENERAL
+}
+
+enum TestimonialCategory {
+  BCN_EXPERIENCE
+  GROWTH_ARCHITECT
+  FOUNDER_AUDIT
+  STRATEGY_CALL
+  COLLABORATION
+  COMMUNITY
+  OTHER
+}
+
+enum TestimonialDisplayLocation {
+  BCN_HOME
+  FOUNDER_PAGE
+  AUDIT_PAGE
+  MEMBERSHIP_PAGE
+  ANYWHERE
+}
+
+enum TestimonialSource {
+  MEMBER_PROFILE
+  MEMBER_DASHBOARD
+  PUBLIC_FORM
+  ADMIN_CREATED
+  EMAIL_REQUEST
 }
 
 enum TestimonialStatus {

@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import {
-  TestimonialProofType,
-  TestimonialSourceType,
+  TestimonialCategory,
+  TestimonialDisplayLocation,
+  TestimonialSource,
   TestimonialStatus
 } from "@prisma/client";
-import { CheckCircle2, Link2, MessageSquareQuote, Quote, Star, XCircle } from "lucide-react";
+import { CheckCircle2, Copy, MessageSquareQuote, Star, XCircle } from "lucide-react";
 import {
   approveTestimonialAction,
   archiveTestimonialAction,
-  createExternalTestimonialRequestAction,
+  markGoogleReviewConfirmedAction,
+  markGoogleReviewIntentAction,
+  markTestimonialCopiedToGoogleAction,
   rejectTestimonialAction,
-  sendTestimonialRequestEmailAction,
-  updateAdminTestimonialAction
+  toggleTestimonialHighlightAction,
+  updateAdminTestimonialAction,
+  updateReviewSettingsAction
 } from "@/actions/testimonial.actions";
 import { CopyLinkButton } from "@/components/admin/copy-link-button";
 import { Badge } from "@/components/ui/badge";
@@ -26,9 +30,11 @@ import { SITE_CONFIG } from "@/config/site";
 import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
 import { formatDateTime } from "@/lib/utils";
-import { listAdminTestimonials } from "@/server/testimonials";
-
-type AdminTestimonial = Awaited<ReturnType<typeof listAdminTestimonials>>[number];
+import {
+  getReviewSettings,
+  getTestimonialTrustStats,
+  listAdminTestimonials
+} from "@/server/testimonials";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -42,23 +48,22 @@ export const metadata: Metadata = createPageMetadata({
   path: "/admin/testimonials"
 });
 
-const PROOF_TYPE_LABELS: Record<TestimonialProofType, string> = {
-  BCN_MEMBER: "BCN Member",
+const CATEGORY_LABELS: Record<TestimonialCategory, string> = {
+  BCN_EXPERIENCE: "BCN experience",
   GROWTH_ARCHITECT: "Growth Architect",
-  GENERAL: "General"
+  FOUNDER_AUDIT: "Founder Audit",
+  STRATEGY_CALL: "Strategy call",
+  COLLABORATION: "Collaboration",
+  COMMUNITY: "Community",
+  OTHER: "Other"
 };
 
-const STATUS_LABELS: Record<TestimonialStatus, string> = {
-  PENDING: "Pending",
-  APPROVED: "Approved",
-  REJECTED: "Rejected",
-  ARCHIVED: "Archived"
-};
-
-const SOURCE_TYPE_LABELS: Record<TestimonialSourceType, string> = {
-  MEMBER_PROFILE: "Member profile",
-  EXTERNAL_REQUEST: "External request",
-  ADMIN_CREATED: "Admin created"
+const LOCATION_LABELS: Record<TestimonialDisplayLocation, string> = {
+  BCN_HOME: "BCN home",
+  FOUNDER_PAGE: "Founder page",
+  AUDIT_PAGE: "Audit page",
+  MEMBERSHIP_PAGE: "Membership page",
+  ANYWHERE: "Anywhere"
 };
 
 function firstValue(value: string | string[] | undefined) {
@@ -69,240 +74,138 @@ function firstValue(value: string | string[] | undefined) {
   return value ?? "";
 }
 
-function parseProofType(value: string): TestimonialProofType | undefined {
-  return Object.values(TestimonialProofType).includes(value as TestimonialProofType)
-    ? (value as TestimonialProofType)
-    : undefined;
+function parseEnum<T extends string>(value: string, values: Record<string, T>) {
+  return Object.values(values).includes(value as T) ? (value as T) : undefined;
 }
 
-function parseStatus(value: string): TestimonialStatus | undefined {
-  return Object.values(TestimonialStatus).includes(value as TestimonialStatus)
-    ? (value as TestimonialStatus)
-    : undefined;
-}
-
-function buildReturnPath(input: {
-  proofType?: TestimonialProofType;
-  status?: TestimonialStatus;
-}) {
+function buildReturnPath(params: Record<string, string | undefined>) {
   const search = new URLSearchParams();
 
-  if (input.proofType) {
-    search.set("proofType", input.proofType);
-  }
-  if (input.status) {
-    search.set("status", input.status);
+  for (const [key, value] of Object.entries(params)) {
+    if (value) {
+      search.set(key, value);
+    }
   }
 
   const suffix = search.toString();
   return suffix ? `/admin/testimonials?${suffix}` : "/admin/testimonials";
 }
 
-function proofBadgeClass(proofType: TestimonialProofType) {
-  if (proofType === "GROWTH_ARCHITECT") {
-    return "border-gold/35 bg-gold/10 text-gold";
-  }
-
-  if (proofType === "BCN_MEMBER") {
-    return "border-primary/35 bg-primary/10 text-primary";
-  }
-
-  return "border-border/80 bg-background/25 text-muted";
-}
-
-function requestStatusLabel(testimonial: AdminTestimonial) {
-  if (testimonial.status === TestimonialStatus.APPROVED) {
-    return "Approved";
-  }
-
-  if (testimonial.status === TestimonialStatus.REJECTED) {
-    return "Rejected";
-  }
-
-  if (testimonial.status === TestimonialStatus.ARCHIVED) {
-    return "Archived";
-  }
-
-  if (testimonial.sourceType === TestimonialSourceType.EXTERNAL_REQUEST) {
-    return testimonial.quote.trim().length > 0 ? "Submitted" : "Sent";
-  }
-
-  return "Pending review";
-}
-
-function requestStatusBadgeClass(label: string) {
-  if (label === "Approved") {
-    return "border-primary/35 bg-primary/10 text-primary";
-  }
-
-  if (label === "Rejected") {
-    return "border-destructive/35 bg-destructive/10 text-destructive";
-  }
-
-  if (label === "Submitted") {
-    return "border-gold/35 bg-gold/10 text-gold";
-  }
-
-  if (label === "Sent") {
-    return "border-silver/20 bg-background/25 text-silver";
-  }
-
-  return "border-border/80 bg-background/25 text-muted";
-}
-
-function feedbackMessage(input: { notice: string; error: string; token: string }) {
+function feedbackMessage(notice: string, error: string) {
   const notices: Record<string, string> = {
-    "request-created": "External testimonial request link created.",
-    "request-email-sent": "Testimonial request email sent.",
+    "settings-updated": "Review settings updated.",
     "testimonial-updated": "Testimonial updated.",
     "testimonial-approved": "Testimonial approved.",
     "testimonial-rejected": "Testimonial rejected.",
-    "testimonial-archived": "Testimonial archived."
+    "testimonial-archived": "Testimonial archived.",
+    "google-intent-marked": "Google review click marked.",
+    "google-copy-marked": "Copied to Google marked.",
+    "google-confirmed": "Google review confirmed."
   };
-
   const errors: Record<string, string> = {
-    "invalid-request": "The request link form was invalid.",
-    "email-not-configured": "The request link was created, but email sending is not configured.",
-    "email-send-failed": "The request link was created, but the email could not be sent.",
+    "invalid-settings": "The settings form was invalid.",
     "invalid-update": "The testimonial update was invalid.",
     "invalid-status": "The status update was invalid."
   };
 
-  if (input.notice && notices[input.notice]) {
-    return {
-      tone: "success" as const,
-      message: notices[input.notice],
-      token: input.token
-    };
+  if (notice && notices[notice]) {
+    return { tone: "success" as const, message: notices[notice] };
   }
 
-  if (input.error && errors[input.error]) {
-    return {
-      tone: "error" as const,
-      message: errors[input.error],
-      token: input.token
-    };
+  if (error && errors[error]) {
+    return { tone: "error" as const, message: errors[error] };
   }
 
   return null;
 }
 
-function previewAuthorName(testimonial: AdminTestimonial) {
-  if (testimonial.displayPublicName) {
-    return testimonial.authorName;
-  }
-
-  return testimonial.proofType === "BCN_MEMBER"
-    ? "Business Circle Member"
-    : "Business Circle Client";
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <p className="text-xs uppercase tracking-[0.08em] text-muted">{label}</p>
+        <p className="mt-2 font-display text-3xl text-foreground">{value}</p>
+      </CardContent>
+    </Card>
+  );
 }
 
-function AdminPublicPreview({ testimonial }: { testimonial: AdminTestimonial }) {
-  if (
-    testimonial.status !== TestimonialStatus.APPROVED ||
-    !testimonial.permissionToDisplay ||
-    testimonial.quote.trim().length === 0
-  ) {
-    return null;
-  }
-
-  const authorName = previewAuthorName(testimonial);
-  const authorRole = testimonial.displayPublicName ? testimonial.authorRole : null;
-  const businessName = testimonial.displayBusinessName ? testimonial.businessName : null;
-  const businessWebsite = testimonial.displayBusinessName
-    ? testimonial.businessWebsite
-    : null;
-  const rating =
-    testimonial.rating && testimonial.rating >= 1
-      ? Math.min(Math.max(Math.round(testimonial.rating), 1), 5)
-      : 0;
-
+function checkbox(name: string, checked: boolean, label: string) {
   return (
-    <div className="lg:col-span-2">
-      <div className="rounded-[1.7rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-background/28 p-5 shadow-panel-soft">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-              Public preview
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              This is how the approved testimonial can appear publicly.
-            </p>
-          </div>
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
-            <Quote size={16} />
-          </span>
-        </div>
-
-        {rating ? (
-          <div className="mb-3 flex items-center gap-1 text-gold" aria-label={`${rating} out of 5`}>
-            {Array.from({ length: rating }).map((_, index) => (
-              <Star key={index} size={14} className="fill-current" />
-            ))}
-          </div>
-        ) : null}
-
-        <blockquote className="text-base leading-relaxed text-white/82">
-          &quot;{testimonial.quote}&quot;
-        </blockquote>
-
-        {testimonial.outcome ? (
-          <div className="mt-4 rounded-2xl border border-gold/20 bg-gold/10 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Outcome</p>
-            <p className="mt-2 text-sm leading-relaxed text-white/78">{testimonial.outcome}</p>
-          </div>
-        ) : null}
-
-        <div className="mt-4 border-t border-white/10 pt-4">
-          <p className="font-medium text-foreground">{authorName}</p>
-          <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs uppercase tracking-[0.08em] text-silver">
-            {authorRole ? <span>{authorRole}</span> : null}
-            {authorRole && businessName ? <span>/</span> : null}
-            {businessName ? (
-              businessWebsite ? (
-                <a
-                  href={businessWebsite}
-                  rel="noreferrer"
-                  target="_blank"
-                  className="transition-colors hover:text-gold"
-                >
-                  {businessName}
-                </a>
-              ) : (
-                <span>{businessName}</span>
-              )
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </div>
+    <label className="flex items-center gap-2 text-sm text-muted">
+      <input
+        type="checkbox"
+        name={name}
+        defaultChecked={checked}
+        className="h-4 w-4 rounded border-border bg-background accent-primary"
+      />
+      {label}
+    </label>
   );
 }
 
 export default async function AdminTestimonialsPage({ searchParams }: PageProps) {
   await requireAdmin();
   const params = await searchParams;
-  const proofType = parseProofType(firstValue(params.proofType));
-  const status = parseStatus(firstValue(params.status));
-  const notice = firstValue(params.notice);
-  const error = firstValue(params.error);
-  const token = firstValue(params.token);
-  const returnPath = buildReturnPath({ proofType, status });
-  const feedback = feedbackMessage({ notice, error, token });
+  const status = parseEnum(firstValue(params.status), TestimonialStatus);
+  const category = parseEnum(firstValue(params.category), TestimonialCategory);
+  const displayLocation = parseEnum(firstValue(params.displayLocation), TestimonialDisplayLocation);
+  const source = parseEnum(firstValue(params.source), TestimonialSource);
+  const rating = Number(firstValue(params.rating)) || undefined;
+  const highlighted = firstValue(params.highlighted);
+  const search = firstValue(params.search);
+  const returnPath = buildReturnPath({
+    status,
+    category,
+    displayLocation,
+    source,
+    rating: rating ? String(rating) : undefined,
+    highlighted,
+    search
+  });
 
-  const [testimonials, sentRequests] = await Promise.all([
+  const [settings, stats, testimonials] = await Promise.all([
+    getReviewSettings(),
+    getTestimonialTrustStats(),
     listAdminTestimonials({
-      proofType,
       status,
-      limit: 100
-    }),
-    listAdminTestimonials({
-      sourceType: TestimonialSourceType.EXTERNAL_REQUEST,
-      limit: 25
+      category,
+      displayLocation,
+      source,
+      rating,
+      highlighted: highlighted ? highlighted === "true" : undefined,
+      search,
+      limit: 150
     })
   ]);
+  const feedback = feedbackMessage(firstValue(params.notice), firstValue(params.error));
+  const testimonialPageLink = `${SITE_CONFIG.url}/testimonial`;
+  const memberTemplate = `Hi [Name],
 
-  const testimonialUrl = token ? `${SITE_CONFIG.url}/testimonial/${token}` : "";
+I just wanted to say thank you for being part of the early stages of The Business Circle Network.
+
+If the environment, conversations, insights, or support have helped you in any way, would you be open to sharing a few honest words about your experience?
+
+You can leave it here:
+${testimonialPageLink}
+
+Your testimonial helps other business owners understand what BCN is really trying to build: a calmer, more trusted place for serious founders to connect, think clearly, and grow properly.
+
+Thank you,
+Trev`;
+  const growthTemplate = `Hi [Name],
+
+Thank you again for giving me the chance to look at your business.
+
+If the audit, strategy, or advice gave you clarity or helped you see what to improve next, would you be open to leaving a short testimonial?
+
+You can leave it here:
+${testimonialPageLink}
+
+Once the Google review link is live, you will also be able to copy the same words across so you do not need to write it twice.
+
+Thank you,
+Trev`;
 
   return (
     <div className="space-y-6">
@@ -310,297 +213,184 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
         <CardHeader>
           <Badge variant="outline" className="w-fit border-gold/35 bg-gold/12 text-gold">
             <MessageSquareQuote size={12} className="mr-1" />
-            Testimonial engine
+            Trust proof
           </Badge>
           <CardTitle className="mt-3 font-display text-3xl">Testimonials</CardTitle>
           <CardDescription className="mt-2 text-base">
-            Review member proof, Growth Architect client proof, and general testimonials before
-            anything is displayed publicly.
+            Review submissions, control Google review routing, and choose what can be shown publicly.
           </CardDescription>
         </CardHeader>
       </Card>
 
       {feedback ? (
-        <Card
-          className={
-            feedback.tone === "success"
-              ? "border-primary/30 bg-primary/10"
-              : "border-destructive/30 bg-destructive/10"
-          }
-        >
-          <CardContent className="space-y-3 py-4">
+        <Card className={feedback.tone === "success" ? "border-primary/30 bg-primary/10" : "border-destructive/30 bg-destructive/10"}>
+          <CardContent className="py-4">
             <p className={feedback.tone === "success" ? "text-primary" : "text-destructive"}>
               {feedback.message}
             </p>
-            {feedback.token ? (
-              <div className="rounded-2xl border border-border/80 bg-background/30 p-3">
-                <p className="mb-2 text-xs uppercase tracking-[0.08em] text-muted">Request link</p>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="break-all text-sm text-foreground">{testimonialUrl}</p>
-                  <CopyLinkButton value={testimonialUrl} />
-                </div>
-              </div>
-            ) : null}
           </CardContent>
         </Card>
       ) : null}
 
-      <Card className="border-gold/30 bg-gradient-to-br from-gold/10 via-card/78 to-card/70">
+      <div className="grid gap-4 md:grid-cols-5">
+        <StatCard label="Pending testimonials" value={stats.pending} />
+        <StatCard label="Approved testimonials" value={stats.approved} />
+        <StatCard label="Featured testimonials" value={stats.featured} />
+        <StatCard label="Google review clicks" value={stats.googleClicks} />
+        <StatCard label="Google confirmed" value={stats.googleConfirmed} />
+      </div>
+
+      <Card>
         <CardHeader>
-          <CardTitle>Send testimonial request</CardTitle>
+          <CardTitle>Review settings</CardTitle>
           <CardDescription>
-            Send a secure testimonial submission link to a BCN member, Growth Architect client, or
-            non-member contact. The request is created as pending and never publishes automatically.
+            Paste the Google review URL here when Google Business Profile enables it. Empty or disabled settings keep public buttons safe.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={sendTestimonialRequestEmailAction} className="grid gap-4 lg:grid-cols-3">
+          <form action={updateReviewSettingsAction} className="grid gap-4 lg:grid-cols-2">
             <input type="hidden" name="returnPath" value={returnPath} />
-            <div className="space-y-2">
-              <Label htmlFor="recipientName">Recipient name</Label>
-              <Input id="recipientName" name="recipientName" required />
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="googleReviewUrl">Google Review URL</Label>
+              <Input id="googleReviewUrl" name="googleReviewUrl" type="url" defaultValue={settings.googleReviewUrl ?? ""} placeholder="https://..." />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="recipientEmail">Recipient email</Label>
-              <Input id="recipientEmail" name="recipientEmail" type="email" required />
+              <Label htmlFor="googleReviewButtonLabel">Google button label</Label>
+              <Input id="googleReviewButtonLabel" name="googleReviewButtonLabel" defaultValue={settings.googleReviewButtonLabel} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sendProofType">Proof type</Label>
-              <Select id="sendProofType" name="proofType" defaultValue="GROWTH_ARCHITECT">
-                {Object.values(TestimonialProofType).map((type) => (
-                  <option key={type} value={type}>
-                    {PROOF_TYPE_LABELS[type]}
-                  </option>
-                ))}
-              </Select>
+              <Label htmlFor="googleReviewPendingMessage">Pending message</Label>
+              <Input id="googleReviewPendingMessage" name="googleReviewPendingMessage" defaultValue={settings.googleReviewPendingMessage} />
             </div>
-            <div className="space-y-2 lg:col-span-3">
-              <Label htmlFor="contextNote">Context note, optional</Label>
-              <Textarea
-                id="contextNote"
-                name="contextNote"
-                rows={3}
-                maxLength={700}
-                placeholder="A short note about the work, membership experience, or result you are asking them to reflect on."
-              />
+            <div className="grid gap-3 rounded-2xl border border-border/80 bg-background/25 p-4 lg:col-span-2 md:grid-cols-2">
+              {checkbox("googleReviewEnabled", settings.googleReviewEnabled, "Enable Google review routing")}
+              {checkbox("showGoogleReviewButton", settings.showGoogleReviewButton, "Show Google review button publicly")}
+              {checkbox("internalTestimonialsEnabled", settings.internalTestimonialsEnabled, "Internal testimonial submissions enabled")}
+              {checkbox("publicTestimonialFormEnabled", settings.publicTestimonialFormEnabled, "Public testimonial form enabled")}
+              {checkbox("requireAdminApproval", settings.requireAdminApproval, "Require admin approval")}
+              {checkbox("homepageTestimonialsEnabled", settings.homepageTestimonialsEnabled, "Homepage testimonials enabled")}
+              {checkbox("founderPageTestimonialsEnabled", settings.founderPageTestimonialsEnabled, "Founder page testimonials enabled")}
+              {checkbox("auditPageTestimonialsEnabled", settings.auditPageTestimonialsEnabled, "Audit page testimonials enabled")}
             </div>
-            <div className="flex flex-wrap items-center gap-3 lg:col-span-3">
-              <Button type="submit">
-                Send testimonial request
-              </Button>
-              <p className="text-sm text-muted">
-                If email delivery is unavailable, the request link is still created for manual copy.
-              </p>
+            <div className="lg:col-span-2">
+              <Button type="submit">Save settings</Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Create external request link</CardTitle>
-          <CardDescription>
-            Use this for Growth Architect clients or non-member work. The submitted testimonial
-            still lands as pending.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={createExternalTestimonialRequestAction} className="grid gap-4 lg:grid-cols-3">
-            <input type="hidden" name="returnPath" value={returnPath} />
-            <div className="space-y-2">
-              <Label htmlFor="requestProofType">Proof type</Label>
-              <Select id="requestProofType" name="proofType" defaultValue="GROWTH_ARCHITECT">
-                {Object.values(TestimonialProofType).map((type) => (
-                  <option key={type} value={type}>
-                    {PROOF_TYPE_LABELS[type]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="requestAuthorName">Name, optional</Label>
-              <Input id="requestAuthorName" name="authorName" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="requestSubmittedEmail">Email, optional</Label>
-              <Input id="requestSubmittedEmail" name="submittedEmail" type="email" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="requestAuthorRole">Role, optional</Label>
-              <Input id="requestAuthorRole" name="authorRole" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="requestBusinessName">Business name, optional</Label>
-              <Input id="requestBusinessName" name="businessName" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="requestBusinessWebsite">Business website, optional</Label>
-              <Input id="requestBusinessWebsite" name="businessWebsite" type="url" />
-            </div>
-            <div className="lg:col-span-3">
-              <Button type="submit">
-                <Link2 size={15} className="mr-2" />
-                Create request link
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Sent requests</CardTitle>
-          <CardDescription>
-            Track testimonial request links created by admin action and copy the secure form link if
-            email delivery needs a manual follow-up.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {sentRequests.length ? (
-            sentRequests.map((request) => {
-              const requestLink = request.requestToken
-                ? `${SITE_CONFIG.url}/testimonial/${request.requestToken}`
-                : "";
-              const statusLabel = requestStatusLabel(request);
-
-              return (
-                <div
-                  key={request.id}
-                  className="rounded-2xl border border-border/80 bg-background/20 p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className={proofBadgeClass(request.proofType)}>
-                          {PROOF_TYPE_LABELS[request.proofType]}
-                        </Badge>
-                        <Badge variant="outline" className={requestStatusBadgeClass(statusLabel)}>
-                          {statusLabel}
-                        </Badge>
-                      </div>
-                      <p className="font-medium text-foreground">{request.authorName}</p>
-                      <p className="text-sm text-muted">
-                        {request.submittedEmail || "No recipient email stored"}
-                      </p>
-                      <p className="text-xs text-muted">
-                        Created {formatDateTime(request.createdAt)}
-                      </p>
-                    </div>
-                    {requestLink ? <CopyLinkButton value={requestLink} /> : null}
-                  </div>
-                  {requestLink ? (
-                    <p className="mt-3 break-all rounded-xl border border-border/70 bg-background/25 px-3 py-2 text-xs text-muted">
-                      {requestLink}
-                    </p>
-                  ) : null}
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-sm text-muted">No testimonial request links have been created yet.</p>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Member request template</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea readOnly rows={12} value={memberTemplate} />
+            <CopyLinkButton value={memberTemplate} label="Copy template" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Growth Architect request template</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea readOnly rows={12} value={growthTemplate} />
+            <CopyLinkButton value={growthTemplate} label="Copy template" />
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Review queue</CardTitle>
           <CardDescription>
-            Filter by proof type or status. Public display still requires approved status and
-            permission to display.
+            Public display requires approved status and permission to feature publicly.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          <form method="GET" className="grid gap-3 md:grid-cols-[220px_220px_auto]">
-            <div className="space-y-2">
-              <Label htmlFor="proofType">Proof type</Label>
-              <Select id="proofType" name="proofType" defaultValue={proofType ?? ""}>
-                <option value="">All proof types</option>
-                {Object.values(TestimonialProofType).map((type) => (
-                  <option key={type} value={type}>
-                    {PROOF_TYPE_LABELS[type]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select id="status" name="status" defaultValue={status ?? ""}>
-                <option value="">All statuses</option>
-                {Object.values(TestimonialStatus).map((nextStatus) => (
-                  <option key={nextStatus} value={nextStatus}>
-                    {STATUS_LABELS[nextStatus]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button type="submit" variant="outline">Apply</Button>
+          <form method="GET" className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <Select name="status" defaultValue={status ?? ""}>
+              <option value="">All statuses</option>
+              {Object.values(TestimonialStatus).map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </Select>
+            <Select name="category" defaultValue={category ?? ""}>
+              <option value="">All categories</option>
+              {Object.values(TestimonialCategory).map((value) => (
+                <option key={value} value={value}>{CATEGORY_LABELS[value]}</option>
+              ))}
+            </Select>
+            <Select name="displayLocation" defaultValue={displayLocation ?? ""}>
+              <option value="">All locations</option>
+              {Object.values(TestimonialDisplayLocation).map((value) => (
+                <option key={value} value={value}>{LOCATION_LABELS[value]}</option>
+              ))}
+            </Select>
+            <Select name="source" defaultValue={source ?? ""}>
+              <option value="">All sources</option>
+              {Object.values(TestimonialSource).map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </Select>
+            <Select name="highlighted" defaultValue={highlighted}>
+              <option value="">Highlighted or not</option>
+              <option value="true">Highlighted</option>
+              <option value="false">Not highlighted</option>
+            </Select>
+            <Input name="search" defaultValue={search} placeholder="Search name, company, email, text" />
+            <div className="xl:col-span-6">
+              <Button type="submit" variant="outline">Apply filters</Button>
             </div>
           </form>
 
           <div className="space-y-4">
             {testimonials.length ? (
               testimonials.map((testimonial) => {
-                const requestLink = testimonial.requestToken
-                  ? `${SITE_CONFIG.url}/testimonial/${testimonial.requestToken}`
-                  : "";
-                const displayStatus = requestStatusLabel(testimonial);
+                const text = testimonial.testimonialText || testimonial.quote;
+                const permissions = [
+                  testimonial.permissionToFeaturePublicly ? "Feature" : null,
+                  testimonial.permissionToUseName ? "Name" : null,
+                  testimonial.permissionToUseCompany ? "Company" : null,
+                  testimonial.permissionToUseImage ? "Image" : null,
+                  testimonial.permissionToUseInMarketing ? "Marketing" : null
+                ].filter(Boolean).join(", ") || "No public permissions";
 
                 return (
-                  <article
-                    key={testimonial.id}
-                    className="rounded-[24px] border border-silver/14 bg-background/18 p-5"
-                  >
+                  <article key={testimonial.id} className="rounded-[24px] border border-silver/14 bg-background/18 p-5">
                     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline" className={proofBadgeClass(testimonial.proofType)}>
-                            {PROOF_TYPE_LABELS[testimonial.proofType]}
-                          </Badge>
-                          <Badge variant="outline" className={requestStatusBadgeClass(displayStatus)}>
-                            {displayStatus}
-                          </Badge>
-                          <Badge variant="outline" className="text-muted">
-                            {SOURCE_TYPE_LABELS[testimonial.sourceType]}
-                          </Badge>
+                      <div>
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          <Badge variant="outline">{testimonial.status}</Badge>
+                          <Badge variant="outline">{CATEGORY_LABELS[testimonial.category]}</Badge>
+                          <Badge variant="outline">{LOCATION_LABELS[testimonial.displayLocation]}</Badge>
+                          {testimonial.isHighlighted ? <Badge variant="premium">Highlighted</Badge> : null}
                         </div>
-                        <p className="text-sm text-muted">
-                          Submitted {formatDateTime(testimonial.createdAt)}
-                        </p>
-                        {testimonial.member ? (
-                          <p className="text-sm text-muted">
-                            Member: {testimonial.member.name ?? testimonial.member.email}
-                          </p>
-                        ) : null}
-                        {requestLink && testimonial.quote.trim().length === 0 ? (
-                          <p className="break-all text-sm text-primary">Request link: {requestLink}</p>
-                        ) : null}
+                        <p className="font-medium text-foreground">{testimonial.authorName}</p>
+                        <p className="text-sm text-muted">{testimonial.businessName || "No company"} / {testimonial.submittedEmail || testimonial.submittedByEmail || "No email"}</p>
+                        <p className="text-xs text-muted">Submitted {formatDateTime(testimonial.createdAt)}</p>
                       </div>
-
                       <div className="flex flex-wrap gap-2">
                         <form action={approveTestimonialAction}>
                           <input type="hidden" name="testimonialId" value={testimonial.id} />
                           <input type="hidden" name="returnPath" value={returnPath} />
-                          <Button type="submit" size="sm">
-                            <CheckCircle2 size={14} className="mr-1" />
-                            Approve
-                          </Button>
+                          <Button type="submit" size="sm"><CheckCircle2 size={14} className="mr-1" />Approve</Button>
                         </form>
                         <form action={rejectTestimonialAction}>
                           <input type="hidden" name="testimonialId" value={testimonial.id} />
                           <input type="hidden" name="returnPath" value={returnPath} />
-                          <Button type="submit" size="sm" variant="outline">
-                            <XCircle size={14} className="mr-1" />
-                            Reject
-                          </Button>
+                          <Button type="submit" size="sm" variant="outline"><XCircle size={14} className="mr-1" />Reject</Button>
                         </form>
                         <form action={archiveTestimonialAction}>
                           <input type="hidden" name="testimonialId" value={testimonial.id} />
                           <input type="hidden" name="returnPath" value={returnPath} />
-                          <Button type="submit" size="sm" variant="ghost">
-                            Archive
-                          </Button>
+                          <Button type="submit" size="sm" variant="ghost">Archive</Button>
+                        </form>
+                        <form action={toggleTestimonialHighlightAction}>
+                          <input type="hidden" name="testimonialId" value={testimonial.id} />
+                          <input type="hidden" name="returnPath" value={returnPath} />
+                          <input type="hidden" name="enabled" value={testimonial.isHighlighted ? "false" : "true"} />
+                          <Button type="submit" size="sm" variant="outline">{testimonial.isHighlighted ? "Unhighlight" : "Highlight"}</Button>
                         </form>
                       </div>
                     </div>
@@ -608,155 +398,113 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
                     <form action={updateAdminTestimonialAction} className="grid gap-4 lg:grid-cols-2">
                       <input type="hidden" name="testimonialId" value={testimonial.id} />
                       <input type="hidden" name="returnPath" value={returnPath} />
-
                       <div className="space-y-2">
-                        <Label htmlFor={`authorName-${testimonial.id}`}>Author name</Label>
-                        <Input
-                          id={`authorName-${testimonial.id}`}
-                          name="authorName"
-                          defaultValue={testimonial.authorName}
-                          required
-                        />
+                        <Label>Name</Label>
+                        <Input name="authorName" defaultValue={testimonial.authorName} required />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`authorRole-${testimonial.id}`}>Author role</Label>
-                        <Input
-                          id={`authorRole-${testimonial.id}`}
-                          name="authorRole"
-                          defaultValue={testimonial.authorRole ?? ""}
-                        />
+                        <Label>Company</Label>
+                        <Input name="businessName" defaultValue={testimonial.businessName ?? ""} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`businessName-${testimonial.id}`}>Business name</Label>
-                        <Input
-                          id={`businessName-${testimonial.id}`}
-                          name="businessName"
-                          defaultValue={testimonial.businessName ?? ""}
-                        />
+                        <Label>Role</Label>
+                        <Input name="authorRole" defaultValue={testimonial.authorRole ?? ""} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`businessWebsite-${testimonial.id}`}>Business website</Label>
-                        <Input
-                          id={`businessWebsite-${testimonial.id}`}
-                          name="businessWebsite"
-                          type="url"
-                          defaultValue={testimonial.businessWebsite ?? ""}
-                        />
+                        <Label>Website</Label>
+                        <Input name="businessWebsite" type="url" defaultValue={testimonial.businessWebsite ?? ""} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`proofType-${testimonial.id}`}>Proof type</Label>
-                        <Select
-                          id={`proofType-${testimonial.id}`}
-                          name="proofType"
-                          defaultValue={testimonial.proofType}
-                        >
-                          {Object.values(TestimonialProofType).map((type) => (
-                            <option key={type} value={type}>
-                              {PROOF_TYPE_LABELS[type]}
-                            </option>
+                        <Label>Category</Label>
+                        <Select name="category" defaultValue={testimonial.category}>
+                          {Object.values(TestimonialCategory).map((value) => (
+                            <option key={value} value={value}>{CATEGORY_LABELS[value]}</option>
                           ))}
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`status-${testimonial.id}`}>Status</Label>
-                        <Select
-                          id={`status-${testimonial.id}`}
-                          name="status"
-                          defaultValue={testimonial.status}
-                        >
-                          {Object.values(TestimonialStatus).map((nextStatus) => (
-                            <option key={nextStatus} value={nextStatus}>
-                              {STATUS_LABELS[nextStatus]}
-                            </option>
+                        <Label>Display location</Label>
+                        <Select name="displayLocation" defaultValue={testimonial.displayLocation}>
+                          {Object.values(TestimonialDisplayLocation).map((value) => (
+                            <option key={value} value={value}>{LOCATION_LABELS[value]}</option>
                           ))}
                         </Select>
                       </div>
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select name="status" defaultValue={testimonial.status}>
+                          {Object.values(TestimonialStatus).map((value) => (
+                            <option key={value} value={value}>{value}</option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Rating</Label>
+                        <Select name="rating" defaultValue={testimonial.rating ? String(testimonial.rating) : ""}>
+                          <option value="">No rating</option>
+                          {[1, 2, 3, 4, 5].map((value) => (
+                            <option key={value} value={value}>{value} out of 5</option>
+                          ))}
+                        </Select>
+                      </div>
+                      <input type="hidden" name="proofType" value={testimonial.proofType} />
                       <div className="space-y-2 lg:col-span-2">
-                        <Label htmlFor={`quote-${testimonial.id}`}>Quote</Label>
-                        <Textarea
-                          id={`quote-${testimonial.id}`}
-                          name="quote"
-                          rows={4}
-                          defaultValue={testimonial.quote}
-                          required
-                        />
+                        <Label>Testimonial</Label>
+                        <Textarea name="quote" rows={4} defaultValue={text} required />
                       </div>
                       <div className="space-y-2 lg:col-span-2">
-                        <Label htmlFor={`outcome-${testimonial.id}`}>Outcome</Label>
-                        <Textarea
-                          id={`outcome-${testimonial.id}`}
-                          name="outcome"
-                          rows={3}
-                          defaultValue={testimonial.outcome ?? ""}
-                        />
+                        <Label>Outcome</Label>
+                        <Textarea name="outcome" rows={2} defaultValue={testimonial.outcome ?? ""} />
                       </div>
                       <div className="space-y-2 lg:col-span-2">
-                        <Label htmlFor={`adminNotes-${testimonial.id}`}>Admin notes</Label>
-                        <Textarea
-                          id={`adminNotes-${testimonial.id}`}
-                          name="adminNotes"
-                          rows={3}
-                          defaultValue={testimonial.adminNotes ?? ""}
-                        />
+                        <Label>Admin notes</Label>
+                        <Textarea name="adminNotes" rows={3} defaultValue={testimonial.adminNotes ?? ""} />
                       </div>
-
+                      <div className="space-y-2 lg:col-span-2">
+                        <Label>Rejection reason</Label>
+                        <Textarea name="rejectionReason" rows={2} defaultValue={testimonial.rejectionReason ?? ""} />
+                      </div>
                       <div className="rounded-2xl border border-border/80 bg-background/25 p-4 lg:col-span-2">
-                        <p className="mb-3 text-sm font-medium text-foreground">Consent and display</p>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                          <label className="flex items-center gap-2 text-sm text-muted">
-                            <input
-                              type="checkbox"
-                              name="permissionToDisplay"
-                              defaultChecked={testimonial.permissionToDisplay}
-                              className="h-4 w-4 rounded border-border bg-background accent-primary"
-                            />
-                            Permission to display
-                          </label>
-                          <label className="flex items-center gap-2 text-sm text-muted">
-                            <input
-                              type="checkbox"
-                              name="displayPublicName"
-                              defaultChecked={testimonial.displayPublicName}
-                              className="h-4 w-4 rounded border-border bg-background accent-primary"
-                            />
-                            Show name
-                          </label>
-                          <label className="flex items-center gap-2 text-sm text-muted">
-                            <input
-                              type="checkbox"
-                              name="displayBusinessName"
-                              defaultChecked={testimonial.displayBusinessName}
-                              className="h-4 w-4 rounded border-border bg-background accent-primary"
-                            />
-                            Show business
-                          </label>
-                          <label className="flex items-center gap-2 text-sm text-muted">
-                            <input
-                              type="checkbox"
-                              name="displayProfileImage"
-                              defaultChecked={testimonial.displayProfileImage}
-                              className="h-4 w-4 rounded border-border bg-background accent-primary"
-                            />
-                            Show image
-                          </label>
-                        </div>
-                        <div className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2">
-                          <p>Submitted email: {testimonial.submittedEmail || "None"}</p>
-                          <p>Requested by: {testimonial.requestedByAdmin?.email || "None"}</p>
-                          <p>Approved by: {testimonial.approvedByAdmin?.email || "None"}</p>
-                          <p>
-                            Approved at:{" "}
-                            {testimonial.approvedAt ? formatDateTime(testimonial.approvedAt) : "Not approved"}
-                          </p>
+                        <p className="mb-3 text-sm font-medium text-foreground">Permissions: {permissions}</p>
+                        <div className="grid gap-3 md:grid-cols-3">
+                          {checkbox("permissionToDisplay", testimonial.permissionToDisplay, "Legacy display permission")}
+                          {checkbox("permissionToFeaturePublicly", testimonial.permissionToFeaturePublicly, "Feature publicly")}
+                          {checkbox("permissionToUseName", testimonial.permissionToUseName, "Use name")}
+                          {checkbox("permissionToUseCompany", testimonial.permissionToUseCompany, "Use company")}
+                          {checkbox("permissionToUseImage", testimonial.permissionToUseImage, "Use image")}
+                          {checkbox("permissionToUseInMarketing", testimonial.permissionToUseInMarketing, "Use in marketing")}
+                          {checkbox("displayPublicName", testimonial.displayPublicName, "Legacy show name")}
+                          {checkbox("displayBusinessName", testimonial.displayBusinessName, "Legacy show company")}
+                          {checkbox("displayProfileImage", testimonial.displayProfileImage, "Legacy show image")}
+                          {checkbox("isHighlighted", testimonial.isHighlighted, "Highlighted")}
                         </div>
                       </div>
-
-                      <AdminPublicPreview testimonial={testimonial} />
-
-                      <div className="lg:col-span-2">
-                        <Button type="submit" variant="outline">Save display fields</Button>
+                      <div className="flex flex-wrap gap-2 lg:col-span-2">
+                        <Button type="submit" variant="outline">Save testimonial</Button>
+                        <CopyLinkButton value={text} label="Copy testimonial text" />
                       </div>
                     </form>
+
+                    <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-4">
+                      <form action={markGoogleReviewIntentAction}>
+                        <input type="hidden" name="testimonialId" value={testimonial.id} />
+                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <Button type="submit" size="sm" variant="outline"><Star size={14} className="mr-1" />Mark Google click</Button>
+                      </form>
+                      <form action={markTestimonialCopiedToGoogleAction}>
+                        <input type="hidden" name="testimonialId" value={testimonial.id} />
+                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <Button type="submit" size="sm" variant="outline"><Copy size={14} className="mr-1" />Mark copied</Button>
+                      </form>
+                      <form action={markGoogleReviewConfirmedAction}>
+                        <input type="hidden" name="testimonialId" value={testimonial.id} />
+                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <Button type="submit" size="sm" variant="outline">Confirm Google review</Button>
+                      </form>
+                      <p className="w-full text-xs text-muted">
+                        Source: {testimonial.source} / {testimonial.sourceType}. Google intent: {testimonial.googleReviewIntentClickedAt ? formatDateTime(testimonial.googleReviewIntentClickedAt) : "None"}. Confirmed: {testimonial.googleReviewConfirmedAt ? formatDateTime(testimonial.googleReviewConfirmedAt) : "No"}.
+                      </p>
+                    </div>
                   </article>
                 );
               })
@@ -764,7 +512,7 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
               <EmptyState
                 icon={MessageSquareQuote}
                 title="No testimonials match this view"
-                description="Pending member and external testimonial submissions will appear here for review."
+                description="Pending member and public testimonial submissions will appear here for review."
               />
             )}
           </div>

@@ -1,7 +1,10 @@
 "use server";
 
 import {
+  TestimonialCategory,
+  TestimonialDisplayLocation,
   TestimonialProofType,
+  TestimonialSource,
   TestimonialStatus
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -15,8 +18,13 @@ import {
   createExternalTestimonial,
   createExternalTestimonialRequest,
   createMemberTestimonial,
+  markGoogleReviewConfirmed,
+  markGoogleReviewIntent,
+  markTestimonialCopiedToGoogle,
   rejectTestimonial,
   sendTestimonialRequestEmail,
+  toggleTestimonialHighlight,
+  updateReviewSettings,
   updateAdminTestimonial
 } from "@/server/testimonials";
 
@@ -27,26 +35,62 @@ const checkboxBoolean = z.preprocess(
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalUrl = z.string().trim().url().max(2048).optional().or(z.literal(""));
+const optionalUrlAllowEmpty = z.string().trim().max(2048).refine((value) => {
+  if (!value) {
+    return true;
+  }
+
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+});
+const optionalRating = z.preprocess((value) => {
+  const raw = String(value ?? "").trim();
+  return raw ? Number(raw) : null;
+}, z.number().int().min(1).max(5).nullable());
 
 const memberTestimonialSchema = z.object({
   quote: z.string().trim().min(20).max(1200),
   outcome: optionalText(500),
-  permissionToDisplay: checkboxBoolean.refine(Boolean),
-  displayPublicName: checkboxBoolean.optional().default(false),
-  displayBusinessName: checkboxBoolean.optional().default(false),
-  displayProfileImage: checkboxBoolean.optional().default(false)
+  category: z.nativeEnum(TestimonialCategory),
+  displayLocation: z.nativeEnum(TestimonialDisplayLocation),
+  rating: optionalRating,
+  submittedByCompany: optionalText(160),
+  submittedByRole: optionalText(140),
+  submittedByWebsite: optionalUrl,
+  submittedByLinkedIn: optionalUrl,
+  permissionToFeaturePublicly: checkboxBoolean.refine(Boolean),
+  permissionToUseName: checkboxBoolean.optional().default(false),
+  permissionToUseCompany: checkboxBoolean.optional().default(false),
+  permissionToUseImage: checkboxBoolean.optional().default(false),
+  permissionToUseInMarketing: checkboxBoolean.optional().default(false)
 });
 
 const externalTestimonialSchema = z.object({
-  requestToken: z.string().trim().min(16).max(128),
+  requestToken: z.string().trim().max(128).optional().or(z.literal("")),
   authorName: z.string().trim().min(2).max(120),
   authorRole: optionalText(120),
   businessName: optionalText(140),
   businessWebsite: optionalUrl,
+  submittedByLinkedIn: optionalUrl,
   quote: z.string().trim().min(20).max(1600),
   outcome: optionalText(600),
-  submittedEmail: z.string().trim().email().max(320).optional().or(z.literal("")),
-  permissionToDisplay: checkboxBoolean.refine(Boolean),
+  submittedEmail: z.string().trim().email().max(320),
+  category: z.nativeEnum(TestimonialCategory),
+  displayLocation: z.nativeEnum(TestimonialDisplayLocation),
+  rating: optionalRating,
+  permissionToFeaturePublicly: checkboxBoolean.refine(Boolean),
+  permissionToUseName: checkboxBoolean.optional().default(false),
+  permissionToUseCompany: checkboxBoolean.optional().default(false),
+  permissionToUseImage: checkboxBoolean.optional().default(false),
+  permissionToUseInMarketing: checkboxBoolean.optional().default(false),
+  website: z.string().trim().max(0).optional().or(z.literal("")),
+  source: optionalText(80),
+  campaign: optionalText(120),
+  ref: optionalText(120),
   displayPreference: z
     .enum(["full", "first_business", "business_only", "initials_only"])
     .default("full"),
@@ -64,17 +108,46 @@ const adminUpdateSchema = z.object({
   businessWebsite: optionalUrl,
   outcome: optionalText(800),
   proofType: z.nativeEnum(TestimonialProofType),
+  category: z.nativeEnum(TestimonialCategory),
+  displayLocation: z.nativeEnum(TestimonialDisplayLocation),
   status: z.nativeEnum(TestimonialStatus),
   permissionToDisplay: checkboxBoolean.optional().default(false),
+  permissionToFeaturePublicly: checkboxBoolean.optional().default(false),
+  permissionToUseName: checkboxBoolean.optional().default(false),
+  permissionToUseCompany: checkboxBoolean.optional().default(false),
+  permissionToUseImage: checkboxBoolean.optional().default(false),
+  permissionToUseInMarketing: checkboxBoolean.optional().default(false),
   displayPublicName: checkboxBoolean.optional().default(false),
   displayBusinessName: checkboxBoolean.optional().default(false),
   displayProfileImage: checkboxBoolean.optional().default(false),
-  adminNotes: optionalText(1600)
+  isHighlighted: checkboxBoolean.optional().default(false),
+  rating: optionalRating,
+  adminNotes: optionalText(1600),
+  rejectionReason: optionalText(800)
 });
 
 const adminStatusSchema = z.object({
   testimonialId: z.string().cuid(),
   returnPath: z.string().optional()
+});
+
+const adminBooleanSchema = adminStatusSchema.extend({
+  enabled: checkboxBoolean.optional().default(false)
+});
+
+const reviewSettingsSchema = z.object({
+  returnPath: z.string().optional(),
+  googleReviewUrl: optionalUrlAllowEmpty,
+  googleReviewEnabled: checkboxBoolean.optional().default(false),
+  showGoogleReviewButton: checkboxBoolean.optional().default(false),
+  googleReviewButtonLabel: z.string().trim().min(2).max(80),
+  googleReviewPendingMessage: z.string().trim().min(2).max(160),
+  internalTestimonialsEnabled: checkboxBoolean.optional().default(false),
+  publicTestimonialFormEnabled: checkboxBoolean.optional().default(false),
+  requireAdminApproval: checkboxBoolean.optional().default(false),
+  homepageTestimonialsEnabled: checkboxBoolean.optional().default(false),
+  founderPageTestimonialsEnabled: checkboxBoolean.optional().default(false),
+  auditPageTestimonialsEnabled: checkboxBoolean.optional().default(false)
 });
 
 const externalRequestSchema = z.object({
@@ -127,7 +200,9 @@ function applyExternalDisplayPreference(input: z.infer<typeof externalTestimonia
       ...input,
       authorName: input.authorName.split(/\s+/).filter(Boolean)[0] ?? input.authorName,
       displayPublicName: true,
-      displayBusinessName: true
+      displayBusinessName: true,
+      permissionToUseName: true,
+      permissionToUseCompany: true
     };
   }
 
@@ -135,7 +210,9 @@ function applyExternalDisplayPreference(input: z.infer<typeof externalTestimonia
     return {
       ...input,
       displayPublicName: false,
-      displayBusinessName: true
+      displayBusinessName: true,
+      permissionToUseName: false,
+      permissionToUseCompany: true
     };
   }
 
@@ -144,14 +221,18 @@ function applyExternalDisplayPreference(input: z.infer<typeof externalTestimonia
       ...input,
       authorName: initialsFromName(input.authorName),
       displayPublicName: true,
-      displayBusinessName: false
+      displayBusinessName: false,
+      permissionToUseName: true,
+      permissionToUseCompany: false
     };
   }
 
   return {
     ...input,
     displayPublicName: true,
-    displayBusinessName: true
+    displayBusinessName: true,
+    permissionToUseName: true,
+    permissionToUseCompany: true
   };
 }
 
@@ -161,29 +242,40 @@ export async function submitMemberTestimonialAction(formData: FormData) {
   const parsed = memberTestimonialSchema.safeParse({
     quote: getFormValue(formData, "quote"),
     outcome: getFormValue(formData, "outcome"),
-    permissionToDisplay: formData.get("permissionToDisplay"),
-    displayPublicName: formData.get("displayPublicName"),
-    displayBusinessName: formData.get("displayBusinessName"),
-    displayProfileImage: formData.get("displayProfileImage")
+    category: getFormValue(formData, "category"),
+    displayLocation: getFormValue(formData, "displayLocation"),
+    rating: getFormValue(formData, "rating"),
+    submittedByCompany: getFormValue(formData, "submittedByCompany"),
+    submittedByRole: getFormValue(formData, "submittedByRole"),
+    submittedByWebsite: getFormValue(formData, "submittedByWebsite"),
+    submittedByLinkedIn: getFormValue(formData, "submittedByLinkedIn"),
+    permissionToFeaturePublicly: formData.get("permissionToFeaturePublicly"),
+    permissionToUseName: formData.get("permissionToUseName"),
+    permissionToUseCompany: formData.get("permissionToUseCompany"),
+    permissionToUseImage: formData.get("permissionToUseImage"),
+    permissionToUseInMarketing: formData.get("permissionToUseInMarketing")
   });
 
   if (!parsed.success) {
     redirect("/profile?testimonial=invalid");
   }
 
-  await createMemberTestimonial({
+  const testimonial = await createMemberTestimonial({
     memberId: session.user.id,
     ...parsed.data
   });
 
   revalidatePath("/profile");
   revalidatePath("/admin/testimonials");
-  redirect("/profile?testimonial=sent");
+  redirect(`/profile?testimonial=sent&testimonialId=${testimonial.id}`);
 }
 
 export async function submitExternalTestimonialAction(formData: FormData) {
   const token = getFormValue(formData, "requestToken");
-  const errorPath = `/testimonial/${encodeURIComponent(token)}?error=invalid`;
+  const isTokenRequest = token.length > 0;
+  const errorPath = isTokenRequest
+    ? `/testimonial/${encodeURIComponent(token)}?error=invalid`
+    : "/testimonial?error=invalid";
 
   const parsed = externalTestimonialSchema.safeParse({
     requestToken: token,
@@ -191,10 +283,22 @@ export async function submitExternalTestimonialAction(formData: FormData) {
     authorRole: getFormValue(formData, "authorRole"),
     businessName: getFormValue(formData, "businessName"),
     businessWebsite: getFormValue(formData, "businessWebsite"),
+    submittedByLinkedIn: getFormValue(formData, "submittedByLinkedIn"),
     quote: getFormValue(formData, "quote"),
     outcome: getFormValue(formData, "outcome"),
     submittedEmail: getFormValue(formData, "submittedEmail"),
-    permissionToDisplay: formData.get("permissionToDisplay"),
+    category: getFormValue(formData, "category"),
+    displayLocation: getFormValue(formData, "displayLocation"),
+    rating: getFormValue(formData, "rating"),
+    permissionToFeaturePublicly: formData.get("permissionToFeaturePublicly"),
+    permissionToUseName: formData.get("permissionToUseName"),
+    permissionToUseCompany: formData.get("permissionToUseCompany"),
+    permissionToUseImage: formData.get("permissionToUseImage"),
+    permissionToUseInMarketing: formData.get("permissionToUseInMarketing"),
+    website: getFormValue(formData, "website"),
+    source: getFormValue(formData, "source"),
+    campaign: getFormValue(formData, "campaign"),
+    ref: getFormValue(formData, "ref"),
     displayPreference: getFormValue(formData, "displayPreference"),
     displayPublicName: formData.get("displayPublicName"),
     displayBusinessName: formData.get("displayBusinessName")
@@ -204,14 +308,23 @@ export async function submitExternalTestimonialAction(formData: FormData) {
     redirect(errorPath);
   }
 
+  let successPath = "";
   try {
-    await createExternalTestimonial(applyExternalDisplayPreference(parsed.data));
+    const testimonial = await createExternalTestimonial({
+      ...applyExternalDisplayPreference(parsed.data),
+      requestToken: parsed.data.requestToken || null,
+      source: parsed.data.requestToken ? TestimonialSource.EMAIL_REQUEST : TestimonialSource.PUBLIC_FORM,
+      trackingSource: parsed.data.source
+    });
+    revalidatePath("/admin/testimonials");
+    successPath = isTokenRequest
+      ? `/testimonial/${encodeURIComponent(token)}?submitted=1&testimonialId=${testimonial.id}`
+      : `/testimonial?submitted=1&testimonialId=${testimonial.id}`;
   } catch {
-    redirect(`/testimonial/${encodeURIComponent(token)}?error=unavailable`);
+    redirect(isTokenRequest ? `/testimonial/${encodeURIComponent(token)}?error=unavailable` : "/testimonial?error=unavailable");
   }
 
-  revalidatePath("/admin/testimonials");
-  redirect(`/testimonial/${encodeURIComponent(token)}?submitted=1`);
+  redirect(successPath);
 }
 
 export async function createExternalTestimonialRequestAction(formData: FormData) {
@@ -299,12 +412,22 @@ export async function updateAdminTestimonialAction(formData: FormData) {
     businessWebsite: getFormValue(formData, "businessWebsite"),
     outcome: getFormValue(formData, "outcome"),
     proofType: getFormValue(formData, "proofType"),
+    category: getFormValue(formData, "category"),
+    displayLocation: getFormValue(formData, "displayLocation"),
     status: getFormValue(formData, "status"),
     permissionToDisplay: formData.get("permissionToDisplay"),
+    permissionToFeaturePublicly: formData.get("permissionToFeaturePublicly"),
+    permissionToUseName: formData.get("permissionToUseName"),
+    permissionToUseCompany: formData.get("permissionToUseCompany"),
+    permissionToUseImage: formData.get("permissionToUseImage"),
+    permissionToUseInMarketing: formData.get("permissionToUseInMarketing"),
     displayPublicName: formData.get("displayPublicName"),
     displayBusinessName: formData.get("displayBusinessName"),
     displayProfileImage: formData.get("displayProfileImage"),
-    adminNotes: getFormValue(formData, "adminNotes")
+    isHighlighted: formData.get("isHighlighted"),
+    rating: getFormValue(formData, "rating"),
+    adminNotes: getFormValue(formData, "adminNotes"),
+    rejectionReason: getFormValue(formData, "rejectionReason")
   });
   const returnPath = resolveReturnPath(parsed.success ? parsed.data.returnPath : undefined);
 
@@ -322,6 +445,111 @@ export async function updateAdminTestimonialAction(formData: FormData) {
   revalidatePath("/membership");
   revalidatePath("/founder");
   redirect(appendQueryParams(returnPath, { notice: "testimonial-updated" }));
+}
+
+export async function updateReviewSettingsAction(formData: FormData) {
+  await requireAdmin();
+  const parsed = reviewSettingsSchema.safeParse({
+    returnPath: getFormValue(formData, "returnPath"),
+    googleReviewUrl: getFormValue(formData, "googleReviewUrl"),
+    googleReviewEnabled: formData.get("googleReviewEnabled"),
+    showGoogleReviewButton: formData.get("showGoogleReviewButton"),
+    googleReviewButtonLabel: getFormValue(formData, "googleReviewButtonLabel"),
+    googleReviewPendingMessage: getFormValue(formData, "googleReviewPendingMessage"),
+    internalTestimonialsEnabled: formData.get("internalTestimonialsEnabled"),
+    publicTestimonialFormEnabled: formData.get("publicTestimonialFormEnabled"),
+    requireAdminApproval: formData.get("requireAdminApproval"),
+    homepageTestimonialsEnabled: formData.get("homepageTestimonialsEnabled"),
+    founderPageTestimonialsEnabled: formData.get("founderPageTestimonialsEnabled"),
+    auditPageTestimonialsEnabled: formData.get("auditPageTestimonialsEnabled")
+  });
+  const returnPath = resolveReturnPath(parsed.success ? parsed.data.returnPath : undefined);
+
+  if (!parsed.success) {
+    redirect(appendQueryParams(returnPath, { error: "invalid-settings" }));
+  }
+
+  await updateReviewSettings(parsed.data);
+  revalidatePath("/admin/testimonials");
+  revalidatePath("/testimonial");
+  revalidatePath("/home");
+  revalidatePath("/membership");
+  revalidatePath("/founder");
+  revalidatePath("/audit");
+  redirect(appendQueryParams(returnPath, { notice: "settings-updated" }));
+}
+
+export async function toggleTestimonialHighlightAction(formData: FormData) {
+  await requireAdmin();
+  const parsed = adminBooleanSchema.safeParse({
+    testimonialId: getFormValue(formData, "testimonialId"),
+    returnPath: getFormValue(formData, "returnPath"),
+    enabled: formData.get("enabled")
+  });
+  const returnPath = resolveReturnPath(parsed.success ? parsed.data.returnPath : undefined);
+
+  if (!parsed.success) {
+    redirect(appendQueryParams(returnPath, { error: "invalid-status" }));
+  }
+
+  await toggleTestimonialHighlight(parsed.data.testimonialId, parsed.data.enabled);
+  revalidatePath("/admin/testimonials");
+  revalidatePath("/home");
+  revalidatePath("/membership");
+  revalidatePath("/founder");
+  revalidatePath("/audit");
+  redirect(appendQueryParams(returnPath, { notice: "testimonial-updated" }));
+}
+
+export async function markGoogleReviewIntentAction(formData: FormData) {
+  await requireAdmin();
+  const parsed = adminStatusSchema.safeParse({
+    testimonialId: getFormValue(formData, "testimonialId"),
+    returnPath: getFormValue(formData, "returnPath")
+  });
+  const returnPath = resolveReturnPath(parsed.success ? parsed.data.returnPath : undefined);
+
+  if (!parsed.success) {
+    redirect(appendQueryParams(returnPath, { error: "invalid-status" }));
+  }
+
+  await markGoogleReviewIntent(parsed.data.testimonialId);
+  revalidatePath("/admin/testimonials");
+  redirect(appendQueryParams(returnPath, { notice: "google-intent-marked" }));
+}
+
+export async function markTestimonialCopiedToGoogleAction(formData: FormData) {
+  await requireAdmin();
+  const parsed = adminStatusSchema.safeParse({
+    testimonialId: getFormValue(formData, "testimonialId"),
+    returnPath: getFormValue(formData, "returnPath")
+  });
+  const returnPath = resolveReturnPath(parsed.success ? parsed.data.returnPath : undefined);
+
+  if (!parsed.success) {
+    redirect(appendQueryParams(returnPath, { error: "invalid-status" }));
+  }
+
+  await markTestimonialCopiedToGoogle(parsed.data.testimonialId);
+  revalidatePath("/admin/testimonials");
+  redirect(appendQueryParams(returnPath, { notice: "google-copy-marked" }));
+}
+
+export async function markGoogleReviewConfirmedAction(formData: FormData) {
+  await requireAdmin();
+  const parsed = adminStatusSchema.safeParse({
+    testimonialId: getFormValue(formData, "testimonialId"),
+    returnPath: getFormValue(formData, "returnPath")
+  });
+  const returnPath = resolveReturnPath(parsed.success ? parsed.data.returnPath : undefined);
+
+  if (!parsed.success) {
+    redirect(appendQueryParams(returnPath, { error: "invalid-status" }));
+  }
+
+  await markGoogleReviewConfirmed(parsed.data.testimonialId);
+  revalidatePath("/admin/testimonials");
+  redirect(appendQueryParams(returnPath, { notice: "google-confirmed" }));
 }
 
 export async function approveTestimonialAction(formData: FormData) {

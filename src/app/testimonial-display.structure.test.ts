@@ -39,7 +39,8 @@ describe("testimonial display placement", () => {
       expect(source).toContain("TestimonialProofType.GROWTH_ARCHITECT");
     }
 
-    expect(founder).toContain("listApprovedTestimonials(TestimonialProofType.GROWTH_ARCHITECT");
+    expect(founder).toContain("listApprovedTestimonials({");
+    expect(founder).toContain("TestimonialProofType.GROWTH_ARCHITECT");
     expect(founder).toContain("Results, Feedback & Founder Proof");
     expect(founder).toContain("overflow-x-auto");
     expect(founderService).toContain("Proof from Growth Architect work");
@@ -51,9 +52,9 @@ describe("testimonial display placement", () => {
     const component = readSource("src/components/public/testimonial-section.tsx");
     const service = readSource("src/server/testimonials/testimonial.service.ts");
 
-    expect(component).toContain("listApprovedTestimonials(proofType, limit)");
+    expect(component).toContain("listApprovedTestimonials({");
     expect(component).toContain("if (!testimonials.length)");
     expect(service).toContain("status: TestimonialStatus.APPROVED");
-    expect(service).toContain("permissionToDisplay: true");
+    expect(service).toContain("permissionToFeaturePublicly: true");
   });
 });

@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { TestimonialProofType } from "@prisma/client";
+import {
+  TestimonialCategory,
+  TestimonialDisplayLocation,
+  TestimonialProofType
+} from "@prisma/client";
 import { auth } from "@/auth";
 import {
   ArrowRight,
@@ -352,7 +356,16 @@ export default async function FounderPage() {
   ] = await Promise.all([
     auth(),
     listActiveFounderServices().catch(() => []),
-    listApprovedTestimonials(TestimonialProofType.GROWTH_ARCHITECT, 8).catch(() => []),
+    listApprovedTestimonials({
+      proofType: TestimonialProofType.GROWTH_ARCHITECT,
+      location: TestimonialDisplayLocation.FOUNDER_PAGE,
+      category: [
+        TestimonialCategory.GROWTH_ARCHITECT,
+        TestimonialCategory.FOUNDER_AUDIT,
+        TestimonialCategory.STRATEGY_CALL
+      ],
+      limit: 8
+    }).catch(() => []),
     getVisualMediaPlacement("founder.hero"),
     getVisualMediaPlacement("founder.heroMobile"),
     getVisualMediaPlacement("founder.story"),
