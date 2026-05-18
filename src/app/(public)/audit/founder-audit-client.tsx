@@ -19,6 +19,7 @@ import {
   trackAnalyticsEvent,
   trackFounderAuditCompleted,
   trackFounderAuditMembershipClicked,
+  trackMembershipSelectedFromAudit,
   trackFounderAuditStarted
 } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -32,9 +33,54 @@ import {
 type AuditStage = "intro" | "questions" | "result";
 
 const totalQuestions = FOUNDER_AUDIT_QUESTIONS.length;
+type AuditEntrySource =
+  | "home"
+  | "about"
+  | "membership"
+  | "join"
+  | "audit"
+  | "insights"
+  | "contact"
+  | "intent"
+  | "navigation"
+  | "footer"
+  | "unknown";
+
+const allowedAuditSources = new Set<AuditEntrySource>([
+  "home",
+  "about",
+  "membership",
+  "join",
+  "audit",
+  "insights",
+  "contact",
+  "intent",
+  "navigation",
+  "footer",
+  "unknown"
+]);
 
 function formatQuestionPosition(index: number) {
   return `Question ${index + 1} of ${totalQuestions}`;
+}
+
+function readAuditEntryContext() {
+  if (typeof window === "undefined") {
+    return {
+      source: "audit" as const,
+      topic: undefined as string | undefined
+    };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const source = params.get("source") ?? "audit";
+
+  return {
+    source: allowedAuditSources.has(source as AuditEntrySource)
+      ? (source as AuditEntrySource)
+      : "audit",
+    topic: params.get("topic") ?? undefined
+  };
 }
 
 export function FounderAuditClient() {
@@ -56,6 +102,7 @@ export function FounderAuditClient() {
   );
   const recommendation = getFounderAuditRecommendation(totalScore || totalQuestions);
   const bottleneck = useMemo(() => getFounderAuditBottleneck(answers), [answers]);
+  const auditEntryContext = useMemo(() => readAuditEntryContext(), []);
 
   const selectAnswer = (score: number) => {
     setAnswers((current) => {
@@ -77,7 +124,9 @@ export function FounderAuditClient() {
       });
       trackFounderAuditCompleted({
         score: totalScore,
-        tier: recommendation.tierName
+        tier: recommendation.tierName,
+        source: auditEntryContext.source,
+        topic: auditEntryContext.topic
       });
       setStage("result");
       return;
@@ -134,7 +183,7 @@ export function FounderAuditClient() {
                 type="button"
                 onClick={() => {
                   trackAnalyticsEvent(ANALYTICS_EVENTS.auditStart);
-                  trackFounderAuditStarted({ source: "audit" });
+                  trackFounderAuditStarted(auditEntryContext);
                   setStage("questions");
                 }}
                 className={cn(buttonVariants({ variant: "default", size: "lg" }), "group")}
@@ -235,6 +284,12 @@ export function FounderAuditClient() {
                       tier: recommendation.tierName,
                       href: recommendation.membershipHref
                     });
+                    trackMembershipSelectedFromAudit({
+                      score: totalScore,
+                      tier: recommendation.tierName,
+                      href: recommendation.membershipHref,
+                      topic: auditEntryContext.topic
+                    });
                     trackAnalyticsEvent(ANALYTICS_EVENTS.recommendedTierClicked, {
                       source: "audit",
                       score: totalScore,
@@ -250,7 +305,15 @@ export function FounderAuditClient() {
                   <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
                 </Link>
                 <Link
-                  href="/membership"
+                  href="/membership?source=audit"
+                  onClick={() => {
+                    trackMembershipSelectedFromAudit({
+                      score: totalScore,
+                      tier: "all",
+                      href: "/membership?source=audit",
+                      topic: auditEntryContext.topic
+                    });
+                  }}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "lg" }),
                     "w-full whitespace-normal text-center sm:w-auto"

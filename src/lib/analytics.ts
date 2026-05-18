@@ -4,11 +4,13 @@ export const ANALYTICS_EVENTS = {
   joinDesktopStepInside: "join_desktop_step_inside",
   publicCtaJoinClicked: "public_cta_join_clicked",
   publicCtaAuditClicked: "public_cta_audit_clicked",
+  auditCtaClicked: "audit_cta_clicked",
   auditStart: "audit_start",
   founderAuditStarted: "founder_audit_started",
   auditComplete: "audit_complete",
   founderAuditCompleted: "founder_audit_completed",
   founderAuditMembershipClicked: "founder_audit_membership_clicked",
+  membershipSelectedFromAudit: "membership_selected_from_audit",
   recommendedTierClicked: "recommended_tier_clicked",
   membershipTierSelected: "membership_tier_selected",
   membershipTierViewed: "membership_tier_viewed",
@@ -42,6 +44,7 @@ type PublicCtaSource =
   | "home"
   | "about"
   | "membership"
+  | "join"
   | "audit"
   | "insights"
   | "contact"
@@ -150,12 +153,14 @@ export function trackPublicCtaJoinClicked(properties: {
 export function trackPublicCtaAuditClicked(properties: {
   source: PublicCtaSource;
   href: string;
+  topic?: string;
 }) {
-  trackAnalyticsEvent(ANALYTICS_EVENTS.publicCtaAuditClicked, properties);
+  trackAnalyticsEvent(ANALYTICS_EVENTS.auditCtaClicked, properties);
 }
 
 export function trackFounderAuditStarted(properties?: {
   source?: PublicCtaSource;
+  topic?: string;
 }) {
   trackAnalyticsEvent(ANALYTICS_EVENTS.founderAuditStarted, properties);
 }
@@ -171,6 +176,8 @@ export function trackMembershipSignupCompleted(properties: {
 export function trackFounderAuditCompleted(properties: {
   score: number;
   tier: string;
+  source?: PublicCtaSource;
+  topic?: string;
 }) {
   trackAnalyticsEvent(ANALYTICS_EVENTS.founderAuditCompleted, properties);
 }
@@ -181,6 +188,15 @@ export function trackFounderAuditMembershipClicked(properties: {
   href: string;
 }) {
   trackAnalyticsEvent(ANALYTICS_EVENTS.founderAuditMembershipClicked, properties);
+}
+
+export function trackMembershipSelectedFromAudit(properties: {
+  score?: number;
+  tier: string;
+  href: string;
+  topic?: string;
+}) {
+  trackAnalyticsEvent(ANALYTICS_EVENTS.membershipSelectedFromAudit, properties);
 }
 
 export function trackMembershipTierViewed(properties: {

@@ -565,6 +565,16 @@ export async function getFoundingOfferSnapshot(): Promise<FoundingOfferSnapshot>
   }
 }
 
+export function getFoundingOfferByTier(
+  offer: FoundingOfferSnapshot
+): Record<MembershipTier, FoundingOfferTierSnapshot> {
+  return {
+    [MembershipTier.FOUNDATION]: offer.foundation,
+    [MembershipTier.INNER_CIRCLE]: offer.innerCircle,
+    [MembershipTier.CORE]: offer.core
+  };
+}
+
 export async function reserveFoundingSlot(
   input: ReserveFoundingSlotInput
 ): Promise<FoundingReservationResult | null> {

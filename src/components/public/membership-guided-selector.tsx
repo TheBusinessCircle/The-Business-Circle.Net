@@ -37,12 +37,14 @@ import {
   buildMembershipDecisionHref
 } from "@/lib/join/routing";
 import {
+  getFounderAllocationLine,
   getFounderRoomAvailabilitySummary,
   getFounderRoomPricingNote
 } from "@/lib/founding-offer-copy";
 import {
   ANALYTICS_EVENTS,
   trackAnalyticsEvent,
+  trackMembershipSelectedFromAudit,
   trackMembershipTierViewed
 } from "@/lib/analytics";
 import {
@@ -220,18 +222,6 @@ function standardPriceForInterval(
   billingInterval: MembershipBillingInterval
 ) {
   return billingInterval === "annual" ? offer.standardAnnualPrice : offer.standardPrice;
-}
-
-function founderAvailabilityLine(offer: FoundingOfferTierSnapshot) {
-  if (offer.available) {
-    if (offer.remaining === offer.limit) {
-      return `${offer.limit} founder place${offer.limit === 1 ? "" : "s"} currently available.`;
-    }
-
-    return `${offer.remaining} founder place${offer.remaining === 1 ? "" : "s"} remaining of ${offer.limit}.`;
-  }
-
-  return `${offer.claimed} of ${offer.limit} founder places already taken.`;
 }
 
 function FounderRateSummary({
@@ -429,7 +419,7 @@ function SelectedPathPanel({
                   open.
                 </p>
                 <p className="text-xs uppercase tracking-[0.08em] text-gold/90">
-                  {founderAvailabilityLine(offer)}
+                  {getFounderAllocationLine(offer)}
                 </p>
               </>
             ) : (
@@ -439,7 +429,7 @@ function SelectedPathPanel({
                   Standard pricing is currently active for this room.
                 </p>
                 <p className="text-xs uppercase tracking-[0.08em] text-silver">
-                  {founderAvailabilityLine(offer)}
+                  {getFounderAllocationLine(offer)}
                 </p>
               </>
             )}
@@ -509,6 +499,14 @@ function SelectedPathPanel({
         <div className="space-y-3">
           <Link
             href={joinHref}
+            onClick={() => {
+              if (cameFromAudit) {
+                trackMembershipSelectedFromAudit({
+                  tier: guide.tier,
+                  href: joinHref
+                });
+              }
+            }}
             className={cn(
               buttonVariants({
                 variant: getTierButtonVariant(guide.tier),
@@ -733,7 +731,7 @@ export function MembershipGuidedSelector({
                     onClick={() => {
                       setSelectedTier(guide.tier);
                       trackAnalyticsEvent(ANALYTICS_EVENTS.membershipTierSelected, {
-                        source: "membership",
+                        source: source === "audit" ? "audit" : "membership",
                         tier: guide.tier,
                         billingInterval
                       });
@@ -956,6 +954,14 @@ export function MembershipGuidedSelector({
           <div className="space-y-4">
             <Link
               href={selectedJoinHref}
+              onClick={() => {
+                if (source === "audit") {
+                  trackMembershipSelectedFromAudit({
+                    tier: selectedTier,
+                    href: selectedJoinHref
+                  });
+                }
+              }}
               className={cn(
                 buttonVariants({
                   variant: getTierButtonVariant(selectedTier),

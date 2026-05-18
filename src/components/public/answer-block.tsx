@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { BadgeCheck, LockKeyhole, ShieldCheck } from "lucide-react";
 import { COMPANY_CONFIG, formatCompanyTrustLine } from "@/config/company";
-import { buttonVariants } from "@/components/ui/button";
-import { TrackedPublicCtaLink } from "@/components/public/tracked-public-cta-link";
-import { cn } from "@/lib/utils";
+import { FounderAuditCta } from "@/components/public/founder-audit-cta";
 
 type AnswerBlockProps = {
   question: string;
@@ -155,41 +153,22 @@ export function FitListSection({ forItems, notForItems }: FitListSectionProps) {
 export function TwoPathCta({
   source,
   title = "Two clear ways to step closer.",
-  description = "Ready owners can review membership. Cautious owners can run the Founder Audit first and use the result to choose the right room."
+  description = "Run the Founder Audit if you want a calmer starting point. Review membership directly when the room already feels clear.",
+  topic
 }: {
   source: "home" | "about" | "membership" | "audit" | "insights" | "contact" | "intent";
   title?: string;
   description?: string;
+  topic?: string;
 }) {
   return (
-    <section className="public-section-tight">
-      <div className="rounded-[1.9rem] border border-border/80 bg-card/64 p-5 shadow-panel sm:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl space-y-2">
-            <p className="premium-kicker">Choose your next step</p>
-            <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-              {title}
-            </h2>
-            <p className="text-sm leading-relaxed text-muted sm:text-base">{description}</p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <TrackedPublicCtaLink
-              href="/membership"
-              label="Join as a founding member"
-              source={source}
-              showArrow
-              className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
-            />
-            <TrackedPublicCtaLink
-              href="/audit"
-              label="Run the Founder Audit"
-              source={source}
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
-            />
-          </div>
-        </div>
-      </div>
-    </section>
+    <FounderAuditCta
+      source={source}
+      topic={topic}
+      title={title}
+      description={description}
+      membershipLabel="Review membership"
+    />
   );
 }
 

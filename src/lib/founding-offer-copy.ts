@@ -5,6 +5,39 @@ type FoundingOfferMessagingInput = Pick<
   "available" | "launchClosedLabel"
 >;
 
+export function getFounderAllocationLine(offer: FoundingOfferTierSnapshot) {
+  if (offer.available) {
+    if (offer.remaining === offer.limit) {
+      return `${offer.limit} founder place${offer.limit === 1 ? "" : "s"} currently available.`;
+    }
+
+    return `${offer.remaining} founder place${offer.remaining === 1 ? "" : "s"} remaining of ${offer.limit}.`;
+  }
+
+  return `${offer.claimed} of ${offer.limit} founder places already taken.`;
+}
+
+export function getFounderAllocationAggregateLine(
+  offers: readonly FoundingOfferTierSnapshot[]
+) {
+  const openOffers = offers.filter((offer) => offer.available);
+
+  if (!openOffers.length) {
+    return "Founding member access closes room by room as allocations are filled.";
+  }
+
+  const founderPlacesRemaining = openOffers.reduce(
+    (total, offer) => total + offer.remaining,
+    0
+  );
+
+  return `Founding member access is open with ${founderPlacesRemaining} place${
+    founderPlacesRemaining === 1 ? "" : "s"
+  } currently available across ${openOffers.length} room${
+    openOffers.length === 1 ? "" : "s"
+  }.`;
+}
+
 export function getFounderRoomAvailabilitySummary(input: {
   offer: FoundingOfferTierSnapshot;
   tierName: string;

@@ -703,7 +703,17 @@ export function Join2CinematicEntry({
                 </span>
               </Link>
 
-              <Link href={actionHrefs.auditHref} className={`${styles.pathway} ${styles.pathwayAudit}`}>
+              <Link
+                href={actionHrefs.auditHref}
+                className={`${styles.pathway} ${styles.pathwayAudit}`}
+                onClick={() => {
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.auditCtaClicked, {
+                    source: "join",
+                    href: actionHrefs.auditHref,
+                    topic: "join-mobile"
+                  });
+                }}
+              >
                 <span className={styles.pathNumber}>03</span>
                 <span className={styles.pathEyebrow}>CLARITY CHECKPOINT</span>
                 <span className={styles.pathHeading}>Run the Founder Audit</span>

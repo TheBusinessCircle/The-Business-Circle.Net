@@ -6,6 +6,10 @@ import {
   MessageCircle
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import {
+  buildFounderAuditHref,
+  FounderAuditCta
+} from "@/components/public/founder-audit-cta";
 import { TrackedPublicCtaLink } from "@/components/public/tracked-public-cta-link";
 import { cn } from "@/lib/utils";
 
@@ -150,30 +154,22 @@ export function TierOutcomeComparison() {
   );
 }
 
-export function AuditFitCta() {
+export function AuditFitCta({
+  source = "unknown",
+  topic
+}: {
+  source?: "home" | "about" | "membership" | "audit" | "insights" | "contact" | "intent" | "unknown";
+  topic?: string;
+}) {
   return (
-    <section className="public-section-tight" data-testid="audit-fit-cta">
-      <div className="rounded-[1.8rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/76 to-card/68 p-5 shadow-gold-soft sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl space-y-2">
-            <p className="premium-kicker">Room fit</p>
-            <h2 className="font-display text-2xl text-foreground sm:text-3xl">
-              Still unsure where you fit?
-            </h2>
-            <p className="text-sm leading-relaxed text-muted sm:text-base">
-              Run the Founder Audit and get a guided room recommendation.
-            </p>
-          </div>
-          <TrackedPublicCtaLink
-            href="/audit"
-            label="Run the Founder Audit"
-            source="unknown"
-            showArrow
-            className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
-          />
-        </div>
-      </div>
-    </section>
+    <FounderAuditCta
+      source={source}
+      topic={topic}
+      title="Still unsure where you fit?"
+      description="Run the Founder Audit and get a guided room recommendation."
+      showMembershipLink={false}
+      testId="audit-fit-cta"
+    />
   );
 }
 
@@ -193,7 +189,7 @@ export function InsightsRoomCta() {
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <TrackedPublicCtaLink
-            href="/audit"
+            href={buildFounderAuditHref({ source: "insights" })}
             label="Run the Founder Audit"
             source="insights"
             showArrow

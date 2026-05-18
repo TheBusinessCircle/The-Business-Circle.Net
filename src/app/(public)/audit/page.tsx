@@ -5,6 +5,7 @@ import {
   buildBreadcrumbSchema,
   buildCollectionPageSchema,
   buildFaqSchema,
+  buildServiceSchema,
   buildWebPageSchema
 } from "@/lib/structured-data";
 import { FounderAuditClient } from "./founder-audit-client";
@@ -70,6 +71,16 @@ export default function AuditPage() {
         ])}
       />
       <JsonLd data={buildFaqSchema([...AUDIT_FAQS])} />
+      <JsonLd
+        data={buildServiceSchema({
+          name: "Founder Audit",
+          description:
+            "A short clarity checkpoint that helps business owners understand which Business Circle room may fit their current stage.",
+          path: "/audit",
+          serviceType: "Founder clarity assessment",
+          audience: "Business owners considering a private founder-led business environment"
+        })}
+      />
       <FounderAuditClient />
       <AnswerBlock
         question="What is the Founder Audit?"

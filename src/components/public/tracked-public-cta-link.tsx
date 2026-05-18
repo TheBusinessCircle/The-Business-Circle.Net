@@ -12,6 +12,7 @@ type PublicCtaSource =
   | "home"
   | "about"
   | "membership"
+  | "join"
   | "audit"
   | "insights"
   | "contact"
@@ -43,6 +44,14 @@ function resolveCtaKind(href: string) {
   return null;
 }
 
+function readHrefTopic(href: string) {
+  try {
+    return new URL(href, "https://thebusinesscircle.net").searchParams.get("topic") ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function TrackedPublicCtaLink({
   href,
   label,
@@ -57,7 +66,7 @@ export function TrackedPublicCtaLink({
         const kind = resolveCtaKind(href);
 
         if (kind === "audit") {
-          trackPublicCtaAuditClicked({ source, href });
+          trackPublicCtaAuditClicked({ source, href, topic: readHrefTopic(href) });
         } else if (kind === "join") {
           trackPublicCtaJoinClicked({ source, href });
         }

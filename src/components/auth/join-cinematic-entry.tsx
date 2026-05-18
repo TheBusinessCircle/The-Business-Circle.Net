@@ -203,7 +203,7 @@ export function JoinCinematicEntry({
 
   const publicSiteHref = "/home";
   const membershipHref = "/membership";
-  const auditHref = "/audit";
+  const auditHref = "/audit?source=join&topic=join-desktop";
   const loginHref = "/login";
 
   const notices = useMemo(() => {
@@ -521,6 +521,13 @@ export function JoinCinematicEntry({
                   <Link
                     href={auditHref}
                     className={cn(styles.choicePanel, styles.auditChoicePanel)}
+                    onClick={() => {
+                      trackAnalyticsEvent(ANALYTICS_EVENTS.auditCtaClicked, {
+                        source: "join",
+                        href: auditHref,
+                        topic: "join-desktop"
+                      });
+                    }}
                   >
                     <span className={styles.choiceIndex}>03</span>
                     <span className={styles.choiceOrbit} aria-hidden="true" />

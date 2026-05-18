@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MembershipTier } from "@prisma/client";
-import { ArrowRight, LockKeyhole, RefreshCcw, ShieldCheck } from "lucide-react";
+import { LockKeyhole, RefreshCcw, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { JoinCheckoutPrep } from "@/components/auth/join-checkout-prep";
 import { JourneyRail } from "@/components/public";
+import { buildFounderAuditHref } from "@/components/public/founder-audit-cta";
+import { PublicTrustProofSection } from "@/components/public/public-trust-proof-section";
+import { TrackedPublicCtaLink } from "@/components/public/tracked-public-cta-link";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
@@ -16,7 +19,10 @@ import {
   resolveMembershipBillingInterval,
   resolveMembershipTierInput
 } from "@/config/membership";
-import { getFoundingOfferSnapshot } from "@/server/founding";
+import {
+  getFoundingOfferByTier,
+  getFoundingOfferSnapshot
+} from "@/server/founding";
 import { buildAuthModeRedirect, firstValue } from "@/lib/join/routing";
 import { cn } from "@/lib/utils";
 import { getVisualMediaPlacement } from "@/server/visual-media";
@@ -91,11 +97,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
   const currentBillingInterval = currentSubscription?.stripePriceId
     ? resolveBillingIntervalFromPriceId(currentSubscription.stripePriceId)
     : null;
-  const foundingOfferByTier = {
-    FOUNDATION: foundingOffer.foundation,
-    INNER_CIRCLE: foundingOffer.innerCircle,
-    CORE: foundingOffer.core
-  } as const;
+  const foundingOfferByTier = getFoundingOfferByTier(foundingOffer);
 
   return (
     <div className="public-page-stack">
@@ -141,13 +143,13 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
                 >
                   Review Membership
                 </Link>
-                <Link
-                  href="/audit"
+                <TrackedPublicCtaLink
+                  href={buildFounderAuditHref({ source: "join", topic: "join" })}
+                  label="Run the Founder Audit"
+                  source="join"
+                  showArrow
                   className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
-                >
-                  Run the Founder Audit
-                  <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-                </Link>
+                />
               </div>
             </div>
 
@@ -206,6 +208,8 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         currentBillingInterval={currentBillingInterval}
         foundingOfferByTier={foundingOfferByTier}
       />
+
+      <PublicTrustProofSection source="join" />
 
       <section className="rounded-[2rem] border border-border/80 bg-card/56 px-6 py-7 shadow-panel sm:px-8 sm:py-8">
         <div

@@ -17,8 +17,12 @@ import {
   SectionHeading,
   TwoPathCta
 } from "@/components/public";
+import {
+  buildFounderAuditHref
+} from "@/components/public/founder-audit-cta";
+import { TrackedPublicCtaLink } from "@/components/public/tracked-public-cta-link";
 import { PublicTopVisual } from "@/components/visual-media";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { INSIGHT_SECTION_COPY } from "@/config/insights";
 import { createPageMetadata } from "@/lib/seo";
 import {
@@ -32,6 +36,7 @@ import {
   listPublicInsights
 } from "@/server/insights/insight.service";
 import { getVisualMediaPlacement } from "@/server/visual-media";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-static";
 export const revalidate = 3600;
@@ -225,17 +230,19 @@ export default async function InsightsPage() {
               {INSIGHT_SECTION_COPY.supportLine}
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link href="/membership?from=/insights">
-                <Button size="lg">
-                  Explore Membership
-                  <ArrowRight size={16} className="ml-2" />
-                </Button>
-              </Link>
-              <Link href="/audit">
-                <Button size="lg" variant="outline">
-                  Run The Founder Audit
-                </Button>
-              </Link>
+              <TrackedPublicCtaLink
+                href={buildFounderAuditHref({ source: "insights" })}
+                label="Run The Founder Audit"
+                source="insights"
+                showArrow
+                className={cn(buttonVariants({ size: "lg" }), "group")}
+              />
+              <TrackedPublicCtaLink
+                href="/membership?from=/insights"
+                label="Explore Membership"
+                source="insights"
+                className={buttonVariants({ size: "lg", variant: "outline" })}
+              />
             </div>
           </div>
 
@@ -426,12 +433,13 @@ export default async function InsightsPage() {
             If a topic has made the pressure clearer, use the Founder Audit to choose the
             room and level of depth that fits the business now.
           </p>
-          <Link href="/audit" className="mt-5 inline-flex">
-            <Button>
-              Run The Founder Audit
-              <ArrowRight size={14} className="ml-2" />
-            </Button>
-          </Link>
+          <TrackedPublicCtaLink
+            href={buildFounderAuditHref({ source: "insights", topic: "hub-current-reading" })}
+            label="Run The Founder Audit"
+            source="insights"
+            showArrow
+            className={cn(buttonVariants(), "group mt-5 inline-flex")}
+          />
         </article>
 
         <article className="rounded-[2rem] border border-silver/18 bg-card/70 p-6 shadow-panel sm:p-8">
@@ -543,15 +551,15 @@ export default async function InsightsPage() {
       <CTASection
         title="Useful public thinking. Deeper member action."
         description="Explore membership when you want the full resources, implementation prompts and protected room around the work. Run the Founder Audit if you want the calmer starting point first."
-        primaryAction={{ href: "/membership?from=/insights", label: "Explore Membership" }}
-        secondaryAction={{ href: "/audit", label: "Run The Founder Audit", variant: "outline" }}
+        primaryAction={{ href: buildFounderAuditHref({ source: "insights" }), label: "Run The Founder Audit" }}
+        secondaryAction={{ href: "/membership?from=/insights", label: "Explore Membership", variant: "outline" }}
         analyticsSource="insights"
       />
 
       <TwoPathCta
         source="insights"
         title="Choose the next step that fits."
-        description="Review membership if you already know you want the room. Run the Founder Audit if you want a clearer starting point."
+        description="Run the Founder Audit if you want a clearer starting point. Review membership if you already know you want the room."
       />
     </div>
   );

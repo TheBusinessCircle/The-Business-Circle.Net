@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { TestimonialProofType } from "@prisma/client";
 import {
   ArrowRight,
   BookOpen,
@@ -32,7 +31,8 @@ import {
   SectionHeading,
   TrustTrailSection
 } from "@/components/public";
-import { TestimonialSection } from "@/components/public/testimonial-section";
+import { buildFounderAuditHref } from "@/components/public/founder-audit-cta";
+import { PublicTrustProofSection } from "@/components/public/public-trust-proof-section";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
@@ -42,6 +42,7 @@ import {
   buildFaqSchema,
   buildWebPageSchema
 } from "@/lib/structured-data";
+import { getFounderAllocationAggregateLine } from "@/lib/founding-offer-copy";
 import { cn } from "@/lib/utils";
 import type { VisualMediaRenderablePlacement } from "@/lib/visual-media/types";
 import { buildPublicTrustDisplay, getPublicTrustSnapshot } from "@/server/public-site";
@@ -320,13 +321,11 @@ export default async function HomePage() {
     foundingOffer.core
   ].filter((item) => item.available);
   const founderPlacesRemaining = founderRoomsOpen.reduce((total, item) => total + item.remaining, 0);
-  const founderAccessLine = founderRoomsOpen.length
-    ? `Founding member access is open with ${founderPlacesRemaining} place${
-        founderPlacesRemaining === 1 ? "" : "s"
-      } currently available across ${founderRoomsOpen.length} room${
-        founderRoomsOpen.length === 1 ? "" : "s"
-      }.`
-    : "Founding member access closes room by room as allocations are filled.";
+  const founderAccessLine = getFounderAllocationAggregateLine([
+    foundingOffer.foundation,
+    foundingOffer.innerCircle,
+    foundingOffer.core
+  ]);
   const discussionPreviewLine = publicTrustSnapshot.activeDiscussionCount
     ? `${publicTrustSnapshot.activeDiscussionCount}+ active discussion signals this week.`
     : "Discussion themes are visible publicly without exposing private member content.";
@@ -402,8 +401,8 @@ export default async function HomePage() {
           "Founder-led standards",
           "Useful business context"
         ]}
-        primaryAction={{ href: "/membership", label: "Join as a founding member" }}
-        secondaryAction={{ href: "/audit", label: "Run the Founder Audit", variant: "outline" }}
+        primaryAction={{ href: buildFounderAuditHref({ source: "home" }), label: "Run the Founder Audit" }}
+        secondaryAction={{ href: "/membership", label: "Review membership", variant: "outline" }}
         metrics={trustDisplay.items}
         analyticsSource="home"
         aside={
@@ -763,13 +762,7 @@ export default async function HomePage() {
 
       <PrivacyBoundaryNote />
 
-      <TestimonialSection
-        proofType={TestimonialProofType.BCN_MEMBER}
-        eyebrow="MEMBER PROOF"
-        title="What owners are saying inside The Business Circle"
-        intro="Real feedback from business owners using BCN to find clearer conversations, stronger direction, and better rooms."
-        limit={6}
-      />
+      <PublicTrustProofSection source="home" />
 
       <section className="public-section">
         <SectionHeading
@@ -948,8 +941,8 @@ export default async function HomePage() {
       <CTASection
         title="Ready to choose the room that fits?"
         description="Join as a founding member if you are ready. Run the Founder Audit first if you want a calmer way to check your fit."
-        primaryAction={{ href: "/membership", label: "Join as a founding member" }}
-        secondaryAction={{ href: "/audit", label: "Run the Founder Audit", variant: "outline" }}
+        primaryAction={{ href: buildFounderAuditHref({ source: "home", topic: "homepage-final" }), label: "Run the Founder Audit" }}
+        secondaryAction={{ href: "/membership", label: "Join as a founding member", variant: "outline" }}
         analyticsSource="home"
       />
 

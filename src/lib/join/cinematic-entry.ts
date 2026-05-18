@@ -51,7 +51,7 @@ export function buildJoin2ActionHrefs({
   return {
     publicSiteHref: "/home",
     membershipHref: "/membership",
-    auditHref: "/audit",
+    auditHref: "/audit?source=join&topic=join-mobile",
     joinHref: buildJoinConfirmationHref({
       tier,
       period: billingInterval,

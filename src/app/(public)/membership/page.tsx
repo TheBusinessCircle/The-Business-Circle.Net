@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { TestimonialProofType } from "@prisma/client";
 import {
   AnswerBlock,
   AuditFitCta,
@@ -11,7 +10,7 @@ import {
   TrustTrailSection,
   TwoPathCta
 } from "@/components/public";
-import { TestimonialSection } from "@/components/public/testimonial-section";
+import { PublicTrustProofSection } from "@/components/public/public-trust-proof-section";
 import { PublicTopVisual } from "@/components/visual-media";
 import { MembershipGuidedSelector } from "@/components/public/membership-guided-selector";
 import {
@@ -27,9 +26,13 @@ import {
   buildCollectionPageSchema,
   buildFaqSchema,
   buildMembershipProductsSchema,
+  buildServiceSchema,
   buildWebPageSchema
 } from "@/lib/structured-data";
-import { getFoundingOfferSnapshot } from "@/server/founding";
+import {
+  getFoundingOfferByTier,
+  getFoundingOfferSnapshot
+} from "@/server/founding";
 import { getSiteContentSection } from "@/server/site-content";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
@@ -87,11 +90,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
     getVisualMediaPlacement("membership.section.founders")
   ]);
 
-  const foundingOfferByTier = {
-    FOUNDATION: foundingOffer.foundation,
-    INNER_CIRCLE: foundingOffer.innerCircle,
-    CORE: foundingOffer.core
-  } as const;
+  const foundingOfferByTier = getFoundingOfferByTier(foundingOffer);
 
   return (
     <div className="public-page-stack">
@@ -118,6 +117,16 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
       />
       <JsonLd data={buildBreadcrumbSchema([{ name: "Membership", path: "/membership" }])} />
       <JsonLd data={buildFaqSchema(membershipContent.faqs)} />
+      <JsonLd
+        data={buildServiceSchema({
+          name: "The Business Circle Network membership",
+          description:
+            "A private founder-led business environment for owners who want clearer thinking, better conversations, useful resources and trusted rooms.",
+          path: "/membership",
+          serviceType: "Private business owner membership",
+          audience: "UK business owners and founders"
+        })}
+      />
       <JsonLd
         data={buildMembershipProductsSchema({
           tiers: [
@@ -221,7 +230,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         foundersPlacement={membershipFoundersPlacement}
       />
 
-      <AuditFitCta />
+      <AuditFitCta source="membership" topic="room-fit" />
 
       <MovementInsideRoomSection />
 
@@ -233,13 +242,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
 
       <PrivacyBoundaryNote />
 
-      <TestimonialSection
-        proofType={TestimonialProofType.BCN_MEMBER}
-        eyebrow="WHY MEMBERS JOIN"
-        title="Proof from the people inside the room"
-        intro="Approved member feedback from the private environment."
-        limit={6}
-      />
+      <PublicTrustProofSection source="membership" />
 
       <TwoPathCta
         source="membership"

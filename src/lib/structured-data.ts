@@ -25,6 +25,8 @@ type InsightArticleSchemaInput = {
   path: string;
   publishedAt: Date;
   keywords?: string[];
+  articleSection?: string;
+  answerSummary?: string;
 };
 
 type CollectionPageSchemaInput = {
@@ -41,6 +43,14 @@ type WebPageSchemaInput = {
   path: string;
   primaryQuestion?: string;
   primaryAnswer?: string;
+};
+
+type ServiceSchemaInput = {
+  name: string;
+  description: string;
+  path: string;
+  serviceType: string;
+  audience?: string;
 };
 
 type MembershipProductTierSchemaInput = {
@@ -75,11 +85,7 @@ export function buildPublicSiteSchemaGraph(input: PublicSiteSchemaInput = {}) {
           name: "United Kingdom"
         },
         founder: {
-          "@type": "Person",
-          name: TREV_FOUNDER_CONTENT.name,
-          alternateName: TREV_FOUNDER_CONTENT.alternateName,
-          jobTitle: "Business Growth Architect",
-          url: absoluteUrl("/founder")
+          "@id": absoluteUrl("/founder#person")
         },
         contactPoint: [
           {
@@ -99,6 +105,19 @@ export function buildPublicSiteSchemaGraph(input: PublicSiteSchemaInput = {}) {
         publisher: {
           "@id": absoluteUrl("/#organization")
         }
+      },
+      {
+        "@type": "Person",
+        "@id": absoluteUrl("/founder#person"),
+        name: TREV_FOUNDER_CONTENT.name,
+        alternateName: TREV_FOUNDER_CONTENT.alternateName,
+        jobTitle: "Business Growth Architect",
+        url: absoluteUrl("/founder"),
+        description: TREV_FOUNDER_CONTENT.title,
+        worksFor: {
+          "@id": absoluteUrl("/#organization")
+        },
+        sameAs
       }
     ]
   };
@@ -191,7 +210,13 @@ export function buildInsightArticleSchema(input: InsightArticleSchemaInput) {
     datePublished: input.publishedAt.toISOString(),
     dateModified: input.publishedAt.toISOString(),
     inLanguage: "en-GB",
+    articleSection: input.articleSection,
+    abstract: input.answerSummary,
     keywords: input.keywords,
+    about: input.keywords?.slice(0, 5).map((keyword) => ({
+      "@type": "Thing",
+      name: keyword
+    })),
     author: {
       "@type": "Person",
       name: TREV_FOUNDER_CONTENT.name,
@@ -223,6 +248,30 @@ export function buildCollectionPageSchema(input: CollectionPageSchemaInput) {
     isPartOf: {
       "@id": absoluteUrl("/#website")
     }
+  };
+}
+
+export function buildServiceSchema(input: ServiceSchemaInput) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: input.name,
+    description: input.description,
+    serviceType: input.serviceType,
+    url: absoluteUrl(input.path),
+    provider: {
+      "@id": absoluteUrl("/#organization")
+    },
+    areaServed: {
+      "@type": "Country",
+      name: "United Kingdom"
+    },
+    audience: input.audience
+      ? {
+          "@type": "Audience",
+          audienceType: input.audience
+        }
+      : undefined
   };
 }
 

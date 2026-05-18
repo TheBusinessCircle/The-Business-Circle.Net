@@ -13,8 +13,10 @@ import {
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { InsightCard, InsightsRoomCta, JsonLd } from "@/components/public";
+import { buildFounderAuditHref } from "@/components/public/founder-audit-cta";
+import { TrackedPublicCtaLink } from "@/components/public/tracked-public-cta-link";
 import { PublicTopVisual } from "@/components/visual-media";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { SITE_CONFIG } from "@/config/site";
 import { createPageMetadata } from "@/lib/seo";
 import {
@@ -22,6 +24,7 @@ import {
   buildFaqSchema,
   buildInsightArticleSchema
 } from "@/lib/structured-data";
+import { cn } from "@/lib/utils";
 import {
   formatInsightDate,
   getInsightTopicClusterBySlug,
@@ -76,7 +79,7 @@ function buildBcnHelpItems(insight: NonNullable<ReturnType<typeof getPublicInsig
       title: "Founder Audit",
       description:
         "Use the audit when this insight has made the pressure clearer but the right starting point still needs placing.",
-      href: "/audit",
+      href: buildFounderAuditHref({ source: "insights", topic: insight.clusterSlug }),
       icon: Target
     },
     {
@@ -184,6 +187,8 @@ export default async function InsightArticlePage({ params }: PageProps) {
     description: insight.seoDescription,
     path: `/insights/${insight.slug}`,
     publishedAt: insight.publishedAt,
+    articleSection: insight.category,
+    answerSummary: insight.aeoSummary,
     keywords: [insight.keyword, insight.category, ...insight.relatedIntentKeywords]
   });
 
@@ -407,11 +412,12 @@ export default async function InsightArticlePage({ params }: PageProps) {
                         <ArrowRight size={16} className="ml-2" />
                       </Button>
                     </Link>
-                    <Link href="/audit">
-                      <Button size="lg" variant="outline">
-                        Run The Founder Audit
-                      </Button>
-                    </Link>
+                    <TrackedPublicCtaLink
+                      href={buildFounderAuditHref({ source: "insights", topic: insight.clusterSlug })}
+                      label="Run The Founder Audit"
+                      source="insights"
+                      className={buttonVariants({ size: "lg", variant: "outline" })}
+                    />
                   </div>
                 </div>
 
@@ -501,11 +507,12 @@ export default async function InsightArticlePage({ params }: PageProps) {
                   want the private resource and room around the issue.
                 </p>
                 <div className="mt-4 grid gap-2">
-                  <Link href="/audit">
-                    <Button className="w-full" variant="outline">
-                      Run The Founder Audit
-                    </Button>
-                  </Link>
+                  <TrackedPublicCtaLink
+                    href={buildFounderAuditHref({ source: "insights", topic: insight.clusterSlug })}
+                    label="Run The Founder Audit"
+                    source="insights"
+                    className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+                  />
                   <Link href={insight.recommendedMembershipHref}>
                     <Button className="w-full">
                       Explore Membership

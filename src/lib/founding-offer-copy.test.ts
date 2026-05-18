@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { FoundingOfferTierSnapshot } from "@/types";
 import {
+  getFounderAllocationAggregateLine,
+  getFounderAllocationLine,
   getFounderRoomAvailabilitySummary,
   getFounderRoomPricingNote
 } from "@/lib/founding-offer-copy";
@@ -53,6 +55,46 @@ describe("founding offer public copy", () => {
 
     expect(getFounderRoomPricingNote(openOffer)).toBe(
       "Founder pricing is currently active in this room while founder allocation remains open."
+    );
+  });
+
+  it("keeps founder allocation count copy in one shared helper", () => {
+    expect(
+      getFounderAllocationLine(
+        offer({
+          available: true,
+          claimed: 0,
+          remaining: 50
+        })
+      )
+    ).toBe("50 founder places currently available.");
+
+    expect(
+      getFounderAllocationLine(
+        offer({
+          available: true,
+          claimed: 46,
+          remaining: 4
+        })
+      )
+    ).toBe("4 founder places remaining of 50.");
+
+    expect(getFounderAllocationLine(offer())).toBe(
+      "50 of 50 founder places already taken."
+    );
+  });
+
+  it("builds aggregate public founder access copy from tier snapshots", () => {
+    expect(
+      getFounderAllocationAggregateLine([
+        offer({ available: true, claimed: 45, remaining: 5 }),
+        offer({ available: true, claimed: 49, remaining: 1 }),
+        offer()
+      ])
+    ).toBe("Founding member access is open with 6 places currently available across 2 rooms.");
+
+    expect(getFounderAllocationAggregateLine([offer(), offer()])).toBe(
+      "Founding member access closes room by room as allocations are filled."
     );
   });
 });

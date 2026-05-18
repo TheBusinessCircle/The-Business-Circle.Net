@@ -22,7 +22,10 @@ import {
   type MembershipBillingInterval
 } from "@/config/membership";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
-import { getFounderRoomPricingNote } from "@/lib/founding-offer-copy";
+import {
+  getFounderAllocationLine,
+  getFounderRoomPricingNote
+} from "@/lib/founding-offer-copy";
 import { buildJoinConfirmationHref } from "@/lib/join/routing";
 import {
   getTierAccentTextClassName,
@@ -110,18 +113,6 @@ function selectedPriceForInterval(
       : offer.standardPrice;
 }
 
-function founderAvailabilityLine(offer: FoundingOfferTierSnapshot) {
-  if (offer.available) {
-    if (offer.remaining === offer.limit) {
-      return `${offer.limit} founder place${offer.limit === 1 ? "" : "s"} currently available.`;
-    }
-
-    return `${offer.remaining} founder place${offer.remaining === 1 ? "" : "s"} remaining of ${offer.limit}.`;
-  }
-
-  return `${offer.claimed} of ${offer.limit} founder places already taken.`;
-}
-
 function updateJoinUrl(href: string) {
   if (typeof window === "undefined") {
     return;
@@ -206,7 +197,7 @@ function renderTierDetailPanel(input: {
               Founder pricing is still available in this room for a limited founder allocation.
             </p>
             <p className="text-xs uppercase tracking-[0.08em] text-gold/90">
-              {founderAvailabilityLine(input.selectedOffer)}
+              {getFounderAllocationLine(input.selectedOffer)}
             </p>
             <div className="flex flex-wrap items-end gap-2">
               <span
@@ -246,7 +237,7 @@ function renderTierDetailPanel(input: {
               <span className="pb-1 text-sm text-silver">{periodLabel(input.billingInterval)}</span>
             </div>
             <p className="text-xs uppercase tracking-[0.08em] text-silver">
-              {founderAvailabilityLine(input.selectedOffer)}
+              {getFounderAllocationLine(input.selectedOffer)}
             </p>
             <p className="text-sm text-muted">{input.selectedOffer.launchClosedLabel}</p>
           </div>
@@ -478,7 +469,7 @@ export function JoinCheckoutPrep({
                       <p className="text-sm leading-relaxed text-muted">{tierSwitchLines[tier]}</p>
                       <p className="text-xs uppercase tracking-[0.08em] text-silver">
                         {offer.available
-                          ? founderAvailabilityLine(offer)
+                          ? getFounderAllocationLine(offer)
                           : billingInterval === "annual"
                             ? "Annual billing saves 20%."
                             : "Annual billing available."}

@@ -7,6 +7,7 @@ const PUBLIC_ALLOW = [
   "/about",
   "/membership",
   "/audit",
+  "/founder",
   "/insights",
   "/contact",
   "/faq",

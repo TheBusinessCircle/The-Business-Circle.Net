@@ -28,7 +28,7 @@ describe("join-mobile cinematic entry", () => {
 
     expect(hrefs.publicSiteHref).toBe("/home");
     expect(hrefs.membershipHref).toBe("/membership");
-    expect(hrefs.auditHref).toBe("/audit");
+    expect(hrefs.auditHref).toBe("/audit?source=join&topic=join-mobile");
     expect(hrefs.loginHref).toBe("/login");
     expect(hrefs.joinHref).toBe(
       "/join?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly&tier=inner-circle&period=annual&billing=cancelled&invite=BCN-TEST&auth=register"
@@ -113,7 +113,7 @@ describe("join-mobile cinematic entry", () => {
 
     expect(source).toContain('const publicSiteHref = "/home";');
     expect(source).toContain('const membershipHref = "/membership";');
-    expect(source).toContain('const auditHref = "/audit";');
+    expect(source).toContain('const auditHref = "/audit?source=join&topic=join-desktop";');
     expect(source).toContain('const loginHref = "/login";');
     expect(source).toContain("Explore The Business Circle");
     expect(source).toContain("Go straight to join");

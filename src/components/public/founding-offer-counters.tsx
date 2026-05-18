@@ -2,7 +2,10 @@ import type { MembershipTier } from "@prisma/client";
 import { formatMembershipPrice, getMembershipTierLabel } from "@/config/membership";
 import type { FoundingOfferSnapshot } from "@/types";
 import { Badge } from "@/components/ui/badge";
-import { getFounderRoomPricingNote } from "@/lib/founding-offer-copy";
+import {
+  getFounderAllocationLine,
+  getFounderRoomPricingNote
+} from "@/lib/founding-offer-copy";
 import { getTierBadgeVariant, getTierPanelClassName } from "@/lib/tier-styles";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +40,7 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
                 Early access from {formatMembershipPrice(item.foundingPrice)}/month
               </p>
               <p className="mt-1 text-xs uppercase tracking-[0.08em] text-gold/90">
-                {item.remaining} founder place{item.remaining === 1 ? "" : "s"} remaining of {item.limit}
+                {getFounderAllocationLine(item)}
               </p>
               <p className="mt-1 text-xs text-muted">
                 Founder pricing stays active only while this room still has founder allocation
@@ -50,7 +53,7 @@ export function FoundingOfferCounters({ offer, className }: FoundingOfferCounter
                 Standard access from {formatMembershipPrice(item.standardPrice)}/month
               </p>
               <p className="mt-1 text-xs uppercase tracking-[0.08em] text-silver">
-                {item.claimed} of {item.limit} founder places taken
+                {getFounderAllocationLine(item)}
               </p>
               <p className="mt-1 text-xs text-muted">
                 {getFounderRoomPricingNote(item)}

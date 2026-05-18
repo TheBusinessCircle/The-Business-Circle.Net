@@ -10,13 +10,18 @@ describe("testimonial display placement", () => {
   it("wires approved BCN member testimonials into home and membership pages", () => {
     const home = readSource("src/app/(public)/home/page.tsx");
     const membership = readSource("src/app/(public)/membership/page.tsx");
+    const join = readSource("src/app/(auth)/join/page.tsx");
+    const publicTrustProof = readSource("src/components/public/public-trust-proof-section.tsx");
 
-    expect(home).toContain("TestimonialSection");
-    expect(home).toContain("TestimonialProofType.BCN_MEMBER");
-    expect(home).toContain("What owners are saying inside The Business Circle");
-    expect(membership).toContain("TestimonialSection");
-    expect(membership).toContain("TestimonialProofType.BCN_MEMBER");
-    expect(membership).toContain("Proof from the people inside the room");
+    expect(home).toContain("PublicTrustProofSection");
+    expect(home).toContain('source="home"');
+    expect(membership).toContain("PublicTrustProofSection");
+    expect(membership).toContain('source="membership"');
+    expect(join).toContain("PublicTrustProofSection");
+    expect(join).toContain('source="join"');
+    expect(publicTrustProof).toContain("TestimonialSection");
+    expect(publicTrustProof).toContain("TestimonialProofType.BCN_MEMBER");
+    expect(publicTrustProof).toContain("Approved member feedback from The Business Circle");
   });
 
   it("wires approved Growth Architect testimonials into founder pages", () => {

@@ -7,11 +7,17 @@ import {
   TrustTrailSection,
   TwoPathCta
 } from "@/components/public/answer-block";
+import { buildFounderAuditHref } from "@/components/public/founder-audit-cta";
 import { FAQSection } from "@/components/public/faq-section";
 import { JsonLd } from "@/components/public/json-ld";
 import { TrackedPublicCtaLink } from "@/components/public/tracked-public-cta-link";
 import { buttonVariants } from "@/components/ui/button";
-import { buildBreadcrumbSchema, buildFaqSchema, buildWebPageSchema } from "@/lib/structured-data";
+import {
+  buildBreadcrumbSchema,
+  buildFaqSchema,
+  buildServiceSchema,
+  buildWebPageSchema
+} from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 
 export function SeoIntentPage({ page }: { page: PublicIntentPage }) {
@@ -33,6 +39,15 @@ export function SeoIntentPage({ page }: { page: PublicIntentPage }) {
         ])}
       />
       <JsonLd data={buildFaqSchema(page.faqItems)} />
+      <JsonLd
+        data={buildServiceSchema({
+          name: page.title,
+          description: page.description,
+          path: page.path,
+          serviceType: "Private business owner network",
+          audience: "UK business owners and founders"
+        })}
+      />
 
       <section className="public-hero-spacing relative overflow-hidden rounded-[2.05rem] border border-border/80 bg-card/60 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
@@ -47,15 +62,15 @@ export function SeoIntentPage({ page }: { page: PublicIntentPage }) {
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <TrackedPublicCtaLink
-              href="/membership"
-              label="Explore Membership"
+              href={buildFounderAuditHref({ source: "intent", topic: page.path })}
+              label="Run the Founder Audit"
               source="intent"
               showArrow
               className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
             />
             <TrackedPublicCtaLink
-              href="/audit"
-              label="Run the Founder Audit"
+              href="/membership"
+              label="Explore Membership"
               source="intent"
               className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
             />
@@ -141,7 +156,7 @@ export function SeoIntentPage({ page }: { page: PublicIntentPage }) {
         description="Short answers for owners comparing BCN with other business networking or private network options."
         items={page.faqItems}
       />
-      <TwoPathCta source="intent" />
+      <TwoPathCta source="intent" topic={page.path} />
     </div>
   );
 }
