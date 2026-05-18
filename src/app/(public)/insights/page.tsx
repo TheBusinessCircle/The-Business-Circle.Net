@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Compass, MessageSquareText, SearchCheck } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Compass,
+  MessageSquareText,
+  Route,
+  SearchCheck,
+  ShieldCheck,
+  Target
+} from "lucide-react";
 import {
   CTASection,
   InsightCard,
@@ -19,12 +28,13 @@ import {
 } from "@/lib/structured-data";
 import {
   listInsightTopicClusters,
+  listPublicInsightsForCluster,
   listPublicInsights
 } from "@/server/insights/insight.service";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const dynamic = "force-static";
+export const revalidate = 3600;
 
 export const metadata: Metadata = createPageMetadata({
   title: "Founder-Led Business Insights | The Business Circle Network",
@@ -71,12 +81,92 @@ const BUSINESS_SIGNALS = [
   }
 ] as const;
 
+const START_HERE_PATH = [
+  {
+    label: "If the business feels noisy",
+    href: "/insights/topic/founder-clarity",
+    description: "Start with founder clarity, decision quality and the signal behind the week."
+  },
+  {
+    label: "If the website is not converting",
+    href: "/insights/topic/trust-and-visibility",
+    description: "Move into trust signals, conversion support and clearer public pages."
+  },
+  {
+    label: "If visibility is changing",
+    href: "/insights/topic/ai-search-and-visibility",
+    description: "Use AI search, GEO and AEO topics to make the business easier to understand."
+  },
+  {
+    label: "If you need the right room",
+    href: "/business-owner-network-uk",
+    description: "Compare the public insight layer with the private business owner environment."
+  }
+] as const;
+
+function InsightClusterSection({
+  label,
+  title,
+  description,
+  insights,
+  topicHref
+}: {
+  label: string;
+  title: string;
+  description: string;
+  insights: ReturnType<typeof listPublicInsights>;
+  topicHref: string;
+}) {
+  if (!insights.length) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <SectionHeading label={label} title={title} description={description} />
+        <Link
+          href={topicHref}
+          className="inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
+        >
+          Open topic
+          <ArrowRight size={14} />
+        </Link>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-3">
+        {insights.slice(0, 3).map((insight) => (
+          <InsightCard key={insight.slug} insight={insight} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function InsightsPage() {
   const insights = listPublicInsights();
   const topicClusters = listInsightTopicClusters();
   const insightsHeroPlacement = await getVisualMediaPlacement("intelligence.hero");
   const featuredInsight = insights[0] ?? null;
   const latestInsights = insights.filter((insight) => insight.slug !== featuredInsight?.slug).slice(0, 12);
+  const previousSignals = latestInsights.slice(0, 3);
+  const founderClarityInsights = listPublicInsightsForCluster("founder-clarity", 3);
+  const aiSearchInsights = listPublicInsightsForCluster("ai-search-and-visibility", 3);
+  const websiteTrustInsights = [
+    ...listPublicInsightsForCluster("trust-and-visibility", 2),
+    ...listPublicInsightsForCluster("strategic-visibility", 2)
+  ].slice(0, 3);
+  const ownerRealityInsights = listPublicInsightsForCluster("owner-reality", 3);
+  const mostUsefulInsights = insights
+    .filter((insight) =>
+      [
+        "business-growth",
+        "founder-clarity",
+        "trust-and-visibility",
+        "ai-search-and-visibility",
+        "business-networking"
+      ].includes(insight.clusterSlug)
+    )
+    .slice(0, 6);
 
   return (
     <div className="public-page-stack">
@@ -166,6 +256,95 @@ export default async function InsightsPage() {
       </section>
 
       {featuredInsight ? (
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
+          <article className="rounded-[2rem] border border-gold/26 bg-gradient-to-br from-gold/10 via-card/78 to-card/70 p-6 shadow-gold-soft sm:p-8">
+            <p className="premium-kicker inline-flex items-center gap-2">
+              <CalendarDays size={14} />
+              Today&apos;s Owner Signal
+            </p>
+            <h2 className="mt-4 max-w-3xl font-display text-3xl leading-tight text-foreground sm:text-4xl">
+              {featuredInsight.title}
+            </h2>
+            <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
+              {featuredInsight.excerpt}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href={`/insights/${featuredInsight.slug}`}>
+                <Button>
+                  Read today&apos;s insight
+                  <ArrowRight size={14} className="ml-2" />
+                </Button>
+              </Link>
+              <Link href="/dashboard/resources">
+                <Button variant="outline">
+                  Members get the full breakdown
+                </Button>
+              </Link>
+            </div>
+            <p className="mt-5 text-sm leading-relaxed text-muted">
+              New public insight is scheduled daily. Return tomorrow for the next owner signal,
+              then use the private resource area when you want the fuller framework.
+            </p>
+          </article>
+
+          <article className="public-panel p-6 sm:p-8">
+            <p className="premium-kicker">Previous signals</p>
+            <h2 className="mt-4 font-display text-3xl text-foreground">
+              Keep the thread moving
+            </h2>
+            <div className="mt-5 space-y-3">
+              {previousSignals.map((insight) => (
+                <Link
+                  key={insight.slug}
+                  href={`/insights/${insight.slug}`}
+                  className="block rounded-[1.2rem] border border-border/80 bg-background/22 px-4 py-3 transition-colors hover:border-silver/24 hover:bg-background/30"
+                >
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                    {insight.category}
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-foreground">{insight.title}</p>
+                </Link>
+              ))}
+            </div>
+          </article>
+        </section>
+      ) : null}
+
+      <section className="space-y-6">
+        <SectionHeading
+          label="Start here"
+          title="Choose the pressure you are actually dealing with."
+          description="The hub is built as a route into clearer owner thinking, not as a flat list of posts. Start with the pressure closest to the business today."
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {START_HERE_PATH.map((item) => (
+            <Link key={item.href} href={item.href} className="public-panel interactive-card p-5">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-silver/18 bg-background/24 text-silver">
+                <Route size={16} />
+              </span>
+              <h2 className="mt-4 text-xl text-foreground">{item.label}</h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {mostUsefulInsights.length ? (
+        <section className="space-y-6">
+          <SectionHeading
+            label="Most useful for owners right now"
+            title="The current reading queue."
+            description="A tighter set of public previews across clarity, trust, AI search, business growth and better rooms."
+          />
+          <div className="grid gap-5 lg:grid-cols-2">
+            {mostUsefulInsights.map((insight) => (
+              <InsightCard key={insight.slug} insight={insight} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {featuredInsight ? (
         <section className="space-y-6">
           <SectionHeading
             label="Featured insight"
@@ -200,6 +379,80 @@ export default async function InsightsPage() {
             </p>
           </article>
         )}
+      </section>
+
+      <InsightClusterSection
+        label="Founder clarity"
+        title="For owners who need a cleaner decision signal."
+        description="These insights help reduce blur before the week turns into more activity."
+        insights={founderClarityInsights}
+        topicHref="/insights/topic/founder-clarity"
+      />
+
+      <InsightClusterSection
+        label="AI Search / GEO"
+        title="For businesses that need to become easier to understand."
+        description="AI visibility, answer engine clarity and GEO work best when the business is specific, trusted and well connected."
+        insights={aiSearchInsights}
+        topicHref="/insights/topic/ai-search-and-visibility"
+      />
+
+      <InsightClusterSection
+        label="Website trust / CRO"
+        title="For public pages that need to turn attention into confidence."
+        description="Conversion improves when trust, proof and page sequence support the buyer's decision."
+        insights={websiteTrustInsights}
+        topicHref="/insights/topic/trust-and-visibility"
+      />
+
+      <InsightClusterSection
+        label="Business owner reality"
+        title="For the pressure most owners carry quietly."
+        description="Owner isolation, useful support and better context are business issues, not only emotional ones."
+        insights={ownerRealityInsights}
+        topicHref="/insights/topic/owner-reality"
+      />
+
+      <section className="grid gap-5 lg:grid-cols-2">
+        <article className="rounded-[2rem] border border-gold/28 bg-gradient-to-br from-gold/10 via-card/78 to-card/70 p-6 shadow-gold-soft sm:p-8">
+          <p className="premium-kicker inline-flex items-center gap-2">
+            <Target size={14} />
+            Founder Audit
+          </p>
+          <h2 className="mt-4 font-display text-3xl text-foreground">
+            Turn the insight into a clearer starting point.
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-muted">
+            If a topic has made the pressure clearer, use the Founder Audit to choose the
+            room and level of depth that fits the business now.
+          </p>
+          <Link href="/audit" className="mt-5 inline-flex">
+            <Button>
+              Run The Founder Audit
+              <ArrowRight size={14} className="ml-2" />
+            </Button>
+          </Link>
+        </article>
+
+        <article className="rounded-[2rem] border border-silver/18 bg-card/70 p-6 shadow-panel sm:p-8">
+          <p className="premium-kicker inline-flex items-center gap-2">
+            <ShieldCheck size={14} />
+            Private environment
+          </p>
+          <h2 className="mt-4 font-display text-3xl text-foreground">
+            Public insight first. Protected member depth after.
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-muted">
+            The public hub builds trust and clarity. Membership adds the full resources,
+            member rooms, profile context and better conversations around the work.
+          </p>
+          <Link href="/membership?from=/insights" className="mt-5 inline-flex">
+            <Button variant="outline">
+              Join the private environment
+              <ArrowRight size={14} className="ml-2" />
+            </Button>
+          </Link>
+        </article>
       </section>
 
       <section className="space-y-6">

@@ -5,7 +5,7 @@ import { PublicSiteShell } from "@/components/public/public-site-shell";
 import { SITE_CONFIG } from "@/config/site";
 import { buildPublicSiteSchemaGraph } from "@/lib/structured-data";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_CONFIG.url)
 };

@@ -19,6 +19,11 @@ Public pages AI systems may summarise:
 - https://thebusinesscircle.net/audit
 - https://thebusinesscircle.net/contact
 - https://thebusinesscircle.net/insights
+- https://thebusinesscircle.net/insights/topic/founder-clarity
+- https://thebusinesscircle.net/insights/topic/ai-search-and-visibility
+- https://thebusinesscircle.net/insights/topic/trust-and-visibility
+- https://thebusinesscircle.net/business-owner-network-uk
+- https://thebusinesscircle.net/founder-community-uk
 - https://thebusinesscircle.net/rules
 - https://thebusinesscircle.net/privacy-policy
 - https://thebusinesscircle.net/terms-of-service

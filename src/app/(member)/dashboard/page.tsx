@@ -62,6 +62,7 @@ import { listUpcomingEventsForTiers } from "@/server/events";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { searchDirectoryMembers } from "@/server/profile";
 import { resolveManagedMembershipPlanFromStripePriceId } from "@/server/products-pricing";
+import { listLatestPublishedResources } from "@/server/resources";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Member Dashboard",
@@ -185,21 +186,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         currentPeriodEnd: true
       }
     }),
-    prisma.resource.findMany({
-      where: {
-        status: "PUBLISHED",
-        tier: { in: resourceTiers }
-      },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        tier: true,
-        publishedAt: true,
-        category: true
-      },
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-      take: 6
+    listLatestPublishedResources(effectiveTier, 6, {
+      userId: session.user.id,
+      view: "unread"
     }),
     listRecentCommunityPostsForTiers({
       tiers,
@@ -331,6 +320,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const featuredDiscussion = worthYourTimeDiscussion ?? null;
   const featuredResource =
     newestResources.find((resource) => resource.tier === effectiveTier) ?? newestResources[0] ?? null;
+  const latestBcnIntelligence =
+    newestResources.find((resource) => resource.isMemberInsightResource) ?? null;
   const featuredMemberHighlight = memberHighlights.members[0] ?? null;
   const memberContribution =
     rankedRecentPosts.find(
@@ -1155,6 +1146,59 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <EmptyState
                   title="No resources yet"
                   description="New material will appear here as soon as it is published for your membership tier."
+                  icon={Sparkles}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20 bg-gradient-to-br from-gold/10 via-card/72 to-card/62">
+            <CardHeader>
+              <CardTitle>Latest BCN intelligence</CardTitle>
+              <CardDescription>
+                The member-side continuation of the public insight layer.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {latestBcnIntelligence ? (
+                <Link
+                  href={`/dashboard/resources/${latestBcnIntelligence.slug}`}
+                  className="block rounded-2xl border border-gold/18 bg-background/20 px-4 py-4 transition-colors hover:border-gold/32 hover:bg-background/32"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <ResourceTierBadge tier={latestBcnIntelligence.tier} />
+                    {(() => {
+                      const intelligenceSignal = getFreshnessSignal(latestBcnIntelligence.publishedAt, {
+                        withinDayLabel: "Published today",
+                        withinWeekLabel: "Published this week",
+                        fallbackPrefix: "Published"
+                      });
+
+                      return (
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] ${signalClassName(intelligenceSignal.tone)}`}
+                        >
+                          {intelligenceSignal.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <p className="mt-3 text-lg font-semibold text-foreground">
+                    {latestBcnIntelligence.title}
+                  </p>
+                  <p className="mt-2 text-sm text-muted">
+                    Open the full member breakdown, then bring one point into a room if it
+                    touches a live decision.
+                  </p>
+                  <p className="mt-4 inline-flex items-center gap-2 text-sm text-gold">
+                    Open intelligence
+                    <ArrowRight size={14} />
+                  </p>
+                </Link>
+              ) : (
+                <EmptyState
+                  title="No BCN intelligence available yet"
+                  description="Member intelligence appears here as public insights publish and become full resources."
                   icon={Sparkles}
                 />
               )}

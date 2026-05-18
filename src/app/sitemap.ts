@@ -7,8 +7,7 @@ import {
 } from "@/server/insights/insight.service";
 import { listActiveFounderServices } from "@/server/founder";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();

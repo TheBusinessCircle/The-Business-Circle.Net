@@ -14,6 +14,7 @@ import {
 } from "@/lib/structured-data";
 import {
   getInsightTopicClusterBySlug,
+  listInsightTopicClusterSlugs,
   listInsightTopicClusters
 } from "@/server/insights/insight.service";
 import { getVisualMediaPlacement } from "@/server/visual-media";
@@ -22,8 +23,8 @@ type PageProps = {
   params: Promise<{ clusterSlug: string }>;
 };
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const dynamic = "force-static";
+export const revalidate = 3600;
 export const dynamicParams = true;
 
 function createFallbackMetadata(clusterSlug: string): Metadata {
@@ -36,6 +37,10 @@ function createFallbackMetadata(clusterSlug: string): Metadata {
     }),
     metadataBase: new URL(SITE_CONFIG.url)
   };
+}
+
+export function generateStaticParams() {
+  return listInsightTopicClusterSlugs().map((clusterSlug) => ({ clusterSlug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

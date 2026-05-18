@@ -1,18 +1,33 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Clock, Lock, MoveLeft, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Clock,
+  HelpCircle,
+  Lock,
+  MoveLeft,
+  ShieldCheck,
+  Sparkles,
+  Target
+} from "lucide-react";
 import { notFound } from "next/navigation";
 import { InsightCard, InsightsRoomCta, JsonLd } from "@/components/public";
 import { PublicTopVisual } from "@/components/visual-media";
 import { Button } from "@/components/ui/button";
 import { SITE_CONFIG } from "@/config/site";
 import { createPageMetadata } from "@/lib/seo";
-import { buildBreadcrumbSchema, buildInsightArticleSchema } from "@/lib/structured-data";
+import {
+  buildBreadcrumbSchema,
+  buildFaqSchema,
+  buildInsightArticleSchema
+} from "@/lib/structured-data";
 import {
   formatInsightDate,
   getInsightTopicClusterBySlug,
   getPublicInsightBySlug,
-  getRelatedPublicInsights
+  getRelatedPublicInsights,
+  listPublicInsightSlugs
 } from "@/server/insights/insight.service";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
@@ -20,8 +35,8 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const dynamic = "force-static";
+export const revalidate = 3600;
 export const dynamicParams = true;
 
 function createFallbackMetadata(slug: string): Metadata {
@@ -31,6 +46,74 @@ function createFallbackMetadata(slug: string): Metadata {
     path: `/insights/${slug}`,
     noIndex: true
   });
+}
+
+export function generateStaticParams() {
+  return listPublicInsightSlugs().map((slug) => ({ slug }));
+}
+
+function buildBusinessMeaning(insight: NonNullable<ReturnType<typeof getPublicInsightBySlug>>) {
+  return [
+    `This is a ${insight.category.toLowerCase()} issue before it is a content issue. The business needs to know what the signal is asking the owner to change, protect or review.`,
+    `For most owners, the useful move is to make the pattern visible in one place: the week, the website, the room, the offer or the conversation that keeps carrying the pressure.`,
+    "The public page gives enough clarity to start. The member resource keeps the detail protected and turns the idea into practical review prompts."
+  ];
+}
+
+function buildOwnerQuestions(insight: NonNullable<ReturnType<typeof getPublicInsightBySlug>>) {
+  return [
+    `Where is ${insight.keyword} already showing up in the business?`,
+    "What part of the issue keeps repeating even when the surface situation changes?",
+    "What would become easier if the next step, trust signal or decision point was clearer?",
+    "Which conversation would be more useful if the other person had better context first?",
+    "What should be taken into the private member layer instead of being worked through in public?"
+  ];
+}
+
+function buildBcnHelpItems(insight: NonNullable<ReturnType<typeof getPublicInsightBySlug>>) {
+  return [
+    {
+      title: "Founder Audit",
+      description:
+        "Use the audit when this insight has made the pressure clearer but the right starting point still needs placing.",
+      href: "/audit",
+      icon: Target
+    },
+    {
+      title: "Membership",
+      description:
+        "Membership is where the full resource, member prompts and protected conversations continue the public preview.",
+      href: insight.recommendedMembershipHref,
+      icon: ShieldCheck
+    },
+    {
+      title: "Founder layer",
+      description:
+        "Read the founder route when you want the Growth Architect lens behind the room, the standards and the way decisions are framed.",
+      href: "/founder",
+      icon: Sparkles
+    }
+  ];
+}
+
+function buildInsightFaqs(insight: NonNullable<ReturnType<typeof getPublicInsightBySlug>>) {
+  return [
+    {
+      question: `What does ${insight.title.toLowerCase()} mean for a business owner?`,
+      answer:
+        insight.aeoSummary
+    },
+    {
+      question: "Is the full BCN resource available publicly?",
+      answer:
+        "No. The public article gives a useful preview. The fuller framework, prompts, checklist and implementation guidance stay inside the protected member resource area."
+    },
+    {
+      question: "Where should I go next after reading this insight?",
+      answer:
+        "Run the Founder Audit if you want a clearer starting point, or review membership if you already know you want the private environment and member resource depth."
+    }
+  ];
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -75,7 +158,19 @@ export default async function InsightArticlePage({ params }: PageProps) {
     notFound();
   }
 
-  const relatedInsights = getRelatedPublicInsights(insight.slug, 3);
+  const relatedInsights = getRelatedPublicInsights(insight.slug, 6);
+  const groupedRelatedInsights = Array.from(
+    relatedInsights.reduce((groups, relatedInsight) => {
+      const existing = groups.get(relatedInsight.category) ?? [];
+      existing.push(relatedInsight);
+      groups.set(relatedInsight.category, existing);
+      return groups;
+    }, new Map<string, typeof relatedInsights>())
+  );
+  const businessMeaning = buildBusinessMeaning(insight);
+  const ownerQuestions = buildOwnerQuestions(insight);
+  const bcnHelpItems = buildBcnHelpItems(insight);
+  const insightFaqs = buildInsightFaqs(insight);
   const topicCluster = getInsightTopicClusterBySlug(insight.clusterSlug);
   const insightsHeroPlacement = await getVisualMediaPlacement("intelligence.hero");
   const breadcrumbSchema = buildBreadcrumbSchema([
@@ -96,6 +191,7 @@ export default async function InsightArticlePage({ params }: PageProps) {
     <>
       <JsonLd data={breadcrumbSchema} />
       <JsonLd data={articleSchema} />
+      <JsonLd data={buildFaqSchema(insightFaqs)} />
 
       <div className="public-page-stack">
         <PublicTopVisual
@@ -229,6 +325,65 @@ export default async function InsightArticlePage({ params }: PageProps) {
               </div>
             </section>
 
+            <section className="public-panel space-y-5 p-6 sm:p-8">
+              <p className="premium-kicker">What this means for your business</p>
+              <h2 className="font-display text-3xl text-foreground">
+                Bring the signal back into the business.
+              </h2>
+              <div className="space-y-4">
+                {businessMeaning.map((paragraph) => (
+                  <p key={paragraph} className="text-base leading-relaxed text-muted">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            </section>
+
+            <section className="public-panel space-y-5 p-6 sm:p-8">
+              <p className="premium-kicker">Questions to ask yourself</p>
+              <h2 className="font-display text-3xl text-foreground">
+                Use the question before chasing the tactic.
+              </h2>
+              <div className="grid gap-3 md:grid-cols-2">
+                {ownerQuestions.map((question) => (
+                  <div
+                    key={question}
+                    className="rounded-[1.25rem] border border-border/80 bg-background/24 px-4 py-4 text-sm leading-relaxed text-muted"
+                  >
+                    {question}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="public-panel space-y-5 p-6 sm:p-8">
+              <p className="premium-kicker">Where BCN helps with this</p>
+              <h2 className="font-display text-3xl text-foreground">
+                Keep the public and private layers in the right order.
+              </h2>
+              <div className="grid gap-4 lg:grid-cols-3">
+                {bcnHelpItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="rounded-[1.35rem] border border-border/80 bg-background/24 px-4 py-4 transition-colors hover:border-silver/24 hover:bg-background/32"
+                    >
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-silver/18 bg-card/52 text-silver">
+                        <Icon size={16} />
+                      </span>
+                      <h3 className="mt-4 text-lg text-foreground">{item.title}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-muted">
+                        {item.description}
+                      </p>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+
             <InsightsRoomCta />
 
             <section className="relative overflow-hidden rounded-[2rem] border border-gold/28 bg-gradient-to-b from-gold/10 via-card/78 to-card/88 p-6 shadow-panel sm:p-8">
@@ -280,13 +435,29 @@ export default async function InsightArticlePage({ params }: PageProps) {
               <div className="space-y-2">
                 <p className="premium-kicker">Read next</p>
                 <h2 className="font-display text-3xl text-foreground">
-                  Related public insights
+                  Related public insights grouped by topic
                 </h2>
               </div>
-              {relatedInsights.length ? (
-                <div className="grid gap-5 lg:grid-cols-2">
-                  {relatedInsights.map((relatedInsight) => (
-                    <InsightCard key={relatedInsight.slug} insight={relatedInsight} />
+              {groupedRelatedInsights.length ? (
+                <div className="space-y-6">
+                  {groupedRelatedInsights.map(([category, categoryInsights]) => (
+                    <div key={category} className="space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
+                        <h3 className="text-xl text-foreground">{category}</h3>
+                        <Link
+                          href={categoryInsights[0]?.clusterHref ?? "/insights"}
+                          className="inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
+                        >
+                          Open topic
+                          <ArrowRight size={14} />
+                        </Link>
+                      </div>
+                      <div className="grid gap-5 lg:grid-cols-2">
+                        {categoryInsights.map((relatedInsight) => (
+                          <InsightCard key={relatedInsight.slug} insight={relatedInsight} />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -295,10 +466,54 @@ export default async function InsightArticlePage({ params }: PageProps) {
                 </p>
               )}
             </section>
+
+            <section className="public-panel space-y-5 p-6 sm:p-8">
+              <p className="premium-kicker inline-flex items-center gap-2">
+                <HelpCircle size={14} />
+                Questions
+              </p>
+              <h2 className="font-display text-3xl text-foreground">
+                Short answers before you move on
+              </h2>
+              <div className="space-y-3">
+                {insightFaqs.map((item) => (
+                  <div
+                    key={item.question}
+                    className="rounded-[1.25rem] border border-border/80 bg-background/24 px-4 py-4"
+                  >
+                    <h3 className="text-base text-foreground">{item.question}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">{item.answer}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
           </article>
 
           <aside className="space-y-4">
             <div className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto overscroll-contain pr-1">
+              <section className="public-panel border-gold/24 bg-gradient-to-br from-gold/10 via-card/74 to-card/68 p-5">
+                <p className="premium-kicker">Next move</p>
+                <h2 className="mt-4 font-display text-2xl text-foreground">
+                  Use the signal while it is fresh.
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted">
+                  Run the audit for a clearer starting point, or step into membership when you
+                  want the private resource and room around the issue.
+                </p>
+                <div className="mt-4 grid gap-2">
+                  <Link href="/audit">
+                    <Button className="w-full" variant="outline">
+                      Run The Founder Audit
+                    </Button>
+                  </Link>
+                  <Link href={insight.recommendedMembershipHref}>
+                    <Button className="w-full">
+                      Explore Membership
+                    </Button>
+                  </Link>
+                </div>
+              </section>
+
               <section className="public-panel p-5">
                 <h2 className="inline-flex items-center gap-2 font-display text-2xl text-foreground">
                   <Sparkles size={18} className="text-silver" />

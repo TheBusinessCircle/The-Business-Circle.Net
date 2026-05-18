@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import type { VisualMediaRenderablePlacement } from "@/lib/visual-media/types";
 import { buildPublicTrustDisplay, getPublicTrustSnapshot } from "@/server/public-site";
 import { getFoundingOfferSnapshot } from "@/server/founding";
+import { listPublicInsights } from "@/server/insights/insight.service";
 import { getSiteContentSection } from "@/server/site-content";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
@@ -164,6 +165,18 @@ const PUBLIC_PREVIEW_THEMES = [
   "Business direction and decision quality",
   "Positioning, visibility, and enquiry flow",
   "Operations, capacity, and owner focus"
+] as const;
+
+const WHY_OWNERS_STAY = [
+  "A clearer next action is easier to find when the week gets noisy.",
+  "Private rooms give owner decisions a better level of context.",
+  "Public insight connects to protected resources instead of ending as content."
+] as const;
+
+const ENVIRONMENT_WORKS = [
+  "Public pages clarify fit and trust before joining.",
+  "Membership opens the dashboard, rooms, resources and profile context.",
+  "The return path keeps pointing back to one useful signal, conversation or resource."
 ] as const;
 
 const HOW_IT_WORKS = [
@@ -336,6 +349,9 @@ export default async function HomePage() {
     profiles: homeEcosystemPlacement,
     insight: homeConnectionPlacement
   };
+  const publicInsights = listPublicInsights();
+  const latestPublicInsight = publicInsights[0] ?? null;
+  const previousPublicInsight = publicInsights[1] ?? null;
 
   return (
     <div className="public-page-stack">
@@ -441,6 +457,64 @@ export default async function HomePage() {
         answer="The Business Circle Network is a private founder-led business environment for UK business owners who want clearer thinking, better conversations, stronger relationships and a calmer place to make better business decisions. It is designed as a structured alternative to noisy networking groups, social feeds and loose business communities."
       />
 
+      {latestPublicInsight ? (
+        <section className="public-section">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
+            <article className="rounded-[2rem] border border-gold/26 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
+              <p className="premium-kicker inline-flex items-center gap-2">
+                <Sparkles size={14} />
+                Today&apos;s Owner Signal
+              </p>
+              <h2 className="mt-4 max-w-3xl font-display text-3xl leading-tight text-foreground sm:text-4xl">
+                {latestPublicInsight.title}
+              </h2>
+              <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
+                {latestPublicInsight.excerpt}
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href={`/insights/${latestPublicInsight.slug}`}
+                  className={cn(buttonVariants({ size: "default" }))}
+                >
+                  Read today&apos;s insight
+                  <ArrowRight size={14} className="ml-2" />
+                </Link>
+                <Link
+                  href="/insights"
+                  className={cn(buttonVariants({ variant: "outline", size: "default" }))}
+                >
+                  Open insights hub
+                </Link>
+              </div>
+            </article>
+
+            <article className="rounded-[2rem] border border-border/80 bg-card/66 p-6 shadow-panel sm:p-8">
+              <p className="premium-kicker">Return loop</p>
+              <h2 className="mt-4 font-display text-3xl text-foreground">
+                New insight is added daily.
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                The public insight layer gives owners a reason to return without exposing private
+                member resources. Members get the full breakdown inside the resource area.
+              </p>
+              {previousPublicInsight ? (
+                <Link
+                  href={`/insights/${previousPublicInsight.slug}`}
+                  className="mt-5 block rounded-[1.3rem] border border-border/80 bg-background/24 px-4 py-4 transition-colors hover:border-silver/24 hover:bg-background/32"
+                >
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                    Previous signal
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-foreground">
+                    {previousPublicInsight.title}
+                  </p>
+                </Link>
+              ) : null}
+            </article>
+          </div>
+        </section>
+      ) : null}
+
       <NaturalInternalLinks />
 
       <CheckoutReassuranceBlock />
@@ -537,6 +611,58 @@ export default async function HomePage() {
               sizes="(min-width: 1280px) 30vw, (min-width: 1024px) 38vw, 100vw"
             />
           ) : null}
+        </div>
+      </section>
+
+      <section className="public-section">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <article className="rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
+            <p className="premium-kicker">Why owners stay</p>
+            <h2 className="mt-4 font-display text-3xl text-foreground">
+              The environment gives them a useful reason to come back.
+            </h2>
+            <div className="mt-5 grid gap-3">
+              {WHY_OWNERS_STAY.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-[1.25rem] border border-border/80 bg-background/22 px-4 py-3 text-sm leading-relaxed text-muted"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-[1.9rem] border border-border/80 bg-card/66 p-6 shadow-panel sm:p-8">
+            <p className="premium-kicker">How the environment works</p>
+            <h2 className="mt-4 font-display text-3xl text-foreground">
+              Public clarity leads into protected member depth.
+            </h2>
+            <div className="mt-5 grid gap-3">
+              {ENVIRONMENT_WORKS.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-[1.25rem] border border-border/80 bg-background/22 px-4 py-3 text-sm leading-relaxed text-muted"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/membership"
+                className={cn(buttonVariants({ variant: "outline", size: "default" }))}
+              >
+                Review membership
+              </Link>
+              <Link
+                href="/founder"
+                className={cn(buttonVariants({ variant: "outline", size: "default" }))}
+              >
+                Read the founder story
+              </Link>
+            </div>
+          </article>
         </div>
       </section>
 

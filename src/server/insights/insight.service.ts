@@ -149,6 +149,10 @@ export function listPublicInsightSlugs(now = new Date()) {
   return listPublicInsights(now).map((insight) => insight.slug);
 }
 
+export function listAllPublicInsightSlugs() {
+  return PUBLIC_INSIGHTS.map((insight) => insight.slug);
+}
+
 export function listInsightTopicClusters(now = new Date()): InsightTopicClusterSummary[] {
   const insights = getPublishedInsightArticles(now);
   const grouped = new Map<string, PublicInsightArticle[]>();
@@ -189,12 +193,35 @@ export function listInsightTopicClusterSlugs(now = new Date()) {
   return listInsightTopicClusters(now).map((cluster) => cluster.slug);
 }
 
+export function listAllInsightTopicClusterSlugs() {
+  return Array.from(new Set(PUBLIC_INSIGHTS.map((insight) => insight.clusterSlug))).sort();
+}
+
 export function getInsightTopicClusterBySlug(clusterSlug: string, now = new Date()) {
   return listInsightTopicClusters(now).find((cluster) => cluster.slug === clusterSlug) ?? null;
 }
 
 export function getPublicInsightBySlug(slug: string, now = new Date()) {
   return getPublishedInsightArticles(now).find((insight) => insight.slug === slug) ?? null;
+}
+
+export function getLatestPublicInsight(now = new Date()) {
+  return listPublicInsights(now)[0] ?? null;
+}
+
+export function getPreviousPublicInsights(take = 3, now = new Date()) {
+  const [, ...previousInsights] = listPublicInsights(now);
+  return previousInsights.slice(0, take);
+}
+
+export function listPublicInsightsForCluster(
+  clusterSlug: string,
+  take = 4,
+  now = new Date()
+) {
+  return listPublicInsights(now)
+    .filter((insight) => insight.clusterSlug === clusterSlug)
+    .slice(0, take);
 }
 
 export function getRelatedPublicInsights(
