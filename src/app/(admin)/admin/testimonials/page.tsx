@@ -154,6 +154,7 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
   const rating = Number(firstValue(params.rating)) || undefined;
   const highlighted = firstValue(params.highlighted);
   const search = firstValue(params.search);
+  const testimonialId = firstValue(params.testimonialId);
   const returnPath = buildReturnPath({
     status,
     category,
@@ -161,7 +162,8 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
     source,
     rating: rating ? String(rating) : undefined,
     highlighted,
-    search
+    search,
+    testimonialId
   });
 
   const [settings, stats, testimonials] = await Promise.all([
@@ -178,6 +180,8 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
       limit: 150
     })
   ]);
+  const selectedTestimonial =
+    testimonials.find((testimonial) => testimonial.id === testimonialId) ?? testimonials[0] ?? null;
   const feedback = feedbackMessage(firstValue(params.notice), firstValue(params.error));
   const testimonialPageLink = `${SITE_CONFIG.url}/testimonial`;
   const memberTemplate = `Hi [Name],
@@ -346,7 +350,42 @@ Trev`;
 
           <div className="space-y-4">
             {testimonials.length ? (
-              testimonials.map((testimonial) => {
+              <>
+                <form method="GET" className="rounded-2xl border border-border/80 bg-background/25 p-4">
+                  {status ? <input type="hidden" name="status" value={status} /> : null}
+                  {category ? <input type="hidden" name="category" value={category} /> : null}
+                  {displayLocation ? (
+                    <input type="hidden" name="displayLocation" value={displayLocation} />
+                  ) : null}
+                  {source ? <input type="hidden" name="source" value={source} /> : null}
+                  {rating ? <input type="hidden" name="rating" value={rating} /> : null}
+                  {highlighted ? <input type="hidden" name="highlighted" value={highlighted} /> : null}
+                  {search ? <input type="hidden" name="search" value={search} /> : null}
+                  <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                    <div className="space-y-2">
+                      <Label htmlFor="testimonialId">Open testimonial</Label>
+                      <Select
+                        id="testimonialId"
+                        name="testimonialId"
+                        defaultValue={selectedTestimonial?.id ?? ""}
+                      >
+                        {testimonials.map((testimonial) => (
+                          <option key={testimonial.id} value={testimonial.id}>
+                            {testimonial.authorName}
+                            {testimonial.businessName ? ` / ${testimonial.businessName}` : ""}
+                            {` / ${testimonial.status}`}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <Button type="submit" variant="outline">Open</Button>
+                  </div>
+                  <p className="mt-2 text-xs text-muted">
+                    Showing 1 of {testimonials.length} matching testimonials.
+                  </p>
+                </form>
+
+                {selectedTestimonial ? [selectedTestimonial].map((testimonial) => {
                 const text = testimonial.testimonialText || testimonial.quote;
                 const permissions = [
                   testimonial.permissionToFeaturePublicly ? "Feature" : null,
@@ -507,7 +546,8 @@ Trev`;
                     </div>
                   </article>
                 );
-              })
+                }) : null}
+              </>
             ) : (
               <EmptyState
                 icon={MessageSquareQuote}
