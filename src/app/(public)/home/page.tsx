@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-<<<<<<< Updated upstream
-=======
 import {
   TestimonialCategory,
   TestimonialDisplayLocation,
   TestimonialProofType
 } from "@prisma/client";
->>>>>>> Stashed changes
 import {
   ArrowRight,
   BookOpen,
@@ -41,6 +38,7 @@ import {
 } from "@/components/public";
 import { buildFounderAuditHref } from "@/components/public/founder-audit-cta";
 import { PublicTrustProofSection } from "@/components/public/public-trust-proof-section";
+import { TestimonialSection } from "@/components/public/testimonial-section";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
@@ -770,9 +768,8 @@ export default async function HomePage() {
 
       <PrivacyBoundaryNote />
 
-<<<<<<< Updated upstream
       <PublicTrustProofSection source="home" />
-=======
+
       <TestimonialSection
         proofType={TestimonialProofType.BCN_MEMBER}
         location={TestimonialDisplayLocation.BCN_HOME}
@@ -786,7 +783,6 @@ export default async function HomePage() {
         intro="Real feedback from business owners using BCN to find clearer conversations, stronger direction, and better rooms."
         limit={6}
       />
->>>>>>> Stashed changes
 
       <section className="public-section">
         <SectionHeading

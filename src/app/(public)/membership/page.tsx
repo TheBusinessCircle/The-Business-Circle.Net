@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-<<<<<<< Updated upstream
-=======
 import {
   TestimonialCategory,
   TestimonialDisplayLocation,
   TestimonialProofType
 } from "@prisma/client";
->>>>>>> Stashed changes
 import {
   AnswerBlock,
   AuditFitCta,
@@ -19,6 +16,7 @@ import {
   TwoPathCta
 } from "@/components/public";
 import { PublicTrustProofSection } from "@/components/public/public-trust-proof-section";
+import { TestimonialSection } from "@/components/public/testimonial-section";
 import { PublicTopVisual } from "@/components/visual-media";
 import { MembershipGuidedSelector } from "@/components/public/membership-guided-selector";
 import {
@@ -250,9 +248,8 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
 
       <PrivacyBoundaryNote />
 
-<<<<<<< Updated upstream
       <PublicTrustProofSection source="membership" />
-=======
+
       <TestimonialSection
         proofType={TestimonialProofType.BCN_MEMBER}
         location={TestimonialDisplayLocation.MEMBERSHIP_PAGE}
@@ -266,7 +263,6 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
         intro="Approved member feedback from the private environment."
         limit={6}
       />
->>>>>>> Stashed changes
 
       <TwoPathCta
         source="membership"
