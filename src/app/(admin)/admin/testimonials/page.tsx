@@ -155,6 +155,7 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
   const highlighted = firstValue(params.highlighted);
   const search = firstValue(params.search);
   const testimonialId = firstValue(params.testimonialId);
+  const detailsOpen = firstValue(params.details) === "1";
   const returnPath = buildReturnPath({
     status,
     category,
@@ -163,10 +164,11 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
     rating: rating ? String(rating) : undefined,
     highlighted,
     search,
-    testimonialId
+    testimonialId,
+    details: detailsOpen ? "1" : undefined
   });
 
-  const [settings, stats, testimonials] = await Promise.all([
+  const [settings, stats, rawTestimonials] = await Promise.all([
     getReviewSettings(),
     getTestimonialTrustStats(),
     listAdminTestimonials({
@@ -180,8 +182,32 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
       limit: 150
     })
   ]);
+  const testimonials = status
+    ? rawTestimonials
+    : rawTestimonials.filter((testimonial) => testimonial.status !== TestimonialStatus.ARCHIVED);
   const selectedTestimonial =
     testimonials.find((testimonial) => testimonial.id === testimonialId) ?? testimonials[0] ?? null;
+  const selectedReturnPath = buildReturnPath({
+    status,
+    category,
+    displayLocation,
+    source,
+    rating: rating ? String(rating) : undefined,
+    highlighted,
+    search,
+    testimonialId: selectedTestimonial?.id,
+    details: "1"
+  });
+  const collapsedReturnPath = buildReturnPath({
+    status,
+    category,
+    displayLocation,
+    source,
+    rating: rating ? String(rating) : undefined,
+    highlighted,
+    search,
+    testimonialId: selectedTestimonial?.id
+  });
   const feedback = feedbackMessage(firstValue(params.notice), firstValue(params.error));
   const testimonialPageLink = `${SITE_CONFIG.url}/testimonial`;
   const memberTemplate = `Hi [Name],
@@ -308,7 +334,8 @@ Trev`;
         <CardHeader>
           <CardTitle>Review queue</CardTitle>
           <CardDescription>
-            Public display requires approved status and permission to feature publicly.
+            Public display requires approved status and permission to feature publicly. Archived
+            testimonials are hidden by default. Choose archived in the status filter to review them.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -361,6 +388,7 @@ Trev`;
                   {rating ? <input type="hidden" name="rating" value={rating} /> : null}
                   {highlighted ? <input type="hidden" name="highlighted" value={highlighted} /> : null}
                   {search ? <input type="hidden" name="search" value={search} /> : null}
+                  <input type="hidden" name="details" value="1" />
                   <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
                     <div className="space-y-2">
                       <Label htmlFor="testimonialId">Open testimonial</Label>
@@ -381,11 +409,51 @@ Trev`;
                     <Button type="submit" variant="outline">Open</Button>
                   </div>
                   <p className="mt-2 text-xs text-muted">
-                    Showing 1 of {testimonials.length} matching testimonials.
+                    Showing 1 of {testimonials.length} matching testimonials. Archived testimonials
+                    are hidden unless the archived status filter is selected.
                   </p>
                 </form>
 
-                {selectedTestimonial ? [selectedTestimonial].map((testimonial) => {
+                {selectedTestimonial && !detailsOpen ? (
+                  <div className="rounded-[20px] border border-silver/14 bg-background/18 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          <Badge variant="outline">{selectedTestimonial.status}</Badge>
+                          <Badge variant="outline">{CATEGORY_LABELS[selectedTestimonial.category]}</Badge>
+                          <Badge variant="outline">
+                            {LOCATION_LABELS[selectedTestimonial.displayLocation]}
+                          </Badge>
+                        </div>
+                        <p className="font-medium text-foreground">{selectedTestimonial.authorName}</p>
+                        <p className="text-sm text-muted">
+                          {selectedTestimonial.businessName || "No company"} /{" "}
+                          {selectedTestimonial.submittedEmail ||
+                            selectedTestimonial.submittedByEmail ||
+                            "No email"}
+                        </p>
+                      </div>
+                      <form method="GET">
+                        {status ? <input type="hidden" name="status" value={status} /> : null}
+                        {category ? <input type="hidden" name="category" value={category} /> : null}
+                        {displayLocation ? (
+                          <input type="hidden" name="displayLocation" value={displayLocation} />
+                        ) : null}
+                        {source ? <input type="hidden" name="source" value={source} /> : null}
+                        {rating ? <input type="hidden" name="rating" value={rating} /> : null}
+                        {highlighted ? (
+                          <input type="hidden" name="highlighted" value={highlighted} />
+                        ) : null}
+                        {search ? <input type="hidden" name="search" value={search} /> : null}
+                        <input type="hidden" name="testimonialId" value={selectedTestimonial.id} />
+                        <input type="hidden" name="details" value="1" />
+                        <Button type="submit" variant="outline">Expand details</Button>
+                      </form>
+                    </div>
+                  </div>
+                ) : null}
+
+                {selectedTestimonial && detailsOpen ? [selectedTestimonial].map((testimonial) => {
                 const text = testimonial.testimonialText || testimonial.quote;
                 const permissions = [
                   testimonial.permissionToFeaturePublicly ? "Feature" : null,
@@ -410,24 +478,39 @@ Trev`;
                         <p className="text-xs text-muted">Submitted {formatDateTime(testimonial.createdAt)}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        <form method="GET">
+                          {status ? <input type="hidden" name="status" value={status} /> : null}
+                          {category ? <input type="hidden" name="category" value={category} /> : null}
+                          {displayLocation ? (
+                            <input type="hidden" name="displayLocation" value={displayLocation} />
+                          ) : null}
+                          {source ? <input type="hidden" name="source" value={source} /> : null}
+                          {rating ? <input type="hidden" name="rating" value={rating} /> : null}
+                          {highlighted ? (
+                            <input type="hidden" name="highlighted" value={highlighted} />
+                          ) : null}
+                          {search ? <input type="hidden" name="search" value={search} /> : null}
+                          <input type="hidden" name="testimonialId" value={testimonial.id} />
+                          <Button type="submit" size="sm" variant="outline">Collapse</Button>
+                        </form>
                         <form action={approveTestimonialAction}>
                           <input type="hidden" name="testimonialId" value={testimonial.id} />
-                          <input type="hidden" name="returnPath" value={returnPath} />
+                          <input type="hidden" name="returnPath" value={selectedReturnPath} />
                           <Button type="submit" size="sm"><CheckCircle2 size={14} className="mr-1" />Approve</Button>
                         </form>
                         <form action={rejectTestimonialAction}>
                           <input type="hidden" name="testimonialId" value={testimonial.id} />
-                          <input type="hidden" name="returnPath" value={returnPath} />
+                          <input type="hidden" name="returnPath" value={selectedReturnPath} />
                           <Button type="submit" size="sm" variant="outline"><XCircle size={14} className="mr-1" />Reject</Button>
                         </form>
                         <form action={archiveTestimonialAction}>
                           <input type="hidden" name="testimonialId" value={testimonial.id} />
-                          <input type="hidden" name="returnPath" value={returnPath} />
+                          <input type="hidden" name="returnPath" value={collapsedReturnPath} />
                           <Button type="submit" size="sm" variant="ghost">Archive</Button>
                         </form>
                         <form action={toggleTestimonialHighlightAction}>
                           <input type="hidden" name="testimonialId" value={testimonial.id} />
-                          <input type="hidden" name="returnPath" value={returnPath} />
+                          <input type="hidden" name="returnPath" value={selectedReturnPath} />
                           <input type="hidden" name="enabled" value={testimonial.isHighlighted ? "false" : "true"} />
                           <Button type="submit" size="sm" variant="outline">{testimonial.isHighlighted ? "Unhighlight" : "Highlight"}</Button>
                         </form>
@@ -436,7 +519,7 @@ Trev`;
 
                     <form action={updateAdminTestimonialAction} className="grid gap-4 lg:grid-cols-2">
                       <input type="hidden" name="testimonialId" value={testimonial.id} />
-                      <input type="hidden" name="returnPath" value={returnPath} />
+                      <input type="hidden" name="returnPath" value={selectedReturnPath} />
                       <div className="space-y-2">
                         <Label>Name</Label>
                         <Input name="authorName" defaultValue={testimonial.authorName} required />
@@ -527,17 +610,17 @@ Trev`;
                     <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-4">
                       <form action={markGoogleReviewIntentAction}>
                         <input type="hidden" name="testimonialId" value={testimonial.id} />
-                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <input type="hidden" name="returnPath" value={selectedReturnPath} />
                         <Button type="submit" size="sm" variant="outline"><Star size={14} className="mr-1" />Mark Google click</Button>
                       </form>
                       <form action={markTestimonialCopiedToGoogleAction}>
                         <input type="hidden" name="testimonialId" value={testimonial.id} />
-                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <input type="hidden" name="returnPath" value={selectedReturnPath} />
                         <Button type="submit" size="sm" variant="outline"><Copy size={14} className="mr-1" />Mark copied</Button>
                       </form>
                       <form action={markGoogleReviewConfirmedAction}>
                         <input type="hidden" name="testimonialId" value={testimonial.id} />
-                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <input type="hidden" name="returnPath" value={selectedReturnPath} />
                         <Button type="submit" size="sm" variant="outline">Confirm Google review</Button>
                       </form>
                       <p className="w-full text-xs text-muted">
