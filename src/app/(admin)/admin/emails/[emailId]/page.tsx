@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Archive, ArrowLeft, Inbox, MailOpen, Paperclip } from "lucide-react";
+import { Archive, ArrowLeft, Inbox, MailOpen, Paperclip, Send } from "lucide-react";
 import { InboundEmailStatus } from "@prisma/client";
-import { updateInboundEmailStatusAction } from "@/actions/admin/inbound-email.actions";
+import {
+  replyToInboundEmailAction,
+  updateInboundEmailStatusAction
+} from "@/actions/admin/inbound-email.actions";
 import { CopyLinkButton } from "@/components/admin/copy-link-button";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
 import { formatDateTime } from "@/lib/utils";
@@ -15,11 +21,13 @@ import {
   emailBodyToPlainText,
   extractSenderEmail,
   formatEmailRecipients,
-  getInboundEmailForAdmin
+  getInboundEmailForAdmin,
+  inboundEmailSourceLabel
 } from "@/server/inbound-email";
 
 type PageProps = {
   params: Promise<{ emailId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export const metadata: Metadata = createPageMetadata({
@@ -29,6 +37,10 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export const dynamic = "force-dynamic";
+
+function firstValue(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
 
 function attachmentMetadata(value: unknown) {
   if (!Array.isArray(value)) {
@@ -57,9 +69,33 @@ function statusBadgeVariant(status: InboundEmailStatus) {
   return "outline" as const;
 }
 
-export default async function AdminEmailDetailPage({ params }: PageProps) {
+function feedbackMessage(input: { notice: string; error: string }) {
+  const noticeMap: Record<string, string> = {
+    "status-updated": "Email status updated.",
+    "reply-sent": "Reply sent successfully."
+  };
+  const errorMap: Record<string, string> = {
+    invalid: "That email action could not be processed.",
+    "not-found": "That email could not be found.",
+    "reply-invalid": "Add a subject and reply message before sending.",
+    "reply-failed": "The reply could not be sent. Review the reply status below."
+  };
+
+  if (input.notice && noticeMap[input.notice]) {
+    return { type: "notice" as const, message: noticeMap[input.notice] };
+  }
+
+  if (input.error && errorMap[input.error]) {
+    return { type: "error" as const, message: errorMap[input.error] };
+  }
+
+  return null;
+}
+
+export default async function AdminEmailDetailPage({ params, searchParams }: PageProps) {
   await requireAdmin();
   const { emailId } = await params;
+  const parsedSearchParams = await searchParams;
   const email = await getInboundEmailForAdmin(emailId);
 
   if (!email) {
@@ -73,6 +109,10 @@ export default async function AdminEmailDetailPage({ params }: PageProps) {
   const body = emailBodyToPlainText(email);
   const attachments = attachmentMetadata(email.attachments);
   const mailtoSubject = email.subject ? `Re: ${email.subject}` : "Re: BCN enquiry";
+  const feedback = feedbackMessage({
+    notice: firstValue(parsedSearchParams.notice),
+    error: firstValue(parsedSearchParams.error)
+  });
 
   return (
     <div className="space-y-6">
@@ -85,6 +125,7 @@ export default async function AdminEmailDetailPage({ params }: PageProps) {
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={statusBadgeVariant(email.status)}>{email.status}</Badge>
+            <Badge variant="outline" className="text-muted">{inboundEmailSourceLabel(email)}</Badge>
             {attachments.length ? (
               <Badge variant="outline" className="text-muted">
                 <Paperclip size={12} className="mr-1" />
@@ -93,6 +134,7 @@ export default async function AdminEmailDetailPage({ params }: PageProps) {
             ) : null}
             {email.forwardedAt ? <Badge variant="success">Forwarded</Badge> : null}
             {email.forwardError ? <Badge variant="warning">Forward issue</Badge> : null}
+            {email.lastRepliedAt ? <Badge variant="success">Replied</Badge> : null}
           </div>
           <CardTitle className="mt-3 break-words font-display text-3xl">
             {email.subject || "No subject"}
@@ -102,6 +144,16 @@ export default async function AdminEmailDetailPage({ params }: PageProps) {
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {feedback ? (
+        <Card className={feedback.type === "error" ? "border-red-500/40 bg-red-500/10" : "border-gold/30 bg-gold/10"}>
+          <CardContent className="py-3">
+            <p className={feedback.type === "error" ? "text-sm text-red-200" : "text-sm text-gold"}>
+              {feedback.message}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card>
@@ -135,7 +187,7 @@ export default async function AdminEmailDetailPage({ params }: PageProps) {
                 className={buttonVariants({ size: "sm", variant: "outline" })}
                 href={`mailto:${encodeURIComponent(senderEmail)}?subject=${encodeURIComponent(mailtoSubject)}`}
               >
-                  Reply
+                  Open mail app
               </a>
               <form action={updateInboundEmailStatusAction}>
                 <input type="hidden" name="emailId" value={email.id} />
@@ -162,6 +214,50 @@ export default async function AdminEmailDetailPage({ params }: PageProps) {
             </CardContent>
           </Card>
 
+          <Card id="reply">
+            <CardHeader>
+              <CardTitle>Reply from inbox</CardTitle>
+              <CardDescription>
+                Send a direct reply through Resend while keeping the latest reply state on this email.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form action={replyToInboundEmailAction} className="space-y-4">
+                <input type="hidden" name="emailId" value={email.id} />
+                <input type="hidden" name="returnPath" value={`/admin/emails/${email.id}#reply`} />
+                <div className="space-y-2">
+                  <Label htmlFor="reply-subject">Subject</Label>
+                  <Input id="reply-subject" name="subject" defaultValue={mailtoSubject} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reply-message">Message</Label>
+                  <Textarea
+                    id="reply-message"
+                    name="message"
+                    rows={8}
+                    required
+                    placeholder="Write your reply"
+                  />
+                </div>
+                <Button type="submit" className="w-full">
+                  <Send size={14} className="mr-2" />
+                  Send reply
+                </Button>
+              </form>
+
+              {email.lastRepliedAt ? (
+                <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                  Last replied to {email.lastReplyTo || senderEmail} at {formatDateTime(email.lastRepliedAt)}.
+                </div>
+              ) : null}
+              {email.lastReplyError ? (
+                <p className="rounded-2xl border border-red-500/35 bg-red-500/10 p-3 text-sm text-red-100">
+                  Last reply issue: {email.lastReplyError}
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Envelope</CardTitle>
@@ -172,9 +268,11 @@ export default async function AdminEmailDetailPage({ params }: PageProps) {
               {cc.length ? <p><span className="text-muted">CC:</span> <span className="break-words text-foreground">{cc.join(", ")}</span></p> : null}
               {bcc.length ? <p><span className="text-muted">BCC:</span> <span className="break-words text-foreground">{bcc.join(", ")}</span></p> : null}
               <p><span className="text-muted">Message ID:</span> <span className="break-words text-foreground">{email.messageId || "Not captured"}</span></p>
+              <p><span className="text-muted">Source:</span> <span className="break-words text-foreground">{inboundEmailSourceLabel(email)}</span></p>
               <p><span className="text-muted">Resend email ID:</span> <span className="break-words text-foreground">{email.resendEmailId}</span></p>
               <p><span className="text-muted">Forwarded to:</span> <span className="break-words text-foreground">{email.forwardedTo || "Not forwarded yet"}</span></p>
               {email.forwardedAt ? <p><span className="text-muted">Forwarded at:</span> <span className="text-foreground">{formatDateTime(email.forwardedAt)}</span></p> : null}
+              {email.lastRepliedAt ? <p><span className="text-muted">Last reply:</span> <span className="text-foreground">{formatDateTime(email.lastRepliedAt)}</span></p> : null}
               {email.forwardError ? <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-100">{email.forwardError}</p> : null}
             </CardContent>
           </Card>

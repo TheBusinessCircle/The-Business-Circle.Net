@@ -32,6 +32,20 @@ describe("admin inbound email inbox wiring", () => {
     expect(service).toContain("resendEmailId");
   });
 
+  it("mirrors contact submissions and supports direct admin replies", () => {
+    const contactService = readSource("src/server/contact/contact.service.ts");
+    const actions = readSource("src/actions/admin/inbound-email.actions.ts");
+    const detailPage = readSource("src/app/(admin)/admin/emails/[emailId]/page.tsx");
+    const service = readSource("src/server/inbound-email/inbound-email.service.ts");
+
+    expect(contactService).toContain("storeContactSubmissionInInboundInbox");
+    expect(service).toContain("contact-submission:");
+    expect(actions).toContain("replyToInboundEmailAction");
+    expect(actions).toContain("replyToInboundEmailForAdmin");
+    expect(detailPage).toContain("Reply from inbox");
+    expect(detailPage).toContain("replyToInboundEmailAction");
+  });
+
   it("documents the public and inbound email environment variables", () => {
     const envExample = readSource(".env.example");
 

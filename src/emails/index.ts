@@ -8,4 +8,5 @@ export * from "@/emails/password-reset";
 export * from "@/emails/password-changed";
 export * from "@/emails/contact-notification";
 export * from "@/emails/contact-receipt";
+export * from "@/emails/admin-inbound-email-reply";
 export * from "@/emails/testimonial-request";

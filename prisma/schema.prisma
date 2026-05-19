@@ -918,12 +918,18 @@ model InboundEmail {
   forwardedTo   String?
   forwardedAt   DateTime?
   forwardError  String?
+  lastReplyTo      String?
+  lastReplySubject String?
+  lastReplyBody    String?            @db.Text
+  lastRepliedAt    DateTime?
+  lastReplyError   String?
   receivedAt    DateTime
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
   @@index([status, receivedAt])
   @@index([receivedAt])
+  @@index([lastRepliedAt])
   @@index([from])
 }
 

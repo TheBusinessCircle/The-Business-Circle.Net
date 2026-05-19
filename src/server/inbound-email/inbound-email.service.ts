@@ -1,5 +1,13 @@
+import { createElement } from "react";
 import { InboundEmailStatus, Prisma } from "@prisma/client";
-import { getResendClient, resolveTransactionalFromAddress } from "@/lib/email/resend";
+import { AdminInboundEmailReplyEmail } from "@/emails";
+import { renderEmailHtml } from "@/emails/render";
+import { buildBrandedEmailText } from "@/emails/text";
+import {
+  getResendClient,
+  resolveTransactionalFromAddress,
+  sendTransactionalEmailOrThrow
+} from "@/lib/email/resend";
 import { db } from "@/lib/db";
 
 export type ResendWebhookHeaders = {
@@ -41,6 +49,26 @@ type ReceivedEmail = {
 export type InboundEmailListFilters = {
   query?: string;
   status?: InboundEmailStatus | "ALL";
+};
+
+export type ContactSubmissionInboxInput = {
+  submissionId: string;
+  name: string;
+  email: string;
+  company?: string | null;
+  subject?: string | null;
+  message: string;
+  sourcePath?: string | null;
+  source?: string | null;
+  createdAt: Date;
+  memberContextLines?: string[];
+};
+
+export type ReplyToInboundEmailForAdminInput = {
+  subject: string;
+  message: string;
+  adminName?: string | null;
+  adminEmail?: string | null;
 };
 
 function truncate(value: string, maxLength: number) {
@@ -91,6 +119,44 @@ function extractReceivedAt(value: string | undefined, fallback?: string) {
 export function extractSenderEmail(value: string) {
   const match = value.match(/<([^>]+)>/);
   return (match?.[1] || value).trim();
+}
+
+function extractSenderName(value: string) {
+  const match = value.match(/^\s*"?([^"<]+?)"?\s*</);
+  return match?.[1]?.trim() || null;
+}
+
+function isValidEmailAddress(value: string) {
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value);
+}
+
+function publicReplyToAddress() {
+  return (
+    process.env.PUBLIC_CONTACT_EMAIL?.trim() ||
+    process.env.CONTACT_NOTIFY_EMAIL?.trim() ||
+    undefined
+  );
+}
+
+function publicContactRecipient() {
+  return (
+    process.env.PUBLIC_CONTACT_EMAIL?.trim() ||
+    process.env.CONTACT_NOTIFY_EMAIL?.trim() ||
+    "contact@thebusinesscircle.net"
+  );
+}
+
+function formatSenderAddress(name: string, email: string) {
+  const safeName = name.trim().replace(/[<>]/g, "").replace(/"/g, "'");
+  return safeName ? `${safeName} <${email}>` : email;
+}
+
+export function isContactSubmissionInboxEmail(input: { resendEmailId: string }) {
+  return input.resendEmailId.startsWith("contact-submission:");
+}
+
+export function inboundEmailSourceLabel(input: { resendEmailId: string }) {
+  return isContactSubmissionInboxEmail(input) ? "Contact form" : "Resend inbound";
 }
 
 export function parseInboundEmailStatus(value: string | undefined): InboundEmailStatus | "ALL" {
@@ -212,6 +278,46 @@ export async function storeInboundEmailFromResend(event: ResendInboundWebhookEve
 
     throw error;
   }
+}
+
+function buildContactSubmissionInboxBody(input: ContactSubmissionInboxInput) {
+  const lines = [
+    `Name: ${input.name.trim()}`,
+    `Email: ${input.email.trim()}`,
+    `Company: ${input.company?.trim() || "N/A"}`,
+    `Subject: ${input.subject?.trim() || "General enquiry"}`,
+    `Source: ${input.sourcePath?.trim() || "/contact"}`,
+    `Source type: ${input.source?.trim() || "website"}`,
+    ...((input.memberContextLines ?? []).filter(Boolean)),
+    "",
+    "Message:",
+    input.message.trim()
+  ];
+
+  return lines.join("\n");
+}
+
+export async function storeContactSubmissionInInboundInbox(input: ContactSubmissionInboxInput) {
+  const subject = input.subject?.trim() || "General enquiry";
+  const textBody = buildContactSubmissionInboxBody(input);
+  const syntheticEmailId = `contact-submission:${input.submissionId}`;
+
+  return db.inboundEmail.create({
+    data: {
+      resendEmailId: syntheticEmailId,
+      messageId: syntheticEmailId,
+      from: formatSenderAddress(input.name, input.email),
+      to: toJsonArray([publicContactRecipient()]),
+      cc: toJsonArray([]),
+      bcc: toJsonArray([]),
+      subject,
+      textBody,
+      htmlBody: null,
+      snippet: makeSnippet({ textBody, subject }),
+      attachments: toJsonArray([]),
+      receivedAt: input.createdAt
+    }
+  });
 }
 
 export async function forwardInboundEmail(resendEmailId: string, inboundEmailId: string) {
@@ -347,6 +453,102 @@ export async function updateInboundEmailStatusForAdmin(emailId: string, status: 
     where: { id: emailId },
     data: { status }
   });
+}
+
+export async function replyToInboundEmailForAdmin(
+  emailId: string,
+  input: ReplyToInboundEmailForAdminInput
+) {
+  const email = await db.inboundEmail.findUnique({
+    where: { id: emailId }
+  });
+
+  if (!email) {
+    return { sent: false, error: "Email not found." };
+  }
+
+  const recipientEmail = extractSenderEmail(email.from);
+  const recipientName = extractSenderName(email.from) || "there";
+  const subject = input.subject.trim();
+  const message = input.message.trim();
+
+  if (!isValidEmailAddress(recipientEmail)) {
+    const error = "The sender email address is not valid.";
+    await db.inboundEmail.update({
+      where: { id: email.id },
+      data: {
+        lastReplyTo: recipientEmail,
+        lastReplySubject: subject,
+        lastReplyBody: message,
+        lastReplyError: error
+      }
+    });
+    return { sent: false, error };
+  }
+
+  const originalSubject = email.subject?.trim() || "No subject";
+  const replyTemplate = createElement(AdminInboundEmailReplyEmail, {
+    recipientName,
+    message,
+    originalSubject,
+    adminName: input.adminName
+  });
+  const html = await renderEmailHtml(replyTemplate);
+
+  try {
+    const result = await sendTransactionalEmailOrThrow({
+      to: recipientEmail,
+      replyTo: publicReplyToAddress(),
+      subject,
+      text: buildBrandedEmailText({
+        greeting: `Hi ${recipientName},`,
+        eyebrow: "BCN reply",
+        heading: "A reply from The Business Circle Network",
+        bodyLines: [message],
+        noteLines: [
+          `Original subject: ${originalSubject}`,
+          input.adminName?.trim() ? `Sent by: ${input.adminName.trim()}` : "Sent by: BCN team"
+        ]
+      }),
+      html,
+      react: replyTemplate,
+      tags: [
+        { name: "type", value: "admin-inbound-reply" },
+        { name: "source", value: inboundEmailSourceLabel(email).slice(0, 64) }
+      ]
+    });
+
+    await db.inboundEmail.update({
+      where: { id: email.id },
+      data: {
+        status: InboundEmailStatus.READ,
+        lastReplyTo: recipientEmail,
+        lastReplySubject: subject,
+        lastReplyBody: message,
+        lastRepliedAt: new Date(),
+        lastReplyError: null
+      }
+    });
+
+    return { sent: true, id: result.id ?? null, error: null };
+  } catch (error) {
+    const messageText = truncate(
+      error instanceof Error ? error.message : "Unable to send reply.",
+      1000
+    );
+
+    await db.inboundEmail.update({
+      where: { id: email.id },
+      data: {
+        lastReplyTo: recipientEmail,
+        lastReplySubject: subject,
+        lastReplyBody: message,
+        lastReplyError: messageText
+      }
+    });
+
+    return { sent: false, error: messageText };
+  }
 }
 
 export function formatEmailRecipients(value: unknown) {

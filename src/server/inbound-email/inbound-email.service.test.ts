@@ -24,6 +24,8 @@ const resendClientMock = vi.hoisted(() => ({
   }
 }));
 
+const sendTransactionalEmailOrThrowMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/db", () => ({
   db: dbMock
 }));
@@ -33,12 +35,15 @@ vi.mock("@/lib/email/resend", () => ({
   resolveTransactionalFromAddress: vi.fn(() => ({
     value: "The Business Circle Network <noreply@thebusinesscircle.net>",
     reason: null
-  }))
+  })),
+  sendTransactionalEmailOrThrow: sendTransactionalEmailOrThrowMock
 }));
 
 import {
   forwardInboundEmail,
   processResendInboundWebhookEvent,
+  replyToInboundEmailForAdmin,
+  storeContactSubmissionInInboundInbox,
   storeInboundEmailFromResend,
   verifyResendWebhookEvent
 } from "@/server/inbound-email/inbound-email.service";
@@ -71,6 +76,7 @@ describe("inbound email service", () => {
     vi.clearAllMocks();
     process.env.RESEND_WEBHOOK_SECRET = "whsec_test";
     process.env.INBOUND_EMAIL_FORWARD_TO = "viberiseycdi@gmail.com";
+    process.env.PUBLIC_CONTACT_EMAIL = "contact@thebusinesscircle.net";
     resendClientMock.webhooks.verify.mockReturnValue(receivedEvent);
     resendClientMock.emails.receiving.get.mockResolvedValue({
       data: {
@@ -92,6 +98,7 @@ describe("inbound email service", () => {
       data: { id: "forwarded_1" },
       error: null
     });
+    sendTransactionalEmailOrThrowMock.mockResolvedValue({ id: "reply_1" });
   });
 
   it("verifies Resend webhook signatures with the raw payload and svix headers", () => {
@@ -189,6 +196,76 @@ describe("inbound email service", () => {
         forwardedTo: "viberiseycdi@gmail.com",
         forwardError: "Forward failed"
       }
+    });
+  });
+
+  it("mirrors contact form submissions into the admin inbox", async () => {
+    dbMock.inboundEmail.create.mockResolvedValue({
+      ...storedEmail,
+      resendEmailId: "contact-submission:contact_1"
+    });
+
+    await storeContactSubmissionInInboundInbox({
+      submissionId: "contact_1",
+      name: "Casey Founder",
+      email: "casey@example.com",
+      company: "Casey Co",
+      subject: "Partnership",
+      message: "Could we discuss partnership options?",
+      sourcePath: "/contact",
+      source: "website",
+      createdAt: new Date("2026-05-19T10:00:00.000Z"),
+      memberContextLines: ["Membership tier: CORE"]
+    });
+
+    expect(dbMock.inboundEmail.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        resendEmailId: "contact-submission:contact_1",
+        messageId: "contact-submission:contact_1",
+        from: "Casey Founder <casey@example.com>",
+        to: ["contact@thebusinesscircle.net"],
+        subject: "Partnership",
+        textBody: expect.stringContaining("Could we discuss partnership options?"),
+        receivedAt: new Date("2026-05-19T10:00:00.000Z")
+      })
+    });
+  });
+
+  it("sends direct admin replies and records the latest reply state", async () => {
+    dbMock.inboundEmail.findUnique.mockResolvedValue({
+      id: "inbound_1",
+      resendEmailId: "contact-submission:contact_1",
+      from: "Alex <alex@example.com>",
+      subject: "Question about BCN"
+    });
+    dbMock.inboundEmail.update.mockResolvedValue({});
+
+    const result = await replyToInboundEmailForAdmin("inbound_1", {
+      subject: "Re: Question about BCN",
+      message: "Thanks Alex, here is the next step.",
+      adminName: "BCN Admin",
+      adminEmail: "admin@example.com"
+    });
+
+    expect(result.sent).toBe(true);
+    expect(sendTransactionalEmailOrThrowMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "alex@example.com",
+        replyTo: "contact@thebusinesscircle.net",
+        subject: "Re: Question about BCN",
+        text: expect.stringContaining("Thanks Alex, here is the next step."),
+        html: expect.stringContaining("A reply from The Business Circle Network")
+      })
+    );
+    expect(dbMock.inboundEmail.update).toHaveBeenCalledWith({
+      where: { id: "inbound_1" },
+      data: expect.objectContaining({
+        status: InboundEmailStatus.READ,
+        lastReplyTo: "alex@example.com",
+        lastReplySubject: "Re: Question about BCN",
+        lastReplyBody: "Thanks Alex, here is the next step.",
+        lastReplyError: null
+      })
     });
   });
 });

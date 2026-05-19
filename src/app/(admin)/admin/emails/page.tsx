@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Archive, Inbox, MailOpen, MailWarning, Paperclip, Search } from "lucide-react";
+import { Archive, Inbox, MailOpen, MailWarning, Paperclip, Search, Send } from "lucide-react";
 import { InboundEmailStatus } from "@prisma/client";
 import { updateInboundEmailStatusAction } from "@/actions/admin/inbound-email.actions";
 import { CopyLinkButton } from "@/components/admin/copy-link-button";
@@ -18,6 +18,7 @@ import {
   extractSenderEmail,
   formatEmailRecipients,
   getInboundEmailAdminStats,
+  inboundEmailSourceLabel,
   listInboundEmailsForAdmin,
   parseInboundEmailStatus
 } from "@/server/inbound-email";
@@ -66,12 +67,39 @@ function buildReturnPath(input: { query: string; status: InboundEmailStatus | "A
   return suffix ? `/admin/emails?${suffix}` : "/admin/emails";
 }
 
+function feedbackMessage(input: { notice: string; error: string }) {
+  const noticeMap: Record<string, string> = {
+    "status-updated": "Email status updated.",
+    "reply-sent": "Reply sent successfully."
+  };
+  const errorMap: Record<string, string> = {
+    invalid: "That email action could not be processed.",
+    "not-found": "That email could not be found.",
+    "reply-invalid": "Add a subject and reply message before sending.",
+    "reply-failed": "The reply could not be sent. Check the email detail for the latest error."
+  };
+
+  if (input.notice && noticeMap[input.notice]) {
+    return { type: "notice" as const, message: noticeMap[input.notice] };
+  }
+
+  if (input.error && errorMap[input.error]) {
+    return { type: "error" as const, message: errorMap[input.error] };
+  }
+
+  return null;
+}
+
 export default async function AdminEmailsPage({ searchParams }: PageProps) {
   await requireAdmin();
   const params = await searchParams;
   const query = firstValue(params.q).trim();
   const status = parseInboundEmailStatus(firstValue(params.status).toUpperCase());
   const returnPath = buildReturnPath({ query, status });
+  const feedback = feedbackMessage({
+    notice: firstValue(params.notice),
+    error: firstValue(params.error)
+  });
 
   const [stats, emails] = await Promise.all([
     getInboundEmailAdminStats(),
@@ -92,6 +120,16 @@ export default async function AdminEmailsPage({ searchParams }: PageProps) {
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {feedback ? (
+        <Card className={feedback.type === "error" ? "border-red-500/40 bg-red-500/10" : "border-gold/30 bg-gold/10"}>
+          <CardContent className="py-3">
+            <p className={feedback.type === "error" ? "text-sm text-red-200" : "text-sm text-gold"}>
+              {feedback.message}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card><CardContent className="py-4"><p className="text-xs text-muted">Total received</p><p className="mt-2 text-2xl font-semibold text-foreground">{stats.total}</p></CardContent></Card>
@@ -142,6 +180,7 @@ export default async function AdminEmailsPage({ searchParams }: PageProps) {
                       <div className="min-w-0 flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant={statusBadgeVariant(email.status)}>{email.status}</Badge>
+                          <Badge variant="outline" className="text-muted">{inboundEmailSourceLabel(email)}</Badge>
                           {attachmentCount ? (
                             <Badge variant="outline" className="text-muted">
                               <Paperclip size={12} className="mr-1" />
@@ -153,6 +192,7 @@ export default async function AdminEmailsPage({ searchParams }: PageProps) {
                           ) : email.forwardError ? (
                             <Badge variant="warning">Forward issue</Badge>
                           ) : null}
+                          {email.lastRepliedAt ? <Badge variant="success">Replied</Badge> : null}
                         </div>
                         <Link href={`/admin/emails/${email.id}`} className="block">
                           <h2 className="truncate font-display text-xl text-foreground hover:text-gold">
@@ -168,9 +208,10 @@ export default async function AdminEmailsPage({ searchParams }: PageProps) {
 
                       <div className="flex flex-wrap gap-2">
                         <CopyLinkButton value={senderEmail} label="Copy sender" />
-                        <a className={buttonVariants({ size: "sm", variant: "outline" })} href={`mailto:${encodeURIComponent(senderEmail)}`}>
+                        <Link className={buttonVariants({ size: "sm", variant: "outline" })} href={`/admin/emails/${email.id}#reply`}>
+                          <Send size={14} className="mr-1" />
                           Reply
-                        </a>
+                        </Link>
                         <form action={updateInboundEmailStatusAction}>
                           <input type="hidden" name="emailId" value={email.id} />
                           <input type="hidden" name="returnPath" value={returnPath} />

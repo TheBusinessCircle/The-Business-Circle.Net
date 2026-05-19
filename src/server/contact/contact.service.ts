@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
 import type { ContactFormInput } from "@/lib/validators";
+import { storeContactSubmissionInInboundInbox } from "@/server/inbound-email";
 
 export type CreateContactSubmissionInput = ContactFormInput & {
   userId?: string | null;
@@ -30,6 +31,18 @@ function toNullableText(value?: string | null): string | null {
   return trimmed ? trimmed : null;
 }
 
+function memberContextLinesFor(input: CreateContactSubmissionInput) {
+  return input.memberContext
+    ? [
+        input.memberContext.membershipTier
+          ? `Membership tier: ${input.memberContext.membershipTier}`
+          : null,
+        input.memberContext.role ? `Role: ${input.memberContext.role}` : null,
+        input.memberContext.email ? `Signed-in email: ${input.memberContext.email}` : null
+      ].filter((line): line is string => Boolean(line))
+    : [];
+}
+
 async function sendContactSubmissionEmails(input: CreateContactSubmissionInput) {
   const normalizedEmail = normalizeEmail(input.email);
   const notifyRecipient = process.env.CONTACT_NOTIFY_EMAIL?.trim() || process.env.ADMIN_EMAIL?.trim();
@@ -39,15 +52,7 @@ async function sendContactSubmissionEmails(input: CreateContactSubmissionInput) 
   const subject = toNullableText(input.subject) ?? "General enquiry";
   const trimmedMessage = input.message.trim();
   const trimmedName = input.name.trim();
-  const memberContextLines = input.memberContext
-    ? [
-        input.memberContext.membershipTier
-          ? `Membership tier: ${input.memberContext.membershipTier}`
-          : null,
-        input.memberContext.role ? `Role: ${input.memberContext.role}` : null,
-        input.memberContext.email ? `Signed-in email: ${input.memberContext.email}` : null
-      ].filter((line): line is string => Boolean(line))
-    : [];
+  const memberContextLines = memberContextLinesFor(input);
 
   if (notifyRecipient) {
     const adminNotificationTemplate = createElement(ContactNotificationEmail, {
@@ -147,6 +152,19 @@ export async function createContactSubmission(
       id: true,
       createdAt: true
     }
+  });
+
+  await storeContactSubmissionInInboundInbox({
+    submissionId: saved.id,
+    name: input.name.trim(),
+    email: normalizeEmail(input.email),
+    company: toNullableText(input.company),
+    subject: toNullableText(input.subject),
+    message: input.message.trim(),
+    sourcePath: toNullableText(input.sourcePath),
+    source: toNullableText(input.source),
+    createdAt: saved.createdAt,
+    memberContextLines: memberContextLinesFor(input)
   });
 
   void sendContactSubmissionEmails(input).catch((error) => {
