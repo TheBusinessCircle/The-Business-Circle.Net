@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
 import { TestimonialCategory, TestimonialDisplayLocation } from "@prisma/client";
 import { MessageSquareQuote, ShieldCheck } from "lucide-react";
-import { submitExternalTestimonialAction } from "@/actions/testimonial.actions";
-import { PublicTestimonialThankYou } from "@/components/testimonials";
-import { Button } from "@/components/ui/button";
+import { PublicTestimonialRequestForm, PublicTestimonialThankYou } from "@/components/testimonials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { createPageMetadata } from "@/lib/seo";
 import {
   getExternalTestimonialRequestByToken,
@@ -80,6 +74,52 @@ function UnavailableState() {
   );
 }
 
+const categoryOptions = [
+  {
+    value: TestimonialCategory.BCN_EXPERIENCE,
+    label: "The Business Circle Network"
+  },
+  {
+    value: TestimonialCategory.GROWTH_ARCHITECT,
+    label: "Growth Architect"
+  },
+  {
+    value: TestimonialCategory.FOUNDER_AUDIT,
+    label: "Founder Audit"
+  },
+  {
+    value: TestimonialCategory.STRATEGY_CALL,
+    label: "Strategy call"
+  },
+  {
+    value: TestimonialCategory.COLLABORATION,
+    label: "Collaboration"
+  },
+  {
+    value: TestimonialCategory.COMMUNITY,
+    label: "Community"
+  },
+  {
+    value: TestimonialCategory.OTHER,
+    label: "Other"
+  }
+];
+
+const displayLocationOptions = [
+  {
+    value: TestimonialDisplayLocation.BCN_HOME,
+    label: "The Business Circle Network"
+  },
+  {
+    value: TestimonialDisplayLocation.FOUNDER_PAGE,
+    label: "Growth Architect / Founder Audit"
+  },
+  {
+    value: TestimonialDisplayLocation.ANYWHERE,
+    label: "Either is fine"
+  }
+];
+
 export default async function ExternalTestimonialPage({ params, searchParams }: PageProps) {
   const [{ token }, query] = await Promise.all([params, searchParams]);
   const submitted = firstValue(query.submitted) === "1";
@@ -143,167 +183,18 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
 
           <Card>
             <CardContent className="pt-6 sm:pt-7">
-              <form action={submitExternalTestimonialAction} className="space-y-4">
-                <input type="hidden" name="requestToken" value={token} />
-                <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="authorName">Name</Label>
-                    <Input
-                      id="authorName"
-                      name="authorName"
-                      required
-                      defaultValue={request.authorName === "Client testimonial request" ? "" : request.authorName}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="authorRole">Role/title</Label>
-                    <Input
-                      id="authorRole"
-                      name="authorRole"
-                      defaultValue={request.roleTitle ?? request.authorRole ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="businessName">Business/company name</Label>
-                    <Input
-                      id="businessName"
-                      name="businessName"
-                      defaultValue={request.companyName ?? request.businessName ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="businessWebsite">Business website</Label>
-                    <Input
-                      id="businessWebsite"
-                      name="businessWebsite"
-                      type="url"
-                      defaultValue={request.businessWebsite ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="submittedEmail">Email</Label>
-                    <Input
-                      id="submittedEmail"
-                      name="submittedEmail"
-                      type="email"
-                      required
-                      defaultValue={request.submittedEmail ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="submittedByLinkedIn">LinkedIn</Label>
-                    <Input id="submittedByLinkedIn" name="submittedByLinkedIn" type="url" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Experience</Label>
-                    <Select id="category" name="category" defaultValue={request.category}>
-                      <option value={TestimonialCategory.BCN_EXPERIENCE}>The Business Circle Network</option>
-                      <option value={TestimonialCategory.GROWTH_ARCHITECT}>Growth Architect</option>
-                      <option value={TestimonialCategory.FOUNDER_AUDIT}>Founder Audit</option>
-                      <option value={TestimonialCategory.STRATEGY_CALL}>Strategy call</option>
-                      <option value={TestimonialCategory.COLLABORATION}>Collaboration</option>
-                      <option value={TestimonialCategory.COMMUNITY}>Community</option>
-                      <option value={TestimonialCategory.OTHER}>Other</option>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="displayLocation">Display preference</Label>
-                    <Select id="displayLocation" name="displayLocation" defaultValue={request.displayLocation}>
-                      <option value={TestimonialDisplayLocation.BCN_HOME}>The Business Circle Network</option>
-                      <option value={TestimonialDisplayLocation.FOUNDER_PAGE}>Growth Architect / Founder Audit</option>
-                      <option value={TestimonialDisplayLocation.ANYWHERE}>Either is fine</option>
-                    </Select>
-                  </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="rating">Rating, optional</Label>
-                    <Select id="rating" name="rating" defaultValue="">
-                      <option value="">No rating</option>
-                      {[1, 2, 3, 4, 5].map((rating) => (
-                        <option key={rating} value={rating}>
-                          {rating} out of 5
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quote">Testimonial quote</Label>
-                  <Textarea
-                    id="quote"
-                    name="quote"
-                    rows={5}
-                    required
-                    minLength={20}
-                    maxLength={1600}
-                    placeholder="Share what changed, what became clearer, or what the work helped you move through."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="outcome">Outcome, optional</Label>
-                  <Textarea
-                    id="outcome"
-                    name="outcome"
-                    rows={3}
-                    maxLength={600}
-                    placeholder="A result, decision, connection, or clarity point that came from the work."
-                  />
-                </div>
-
-                <div className="rounded-2xl border border-border/80 bg-background/22 p-4">
-                  <p className="mb-3 text-sm font-medium text-foreground">Public display permissions</p>
-                  <div className="grid gap-3">
-                    <label className="flex items-start gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        name="allowDisplayTestimonial"
-                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                      />
-                      Display my testimonial publicly.
-                    </label>
-                    <label className="flex items-start gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        name="allowDisplayName"
-                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                      />
-                      Display my name.
-                    </label>
-                    <label className="flex items-start gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        name="allowDisplayCompany"
-                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                      />
-                      Display my business/company name.
-                    </label>
-                    <label className="flex items-start gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        name="allowDisplayRole"
-                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                      />
-                      Display my role/title.
-                    </label>
-                    <label className="flex items-start gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        name="allowMarketingUse"
-                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                      />
-                      Allow The Business Circle Network to use this testimonial in marketing.
-                    </label>
-                    <span className="text-xs leading-relaxed text-muted">
-                      Every testimonial is reviewed before anything is published.
-                    </span>
-                  </div>
-                </div>
-
-                <Button type="submit">Send testimonial for review</Button>
-              </form>
+              <PublicTestimonialRequestForm
+                token={token}
+                authorName={request.authorName}
+                roleTitle={request.roleTitle ?? request.authorRole}
+                businessName={request.companyName ?? request.businessName}
+                businessWebsite={request.businessWebsite}
+                submittedEmail={request.submittedEmail}
+                category={request.category}
+                displayLocation={request.displayLocation}
+                categoryOptions={categoryOptions}
+                displayLocationOptions={displayLocationOptions}
+              />
             </CardContent>
           </Card>
         </div>

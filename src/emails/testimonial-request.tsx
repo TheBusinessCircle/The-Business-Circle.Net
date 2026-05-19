@@ -18,14 +18,14 @@ type TestimonialRequestEmailProps = {
 
 function leadForContext(context: TestimonialRequestEmailProps["subjectContext"]) {
   if (context === "bcn") {
-    return "If The Business Circle has helped you find clearer conversations, stronger direction, or a better room for business thinking, I would be grateful for a few words.";
+    return "You have been invited to leave a testimonial for The Business Circle Network.";
   }
 
   if (context === "growth") {
-    return "Thank you again for trusting me to review your business. If the audit gave you clearer direction, stronger priorities, or a better understanding of where your website, message, trust signals, visibility, or customer journey can improve, I would really appreciate a short testimonial.";
+    return "You have been invited to leave a testimonial about your audit or Growth Architect experience.";
   }
 
-  return "If your experience with The Business Circle Network has been useful, I would be grateful for a few words.";
+  return "You have been invited to leave a testimonial for The Business Circle Network.";
 }
 
 export function TestimonialRequestEmail({
@@ -59,32 +59,20 @@ export function TestimonialRequestEmail({
             Your response is reviewed before anything is displayed publicly.
           </EmailNote>
           <EmailNote>
-            You can choose which name and business details may be shown.
+            After writing it, you can optionally copy the same words into a Google review.
           </EmailNote>
         </>
       }
     >
       <EmailParagraph>Hi {firstName},</EmailParagraph>
-      {subjectContext === "growth" ? (
-        <>
-          <EmailParagraph>
-            You can share what made the audit useful, what became clearer, whether the breakdown
-            felt practical, or whether you would recommend it to another business owner.
-          </EmailParagraph>
-          <EmailParagraph>
-            Nothing will be published publicly without approval.
-          </EmailParagraph>
-        </>
-      ) : (
-        <>
-          <EmailParagraph>
-            I hope you are well. This is a simple request for a short testimonial for {proofLabel}.
-          </EmailParagraph>
-          <EmailParagraph>
-            No need to over-polish it. A few honest sentences about what became clearer, easier, or more useful is enough.
-          </EmailParagraph>
-        </>
-      )}
+      <EmailParagraph>
+        The secure button opens your testimonial page for {proofLabel}. You can write a few honest
+        sentences, choose which details may be shown, and send it for review.
+      </EmailParagraph>
+      <EmailParagraph>
+        If you are happy to leave a public Google review too, you will be able to copy your
+        testimonial from the page and paste it into Google.
+      </EmailParagraph>
 
       {contextItems.length ? (
         <EmailPanel title="Context">

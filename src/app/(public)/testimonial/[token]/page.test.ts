@@ -80,7 +80,11 @@ describe("external testimonial token page", () => {
     expect(markup).toContain("Public display permissions");
     expect(markup).toContain("Display my testimonial publicly");
     expect(markup).toContain("Display my role/title");
-    expect(markup).toContain("Send testimonial for review");
+    expect(markup).toContain("Copy testimonial");
+    expect(markup).toContain("Submit testimonial");
+    expect(markup).toContain("Leave Google review");
+    expect(markup).toContain("https://g.page/r/CZfk3NbmnutQEAI/review");
+    expect(markup).toContain("You can copy your testimonial first, then paste it into Google");
   });
 
   it("shows a safe error for an invalid token", async () => {
@@ -112,6 +116,7 @@ describe("external testimonial token page", () => {
     expect(markup).toContain("The audit helped me understand what to fix first and why it mattered.");
     expect(markup).toContain("Copy testimonial");
     expect(markup).toContain("Leave this as a Google review");
+    expect(markup).toContain("https://g.page/r/CZfk3NbmnutQEAI/review");
     expect(markup).toContain("You can copy the testimonial you just wrote and paste it into Google");
   });
 

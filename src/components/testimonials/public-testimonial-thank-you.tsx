@@ -3,8 +3,9 @@
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { BCN_GOOGLE_REVIEW_URL } from "@/components/testimonials/google-review.logic";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type PublicTestimonialThankYouProps = {
   testimonialId?: string | null;
@@ -47,9 +48,8 @@ export function PublicTestimonialThankYou({
     window.setTimeout(() => setCopied(false), 1800);
   }
 
-  function openGoogleReview() {
+  function trackGoogleReviewIntent() {
     void track("intent");
-    window.open(googleReviewUrl, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -73,10 +73,16 @@ export function PublicTestimonialThankYou({
           {copied ? <Check size={15} className="mr-2" /> : <Copy size={15} className="mr-2" />}
           {copied ? "Copied" : "Copy testimonial"}
         </Button>
-        <Button type="button" onClick={openGoogleReview}>
+        <a
+          href={googleReviewUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={trackGoogleReviewIntent}
+          className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
+        >
           <ExternalLink size={15} className="mr-2" />
           Leave this as a Google review
-        </Button>
+        </a>
       </div>
     </div>
   );
