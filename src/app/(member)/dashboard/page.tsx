@@ -17,6 +17,7 @@ import { CommunityBadge } from "@/components/ui/community-badge";
 import { CommunityRecognitionPanel } from "@/components/profile";
 import { ResourceTierBadge } from "@/components/resources";
 import { BillingActions } from "@/components/platform/billing-actions";
+import { DailyOwnerSignalCarousel } from "@/components/member/daily-owner-signal-carousel";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ import {
 } from "@/server/community/community.service";
 import { getCommunityRecognitionForUser, getInviteDashboardForUser } from "@/server/community-recognition";
 import { listUpcomingEventsForTiers } from "@/server/events";
+import { getDailyOwnerSignalExperience } from "@/server/daily-owner-signal";
 import { getFoundingOfferSnapshot } from "@/server/founding";
 import { searchDirectoryMembers } from "@/server/profile";
 import { resolveManagedMembershipPlanFromStripePriceId } from "@/server/products-pricing";
@@ -471,6 +473,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         showGrowthArchitectAccess: hasInnerCircleAccess
       })
     : null;
+  const dailyOwnerSignalExperience = getDailyOwnerSignalExperience();
 
   return (
     <div className="member-page-stack">
@@ -595,6 +598,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             : "Your current period end date will update shortly."}
         </p>
       ) : null}
+
+      <DailyOwnerSignalCarousel
+        signals={dailyOwnerSignalExperience.visibleSignals}
+        todayKey={dailyOwnerSignalExperience.todayKey}
+      />
 
       {onboardingExperience ? (
         <section className="space-y-4">
