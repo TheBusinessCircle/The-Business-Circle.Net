@@ -254,7 +254,11 @@ describe("inbound email service", () => {
         replyTo: "contact@thebusinesscircle.net",
         subject: "Re: Question about BCN",
         text: expect.stringContaining("Thanks Alex, here is the next step."),
-        html: expect.stringContaining("A reply from The Business Circle Network")
+        html: expect.stringContaining("A reply from The Business Circle Network"),
+        tags: [
+          { name: "type", value: "admin-inbound-reply" },
+          { name: "source", value: "contact-form" }
+        ]
       })
     );
     expect(dbMock.inboundEmail.update).toHaveBeenCalledWith({

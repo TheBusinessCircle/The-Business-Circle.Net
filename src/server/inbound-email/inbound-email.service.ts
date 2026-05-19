@@ -159,6 +159,10 @@ export function inboundEmailSourceLabel(input: { resendEmailId: string }) {
   return isContactSubmissionInboxEmail(input) ? "Contact form" : "Resend inbound";
 }
 
+function inboundEmailSourceTagValue(input: { resendEmailId: string }) {
+  return isContactSubmissionInboxEmail(input) ? "contact-form" : "resend-inbound";
+}
+
 export function parseInboundEmailStatus(value: string | undefined): InboundEmailStatus | "ALL" {
   if (!value || value === "ALL") {
     return "ALL";
@@ -514,7 +518,7 @@ export async function replyToInboundEmailForAdmin(
       react: replyTemplate,
       tags: [
         { name: "type", value: "admin-inbound-reply" },
-        { name: "source", value: inboundEmailSourceLabel(email).slice(0, 64) }
+        { name: "source", value: inboundEmailSourceTagValue(email) }
       ]
     });
 
