@@ -157,7 +157,7 @@ export function DailyOwnerSignalCarousel({
           <p className="text-xs leading-5 text-muted">
             Swipe left for previous days. Future signals stay hidden until their day arrives.
           </p>
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 md:flex">
             <Button
               type="button"
               variant="outline"
