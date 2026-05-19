@@ -84,7 +84,7 @@ export async function sendTransactionalEmailOrThrow(
   input: SendTransactionalEmailInput
 ) {
   const client = getResendClient();
-  const hasRenderableContent = Boolean(input.react || input.html || input.text);
+  const hasRenderableContent = Boolean(input.html || input.text);
   const fromAddress = resolveTransactionalFromAddress(input.from);
 
   if (!client) {
@@ -105,16 +105,26 @@ export async function sendTransactionalEmailOrThrow(
     );
   }
 
-  const result = await client.emails.send({
+  const basePayload = {
     from: fromAddress.value,
     to: input.to,
     subject: input.subject,
-    react: input.react,
-    html: input.html,
-    text: input.text,
     replyTo: input.replyTo,
     tags: input.tags
-  });
+  };
+
+  const result = await client.emails.send(
+    input.html
+      ? {
+          ...basePayload,
+          html: input.html,
+          ...(input.text ? { text: input.text } : {})
+        }
+      : {
+          ...basePayload,
+          text: input.text ?? ""
+        }
+  );
 
   if (result.error) {
     throw new TransactionalEmailError("RESEND_SEND_FAILED", result.error.message);
