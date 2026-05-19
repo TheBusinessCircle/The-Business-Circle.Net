@@ -19,6 +19,13 @@ export type SendTransactionalEmailResult = {
   reason?: string;
 };
 
+export type ResolvedTransactionalRecipients = {
+  to: string | string[];
+  redirected: boolean;
+  originalTo: string[];
+  redirectTo: string[];
+};
+
 export class TransactionalEmailError extends Error {
   code: string;
 
@@ -48,6 +55,45 @@ export function getResendClient(): Resend | null {
 
 function isResendDevAddress(value: string) {
   return /@resend\.dev>/i.test(value) || /@resend\.dev$/i.test(value);
+}
+
+function normalizeRecipients(value: string | string[]) {
+  return (Array.isArray(value) ? value : [value]).map((recipient) => recipient.trim()).filter(Boolean);
+}
+
+function asResendRecipientValue(recipients: string[]) {
+  return recipients.length === 1 ? recipients[0] : recipients;
+}
+
+export function resolveTransactionalRecipients(
+  to: string | string[]
+): ResolvedTransactionalRecipients {
+  const originalTo = normalizeRecipients(to);
+  const redirectTo = process.env.RESEND_REDIRECT_TO?.trim();
+
+  if (!redirectTo) {
+    return {
+      to,
+      redirected: false,
+      originalTo,
+      redirectTo: []
+    };
+  }
+
+  const redirectRecipients = normalizeRecipients(redirectTo.split(","));
+  if (!redirectRecipients.length) {
+    throw new TransactionalEmailError(
+      "EMAIL_REDIRECT_INVALID",
+      "RESEND_REDIRECT_TO is configured but empty."
+    );
+  }
+
+  return {
+    to: asResendRecipientValue(redirectRecipients),
+    redirected: true,
+    originalTo,
+    redirectTo: redirectRecipients
+  };
 }
 
 export function resolveTransactionalFromAddress(overrideFrom?: string) {
@@ -86,6 +132,7 @@ export async function sendTransactionalEmailOrThrow(
   const client = getResendClient();
   const hasRenderableContent = Boolean(input.react || input.html || input.text);
   const fromAddress = resolveTransactionalFromAddress(input.from);
+  const recipients = resolveTransactionalRecipients(input.to);
 
   if (!client) {
     throw new TransactionalEmailError("RESEND_API_KEY_MISSING", "RESEND_API_KEY is not configured.");
@@ -107,7 +154,7 @@ export async function sendTransactionalEmailOrThrow(
 
   const result = await client.emails.send({
     from: fromAddress.value,
-    to: input.to,
+    to: recipients.to,
     subject: input.subject,
     react: input.react,
     html: input.html,
