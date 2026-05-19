@@ -271,7 +271,6 @@ Using Resend:
 1. Add these values in `.env`:
    - `RESEND_API_KEY`
    - `RESEND_FROM_EMAIL`
-   - `RESEND_REDIRECT_TO` to redirect all outbound Resend email to a single inbox during testing or controlled review
    - `CONTACT_NOTIFY_EMAIL="contact@thebusinesscircle.net"`
 2. Send a direct test email:
 
