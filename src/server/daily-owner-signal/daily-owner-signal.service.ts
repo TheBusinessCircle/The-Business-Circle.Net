@@ -70,86 +70,86 @@ const SIGNAL_LINES = [
   {
     title: "Check the Real Load",
     bodyText:
-      "Before adding more work, notice what is already carrying weight. A founder can lose clarity by treating every task as equal. Choose the one pressure point that would make the rest of the day cleaner.",
-    footerMessage: "Less noise. One honest move."
+      "Before adding more work, look at what is already carrying weight. Not every task deserves the same attention. Choose the one pressure point that would make the rest of the day easier to manage.",
+    footerMessage: "One clear constraint is enough to start."
   },
   {
     title: "Protect the Decision",
     bodyText:
       "The business does not need every answer today. It needs one decision made with enough calm to stand behind it. Delay the rest if the extra thinking is only disguising uncertainty.",
-    footerMessage: "Clarity is often quieter than urgency."
+    footerMessage: "A settled decision gives the day shape."
   },
   {
     title: "Return to the Customer",
     bodyText:
-      "When the internal list starts to grow teeth, come back to the person you serve. Their next useful outcome is a better anchor than your busiest admin thread. Let that decide what deserves attention.",
-    footerMessage: "Serve the real problem first."
+      "When the internal list starts to dominate, come back to the person you serve. Their next useful outcome is a better anchor than your busiest admin thread. Let that decide what deserves attention.",
+    footerMessage: "The customer problem is the cleanest reference point."
   },
   {
     title: "Name the Drag",
     bodyText:
       "Some friction is not failure. It is information arriving before the numbers catch up. Name what feels heavy, then separate the structural issue from the emotional residue around it.",
-    footerMessage: "Pressure becomes useful when it is named."
+    footerMessage: "Pressure is easier to use once it is specific."
   },
   {
     title: "Keep the Standard",
     bodyText:
-      "A premium business is often built by refusing the small compromises that would make today easier and tomorrow noisier. Hold the line where it protects trust. Loosen it where it only protects ego.",
-    footerMessage: "Discipline can still feel calm."
+      "Some compromises make today easier and tomorrow noisier. Hold the line where it protects trust, quality, or delivery. Loosen it where the standard is only protecting your own tension.",
+    footerMessage: "Standards work best when they are precise."
   },
   {
     title: "Use the Quiet Hour",
     bodyText:
       "There is usually one part of the day where your thinking is cleaner than the rest. Guard it from low-value reaction. Put the work that needs judgement there, not the work that only needs hands.",
-    footerMessage: "Spend your best attention deliberately."
+    footerMessage: "Put judgement where your attention is strongest."
   },
   {
     title: "Let the Business Breathe",
     bodyText:
       "Not every gap is a problem to fill. Space helps you see what the pace has been hiding. Give the business enough room today to show you what is working, what is tired, and what needs a cleaner rhythm.",
-    footerMessage: "Stillness can be operational."
+    footerMessage: "A little space can make the operating picture clearer."
   },
   {
     title: "Look for the Repeated Signal",
     bodyText:
       "The first complaint may be noise. The third version is probably a pattern. Look for what keeps returning in customers, energy, team rhythm, or cash flow, then respond to the pattern rather than the mood.",
-    footerMessage: "Patterns deserve more respect than panic."
+    footerMessage: "Repeated signals deserve a measured response."
   },
   {
     title: "Choose the Visible Move",
     bodyText:
-      "A founder can do plenty of invisible work and still leave the business feeling stuck. Pick one move today that creates visible progress for a customer, partner, member, or team. Let momentum be seen.",
-    footerMessage: "Progress should leave a trace."
+      "A founder can do plenty of invisible work and still leave the business feeling stuck. Pick one move today that creates visible progress for a customer, partner, member, or team.",
+    footerMessage: "Useful progress should be observable."
   },
   {
     title: "Tidy the Mental Ledger",
     bodyText:
       "Unfinished decisions take up more space than unfinished tasks. Write down what is open, what is waiting, and what is already decided. Your mind should not be the only place the business is organised.",
-    footerMessage: "Make the load visible."
+    footerMessage: "Make the load visible before you carry it further."
   },
   {
     title: "Respect the Energy Curve",
     bodyText:
       "Founders often plan as if energy is flat. It is not. Put judgement, sales, and strategic tension where your energy is strongest, then let lower-friction work take the softer parts of the day.",
-    footerMessage: "Work with the curve, not against it."
+    footerMessage: "Plan around the real capacity you have."
   },
   {
     title: "Reduce the Second Guessing",
     bodyText:
       "A decision does not become wiser because you keep reopening it. If the information has not changed, protect the choice and move. If the information has changed, update cleanly without punishing yourself.",
-    footerMessage: "Confidence is built through clean movement."
+    footerMessage: "Reopen decisions only when the facts have moved."
   },
   {
     title: "Find the Hidden Cost",
     bodyText:
       "Some cheap choices are expensive because they drain attention, trust, or pace. Look at one recurring shortcut today and ask what it is really costing. The answer may be more useful than another new tool.",
-    footerMessage: "The true cost is rarely only money."
+    footerMessage: "Cost includes attention, trust, and pace."
   },
   {
     title: "Close the Loop",
     bodyText:
       "Open loops make a business feel heavier than it is. Send the update, confirm the date, ask the question, or end the thread. One closed loop can return more calm than another hour of planning.",
-    footerMessage: "Completion is a form of relief."
+    footerMessage: "Close one open thread cleanly."
   }
 ];
 
