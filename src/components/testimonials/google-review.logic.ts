@@ -1,4 +1,5 @@
 export const GOOGLE_REVIEW_TESTIMONIAL_MIN_LENGTH = 20;
+export const BCN_GOOGLE_REVIEW_URL = "https://g.page/r/CZfk3NbmnutQEAI/review";
 
 type GoogleReviewCtaSettings = {
   enabled?: boolean;

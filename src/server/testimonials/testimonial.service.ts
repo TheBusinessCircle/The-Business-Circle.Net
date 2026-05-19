@@ -89,7 +89,12 @@ export type CreateExternalTestimonialInput = {
   permissionToUseName?: boolean;
   permissionToUseCompany?: boolean;
   permissionToUseImage?: boolean;
-  permissionToUseInMarketing: boolean;
+  permissionToUseInMarketing?: boolean;
+  allowDisplayName?: boolean;
+  allowDisplayCompany?: boolean;
+  allowDisplayRole?: boolean;
+  allowDisplayTestimonial?: boolean;
+  allowMarketingUse?: boolean;
   permissionToDisplay?: boolean;
   displayPublicName?: boolean;
   displayBusinessName?: boolean;
@@ -102,8 +107,11 @@ export type SendTestimonialRequestEmailInput = {
   recipientName: string;
   recipientEmail: string;
   proofType: TestimonialProofType;
+  companyName?: string | null;
+  auditBusinessName?: string | null;
   contextNote?: string | null;
   requestedByAdminId: string;
+  sourceType?: TestimonialSourceType;
 };
 
 export type UpdateAdminTestimonialInput = {
@@ -124,6 +132,11 @@ export type UpdateAdminTestimonialInput = {
   permissionToUseCompany: boolean;
   permissionToUseImage: boolean;
   permissionToUseInMarketing: boolean;
+  allowDisplayName?: boolean;
+  allowDisplayCompany?: boolean;
+  allowDisplayRole?: boolean;
+  allowDisplayTestimonial?: boolean;
+  allowMarketingUse?: boolean;
   displayPublicName: boolean;
   displayBusinessName: boolean;
   displayProfileImage: boolean;
@@ -222,6 +235,46 @@ function createRequestToken() {
   return randomBytes(24).toString("hex");
 }
 
+function requestSourceTypeIsCompletable(sourceType: TestimonialSourceType) {
+  return (
+    sourceType === TestimonialSourceType.EXTERNAL_REQUEST ||
+    sourceType === TestimonialSourceType.NON_MEMBER ||
+    sourceType === TestimonialSourceType.AUDIT_CLIENT
+  );
+}
+
+function testimonialRequestIsUnavailable(testimonial: {
+  sourceType: TestimonialSourceType;
+  status: TestimonialStatus;
+  quote: string;
+  completedAt?: Date | null;
+  requestExpiresAt?: Date | null;
+}) {
+  if (!requestSourceTypeIsCompletable(testimonial.sourceType)) {
+    return true;
+  }
+
+  if (testimonial.status === TestimonialStatus.ARCHIVED) {
+    return true;
+  }
+
+  if (testimonial.completedAt || testimonial.quote.trim().length > 0) {
+    return true;
+  }
+
+  return Boolean(testimonial.requestExpiresAt && testimonial.requestExpiresAt < new Date());
+}
+
+export function externalTestimonialRequestIsAvailable(testimonial: {
+  sourceType: TestimonialSourceType;
+  status: TestimonialStatus;
+  quote: string;
+  completedAt?: Date | null;
+  requestExpiresAt?: Date | null;
+} | null) {
+  return Boolean(testimonial && !testimonialRequestIsUnavailable(testimonial));
+}
+
 export function categoryToDisplayLocation(category: TestimonialCategory): TestimonialDisplayLocation {
   if (
     category === TestimonialCategory.GROWTH_ARCHITECT ||
@@ -302,7 +355,7 @@ function toApprovedTestimonial(
     outcome: testimonial.outcome,
     rating: testimonial.rating,
     authorName: testimonial.permissionToUseName ? testimonial.authorName : fallbackAuthor,
-    authorRole: testimonial.permissionToUseName ? testimonial.authorRole : null,
+    authorRole: testimonial.allowDisplayRole ? testimonial.authorRole : null,
     businessName: testimonial.permissionToUseCompany ? testimonial.businessName : null,
     businessWebsite: testimonial.permissionToUseCompany ? testimonial.businessWebsite : null,
     imageUrl: testimonial.permissionToUseImage
@@ -547,6 +600,18 @@ export async function createMemberTestimonial(input: CreateMemberTestimonialInpu
       displayProfileImage: permissionToUseImage,
       imageUrl: member.image ?? null,
       profileImageUrl: member.image ?? null,
+      recipientEmail: member.email,
+      recipientName: member.name || member.email,
+      companyName: submittedByCompany,
+      roleTitle: normalizeOptionalText(input.submittedByRole),
+      isExternalRequest: false,
+      allowDisplayName: permissionToUseName,
+      allowDisplayCompany: permissionToUseCompany,
+      allowDisplayRole: permissionToUseName,
+      allowDisplayTestimonial: permissionToFeaturePublicly,
+      allowMarketingUse: input.permissionToUseInMarketing ?? false,
+      submittedAt: new Date(),
+      completedAt: new Date(),
       submittedEmail: member.email
     }
   });
@@ -559,27 +624,41 @@ export async function createExternalTestimonialRequest(input: {
   businessName?: string | null;
   businessWebsite?: string | null;
   submittedEmail?: string | null;
+  recipientName?: string | null;
+  recipientEmail?: string | null;
+  companyName?: string | null;
+  auditBusinessName?: string | null;
+  requestContext?: string | null;
+  sourceType?: TestimonialSourceType;
   requestedByAdminId?: string | null;
   adminNotes?: string | null;
 }) {
   const category = categoryForProofType(input.proofType);
+  const recipientName = normalizeOptionalText(input.recipientName) ?? normalizeOptionalText(input.authorName);
+  const recipientEmail =
+    normalizeOptionalText(input.recipientEmail) ?? normalizeOptionalText(input.submittedEmail);
+  const companyName = normalizeOptionalText(input.companyName) ?? normalizeOptionalText(input.businessName);
+  const roleTitle = normalizeOptionalText(input.authorRole);
+  const requestContext =
+    normalizeOptionalText(input.requestContext) ?? normalizeOptionalText(input.adminNotes);
+  const requestExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
   return db.testimonial.create({
     data: {
-      sourceType: TestimonialSourceType.EXTERNAL_REQUEST,
+      sourceType: input.sourceType ?? TestimonialSourceType.EXTERNAL_REQUEST,
       source: TestimonialSource.EMAIL_REQUEST,
       proofType: input.proofType,
       category,
       displayLocation: categoryToDisplayLocation(category),
       status: TestimonialStatus.PENDING,
-      authorName: normalizeOptionalText(input.authorName) ?? "Client testimonial request",
-      authorRole: normalizeOptionalText(input.authorRole),
-      businessName: normalizeOptionalText(input.businessName),
+      authorName: recipientName ?? "Client testimonial request",
+      authorRole: roleTitle,
+      businessName: companyName,
       businessWebsite: normalizeOptionalText(input.businessWebsite),
-      submittedByName: normalizeOptionalText(input.authorName),
-      submittedByEmail: normalizeOptionalText(input.submittedEmail),
-      submittedByCompany: normalizeOptionalText(input.businessName),
-      submittedByRole: normalizeOptionalText(input.authorRole),
+      submittedByName: recipientName,
+      submittedByEmail: recipientEmail,
+      submittedByCompany: companyName,
+      submittedByRole: roleTitle,
       submittedByWebsite: normalizeOptionalText(input.businessWebsite),
       quote: "",
       testimonialText: "",
@@ -592,10 +671,23 @@ export async function createExternalTestimonialRequest(input: {
       displayPublicName: true,
       displayBusinessName: true,
       displayProfileImage: false,
-      submittedEmail: normalizeOptionalText(input.submittedEmail),
+      recipientEmail,
+      recipientName,
+      companyName,
+      roleTitle,
+      requestContext,
+      auditBusinessName: normalizeOptionalText(input.auditBusinessName),
+      isExternalRequest: true,
+      allowDisplayName: false,
+      allowDisplayCompany: false,
+      allowDisplayRole: false,
+      allowDisplayTestimonial: false,
+      allowMarketingUse: false,
+      requestExpiresAt,
+      submittedEmail: recipientEmail,
       requestToken: createRequestToken(),
       requestedByAdminId: normalizeOptionalText(input.requestedByAdminId),
-      adminNotes: normalizeOptionalText(input.adminNotes)
+      adminNotes: requestContext
     }
   });
 }
@@ -604,8 +696,16 @@ function buildTestimonialRequestText(input: {
   recipientName: string;
   proofType: TestimonialProofType;
   testimonialUrl: string;
+  companyName?: string | null;
+  auditBusinessName?: string | null;
   contextNote?: string | null;
 }) {
+  const contextLines = [
+    input.companyName ? `Company: ${input.companyName}` : null,
+    input.auditBusinessName ? `Audit/business: ${input.auditBusinessName}` : null,
+    input.contextNote ? `Context: ${input.contextNote}` : null
+  ].filter((line): line is string => Boolean(line));
+
   if (input.proofType === TestimonialProofType.GROWTH_ARCHITECT) {
     const firstName = input.recipientName.trim().split(/\s+/)[0] || input.recipientName.trim();
 
@@ -622,6 +722,7 @@ function buildTestimonialRequestText(input: {
         "You can leave it here:",
         input.testimonialUrl,
         "",
+        ...contextLines.flatMap((line) => [line, ""]),
         "Once the Google review link is live, you will also be able to copy the same words across so you do not need to write it twice.",
         "",
         "Thank you,",
@@ -648,6 +749,7 @@ function buildTestimonialRequestText(input: {
       "You can leave it here:",
       input.testimonialUrl,
       "",
+      ...contextLines.flatMap((line) => [line, ""]),
       "Your testimonial helps other business owners understand what BCN is really trying to build: a calmer, more trusted place for serious founders to connect, think clearly, and grow properly.",
       "",
       "Thank you,",
@@ -663,7 +765,14 @@ export async function sendTestimonialRequestEmail(input: SendTestimonialRequestE
   const request = await createExternalTestimonialRequest({
     proofType: input.proofType,
     authorName: input.recipientName,
+    recipientName: input.recipientName,
+    recipientEmail: input.recipientEmail,
+    companyName: input.companyName,
+    businessName: input.companyName,
+    auditBusinessName: input.auditBusinessName,
+    requestContext: input.contextNote,
     submittedEmail: input.recipientEmail,
+    sourceType: input.sourceType ?? TestimonialSourceType.AUDIT_CLIENT,
     requestedByAdminId: input.requestedByAdminId,
     adminNotes: input.contextNote
   });
@@ -681,6 +790,8 @@ export async function sendTestimonialRequestEmail(input: SendTestimonialRequestE
       recipientName: input.recipientName,
       proofLabel,
       testimonialUrl,
+      companyName: input.companyName,
+      auditBusinessName: input.auditBusinessName,
       contextNote: input.contextNote,
       subjectContext: testimonialSubjectContext(input.proofType)
     })
@@ -689,6 +800,8 @@ export async function sendTestimonialRequestEmail(input: SendTestimonialRequestE
     recipientName: input.recipientName,
     proofType: input.proofType,
     testimonialUrl,
+    companyName: input.companyName,
+    auditBusinessName: input.auditBusinessName,
     contextNote: input.contextNote
   });
   const email = await sendTransactionalEmail({
@@ -742,12 +855,8 @@ export async function createExternalTestimonial(input: CreateExternalTestimonial
       })
     : null;
 
-  if (input.requestToken && (!existing || existing.sourceType !== TestimonialSourceType.EXTERNAL_REQUEST)) {
+  if (input.requestToken && !externalTestimonialRequestIsAvailable(existing)) {
     throw new Error("testimonial-request-not-found");
-  }
-
-  if (existing && existing.quote.trim().length > 0) {
-    throw new Error("testimonial-request-completed");
   }
 
   const category = input.category ?? existing?.category ?? TestimonialCategory.GROWTH_ARCHITECT;
@@ -755,15 +864,21 @@ export async function createExternalTestimonial(input: CreateExternalTestimonial
     input.displayLocation ?? existing?.displayLocation ?? categoryToDisplayLocation(category);
   const quote = normalizeRequiredText(input.quote);
   const permissionToFeaturePublicly =
-    input.permissionToFeaturePublicly ?? input.permissionToDisplay ?? false;
-  const permissionToUseName = input.permissionToUseName ?? input.displayPublicName ?? true;
-  const permissionToUseCompany = input.permissionToUseCompany ?? input.displayBusinessName ?? true;
+    input.allowDisplayTestimonial ?? input.permissionToFeaturePublicly ?? input.permissionToDisplay ?? false;
+  const permissionToUseName =
+    input.allowDisplayName ?? input.permissionToUseName ?? input.displayPublicName ?? false;
+  const permissionToUseCompany =
+    input.allowDisplayCompany ?? input.permissionToUseCompany ?? input.displayBusinessName ?? false;
+  const allowDisplayRole = input.allowDisplayRole ?? permissionToUseName;
+  const permissionToUseInMarketing =
+    input.allowMarketingUse ?? input.permissionToUseInMarketing ?? false;
   const trackingNotes = [input.trackingSource, input.campaign, input.ref]
     .filter(Boolean)
     .map((value) => `Tracking: ${value}`)
     .join("\n");
+  const completedAt = new Date();
   const data = {
-    sourceType: TestimonialSourceType.EXTERNAL_REQUEST,
+    sourceType: existing?.sourceType ?? TestimonialSourceType.EXTERNAL_REQUEST,
     source: input.source ?? (input.requestToken ? TestimonialSource.EMAIL_REQUEST : TestimonialSource.PUBLIC_FORM),
     proofType: proofTypeForCategory(category),
     category,
@@ -789,10 +904,22 @@ export async function createExternalTestimonial(input: CreateExternalTestimonial
     permissionToUseName,
     permissionToUseCompany,
     permissionToUseImage: input.permissionToUseImage ?? false,
-    permissionToUseInMarketing: input.permissionToUseInMarketing,
+    permissionToUseInMarketing,
     displayPublicName: input.displayPublicName ?? permissionToUseName,
     displayBusinessName: input.displayBusinessName ?? permissionToUseCompany,
     displayProfileImage: input.permissionToUseImage ?? false,
+    recipientEmail: normalizeOptionalText(input.submittedEmail) ?? existing?.recipientEmail ?? null,
+    recipientName: normalizeRequiredText(input.authorName),
+    companyName: normalizeOptionalText(input.businessName) ?? existing?.companyName ?? null,
+    roleTitle: normalizeOptionalText(input.authorRole) ?? existing?.roleTitle ?? null,
+    isExternalRequest: Boolean(input.requestToken || existing?.isExternalRequest),
+    allowDisplayName: permissionToUseName,
+    allowDisplayCompany: permissionToUseCompany,
+    allowDisplayRole,
+    allowDisplayTestimonial: permissionToFeaturePublicly,
+    allowMarketingUse: permissionToUseInMarketing,
+    submittedAt: completedAt,
+    completedAt,
     approvedAt: null,
     approvedByAdminId: null,
     approvedByUserId: null,
@@ -851,6 +978,11 @@ export async function updateAdminTestimonial(input: UpdateAdminTestimonialInput)
       permissionToUseCompany: input.permissionToUseCompany,
       permissionToUseImage: input.permissionToUseImage,
       permissionToUseInMarketing: input.permissionToUseInMarketing,
+      allowDisplayName: input.allowDisplayName ?? input.permissionToUseName,
+      allowDisplayCompany: input.allowDisplayCompany ?? input.permissionToUseCompany,
+      allowDisplayRole: input.allowDisplayRole ?? input.permissionToUseName,
+      allowDisplayTestimonial: input.allowDisplayTestimonial ?? input.permissionToFeaturePublicly,
+      allowMarketingUse: input.allowMarketingUse ?? input.permissionToUseInMarketing,
       displayPublicName: input.displayPublicName,
       displayBusinessName: input.displayBusinessName,
       displayProfileImage: input.displayProfileImage,

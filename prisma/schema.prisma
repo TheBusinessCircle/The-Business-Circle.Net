@@ -1728,6 +1728,21 @@ model Testimonial {
   isHighlighted       Boolean                 @default(false)
   imageUrl            String?
   adminNotes          String?                 @db.Text
+  recipientEmail      String?
+  recipientName       String?
+  companyName         String?
+  roleTitle           String?
+  requestContext      String?                 @db.Text
+  auditBusinessName   String?
+  isExternalRequest   Boolean                 @default(false)
+  allowDisplayName    Boolean                 @default(false)
+  allowDisplayCompany Boolean                 @default(false)
+  allowDisplayRole    Boolean                 @default(false)
+  allowDisplayTestimonial Boolean             @default(false)
+  allowMarketingUse   Boolean                 @default(false)
+  submittedAt         DateTime?
+  completedAt         DateTime?
+  requestExpiresAt    DateTime?
   submittedEmail      String?
   requestToken        String?                 @unique
   requestedByAdminId  String?
@@ -1762,6 +1777,8 @@ model Testimonial {
   @@index([approvedByUserId, approvedAt])
   @@index([requestedByAdminId, createdAt])
   @@index([isHighlighted, status, createdAt])
+  @@index([isExternalRequest, createdAt])
+  @@index([requestExpiresAt])
 }
 
 model SiteReviewSettings {
@@ -1788,6 +1805,9 @@ enum Role {
 }
 
 enum TestimonialSourceType {
+  MEMBER
+  NON_MEMBER
+  AUDIT_CLIENT
   MEMBER_PROFILE
   EXTERNAL_REQUEST
   ADMIN_CREATED

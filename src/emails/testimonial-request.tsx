@@ -10,6 +10,8 @@ type TestimonialRequestEmailProps = {
   recipientName: string;
   proofLabel: string;
   testimonialUrl: string;
+  companyName?: string | null;
+  auditBusinessName?: string | null;
   contextNote?: string | null;
   subjectContext: "bcn" | "growth" | "general";
 };
@@ -30,10 +32,17 @@ export function TestimonialRequestEmail({
   recipientName,
   proofLabel,
   testimonialUrl,
+  companyName,
+  auditBusinessName,
   contextNote,
   subjectContext
 }: TestimonialRequestEmailProps) {
   const firstName = recipientName.trim().split(/\s+/)[0] || recipientName;
+  const contextItems = [
+    companyName?.trim() ? `Company: ${companyName.trim()}` : null,
+    auditBusinessName?.trim() ? `Audit/business: ${auditBusinessName.trim()}` : null,
+    contextNote?.trim() ? contextNote.trim() : null
+  ].filter((item): item is string => Boolean(item));
 
   return (
     <BcnEmailLayout
@@ -77,9 +86,11 @@ export function TestimonialRequestEmail({
         </>
       )}
 
-      {contextNote?.trim() ? (
+      {contextItems.length ? (
         <EmailPanel title="Context">
-          <EmailMutedText>{contextNote.trim()}</EmailMutedText>
+          {contextItems.map((item) => (
+            <EmailMutedText key={item}>{item}</EmailMutedText>
+          ))}
         </EmailPanel>
       ) : null}
     </BcnEmailLayout>

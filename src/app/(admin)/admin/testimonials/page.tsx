@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {
   TestimonialCategory,
   TestimonialDisplayLocation,
+  TestimonialProofType,
   TestimonialSource,
   TestimonialStatus
 } from "@prisma/client";
@@ -13,6 +14,7 @@ import {
   markGoogleReviewIntentAction,
   markTestimonialCopiedToGoogleAction,
   rejectTestimonialAction,
+  sendTestimonialRequestEmailAction,
   toggleTestimonialHighlightAction,
   updateAdminTestimonialAction,
   updateReviewSettingsAction
@@ -98,6 +100,8 @@ function feedbackMessage(notice: string, error: string) {
     "testimonial-approved": "Testimonial approved.",
     "testimonial-rejected": "Testimonial rejected.",
     "testimonial-archived": "Testimonial archived.",
+    "request-email-sent": "Non-member testimonial request sent.",
+    "request-created": "Testimonial request created.",
     "google-intent-marked": "Google review click marked.",
     "google-copy-marked": "Copied to Google marked.",
     "google-confirmed": "Google review confirmed."
@@ -105,7 +109,10 @@ function feedbackMessage(notice: string, error: string) {
   const errors: Record<string, string> = {
     "invalid-settings": "The settings form was invalid.",
     "invalid-update": "The testimonial update was invalid.",
-    "invalid-status": "The status update was invalid."
+    "invalid-status": "The status update was invalid.",
+    "invalid-request": "The testimonial request form was invalid.",
+    "email-not-configured": "Email sending is not configured.",
+    "email-send-failed": "The testimonial request email could not be sent."
   };
 
   if (notice && notices[notice]) {
@@ -304,6 +311,50 @@ Trev`;
             </div>
             <div className="lg:col-span-2">
               <Button type="submit">Save settings</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="border-gold/30 bg-gradient-to-br from-gold/10 via-card/78 to-card/70">
+        <CardHeader>
+          <CardTitle>Send Non-Member Testimonial Request</CardTitle>
+          <CardDescription>
+            Send a secure public link to an audit client or Growth Architect recipient. They can
+            submit once, choose display permissions, and copy the same words into Google.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={sendTestimonialRequestEmailAction} className="grid gap-4 lg:grid-cols-2">
+            <input type="hidden" name="returnPath" value={returnPath} />
+            <input type="hidden" name="proofType" value={TestimonialProofType.GROWTH_ARCHITECT} />
+            <div className="space-y-2">
+              <Label htmlFor="recipientName">Recipient name</Label>
+              <Input id="recipientName" name="recipientName" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="recipientEmail">Recipient email</Label>
+              <Input id="recipientEmail" name="recipientEmail" type="email" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="companyName">Company name, optional</Label>
+              <Input id="companyName" name="companyName" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="auditBusinessName">Audit/business name, optional</Label>
+              <Input id="auditBusinessName" name="auditBusinessName" />
+            </div>
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="contextNote">Context/message, optional</Label>
+              <Textarea
+                id="contextNote"
+                name="contextNote"
+                rows={3}
+                placeholder="Add a short note about the audit, strategy work, or area you would value feedback on."
+              />
+            </div>
+            <div className="lg:col-span-2">
+              <Button type="submit">Send non-member request</Button>
             </div>
           </form>
         </CardContent>
@@ -595,6 +646,11 @@ Trev`;
                           {checkbox("permissionToUseCompany", testimonial.permissionToUseCompany, "Use company")}
                           {checkbox("permissionToUseImage", testimonial.permissionToUseImage, "Use image")}
                           {checkbox("permissionToUseInMarketing", testimonial.permissionToUseInMarketing, "Use in marketing")}
+                          {checkbox("allowDisplayName", testimonial.allowDisplayName, "Allow display name")}
+                          {checkbox("allowDisplayCompany", testimonial.allowDisplayCompany, "Allow display company")}
+                          {checkbox("allowDisplayRole", testimonial.allowDisplayRole, "Allow display role")}
+                          {checkbox("allowDisplayTestimonial", testimonial.allowDisplayTestimonial, "Allow display testimonial")}
+                          {checkbox("allowMarketingUse", testimonial.allowMarketingUse, "Allow marketing use")}
                           {checkbox("displayPublicName", testimonial.displayPublicName, "Legacy show name")}
                           {checkbox("displayBusinessName", testimonial.displayBusinessName, "Legacy show company")}
                           {checkbox("displayProfileImage", testimonial.displayProfileImage, "Legacy show image")}

@@ -2,18 +2,17 @@ import type { Metadata } from "next";
 import { TestimonialCategory, TestimonialDisplayLocation } from "@prisma/client";
 import { MessageSquareQuote, ShieldCheck } from "lucide-react";
 import { submitExternalTestimonialAction } from "@/actions/testimonial.actions";
-import { GoogleReviewCta } from "@/components/testimonials";
+import { PublicTestimonialThankYou } from "@/components/testimonials";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { SITE_CONFIG } from "@/config/site";
 import { createPageMetadata } from "@/lib/seo";
 import {
   getExternalTestimonialRequestByToken,
-  getReviewSettings,
+  externalTestimonialRequestIsAvailable,
   getTestimonialCopyState
 } from "@/server/testimonials";
 
@@ -38,12 +37,13 @@ function firstValue(value: string | string[] | undefined) {
   return value ?? "";
 }
 
-async function ThankYouState({ testimonialId }: { testimonialId: string }) {
-  const [settings, testimonial] = await Promise.all([
-    getReviewSettings(),
-    testimonialId ? getTestimonialCopyState(testimonialId) : null
-  ]);
-
+function ThankYouState({
+  testimonialId,
+  testimonialText
+}: {
+  testimonialId: string;
+  testimonialText: string;
+}) {
   return (
     <Card className="mx-auto max-w-2xl border-primary/30 bg-gradient-to-br from-primary/10 via-card/80 to-card/70">
       <CardHeader>
@@ -57,14 +57,9 @@ async function ThankYouState({ testimonialId }: { testimonialId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <GoogleReviewCta
+        <PublicTestimonialThankYou
           testimonialId={testimonialId}
-          testimonialText={testimonial?.testimonialText || testimonial?.quote || ""}
-          enabled={settings.googleReviewEnabled}
-          showButton={settings.showGoogleReviewButton}
-          googleReviewUrl={settings.googleReviewUrl}
-          label="Copy your words and leave them on Google"
-          pendingMessage="The Google review link is being finalised. Your testimonial has still been received and will be reviewed before publication."
+          testimonialText={testimonialText}
         />
       </CardContent>
     </Card>
@@ -93,14 +88,27 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
   const request = await getExternalTestimonialRequestByToken(token);
 
   if (submitted) {
+    const testimonial = testimonialId ? await getTestimonialCopyState(testimonialId) : null;
+
+    if (!testimonial) {
+      return (
+        <div className="public-page-stack">
+          <UnavailableState />
+        </div>
+      );
+    }
+
     return (
       <div className="public-page-stack">
-        <ThankYouState testimonialId={testimonialId} />
+        <ThankYouState
+          testimonialId={testimonialId}
+          testimonialText={testimonial.testimonialText || testimonial.quote || ""}
+        />
       </div>
     );
   }
 
-  if (!request || request.quote.trim().length > 0) {
+  if (!request || !externalTestimonialRequestIsAvailable(request)) {
     return (
       <div className="public-page-stack">
         <UnavailableState />
@@ -122,8 +130,8 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
               Share your experience for review
             </h1>
             <p className="max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
-              This testimonial will be reviewed before any public display. You choose which name
-              and business details can be shown.
+              This testimonial will be reviewed before any public display. You choose which name,
+              role, and business details can be shown.
             </p>
           </div>
 
@@ -150,12 +158,20 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="authorRole">Role</Label>
-                    <Input id="authorRole" name="authorRole" defaultValue={request.authorRole ?? ""} />
+                    <Label htmlFor="authorRole">Role/title</Label>
+                    <Input
+                      id="authorRole"
+                      name="authorRole"
+                      defaultValue={request.roleTitle ?? request.authorRole ?? ""}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="businessName">Business name</Label>
-                    <Input id="businessName" name="businessName" defaultValue={request.businessName ?? ""} />
+                    <Label htmlFor="businessName">Business/company name</Label>
+                    <Input
+                      id="businessName"
+                      name="businessName"
+                      defaultValue={request.companyName ?? request.businessName ?? ""}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="businessWebsite">Business website</Label>
@@ -237,53 +253,51 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
                   />
                 </div>
 
-                <label className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-background/25 px-4 py-3 text-sm leading-relaxed text-foreground">
-                  <input
-                    type="checkbox"
-                    name="permissionToFeaturePublicly"
-                    required
-                    className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                  />
-                  <span>
-                    I confirm I am happy for this testimonial to be reviewed and potentially
-                    displayed publicly on {SITE_CONFIG.name}.
-                  </span>
-                </label>
-
                 <div className="rounded-2xl border border-border/80 bg-background/22 p-4">
-                  <p className="mb-3 text-sm font-medium text-foreground">Public display preference</p>
+                  <p className="mb-3 text-sm font-medium text-foreground">Public display permissions</p>
                   <div className="grid gap-3">
-                    {[
-                      ["full", "Use my name and business"],
-                      ["first_business", "Use my first name and business"],
-                      ["business_only", "Use business name only"],
-                      ["initials_only", "Use initials only"]
-                    ].map(([value, label], index) => (
-                      <label key={value} className="flex items-center gap-2 text-sm text-muted">
-                        <input
-                          type="radio"
-                          name="displayPreference"
-                          value={value}
-                          defaultChecked={index === 0}
-                          className="h-4 w-4 border-border bg-background accent-primary"
-                        />
-                        {label}
-                      </label>
-                    ))}
-                    <input type="hidden" name="displayPublicName" value="true" />
-                    <input type="hidden" name="displayBusinessName" value="true" />
-                    <input type="hidden" name="permissionToUseName" value="true" />
-                    <input type="hidden" name="permissionToUseCompany" value="true" />
-                    <label className="flex items-center gap-2 text-sm text-muted">
+                    <label className="flex items-start gap-2 text-sm text-muted">
                       <input
                         type="checkbox"
-                        name="permissionToUseInMarketing"
-                        className="h-4 w-4 rounded border-border bg-background accent-primary"
+                        name="allowDisplayTestimonial"
+                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
                       />
-                      I give permission for this testimonial to be used in marketing material.
+                      Display my testimonial publicly.
+                    </label>
+                    <label className="flex items-start gap-2 text-sm text-muted">
+                      <input
+                        type="checkbox"
+                        name="allowDisplayName"
+                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                      />
+                      Display my name.
+                    </label>
+                    <label className="flex items-start gap-2 text-sm text-muted">
+                      <input
+                        type="checkbox"
+                        name="allowDisplayCompany"
+                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                      />
+                      Display my business/company name.
+                    </label>
+                    <label className="flex items-start gap-2 text-sm text-muted">
+                      <input
+                        type="checkbox"
+                        name="allowDisplayRole"
+                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                      />
+                      Display my role/title.
+                    </label>
+                    <label className="flex items-start gap-2 text-sm text-muted">
+                      <input
+                        type="checkbox"
+                        name="allowMarketingUse"
+                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                      />
+                      Allow The Business Circle Network to use this testimonial in marketing.
                     </label>
                     <span className="text-xs leading-relaxed text-muted">
-                      Trevor reviews every testimonial before anything is published.
+                      Every testimonial is reviewed before anything is published.
                     </span>
                   </div>
                 </div>

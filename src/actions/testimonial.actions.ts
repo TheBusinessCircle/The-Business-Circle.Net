@@ -82,11 +82,16 @@ const externalTestimonialSchema = z.object({
   category: z.nativeEnum(TestimonialCategory),
   displayLocation: z.nativeEnum(TestimonialDisplayLocation),
   rating: optionalRating,
-  permissionToFeaturePublicly: checkboxBoolean.refine(Boolean),
+  permissionToFeaturePublicly: checkboxBoolean.optional().default(false),
   permissionToUseName: checkboxBoolean.optional().default(false),
   permissionToUseCompany: checkboxBoolean.optional().default(false),
   permissionToUseImage: checkboxBoolean.optional().default(false),
   permissionToUseInMarketing: checkboxBoolean.optional().default(false),
+  allowDisplayName: checkboxBoolean.optional().default(false),
+  allowDisplayCompany: checkboxBoolean.optional().default(false),
+  allowDisplayRole: checkboxBoolean.optional().default(false),
+  allowDisplayTestimonial: checkboxBoolean.optional().default(false),
+  allowMarketingUse: checkboxBoolean.optional().default(false),
   website: z.string().trim().max(0).optional().or(z.literal("")),
   source: optionalText(80),
   campaign: optionalText(120),
@@ -117,6 +122,11 @@ const adminUpdateSchema = z.object({
   permissionToUseCompany: checkboxBoolean.optional().default(false),
   permissionToUseImage: checkboxBoolean.optional().default(false),
   permissionToUseInMarketing: checkboxBoolean.optional().default(false),
+  allowDisplayName: checkboxBoolean.optional().default(false),
+  allowDisplayCompany: checkboxBoolean.optional().default(false),
+  allowDisplayRole: checkboxBoolean.optional().default(false),
+  allowDisplayTestimonial: checkboxBoolean.optional().default(false),
+  allowMarketingUse: checkboxBoolean.optional().default(false),
   displayPublicName: checkboxBoolean.optional().default(false),
   displayBusinessName: checkboxBoolean.optional().default(false),
   displayProfileImage: checkboxBoolean.optional().default(false),
@@ -157,7 +167,10 @@ const externalRequestSchema = z.object({
   authorRole: optionalText(140),
   businessName: optionalText(160),
   businessWebsite: optionalUrl,
-  submittedEmail: z.string().trim().email().max(320).optional().or(z.literal(""))
+  submittedEmail: z.string().trim().email().max(320).optional().or(z.literal("")),
+  companyName: optionalText(160),
+  auditBusinessName: optionalText(180),
+  requestContext: optionalText(700)
 });
 
 const sendTestimonialRequestSchema = z.object({
@@ -165,6 +178,8 @@ const sendTestimonialRequestSchema = z.object({
   recipientName: z.string().trim().min(2).max(140),
   recipientEmail: z.string().trim().email().max(320),
   proofType: z.nativeEnum(TestimonialProofType),
+  companyName: optionalText(160),
+  auditBusinessName: optionalText(180),
   contextNote: optionalText(700)
 });
 
@@ -295,6 +310,11 @@ export async function submitExternalTestimonialAction(formData: FormData) {
     permissionToUseCompany: formData.get("permissionToUseCompany"),
     permissionToUseImage: formData.get("permissionToUseImage"),
     permissionToUseInMarketing: formData.get("permissionToUseInMarketing"),
+    allowDisplayName: formData.get("allowDisplayName"),
+    allowDisplayCompany: formData.get("allowDisplayCompany"),
+    allowDisplayRole: formData.get("allowDisplayRole"),
+    allowDisplayTestimonial: formData.get("allowDisplayTestimonial"),
+    allowMarketingUse: formData.get("allowMarketingUse"),
     website: getFormValue(formData, "website"),
     source: getFormValue(formData, "source"),
     campaign: getFormValue(formData, "campaign"),
@@ -310,8 +330,9 @@ export async function submitExternalTestimonialAction(formData: FormData) {
 
   let successPath = "";
   try {
+    const testimonialInput = isTokenRequest ? parsed.data : applyExternalDisplayPreference(parsed.data);
     const testimonial = await createExternalTestimonial({
-      ...applyExternalDisplayPreference(parsed.data),
+      ...testimonialInput,
       requestToken: parsed.data.requestToken || null,
       source: parsed.data.requestToken ? TestimonialSource.EMAIL_REQUEST : TestimonialSource.PUBLIC_FORM,
       trackingSource: parsed.data.source
@@ -336,7 +357,10 @@ export async function createExternalTestimonialRequestAction(formData: FormData)
     authorRole: getFormValue(formData, "authorRole"),
     businessName: getFormValue(formData, "businessName"),
     businessWebsite: getFormValue(formData, "businessWebsite"),
-    submittedEmail: getFormValue(formData, "submittedEmail")
+    submittedEmail: getFormValue(formData, "submittedEmail"),
+    companyName: getFormValue(formData, "companyName"),
+    auditBusinessName: getFormValue(formData, "auditBusinessName"),
+    requestContext: getFormValue(formData, "requestContext")
   });
   const returnPath = resolveReturnPath(parsed.success ? parsed.data.returnPath : undefined);
 
@@ -365,6 +389,8 @@ export async function sendTestimonialRequestEmailAction(formData: FormData) {
     recipientName: getFormValue(formData, "recipientName"),
     recipientEmail: getFormValue(formData, "recipientEmail"),
     proofType: getFormValue(formData, "proofType"),
+    companyName: getFormValue(formData, "companyName"),
+    auditBusinessName: getFormValue(formData, "auditBusinessName"),
     contextNote: getFormValue(formData, "contextNote")
   });
   const returnPath = resolveReturnPath(parsed.success ? parsed.data.returnPath : undefined);
@@ -377,6 +403,8 @@ export async function sendTestimonialRequestEmailAction(formData: FormData) {
     recipientName: parsed.data.recipientName,
     recipientEmail: parsed.data.recipientEmail,
     proofType: parsed.data.proofType,
+    companyName: parsed.data.companyName,
+    auditBusinessName: parsed.data.auditBusinessName,
     contextNote: parsed.data.contextNote,
     requestedByAdminId: session.user.id
   });
@@ -421,6 +449,11 @@ export async function updateAdminTestimonialAction(formData: FormData) {
     permissionToUseCompany: formData.get("permissionToUseCompany"),
     permissionToUseImage: formData.get("permissionToUseImage"),
     permissionToUseInMarketing: formData.get("permissionToUseInMarketing"),
+    allowDisplayName: formData.get("allowDisplayName"),
+    allowDisplayCompany: formData.get("allowDisplayCompany"),
+    allowDisplayRole: formData.get("allowDisplayRole"),
+    allowDisplayTestimonial: formData.get("allowDisplayTestimonial"),
+    allowMarketingUse: formData.get("allowMarketingUse"),
     displayPublicName: formData.get("displayPublicName"),
     displayBusinessName: formData.get("displayBusinessName"),
     displayProfileImage: formData.get("displayProfileImage"),

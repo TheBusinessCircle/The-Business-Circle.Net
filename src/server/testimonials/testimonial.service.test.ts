@@ -211,7 +211,7 @@ describe("testimonial service", () => {
     dbMock.testimonial.create.mockResolvedValue({
       id: "testimonial_request_1",
       proofType: TestimonialProofType.GROWTH_ARCHITECT,
-      sourceType: TestimonialSourceType.EXTERNAL_REQUEST,
+      sourceType: TestimonialSourceType.AUDIT_CLIENT,
       status: TestimonialStatus.PENDING,
       authorName: "Jordan Client",
       quote: "",
@@ -223,6 +223,8 @@ describe("testimonial service", () => {
       recipientName: "Jordan Client",
       recipientEmail: "jordan@example.com",
       proofType: TestimonialProofType.GROWTH_ARCHITECT,
+      companyName: "Jordan Studio",
+      auditBusinessName: "Growth audit",
       contextNote: "A short note about the strategy work.",
       requestedByAdminId: "admin_1"
     });
@@ -230,13 +232,18 @@ describe("testimonial service", () => {
     expect(dbMock.testimonial.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          sourceType: TestimonialSourceType.EXTERNAL_REQUEST,
+          sourceType: TestimonialSourceType.AUDIT_CLIENT,
           proofType: TestimonialProofType.GROWTH_ARCHITECT,
           status: TestimonialStatus.PENDING,
           authorName: "Jordan Client",
           quote: "",
           permissionToDisplay: false,
           submittedEmail: "jordan@example.com",
+          recipientName: "Jordan Client",
+          recipientEmail: "jordan@example.com",
+          companyName: "Jordan Studio",
+          auditBusinessName: "Growth audit",
+          isExternalRequest: true,
           requestedByAdminId: "admin_1",
           adminNotes: "A short note about the strategy work.",
           requestToken: expect.any(String)
@@ -244,6 +251,9 @@ describe("testimonial service", () => {
       })
     );
     expect(result.requestToken).toBe("token_1234567890abcdef");
+    expect(dbMock.testimonial.create.mock.calls[0]?.[0].data.requestToken).not.toBe(
+      "bcn_test_preview_token"
+    );
     expect(result.testimonialUrl).toBe(
       "https://thebusinesscircle.net/testimonial/token_1234567890abcdef"
     );
@@ -314,6 +324,76 @@ describe("testimonial service", () => {
         })
       })
     );
+  });
+
+  it("allows audit-client token submissions once and records display permissions", async () => {
+    dbMock.testimonial.findUnique.mockResolvedValue({
+      id: "testimonial_3",
+      sourceType: TestimonialSourceType.AUDIT_CLIENT,
+      proofType: TestimonialProofType.GROWTH_ARCHITECT,
+      status: TestimonialStatus.PENDING,
+      quote: "",
+      completedAt: null,
+      requestExpiresAt: new Date("2099-01-01T00:00:00Z"),
+      recipientEmail: "client@example.com",
+      companyName: "Client Studio",
+      roleTitle: "Founder",
+      isExternalRequest: true
+    });
+    dbMock.testimonial.update.mockResolvedValue({ id: "testimonial_3" });
+
+    await createExternalTestimonial({
+      requestToken: "token_audit_client_123456",
+      authorName: "Client Name",
+      authorRole: "Founder",
+      businessName: "Client Studio",
+      quote: "The audit made the next steps clearer and easier to prioritise.",
+      submittedEmail: "client@example.com",
+      allowDisplayName: true,
+      allowDisplayCompany: true,
+      allowDisplayRole: true,
+      allowDisplayTestimonial: true,
+      allowMarketingUse: true
+    });
+
+    expect(dbMock.testimonial.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "testimonial_3" },
+        data: expect.objectContaining({
+          sourceType: TestimonialSourceType.AUDIT_CLIENT,
+          status: TestimonialStatus.PENDING,
+          allowDisplayName: true,
+          allowDisplayCompany: true,
+          allowDisplayRole: true,
+          allowDisplayTestimonial: true,
+          allowMarketingUse: true,
+          permissionToFeaturePublicly: true,
+          permissionToUseInMarketing: true,
+          completedAt: expect.any(Date)
+        })
+      })
+    );
+  });
+
+  it("rejects duplicate submissions for a completed audit-client token", async () => {
+    dbMock.testimonial.findUnique.mockResolvedValue({
+      id: "testimonial_4",
+      sourceType: TestimonialSourceType.AUDIT_CLIENT,
+      proofType: TestimonialProofType.GROWTH_ARCHITECT,
+      status: TestimonialStatus.PENDING,
+      quote: "Already submitted.",
+      completedAt: new Date("2026-05-19T12:00:00Z"),
+      requestExpiresAt: new Date("2099-01-01T00:00:00Z")
+    });
+
+    await expect(
+      createExternalTestimonial({
+        requestToken: "token_audit_client_123456",
+        authorName: "Client Name",
+        quote: "Trying to submit again."
+      })
+    ).rejects.toThrow("testimonial-request-not-found");
+    expect(dbMock.testimonial.update).not.toHaveBeenCalled();
   });
 
   it("admin approval changes status and records the approving admin", async () => {
