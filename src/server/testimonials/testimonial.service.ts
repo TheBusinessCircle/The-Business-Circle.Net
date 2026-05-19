@@ -169,6 +169,99 @@ export type PublicTestimonialQuery = {
   limit?: number;
 };
 
+const adminTestimonialSelect = {
+  id: true,
+  sourceType: true,
+  proofType: true,
+  category: true,
+  displayLocation: true,
+  status: true,
+  memberId: true,
+  submittedByUserId: true,
+  submittedByEmail: true,
+  submittedByName: true,
+  submittedByCompany: true,
+  submittedByRole: true,
+  submittedByWebsite: true,
+  submittedByLinkedIn: true,
+  profileImageUrl: true,
+  authorName: true,
+  authorRole: true,
+  businessName: true,
+  businessWebsite: true,
+  testimonialText: true,
+  quote: true,
+  outcome: true,
+  rating: true,
+  permissionToFeaturePublicly: true,
+  permissionToUseName: true,
+  permissionToUseCompany: true,
+  permissionToUseImage: true,
+  permissionToUseInMarketing: true,
+  permissionToDisplay: true,
+  displayPublicName: true,
+  displayBusinessName: true,
+  displayProfileImage: true,
+  isHighlighted: true,
+  imageUrl: true,
+  adminNotes: true,
+  recipientEmail: true,
+  recipientName: true,
+  companyName: true,
+  roleTitle: true,
+  requestContext: true,
+  auditBusinessName: true,
+  isExternalRequest: true,
+  allowDisplayName: true,
+  allowDisplayCompany: true,
+  allowDisplayRole: true,
+  allowDisplayTestimonial: true,
+  allowMarketingUse: true,
+  submittedAt: true,
+  completedAt: true,
+  requestExpiresAt: true,
+  submittedEmail: true,
+  requestToken: true,
+  requestedByAdminId: true,
+  approvedByAdminId: true,
+  approvedByUserId: true,
+  approvedAt: true,
+  rejectedAt: true,
+  rejectionReason: true,
+  source: true,
+  copiedToGoogleAt: true,
+  googleReviewIntentClickedAt: true,
+  googleReviewCompleted: true,
+  googleReviewConfirmedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  member: {
+    select: {
+      id: true,
+      name: true,
+      email: true
+    }
+  },
+  requestedByAdmin: {
+    select: {
+      id: true,
+      name: true,
+      email: true
+    }
+  },
+  approvedByAdmin: {
+    select: {
+      id: true,
+      name: true,
+      email: true
+    }
+  }
+} satisfies Prisma.TestimonialSelect;
+
+export type AdminTestimonial = Prisma.TestimonialGetPayload<{
+  select: typeof adminTestimonialSelect;
+}>;
+
 function testimonialProofLabel(proofType: TestimonialProofType) {
   if (proofType === TestimonialProofType.BCN_MEMBER) {
     return "The Business Circle";
@@ -456,7 +549,9 @@ export async function listApprovedTestimonials(
     .map(toApprovedTestimonial);
 }
 
-export async function listAdminTestimonials(filters: AdminTestimonialFilters = {}) {
+export async function listAdminTestimonials(
+  filters: AdminTestimonialFilters = {}
+): Promise<AdminTestimonial[]> {
   const where: Prisma.TestimonialWhereInput = {
     ...(filters.proofType ? { proofType: filters.proofType } : {}),
     ...(filters.status ? { status: filters.status } : {}),
@@ -471,6 +566,9 @@ export async function listAdminTestimonials(filters: AdminTestimonialFilters = {
           OR: [
             { authorName: { contains: filters.search, mode: "insensitive" } },
             { businessName: { contains: filters.search, mode: "insensitive" } },
+            { companyName: { contains: filters.search, mode: "insensitive" } },
+            { recipientName: { contains: filters.search, mode: "insensitive" } },
+            { recipientEmail: { contains: filters.search, mode: "insensitive" } },
             { submittedEmail: { contains: filters.search, mode: "insensitive" } },
             { submittedByEmail: { contains: filters.search, mode: "insensitive" } },
             { quote: { contains: filters.search, mode: "insensitive" } },
@@ -482,29 +580,7 @@ export async function listAdminTestimonials(filters: AdminTestimonialFilters = {
 
   return db.testimonial.findMany({
     where,
-    include: {
-      member: {
-        select: {
-          id: true,
-          name: true,
-          email: true
-        }
-      },
-      requestedByAdmin: {
-        select: {
-          id: true,
-          name: true,
-          email: true
-        }
-      },
-      approvedByAdmin: {
-        select: {
-          id: true,
-          name: true,
-          email: true
-        }
-      }
-    },
+    select: adminTestimonialSelect,
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: Math.min(Math.max(filters.limit ?? 100, 1), 200)
   });

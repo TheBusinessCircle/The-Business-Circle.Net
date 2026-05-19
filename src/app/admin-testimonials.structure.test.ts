@@ -19,4 +19,21 @@ describe("admin testimonial request structure", () => {
     expect(source).toContain('name="contextNote"');
     expect(source).toContain("TestimonialProofType.GROWTH_ARCHITECT");
   });
+
+  it("selects the external request permission fields for the admin review queue", () => {
+    const service = readSource("src/server/testimonials/testimonial.service.ts");
+
+    expect(service).toContain("adminTestimonialSelect");
+    expect(service).toContain("export type AdminTestimonial");
+    expect(service).toContain("allowDisplayName: true");
+    expect(service).toContain("allowDisplayCompany: true");
+    expect(service).toContain("allowDisplayRole: true");
+    expect(service).toContain("allowDisplayTestimonial: true");
+    expect(service).toContain("allowMarketingUse: true");
+    expect(service).toContain("roleTitle: true");
+    expect(service).toContain("companyName: true");
+    expect(service).toContain("sourceType: true");
+    expect(service).toContain("isExternalRequest: true");
+    expect(service).toContain("select: adminTestimonialSelect");
+  });
 });
