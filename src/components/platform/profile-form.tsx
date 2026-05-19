@@ -568,13 +568,13 @@ export function ProfileForm({
               aria-controls="profile-accent-theme-options"
               aria-label={
                 accentThemeOptionsOpen
-                  ? "Collapse accent theme options"
-                  : "Expand accent theme options"
+                  ? "Collapse profile colour options"
+                  : "Expand profile colour options"
               }
-              className="flex w-full items-center justify-between gap-2.5 rounded-[1.25rem] border border-[hsl(var(--member-accent-border)/0.35)] bg-[hsl(var(--member-atmosphere-to)/0.6)] px-3 py-2.5 text-left shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)] md:hidden"
+              className="relative z-10 flex w-full items-center justify-between gap-3 rounded-[1.25rem] border border-[hsl(var(--member-accent-border)/0.35)] bg-[hsl(var(--member-atmosphere-to)/0.6)] px-3 py-2.5 text-left shadow-inner-surface transition-all hover:border-[hsl(var(--member-accent-border)/0.55)] hover:bg-[hsl(var(--member-accent)/0.09)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)] sm:px-4 sm:py-3"
               onClick={() => setAccentThemeOptionsOpen((open) => !open)}
             >
-              <span className="flex min-w-0 items-center gap-2.5">
+              <span className="flex min-w-0 items-center gap-3">
                 <span
                   className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10"
                   style={getThemeOptionStyle(selectedAccentThemeOption)}
@@ -583,41 +583,43 @@ export function ProfileForm({
                   <span className="accent-theme-swatch h-full w-full" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">Accent Theme</span>
-                  <span className="mt-0.5 block text-xs leading-snug text-muted">
-                    Personalise the look of your private workspace.
-                  </span>
-                  <span className="mt-1 block truncate text-xs text-[hsl(var(--member-accent-text))]">
-                    Current: {selectedAccentThemeOption.label}
-                    {workspaceAtmosphereEnabled ? " with Workspace Atmosphere" : ""}
+                  <span className="block text-sm font-semibold text-foreground">Profile colour</span>
+                  <span className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="inline-flex max-w-full rounded-full border border-[hsl(var(--member-accent-border)/0.32)] bg-[hsl(var(--member-accent)/0.1)] px-2.5 py-1 text-xs text-[hsl(var(--member-accent-text))]">
+                      Current theme: {selectedAccentThemeOption.label}
+                    </span>
+                    <span className="inline-flex rounded-full border border-border/80 bg-background/26 px-2.5 py-1 text-xs text-muted">
+                      Workspace Atmosphere: {workspaceAtmosphereEnabled ? "On" : "Off"}
+                    </span>
                   </span>
                 </span>
               </span>
-              <ChevronDown
-                size={18}
-                className={cn(
-                  "shrink-0 text-[hsl(var(--member-accent-muted))] transition-transform",
-                  accentThemeOptionsOpen ? "rotate-180" : "rotate-0"
-                )}
-              />
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--member-accent-border)/0.28)] bg-background/28 text-[hsl(var(--member-accent-muted))] transition-colors">
+                <ChevronDown
+                  size={18}
+                  className={cn(
+                    "transition-transform duration-200",
+                    accentThemeOptionsOpen ? "rotate-180" : "rotate-0"
+                  )}
+                />
+              </span>
             </button>
-
-            <div className="hidden max-w-3xl md:block">
-              <p className="mb-2 text-xs tracking-[0.1em] text-silver uppercase">
-                Member Accent Theme
-              </p>
-              <h2 className="font-display text-2xl text-foreground">
-                Personalise Your Member Space
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                Choose the accent theme that best fits how you want your member profile and workspace to feel. The Business Circle stays premium and focused, but your account can carry your own visual signature.
-              </p>
-            </div>
 
             <div
               id="profile-accent-theme-options"
-              className={cn("mt-4 md:mt-5 md:block", accentThemeOptionsOpen ? "block" : "hidden")}
+              className={cn("relative z-10 mt-4 sm:mt-5", accentThemeOptionsOpen ? "block" : "hidden")}
             >
+              <div className="mb-4 max-w-3xl">
+                <p className="mb-2 text-xs tracking-[0.1em] text-silver uppercase">
+                  Member Accent Theme
+                </p>
+                <h2 className="font-display text-2xl text-foreground">
+                  Personalise Your Member Space
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  Choose the accent theme that best fits how you want your member profile and workspace to feel. The Business Circle stays premium and focused, but your account can carry your own visual signature.
+                </p>
+              </div>
               <div className="profile-form-grid grid w-full max-w-full min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-5" role="radiogroup" aria-label="Accent theme">
                 {ACCENT_THEMES.map((theme) => {
                   const selected = selectedAccentTheme === theme.value;
