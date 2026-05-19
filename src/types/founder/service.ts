@@ -6,6 +6,7 @@ import type {
   FounderServiceDiscountType,
   FounderServiceIntakeMode,
   FounderServiceBillingType,
+  FounderServiceEmailLogStatus,
   FounderServicePaymentStatus,
   FounderServiceStatus,
   MembershipTier,
@@ -153,6 +154,21 @@ export type FounderServiceRequestDetailModel = FounderServiceRequestListItem & {
     fileName: string;
     mimeType: string | null;
     createdAt: Date;
+  }>;
+  emailLogs: Array<{
+    id: string;
+    toEmail: string;
+    subject: string;
+    serviceName: string;
+    priceAmount: number;
+    currency: string;
+    discountCode: string | null;
+    stripeCheckoutSessionId: string | null;
+    status: FounderServiceEmailLogStatus;
+    errorMessage: string | null;
+    sentAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
   }>;
 };
 

@@ -275,8 +275,11 @@ export async function createFounderServiceCheckoutSession(
     cancel_url: cancelUrl,
     metadata: {
       checkoutKind: "founder_service",
+      source: "admin_founder_services_checkout_email",
       founderServiceRequestId: request.id,
+      founderServiceClientId: request.id,
       founderServiceId: request.service.id,
+      founderServiceName: request.service.title,
       founderServiceSlug: request.service.slug,
       founderUserId: request.userId ?? "",
       founderServiceBaseAmount: String(request.baseAmount),
@@ -292,8 +295,11 @@ export async function createFounderServiceCheckoutSession(
       ? {
           metadata: {
             checkoutKind: "founder_service",
+            source: "admin_founder_services_checkout_email",
             founderServiceRequestId: request.id,
+            founderServiceClientId: request.id,
             founderServiceId: request.service.id,
+            founderServiceName: request.service.title,
             founderServiceSlug: request.service.slug,
             founderUserId: request.userId ?? "",
             founderServiceBaseAmount: String(request.baseAmount),

@@ -68,6 +68,7 @@ type CreateFounderServiceDiscountCodeInput = {
   stripePromotionCodeId?: string | null;
 };
 
+
 function toNullableText(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -577,6 +578,25 @@ export async function getFounderServiceRequestDetailsForAdmin(
           displayBusinessName: true,
           approvedAt: true,
           submittedEmail: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      },
+      emailLogs: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          toEmail: true,
+          subject: true,
+          serviceName: true,
+          priceAmount: true,
+          currency: true,
+          discountCode: true,
+          stripeCheckoutSessionId: true,
+          status: true,
+          errorMessage: true,
+          sentAt: true,
           createdAt: true,
           updatedAt: true
         }

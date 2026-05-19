@@ -15,6 +15,7 @@ import { requireAdmin } from "@/lib/session";
 import {
   createFounderServiceCheckoutSession,
   createFounderServiceDiscountCodeWithStripe,
+  sendFounderServiceCheckoutEmail,
   sendFounderServiceTestimonialRequest,
   syncFounderServiceStripeCatalog,
   updateFounderServiceRequestForAdmin
@@ -130,6 +131,15 @@ const createCheckoutLinkSchema = z.object({
 
 const sendTestimonialRequestSchema = z.object({
   requestId: z.string().cuid(),
+  returnPath: z.string().optional()
+});
+
+const sendCheckoutEmailSchema = z.object({
+  requestId: z.string().cuid(),
+  subject: z.string().trim().min(3).max(160),
+  body: z.string().trim().min(20).max(4000),
+  ctaLabel: z.string().trim().min(2).max(60),
+  adminDiscountCodeId: z.string().cuid().optional().or(z.literal("")),
   returnPath: z.string().optional()
 });
 
@@ -322,6 +332,53 @@ export async function createFounderServiceCheckoutLinkAction(formData: FormData)
 
   revalidateFounderServiceAdminPaths(parsed.data.requestId);
   redirectWithNotice(returnPath, "checkout-link-created");
+}
+
+export async function sendFounderServiceCheckoutEmailAction(formData: FormData) {
+  await requireAdmin();
+
+  const parsed = sendCheckoutEmailSchema.safeParse({
+    requestId: formData.get("requestId"),
+    subject: formData.get("subject"),
+    body: formData.get("body"),
+    ctaLabel: formData.get("ctaLabel"),
+    adminDiscountCodeId: formData.get("adminDiscountCodeId"),
+    returnPath: formData.get("returnPath")
+  });
+
+  const returnPath = resolveReturnPath(
+    typeof formData.get("returnPath") === "string"
+      ? String(formData.get("returnPath"))
+      : undefined,
+    "/admin/founder-services"
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "checkout-email-invalid");
+  }
+
+  try {
+    await sendFounderServiceCheckoutEmail({
+      requestId: parsed.data.requestId,
+      subject: parsed.data.subject,
+      body: parsed.data.body,
+      ctaLabel: parsed.data.ctaLabel,
+      adminDiscountCodeId: parsed.data.adminDiscountCodeId || null
+    });
+  } catch (error) {
+    const errorCode =
+      error instanceof Error && error.message === "checkout-email-address-missing"
+        ? "checkout-email-missing-email"
+        : error instanceof Error && error.message === "checkout-email-price-missing"
+          ? "checkout-email-missing-price"
+          : error instanceof Error && error.message.includes("checkout")
+            ? "checkout-email-checkout-failed"
+            : "checkout-email-send-failed";
+    redirectWithError(returnPath, errorCode);
+  }
+
+  revalidateFounderServiceAdminPaths(parsed.data.requestId);
+  redirectWithNotice(returnPath, "checkout-email-sent");
 }
 
 export async function sendFounderServiceTestimonialRequestAction(formData: FormData) {

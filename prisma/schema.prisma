@@ -59,7 +59,7 @@ model User {
   founderServiceRequests         FounderServiceRequest[]
   foundingMembership             FoundingMember?
   foundingReservations           FoundingOfferReservation[]
-  inviteCodeRedemptions           InviteCodeRedemption[]
+  inviteCodeRedemptions          InviteCodeRedemption[]
   completedPendingRegistration   PendingRegistration?         @relation("PendingRegistrationCompletedUser")
   memberInvite                   MemberInvite?
   inviteReferralsSent            InviteReferral[]             @relation("InviteReferrer")
@@ -723,21 +723,21 @@ model InviteCode {
 }
 
 model InviteCodeRedemption {
-  id                   String   @id @default(cuid())
-  inviteCodeId         String
-  userId               String?
+  id                    String         @id @default(cuid())
+  inviteCodeId          String
+  userId                String?
   pendingRegistrationId String?
-  email                String
-  tier                 MembershipTier
-  stripeCustomerId     String?
-  stripeSessionId      String?  @unique
-  stripeSubscriptionId String?
-  status               String   @default("PENDING")
-  trialEndsAt          DateTime?
-  createdAt            DateTime @default(now())
-  completedAt          DateTime?
-  inviteCode           InviteCode @relation(fields: [inviteCodeId], references: [id], onDelete: Cascade)
-  user                 User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email                 String
+  tier                  MembershipTier
+  stripeCustomerId      String?
+  stripeSessionId       String?        @unique
+  stripeSubscriptionId  String?
+  status                String         @default("PENDING")
+  trialEndsAt           DateTime?
+  createdAt             DateTime       @default(now())
+  completedAt           DateTime?
+  inviteCode            InviteCode     @relation(fields: [inviteCodeId], references: [id], onDelete: Cascade)
+  user                  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([inviteCodeId, status, createdAt])
   @@index([pendingRegistrationId])
@@ -902,30 +902,30 @@ model ContactSubmission {
 }
 
 model InboundEmail {
-  id            String             @id @default(cuid())
-  resendEmailId String             @unique
-  messageId     String?
-  from          String
-  to            Json
-  cc            Json?
-  bcc           Json?
-  subject       String?
-  textBody      String?            @db.Text
-  htmlBody      String?            @db.Text
-  snippet       String?
-  attachments   Json?
-  status        InboundEmailStatus @default(UNREAD)
-  forwardedTo   String?
-  forwardedAt   DateTime?
-  forwardError  String?
+  id               String             @id @default(cuid())
+  resendEmailId    String             @unique
+  messageId        String?
+  from             String
+  to               Json
+  cc               Json?
+  bcc              Json?
+  subject          String?
+  textBody         String?            @db.Text
+  htmlBody         String?            @db.Text
+  snippet          String?
+  attachments      Json?
+  status           InboundEmailStatus @default(UNREAD)
+  forwardedTo      String?
+  forwardedAt      DateTime?
+  forwardError     String?
   lastReplyTo      String?
   lastReplySubject String?
   lastReplyBody    String?            @db.Text
   lastRepliedAt    DateTime?
   lastReplyError   String?
-  receivedAt    DateTime
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  receivedAt       DateTime
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   @@index([status, receivedAt])
   @@index([receivedAt])
@@ -958,65 +958,65 @@ model FounderService {
 }
 
 model CommunityPost {
-  id                    String                 @id @default(cuid())
-  channelId             String
-  userId                String
-  title                 String
-  content               String
-  tags                  String[]               @default([])
-  kind                  CommunityPostKind      @default(MEMBER_POST)
-  promptId              String?
-  promptTier            MembershipTier?
-  automationSource      String?
-  automationExternalId  String?
-  automationChecksum    String?                @unique
-  sourceUrl             String?
-  sourceDomain          String?
-  previewImageUrl       String?
-  previewImageKind      String?
-  previewGeneratedAt    DateTime?
-  intelligenceSourceId  String?
-  intelligenceSourceName String?
-  intelligenceCanonicalUrl String?
-  intelligenceDedupeKey String?                @unique
-  intelligenceAuthor    String?
-  intelligencePublishedAt DateTime?
-  intelligencePrimaryCategory String?
-  intelligenceSecondaryCategories String[]     @default([])
-  intelligenceLabel     String?
-  intelligenceShortSummary String?             @db.Text
-  intelligenceKeyDetail String?                @db.Text
-  intelligenceWhyThisMatters String?           @db.Text
-  intelligenceBusinessOwnerImpact String?      @db.Text
-  intelligenceFounderTakeaway String?          @db.Text
-  intelligenceWhatToWatchNext String?          @db.Text
-  intelligencePossibleRisks String[]           @default([])
-  intelligencePossibleOpportunities String[]   @default([])
-  intelligenceAffectedBusinessAreas String[]   @default([])
-  intelligenceSuggestedDiscussionPrompt String? @db.Text
-  intelligenceRecommendedRoom String?
-  intelligenceUrgencyScore Float?
-  intelligenceRelevanceScore Float?
-  intelligenceCommercialImpactScore Float?
-  intelligenceConfidenceScore Float?
-  intelligenceSourceCredibilityScore Float?
-  intelligenceBusinessOwnerScore Float?
-  intelligenceRegion    String?
-  intelligenceSectorsAffected String[]         @default([])
-  intelligenceFeatured  Boolean                @default(false)
-  intelligenceStatus    String                 @default("PUBLISHED")
-  intelligenceEnrichedAt DateTime?
-  automatedAt           DateTime?
-  deletedAt             DateTime?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  channel               Channel                @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  comments              CommunityComment[]
-  likes                 CommunityPostLike[]
-  promptEvents          CommunityPromptEvent[]
-  directMessageRequests DirectMessageRequest[] @relation("DirectMessageOriginPost")
-  directMessageThreads  DirectMessageThread[]  @relation("DirectMessageSourcePost")
-  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                                    String                 @id @default(cuid())
+  channelId                             String
+  userId                                String
+  title                                 String
+  content                               String
+  tags                                  String[]               @default([])
+  kind                                  CommunityPostKind      @default(MEMBER_POST)
+  promptId                              String?
+  promptTier                            MembershipTier?
+  automationSource                      String?
+  automationExternalId                  String?
+  automationChecksum                    String?                @unique
+  sourceUrl                             String?
+  sourceDomain                          String?
+  previewImageUrl                       String?
+  previewImageKind                      String?
+  previewGeneratedAt                    DateTime?
+  intelligenceSourceId                  String?
+  intelligenceSourceName                String?
+  intelligenceCanonicalUrl              String?
+  intelligenceDedupeKey                 String?                @unique
+  intelligenceAuthor                    String?
+  intelligencePublishedAt               DateTime?
+  intelligencePrimaryCategory           String?
+  intelligenceSecondaryCategories       String[]               @default([])
+  intelligenceLabel                     String?
+  intelligenceShortSummary              String?                @db.Text
+  intelligenceKeyDetail                 String?                @db.Text
+  intelligenceWhyThisMatters            String?                @db.Text
+  intelligenceBusinessOwnerImpact       String?                @db.Text
+  intelligenceFounderTakeaway           String?                @db.Text
+  intelligenceWhatToWatchNext           String?                @db.Text
+  intelligencePossibleRisks             String[]               @default([])
+  intelligencePossibleOpportunities     String[]               @default([])
+  intelligenceAffectedBusinessAreas     String[]               @default([])
+  intelligenceSuggestedDiscussionPrompt String?                @db.Text
+  intelligenceRecommendedRoom           String?
+  intelligenceUrgencyScore              Float?
+  intelligenceRelevanceScore            Float?
+  intelligenceCommercialImpactScore     Float?
+  intelligenceConfidenceScore           Float?
+  intelligenceSourceCredibilityScore    Float?
+  intelligenceBusinessOwnerScore        Float?
+  intelligenceRegion                    String?
+  intelligenceSectorsAffected           String[]               @default([])
+  intelligenceFeatured                  Boolean                @default(false)
+  intelligenceStatus                    String                 @default("PUBLISHED")
+  intelligenceEnrichedAt                DateTime?
+  automatedAt                           DateTime?
+  deletedAt                             DateTime?
+  createdAt                             DateTime               @default(now())
+  updatedAt                             DateTime               @updatedAt
+  channel                               Channel                @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  comments                              CommunityComment[]
+  likes                                 CommunityPostLike[]
+  promptEvents                          CommunityPromptEvent[]
+  directMessageRequests                 DirectMessageRequest[] @relation("DirectMessageOriginPost")
+  directMessageThreads                  DirectMessageThread[]  @relation("DirectMessageSourcePost")
+  user                                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([channelId, createdAt])
   @@index([channelId, deletedAt, createdAt])
@@ -1034,19 +1034,19 @@ model CommunityPost {
 }
 
 model IntelligenceSourceState {
-  id              String   @id
+  id              String    @id
   enabledOverride Boolean?
-  healthStatus    String   @default("unknown")
+  healthStatus    String    @default("unknown")
   lastFetchAt     DateTime?
   lastSuccessAt   DateTime?
   lastErrorAt     DateTime?
-  lastError       String?  @db.Text
-  fetchedCount    Int      @default(0)
-  candidateCount  Int      @default(0)
-  publishedCount  Int      @default(0)
-  disabledReason  String?  @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  lastError       String?   @db.Text
+  fetchedCount    Int       @default(0)
+  candidateCount  Int       @default(0)
+  publishedCount  Int       @default(0)
+  disabledReason  String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([healthStatus])
   @@index([lastFetchAt])
@@ -1511,6 +1511,7 @@ model FounderServiceRequest {
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @updatedAt
   service                    FounderService              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  emailLogs                  FounderServiceEmailLog[]
   uploads                    FounderServiceUpload[]
   user                       User?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -1527,6 +1528,30 @@ model FounderServiceRequest {
   @@index([testimonialRequestSentAt])
   @@index([testimonialSubmittedAt])
   @@index([email])
+}
+
+model FounderServiceEmailLog {
+  id                      String                       @id @default(cuid())
+  founderServiceRequestId String
+  toEmail                 String
+  subject                 String
+  bodySnapshot            String                       @db.Text
+  serviceName             String
+  priceAmount             Int
+  currency                String                       @default("GBP")
+  discountCode            String?
+  stripeCheckoutSessionId String?
+  stripeCheckoutUrl       String?
+  status                  FounderServiceEmailLogStatus @default(DRAFT)
+  errorMessage            String?                      @db.Text
+  sentAt                  DateTime?
+  createdAt               DateTime                     @default(now())
+  updatedAt               DateTime                     @updatedAt
+  request                 FounderServiceRequest        @relation(fields: [founderServiceRequestId], references: [id], onDelete: Cascade)
+
+  @@index([founderServiceRequestId, createdAt])
+  @@index([status, createdAt])
+  @@index([stripeCheckoutSessionId])
 }
 
 model FounderServiceUpload {
@@ -1693,77 +1718,77 @@ model VisualMediaPlacement {
 }
 
 model Testimonial {
-  id                  String                  @id @default(cuid())
-  sourceType          TestimonialSourceType
-  proofType           TestimonialProofType
-  category            TestimonialCategory     @default(BCN_EXPERIENCE)
-  displayLocation     TestimonialDisplayLocation @default(ANYWHERE)
-  status              TestimonialStatus       @default(PENDING)
-  memberId            String?
-  submittedByUserId   String?
-  submittedByEmail    String?
-  submittedByName     String?
-  submittedByCompany  String?
-  submittedByRole     String?
-  submittedByWebsite  String?
-  submittedByLinkedIn String?
-  profileImageUrl     String?
-  authorName          String
-  authorRole          String?
-  businessName        String?
-  businessWebsite     String?
-  testimonialText     String?                 @db.Text
-  quote               String                  @db.Text
-  outcome             String?                 @db.Text
-  rating              Int?
-  permissionToFeaturePublicly Boolean         @default(false)
-  permissionToUseName Boolean                 @default(false)
-  permissionToUseCompany Boolean              @default(false)
-  permissionToUseImage Boolean                @default(false)
-  permissionToUseInMarketing Boolean          @default(false)
-  permissionToDisplay Boolean
-  displayPublicName   Boolean                 @default(true)
-  displayBusinessName Boolean                 @default(true)
-  displayProfileImage Boolean                 @default(false)
-  isHighlighted       Boolean                 @default(false)
-  imageUrl            String?
-  adminNotes          String?                 @db.Text
-  recipientEmail      String?
-  recipientName       String?
-  companyName         String?
-  roleTitle           String?
-  requestContext      String?                 @db.Text
-  auditBusinessName   String?
-  isExternalRequest   Boolean                 @default(false)
-  allowDisplayName    Boolean                 @default(false)
-  allowDisplayCompany Boolean                 @default(false)
-  allowDisplayRole    Boolean                 @default(false)
-  allowDisplayTestimonial Boolean             @default(false)
-  allowMarketingUse   Boolean                 @default(false)
-  submittedAt         DateTime?
-  completedAt         DateTime?
-  requestExpiresAt    DateTime?
-  submittedEmail      String?
-  requestToken        String?                 @unique
-  requestedByAdminId  String?
-  approvedByAdminId   String?
-  approvedByUserId    String?
-  approvedAt          DateTime?
-  rejectedAt          DateTime?
-  rejectionReason     String?                 @db.Text
-  source              TestimonialSource       @default(MEMBER_PROFILE)
-  copiedToGoogleAt    DateTime?
+  id                          String                     @id @default(cuid())
+  sourceType                  TestimonialSourceType
+  proofType                   TestimonialProofType
+  category                    TestimonialCategory        @default(BCN_EXPERIENCE)
+  displayLocation             TestimonialDisplayLocation @default(ANYWHERE)
+  status                      TestimonialStatus          @default(PENDING)
+  memberId                    String?
+  submittedByUserId           String?
+  submittedByEmail            String?
+  submittedByName             String?
+  submittedByCompany          String?
+  submittedByRole             String?
+  submittedByWebsite          String?
+  submittedByLinkedIn         String?
+  profileImageUrl             String?
+  authorName                  String
+  authorRole                  String?
+  businessName                String?
+  businessWebsite             String?
+  testimonialText             String?                    @db.Text
+  quote                       String                     @db.Text
+  outcome                     String?                    @db.Text
+  rating                      Int?
+  permissionToFeaturePublicly Boolean                    @default(false)
+  permissionToUseName         Boolean                    @default(false)
+  permissionToUseCompany      Boolean                    @default(false)
+  permissionToUseImage        Boolean                    @default(false)
+  permissionToUseInMarketing  Boolean                    @default(false)
+  permissionToDisplay         Boolean
+  displayPublicName           Boolean                    @default(true)
+  displayBusinessName         Boolean                    @default(true)
+  displayProfileImage         Boolean                    @default(false)
+  isHighlighted               Boolean                    @default(false)
+  imageUrl                    String?
+  adminNotes                  String?                    @db.Text
+  recipientEmail              String?
+  recipientName               String?
+  companyName                 String?
+  roleTitle                   String?
+  requestContext              String?                    @db.Text
+  auditBusinessName           String?
+  isExternalRequest           Boolean                    @default(false)
+  allowDisplayName            Boolean                    @default(false)
+  allowDisplayCompany         Boolean                    @default(false)
+  allowDisplayRole            Boolean                    @default(false)
+  allowDisplayTestimonial     Boolean                    @default(false)
+  allowMarketingUse           Boolean                    @default(false)
+  submittedAt                 DateTime?
+  completedAt                 DateTime?
+  requestExpiresAt            DateTime?
+  submittedEmail              String?
+  requestToken                String?                    @unique
+  requestedByAdminId          String?
+  approvedByAdminId           String?
+  approvedByUserId            String?
+  approvedAt                  DateTime?
+  rejectedAt                  DateTime?
+  rejectionReason             String?                    @db.Text
+  source                      TestimonialSource          @default(MEMBER_PROFILE)
+  copiedToGoogleAt            DateTime?
   googleReviewIntentClickedAt DateTime?
-  googleReviewCompleted Boolean               @default(false)
-  googleReviewConfirmedAt DateTime?
-  founderServiceRequest FounderServiceRequest? @relation("FounderServiceRequestTestimonial")
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
-  member              User?                   @relation("MemberTestimonials", fields: [memberId], references: [id], onDelete: SetNull)
-  submittedByUser     User?                   @relation("TestimonialSubmittedByUser", fields: [submittedByUserId], references: [id], onDelete: SetNull)
-  requestedByAdmin    User?                   @relation("TestimonialRequestedByAdmin", fields: [requestedByAdminId], references: [id], onDelete: SetNull)
-  approvedByAdmin     User?                   @relation("TestimonialApprovedByAdmin", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
-  approvedByUser      User?                   @relation("TestimonialApprovedByUser", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  googleReviewCompleted       Boolean                    @default(false)
+  googleReviewConfirmedAt     DateTime?
+  founderServiceRequest       FounderServiceRequest?     @relation("FounderServiceRequestTestimonial")
+  createdAt                   DateTime                   @default(now())
+  updatedAt                   DateTime                   @updatedAt
+  member                      User?                      @relation("MemberTestimonials", fields: [memberId], references: [id], onDelete: SetNull)
+  submittedByUser             User?                      @relation("TestimonialSubmittedByUser", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  requestedByAdmin            User?                      @relation("TestimonialRequestedByAdmin", fields: [requestedByAdminId], references: [id], onDelete: SetNull)
+  approvedByAdmin             User?                      @relation("TestimonialApprovedByAdmin", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
+  approvedByUser              User?                      @relation("TestimonialApprovedByUser", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([proofType, status, createdAt])
   @@index([category, status, createdAt])
@@ -1782,20 +1807,20 @@ model Testimonial {
 }
 
 model SiteReviewSettings {
-  id                              String   @id @default(cuid())
-  createdAt                       DateTime @default(now())
-  updatedAt                       DateTime @updatedAt
-  googleReviewUrl                 String?
-  googleReviewEnabled             Boolean  @default(false)
-  showGoogleReviewButton          Boolean  @default(false)
-  googleReviewButtonLabel         String   @default("Leave a Google review")
-  googleReviewPendingMessage      String   @default("Google review link coming soon")
-  internalTestimonialsEnabled     Boolean  @default(true)
-  publicTestimonialFormEnabled    Boolean  @default(true)
-  requireAdminApproval            Boolean  @default(true)
-  homepageTestimonialsEnabled     Boolean  @default(true)
-  founderPageTestimonialsEnabled  Boolean  @default(true)
-  auditPageTestimonialsEnabled    Boolean  @default(true)
+  id                             String   @id @default(cuid())
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+  googleReviewUrl                String?
+  googleReviewEnabled            Boolean  @default(false)
+  showGoogleReviewButton         Boolean  @default(false)
+  googleReviewButtonLabel        String   @default("Leave a Google review")
+  googleReviewPendingMessage     String   @default("Google review link coming soon")
+  internalTestimonialsEnabled    Boolean  @default(true)
+  publicTestimonialFormEnabled   Boolean  @default(true)
+  requireAdminApproval           Boolean  @default(true)
+  homepageTestimonialsEnabled    Boolean  @default(true)
+  founderPageTestimonialsEnabled Boolean  @default(true)
+  auditPageTestimonialsEnabled   Boolean  @default(true)
 }
 
 enum Role {
@@ -2076,6 +2101,12 @@ enum FounderServiceDiscountTag {
   LOCAL_OUTREACH
   MEMBER_DISCOUNT
   MANUAL
+}
+
+enum FounderServiceEmailLogStatus {
+  DRAFT
+  SENT
+  FAILED
 }
 
 enum BillingProductCategory {

@@ -13,6 +13,7 @@ import {
   updateFounderServiceRequestAction
 } from "@/actions/admin/founder-service.actions";
 import { CopyLinkButton } from "@/components/admin/copy-link-button";
+import { FounderServiceCheckoutEmailComposer } from "@/components/admin/founder-service-checkout-email-composer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,8 @@ import { requireAdmin } from "@/lib/session";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import {
   buildCleanFounderCheckoutUrl,
+  defaultFounderServiceCheckoutBody,
+  defaultFounderServiceCheckoutSubject,
   getFounderServiceRequestDetailsForAdmin,
   listFounderServiceDiscountCodes
 } from "@/server/founder";
@@ -92,6 +95,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
   const noticeMap: Record<string, string> = {
     "request-updated": "Founder client record updated successfully.",
     "checkout-link-created": "Manual checkout link generated successfully.",
+    "checkout-email-sent": "Checkout email sent successfully.",
     "testimonial-request-sent": "Testimonial request email sent successfully."
   };
 
@@ -100,6 +104,11 @@ function feedbackMessage(input: { notice: string; error: string }) {
     "not-found": "That founder client record no longer exists.",
     "checkout-link-invalid": "The checkout link request was invalid.",
     "checkout-link-failed": "Unable to generate a checkout link for that client.",
+    "checkout-email-invalid": "The checkout email form was incomplete or invalid.",
+    "checkout-email-missing-email": "This client does not have an email address.",
+    "checkout-email-missing-price": "This service is missing a linked Stripe price. Sync Stripe products first.",
+    "checkout-email-checkout-failed": "Unable to create the Stripe checkout session.",
+    "checkout-email-send-failed": "Unable to send the checkout email.",
     "testimonial-request-invalid": "The testimonial request payload was invalid.",
     "testimonial-request-failed": "Unable to send the testimonial request email."
   };
@@ -153,6 +162,9 @@ export default async function AdminFounderServiceDetailsPage({
     serviceSlug: request.service.slug,
     requestId: request.id
   });
+  const nextDate = request.callScheduledAt ?? request.auditDueAt ?? request.auditStartAt;
+  const firstName = request.fullName.split(" ")[0] ?? request.fullName;
+  const sentCheckoutEmailCount = request.emailLogs.filter((log) => log.status === "SENT").length;
   const feedback = feedbackMessage({
     notice: firstValue(parsedSearchParams.notice),
     error: firstValue(parsedSearchParams.error)
@@ -234,8 +246,40 @@ export default async function AdminFounderServiceDetailsPage({
           />
           <InfoStat
             label="Checkout Link"
-            value={request.checkoutUrl ? "Generated" : "Not generated"}
+            value={sentCheckoutEmailCount ? "Email sent" : request.checkoutUrl ? "Generated" : "Not generated"}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Client overview</CardTitle>
+          <CardDescription>
+            The enquiry, pricing, status, and next scheduled action in one place.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <DetailBlock label="Client or company" value={request.businessName} />
+          <DetailBlock label="Contact name" value={request.fullName} />
+          <DetailBlock label="Email address" value={request.email} />
+          <DetailBlock label="Service chosen" value={request.service.title} />
+          <DetailBlock label="Pipeline status" value={formatFounderClientStageLabel(request.pipelineStage)} />
+          <DetailBlock label="Payment status" value={formatFounderPaymentStatusLabel(request.paymentStatus)} />
+          <DetailBlock label="Pricing" value={formatFounderServicePrice(request.amount, request.currency)} />
+          <DetailBlock
+            label="Rate"
+            value={
+              request.membershipDiscountPercent
+                ? `${request.membershipDiscountPercent}% member rate`
+                : "Standard rate"
+            }
+          />
+          <DetailBlock label="Created date" value={formatDateTime(request.createdAt)} />
+          <DetailBlock label="Next scheduled date" value={nextDate ? formatDateTime(nextDate) : "Not scheduled"} />
+          <div className="rounded-2xl border border-border/80 bg-background/25 p-4 md:col-span-2 xl:col-span-3">
+            <p className="text-xs uppercase tracking-[0.08em] text-muted">Original enquiry</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{request.helpSummary}</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -390,7 +434,7 @@ export default async function AdminFounderServiceDetailsPage({
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Manual checkout</CardTitle>
+              <CardTitle>Manual checkout link</CardTitle>
               <CardDescription>
                 Generate or refresh a Stripe checkout link after you have approved the work.
               </CardDescription>
@@ -420,10 +464,6 @@ export default async function AdminFounderServiceDetailsPage({
                   <p className="mt-2 text-xs text-muted">
                     Last generated {request.checkoutLinkSentAt ? formatDateTime(request.checkoutLinkSentAt) : "recently"}.
                   </p>
-                  <details className="mt-3 text-xs text-muted">
-                    <summary className="cursor-pointer text-foreground">Stripe checkout URL</summary>
-                    <p className="mt-2 break-all">{request.checkoutUrl}</p>
-                  </details>
                 </div>
               ) : (
                 <div className="rounded-2xl border border-border/80 bg-background/22 p-4 text-sm text-muted">
@@ -497,6 +537,59 @@ export default async function AdminFounderServiceDetailsPage({
             </CardContent>
           </Card>
 
+          <FounderServiceCheckoutEmailComposer
+            requestId={request.id}
+            returnPath={returnPath}
+            toEmail={request.email}
+            subject={defaultFounderServiceCheckoutSubject(request.service.title)}
+            body={defaultFounderServiceCheckoutBody({
+              firstName,
+              serviceName: request.service.title
+            })}
+            serviceName={request.service.title}
+            priceAmount={request.amount}
+            currency={request.currency}
+            selectedDiscountCodeId={request.adminDiscountCode?.id ?? null}
+            discountCodes={discountCodes}
+            hasSentCheckoutEmail={sentCheckoutEmailCount > 0}
+          />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Email history</CardTitle>
+              <CardDescription>Checkout emails sent from this admin record.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {request.emailLogs.length ? (
+                request.emailLogs.map((log) => (
+                  <div key={log.id} className="rounded-2xl border border-border/80 bg-background/22 p-4 text-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-foreground">{log.subject}</p>
+                        <p className="mt-1 text-xs text-muted">
+                          {log.sentAt ? formatDateTime(log.sentAt) : formatDateTime(log.createdAt)}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="border-border text-muted">
+                        {log.status}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 grid gap-1 text-xs text-muted">
+                      <p>Service: {log.serviceName}</p>
+                      <p>Price: {formatFounderServicePrice(log.priceAmount, log.currency)}</p>
+                      <p>Checkout session: {log.stripeCheckoutSessionId ? "Created" : "Not created"}</p>
+                      {log.errorMessage ? <p>Error: {log.errorMessage}</p> : null}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border/70 bg-background/18 px-4 py-6 text-sm text-muted">
+                  No checkout emails have been sent to this client yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Pricing and Stripe context</CardTitle>
@@ -514,10 +607,10 @@ export default async function AdminFounderServiceDetailsPage({
                   : "No member discount"}
               </p>
               <p>Manual discount: {request.adminDiscountCode?.code ?? "No manual discount"}</p>
-              <p>Checkout session: {optionalValue(request.stripeCheckoutSessionId)}</p>
-              <p>Payment intent: {optionalValue(request.stripePaymentIntentId)}</p>
-              <p>Subscription: {optionalValue(request.stripeSubscriptionId)}</p>
-              <p>Invoice: {optionalValue(request.stripeInvoiceId)}</p>
+              <p>Checkout session: {request.stripeCheckoutSessionId ? "Created" : "Not created"}</p>
+              <p>Payment intent: {request.stripePaymentIntentId ? "Linked" : "Not linked"}</p>
+              <p>Subscription: {request.stripeSubscriptionId ? "Linked" : "Not linked"}</p>
+              <p>Invoice: {request.stripeInvoiceId ? "Linked" : "Not linked"}</p>
             </CardContent>
           </Card>
         </div>

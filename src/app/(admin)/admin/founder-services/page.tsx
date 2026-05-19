@@ -41,6 +41,7 @@ import {
   listFounderServiceDiscountCodes,
   listFounderServiceRequestsForAdmin
 } from "@/server/founder";
+import type { FounderServiceRequestListItem } from "@/types";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -256,7 +257,7 @@ function MetricCard({
   hint: string;
 }) {
   return (
-    <Card className="interactive-card">
+    <Card className="interactive-card h-full">
       <CardHeader className="space-y-1 pb-2">
         <CardDescription className="inline-flex items-center gap-2">
           <Icon size={15} className="text-gold" />
@@ -269,6 +270,10 @@ function MetricCard({
       </CardContent>
     </Card>
   );
+}
+
+function nextClientDate(request: FounderServiceRequestListItem) {
+  return request.callScheduledAt ?? request.auditDueAt ?? request.auditStartAt;
 }
 
 export default async function AdminFounderServicesPage({ searchParams }: PageProps) {
@@ -343,16 +348,16 @@ export default async function AdminFounderServicesPage({ searchParams }: PagePro
               </CardDescription>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
               <form action={syncFounderServiceStripeCatalogAction}>
                 <input type="hidden" name="returnPath" value={returnPath} />
-                <Button type="submit" variant="outline">
+                <Button type="submit" variant="outline" className="w-full sm:w-auto">
                   <Sparkles size={15} className="mr-1" />
                   Sync Stripe Products
                 </Button>
               </form>
               <a href="/api/admin/founder-services/export">
-                <Button variant="outline">
+                <Button variant="outline" className="w-full sm:w-auto">
                   <Download size={15} className="mr-1" />
                   Export CSV
                 </Button>
@@ -443,10 +448,10 @@ export default async function AdminFounderServicesPage({ searchParams }: PagePro
                 ))}
               </Select>
             </div>
-            <div className="flex items-end gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <input type="hidden" name="calendar" value={calendarView} />
               <input type="hidden" name="date" value={toDateInputValue(calendarDate)} />
-              <Button type="submit" variant="outline">
+              <Button type="submit" variant="outline" className="w-full sm:w-auto">
                 Apply Filters
               </Button>
               {hasFilters ? (
@@ -462,15 +467,123 @@ export default async function AdminFounderServicesPage({ searchParams }: PagePro
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Pipeline board</CardTitle>
-            <CardDescription>
-              Status updates are manual so Trevor stays in control of workload and timing.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 xl:grid-cols-3">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Client list</CardTitle>
+              <CardDescription>Quick access to every founder client record.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="min-w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-xs uppercase tracking-[0.06em] text-muted">
+                      <th className="px-3 py-2 font-medium">Client</th>
+                      <th className="px-3 py-2 font-medium">Service</th>
+                      <th className="px-3 py-2 font-medium">Pipeline</th>
+                      <th className="px-3 py-2 font-medium">Payment</th>
+                      <th className="px-3 py-2 font-medium">Pricing</th>
+                      <th className="px-3 py-2 font-medium">Next date</th>
+                      <th className="px-3 py-2 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requests.length ? (
+                      requests.map((request) => (
+                        <tr key={request.id} className="border-b border-border/70 align-top">
+                          <td className="px-3 py-3">
+                            <p className="font-medium text-foreground">{request.businessName}</p>
+                            <p className="mt-1 text-xs text-muted">{request.fullName}</p>
+                            <p className="mt-1 text-xs text-muted">{request.email}</p>
+                          </td>
+                          <td className="px-3 py-3">
+                            <p className="font-medium text-foreground">{request.service.title}</p>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted">{request.helpSummary}</p>
+                          </td>
+                          <td className="px-3 py-3 text-muted">
+                            {formatFounderClientStageLabel(request.pipelineStage)}
+                          </td>
+                          <td className="px-3 py-3 text-muted">
+                            {formatFounderPaymentStatusLabel(request.paymentStatus)}
+                          </td>
+                          <td className="px-3 py-3">
+                            <p className="font-medium text-foreground">
+                              {formatFounderServicePrice(request.amount, request.currency)}
+                            </p>
+                            <p className="mt-1 text-xs text-muted">
+                              {request.membershipDiscountPercent
+                                ? `${request.membershipDiscountPercent}% member rate`
+                                : "Standard rate"}
+                            </p>
+                          </td>
+                          <td className="px-3 py-3 text-muted">
+                            {nextClientDate(request) ? formatDateTime(nextClientDate(request) as Date) : "Not scheduled"}
+                          </td>
+                          <td className="px-3 py-3">
+                            <Link href={`/admin/founder-services/${request.id}`}>
+                              <Button variant="outline" size="sm">
+                                Open Client
+                              </Button>
+                            </Link>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="px-3 py-10 text-center text-muted">
+                          No founder client records match the current filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="grid gap-3 md:hidden">
+                {requests.length ? (
+                  requests.map((request) => {
+                    const nextDate = nextClientDate(request);
+
+                    return (
+                      <div key={request.id} className="rounded-2xl border border-border/80 bg-background/22 p-4">
+                        <div className="space-y-1">
+                          <p className="font-medium text-foreground">{request.businessName}</p>
+                          <p className="text-sm text-muted">{request.fullName}</p>
+                          <p className="break-all text-xs text-muted">{request.email}</p>
+                        </div>
+                        <div className="mt-4 grid gap-2 text-sm text-muted">
+                          <p>Service: {request.service.title}</p>
+                          <p>Pipeline: {formatFounderClientStageLabel(request.pipelineStage)}</p>
+                          <p>Payment: {formatFounderPaymentStatusLabel(request.paymentStatus)}</p>
+                          <p>Price: {formatFounderServicePrice(request.amount, request.currency)}</p>
+                          <p>Next date: {nextDate ? formatDateTime(nextDate) : "Not scheduled"}</p>
+                        </div>
+                        <Link href={`/admin/founder-services/${request.id}`} className="mt-4 block">
+                          <Button variant="outline" className="w-full">
+                            Open Client
+                          </Button>
+                        </Link>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-background/18 px-4 py-8 text-sm text-muted">
+                    No founder client records match the current filters.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Pipeline board</CardTitle>
+              <CardDescription>
+                Status updates are manual so Trevor stays in control of workload and timing.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
               {pipelineGroups.map((group) => (
                 <div key={group.stage} className="space-y-3">
                   <div className="rounded-2xl border border-border/80 bg-background/22 px-4 py-3">
@@ -486,7 +599,7 @@ export default async function AdminFounderServicesPage({ searchParams }: PagePro
                     group.items.map((request) => (
                       <div
                         key={request.id}
-                        className={`rounded-[1.45rem] border p-4 ${pipelineCardTone(request.pipelineStage)}`}
+                        className={`rounded-2xl border p-4 ${pipelineCardTone(request.pipelineStage)}`}
                       >
                         <div className="space-y-3">
                           <div>
@@ -540,9 +653,10 @@ export default async function AdminFounderServicesPage({ searchParams }: PagePro
                   )}
                 </div>
               ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="space-y-6">
           <Card>
@@ -757,7 +871,7 @@ export default async function AdminFounderServicesPage({ searchParams }: PagePro
                     </p>
                     <p>Usage: {code.timesRedeemed}{code.usageLimit ? ` / ${code.usageLimit}` : ""}</p>
                     <p>Expiry: {code.expiresAt ? formatDateTime(code.expiresAt) : "No expiry"}</p>
-                    <p>Promotion code: {code.stripePromotionCodeId ?? "Not linked"}</p>
+                    <p>Stripe status: {code.stripePromotionCodeId ? "Linked" : "Not linked"}</p>
                   </div>
                 </div>
               ))}
@@ -768,84 +882,6 @@ export default async function AdminFounderServicesPage({ searchParams }: PagePro
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Client list</CardTitle>
-          <CardDescription>Quick access to every founder client record.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs uppercase tracking-[0.06em] text-muted">
-                  <th className="px-3 py-2 font-medium">Client</th>
-                  <th className="px-3 py-2 font-medium">Service</th>
-                  <th className="px-3 py-2 font-medium">Pipeline</th>
-                  <th className="px-3 py-2 font-medium">Payment</th>
-                  <th className="px-3 py-2 font-medium">Pricing</th>
-                  <th className="px-3 py-2 font-medium">Next date</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.length ? (
-                  requests.map((request) => (
-                    <tr key={request.id} className="border-b border-border/70 align-top">
-                      <td className="px-3 py-3">
-                        <p className="font-medium text-foreground">{request.businessName}</p>
-                        <p className="mt-1 text-xs text-muted">{request.fullName}</p>
-                        <p className="mt-1 text-xs text-muted">{request.email}</p>
-                      </td>
-                      <td className="px-3 py-3">
-                        <p className="font-medium text-foreground">{request.service.title}</p>
-                        <p className="mt-1 text-xs text-muted">{request.helpSummary}</p>
-                      </td>
-                      <td className="px-3 py-3 text-muted">
-                        {formatFounderClientStageLabel(request.pipelineStage)}
-                      </td>
-                      <td className="px-3 py-3 text-muted">
-                        {formatFounderPaymentStatusLabel(request.paymentStatus)}
-                      </td>
-                      <td className="px-3 py-3">
-                        <p className="font-medium text-foreground">
-                          {formatFounderServicePrice(request.amount, request.currency)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted">
-                          {request.membershipDiscountPercent
-                            ? `${request.membershipDiscountPercent}% member rate`
-                            : "Standard rate"}
-                        </p>
-                      </td>
-                      <td className="px-3 py-3 text-muted">
-                        {request.callScheduledAt
-                          ? formatDateTime(request.callScheduledAt)
-                          : request.auditDueAt
-                            ? formatDateTime(request.auditDueAt)
-                            : request.auditStartAt
-                              ? formatDateTime(request.auditStartAt)
-                              : "Not scheduled"}
-                      </td>
-                      <td className="px-3 py-3">
-                        <Link href={`/admin/founder-services/${request.id}`}>
-                          <Button variant="outline" size="sm">
-                            Open Client
-                          </Button>
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="px-3 py-10 text-center text-muted">
-                      No founder client records match the current filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
