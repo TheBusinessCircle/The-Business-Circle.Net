@@ -3,15 +3,10 @@ import {
   TestimonialDisplayLocation,
   TestimonialStatus
 } from "@prisma/client";
-import { ChevronDown, MessageSquareQuote, ShieldCheck } from "lucide-react";
-import { submitMemberTestimonialAction } from "@/actions/testimonial.actions";
+import { ChevronDown, MessageSquareQuote } from "lucide-react";
 import { GoogleReviewCta } from "@/components/testimonials";
-import { Button } from "@/components/ui/button";
+import { MemberTestimonialSubmissionForm } from "@/components/profile/member-testimonial-submission-form";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { cn, formatDate } from "@/lib/utils";
 
 type MemberTestimonialSubmissionProps = {
@@ -23,6 +18,7 @@ type MemberTestimonialSubmissionProps = {
   googleReviewUrl?: string | null;
   googleReviewEnabled?: boolean;
   showGoogleReviewButton?: boolean;
+  googleReviewButtonLabel?: string;
   googleReviewPendingMessage?: string;
 };
 
@@ -59,9 +55,55 @@ export function MemberTestimonialSubmission({
   googleReviewUrl,
   googleReviewEnabled = false,
   showGoogleReviewButton = false,
+  googleReviewButtonLabel = "Leave a Google review",
   googleReviewPendingMessage = "Google review link coming soon"
 }: MemberTestimonialSubmissionProps) {
   const testimonialPanelDefaultOpen = feedback === "sent" || feedback === "invalid";
+  const postSubmitTestimonialText = latestText ?? "";
+  const categoryOptions = [
+    {
+      value: TestimonialCategory.BCN_EXPERIENCE,
+      label: "The Business Circle Network"
+    },
+    {
+      value: TestimonialCategory.GROWTH_ARCHITECT,
+      label: "Growth Architect"
+    },
+    {
+      value: TestimonialCategory.FOUNDER_AUDIT,
+      label: "Founder Audit"
+    },
+    {
+      value: TestimonialCategory.STRATEGY_CALL,
+      label: "Strategy call"
+    },
+    {
+      value: TestimonialCategory.COLLABORATION,
+      label: "Collaboration"
+    },
+    {
+      value: TestimonialCategory.COMMUNITY,
+      label: "Community"
+    },
+    {
+      value: TestimonialCategory.OTHER,
+      label: "Other"
+    }
+  ];
+  const displayLocationOptions = [
+    {
+      value: TestimonialDisplayLocation.BCN_HOME,
+      label: "The Business Circle Network"
+    },
+    {
+      value: TestimonialDisplayLocation.FOUNDER_PAGE,
+      label: "Growth Architect / Founder Audit"
+    },
+    {
+      value: TestimonialDisplayLocation.ANYWHERE,
+      label: "Either is fine"
+    }
+  ];
 
   return (
     <Card className="overflow-hidden border-primary/24 bg-gradient-to-br from-primary/8 via-card/78 to-card/70">
@@ -117,11 +159,11 @@ export function MemberTestimonialSubmission({
               <p>Thank you. Your testimonial has been sent for review.</p>
               <GoogleReviewCta
                 testimonialId={submittedTestimonialId}
-                testimonialText={latestText ?? ""}
+                testimonialText={postSubmitTestimonialText}
                 googleReviewUrl={googleReviewUrl}
                 enabled={googleReviewEnabled}
                 showButton={showGoogleReviewButton}
-                label="Copy your words and leave them on Google"
+                label={googleReviewButtonLabel}
                 pendingMessage={googleReviewPendingMessage}
               />
             </div>
@@ -133,101 +175,16 @@ export function MemberTestimonialSubmission({
             </div>
           ) : null}
 
-          <form action={submitMemberTestimonialAction} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="testimonialQuote">Testimonial</Label>
-              <Textarea
-                id="testimonialQuote"
-                name="quote"
-                rows={5}
-                required
-                minLength={20}
-                maxLength={1200}
-                placeholder="Share what changed, what felt clearer, or what became easier."
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="testimonialCategory">Experience</Label>
-                <Select id="testimonialCategory" name="category" defaultValue="BCN_EXPERIENCE">
-                  <option value={TestimonialCategory.BCN_EXPERIENCE}>The Business Circle Network</option>
-                  <option value={TestimonialCategory.GROWTH_ARCHITECT}>Growth Architect</option>
-                  <option value={TestimonialCategory.FOUNDER_AUDIT}>Founder Audit</option>
-                  <option value={TestimonialCategory.STRATEGY_CALL}>Strategy call</option>
-                  <option value={TestimonialCategory.COLLABORATION}>Collaboration</option>
-                  <option value={TestimonialCategory.COMMUNITY}>Community</option>
-                  <option value={TestimonialCategory.OTHER}>Other</option>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="testimonialDisplayLocation">Display preference</Label>
-                <Select id="testimonialDisplayLocation" name="displayLocation" defaultValue="ANYWHERE">
-                  <option value={TestimonialDisplayLocation.BCN_HOME}>The Business Circle Network</option>
-                  <option value={TestimonialDisplayLocation.FOUNDER_PAGE}>Growth Architect / Founder Audit</option>
-                  <option value={TestimonialDisplayLocation.ANYWHERE}>Either is fine</option>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="testimonialRating">Rating, optional</Label>
-                <Select id="testimonialRating" name="rating" defaultValue="">
-                  <option value="">No rating</option>
-                  {[1, 2, 3, 4, 5].map((rating) => (
-                    <option key={rating} value={rating}>
-                      {rating} out of 5
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="submittedByCompany">Company, optional</Label>
-                <Input id="submittedByCompany" name="submittedByCompany" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="submittedByRole">Role, optional</Label>
-                <Input id="submittedByRole" name="submittedByRole" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="submittedByWebsite">Website, optional</Label>
-                <Input id="submittedByWebsite" name="submittedByWebsite" type="url" />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="submittedByLinkedIn">LinkedIn, optional</Label>
-                <Input id="submittedByLinkedIn" name="submittedByLinkedIn" type="url" />
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border/80 bg-background/22 p-4">
-              <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                <ShieldCheck size={15} className="text-primary" />
-                Permission
-              </div>
-              <div className="grid gap-3">
-                <label className="flex items-start gap-2 text-sm text-muted">
-                  <input type="checkbox" name="permissionToFeaturePublicly" required className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary" />
-                  I give permission for this testimonial to be featured publicly on The Business Circle Network.
-                </label>
-                <label className="flex items-center gap-2 text-sm text-muted">
-                  <input type="checkbox" name="permissionToUseName" defaultChecked className="h-4 w-4 rounded border-border bg-background accent-primary" />
-                  I give permission for my name to be shown.
-                </label>
-                <label className="flex items-center gap-2 text-sm text-muted">
-                  <input type="checkbox" name="permissionToUseCompany" defaultChecked className="h-4 w-4 rounded border-border bg-background accent-primary" />
-                  I give permission for my company name to be shown.
-                </label>
-                <label className="flex items-center gap-2 text-sm text-muted">
-                  <input type="checkbox" name="permissionToUseImage" className="h-4 w-4 rounded border-border bg-background accent-primary" />
-                  I give permission for my profile image/logo to be shown.
-                </label>
-                <label className="flex items-center gap-2 text-sm text-muted">
-                  <input type="checkbox" name="permissionToUseInMarketing" className="h-4 w-4 rounded border-border bg-background accent-primary" />
-                  I give permission for this testimonial to be used in marketing material.
-                </label>
-              </div>
-            </div>
-
-            <Button type="submit">Submit testimonial</Button>
-          </form>
+          <MemberTestimonialSubmissionForm
+            categoryOptions={categoryOptions}
+            displayLocationOptions={displayLocationOptions}
+            googleReviewUrl={googleReviewUrl}
+            googleReviewEnabled={googleReviewEnabled}
+            showGoogleReviewButton={showGoogleReviewButton}
+            googleReviewButtonLabel={googleReviewButtonLabel}
+            googleReviewPendingMessage={googleReviewPendingMessage}
+            googleIntentTestimonialId={feedback === "sent" ? submittedTestimonialId : null}
+          />
         </CardContent>
       </details>
     </Card>

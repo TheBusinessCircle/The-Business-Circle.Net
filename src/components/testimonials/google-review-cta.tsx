@@ -2,6 +2,11 @@
 
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import {
+  googleReviewCtaIsActive,
+  shouldShowGoogleReviewPendingState,
+  testimonialIsReadyForGoogleReview
+} from "@/components/testimonials/google-review.logic";
 import { Button } from "@/components/ui/button";
 
 type GoogleReviewCtaProps = {
@@ -24,7 +29,17 @@ export function GoogleReviewCta({
   pendingMessage
 }: GoogleReviewCtaProps) {
   const [copied, setCopied] = useState(false);
-  const active = Boolean(enabled && showButton && googleReviewUrl);
+  const testimonialReady = testimonialIsReadyForGoogleReview(testimonialText);
+  const active = googleReviewCtaIsActive({
+    enabled,
+    showButton,
+    googleReviewUrl
+  });
+  const showPending = shouldShowGoogleReviewPendingState({
+    enabled,
+    showButton,
+    googleReviewUrl
+  });
 
   async function track(kind: "intent" | "copy") {
     if (!testimonialId) {
@@ -44,6 +59,10 @@ export function GoogleReviewCta({
   }
 
   async function copyText() {
+    if (!testimonialReady) {
+      return false;
+    }
+
     try {
       await navigator.clipboard.writeText(testimonialText);
       setCopied(true);
@@ -57,6 +76,10 @@ export function GoogleReviewCta({
   }
 
   async function handleGoogleClick() {
+    if (!testimonialReady) {
+      return;
+    }
+
     const copiedToClipboard = await copyText();
     await track("intent");
 
@@ -70,19 +93,19 @@ export function GoogleReviewCta({
     }
   }
 
-  if (!showButton && !active) {
+  if (!showButton && !active && !showPending) {
     return null;
   }
 
   return (
     <div className="space-y-3 rounded-2xl border border-gold/24 bg-gold/10 p-4">
       <div className="flex flex-wrap gap-3">
-        <Button type="button" variant="outline" onClick={copyText}>
+        <Button type="button" variant="outline" onClick={copyText} disabled={!testimonialReady}>
           {copied ? <Check size={15} className="mr-2" /> : <Copy size={15} className="mr-2" />}
           {copied ? "Copied" : "Copy your testimonial"}
         </Button>
         {active ? (
-          <Button type="button" onClick={handleGoogleClick}>
+          <Button type="button" onClick={handleGoogleClick} disabled={!testimonialReady}>
             <ExternalLink size={15} className="mr-2" />
             {label}
           </Button>
@@ -92,7 +115,11 @@ export function GoogleReviewCta({
           </Button>
         )}
       </div>
-      {copied ? (
+      {!testimonialReady && active ? (
+        <p className="text-sm text-muted">
+          Testimonial text needs to be available before Google opens.
+        </p>
+      ) : copied ? (
         <p className="text-sm text-gold">
           Your testimonial has been copied. Paste it into Google to save writing it again.
         </p>

@@ -100,6 +100,7 @@ export default async function ProfilePage({ searchParams }: PageProps) {
         googleReviewUrl={reviewSettings.googleReviewUrl}
         googleReviewEnabled={reviewSettings.googleReviewEnabled}
         showGoogleReviewButton={reviewSettings.showGoogleReviewButton}
+        googleReviewButtonLabel={reviewSettings.googleReviewButtonLabel}
         googleReviewPendingMessage={reviewSettings.googleReviewPendingMessage}
       />
 
