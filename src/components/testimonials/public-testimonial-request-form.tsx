@@ -18,24 +18,47 @@ type SelectOption = {
 
 type PublicTestimonialRequestFormProps = {
   token: string;
-  authorName: string;
-  roleTitle?: string | null;
-  businessName?: string | null;
-  businessWebsite?: string | null;
-  submittedEmail?: string | null;
+  recipientName?: string | null;
+  requestCompanyName?: string | null;
   category: string;
   displayLocation: string;
   categoryOptions: SelectOption[];
   displayLocationOptions: SelectOption[];
 };
 
+async function writeClipboardText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // Fall through to the legacy selection copy path.
+    }
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = value;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "fixed";
+  textArea.style.inset = "0 auto auto 0";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    document.body.removeChild(textArea);
+  }
+}
+
 export function PublicTestimonialRequestForm({
   token,
-  authorName,
-  roleTitle,
-  businessName,
-  businessWebsite,
-  submittedEmail,
+  recipientName,
+  requestCompanyName,
   category,
   displayLocation,
   categoryOptions,
@@ -50,13 +73,17 @@ export function PublicTestimonialRequestForm({
 
     if (!trimmed) {
       setCopied(false);
-      setCopyMessage("Write your testimonial first, then copy it here.");
+      setCopyMessage("Write your testimonial first, then copy it.");
       return;
     }
 
-    await navigator.clipboard.writeText(trimmed).catch(() => undefined);
-    setCopied(true);
-    setCopyMessage("Copied. You can paste it into Google if you are happy to leave a public review.");
+    const didCopy = await writeClipboardText(trimmed);
+    setCopied(didCopy);
+    setCopyMessage(
+      didCopy
+        ? "Testimonial copied."
+        : "We could not copy automatically. Please select the testimonial text and copy it."
+    );
     window.setTimeout(() => setCopied(false), 1800);
   }
 
@@ -65,42 +92,36 @@ export function PublicTestimonialRequestForm({
       <input type="hidden" name="requestToken" value={token} />
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
 
+      {recipientName || requestCompanyName ? (
+        <div className="rounded-2xl border border-border/80 bg-background/25 p-4 text-sm leading-relaxed text-muted">
+          This request was prepared for{" "}
+          <span className="font-medium text-foreground">
+            {[recipientName, requestCompanyName].filter(Boolean).join(", ")}
+          </span>
+          . Please enter the details you would like attached to your testimonial below.
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="authorName">Name</Label>
-          <Input
-            id="authorName"
-            name="authorName"
-            required
-            defaultValue={authorName === "Client testimonial request" ? "" : authorName}
-          />
+          <Input id="authorName" name="authorName" required />
         </div>
         <div className="space-y-2">
           <Label htmlFor="authorRole">Role/title</Label>
-          <Input id="authorRole" name="authorRole" defaultValue={roleTitle ?? ""} />
+          <Input id="authorRole" name="authorRole" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="businessName">Business/company name</Label>
-          <Input id="businessName" name="businessName" defaultValue={businessName ?? ""} />
+          <Input id="businessName" name="businessName" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="businessWebsite">Business website</Label>
-          <Input
-            id="businessWebsite"
-            name="businessWebsite"
-            type="url"
-            defaultValue={businessWebsite ?? ""}
-          />
+          <Input id="businessWebsite" name="businessWebsite" type="url" />
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="submittedEmail">Email</Label>
-          <Input
-            id="submittedEmail"
-            name="submittedEmail"
-            type="email"
-            required
-            defaultValue={submittedEmail ?? ""}
-          />
+          <Input id="submittedEmail" name="submittedEmail" type="email" required />
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="submittedByLinkedIn">LinkedIn</Label>
@@ -221,8 +242,11 @@ export function PublicTestimonialRequestForm({
 
       <div className="rounded-2xl border border-gold/24 bg-gold/10 p-4">
         <p className="text-sm leading-relaxed text-muted">
-          You can copy your testimonial first, then paste it into Google if you are happy to leave a
-          public review.
+          Once you have written your testimonial, you can copy it first, submit it here, and then
+          paste the same words into Google if you are happy to leave a public review too.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          You can paste the same testimonial into Google if you are happy to leave it there too.
         </p>
         {copyMessage ? (
           <p className="mt-3 text-sm text-gold" aria-live="polite">
@@ -232,7 +256,7 @@ export function PublicTestimonialRequestForm({
         <div className="mt-4 grid gap-2 sm:grid-cols-[auto_auto_auto] sm:justify-start">
           <Button type="button" variant="outline" onClick={copyTestimonial}>
             {copied ? <Check size={15} className="mr-2" /> : <Copy size={15} className="mr-2" />}
-            Copy testimonial
+            {copied ? "Copied" : "Copy testimonial"}
           </Button>
           <Button type="submit">Submit testimonial</Button>
           <a

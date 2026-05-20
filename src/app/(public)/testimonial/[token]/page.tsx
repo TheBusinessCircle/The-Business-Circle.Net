@@ -185,11 +185,8 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
             <CardContent className="pt-6 sm:pt-7">
               <PublicTestimonialRequestForm
                 token={token}
-                authorName={request.authorName}
-                roleTitle={request.roleTitle ?? request.authorRole}
-                businessName={request.companyName ?? request.businessName}
-                businessWebsite={request.businessWebsite}
-                submittedEmail={request.submittedEmail}
+                recipientName={request.recipientName ?? request.submittedByName}
+                requestCompanyName={request.companyName ?? request.submittedByCompany}
                 category={request.category}
                 displayLocation={request.displayLocation}
                 categoryOptions={categoryOptions}
