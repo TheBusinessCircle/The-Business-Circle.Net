@@ -167,7 +167,7 @@ export function CommunityPostFeedList({
   const isBcnUpdatesFeed = channelSlug === BCN_UPDATES_CHANNEL_SLUG;
 
   return (
-    <div className="space-y-5">
+    <div className="bcn-overflow-safe space-y-5">
       {posts.map((post, index) => {
         const isExpanded = expandedPostId === post.id;
         const detail = detailsById[post.id];
@@ -195,13 +195,15 @@ export function CommunityPostFeedList({
                 : ""
             )}
           >
-            <CardHeader className="space-y-4">
+            <CardHeader className="space-y-4 px-4 sm:px-7">
               {isBcnUpdatesFeed ? (
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <Badge variant="outline" className="border-gold/24 bg-gold/10 text-gold">
+                  <Badge variant="outline" className="whitespace-normal border-gold/24 bg-gold/10 text-gold">
                     Commercial signal
                   </Badge>
-                  <span>{post.intelligenceSourceName ?? post.sourceDomain ?? "BCN source"}</span>
+                  <span className="min-w-0 break-words">
+                    {post.intelligenceSourceName ?? post.sourceDomain ?? "BCN source"}
+                  </span>
                   <span>{formatDate(post.intelligencePublishedAt ?? post.createdAt)}</span>
                 </div>
               ) : (
@@ -243,19 +245,19 @@ export function CommunityPostFeedList({
                   {isBcnUpdatesFeed ? (
                     <div className="flex flex-wrap items-center gap-2">
                       {isFeaturedSignal ? (
-                        <Badge variant="outline" className="border-gold/24 bg-gold/10 text-gold">
+                        <Badge variant="outline" className="whitespace-normal border-gold/24 bg-gold/10 text-gold">
                           Most relevant now
                         </Badge>
                       ) : null}
                       {post.intelligenceLabel ? (
-                        <Badge variant="outline" className="border-gold/18 bg-gold/10 text-gold">
+                        <Badge variant="outline" className="whitespace-normal border-gold/18 bg-gold/10 text-gold">
                           {post.intelligenceLabel}
                         </Badge>
                       ) : null}
                       {post.intelligenceSourceName || post.sourceDomain ? (
                         <Badge
                           variant="outline"
-                          className="border-silver/14 bg-background/16 normal-case tracking-normal text-muted"
+                          className="whitespace-normal border-silver/14 bg-background/16 normal-case tracking-normal text-muted"
                         >
                           {post.intelligenceSourceName ?? post.sourceDomain}
                         </Badge>
@@ -263,7 +265,7 @@ export function CommunityPostFeedList({
                       {visiblePrimaryTag ? (
                         <Badge
                           variant="outline"
-                          className="border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
+                          className="whitespace-normal border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
                         >
                           {visiblePrimaryTag}
                         </Badge>
@@ -271,14 +273,14 @@ export function CommunityPostFeedList({
                       {freshnessLabel ? (
                         <Badge
                           variant="outline"
-                          className="border-silver/14 bg-background/16 normal-case tracking-normal text-muted"
+                          className="whitespace-normal border-silver/14 bg-background/16 normal-case tracking-normal text-muted"
                         >
                           {freshnessLabel}
                         </Badge>
                       ) : null}
                     </div>
                   ) : null}
-                  <CardTitle className="text-2xl leading-tight">{post.title}</CardTitle>
+                  <CardTitle className="text-xl leading-tight sm:text-2xl">{post.title}</CardTitle>
                   {parsedBcn ? (
                     <div className="space-y-3">
                       <CommunitySourcePreview
@@ -332,7 +334,7 @@ export function CommunityPostFeedList({
                   ) : (
                     <p className="line-clamp-3 text-sm leading-7 text-foreground/85">{preview}</p>
                   )}
-                  <div className="flex items-center justify-between gap-3 text-sm text-muted">
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
                     <span>{isExpanded ? "Collapse inline view" : "Read inline"}</span>
                     {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
@@ -342,7 +344,7 @@ export function CommunityPostFeedList({
               {!isExpanded ? <CommunityPostTags tags={post.tags} /> : null}
             </CardHeader>
 
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-5 px-4 sm:px-7">
               {!isExpanded ? (
                 <CommunityPostEngagementBar
                   post={post}

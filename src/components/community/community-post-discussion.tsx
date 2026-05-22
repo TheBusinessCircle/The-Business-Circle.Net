@@ -81,11 +81,11 @@ export function CommunityPostTags({ tags }: { tags: string[] }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex min-w-0 flex-wrap gap-2">
       {showConnectionWin ? (
         <Badge
           variant="outline"
-          className="border-silver/20 bg-silver/10 normal-case tracking-normal text-silver"
+          className="whitespace-normal border-silver/20 bg-silver/10 normal-case tracking-normal text-silver"
         >
           Connection win
         </Badge>
@@ -94,7 +94,7 @@ export function CommunityPostTags({ tags }: { tags: string[] }) {
         <Badge
           key={tag}
           variant="outline"
-          className="border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
+          className="whitespace-normal border-silver/16 bg-silver/10 normal-case tracking-normal text-silver"
         >
           {getBcnTagLabel(tag)}
         </Badge>
@@ -127,13 +127,25 @@ function CommentComposer({
         placeholder={compact ? "Add a reply" : "Add a comment"}
         className={compact ? "min-h-[88px]" : undefined}
       />
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex flex-col justify-end gap-2 sm:flex-row sm:items-center">
         {onCancel ? (
-          <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="min-h-10 w-full sm:w-auto"
+            onClick={onCancel}
+          >
             Cancel
           </Button>
         ) : null}
-        <FeedSubmitButton type="submit" size="sm" variant="outline" pendingLabel="Posting...">
+        <FeedSubmitButton
+          type="submit"
+          size="sm"
+          variant="outline"
+          pendingLabel="Posting..."
+          className="min-h-10 w-full sm:w-auto"
+        >
           {compact ? "Post reply" : "Post comment"}
         </FeedSubmitButton>
       </div>
@@ -162,7 +174,7 @@ function CommentEngagementBar({
   }, [comment.likeCount, comment.viewerHasLiked]);
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+    <div className="mt-3 flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
       <Button
         type="button"
         size="sm"
@@ -170,7 +182,7 @@ function CommentEngagementBar({
         disabled={isPending}
         aria-pressed={viewerHasLiked}
         className={cn(
-          "h-7 gap-1.5 px-2 text-xs shadow-none",
+          "h-8 gap-1.5 whitespace-normal px-2 text-xs shadow-none",
           viewerHasLiked
             ? "text-gold hover:bg-gold/10 hover:text-gold"
             : "text-muted hover:text-foreground"
@@ -199,7 +211,7 @@ function CommentEngagementBar({
 
       <span
         className={cn(
-          "inline-flex min-w-[3.5rem] items-center justify-center rounded-full px-2 py-1",
+          "inline-flex min-h-8 min-w-[3.5rem] items-center justify-center rounded-full px-2 py-1",
           viewerHasLiked ? "bg-gold/10 text-gold/90" : "bg-silver/10 text-silver"
         )}
       >
@@ -211,7 +223,7 @@ function CommentEngagementBar({
         size="sm"
         variant="ghost"
         className={cn(
-          "h-7 px-2 text-xs shadow-none",
+          "h-8 whitespace-normal px-2 text-xs shadow-none",
           isReplyOpen ? "text-foreground" : "text-muted hover:text-foreground"
         )}
         onClick={() => onToggleReply(isReplyOpen ? null : comment.id)}
@@ -247,7 +259,7 @@ function CommentThread({
   }
 
   return (
-    <div className={cn("space-y-3", depth > 0 ? "border-l border-silver/16 pl-4" : "")}>
+    <div className={cn("min-w-0 space-y-3", depth > 0 ? "border-l border-silver/16 pl-3 sm:pl-4" : "")}>
       {comments.map((comment) => {
         const displayName = authorName(comment.user);
         const isReplyOpen = activeReplyId === comment.id;
@@ -268,7 +280,7 @@ function CommentThread({
               originCommentId={comment.id}
               variant="ghost"
               size="sm"
-              className="h-7 gap-1.5 px-2 text-xs shadow-none text-muted hover:text-foreground"
+              className="h-8 gap-1.5 whitespace-normal px-2 text-xs shadow-none text-muted hover:text-foreground"
             />
           ) : privateReplyActionState.kind === "thread" ? (
             <Link href={`/messages/${privateReplyActionState.threadId}`} className="inline-flex">
@@ -276,7 +288,7 @@ function CommentThread({
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-7 px-2 text-xs shadow-none text-muted hover:text-foreground"
+                className="h-8 whitespace-normal px-2 text-xs shadow-none text-muted hover:text-foreground"
               >
                 Open private chat
               </Button>
@@ -287,7 +299,7 @@ function CommentThread({
               size="sm"
               variant="ghost"
               disabled
-              className="h-7 px-2 text-xs shadow-none text-muted"
+              className="h-8 whitespace-normal px-2 text-xs shadow-none text-muted"
             >
               Request sent
             </Button>
@@ -297,23 +309,23 @@ function CommentThread({
           <div
             key={comment.id}
             className={cn(
-              "space-y-3 rounded-2xl border p-4",
+              "space-y-3 rounded-2xl border p-3 sm:p-4",
               depth > 0
                 ? "border-silver/10 bg-background/12"
                 : "border-silver/14 bg-background/18"
             )}
           >
-            <div className="flex items-start gap-3">
+            <div className="flex min-w-0 items-start gap-3">
               <Avatar name={displayName} image={comment.user.image} className="h-9 w-9" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium text-foreground">{displayName}</p>
+                  <p className="min-w-0 break-words text-sm font-medium text-foreground">{displayName}</p>
                   <MembershipTierBadge tier={comment.user.membershipTier} className="shrink-0" />
                   <FoundingBadge tier={comment.user.foundingTier} />
                 </div>
                 <CommunityUserSignals user={comment.user} className="mt-3" maxTags={1} />
                 <p className="mt-1 text-xs text-muted">{formatDate(comment.createdAt)}</p>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">
                   {comment.content}
                 </p>
                 <CommentEngagementBar
@@ -402,7 +414,7 @@ export function CommunityPostBody({
     ];
 
     return (
-      <div className="space-y-5">
+      <div className="bcn-overflow-safe space-y-5">
         <div className="grid gap-3 md:grid-cols-2">
           {sections.map((section) => (
             <div
@@ -410,7 +422,7 @@ export function CommunityPostBody({
               className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4"
             >
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{section.title}</p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+              <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-foreground/90">
                 {section.content}
               </p>
             </div>
@@ -472,7 +484,7 @@ export function CommunityPostBody({
     ].filter((section) => Boolean(section.content));
 
     return (
-      <div className="space-y-5">
+      <div className="bcn-overflow-safe space-y-5">
         <CommunitySourcePreview
           title={post.title}
           sourceAttribution={parsedBcnContent.source}
@@ -484,12 +496,12 @@ export function CommunityPostBody({
         />
         <div className="rounded-2xl border border-gold/22 bg-gold/10 px-4 py-4">
           <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Article detail</p>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+          <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-foreground/90">
             {post.intelligenceShortSummary ??
               (parsedBcnContent.articleDetail || parsedBcnContent.whatHappened)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-full border border-silver/16 bg-silver/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
             BCN Intelligence Breakdown
           </span>
@@ -501,7 +513,7 @@ export function CommunityPostBody({
               className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4"
             >
               <p className="text-[11px] uppercase tracking-[0.08em] text-silver">{section.title}</p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+              <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-foreground/90">
                 {section.content}
               </p>
             </div>
@@ -513,11 +525,11 @@ export function CommunityPostBody({
               <span className="inline-flex rounded-full border border-gold/22 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
                 Source context
               </span>
-              <span className="text-xs text-muted">
+              <span className="min-w-0 break-words text-xs text-muted">
                 Original reporting or source detail preserved for credibility.
               </span>
             </div>
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+            <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-foreground/90">
               {parsedBcnContent.source}
             </p>
           </div>
@@ -527,11 +539,11 @@ export function CommunityPostBody({
             <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
               Worth a member discussion
             </p>
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+            <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-foreground/90">
               {post.intelligenceSuggestedDiscussionPrompt ?? parsedBcnContent.suggestedDiscussionPrompt}
             </p>
             {(post.intelligenceRecommendedRoom ?? parsedBcnContent.recommendedRoom) ? (
-              <p className="mt-3 text-xs text-muted">
+              <p className="mt-3 break-words text-xs text-muted">
                 Recommended room: {post.intelligenceRecommendedRoom ?? parsedBcnContent.recommendedRoom}
               </p>
             ) : null}
@@ -543,8 +555,8 @@ export function CommunityPostBody({
   }
 
   return (
-    <div className="space-y-5">
-      <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">{post.content}</p>
+    <div className="bcn-overflow-safe space-y-5">
+      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-foreground/90">{post.content}</p>
       {showTags ? <CommunityPostTags tags={post.tags} /> : null}
     </div>
   );
@@ -575,14 +587,14 @@ export function CommunityPostEngagementBar({
   }, [post.likeCount, post.viewerHasLiked]);
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
       <Button
         type="button"
         size="sm"
         variant={viewerHasLiked ? "default" : "outline"}
         disabled={isPending}
         aria-pressed={viewerHasLiked}
-        className="gap-2"
+        className="min-h-11 w-full gap-2 whitespace-normal sm:w-auto"
         onClick={() => {
           const nextLiked = !viewerHasLiked;
           const nextLikeCount = Math.max(0, likeCount + (nextLiked ? 1 : -1));
@@ -608,7 +620,7 @@ export function CommunityPostEngagementBar({
         </span>
       </Button>
 
-      <span className="inline-flex items-center gap-2 rounded-full border border-silver/16 bg-silver/10 px-3 py-1.5 text-sm text-silver">
+      <span className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-silver/16 bg-silver/10 px-3 py-1.5 text-sm text-silver sm:w-auto">
         <MessagesSquare size={14} />
         {post.commentCount} {post.commentCount === 1 ? "comment" : "comments"}
       </span>
@@ -618,19 +630,19 @@ export function CommunityPostEngagementBar({
           type="button"
           size="sm"
           variant="outline"
-          className="gap-2 border-silver/16 text-silver hover:border-silver/28 hover:text-foreground"
+          className="min-h-11 w-full gap-2 whitespace-normal border-silver/16 text-silver hover:border-silver/28 hover:text-foreground sm:w-auto"
           onClick={onReplyClick}
         >
           <MessageSquareReply size={13} />
           {replyLabel}
         </Button>
       ) : replyHref ? (
-        <Link href={replyHref} className="inline-flex">
+        <Link href={replyHref} className="inline-flex w-full sm:w-auto">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="gap-2 border-silver/16 text-silver hover:border-silver/28 hover:text-foreground"
+            className="min-h-11 w-full gap-2 whitespace-normal border-silver/16 text-silver hover:border-silver/28 hover:text-foreground sm:w-auto"
           >
             <MessageSquareReply size={13} />
             {replyLabel}
@@ -639,12 +651,12 @@ export function CommunityPostEngagementBar({
       ) : null}
 
       {discussionHref ? (
-        <Link href={discussionHref} className="inline-flex">
+        <Link href={discussionHref} className="inline-flex w-full sm:w-auto">
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            className="gap-2 px-3 text-silver hover:text-foreground"
+            className="min-h-11 w-full gap-2 whitespace-normal px-3 text-silver hover:text-foreground sm:w-auto"
           >
             {discussionLabel}
             <ExternalLink size={13} />
@@ -669,7 +681,7 @@ export function CommunityPostCommentsSection({
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
 
   return (
-    <div id="discussion-reply" className="space-y-5 border-t border-silver/12 pt-5">
+    <div id="discussion-reply" className="bcn-overflow-safe space-y-5 border-t border-silver/12 pt-5">
       {post.comments.length ? (
         <CommentThread
           comments={post.comments}
@@ -685,7 +697,7 @@ export function CommunityPostCommentsSection({
         </div>
       )}
 
-      <div className="rounded-2xl border border-silver/14 bg-background/12 p-4">
+      <div className="rounded-2xl border border-silver/14 bg-background/12 p-3 sm:p-4">
         <p className="mb-3 text-xs uppercase tracking-[0.08em] text-silver">Add a comment</p>
         <CommentComposer postId={post.id} returnPath={returnPath} />
       </div>
@@ -711,7 +723,7 @@ export function CommunityPostDiscussion({
   showTags?: boolean;
 }) {
   return (
-    <div className="space-y-5">
+    <div className="bcn-overflow-safe space-y-5">
       <CommunityPostBody post={post} showTags={showTags} />
       <CommunityPostEngagementBar
         post={post}

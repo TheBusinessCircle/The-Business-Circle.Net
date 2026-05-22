@@ -251,12 +251,12 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
       .at(-1) ?? null;
 
   return (
-    <div className="member-page-stack">
+    <div className="member-page-stack bcn-overflow-safe max-w-full overflow-x-hidden px-0">
       <Card className="relative overflow-hidden border-gold/28 bg-gradient-to-br from-gold/10 via-card/88 to-card/72">
         <VisualPlacementBackground placement={intelligenceHeroPlacement} tone="editorial" />
-        <CardHeader className="relative z-[1] space-y-4">
+        <CardHeader className="relative z-[1] space-y-4 px-4 sm:px-7">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="border-gold/25 bg-gold/10 text-gold">
+            <Badge variant="outline" className="whitespace-normal border-gold/25 bg-gold/10 text-gold">
               <Sparkles size={12} className="mr-1" />
               Curated member intelligence
             </Badge>
@@ -266,13 +266,13 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
             <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
               Morning signal board
             </p>
-            <CardTitle className="font-display text-3xl">BCN Intelligence</CardTitle>
+            <CardTitle className="font-display text-2xl sm:text-3xl">BCN Intelligence</CardTitle>
             <CardDescription className="max-w-4xl text-base leading-relaxed">
               Start here before the wider news cycle. BCN Intelligence is built to give founders and operators the fastest read on what matters this morning, why it matters commercially, and what deserves a member conversation underneath.
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent className="relative z-[1] grid gap-3 md:grid-cols-3">
+        <CardContent className="relative z-[1] grid gap-3 px-4 sm:px-7 md:grid-cols-3">
           <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
             <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Signal quality</p>
             <p className="mt-2 text-base font-semibold text-foreground">Ranked for operator relevance first</p>
@@ -317,16 +317,16 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
         </Card>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-5">
+      <div className="grid max-w-full gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-5">
           <Card className="border-silver/18 bg-card/68">
-            <CardHeader>
-              <CardTitle className="text-2xl">Signal board</CardTitle>
+            <CardHeader className="px-4 sm:px-7">
+              <CardTitle className="text-xl sm:text-2xl">Signal board</CardTitle>
               <CardDescription className="max-w-3xl text-sm leading-relaxed">
                 Ranked for business-owner usefulness first, with source detail, BCN interpretation, and member discussion kept together.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-4 sm:px-7">
               <div className="flex flex-wrap gap-2">
                 {QUICK_FILTERS.map(({ label, updates }) => {
                   const isActive =
@@ -341,8 +341,8 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                       href={buildFilterHref(urlParams, updates)}
                       className={
                         isActive
-                          ? "rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
-                          : "rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
+                          ? "min-h-9 rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
+                          : "min-h-9 rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
                       }
                     >
                       {label}
@@ -356,8 +356,8 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                   href={buildFilterHref(urlParams, { sort: "relevant" })}
                   className={
                     activeSort === "relevant"
-                      ? "rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
-                      : "rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
+                      ? "min-h-9 rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
+                      : "min-h-9 rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
                   }
                 >
                   Most relevant
@@ -366,8 +366,8 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                   href={buildFilterHref(urlParams, { sort: "newest" })}
                   className={
                     activeSort === "newest"
-                      ? "rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
-                      : "rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
+                      ? "min-h-9 rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
+                      : "min-h-9 rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
                   }
                 >
                   Newest
@@ -378,8 +378,8 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                     href={buildFilterHref(urlParams, { source: sourceId })}
                     className={
                       activeSource === sourceId
-                        ? "rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
-                        : "rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
+                        ? "min-h-9 rounded-full border border-gold/35 bg-gold/12 px-3 py-1.5 text-sm text-gold"
+                        : "min-h-9 rounded-full border border-silver/14 bg-background/16 px-3 py-1.5 text-sm text-muted transition-colors hover:border-silver/26 hover:text-foreground"
                     }
                   >
                     {label}
@@ -391,9 +391,9 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
 
           {latestSignal ? (
             <Card className="overflow-hidden border-gold/32 bg-gradient-to-br from-gold/12 via-card/82 to-card/74 shadow-gold-soft">
-              <CardHeader className="space-y-4">
+              <CardHeader className="space-y-4 px-4 sm:px-7">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="border-gold/28 bg-gold/10 text-gold">
+                  <Badge variant="outline" className="whitespace-normal border-gold/28 bg-gold/10 text-gold">
                     <Sparkles size={12} className="mr-1" />
                     Today&apos;s signal
                   </Badge>
@@ -419,7 +419,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                   <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
                     Biggest founder signal in the last 24 hours
                   </p>
-                  <CardTitle className="max-w-4xl text-3xl leading-tight">
+                  <CardTitle className="max-w-4xl text-2xl leading-tight sm:text-3xl">
                     {latestSignal.title}
                   </CardTitle>
                   <CardDescription className="max-w-4xl text-sm leading-relaxed text-foreground/80">
@@ -430,7 +430,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <CardContent className="grid gap-3 px-4 sm:px-7 lg:grid-cols-[minmax(0,1fr)_220px]">
                 <div className="space-y-3">
                   {latestSignalPreview ? (
                     <CommunitySourcePreview
@@ -478,7 +478,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
                   </div>
                   <Link
                     href={buildCommunityPostPath(latestSignal.id, BCN_UPDATES_CHANNEL_SLUG)}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-gold transition-colors hover:text-gold/80"
+                    className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-gold transition-colors hover:text-gold/80"
                   >
                     Open full signal
                     <ArrowUpRight size={14} />
@@ -508,15 +508,15 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
           )}
         </div>
 
-        <aside className="space-y-5 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
+        <aside className="min-w-0 space-y-5 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
           <Card className="border-silver/16 bg-card/62">
-            <CardHeader>
+            <CardHeader className="px-4 sm:px-7">
               <CardTitle className="inline-flex items-center gap-2 text-xl">
                 <Workflow size={16} className="text-silver" />
                 How this space works
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted">
+            <CardContent className="space-y-3 px-4 text-sm text-muted sm:px-7">
               <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
                 BCN Intelligence is curated centrally, so members do not open top-level posts here.
               </div>
@@ -529,7 +529,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
               {session.user.role === "ADMIN" ? (
                 <Link
                   href="/admin/intelligence"
-                  className="inline-flex w-full items-center justify-between rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm font-medium text-gold transition-colors hover:border-gold/38"
+                  className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm font-medium text-gold transition-colors hover:border-gold/38"
                 >
                   Refresh intelligence
                   <RefreshCw size={14} />
@@ -539,13 +539,13 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
           </Card>
 
           <Card className="border-silver/16 bg-card/62">
-            <CardHeader>
+            <CardHeader className="px-4 sm:px-7">
               <CardTitle className="inline-flex items-center gap-2 text-xl">
                 <Sparkles size={16} className="text-silver" />
                 Signal board
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 px-4 sm:px-7">
               {mostDiscussedSignal ? (
                 <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
                   <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Most discussed</p>

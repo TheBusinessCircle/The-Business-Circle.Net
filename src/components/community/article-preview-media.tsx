@@ -42,7 +42,7 @@ export function SourcePreviewCard({
   return (
     <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(circle_at_84%_12%,rgba(93,142,197,0.32),transparent_34%),radial-gradient(circle_at_12%_92%,rgba(212,175,55,0.18),transparent_36%),linear-gradient(135deg,#06101f_0%,#0b1730_54%,#050b15_100%)]">
       <div className="absolute inset-4 rounded-[1.25rem] border border-white/10 bg-white/[0.025]" />
-      <div className="relative z-[1] flex h-full flex-col justify-between p-5 sm:p-6">
+      <div className="relative z-[1] flex h-full min-w-0 flex-col justify-between p-4 sm:p-6">
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex rounded-full border border-sky-200/18 bg-sky-300/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-sky-100">
             {sourceDomain || "source reporting"}
@@ -54,20 +54,20 @@ export function SourcePreviewCard({
           ) : null}
         </div>
 
-        <div className="max-w-3xl">
+        <div className="min-w-0 max-w-3xl">
           <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-silver">
             <ImageOff size={17} />
           </div>
           <p
             className={cn(
               "font-display font-semibold leading-tight text-foreground",
-              compact ? "line-clamp-3 text-xl" : "line-clamp-4 text-2xl sm:text-3xl"
+              compact ? "line-clamp-3 text-lg sm:text-xl" : "line-clamp-4 text-xl sm:text-3xl"
             )}
           >
             {title}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-silver">
-            <span>{sourceName || "BCN Intelligence"}</span>
+            <span className="min-w-0 break-words">{sourceName || "BCN Intelligence"}</span>
             {showUnavailableCopy ? (
               <span className="text-muted">Source preview unavailable</span>
             ) : null}
@@ -123,7 +123,7 @@ export function IntelligencePreviewImage({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[1.35rem] border border-silver/14 bg-[#06101f]",
+        "relative min-w-0 overflow-hidden rounded-[1.35rem] border border-silver/14 bg-[#06101f]",
         aspectClassName,
         className
       )}
@@ -175,7 +175,7 @@ export function ArticlePreviewMedia({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[1.65rem] border border-silver/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] shadow-[0_18px_46px_rgba(2,6,23,0.16)]",
+        "min-w-0 overflow-hidden rounded-[1.65rem] border border-silver/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] shadow-[0_18px_46px_rgba(2,6,23,0.16)]",
         className
       )}
     >
@@ -197,14 +197,16 @@ export function ArticlePreviewMedia({
           <span className="inline-flex rounded-full border border-gold/22 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
             Source preview
           </span>
-          {resolvedSourceDomain ? <span className="text-xs text-muted">{resolvedSourceDomain}</span> : null}
+          {resolvedSourceDomain ? (
+            <span className="min-w-0 break-words text-xs text-muted">{resolvedSourceDomain}</span>
+          ) : null}
         </div>
         {resolvedSourceUrl ? (
           <Link
             href={resolvedSourceUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-silver transition-colors hover:text-foreground"
+            className="inline-flex min-h-10 items-center gap-1 text-sm text-silver transition-colors hover:text-foreground"
           >
             Original source
             <ExternalLink size={13} />
