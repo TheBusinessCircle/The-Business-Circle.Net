@@ -85,7 +85,7 @@ export default async function PublicTestimonialPage({ searchParams }: PageProps)
   const error = firstValue(params.error);
   const source = firstValue(params.source);
   const campaign = firstValue(params.campaign);
-  const ref = firstValue(params.ref);
+  const referral = firstValue(params.ref);
 
   if (submitted) {
     const testimonial = testimonialId ? await getTestimonialCopyState(testimonialId) : null;
@@ -170,7 +170,7 @@ export default async function PublicTestimonialPage({ searchParams }: PageProps)
                 showGoogleReviewButton={settings.showGoogleReviewButton && Boolean(settings.googleReviewUrl)}
                 trackingSource={source}
                 campaign={campaign}
-                ref={ref}
+                referral={referral}
               />
             </CardContent>
           </Card>

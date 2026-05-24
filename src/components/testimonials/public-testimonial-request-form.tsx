@@ -29,7 +29,7 @@ type PublicTestimonialRequestFormProps = {
   showGoogleReviewButton?: boolean;
   trackingSource?: string | null;
   campaign?: string | null;
-  ref?: string | null;
+  referral?: string | null;
 };
 
 async function writeClipboardText(value: string) {
@@ -74,7 +74,7 @@ export function PublicTestimonialRequestForm({
   showGoogleReviewButton = true,
   trackingSource,
   campaign,
-  ref
+  referral
 }: PublicTestimonialRequestFormProps) {
   const [testimonialText, setTestimonialText] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
@@ -113,7 +113,7 @@ export function PublicTestimonialRequestForm({
       {token ? <input type="hidden" name="requestToken" value={token} /> : null}
       <input type="hidden" name="source" value={trackingSource ?? ""} />
       <input type="hidden" name="campaign" value={campaign ?? ""} />
-      <input type="hidden" name="ref" value={ref ?? ""} />
+      <input type="hidden" name="ref" value={referral ?? ""} />
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
 
       {recipientName || requestCompanyName ? (
