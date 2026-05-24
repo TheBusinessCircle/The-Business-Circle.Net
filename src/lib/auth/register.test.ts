@@ -57,6 +57,21 @@ vi.mock("@/server/invite-codes", () => ({
   validateInviteCodeForCheckout: vi.fn(async () => ({ valid: false, reason: "missing" }))
 }));
 
+vi.mock("@/server/admin/launch-codes.service", () => ({
+  validateLaunchCode: vi.fn(async () => ({
+    valid: true,
+    launchCode: {
+      id: "launch_code_test",
+      code: "BC-TREV-1234",
+      name: "Test Launch Code",
+      platform: "TEST",
+      trialDays: 90,
+      maxRedemptions: 25,
+      remainingUses: 25
+    }
+  }))
+}));
+
 describe("createPendingRegistration", () => {
   beforeEach(() => {
     vi.clearAllMocks();

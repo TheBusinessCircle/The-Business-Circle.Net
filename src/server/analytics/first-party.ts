@@ -18,6 +18,14 @@ export const FIRST_PARTY_ANALYTICS_EVENTS = [
   "membership_selected_from_audit",
   "membership_tier_viewed",
   "membership_checkout_started",
+  "launch_code_entered",
+  "launch_code_validated",
+  "launch_code_invalid",
+  "launch_code_full",
+  "launch_code_checkout_started",
+  "launch_code_checkout_completed",
+  "launch_code_subscription_trialing",
+  "launch_code_subscription_active",
   "public_cta_join_clicked",
   "audit_cta_clicked"
 ] as const;

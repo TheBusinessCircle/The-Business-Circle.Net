@@ -14,7 +14,13 @@ const CONVERSION_EVENTS = [
   "join_cta_clicked",
   "membership_viewed",
   "checkout_started",
-  "checkout_completed"
+  "checkout_completed",
+  "launch_code_entered",
+  "launch_code_validated",
+  "launch_code_checkout_started",
+  "launch_code_checkout_completed",
+  "launch_code_subscription_trialing",
+  "launch_code_subscription_active"
 ] as const;
 
 function dateRange(range: GrowthIntelligenceRange): DateRange {
@@ -306,7 +312,9 @@ export async function getConversionSignals(range: GrowthIntelligenceRange) {
     membershipPageVisits,
     joinCtaClicks: countEvent(events, "join_cta_clicked"),
     checkoutStarts: countEvent(events, "checkout_started"),
-    checkoutCompletions: countEvent(events, "checkout_completed"),
+    checkoutCompletions:
+      countEvent(events, "checkout_completed") +
+      countEvent(events, "launch_code_checkout_completed"),
     bestConvertingSource: sources.slice().sort((a, b) => b.visits - a.visits)[0]?.source ?? "Not enough data"
   };
 }

@@ -60,6 +60,8 @@ model User {
   foundingMembership             FoundingMember?
   foundingReservations           FoundingOfferReservation[]
   inviteCodeRedemptions          InviteCodeRedemption[]
+  createdLaunchCodes             LaunchCode[]                 @relation("LaunchCodeCreator")
+  launchCodeRedemptions          LaunchCodeRedemption[]
   completedPendingRegistration   PendingRegistration?         @relation("PendingRegistrationCompletedUser")
   memberInvite                   MemberInvite?
   inviteReferralsSent            InviteReferral[]             @relation("InviteReferrer")
@@ -185,6 +187,7 @@ model SiteVisitor {
   pageViews              SitePageView[]
   events                 SiteEvent[]
   founderAuditSubmissions FounderAuditSubmission[]
+  launchCodeRedemptions LaunchCodeRedemption[]
 
   @@index([userId])
   @@index([createdAt])
@@ -871,6 +874,64 @@ model InviteCodeRedemption {
   @@index([userId])
   @@index([email])
   @@index([stripeSubscriptionId])
+}
+
+model LaunchCode {
+  id             String                   @id @default(cuid())
+  code           String                   @unique
+  name           String
+  platform       String
+  status         LaunchCodeStatus         @default(ACTIVE)
+  maxRedemptions Int                      @default(25)
+  trialDays      Int                      @default(90)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  description    String?
+  createdById    String?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  createdBy      User?                    @relation("LaunchCodeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  redemptions    LaunchCodeRedemption[]
+
+  @@index([code])
+  @@index([status])
+  @@index([platform])
+  @@index([createdAt])
+  @@index([createdById])
+}
+
+model LaunchCodeRedemption {
+  id                      String                     @id @default(cuid())
+  launchCodeId            String
+  userId                  String?
+  email                   String?
+  stripeCustomerId        String?
+  stripeCheckoutSessionId String?                    @unique
+  stripeSubscriptionId    String?
+  tierSelected            MembershipTier?
+  status                  LaunchCodeRedemptionStatus @default(CODE_ENTERED)
+  sourcePlatform          String?
+  sourcePath              String?
+  referrer                String?
+  visitorId               String?
+  reservedAt              DateTime?
+  reservationExpiresAt    DateTime?
+  completedAt             DateTime?
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  launchCode              LaunchCode                 @relation(fields: [launchCodeId], references: [id], onDelete: Cascade)
+  user                    User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  visitor                 SiteVisitor?               @relation(fields: [visitorId], references: [id], onDelete: SetNull)
+
+  @@index([launchCodeId])
+  @@index([email])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([stripeCheckoutSessionId])
+  @@index([stripeSubscriptionId])
+  @@index([tierSelected])
+  @@index([status])
+  @@index([visitorId])
 }
 
 model MemberInvite {
@@ -2162,6 +2223,25 @@ enum FoundingReservationSource {
 enum InviteCodeStatus {
   ACTIVE
   PAUSED
+}
+
+enum LaunchCodeStatus {
+  ACTIVE
+  PAUSED
+  FULL
+  EXPIRED
+  ARCHIVED
+}
+
+enum LaunchCodeRedemptionStatus {
+  CODE_ENTERED
+  CHECKOUT_STARTED
+  CHECKOUT_COMPLETED
+  SUBSCRIPTION_TRIALING
+  SUBSCRIPTION_ACTIVE
+  SUBSCRIPTION_CANCELLED
+  EXPIRED
+  FAILED
 }
 
 enum BusinessStage {

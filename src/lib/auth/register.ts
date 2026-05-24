@@ -31,6 +31,7 @@ import { prisma } from "@/lib/prisma";
 import { logServerWarning } from "@/lib/security/logging";
 import { getBaseUrl } from "@/lib/utils";
 import { recordInviteReferral } from "@/server/community-recognition";
+import { validateLaunchCode } from "@/server/admin/launch-codes.service";
 import { validateInviteCodeForCheckout } from "@/server/invite-codes";
 import { requireStripeClient } from "@/server/stripe/client";
 
@@ -496,6 +497,26 @@ export async function createPendingRegistration(
             ? "This founding access code is not valid for the selected membership tier."
             : "This founding access code is not active."
       );
+    }
+
+    if (!inviteValidation.valid && inviteValidation.reason === "missing") {
+      const launchCodeValidation = await validateLaunchCode({
+        code: inviteCode,
+        email
+      });
+
+      if (!launchCodeValidation.valid) {
+        throw new RegistrationServiceError(
+          "INVALID_INPUT",
+          launchCodeValidation.reason === "full"
+            ? "This Founder Access code has now reached its limit. You can still join on the standard membership price."
+            : launchCodeValidation.reason === "already-used"
+              ? "This Founder Access code has already been used for this account."
+              : launchCodeValidation.reason === "invalid"
+                ? "That Founder Access code is not valid. Please check it and try again."
+                : "This Founder Access code is no longer active. You can still join on the standard membership price."
+        );
+      }
     }
   }
 

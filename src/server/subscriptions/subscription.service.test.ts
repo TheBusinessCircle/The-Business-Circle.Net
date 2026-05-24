@@ -23,6 +23,13 @@ const validateInviteCodeForCheckoutMock = vi.hoisted(() =>
   vi.fn(async () => ({ valid: false, reason: "missing" }))
 );
 const claimInviteCodeRedemptionMock = vi.hoisted(() => vi.fn(async () => null));
+const reserveLaunchCodePlaceMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<unknown> => null)
+);
+const attachLaunchCodeReservationToCheckoutSessionMock = vi.hoisted(() => vi.fn(async () => {}));
+const failLaunchCodeReservationMock = vi.hoisted(() => vi.fn(async () => {}));
+const completeLaunchCodeRedemptionFromStripeMock = vi.hoisted(() => vi.fn(async () => null));
+const updateLaunchCodeSubscriptionFromStripeMock = vi.hoisted(() => vi.fn(async () => null));
 
 vi.hoisted(() => {
   process.env.STRIPE_STANDARD_PRICE_ID = "price_standard_test";
@@ -109,6 +116,14 @@ vi.mock("@/server/founding", () => ({
 vi.mock("@/server/invite-codes", () => ({
   claimInviteCodeRedemption: claimInviteCodeRedemptionMock,
   validateInviteCodeForCheckout: validateInviteCodeForCheckoutMock
+}));
+
+vi.mock("@/server/admin/launch-codes.service", () => ({
+  attachLaunchCodeReservationToCheckoutSession: attachLaunchCodeReservationToCheckoutSessionMock,
+  completeLaunchCodeRedemptionFromStripe: completeLaunchCodeRedemptionFromStripeMock,
+  failLaunchCodeReservation: failLaunchCodeReservationMock,
+  reserveLaunchCodePlace: reserveLaunchCodePlaceMock,
+  updateLaunchCodeSubscriptionFromStripe: updateLaunchCodeSubscriptionFromStripeMock
 }));
 
 import {
@@ -328,5 +343,73 @@ describe("subscription service", () => {
     });
     expect(checkoutPayload.metadata).not.toHaveProperty("acceptedRules");
     expect(checkoutPayload.subscription_data.metadata).not.toHaveProperty("acceptedRules");
+  });
+
+  it("applies launch code trial metadata to pending registration checkout sessions", async () => {
+    resolveManagedMembershipPlanMock.mockResolvedValueOnce({
+      stripePriceId: "price_foundation_test",
+      planKey: "foundation-monthly",
+      checkoutPrice: 30,
+      monthlyEquivalentPrice: 30
+    });
+    reserveFoundingSlotMock.mockResolvedValueOnce(null);
+    reserveLaunchCodePlaceMock.mockResolvedValueOnce({
+      id: "launch_redemption_1",
+      launchCodeId: "launch_code_1",
+      code: "FACEBOOK25",
+      platform: "FACEBOOK",
+      trialDays: 90
+    });
+    stripeCustomersListMock.mockResolvedValueOnce({ data: [] });
+    stripeCustomersCreateMock.mockResolvedValueOnce({ id: "cus_launch_123" });
+    pendingRegistrationFindUniqueMock
+      .mockResolvedValueOnce({ stripeCustomerId: null })
+      .mockResolvedValueOnce({
+        id: "pending_launch_123",
+        stripeCheckoutSessionId: null
+      });
+    stripeCheckoutCreateMock.mockResolvedValueOnce({
+      id: "cs_launch_123",
+      url: "https://checkout.stripe.com/c/pay/cs_launch_123",
+      customer: "cus_launch_123",
+      subscription: null
+    });
+
+    await createStripeCheckoutSessionForPendingRegistration({
+      pendingRegistrationId: "pending_launch_123",
+      email: "member@example.com",
+      name: "Member Example",
+      targetTier: MembershipTier.FOUNDATION,
+      billingInterval: "monthly",
+      coreAccessConfirmed: false,
+      inviteCode: "FACEBOOK25",
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedAt: new Date("2026-05-24T10:00:00.000Z"),
+      allowFoundingOffer: true
+    });
+
+    const checkoutPayload = stripeCheckoutCreateMock.mock.calls.at(-1)?.[0];
+
+    expect(checkoutPayload.payment_method_collection).toBe("always");
+    expect(checkoutPayload.metadata).toMatchObject({
+      launchCodeId: "launch_code_1",
+      launchCodeRedemptionId: "launch_redemption_1",
+      launchCode: "FACEBOOK25",
+      sourcePlatform: "FACEBOOK",
+      selectedTier: MembershipTier.FOUNDATION,
+      source: "launch_code",
+      trialDays: "90"
+    });
+    expect(checkoutPayload.subscription_data.trial_period_days).toBe(90);
+    expect(checkoutPayload.subscription_data.trial_settings).toEqual({
+      end_behavior: {
+        missing_payment_method: "cancel"
+      }
+    });
+    expect(attachLaunchCodeReservationToCheckoutSessionMock).toHaveBeenCalledWith({
+      redemptionId: "launch_redemption_1",
+      stripeCheckoutSessionId: "cs_launch_123",
+      stripeCustomerId: "cus_launch_123"
+    });
   });
 });

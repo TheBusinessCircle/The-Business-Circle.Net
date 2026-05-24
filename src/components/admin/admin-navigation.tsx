@@ -38,6 +38,9 @@ function iconForHref(href: string) {
   if (href.startsWith("/admin/founding")) {
     return Sparkles;
   }
+  if (href.startsWith("/admin/launch-codes")) {
+    return Sparkles;
+  }
   if (href.startsWith("/admin/content") || href.startsWith("/admin/site-content")) {
     return FileText;
   }

@@ -88,6 +88,18 @@ export async function POST(request: Request) {
       );
     }
 
+    if (error instanceof Error && error.message.startsWith("launch-code-")) {
+      const errorMessage =
+        error.message === "launch-code-already-used"
+          ? "This Founder Access code has already been used for this account."
+          : error.message === "launch-code-full"
+            ? "This Founder Access code has now reached its limit. You can still join on the standard membership price."
+            : error.message === "launch-code-invalid"
+              ? "That Founder Access code is not valid. Please check it and try again."
+              : "This Founder Access code is no longer active. You can still join on the standard membership price.";
+      return NextResponse.json({ error: errorMessage }, { status: 409, headers });
+    }
+
     logServerError("register-route-failed", error);
     return NextResponse.json(
       { error: "Unable to start registration." },

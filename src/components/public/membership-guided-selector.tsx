@@ -25,6 +25,9 @@ import {
 import { TierBadge } from "@/components/public/tier-badge";
 import { SectionFeatureImage } from "@/components/visual-media";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { buttonVariants } from "@/components/ui/button";
 import {
   formatMembershipPrice,
@@ -546,6 +549,9 @@ export function MembershipGuidedSelector({
   const [selectedTier, setSelectedTier] = useState<MembershipTier>(initialSelectedTier);
   const [billingInterval, setBillingInterval] =
     useState<MembershipBillingInterval>(initialBillingInterval);
+  const [founderAccessCode, setFounderAccessCode] = useState(inviteCode ?? "");
+  const [founderAccessMessage, setFounderAccessMessage] = useState<string | null>(null);
+  const [founderAccessValid, setFounderAccessValid] = useState(false);
   const reducedMotion = useReducedMotion() ?? false;
 
   useEffect(() => {
@@ -555,6 +561,64 @@ export function MembershipGuidedSelector({
   useEffect(() => {
     setBillingInterval(initialBillingInterval);
   }, [initialBillingInterval]);
+
+  useEffect(() => {
+    setFounderAccessCode(inviteCode ?? "");
+  }, [inviteCode]);
+
+  const validateFounderAccessCode = async () => {
+    const code = founderAccessCode.trim().toUpperCase();
+    if (!code) {
+      setFounderAccessMessage("Enter a Founder Access code before checkout if you have been given one.");
+      setFounderAccessValid(false);
+      return;
+    }
+
+    trackAnalyticsEvent(ANALYTICS_EVENTS.launchCodeEntered, {
+      code,
+      selectedTier
+    });
+
+    const response = await fetch("/api/launch-codes/validate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        code,
+        selectedTier
+      })
+    });
+    const data = (await response.json().catch(() => ({}))) as {
+      valid?: boolean;
+      message?: string;
+      reason?: string;
+      launchCode?: { platform?: string; trialDays?: number; id?: string };
+    };
+
+    setFounderAccessValid(Boolean(data.valid));
+    setFounderAccessCode(code);
+    setFounderAccessMessage(
+      data.message ??
+        (data.valid
+          ? "Founder Access applied. Your first 3 months are included, then your selected membership continues as normal."
+          : "That Founder Access code is not valid. Please check it and try again.")
+    );
+    trackAnalyticsEvent(
+      data.valid
+        ? ANALYTICS_EVENTS.launchCodeValidated
+        : data.reason === "full"
+          ? ANALYTICS_EVENTS.launchCodeFull
+          : ANALYTICS_EVENTS.launchCodeInvalid,
+      {
+        code,
+        platform: data.launchCode?.platform,
+        selectedTier,
+        trialDays: data.launchCode?.trialDays,
+        launchCodeId: data.launchCode?.id
+      }
+    );
+  };
 
   const selectionHref = useMemo(
     () =>
@@ -596,8 +660,12 @@ export function MembershipGuidedSelector({
         billing,
         from,
         invite: inviteCode
+          ? inviteCode
+          : founderAccessValid
+            ? founderAccessCode.trim().toUpperCase()
+            : undefined
       }),
-    [billing, billingInterval, from, inviteCode, selectedTier]
+    [billing, billingInterval, founderAccessCode, founderAccessValid, from, inviteCode, selectedTier]
   );
 
   return (
@@ -681,6 +749,43 @@ export function MembershipGuidedSelector({
                   selectedOffer={selectedOffer}
                   activeFounderTierCount={activeFounderTierCount}
                 />
+              </div>
+            </div>
+
+            <div className="rounded-[1.55rem] border border-border/80 bg-background/24 p-4">
+              <div className="space-y-2">
+                <Label htmlFor="membership-founder-access-code">Founder Access Code</Label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    id="membership-founder-access-code"
+                    value={founderAccessCode}
+                    onChange={(event) => {
+                      setFounderAccessCode(event.target.value.toUpperCase());
+                      setFounderAccessValid(false);
+                      setFounderAccessMessage(null);
+                    }}
+                    placeholder="FACEBOOK25"
+                    autoComplete="off"
+                  />
+                  <Button type="button" variant="outline" onClick={validateFounderAccessCode}>
+                    Apply
+                  </Button>
+                </div>
+                <p className="text-xs leading-relaxed text-muted">
+                  If you have been given a Founder Access code, enter it here before checkout.
+                </p>
+                {founderAccessMessage ? (
+                  <p
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-xs leading-relaxed",
+                      founderAccessValid
+                        ? "border-gold/30 bg-gold/10 text-gold"
+                        : "border-border/80 bg-background/24 text-muted"
+                    )}
+                  >
+                    {founderAccessMessage}
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

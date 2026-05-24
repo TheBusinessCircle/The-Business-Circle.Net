@@ -18,6 +18,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "founding:seed-access-pass": "tsx scripts/seed-founding-access-pass.ts",
+    "launch-codes:seed": "tsx scripts/seed-launch-codes.ts",
     "email:test": "tsx scripts/test-email.ts",
     "email:test:verification": "tsx scripts/test-verification-email.ts",
     "audit:public-output": "tsx scripts/audit-public-output.ts",
