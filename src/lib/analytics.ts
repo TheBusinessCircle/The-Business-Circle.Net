@@ -68,7 +68,14 @@ const SENSITIVE_PROPERTY_PATTERNS = [
 declare global {
   interface Window {
     bcnAnalytics?: {
-      track?: (event: AnalyticsEventName, properties: AnalyticsPayload["properties"]) => void;
+      track?: (event: AnalyticsEventName | string, properties: Record<string, unknown>) => void;
+      collect?: (payload: {
+        eventName: string;
+        path?: string;
+        title?: string | null;
+        referrer?: string | null;
+        metadata?: Record<string, unknown> | null;
+      }) => void;
     };
     dataLayer?: Array<Record<string, unknown>>;
   }

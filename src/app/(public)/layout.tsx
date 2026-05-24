@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { ReactNode } from "react";
+import { ReactNode, Suspense } from "react";
+import { FirstPartyAnalytics } from "@/components/analytics/first-party-analytics";
 import { JsonLd } from "@/components/public";
 import { PublicSiteShell } from "@/components/public/public-site-shell";
 import { SITE_CONFIG } from "@/config/site";
@@ -14,6 +15,9 @@ export default async function PublicLayout({ children }: { children: ReactNode }
   return (
     <>
       <JsonLd data={buildPublicSiteSchemaGraph({ supportEmail: SITE_CONFIG.supportEmail })} />
+      <Suspense fallback={null}>
+        <FirstPartyAnalytics />
+      </Suspense>
       <PublicSiteShell>{children}</PublicSiteShell>
     </>
   );

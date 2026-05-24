@@ -35,6 +35,7 @@ const adminNavigation: NavigationItem[] = [
   { label: "Launch Command", href: "/admin/launch" },
   { label: "Blueprint Manager", href: "/admin/blueprint" },
   { label: "Members", href: "/admin/members" },
+  { label: "Growth Intelligence", href: "/admin/growth-intelligence" },
   { label: "BCN Intelligence", href: "/admin/intelligence" },
   { label: "Community Safety", href: "/admin/community" },
   { label: "Emails", href: "/admin/emails" },

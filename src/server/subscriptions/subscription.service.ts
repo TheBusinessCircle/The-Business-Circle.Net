@@ -1860,6 +1860,26 @@ async function markWebhookFailed(eventId: string, error: unknown) {
   });
 }
 
+async function recordCheckoutCompletedSignal(session: Stripe.Checkout.Session) {
+  const userId = session.metadata?.userId ?? session.client_reference_id ?? null;
+  if (!userId) {
+    return;
+  }
+
+  await db.siteEvent.create({
+    data: {
+      userId,
+      eventName: "checkout_completed",
+      path: "/checkout",
+      metadata: {
+        tier: session.metadata?.targetTier ?? null,
+        billingInterval: session.metadata?.billingInterval ?? null,
+        source: session.metadata?.source ?? "stripe_webhook"
+      }
+    }
+  });
+}
+
 export async function processStripeWebhookEvent(
   event: Stripe.Event,
   processors: Partial<StripeWebhookProcessors> = {}
@@ -1877,9 +1897,9 @@ export async function processStripeWebhookEvent(
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        await resolvedProcessors.handleCheckoutSessionCompleted(
-          event.data.object as Stripe.Checkout.Session
-        );
+        const session = event.data.object as Stripe.Checkout.Session;
+        await resolvedProcessors.handleCheckoutSessionCompleted(session);
+        await recordCheckoutCompletedSignal(session);
         break;
       }
       case "checkout.session.expired":

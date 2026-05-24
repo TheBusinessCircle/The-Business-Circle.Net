@@ -74,6 +74,10 @@ model User {
   resourcesApproved              Resource[]                   @relation("ResourceApprover")
   resourcesRejected              Resource[]                   @relation("ResourceRejector")
   resourcesLocked                Resource[]                   @relation("ResourceLocker")
+  siteVisitors                   SiteVisitor[]
+  sitePageViews                  SitePageView[]
+  siteEvents                     SiteEvent[]
+  founderAuditSubmissions        FounderAuditSubmission[]
   dailyResourceBatchesGenerated  DailyResourceBatch[]         @relation("DailyResourceBatchGenerator")
   dailyResourceBatchesApproved   DailyResourceBatch[]         @relation("DailyResourceBatchApprover")
   resourceReads                  ResourceRead[]
@@ -165,6 +169,129 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@index([identifier])
+}
+
+model SiteVisitor {
+  id                     String                    @id @default(cuid())
+  anonymousId            String                    @unique
+  firstSeenAt            DateTime                  @default(now())
+  lastSeenAt             DateTime                  @default(now())
+  visitCount             Int                       @default(0)
+  userId                 String?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  user                   User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessions               SiteSession[]
+  pageViews              SitePageView[]
+  events                 SiteEvent[]
+  founderAuditSubmissions FounderAuditSubmission[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([lastSeenAt])
+}
+
+model SiteSession {
+  id                     String                    @id @default(cuid())
+  visitorId              String
+  startedAt              DateTime                  @default(now())
+  endedAt                DateTime?
+  entryPath              String
+  exitPath               String?
+  referrer               String?
+  source                 String?
+  medium                 String?
+  campaign               String?
+  deviceType             String?
+  browser                String?
+  os                     String?
+  country                String?
+  city                   String?
+  isBot                  Boolean                   @default(false)
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  visitor                SiteVisitor               @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  pageViews              SitePageView[]
+  events                 SiteEvent[]
+  founderAuditSubmissions FounderAuditSubmission[]
+
+  @@index([visitorId])
+  @@index([startedAt])
+  @@index([endedAt])
+  @@index([source])
+  @@index([isBot])
+  @@index([createdAt])
+}
+
+model SitePageView {
+  id           String       @id @default(cuid())
+  visitorId    String
+  sessionId    String?
+  userId       String?
+  path         String
+  title        String?
+  referrer     String?
+  searchParams String?
+  deviceType   String?
+  browser      String?
+  os           String?
+  createdAt    DateTime     @default(now())
+  visitor      SiteVisitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  session      SiteSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([visitorId])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([path])
+  @@index([createdAt])
+}
+
+model SiteEvent {
+  id        String       @id @default(cuid())
+  visitorId String?
+  sessionId String?
+  userId    String?
+  eventName String
+  path      String?
+  metadata  Json?
+  createdAt DateTime     @default(now())
+  visitor   SiteVisitor? @relation(fields: [visitorId], references: [id], onDelete: SetNull)
+  session   SiteSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([visitorId])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([eventName])
+  @@index([path])
+  @@index([createdAt])
+}
+
+model FounderAuditSubmission {
+  id              String       @id @default(cuid())
+  visitorId       String?
+  userId          String?
+  sessionId       String?
+  score           Int
+  resultType      String
+  recommendedTier String?
+  answers         Json
+  strengths       Json?
+  weaknesses      Json?
+  sourcePath      String?
+  referrer        String?
+  createdAt       DateTime     @default(now())
+  visitor         SiteVisitor? @relation(fields: [visitorId], references: [id], onDelete: SetNull)
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  session         SiteSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([visitorId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([resultType])
+  @@index([recommendedTier])
+  @@index([createdAt])
 }
 
 model Profile {

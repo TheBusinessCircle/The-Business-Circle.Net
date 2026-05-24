@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   FOUNDER_AUDIT_QUESTIONS,
+  FOUNDER_AUDIT_CATEGORY_MAP,
   calculateFounderAuditScore,
   getFounderAuditBottleneck,
   getFounderAuditRecommendation
@@ -83,6 +84,19 @@ function readAuditEntryContext() {
   };
 }
 
+function auditAreaSummary(answers: readonly (number | undefined)[]) {
+  const answered = FOUNDER_AUDIT_QUESTIONS.map((question, index) => ({
+    questionId: question.id,
+    category: FOUNDER_AUDIT_CATEGORY_MAP[question.id].category,
+    score: answers[index]
+  })).filter((entry) => typeof entry.score === "number");
+
+  return {
+    strengths: answered.filter((entry) => Number(entry.score) >= 3).map((entry) => entry.category),
+    weaknesses: answered.filter((entry) => Number(entry.score) <= 1).map((entry) => entry.category)
+  };
+}
+
 export function FounderAuditClient() {
   const [stage, setStage] = useState<AuditStage>("intro");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -118,6 +132,7 @@ export function FounderAuditClient() {
     }
 
     if (currentIndex === totalQuestions - 1) {
+      const areaSummary = auditAreaSummary(answers);
       trackAnalyticsEvent(ANALYTICS_EVENTS.auditComplete, {
         score: totalScore,
         tier: recommendation.tierName
@@ -127,6 +142,23 @@ export function FounderAuditClient() {
         tier: recommendation.tierName,
         source: auditEntryContext.source,
         topic: auditEntryContext.topic
+      });
+      window.bcnAnalytics?.collect?.({
+        eventName: "audit_completed",
+        path: window.location.pathname + window.location.search,
+        metadata: {
+          score: totalScore,
+          resultType: recommendation.phase,
+          recommendedTier: recommendation.tierName,
+          answers: FOUNDER_AUDIT_QUESTIONS.map((question, index) => ({
+            questionId: question.id,
+            score: answers[index] ?? null
+          })),
+          strengths: areaSummary.strengths,
+          weaknesses: areaSummary.weaknesses,
+          source: auditEntryContext.source,
+          topic: auditEntryContext.topic ?? null
+        }
       });
       setStage("result");
       return;
@@ -184,6 +216,11 @@ export function FounderAuditClient() {
                 onClick={() => {
                   trackAnalyticsEvent(ANALYTICS_EVENTS.auditStart);
                   trackFounderAuditStarted(auditEntryContext);
+                  window.bcnAnalytics?.collect?.({
+                    eventName: "audit_started",
+                    path: window.location.pathname + window.location.search,
+                    metadata: auditEntryContext
+                  });
                   setStage("questions");
                 }}
                 className={cn(buttonVariants({ variant: "default", size: "lg" }), "group")}
