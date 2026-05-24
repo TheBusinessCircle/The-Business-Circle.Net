@@ -113,16 +113,18 @@ export function PublicTestimonialThankYou({
           {copied ? <Check size={15} className="mr-2" /> : <Copy size={15} className="mr-2" />}
           {copied ? "Copied" : "Copy testimonial"}
         </Button>
-        <a
-          href={googleReviewUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={trackGoogleReviewIntent}
-          className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
-        >
-          <ExternalLink size={15} className="mr-2" />
-          Leave Google review
-        </a>
+        {googleReviewUrl ? (
+          <a
+            href={googleReviewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={trackGoogleReviewIntent}
+            className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
+          >
+            <ExternalLink size={15} className="mr-2" />
+            Leave Google review
+          </a>
+        ) : null}
       </div>
       {copyMessage ? (
         <p className="text-sm text-gold" aria-live="polite">

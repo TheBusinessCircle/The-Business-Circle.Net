@@ -20,7 +20,11 @@ const CONVERSION_EVENTS = [
   "launch_code_checkout_started",
   "launch_code_checkout_completed",
   "launch_code_subscription_trialing",
-  "launch_code_subscription_active"
+  "launch_code_subscription_active",
+  "review_request_page_viewed",
+  "review_text_copied",
+  "review_submitted",
+  "google_review_clicked"
 ] as const;
 
 function dateRange(range: GrowthIntelligenceRange): DateRange {

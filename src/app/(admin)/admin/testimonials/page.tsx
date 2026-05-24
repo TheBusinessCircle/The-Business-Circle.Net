@@ -217,6 +217,17 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
   });
   const feedback = feedbackMessage(firstValue(params.notice), firstValue(params.error));
   const testimonialPageLink = `${SITE_CONFIG.url}/testimonial`;
+  const reviewRequestUrl = testimonialPageLink;
+  const reviewRequestMessage = `Hi, thank you again for supporting The Business Circle Network.
+
+If you'd be happy to leave a quick review, I've made a simple page here:
+
+${reviewRequestUrl}
+
+You can write it once, submit it to the site, then copy and paste the same review into Google.
+
+It would genuinely help build trust while BCN is still in its early stage.`;
+  const googleReviewConfigured = Boolean(settings.googleReviewUrl?.trim());
   const memberTemplate = `Hi [Name],
 
 I just wanted to say thank you for being part of the early stages of The Business Circle Network.
@@ -276,6 +287,46 @@ Trev`;
         <StatCard label="Google review clicks" value={stats.googleClicks} />
         <StatCard label="Google confirmed" value={stats.googleConfirmed} />
       </div>
+
+      <Card className="border-gold/30 bg-gradient-to-br from-gold/10 via-card/78 to-card/70">
+        <CardHeader>
+          <CardTitle>Review Request Link</CardTitle>
+          <CardDescription>
+            Send this link to someone when you want them to leave a review or testimonial. They can
+            write it once, submit it to BCN for approval, then copy and paste the same review into Google.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-2xl border border-border/80 bg-background/24 p-4">
+            <p className="text-xs uppercase tracking-[0.08em] text-muted">Public review request URL</p>
+            <p className="mt-2 break-all font-mono text-sm text-foreground">{reviewRequestUrl}</p>
+          </div>
+          {!googleReviewConfigured ? (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              Google review link is not configured.
+            </div>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border/70 bg-background/20 p-4">
+              <p className="text-xs uppercase tracking-[0.08em] text-muted">Pending</p>
+              <p className="mt-1 font-display text-2xl text-foreground">{stats.pending}</p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-background/20 p-4">
+              <p className="text-xs uppercase tracking-[0.08em] text-muted">Approved</p>
+              <p className="mt-1 font-display text-2xl text-foreground">{stats.approved}</p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-background/20 p-4">
+              <p className="text-xs uppercase tracking-[0.08em] text-muted">Google clicks</p>
+              <p className="mt-1 font-display text-2xl text-foreground">{stats.googleClicks}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <CopyLinkButton value={reviewRequestUrl} label="Copy link" />
+            <CopyLinkButton value={reviewRequestMessage} label="Copy suggested message" />
+          </div>
+          <Textarea readOnly rows={8} value={reviewRequestMessage} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

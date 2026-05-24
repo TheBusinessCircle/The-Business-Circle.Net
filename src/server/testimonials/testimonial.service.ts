@@ -18,6 +18,10 @@ import { SITE_CONFIG } from "@/config/site";
 import { db } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 
+function configuredGoogleReviewUrl() {
+  return process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL?.trim() || null;
+}
+
 export type ApprovedTestimonial = {
   id: string;
   proofType: TestimonialProofType;
@@ -461,6 +465,7 @@ function toApprovedTestimonial(
 }
 
 export async function getReviewSettings() {
+  const envGoogleReviewUrl = configuredGoogleReviewUrl();
   const existing = await db.siteReviewSettings.findFirst({
     orderBy: {
       createdAt: "asc"
@@ -468,12 +473,25 @@ export async function getReviewSettings() {
   });
 
   if (existing) {
-    return existing;
+    const googleReviewUrl = existing.googleReviewUrl || envGoogleReviewUrl;
+    return {
+      ...existing,
+      googleReviewUrl,
+      googleReviewEnabled: existing.googleReviewEnabled || Boolean(envGoogleReviewUrl),
+      showGoogleReviewButton: existing.showGoogleReviewButton || Boolean(envGoogleReviewUrl)
+    };
   }
 
-  return db.siteReviewSettings.create({
+  const created = await db.siteReviewSettings.create({
     data: {}
   });
+
+  return {
+    ...created,
+    googleReviewUrl: envGoogleReviewUrl,
+    googleReviewEnabled: Boolean(envGoogleReviewUrl),
+    showGoogleReviewButton: Boolean(envGoogleReviewUrl)
+  };
 }
 
 export async function updateReviewSettings(input: UpdateReviewSettingsInput) {
@@ -1012,6 +1030,21 @@ export async function createExternalTestimonial(input: CreateExternalTestimonial
     : await db.testimonial.create({
         data
       });
+
+  if (db.siteEvent?.create) {
+    await db.siteEvent.create({
+      data: {
+        eventName: "review_submitted",
+        path: input.requestToken ? "/testimonial/request" : "/testimonial",
+        metadata: {
+          testimonialId: updated.id,
+          category,
+          displayLocation,
+          source: data.source
+        }
+      }
+    }).catch(() => null);
+  }
 
   await db.founderServiceRequest?.updateMany({
     where: {

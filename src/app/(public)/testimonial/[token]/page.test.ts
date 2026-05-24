@@ -9,6 +9,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getExternalTestimonialRequestByTokenMock = vi.hoisted(() => vi.fn());
 const getTestimonialCopyStateMock = vi.hoisted(() => vi.fn());
+const getReviewSettingsMock = vi.hoisted(() =>
+  vi.fn(async () => ({
+    googleReviewUrl: "https://g.page/r/CZfk3NbmnutQEAI/review",
+    googleReviewEnabled: true,
+    showGoogleReviewButton: true
+  }))
+);
 
 vi.mock("@/actions/testimonial.actions", () => ({
   submitExternalTestimonialAction: vi.fn()
@@ -31,6 +38,7 @@ vi.mock("@/server/testimonials", () => ({
         (!request.requestExpiresAt || request.requestExpiresAt > new Date())
     ),
   getExternalTestimonialRequestByToken: getExternalTestimonialRequestByTokenMock,
+  getReviewSettings: getReviewSettingsMock,
   getTestimonialCopyState: getTestimonialCopyStateMock
 }));
 
@@ -82,7 +90,7 @@ describe("external testimonial token page", () => {
     expect(markup).toContain("Jordan Client");
     expect(markup).not.toContain('value="jordan@example.com"');
     expect(markup).toContain("Public display permissions");
-    expect(markup).toContain("Display my testimonial publicly");
+    expect(markup).toContain("submitted to The Business Circle Network for approval");
     expect(markup).toContain("Display my role/title");
     expect(markup).toContain("Copy testimonial");
     expect(markup).toContain("Submit testimonial");
@@ -91,9 +99,6 @@ describe("external testimonial token page", () => {
     expect(markup).toContain('target="_blank"');
     expect(markup).toContain('rel="noopener noreferrer"');
     expect(markup).toContain("Once you have written your testimonial, you can copy it first");
-    expect(markup).toContain(
-      "You can paste the same testimonial into Google if you are happy to leave it there too."
-    );
   });
 
   it("does not prefill internal requester details as the testimonial giver", async () => {

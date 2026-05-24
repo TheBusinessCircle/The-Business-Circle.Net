@@ -34,4 +34,16 @@ describe("public testimonial Google review flow structure", () => {
     expect(source).toContain("target=\"_blank\"");
     expect(source).toContain("rel=\"noopener noreferrer\"");
   });
+
+  it("supports the open public review request flow without a token", () => {
+    const pageSource = readSource("src/app/(public)/testimonial/page.tsx");
+    const formSource = readSource("src/components/testimonials/public-testimonial-request-form.tsx");
+
+    expect(pageSource).toContain("<PublicTestimonialRequestForm");
+    expect(pageSource).toContain("submittedEmailRequired={false}");
+    expect(pageSource).toContain("ReviewRequestAnalytics");
+    expect(formSource).toContain("token?: string | null");
+    expect(formSource).toContain("review_text_copied");
+    expect(formSource).toContain("google_review_clicked");
+  });
 });

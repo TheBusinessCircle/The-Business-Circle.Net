@@ -4,14 +4,12 @@ import {
   TestimonialDisplayLocation
 } from "@prisma/client";
 import { MessageSquareQuote, ShieldCheck } from "lucide-react";
-import { submitExternalTestimonialAction } from "@/actions/testimonial.actions";
-import { GoogleReviewCta } from "@/components/testimonials";
-import { Button } from "@/components/ui/button";
+import {
+  GoogleReviewCta,
+  PublicTestimonialRequestForm,
+  ReviewRequestAnalytics
+} from "@/components/testimonials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { createPageMetadata } from "@/lib/seo";
 import { getReviewSettings, getTestimonialCopyState } from "@/server/testimonials";
 
@@ -119,6 +117,7 @@ export default async function PublicTestimonialPage({ searchParams }: PageProps)
 
   return (
     <div className="public-page-stack">
+      <ReviewRequestAnalytics source="public_testimonial" />
       <section className="public-hero-spacing-tight relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/60 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="relative mx-auto max-w-3xl space-y-6">
@@ -145,113 +144,34 @@ export default async function PublicTestimonialPage({ searchParams }: PageProps)
 
           <Card>
             <CardContent className="pt-6 sm:pt-7">
-              <form action={submitExternalTestimonialAction} className="space-y-4">
-                <input type="hidden" name="source" value={source} />
-                <input type="hidden" name="campaign" value={campaign} />
-                <input type="hidden" name="ref" value={ref} />
-                <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="authorName">Name</Label>
-                    <Input id="authorName" name="authorName" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="submittedEmail">Email</Label>
-                    <Input id="submittedEmail" name="submittedEmail" type="email" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="businessName">Company</Label>
-                    <Input id="businessName" name="businessName" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="authorRole">Role</Label>
-                    <Input id="authorRole" name="authorRole" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="businessWebsite">Website</Label>
-                    <Input id="businessWebsite" name="businessWebsite" type="url" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="submittedByLinkedIn">LinkedIn</Label>
-                    <Input id="submittedByLinkedIn" name="submittedByLinkedIn" type="url" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Experience</Label>
-                    <Select id="category" name="category" defaultValue="GROWTH_ARCHITECT">
-                      {Object.values(TestimonialCategory).map((category) => (
-                        <option key={category} value={category}>
-                          {CATEGORY_LABELS[category]}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="displayLocation">Display preference</Label>
-                    <Select id="displayLocation" name="displayLocation" defaultValue="ANYWHERE">
-                      <option value={TestimonialDisplayLocation.BCN_HOME}>
-                        The Business Circle Network
-                      </option>
-                      <option value={TestimonialDisplayLocation.FOUNDER_PAGE}>
-                        Growth Architect / Founder Audit
-                      </option>
-                      <option value={TestimonialDisplayLocation.ANYWHERE}>Either is fine</option>
-                    </Select>
-                  </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="rating">Rating, optional</Label>
-                    <Select id="rating" name="rating" defaultValue="">
-                      <option value="">No rating</option>
-                      {[1, 2, 3, 4, 5].map((rating) => (
-                        <option key={rating} value={rating}>
-                          {rating} out of 5
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quote">Testimonial</Label>
-                  <Textarea
-                    id="quote"
-                    name="quote"
-                    rows={6}
-                    required
-                    minLength={20}
-                    maxLength={1600}
-                    placeholder="Share what changed, what became clearer, or what felt useful."
-                  />
-                </div>
-
-                <div className="rounded-2xl border border-border/80 bg-background/22 p-4">
-                  <p className="mb-3 text-sm font-medium text-foreground">Permission</p>
-                  <div className="grid gap-3">
-                    <label className="flex items-start gap-2 text-sm text-muted">
-                      <input type="checkbox" name="permissionToFeaturePublicly" required className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary" />
-                      I give permission for this testimonial to be featured publicly on The Business Circle Network.
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-muted">
-                      <input type="checkbox" name="permissionToUseName" className="h-4 w-4 rounded border-border bg-background accent-primary" />
-                      I give permission for my name to be shown.
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-muted">
-                      <input type="checkbox" name="permissionToUseCompany" className="h-4 w-4 rounded border-border bg-background accent-primary" />
-                      I give permission for my company name to be shown.
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-muted">
-                      <input type="checkbox" name="permissionToUseImage" className="h-4 w-4 rounded border-border bg-background accent-primary" />
-                      I give permission for my profile image/logo to be shown.
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-muted">
-                      <input type="checkbox" name="permissionToUseInMarketing" className="h-4 w-4 rounded border-border bg-background accent-primary" />
-                      I give permission for this testimonial to be used in marketing material.
-                    </label>
-                  </div>
-                </div>
-
-                <Button type="submit">Submit testimonial</Button>
-              </form>
+              <PublicTestimonialRequestForm
+                category="GROWTH_ARCHITECT"
+                displayLocation="ANYWHERE"
+                categoryOptions={Object.values(TestimonialCategory).map((category) => ({
+                  value: category,
+                  label: CATEGORY_LABELS[category]
+                }))}
+                displayLocationOptions={[
+                  {
+                    value: TestimonialDisplayLocation.BCN_HOME,
+                    label: "The Business Circle Network"
+                  },
+                  {
+                    value: TestimonialDisplayLocation.FOUNDER_PAGE,
+                    label: "Growth Architect / Founder Audit"
+                  },
+                  {
+                    value: TestimonialDisplayLocation.ANYWHERE,
+                    label: "Either is fine"
+                  }
+                ]}
+                submittedEmailRequired={false}
+                googleReviewUrl={settings.googleReviewUrl}
+                showGoogleReviewButton={settings.showGoogleReviewButton && Boolean(settings.googleReviewUrl)}
+                trackingSource={source}
+                campaign={campaign}
+                ref={ref}
+              />
             </CardContent>
           </Card>
         </div>

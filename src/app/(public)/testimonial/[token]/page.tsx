@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import { TestimonialCategory, TestimonialDisplayLocation } from "@prisma/client";
 import { MessageSquareQuote, ShieldCheck } from "lucide-react";
-import { PublicTestimonialRequestForm, PublicTestimonialThankYou } from "@/components/testimonials";
+import {
+  PublicTestimonialRequestForm,
+  PublicTestimonialThankYou,
+  ReviewRequestAnalytics
+} from "@/components/testimonials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
 import {
   getExternalTestimonialRequestByToken,
   externalTestimonialRequestIsAvailable,
+  getReviewSettings,
   getTestimonialCopyState
 } from "@/server/testimonials";
 
@@ -33,10 +38,12 @@ function firstValue(value: string | string[] | undefined) {
 
 function ThankYouState({
   testimonialId,
-  testimonialText
+  testimonialText,
+  googleReviewUrl
 }: {
   testimonialId: string;
   testimonialText: string;
+  googleReviewUrl?: string | null;
 }) {
   return (
     <Card className="mx-auto max-w-2xl border-primary/30 bg-gradient-to-br from-primary/10 via-card/80 to-card/70">
@@ -54,6 +61,7 @@ function ThankYouState({
         <PublicTestimonialThankYou
           testimonialId={testimonialId}
           testimonialText={testimonialText}
+          googleReviewUrl={googleReviewUrl ?? undefined}
         />
       </CardContent>
     </Card>
@@ -125,7 +133,10 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
   const submitted = firstValue(query.submitted) === "1";
   const error = firstValue(query.error);
   const testimonialId = firstValue(query.testimonialId);
-  const request = await getExternalTestimonialRequestByToken(token);
+  const [request, settings] = await Promise.all([
+    getExternalTestimonialRequestByToken(token),
+    getReviewSettings()
+  ]);
 
   if (submitted) {
     const testimonial = testimonialId ? await getTestimonialCopyState(testimonialId) : null;
@@ -143,6 +154,11 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
         <ThankYouState
           testimonialId={testimonialId}
           testimonialText={testimonial.testimonialText || testimonial.quote || ""}
+          googleReviewUrl={
+            settings.showGoogleReviewButton && settings.googleReviewUrl
+              ? settings.googleReviewUrl
+              : null
+          }
         />
       </div>
     );
@@ -158,6 +174,7 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
 
   return (
     <div className="public-page-stack">
+      <ReviewRequestAnalytics source="testimonial_request" />
       <section className="public-hero-spacing-tight relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/60 shadow-panel">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
         <div className="relative mx-auto max-w-3xl space-y-6">
@@ -191,6 +208,8 @@ export default async function ExternalTestimonialPage({ params, searchParams }: 
                 displayLocation={request.displayLocation}
                 categoryOptions={categoryOptions}
                 displayLocationOptions={displayLocationOptions}
+                googleReviewUrl={settings.googleReviewUrl}
+                showGoogleReviewButton={settings.showGoogleReviewButton && Boolean(settings.googleReviewUrl)}
               />
             </CardContent>
           </Card>

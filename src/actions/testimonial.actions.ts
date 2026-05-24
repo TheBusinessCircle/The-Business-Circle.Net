@@ -78,7 +78,7 @@ const externalTestimonialSchema = z.object({
   submittedByLinkedIn: optionalUrl,
   quote: z.string().trim().min(20).max(1600),
   outcome: optionalText(600),
-  submittedEmail: z.string().trim().email().max(320),
+  submittedEmail: z.string().trim().email().max(320).optional().or(z.literal("")),
   category: z.nativeEnum(TestimonialCategory),
   displayLocation: z.nativeEnum(TestimonialDisplayLocation),
   rating: optionalRating,
@@ -90,7 +90,7 @@ const externalTestimonialSchema = z.object({
   allowDisplayName: checkboxBoolean.optional().default(false),
   allowDisplayCompany: checkboxBoolean.optional().default(false),
   allowDisplayRole: checkboxBoolean.optional().default(false),
-  allowDisplayTestimonial: checkboxBoolean.optional().default(false),
+  allowDisplayTestimonial: checkboxBoolean.refine(Boolean),
   allowMarketingUse: checkboxBoolean.optional().default(false),
   website: z.string().trim().max(0).optional().or(z.literal("")),
   source: optionalText(80),
@@ -335,7 +335,9 @@ export async function submitExternalTestimonialAction(formData: FormData) {
       ...testimonialInput,
       requestToken: parsed.data.requestToken || null,
       source: parsed.data.requestToken ? TestimonialSource.EMAIL_REQUEST : TestimonialSource.PUBLIC_FORM,
-      trackingSource: parsed.data.source
+      trackingSource: parsed.data.source,
+      campaign: parsed.data.campaign,
+      ref: parsed.data.ref
     });
     revalidatePath("/admin/testimonials");
     successPath = isTokenRequest

@@ -17,13 +17,19 @@ type SelectOption = {
 };
 
 type PublicTestimonialRequestFormProps = {
-  token: string;
+  token?: string | null;
   recipientName?: string | null;
   requestCompanyName?: string | null;
   category: string;
   displayLocation: string;
   categoryOptions: SelectOption[];
   displayLocationOptions: SelectOption[];
+  submittedEmailRequired?: boolean;
+  googleReviewUrl?: string | null;
+  showGoogleReviewButton?: boolean;
+  trackingSource?: string | null;
+  campaign?: string | null;
+  ref?: string | null;
 };
 
 async function writeClipboardText(value: string) {
@@ -62,7 +68,13 @@ export function PublicTestimonialRequestForm({
   category,
   displayLocation,
   categoryOptions,
-  displayLocationOptions
+  displayLocationOptions,
+  submittedEmailRequired = true,
+  googleReviewUrl = BCN_GOOGLE_REVIEW_URL,
+  showGoogleReviewButton = true,
+  trackingSource,
+  campaign,
+  ref
 }: PublicTestimonialRequestFormProps) {
   const [testimonialText, setTestimonialText] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
@@ -85,11 +97,23 @@ export function PublicTestimonialRequestForm({
         : "We could not copy automatically. Please select the testimonial text and copy it."
     );
     window.setTimeout(() => setCopied(false), 1800);
+    window.bcnAnalytics?.track?.("review_text_copied", {
+      source: token ? "testimonial_request" : "public_testimonial"
+    });
+  }
+
+  function trackGoogleReviewClick() {
+    window.bcnAnalytics?.track?.("google_review_clicked", {
+      source: token ? "testimonial_request" : "public_testimonial"
+    });
   }
 
   return (
     <form action={submitExternalTestimonialAction} className="space-y-4">
-      <input type="hidden" name="requestToken" value={token} />
+      {token ? <input type="hidden" name="requestToken" value={token} /> : null}
+      <input type="hidden" name="source" value={trackingSource ?? ""} />
+      <input type="hidden" name="campaign" value={campaign ?? ""} />
+      <input type="hidden" name="ref" value={ref ?? ""} />
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
 
       {recipientName || requestCompanyName ? (
@@ -121,7 +145,7 @@ export function PublicTestimonialRequestForm({
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="submittedEmail">Email</Label>
-          <Input id="submittedEmail" name="submittedEmail" type="email" required />
+          <Input id="submittedEmail" name="submittedEmail" type="email" required={submittedEmailRequired} />
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="submittedByLinkedIn">LinkedIn</Label>
@@ -198,9 +222,11 @@ export function PublicTestimonialRequestForm({
             <input
               type="checkbox"
               name="allowDisplayTestimonial"
+              required
               className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
             />
-            Display my testimonial publicly.
+            I am happy for this review to be submitted to The Business Circle Network for approval and
+            possible use on the website.
           </label>
           <label className="flex items-start gap-2 text-sm text-muted">
             <input
@@ -216,7 +242,7 @@ export function PublicTestimonialRequestForm({
               name="allowDisplayCompany"
               className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
             />
-            Display my business/company name.
+            I am happy for my business name to be shown with the review.
           </label>
           <label className="flex items-start gap-2 text-sm text-muted">
             <input
@@ -245,9 +271,6 @@ export function PublicTestimonialRequestForm({
           Once you have written your testimonial, you can copy it first, submit it here, and then
           paste the same words into Google if you are happy to leave a public review too.
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          You can paste the same testimonial into Google if you are happy to leave it there too.
-        </p>
         {copyMessage ? (
           <p className="mt-3 text-sm text-gold" aria-live="polite">
             {copyMessage}
@@ -259,15 +282,18 @@ export function PublicTestimonialRequestForm({
             {copied ? "Copied" : "Copy testimonial"}
           </Button>
           <Button type="submit">Submit testimonial</Button>
-          <a
-            href={BCN_GOOGLE_REVIEW_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
-          >
-            <ExternalLink size={15} className="mr-2" />
-            Leave Google review
-          </a>
+          {showGoogleReviewButton && googleReviewUrl ? (
+            <a
+              href={googleReviewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={trackGoogleReviewClick}
+              className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
+            >
+              <ExternalLink size={15} className="mr-2" />
+              Leave Google review
+            </a>
+          ) : null}
         </div>
       </div>
     </form>

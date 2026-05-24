@@ -7,6 +7,17 @@ function readSource(path: string) {
 }
 
 describe("admin testimonial request structure", () => {
+  it("includes the review request link card with copyable URL and message", () => {
+    const source = readSource("src/app/(admin)/admin/testimonials/page.tsx");
+
+    expect(source).toContain("Review Request Link");
+    expect(source).toContain("reviewRequestUrl");
+    expect(source).toContain("Copy suggested message");
+    expect(source).toContain("Google review link is not configured.");
+    expect(source).toContain("stats.googleClicks");
+    expect(source).toContain("`${SITE_CONFIG.url}/testimonial`");
+  });
+
   it("includes the non-member testimonial request form and server action", () => {
     const source = readSource("src/app/(admin)/admin/testimonials/page.tsx");
 

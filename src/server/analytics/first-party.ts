@@ -26,6 +26,10 @@ export const FIRST_PARTY_ANALYTICS_EVENTS = [
   "launch_code_checkout_completed",
   "launch_code_subscription_trialing",
   "launch_code_subscription_active",
+  "review_request_page_viewed",
+  "review_text_copied",
+  "review_submitted",
+  "google_review_clicked",
   "public_cta_join_clicked",
   "audit_cta_clicked"
 ] as const;
