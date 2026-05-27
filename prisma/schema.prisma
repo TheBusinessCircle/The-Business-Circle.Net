@@ -297,6 +297,29 @@ model FounderAuditSubmission {
   @@index([createdAt])
 }
 
+model GrowthIntelligenceReport {
+  id                 String   @id @default(cuid())
+  range              String
+  generatedAt        DateTime
+  nextRefreshAt      DateTime
+  headline           String
+  summary            String   @db.Text
+  healthScore        Int?
+  momentumLabel      String?
+  keyFindings        Json
+  risks              Json
+  opportunities      Json
+  recommendedActions Json
+  priorityAction     String?  @db.Text
+  metricsSnapshot    Json
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([generatedAt])
+  @@index([nextRefreshAt])
+  @@index([range])
+}
+
 model Profile {
   id                         String    @id @default(cuid())
   userId                     String    @unique

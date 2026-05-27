@@ -5,6 +5,7 @@ import {
   AuditIntelligencePanel,
   ConversionSignalsPanel,
   DeviceBreakdown,
+  GrowthReportCard,
   GrowthInsightsPanel,
   GrowthIntelligenceSummaryCards,
   RecentActivityFeed,
@@ -12,6 +13,7 @@ import {
   TrafficSourceBreakdown,
   TrafficTimeline
 } from "@/components/admin/growth-intelligence";
+import { refreshGrowthReportNowAction } from "@/actions/admin/growth-report.actions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
@@ -20,6 +22,7 @@ import {
   getGrowthIntelligenceDashboard,
   type GrowthIntelligenceRange
 } from "@/server/admin/growth-intelligence.service";
+import { getCurrentGrowthReport } from "@/server/admin/growth-report.service";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = createPageMetadata({
@@ -54,10 +57,15 @@ export default async function AdminGrowthIntelligencePage({
   await requireAdmin();
   const params = await searchParams;
   const range = readRange(params.range);
-  const dashboard = await getGrowthIntelligenceDashboard(range);
+  const [growthReport, dashboard] = await Promise.all([
+    getCurrentGrowthReport(),
+    getGrowthIntelligenceDashboard(range)
+  ]);
 
   return (
     <div className="space-y-6">
+      <GrowthReportCard report={growthReport} refreshAction={refreshGrowthReportNowAction} />
+
       <Card className="overflow-hidden border-gold/40 bg-gradient-to-br from-gold/16 via-card/84 to-card/70 shadow-gold-soft">
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-4">

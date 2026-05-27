@@ -3,6 +3,7 @@ export * from "@/components/admin/growth-intelligence/conversion-signals-panel";
 export * from "@/components/admin/growth-intelligence/device-breakdown";
 export * from "@/components/admin/growth-intelligence/growth-insights-panel";
 export * from "@/components/admin/growth-intelligence/growth-intelligence-summary-cards";
+export * from "@/components/admin/growth-intelligence/growth-report-card";
 export * from "@/components/admin/growth-intelligence/recent-activity-feed";
 export * from "@/components/admin/growth-intelligence/top-pages-table";
 export * from "@/components/admin/growth-intelligence/traffic-source-breakdown";
