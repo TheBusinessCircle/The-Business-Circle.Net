@@ -89,16 +89,16 @@ describe("external testimonial token page", () => {
     expect(markup).toContain("Share your experience for review");
     expect(markup).toContain("Jordan Client");
     expect(markup).not.toContain('value="jordan@example.com"');
-    expect(markup).toContain("Public display permissions");
-    expect(markup).toContain("submitted to The Business Circle Network for approval");
-    expect(markup).toContain("Display my role/title");
-    expect(markup).toContain("Copy testimonial");
+    expect(markup).toContain("Business name");
+    expect(markup).toContain("Owner name (optional)");
+    expect(markup).toContain("Testimonial title (optional)");
+    expect(markup).toContain("Your full review");
+    expect(markup).toContain("Email is not required for public testimonials");
+    expect(markup).toContain("Permission");
     expect(markup).toContain("Submit testimonial");
-    expect(markup).toContain("Leave Google review");
-    expect(markup).toContain("https://g.page/r/CZfk3NbmnutQEAI/review");
-    expect(markup).toContain('target="_blank"');
-    expect(markup).toContain('rel="noopener noreferrer"');
-    expect(markup).toContain("Once you have written your testimonial, you can copy it first");
+    expect(markup).not.toContain("Display preference");
+    expect(markup).not.toContain("Display my role/title");
+    expect(markup).not.toContain("Leave Google review");
   });
 
   it("does not prefill internal requester details as the testimonial giver", async () => {
@@ -160,14 +160,13 @@ describe("external testimonial token page", () => {
       }
     });
 
-    expect(markup).toContain("Thank you");
+    expect(markup).toContain("Thank you, your testimonial has been received.");
     expect(markup).toContain("The audit helped me understand what to fix first and why it mattered.");
-    expect(markup).toContain("Copy testimonial");
+    expect(markup).toContain("Copy review");
     expect(markup).toContain("Leave Google review");
     expect(markup).toContain("https://g.page/r/CZfk3NbmnutQEAI/review");
-    expect(markup).toContain(
-      "If you are happy to leave the same words as a Google review, you can copy your testimonial below"
-    );
+    expect(markup).toContain("Would you also be happy to leave this as a Google review?");
+    expect(markup).toContain("Tap copy, open Google, paste the review and submit.");
   });
 
   it("shows unavailable for completed or archived tokens", async () => {

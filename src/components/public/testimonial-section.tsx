@@ -60,7 +60,7 @@ function TestimonialCard({ testimonial }: { testimonial: ApprovedTestimonial }) 
           <div className="rounded-2xl border border-gold/20 bg-gold/10 px-4 py-3">
             <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-gold">
               <TrendingUp size={13} />
-              Outcome
+              Review highlight
             </p>
             <p className="mt-2 text-sm leading-relaxed text-white/78">{testimonial.outcome}</p>
           </div>

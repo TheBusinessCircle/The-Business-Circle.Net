@@ -9,6 +9,7 @@ describe("sitemap route policy", () => {
   it("includes public launch routes and excludes member profile routes", () => {
     expect(source).toContain("/membership");
     expect(source).toContain("/audit");
+    expect(source).toContain("/review");
     expect(PUBLIC_INTENT_PAGE_ROUTES).toEqual(
       expect.arrayContaining([
         "/private-business-network",

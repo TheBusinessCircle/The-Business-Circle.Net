@@ -7,7 +7,8 @@ import {
   shouldShowGoogleReviewPendingState,
   testimonialIsReadyForGoogleReview
 } from "@/components/testimonials/google-review.logic";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type GoogleReviewCtaProps = {
   testimonialId?: string | null;
@@ -29,6 +30,7 @@ export function GoogleReviewCta({
   pendingMessage
 }: GoogleReviewCtaProps) {
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const testimonialReady = testimonialIsReadyForGoogleReview(testimonialText);
   const active = googleReviewCtaIsActive({
     enabled,
@@ -63,65 +65,99 @@ export function GoogleReviewCta({
       return false;
     }
 
+    let didCopy = false;
+
     try {
       await navigator.clipboard.writeText(testimonialText);
-      setCopied(true);
+      didCopy = true;
+    } catch {
+      const fallback = document.getElementById("testimonial-copy-fallback") as HTMLTextAreaElement | null;
+      fallback?.focus();
+      fallback?.select();
+
+      try {
+        didCopy = document.execCommand("copy");
+      } catch {
+        didCopy = false;
+      }
+    }
+
+    setCopied(didCopy);
+    setCopyFailed(!didCopy);
+
+    if (didCopy) {
       await track("copy");
       window.setTimeout(() => setCopied(false), 1800);
-      return true;
-    } catch {
-      setCopied(false);
-      return false;
-    }
-  }
-
-  async function handleGoogleClick() {
-    if (!testimonialReady) {
-      return;
     }
 
-    const copiedToClipboard = await copyText();
-    await track("intent");
-
-    if (googleReviewUrl) {
-      window.open(googleReviewUrl, "_blank", "noopener,noreferrer");
-    }
-
-    if (!copiedToClipboard) {
-      const fallback = document.getElementById("testimonial-copy-fallback");
-      fallback?.focus();
-    }
+    return didCopy;
   }
 
   if (!showButton && !active && !showPending) {
     return null;
   }
 
+  if (!active) {
+    return showPending ? (
+      <p className="text-sm leading-relaxed text-muted">{pendingMessage}</p>
+    ) : null;
+  }
+
   return (
-    <div className="space-y-3 rounded-2xl border border-gold/24 bg-gold/10 p-4">
-      <div className="flex flex-wrap gap-3">
-        <Button type="button" variant="outline" onClick={copyText} disabled={!testimonialReady}>
-          {copied ? <Check size={15} className="mr-2" /> : <Copy size={15} className="mr-2" />}
-          {copied ? "Copied" : "Copy your testimonial"}
-        </Button>
-        {active ? (
-          <Button type="button" onClick={handleGoogleClick} disabled={!testimonialReady}>
-            <ExternalLink size={15} className="mr-2" />
-            {label}
-          </Button>
-        ) : (
-          <Button type="button" disabled variant="outline">
-            {pendingMessage}
-          </Button>
-        )}
+    <div className="space-y-4 rounded-2xl border border-gold/24 bg-gold/10 p-4">
+      <div className="space-y-1.5">
+        <h3 className="font-display text-xl text-foreground">
+          Would you also be happy to leave this as a Google review?
+        </h3>
+        <p className="text-sm leading-relaxed text-muted">
+          Tap copy, open Google, paste the review and submit.
+        </p>
       </div>
-      {!testimonialReady && active ? (
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={copyText}
+          disabled={!testimonialReady}
+          className="min-h-11 w-full sm:w-auto"
+        >
+          {copied ? <Check size={15} className="mr-2" /> : <Copy size={15} className="mr-2" />}
+          {copied ? "Copied" : "Copy review"}
+        </Button>
+        <a
+          href={googleReviewUrl ?? undefined}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(event) => {
+            if (!testimonialReady) {
+              event.preventDefault();
+              return;
+            }
+
+            void track("intent");
+          }}
+          aria-disabled={!testimonialReady}
+          className={cn(
+            buttonVariants({ variant: "outline" }),
+            "min-h-11 w-full sm:w-auto",
+            !testimonialReady ? "pointer-events-none opacity-50" : ""
+          )}
+        >
+          <ExternalLink size={15} className="mr-2" />
+          {label}
+        </a>
+      </div>
+      {!testimonialReady ? (
         <p className="text-sm text-muted">
           Testimonial text needs to be available before Google opens.
         </p>
       ) : copied ? (
         <p className="text-sm text-gold">
           Your testimonial has been copied. Paste it into Google to save writing it again.
+        </p>
+      ) : copyFailed ? (
+        <p className="text-sm text-muted">
+          Copy was unavailable. Select the review text below and copy it manually.
         </p>
       ) : null}
       <textarea

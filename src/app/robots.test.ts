@@ -33,6 +33,7 @@ describe("robots output", () => {
         "/faq",
         "/insights",
         "/contact",
+        "/review",
         "/business-owner-network-uk",
         "/founder-community-uk"
       ])

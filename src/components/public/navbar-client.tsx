@@ -86,6 +86,12 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
           </nav>
 
           <div className="hidden flex-none items-center gap-2 lg:flex">
+            <Link
+              href="/review"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Leave a testimonial
+            </Link>
             {isAuthenticated ? (
               <>
                 <Link
@@ -177,6 +183,16 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                 {isAuthenticated ? (
                   <div className="flex flex-col gap-2">
                     <Link
+                      href="/review"
+                      onClick={closeMobileMenu}
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "lg" }),
+                        "min-h-12 w-full justify-center border-white/14 bg-white/[0.045] text-silver hover:border-gold/35 hover:bg-white/10 hover:text-foreground"
+                      )}
+                    >
+                      Share your experience
+                    </Link>
+                    <Link
                       href="/dashboard"
                       onClick={closeMobileMenu}
                       className={cn(
@@ -199,6 +215,16 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
+                    <Link
+                      href="/review"
+                      onClick={closeMobileMenu}
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "lg" }),
+                        "min-h-12 w-full justify-center border-white/14 bg-white/[0.045] text-silver hover:border-gold/35 hover:bg-white/10 hover:text-foreground"
+                      )}
+                    >
+                      Share your experience
+                    </Link>
                     <Link
                       href="/login"
                       onClick={closeMobileMenu}

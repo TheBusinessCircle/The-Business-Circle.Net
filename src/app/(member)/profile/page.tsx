@@ -102,6 +102,8 @@ export default async function ProfilePage({ searchParams }: PageProps) {
         showGoogleReviewButton={reviewSettings.showGoogleReviewButton}
         googleReviewButtonLabel={reviewSettings.googleReviewButtonLabel}
         googleReviewPendingMessage={reviewSettings.googleReviewPendingMessage}
+        memberName={user.name}
+        businessName={user.profile?.business?.companyName}
       />
 
       <ProfileForm

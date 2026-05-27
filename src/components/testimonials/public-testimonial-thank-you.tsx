@@ -79,8 +79,8 @@ export function PublicTestimonialThankYou({
     setCopied(didCopy);
     setCopyMessage(
       didCopy
-        ? "Testimonial copied."
-        : "We could not copy automatically. Please select the testimonial text and copy it."
+        ? "Review copied."
+        : "We could not copy automatically. Please select the review text and copy it."
     );
     if (didCopy) {
       void track("copy");
@@ -94,24 +94,35 @@ export function PublicTestimonialThankYou({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <p className="text-sm leading-relaxed text-muted">
-          Thank you — your testimonial has been submitted. If you are happy to leave the same words
-          as a Google review, you can copy your testimonial below and paste it into Google.
-        </p>
-        <Textarea
-          readOnly
-          rows={6}
-          value={testimonialText}
-          aria-label="Your submitted testimonial"
-          className="min-h-[150px] border-gold/24 bg-background/35"
-        />
-      </div>
+      {googleReviewUrl ? (
+        <div className="space-y-1.5">
+          <h3 className="font-display text-xl text-foreground">
+            Would you also be happy to leave this as a Google review?
+          </h3>
+          <p className="text-sm leading-relaxed text-muted">
+            Tap copy, open Google, paste the review and submit.
+          </p>
+        </div>
+      ) : null}
+
+      <Textarea
+        readOnly
+        rows={6}
+        value={testimonialText}
+        aria-label="Your submitted testimonial"
+        className="min-h-[150px] border-gold/24 bg-background/35"
+      />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <Button type="button" variant="outline" onClick={copyTestimonial} disabled={!testimonialText.trim()}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={copyTestimonial}
+          disabled={!testimonialText.trim()}
+          className="min-h-11 w-full sm:w-auto"
+        >
           {copied ? <Check size={15} className="mr-2" /> : <Copy size={15} className="mr-2" />}
-          {copied ? "Copied" : "Copy testimonial"}
+          {copied ? "Copied" : "Copy review"}
         </Button>
         {googleReviewUrl ? (
           <a
@@ -119,7 +130,7 @@ export function PublicTestimonialThankYou({
             target="_blank"
             rel="noopener noreferrer"
             onClick={trackGoogleReviewIntent}
-            className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
+            className={cn(buttonVariants({ variant: "outline" }), "min-h-11 w-full sm:w-auto")}
           >
             <ExternalLink size={15} className="mr-2" />
             Leave Google review

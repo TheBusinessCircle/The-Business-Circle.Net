@@ -9,11 +9,14 @@ type PageProps = {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Share a Testimonial",
-  description: "Share a testimonial for review by The Business Circle Network.",
-  path: "/testimonial"
+  title: "Leave a Review",
+  description: "Leave a quick testimonial or review for The Business Circle Network.",
+  path: "/review"
 });
 
-export default async function PublicTestimonialPage(props: PageProps) {
-  return PublicTestimonialExperience(props);
+export default async function ReviewPage(props: PageProps) {
+  return PublicTestimonialExperience({
+    ...props,
+    formReturnPath: "/review"
+  });
 }

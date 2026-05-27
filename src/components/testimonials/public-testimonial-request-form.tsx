@@ -1,20 +1,11 @@
 "use client";
 
-import { Check, Copy, ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { ShieldCheck, Star } from "lucide-react";
 import { submitExternalTestimonialAction } from "@/actions/testimonial.actions";
-import { BCN_GOOGLE_REVIEW_URL } from "@/components/testimonials/google-review.logic";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-
-type SelectOption = {
-  value: string;
-  label: string;
-};
 
 type PublicTestimonialRequestFormProps = {
   token?: string | null;
@@ -22,44 +13,13 @@ type PublicTestimonialRequestFormProps = {
   requestCompanyName?: string | null;
   category: string;
   displayLocation: string;
-  categoryOptions: SelectOption[];
-  displayLocationOptions: SelectOption[];
-  submittedEmailRequired?: boolean;
-  googleReviewUrl?: string | null;
-  showGoogleReviewButton?: boolean;
+  returnPath?: string;
   trackingSource?: string | null;
   campaign?: string | null;
   referral?: string | null;
 };
 
-async function writeClipboardText(value: string) {
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(value);
-      return true;
-    } catch {
-      // Fall through to the legacy selection copy path.
-    }
-  }
-
-  const textArea = document.createElement("textarea");
-  textArea.value = value;
-  textArea.setAttribute("readonly", "");
-  textArea.style.position = "fixed";
-  textArea.style.inset = "0 auto auto 0";
-  textArea.style.opacity = "0";
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
-
-  try {
-    return document.execCommand("copy");
-  } catch {
-    return false;
-  } finally {
-    document.body.removeChild(textArea);
-  }
-}
+const ratingOptions = [1, 2, 3, 4, 5];
 
 export function PublicTestimonialRequestForm({
   token,
@@ -67,50 +27,17 @@ export function PublicTestimonialRequestForm({
   requestCompanyName,
   category,
   displayLocation,
-  categoryOptions,
-  displayLocationOptions,
-  submittedEmailRequired = true,
-  googleReviewUrl = BCN_GOOGLE_REVIEW_URL,
-  showGoogleReviewButton = true,
+  returnPath,
   trackingSource,
   campaign,
   referral
 }: PublicTestimonialRequestFormProps) {
-  const [testimonialText, setTestimonialText] = useState("");
-  const [copyMessage, setCopyMessage] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  async function copyTestimonial() {
-    const trimmed = testimonialText.trim();
-
-    if (!trimmed) {
-      setCopied(false);
-      setCopyMessage("Write your testimonial first, then copy it.");
-      return;
-    }
-
-    const didCopy = await writeClipboardText(trimmed);
-    setCopied(didCopy);
-    setCopyMessage(
-      didCopy
-        ? "Testimonial copied."
-        : "We could not copy automatically. Please select the testimonial text and copy it."
-    );
-    window.setTimeout(() => setCopied(false), 1800);
-    window.bcnAnalytics?.track?.("review_text_copied", {
-      source: token ? "testimonial_request" : "public_testimonial"
-    });
-  }
-
-  function trackGoogleReviewClick() {
-    window.bcnAnalytics?.track?.("google_review_clicked", {
-      source: token ? "testimonial_request" : "public_testimonial"
-    });
-  }
-
   return (
-    <form action={submitExternalTestimonialAction} className="space-y-4">
+    <form action={submitExternalTestimonialAction} className="space-y-5">
       {token ? <input type="hidden" name="requestToken" value={token} /> : null}
+      <input type="hidden" name="returnPath" value={returnPath ?? (token ? `/testimonial/${token}` : "/testimonial")} />
+      <input type="hidden" name="category" value={category} />
+      <input type="hidden" name="displayLocation" value={displayLocation} />
       <input type="hidden" name="source" value={trackingSource ?? ""} />
       <input type="hidden" name="campaign" value={campaign ?? ""} />
       <input type="hidden" name="ref" value={referral ?? ""} />
@@ -122,180 +49,102 @@ export function PublicTestimonialRequestForm({
           <span className="font-medium text-foreground">
             {[recipientName, requestCompanyName].filter(Boolean).join(", ")}
           </span>
-          . Please enter the details you would like attached to your testimonial below.
+          . You only need to add the details you are happy to submit.
         </div>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="authorName">Name</Label>
-          <Input id="authorName" name="authorName" required />
+          <Label htmlFor="businessName">Business name</Label>
+          <Input
+            id="businessName"
+            name="businessName"
+            required
+            minLength={2}
+            autoComplete="organization"
+            defaultValue={requestCompanyName ?? ""}
+            className="min-h-12"
+          />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="authorRole">Role/title</Label>
-          <Input id="authorRole" name="authorRole" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="businessName">Business/company name</Label>
-          <Input id="businessName" name="businessName" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="businessWebsite">Business website</Label>
-          <Input id="businessWebsite" name="businessWebsite" type="url" />
+          <Label htmlFor="authorName">Owner name (optional)</Label>
+          <Input id="authorName" name="authorName" autoComplete="name" className="min-h-12" />
         </div>
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="submittedEmail">Email</Label>
-          <Input id="submittedEmail" name="submittedEmail" type="email" required={submittedEmailRequired} />
+          <Label htmlFor="submittedEmail">Email (optional)</Label>
+          <Input
+            id="submittedEmail"
+            name="submittedEmail"
+            type="text"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="Used internally only if we need to contact you."
+            className="min-h-12"
+          />
+          <p className="text-xs leading-relaxed text-muted">
+            Email is not required for public testimonials and is not shown on the website.
+          </p>
         </div>
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="submittedByLinkedIn">LinkedIn</Label>
-          <Input id="submittedByLinkedIn" name="submittedByLinkedIn" type="url" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="category">Experience</Label>
-          <Select id="category" name="category" defaultValue={category}>
-            {categoryOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="displayLocation">Display preference</Label>
-          <Select id="displayLocation" name="displayLocation" defaultValue={displayLocation}>
-            {displayLocationOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="rating">Rating, optional</Label>
-          <Select id="rating" name="rating" defaultValue="">
-            <option value="">No rating</option>
-            {[1, 2, 3, 4, 5].map((rating) => (
-              <option key={rating} value={rating}>
-                {rating} out of 5
-              </option>
-            ))}
-          </Select>
+          <Label htmlFor="testimonialTitle">Testimonial title (optional)</Label>
+          <Input
+            id="testimonialTitle"
+            name="outcome"
+            maxLength={600}
+            placeholder="Clearer direction and a stronger website"
+            className="min-h-12"
+          />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="quote">Testimonial quote</Label>
+        <Label htmlFor="quote">Your full review</Label>
         <Textarea
           id="quote"
           name="quote"
-          rows={5}
+          rows={7}
           required
           minLength={20}
           maxLength={1600}
-          value={testimonialText}
-          onChange={(event) => {
-            setTestimonialText(event.target.value);
-            if (copyMessage) {
-              setCopyMessage("");
-            }
-          }}
-          placeholder="Share what changed, what became clearer, or what the work helped you move through."
+          placeholder="Share what changed, what became clearer, and how the support helped your business."
+          className="min-h-[180px]"
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="outcome">Outcome, optional</Label>
-        <Textarea
-          id="outcome"
-          name="outcome"
-          rows={3}
-          maxLength={600}
-          placeholder="A result, decision, connection, or clarity point that came from the work."
-        />
-      </div>
+      <fieldset className="space-y-3">
+        <legend className="text-sm font-medium text-foreground">Rating (optional)</legend>
+        <div className="grid grid-cols-5 gap-2 sm:flex sm:flex-wrap">
+          {ratingOptions.map((rating) => (
+            <label key={rating} className="cursor-pointer">
+              <input type="radio" name="rating" value={rating} className="peer sr-only" />
+              <span className="flex min-h-12 items-center justify-center gap-1 rounded-xl border border-border/80 bg-background/30 px-3 text-sm text-muted transition-colors peer-checked:border-gold/50 peer-checked:bg-gold/12 peer-checked:text-gold">
+                <Star size={14} className="fill-current" />
+                {rating}
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
-      <div className="rounded-2xl border border-border/80 bg-background/22 p-4">
-        <p className="mb-3 text-sm font-medium text-foreground">Public display permissions</p>
-        <div className="grid gap-3">
-          <label className="flex items-start gap-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              name="allowDisplayTestimonial"
-              required
-              className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-            />
-            I am happy for this review to be submitted to The Business Circle Network for approval and
-            possible use on the website.
-          </label>
-          <label className="flex items-start gap-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              name="allowDisplayName"
-              className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-            />
-            Display my name.
-          </label>
-          <label className="flex items-start gap-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              name="allowDisplayCompany"
-              className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-            />
-            I am happy for my business name to be shown with the review.
-          </label>
-          <label className="flex items-start gap-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              name="allowDisplayRole"
-              className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-            />
-            Display my role/title.
-          </label>
-          <label className="flex items-start gap-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              name="allowMarketingUse"
-              className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-            />
-            Allow The Business Circle Network to use this testimonial in marketing.
-          </label>
-          <span className="text-xs leading-relaxed text-muted">
-            Every testimonial is reviewed before anything is published.
+      <label className="flex min-h-14 items-start gap-3 rounded-2xl border border-border/80 bg-background/22 p-4 text-sm leading-relaxed text-muted">
+        <input
+          type="checkbox"
+          name="allowDisplayTestimonial"
+          required
+          className="mt-1 h-5 w-5 shrink-0 rounded border-border bg-background accent-primary"
+        />
+        <span>
+          <span className="mb-1 flex items-center gap-2 font-medium text-foreground">
+            <ShieldCheck size={15} className="text-primary" />
+            Permission
           </span>
-        </div>
-      </div>
+          I&apos;m happy for this testimonial to be displayed publicly on The Business Circle website.
+        </span>
+      </label>
 
-      <div className="rounded-2xl border border-gold/24 bg-gold/10 p-4">
-        <p className="text-sm leading-relaxed text-muted">
-          Once you have written your testimonial, you can copy it first, submit it here, and then
-          paste the same words into Google if you are happy to leave a public review too.
-        </p>
-        {copyMessage ? (
-          <p className="mt-3 text-sm text-gold" aria-live="polite">
-            {copyMessage}
-          </p>
-        ) : null}
-        <div className="mt-4 grid gap-2 sm:grid-cols-[auto_auto_auto] sm:justify-start">
-          <Button type="button" variant="outline" onClick={copyTestimonial}>
-            {copied ? <Check size={15} className="mr-2" /> : <Copy size={15} className="mr-2" />}
-            {copied ? "Copied" : "Copy testimonial"}
-          </Button>
-          <Button type="submit">Submit testimonial</Button>
-          {showGoogleReviewButton && googleReviewUrl ? (
-            <a
-              href={googleReviewUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={trackGoogleReviewClick}
-              className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
-            >
-              <ExternalLink size={15} className="mr-2" />
-              Leave Google review
-            </a>
-          ) : null}
-        </div>
-      </div>
+      <Button type="submit" size="lg" className="min-h-12 w-full sm:w-auto">
+        Submit testimonial
+      </Button>
     </form>
   );
 }

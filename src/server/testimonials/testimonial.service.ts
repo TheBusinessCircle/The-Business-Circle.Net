@@ -60,6 +60,7 @@ export type CreateMemberTestimonialInput = {
   category?: TestimonialCategory;
   displayLocation?: TestimonialDisplayLocation;
   rating?: number | null;
+  submittedByName?: string | null;
   submittedByCompany?: string | null;
   submittedByRole?: string | null;
   submittedByWebsite?: string | null;
@@ -653,9 +654,14 @@ export async function createMemberTestimonial(input: CreateMemberTestimonialInpu
     normalizeOptionalText(input.submittedByWebsite) ?? member.profile?.business?.website ?? null;
   const submittedByLinkedIn =
     normalizeOptionalText(input.submittedByLinkedIn) ?? member.profile?.linkedin ?? null;
+  const submittedByName =
+    normalizeOptionalText(input.submittedByName) ?? normalizeOptionalText(member.name) ?? "Business Circle Member";
   const permissionToFeaturePublicly =
     input.permissionToFeaturePublicly ?? input.permissionToDisplay ?? false;
-  const permissionToUseName = input.permissionToUseName ?? input.displayPublicName ?? true;
+  const permissionToUseName =
+    input.permissionToUseName ??
+    input.displayPublicName ??
+    Boolean(normalizeOptionalText(input.submittedByName) ?? normalizeOptionalText(member.name));
   const permissionToUseCompany = input.permissionToUseCompany ?? input.displayBusinessName ?? true;
   const permissionToUseImage = input.permissionToUseImage ?? input.displayProfileImage ?? false;
 
@@ -669,11 +675,11 @@ export async function createMemberTestimonial(input: CreateMemberTestimonialInpu
       status: TestimonialStatus.PENDING,
       memberId: member.id,
       submittedByUserId: member.id,
-      authorName: member.name || member.email,
+      authorName: submittedByName,
       authorRole: normalizeOptionalText(input.submittedByRole),
       businessName: submittedByCompany,
       businessWebsite: submittedByWebsite,
-      submittedByName: member.name || member.email,
+      submittedByName,
       submittedByEmail: member.email,
       submittedByCompany,
       submittedByRole: normalizeOptionalText(input.submittedByRole),
@@ -695,7 +701,7 @@ export async function createMemberTestimonial(input: CreateMemberTestimonialInpu
       imageUrl: member.image ?? null,
       profileImageUrl: member.image ?? null,
       recipientEmail: member.email,
-      recipientName: member.name || member.email,
+      recipientName: normalizeOptionalText(member.name) ?? member.email,
       companyName: submittedByCompany,
       roleTitle: normalizeOptionalText(input.submittedByRole),
       isExternalRequest: false,

@@ -1,8 +1,4 @@
-import {
-  TestimonialCategory,
-  TestimonialDisplayLocation,
-  TestimonialStatus
-} from "@prisma/client";
+import { TestimonialStatus } from "@prisma/client";
 import { ChevronDown, MessageSquareQuote } from "lucide-react";
 import { GoogleReviewCta } from "@/components/testimonials";
 import { MemberTestimonialSubmissionForm } from "@/components/profile/member-testimonial-submission-form";
@@ -20,6 +16,9 @@ type MemberTestimonialSubmissionProps = {
   showGoogleReviewButton?: boolean;
   googleReviewButtonLabel?: string;
   googleReviewPendingMessage?: string;
+  memberName?: string | null;
+  businessName?: string | null;
+  returnPath?: string;
 };
 
 const STATUS_LABELS: Record<TestimonialStatus, string> = {
@@ -56,54 +55,13 @@ export function MemberTestimonialSubmission({
   googleReviewEnabled = false,
   showGoogleReviewButton = false,
   googleReviewButtonLabel = "Leave a Google review",
-  googleReviewPendingMessage = "Google review link coming soon"
+  googleReviewPendingMessage = "Google review link coming soon",
+  memberName,
+  businessName,
+  returnPath = "/profile"
 }: MemberTestimonialSubmissionProps) {
   const testimonialPanelDefaultOpen = feedback === "sent" || feedback === "invalid";
   const postSubmitTestimonialText = latestText ?? "";
-  const categoryOptions = [
-    {
-      value: TestimonialCategory.BCN_EXPERIENCE,
-      label: "The Business Circle Network"
-    },
-    {
-      value: TestimonialCategory.GROWTH_ARCHITECT,
-      label: "Growth Architect"
-    },
-    {
-      value: TestimonialCategory.FOUNDER_AUDIT,
-      label: "Founder Audit"
-    },
-    {
-      value: TestimonialCategory.STRATEGY_CALL,
-      label: "Strategy call"
-    },
-    {
-      value: TestimonialCategory.COLLABORATION,
-      label: "Collaboration"
-    },
-    {
-      value: TestimonialCategory.COMMUNITY,
-      label: "Community"
-    },
-    {
-      value: TestimonialCategory.OTHER,
-      label: "Other"
-    }
-  ];
-  const displayLocationOptions = [
-    {
-      value: TestimonialDisplayLocation.BCN_HOME,
-      label: "The Business Circle Network"
-    },
-    {
-      value: TestimonialDisplayLocation.FOUNDER_PAGE,
-      label: "Growth Architect / Founder Audit"
-    },
-    {
-      value: TestimonialDisplayLocation.ANYWHERE,
-      label: "Either is fine"
-    }
-  ];
 
   return (
     <Card className="overflow-hidden border-primary/24 bg-gradient-to-br from-primary/8 via-card/78 to-card/70">
@@ -156,14 +114,14 @@ export function MemberTestimonialSubmission({
 
           {feedback === "sent" ? (
             <div className="space-y-4 rounded-2xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary">
-              <p>Thank you. Your testimonial has been sent for review.</p>
+              <p>Thank you, your testimonial has been received.</p>
               <GoogleReviewCta
                 testimonialId={submittedTestimonialId}
                 testimonialText={postSubmitTestimonialText}
                 googleReviewUrl={googleReviewUrl}
                 enabled={googleReviewEnabled}
                 showButton={showGoogleReviewButton}
-                label={googleReviewButtonLabel}
+                label={googleReviewButtonLabel || "Leave Google review"}
                 pendingMessage={googleReviewPendingMessage}
               />
             </div>
@@ -171,19 +129,14 @@ export function MemberTestimonialSubmission({
 
           {feedback === "invalid" ? (
             <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              Please add a testimonial and confirm permission before submitting.
+              Please add your business name, your full review, and confirm the permission checkbox.
             </div>
           ) : null}
 
           <MemberTestimonialSubmissionForm
-            categoryOptions={categoryOptions}
-            displayLocationOptions={displayLocationOptions}
-            googleReviewUrl={googleReviewUrl}
-            googleReviewEnabled={googleReviewEnabled}
-            showGoogleReviewButton={showGoogleReviewButton}
-            googleReviewButtonLabel={googleReviewButtonLabel}
-            googleReviewPendingMessage={googleReviewPendingMessage}
-            googleIntentTestimonialId={feedback === "sent" ? submittedTestimonialId : null}
+            defaultOwnerName={memberName ?? ""}
+            defaultBusinessName={businessName ?? ""}
+            returnPath={returnPath}
           />
         </CardContent>
       </details>

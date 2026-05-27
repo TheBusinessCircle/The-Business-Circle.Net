@@ -15,7 +15,7 @@ describe("admin testimonial request structure", () => {
     expect(source).toContain("Copy suggested message");
     expect(source).toContain("Google review link is not configured.");
     expect(source).toContain("stats.googleClicks");
-    expect(source).toContain("`${SITE_CONFIG.url}/testimonial`");
+    expect(source).toContain("`${SITE_CONFIG.url}/review`");
   });
 
   it("includes the non-member testimonial request form and server action", () => {

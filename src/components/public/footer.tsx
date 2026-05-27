@@ -8,8 +8,9 @@ import {
 import { SITE_CONFIG } from "@/config/site";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { CookieSettingsButton } from "@/components/privacy/cookie-settings-button";
+import { buttonVariants } from "@/components/ui/button";
 import { getSiteContentSection } from "@/server/site-content";
-import { nonEmpty } from "@/lib/utils";
+import { cn, nonEmpty } from "@/lib/utils";
 
 const EXPLORE_LINKS = [
   { label: "Home", href: "/home" },
@@ -22,6 +23,7 @@ const EXPLORE_LINKS = [
   { label: "Founder Community UK", href: "/founder-community-uk" },
   { label: "Private Business Network", href: "/private-business-network" },
   { label: "Business Networking UK", href: "/business-networking-uk" },
+  { label: "Leave a testimonial", href: "/review" },
   { label: "Contact", href: "/contact" },
   { label: "FAQ", href: "/faq" }
 ];
@@ -55,6 +57,7 @@ const SOCIAL_LABELS: Record<string, string> = {
 export async function Footer() {
   const footerContent = await getSiteContentSection("footer");
   const publicSupportEmail = SITE_CONFIG.supportEmail;
+  const googleReviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL?.trim();
   const socialLinks = Object.entries(SITE_CONFIG.social).flatMap(([key, href]) =>
     nonEmpty(href)
       ? [
@@ -131,6 +134,24 @@ export async function Footer() {
             </a>
             <p className="text-sm text-muted">{footerContent.supportLine}</p>
             <p className="text-sm text-muted">Questions on membership, access, billing, or fit are handled directly.</p>
+            <div className="flex flex-col gap-2 pt-1">
+              <Link
+                href="/review"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center")}
+              >
+                Share your experience
+              </Link>
+              {googleReviewUrl ? (
+                <a
+                  href={googleReviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full justify-center")}
+                >
+                  Leave a Google review
+                </a>
+              ) : null}
+            </div>
           </div>
 
           {socialLinks.length ? (

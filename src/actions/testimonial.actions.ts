@@ -35,6 +35,23 @@ const checkboxBoolean = z.preprocess(
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalUrl = z.string().trim().url().max(2048).optional().or(z.literal(""));
+const requiredText = (min: number, max: number) => z.string().trim().min(min).max(max);
+const modernEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const optionalModernEmail = z
+  .string()
+  .trim()
+  .max(320)
+  .refine((value) => !value || modernEmailPattern.test(value), {
+    message: "Enter a valid email address."
+  })
+  .optional()
+  .or(z.literal(""));
+const requiredModernEmail = z.string().trim().min(3).max(320).refine(
+  (value) => modernEmailPattern.test(value),
+  {
+    message: "Enter a valid email address."
+  }
+);
 const optionalUrlAllowEmpty = z.string().trim().max(2048).refine((value) => {
   if (!value) {
     return true;
@@ -51,14 +68,24 @@ const optionalRating = z.preprocess((value) => {
   const raw = String(value ?? "").trim();
   return raw ? Number(raw) : null;
 }, z.number().int().min(1).max(5).nullable());
+const testimonialCategoryInput = z.preprocess((value) => {
+  const raw = String(value ?? "").trim();
+  return raw || TestimonialCategory.BCN_EXPERIENCE;
+}, z.nativeEnum(TestimonialCategory));
+const testimonialDisplayLocationInput = z.preprocess((value) => {
+  const raw = String(value ?? "").trim();
+  return raw || TestimonialDisplayLocation.ANYWHERE;
+}, z.nativeEnum(TestimonialDisplayLocation));
 
 const memberTestimonialSchema = z.object({
+  returnPath: optionalText(240),
   quote: z.string().trim().min(20).max(1200),
   outcome: optionalText(500),
-  category: z.nativeEnum(TestimonialCategory),
-  displayLocation: z.nativeEnum(TestimonialDisplayLocation),
+  category: testimonialCategoryInput,
+  displayLocation: testimonialDisplayLocationInput,
   rating: optionalRating,
-  submittedByCompany: optionalText(160),
+  submittedByName: optionalText(120),
+  submittedByCompany: requiredText(2, 160),
   submittedByRole: optionalText(140),
   submittedByWebsite: optionalUrl,
   submittedByLinkedIn: optionalUrl,
@@ -71,16 +98,17 @@ const memberTestimonialSchema = z.object({
 
 const externalTestimonialSchema = z.object({
   requestToken: z.string().trim().max(128).optional().or(z.literal("")),
-  authorName: z.string().trim().min(2).max(120),
+  returnPath: optionalText(240),
+  authorName: optionalText(120),
   authorRole: optionalText(120),
-  businessName: optionalText(140),
+  businessName: requiredText(2, 140),
   businessWebsite: optionalUrl,
   submittedByLinkedIn: optionalUrl,
   quote: z.string().trim().min(20).max(1600),
   outcome: optionalText(600),
-  submittedEmail: z.string().trim().email().max(320).optional().or(z.literal("")),
-  category: z.nativeEnum(TestimonialCategory),
-  displayLocation: z.nativeEnum(TestimonialDisplayLocation),
+  submittedEmail: optionalModernEmail,
+  category: testimonialCategoryInput,
+  displayLocation: testimonialDisplayLocationInput,
   rating: optionalRating,
   permissionToFeaturePublicly: checkboxBoolean.optional().default(false),
   permissionToUseName: checkboxBoolean.optional().default(false),
@@ -95,12 +123,7 @@ const externalTestimonialSchema = z.object({
   website: z.string().trim().max(0).optional().or(z.literal("")),
   source: optionalText(80),
   campaign: optionalText(120),
-  ref: optionalText(120),
-  displayPreference: z
-    .enum(["full", "first_business", "business_only", "initials_only"])
-    .default("full"),
-  displayPublicName: checkboxBoolean.optional().default(false),
-  displayBusinessName: checkboxBoolean.optional().default(false)
+  ref: optionalText(120)
 });
 
 const adminUpdateSchema = z.object({
@@ -167,7 +190,7 @@ const externalRequestSchema = z.object({
   authorRole: optionalText(140),
   businessName: optionalText(160),
   businessWebsite: optionalUrl,
-  submittedEmail: z.string().trim().email().max(320).optional().or(z.literal("")),
+  submittedEmail: optionalModernEmail,
   companyName: optionalText(160),
   auditBusinessName: optionalText(180),
   requestContext: optionalText(700)
@@ -176,7 +199,7 @@ const externalRequestSchema = z.object({
 const sendTestimonialRequestSchema = z.object({
   returnPath: z.string().optional(),
   recipientName: z.string().trim().min(2).max(140),
-  recipientEmail: z.string().trim().email().max(320),
+  recipientEmail: requiredModernEmail,
   proofType: z.nativeEnum(TestimonialProofType),
   companyName: optionalText(160),
   auditBusinessName: optionalText(180),
@@ -201,65 +224,17 @@ function resolveReturnPath(value: string | undefined, fallback = "/admin/testimo
   return safeRedirectPath(value, fallback);
 }
 
-function initialsFromName(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join(".");
-}
-
-function applyExternalDisplayPreference(input: z.infer<typeof externalTestimonialSchema>) {
-  if (input.displayPreference === "first_business") {
-    return {
-      ...input,
-      authorName: input.authorName.split(/\s+/).filter(Boolean)[0] ?? input.authorName,
-      displayPublicName: true,
-      displayBusinessName: true,
-      permissionToUseName: true,
-      permissionToUseCompany: true
-    };
-  }
-
-  if (input.displayPreference === "business_only") {
-    return {
-      ...input,
-      displayPublicName: false,
-      displayBusinessName: true,
-      permissionToUseName: false,
-      permissionToUseCompany: true
-    };
-  }
-
-  if (input.displayPreference === "initials_only") {
-    return {
-      ...input,
-      authorName: initialsFromName(input.authorName),
-      displayPublicName: true,
-      displayBusinessName: false,
-      permissionToUseName: true,
-      permissionToUseCompany: false
-    };
-  }
-
-  return {
-    ...input,
-    displayPublicName: true,
-    displayBusinessName: true,
-    permissionToUseName: true,
-    permissionToUseCompany: true
-  };
-}
-
 export async function submitMemberTestimonialAction(formData: FormData) {
   const session = await requireUser();
 
   const parsed = memberTestimonialSchema.safeParse({
+    returnPath: getFormValue(formData, "returnPath"),
     quote: getFormValue(formData, "quote"),
     outcome: getFormValue(formData, "outcome"),
     category: getFormValue(formData, "category"),
     displayLocation: getFormValue(formData, "displayLocation"),
     rating: getFormValue(formData, "rating"),
+    submittedByName: getFormValue(formData, "submittedByName"),
     submittedByCompany: getFormValue(formData, "submittedByCompany"),
     submittedByRole: getFormValue(formData, "submittedByRole"),
     submittedByWebsite: getFormValue(formData, "submittedByWebsite"),
@@ -272,7 +247,8 @@ export async function submitMemberTestimonialAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirect("/profile?testimonial=invalid");
+    const returnPath = safeRedirectPath(getFormValue(formData, "returnPath"), "/profile");
+    redirect(appendQueryParams(returnPath, { testimonial: "invalid" }));
   }
 
   const testimonial = await createMemberTestimonial({
@@ -281,19 +257,26 @@ export async function submitMemberTestimonialAction(formData: FormData) {
   });
 
   revalidatePath("/profile");
+  revalidatePath("/dashboard");
   revalidatePath("/admin/testimonials");
-  redirect(`/profile?testimonial=sent&testimonialId=${testimonial.id}`);
+  redirect(
+    appendQueryParams(safeRedirectPath(parsed.data.returnPath, "/profile"), {
+      testimonial: "sent",
+      testimonialId: testimonial.id
+    })
+  );
 }
 
 export async function submitExternalTestimonialAction(formData: FormData) {
   const token = getFormValue(formData, "requestToken");
   const isTokenRequest = token.length > 0;
-  const errorPath = isTokenRequest
-    ? `/testimonial/${encodeURIComponent(token)}?error=invalid`
-    : "/testimonial?error=invalid";
+  const fallbackPath = isTokenRequest ? `/testimonial/${encodeURIComponent(token)}` : "/testimonial";
+  const returnPath = safeRedirectPath(getFormValue(formData, "returnPath"), fallbackPath);
+  const errorPath = appendQueryParams(returnPath, { error: "invalid" });
 
   const parsed = externalTestimonialSchema.safeParse({
     requestToken: token,
+    returnPath: getFormValue(formData, "returnPath"),
     authorName: getFormValue(formData, "authorName"),
     authorRole: getFormValue(formData, "authorRole"),
     businessName: getFormValue(formData, "businessName"),
@@ -318,10 +301,7 @@ export async function submitExternalTestimonialAction(formData: FormData) {
     website: getFormValue(formData, "website"),
     source: getFormValue(formData, "source"),
     campaign: getFormValue(formData, "campaign"),
-    ref: getFormValue(formData, "ref"),
-    displayPreference: getFormValue(formData, "displayPreference"),
-    displayPublicName: formData.get("displayPublicName"),
-    displayBusinessName: formData.get("displayBusinessName")
+    ref: getFormValue(formData, "ref")
   });
 
   if (!parsed.success) {
@@ -330,21 +310,41 @@ export async function submitExternalTestimonialAction(formData: FormData) {
 
   let successPath = "";
   try {
-    const testimonialInput = isTokenRequest ? parsed.data : applyExternalDisplayPreference(parsed.data);
+    const authorName = parsed.data.authorName || parsed.data.businessName;
+    const displayOwnerName = Boolean(parsed.data.authorName);
+    const successBasePath = safeRedirectPath(parsed.data.returnPath, fallbackPath);
     const testimonial = await createExternalTestimonial({
-      ...testimonialInput,
+      ...parsed.data,
+      authorName,
       requestToken: parsed.data.requestToken || null,
       source: parsed.data.requestToken ? TestimonialSource.EMAIL_REQUEST : TestimonialSource.PUBLIC_FORM,
+      permissionToFeaturePublicly: true,
+      permissionToUseName: displayOwnerName,
+      permissionToUseCompany: true,
+      permissionToUseImage: false,
+      permissionToUseInMarketing: false,
+      allowDisplayName: displayOwnerName,
+      allowDisplayCompany: true,
+      allowDisplayRole: false,
+      allowDisplayTestimonial: true,
+      allowMarketingUse: false,
+      displayPublicName: displayOwnerName,
+      displayBusinessName: true,
       trackingSource: parsed.data.source,
       campaign: parsed.data.campaign,
       ref: parsed.data.ref
     });
     revalidatePath("/admin/testimonials");
+    revalidatePath("/testimonial");
+    revalidatePath("/review");
     successPath = isTokenRequest
       ? `/testimonial/${encodeURIComponent(token)}?submitted=1&testimonialId=${testimonial.id}`
-      : `/testimonial?submitted=1&testimonialId=${testimonial.id}`;
+      : appendQueryParams(successBasePath, {
+          submitted: "1",
+          testimonialId: testimonial.id
+        });
   } catch {
-    redirect(isTokenRequest ? `/testimonial/${encodeURIComponent(token)}?error=unavailable` : "/testimonial?error=unavailable");
+    redirect(appendQueryParams(returnPath, { error: "unavailable" }));
   }
 
   redirect(successPath);

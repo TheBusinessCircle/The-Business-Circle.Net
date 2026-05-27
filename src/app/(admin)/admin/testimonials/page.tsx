@@ -216,7 +216,7 @@ export default async function AdminTestimonialsPage({ searchParams }: PageProps)
     testimonialId: selectedTestimonial?.id
   });
   const feedback = feedbackMessage(firstValue(params.notice), firstValue(params.error));
-  const testimonialPageLink = `${SITE_CONFIG.url}/testimonial`;
+  const testimonialPageLink = `${SITE_CONFIG.url}/review`;
   const reviewRequestUrl = testimonialPageLink;
   const reviewRequestMessage = `Hi, thank you again for supporting The Business Circle Network.
 
@@ -385,7 +385,7 @@ Trev`;
             </div>
             <div className="space-y-2">
               <Label htmlFor="recipientEmail">Recipient email</Label>
-              <Input id="recipientEmail" name="recipientEmail" type="email" required />
+              <Input id="recipientEmail" name="recipientEmail" type="text" inputMode="email" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="companyName">Company name, optional</Label>
@@ -677,7 +677,7 @@ Trev`;
                         <Textarea name="quote" rows={4} defaultValue={text} required />
                       </div>
                       <div className="space-y-2 lg:col-span-2">
-                        <Label>Outcome</Label>
+                        <Label>Testimonial title / outcome</Label>
                         <Textarea name="outcome" rows={2} defaultValue={testimonial.outcome ?? ""} />
                       </div>
                       <div className="space-y-2 lg:col-span-2">

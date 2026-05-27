@@ -14,7 +14,7 @@ import {
 import { ConnectionWinComposer } from "@/components/community";
 import { FeedSubmitButton } from "@/components/community/feed-submit-button";
 import { CommunityBadge } from "@/components/ui/community-badge";
-import { CommunityRecognitionPanel } from "@/components/profile";
+import { CommunityRecognitionPanel, MemberTestimonialSubmission } from "@/components/profile";
 import { ResourceTierBadge } from "@/components/resources";
 import { BillingActions } from "@/components/platform/billing-actions";
 import { DailyOwnerSignalCarousel } from "@/components/member/daily-owner-signal-carousel";
@@ -65,6 +65,7 @@ import { getFoundingOfferSnapshot } from "@/server/founding";
 import { searchDirectoryMembers } from "@/server/profile";
 import { resolveManagedMembershipPlanFromStripePriceId } from "@/server/products-pricing";
 import { listLatestPublishedResources } from "@/server/resources";
+import { getLatestMemberTestimonial, getReviewSettings } from "@/server/testimonials";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Member Dashboard",
@@ -142,6 +143,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const welcome = firstValue(params.welcome);
   const notice = firstValue(params.notice);
   const error = firstValue(params.error);
+  const testimonialFeedback = firstValue(params.testimonial) as "sent" | "invalid" | undefined;
+  const submittedTestimonialId = firstValue(params.testimonialId);
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
   const effectiveTierRank = getMembershipTierRank(effectiveTier);
   const tiers = allowedResourceTiers(effectiveTier);
@@ -165,7 +168,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     latestMemberPost,
     latestMemberComment,
     resourceReadCount,
-    blueprintVoteCount
+    blueprintVoteCount,
+    latestTestimonial,
+    reviewSettings
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
@@ -272,7 +277,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       where: {
         userId: session.user.id
       }
-    })
+    }),
+    getLatestMemberTestimonial(session.user.id),
+    getReviewSettings()
   ]);
 
   const completion = getProfileCompletion({
@@ -984,6 +991,22 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           />
         </CardContent>
       </Card>
+
+      <MemberTestimonialSubmission
+        latestStatus={latestTestimonial?.status}
+        latestCreatedAt={latestTestimonial?.createdAt}
+        latestText={latestTestimonial?.testimonialText || latestTestimonial?.quote}
+        submittedTestimonialId={submittedTestimonialId || latestTestimonial?.id}
+        feedback={testimonialFeedback}
+        googleReviewUrl={reviewSettings.googleReviewUrl}
+        googleReviewEnabled={reviewSettings.googleReviewEnabled}
+        showGoogleReviewButton={reviewSettings.showGoogleReviewButton}
+        googleReviewButtonLabel={reviewSettings.googleReviewButtonLabel}
+        googleReviewPendingMessage={reviewSettings.googleReviewPendingMessage}
+        memberName={member?.name}
+        businessName={member?.profile?.business?.companyName}
+        returnPath="/dashboard"
+      />
 
       <section className="space-y-4">
         <div className="border-b border-silver/12 pb-3">
