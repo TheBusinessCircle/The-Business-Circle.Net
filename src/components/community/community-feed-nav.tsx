@@ -3,6 +3,7 @@ import { Lock, Sparkles } from "lucide-react";
 import type { CommunityFeedChannelModel } from "@/types";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { buildCommunityChannelPath } from "@/lib/community-paths";
+import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
 import { cn, formatDate } from "@/lib/utils";
 
 type CommunityFeedNavProps = {
@@ -19,6 +20,7 @@ export function CommunityFeedNav({
       <div className="flex min-w-max gap-3">
         {channels.map((channel) => {
           const isActive = channel.slug === selectedSlug;
+          const guidance = getCommunityRoomGuidance(channel.slug);
 
           return (
             <Link
@@ -35,7 +37,10 @@ export function CommunityFeedNav({
                 <div className="min-w-0">
                   <p className="truncate font-medium text-foreground">{channel.name}</p>
                   <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
-                    {channel.description || channel.topic || "Structured member discussion room"}
+                    {guidance?.shortIntro ||
+                      channel.description ||
+                      channel.topic ||
+                      "Structured member discussion room"}
                   </p>
                 </div>
                 {channel.isPrivate ? (

@@ -4,6 +4,7 @@ import { Crown, Hash, Lock, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { CommunityChannelModel } from "@/types";
+import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
 import { cn } from "@/lib/utils";
 
 type ChannelListProps = {
@@ -18,6 +19,8 @@ function ChannelLink({
   channel: CommunityChannelModel;
   isActive: boolean;
 }) {
+  const guidance = getCommunityRoomGuidance(channel.slug);
+
   return (
     <Link
       href={`/community?channel=${channel.slug}`}
@@ -30,10 +33,12 @@ function ChannelLink({
     >
       <p className="inline-flex items-center gap-1 text-sm font-medium text-foreground">
         <Hash size={13} className="text-muted" />
-        {channel.slug}
+        {channel.name}
         {channel.isPrivate ? <Lock size={12} className="text-gold" /> : null}
       </p>
-      {channel.description ? <p className="mt-1 text-xs text-muted">{channel.description}</p> : null}
+      <p className="mt-1 text-xs text-muted">
+        {guidance?.shortIntro || channel.description || "Structured member discussion room."}
+      </p>
     </Link>
   );
 }

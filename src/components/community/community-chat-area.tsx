@@ -9,6 +9,8 @@ import type { ChannelMessageModel, CommunityChannelModel } from "@/types";
 import { CommunityHeader } from "@/components/community/community-header";
 import { MessageComposer } from "@/components/community/message-composer";
 import { MessageList } from "@/components/community/message-list";
+import { RoomGuidanceCard } from "@/components/community/room-guidance-card";
+import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
 
 type CommunityChatAreaProps = {
   channel: CommunityChannelModel;
@@ -37,6 +39,7 @@ export function CommunityChatArea({
   } = useCommunityChannel(channel.slug, {
     transportMode
   });
+  const roomGuidance = getCommunityRoomGuidance(channel.slug);
 
   useEffect(() => {
     setReplyTarget(null);
@@ -52,6 +55,18 @@ export function CommunityChatArea({
         messageCount={messages.length}
         transportModeLabel={activeTransport === "polling" ? "Live Sync" : "Realtime"}
       />
+
+      {roomGuidance ? (
+        <div className="border-b border-border/70 px-3 py-3">
+          <RoomGuidanceCard
+            guidance={roomGuidance}
+            roomSlug={`chat:${channel.slug}`}
+            defaultCollapsed
+            showCta={false}
+            className="rounded-2xl shadow-none"
+          />
+        </div>
+      ) : null}
 
       {error ? (
         <div className="border-b border-border/70 bg-red-500/10 px-4 py-2">

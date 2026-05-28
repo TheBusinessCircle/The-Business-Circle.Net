@@ -9,3 +9,4 @@ export * from "@/components/community/community-header";
 export * from "@/components/community/feed-submit-button";
 export * from "@/components/community/message-composer";
 export * from "@/components/community/message-list";
+export * from "@/components/community/room-guidance-card";

@@ -26,12 +26,37 @@ describe("dashboard onboarding checklist", () => {
       "Complete profile",
       "Choose accent theme",
       "Visit Directory",
-      "Join first discussion",
+      "Return to the discussion rooms",
       "View resources",
       "Vote on the Blueprint",
       "Read Growth Architect access"
     ]);
     expect(experience.checklist.find((item) => item.title === "Accept BCN Rules")?.complete).toBe(true);
     expect(experience.checklist.find((item) => item.title === "View resources")?.complete).toBe(false);
+  });
+
+  it("nudges brand-new members to introduce themselves first", () => {
+    const experience = getDashboardOnboardingExperience({
+      membershipTier: MembershipTier.FOUNDATION,
+      profileCompletion: 70,
+      hasPosted: false,
+      hasCommented: false,
+      hasAcceptedRules: true,
+      hasAccentTheme: true,
+      hasReadResource: false,
+      hasBlueprintVote: false,
+      activeDiscussionCount: 0,
+      contributingMemberCount: 0,
+      recentWinCount: 0,
+      featuredResourceHref: "/dashboard/resources",
+      showGrowthArchitectAccess: false
+    });
+    const discussionStep = experience.checklist.find(
+      (item) => item.title === "Introduce yourself"
+    );
+
+    expect(discussionStep?.href).toBe("/community?channel=introductions");
+    expect(discussionStep?.label).toBe("Go to Introductions");
+    expect(experience.actions[0]?.href).toBe("/community?channel=introductions");
   });
 });

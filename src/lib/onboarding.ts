@@ -93,9 +93,10 @@ export function getDashboardOnboardingExperience(
 ): DashboardOnboardingExperience {
   const tone = onboardingTone(input.membershipTier);
   const profileIncomplete = input.profileCompletion < 85;
-  const communityHref = input.featuredDiscussionHref ?? "/community";
   const resourceHref = input.featuredResourceHref ?? "/dashboard/resources";
   const hasJoinedFirstDiscussion = input.hasPosted || input.hasCommented;
+  const introductionsHref = "/community?channel=introductions";
+  const communityHref = input.featuredDiscussionHref ?? (hasJoinedFirstDiscussion ? "/community" : introductionsHref);
   const checklist: DashboardOnboardingChecklistItem[] = [
     {
       title: "Accept BCN Rules",
@@ -134,12 +135,12 @@ export function getDashboardOnboardingExperience(
       complete: false
     },
     {
-      title: "Join first discussion",
+      title: hasJoinedFirstDiscussion ? "Return to the discussion rooms" : "Introduce yourself",
       description: hasJoinedFirstDiscussion
         ? "You have already posted or replied inside the Circle."
-        : "Reply once or open one useful conversation to start cleanly.",
-      href: communityHref,
-      label: hasJoinedFirstDiscussion ? "Return to discussion" : "Join discussion",
+        : "Start by introducing yourself so other members can see who you are and what you are building.",
+      href: hasJoinedFirstDiscussion ? communityHref : introductionsHref,
+      label: hasJoinedFirstDiscussion ? "Return to discussion" : "Go to Introductions",
       complete: hasJoinedFirstDiscussion
     },
     {
@@ -189,17 +190,19 @@ export function getDashboardOnboardingExperience(
     actions: [
       {
         title:
-          input.membershipTier === MembershipTier.FOUNDATION
+          !input.hasPosted && !input.hasCommented
+            ? "Introduce yourself first"
+            : input.membershipTier === MembershipTier.FOUNDATION
             ? "Join one useful discussion"
             : input.membershipTier === MembershipTier.INNER_CIRCLE
               ? "Step into a more focused conversation"
               : "Open one strategic thread",
         description:
           !input.hasPosted && !input.hasCommented
-            ? "Replying once is enough to make the platform feel more relevant."
+            ? "Start in the introductions room so members can understand who you are, what you do and what you are building."
             : "Return to the room that already has the strongest signal for you.",
         href: communityHref,
-        label: !input.hasPosted && !input.hasCommented ? "Open discussion" : "Return to discussion"
+        label: !input.hasPosted && !input.hasCommented ? "Go to Introductions" : "Return to discussion"
       },
       {
         title: "Read one structured resource",

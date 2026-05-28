@@ -7,12 +7,14 @@ import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Badge } from "@/components/ui/badge";
 import { CommunityPostFeedList } from "@/components/community/community-post-feed-list";
 import { CommunitySourcePreview } from "@/components/community/community-post-discussion";
+import { RoomGuidanceCard } from "@/components/community/room-guidance-card";
 import { VisualPlacementBackground } from "@/components/visual-media";
 import {
   BCN_UPDATES_CHANNEL_SLUG,
   BCN_UPDATES_MEMBER_ROUTE
 } from "@/config/community";
 import { getBcnCategoryLabel } from "@/lib/bcn-intelligence-sources";
+import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
 import {
   getBcnFreshnessLabel,
   getBcnTagLabel,
@@ -243,6 +245,7 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
     .slice(0, 4);
   const latestSignalPreview = latestSignal ? parseBcnStructuredContent(latestSignal.content) : null;
   const latestSignalFreshness = latestSignal ? getBcnFreshnessLabel(latestSignal.createdAt) : null;
+  const roomGuidance = getCommunityRoomGuidance(BCN_UPDATES_CHANNEL_SLUG);
   const recentlyRefreshedAt =
     rankedPosts
       .map((post) => signalPublishedTime(post))
@@ -315,6 +318,16 @@ export default async function BcnUpdatesPage({ searchParams }: PageProps) {
             </p>
           </CardContent>
         </Card>
+      ) : null}
+
+      {roomGuidance ? (
+        <RoomGuidanceCard
+          guidance={roomGuidance}
+          roomSlug={BCN_UPDATES_CHANNEL_SLUG}
+          ctaHref={latestSignal ? buildCommunityPostPath(latestSignal.id, BCN_UPDATES_CHANNEL_SLUG) : undefined}
+          ctaLabel={latestSignal ? "Comment on latest signal" : undefined}
+          showCta={Boolean(latestSignal)}
+        />
       ) : null}
 
       <div className="grid max-w-full gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">

@@ -13,6 +13,7 @@ import { buildCommunityChannelPath } from "@/lib/community-paths";
 import type { ConversationPromptSuggestion } from "@/lib/community-rhythm";
 
 type ConversationComposerProps = {
+  id?: string;
   channelName: string;
   channelSlug: string;
   currentUserName?: string | null;
@@ -20,6 +21,7 @@ type ConversationComposerProps = {
 };
 
 export function ConversationComposer({
+  id,
   channelName,
   channelSlug,
   currentUserName,
@@ -32,7 +34,7 @@ export function ConversationComposer({
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
 
   return (
-    <Card className="border-silver/22 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
+    <Card id={id} className="border-silver/22 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
       <CardHeader className="space-y-4">
         <div className="space-y-2">
           <CardTitle className="flex items-center gap-2 text-2xl">

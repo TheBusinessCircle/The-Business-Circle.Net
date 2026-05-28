@@ -11,6 +11,7 @@ import { MembershipTier } from "@prisma/client";
 import type { CommunityFeedPageModel, CommunityRecentPostModel, PlatformEventModel } from "@/types";
 import { ConversationComposer } from "@/components/community/conversation-composer";
 import { CommunityPostFeedList } from "@/components/community/community-post-feed-list";
+import { RoomGuidanceCard } from "@/components/community/room-guidance-card";
 import { EventCard } from "@/components/events/event-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -23,6 +24,7 @@ import {
   buildCommunityFeedPostPath,
   buildCommunityPostPath
 } from "@/lib/community-paths";
+import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
 import {
   countActiveItems,
   countUniqueContributors,
@@ -142,6 +144,7 @@ export function CommunityFeed({
 
   const selectedChannel = feed.selectedChannel;
   const showComposer = selectedChannel.allowMemberPosts;
+  const roomGuidance = getCommunityRoomGuidance(selectedChannel.slug);
   const roomPromptSuggestions = getSuggestedConversationPrompts({
     membershipTier,
     channelSlug: selectedChannel.slug,
@@ -153,6 +156,11 @@ export function CommunityFeed({
   const topThread = rankedPosts[0] ?? null;
   const recentlyHappening = rankedPosts.slice(0, 3);
   const contributingMemberCount = countUniqueContributors(feed.posts);
+  const emptyState = roomGuidance?.emptyState ?? {
+    title: "This room is quiet so far",
+    description:
+      "Start with a clear question, lesson, or decision so the first replies have something useful to build on."
+  };
   const bestPlaceToStart = feed.posts.length
     ? {
         title: "Read the strongest thread first",
@@ -229,8 +237,18 @@ export function CommunityFeed({
           </CardHeader>
         </Card>
 
+        {roomGuidance ? (
+          <RoomGuidanceCard
+            guidance={roomGuidance}
+            roomSlug={selectedChannel.slug}
+            ctaHref={showComposer ? "#start-community-post" : roomGuidance.pinnedCtaAction?.href}
+            showCta={showComposer || Boolean(roomGuidance.pinnedCtaAction?.href)}
+          />
+        ) : null}
+
         {showComposer ? (
           <ConversationComposer
+            id="start-community-post"
             channelName={selectedChannel.name}
             channelSlug={selectedChannel.slug}
             currentUserName={currentUserName}
@@ -266,8 +284,17 @@ export function CommunityFeed({
         ) : (
           <EmptyState
             icon={MessagesSquare}
-            title="This room is quiet so far"
-            description="Start with a clear question, lesson, or decision so the first replies have something useful to build on."
+            title={emptyState.title}
+            description={emptyState.description}
+            action={
+              showComposer ? (
+                <a href="#start-community-post">
+                  <Button variant="outline">
+                    {roomGuidance?.pinnedCtaLabel ?? "Start a conversation"}
+                  </Button>
+                </a>
+              ) : null
+            }
           />
         )}
       </div>
