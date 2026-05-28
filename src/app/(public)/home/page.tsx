@@ -1,29 +1,32 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { TestimonialDisplayLocation, TestimonialProofType } from "@prisma/client";
 import {
   ArrowRight,
   BadgeCheck,
+  BookOpen,
   Building2,
+  CalendarDays,
   Compass,
   CreditCard,
   Handshake,
+  Layers3,
   LockKeyhole,
+  PhoneCall,
   ShieldCheck,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  Trophy,
+  Users
 } from "lucide-react";
 import {
-  AnswerBlock,
-  CTASection,
   FirstSevenDaysBlock,
   JsonLd,
-  MemberPreviewLayer,
   SectionHeading
 } from "@/components/public";
 import { buildFounderAuditHref } from "@/components/public/founder-audit-cta";
 import { TestimonialCarousel } from "@/components/public/testimonial-carousel";
-import { PublicTopVisual } from "@/components/visual-media";
+import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
 import { COMPANY_CONFIG } from "@/config/company";
 import {
@@ -37,6 +40,7 @@ import {
   buildWebPageSchema
 } from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
+import type { VisualMediaRenderablePlacement } from "@/lib/visual-media/types";
 import { listPublicInsights } from "@/server/insights/insight.service";
 import { listApprovedTestimonials } from "@/server/testimonials";
 import { getVisualMediaPlacement } from "@/server/visual-media";
@@ -68,7 +72,45 @@ type CarouselTestimonial = {
   authorRole: string | null;
   businessName: string | null;
   businessWebsite: string | null;
+  imageUrl: string | null;
 };
+
+type InsidePlacementKey =
+  | "rooms"
+  | "resources"
+  | "calls"
+  | "group"
+  | "collaborations"
+  | "wins"
+  | "profiles"
+  | "insight";
+
+const HERO_SIGNALS = [
+  "Private business environment",
+  "Founder-led standards",
+  "Signal over noise"
+] as const;
+
+const WHAT_BCN_IS = [
+  {
+    title: "A protected digital business room",
+    description:
+      "A calmer place for owners to bring context, questions and useful movement without being pulled into a noisy feed.",
+    icon: LockKeyhole
+  },
+  {
+    title: "Founder-led, not founder-centred",
+    description:
+      "The standard is shaped carefully so members know what kind of room they are stepping into.",
+    icon: Compass
+  },
+  {
+    title: "Designed for useful momentum",
+    description:
+      "Profiles, rooms, resources, calls, wins and insight work together instead of sitting as separate features.",
+    icon: TrendingUp
+  }
+] as const;
 
 const WHAT_CHANGES_AFTER_JOINING = [
   {
@@ -81,7 +123,7 @@ const WHAT_CHANGES_AFTER_JOINING = [
     title: "People understand you faster",
     description:
       "Your profile, offers and asks help other owners see what you do, what you need and where fit may exist.",
-    icon: Compass
+    icon: Users
   },
   {
     title: "Conversations become more useful",
@@ -94,6 +136,73 @@ const WHAT_CHANGES_AFTER_JOINING = [
     description:
       "Insights, resources, rooms, calls and collaboration paths give progress a place to continue.",
     icon: TrendingUp
+  }
+] as const;
+
+const INSIDE_FEATURE_CARDS = [
+  {
+    title: "Private Rooms",
+    description:
+      "Focused spaces for introductions, business questions, owner updates and room-specific conversations.",
+    placementKey: "rooms",
+    icon: Layers3,
+    tone: "human" as const
+  },
+  {
+    title: "Resources",
+    description:
+      "Practical material for decisions, positioning, operations, growth and the work that follows.",
+    placementKey: "resources",
+    icon: BookOpen,
+    tone: "editorial" as const
+  },
+  {
+    title: "1-to-1 Calls",
+    description:
+      "A way to move from thread-level context into a useful conversation when a connection needs more depth.",
+    placementKey: "calls",
+    icon: PhoneCall,
+    tone: "human" as const
+  },
+  {
+    title: "Group Conversations",
+    description:
+      "Live owner discussions around direction, decisions, pressure and member-led business themes.",
+    placementKey: "group",
+    icon: CalendarDays,
+    tone: "platform" as const
+  },
+  {
+    title: "Collaborations",
+    description:
+      "A clearer way to spot useful fit, warm opportunities and practical reasons to connect.",
+    placementKey: "collaborations",
+    icon: Handshake,
+    tone: "founders" as const
+  },
+  {
+    title: "Wins",
+    description:
+      "Visible member progress, useful lessons and the signals that show what is working.",
+    placementKey: "wins",
+    icon: Trophy,
+    tone: "editorial" as const
+  },
+  {
+    title: "Member Profiles",
+    description:
+      "Business context that makes the right people easier to understand before a conversation starts.",
+    placementKey: "profiles",
+    icon: BadgeCheck,
+    tone: "platform" as const
+  },
+  {
+    title: "Insight Layer",
+    description:
+      "Public signals, member resources and founder-led intelligence that help the network keep its shape.",
+    placementKey: "insight",
+    icon: Sparkles,
+    tone: "editorial" as const
   }
 ] as const;
 
@@ -147,35 +256,103 @@ const TRUST_STANDARDS = [
   }
 ] as const;
 
-const FOR_AUDIENCE = [
-  "Business owners carrying real decisions",
-  "Freelancers, founders, creators and specialists who want better rooms",
-  "Operators who value trust, clarity and useful introductions",
-  "Serious self-employed people who want signal over noise"
-] as const;
-
-const NOT_FOR_AUDIENCE = [
-  "People looking for a spammy promotion feed",
-  "People who want attention without contribution",
-  "People who do not respect private business context",
-  "People chasing hype instead of trusted relationships"
-] as const;
-
-async function listHomeApprovedMemberTestimonials() {
+async function listHomeApprovedProofTestimonials() {
   try {
     return await listApprovedTestimonials({
-      proofType: TestimonialProofType.BCN_MEMBER,
-      location: TestimonialDisplayLocation.BCN_HOME,
-      limit: 12
+      limit: 24
     });
   } catch (error) {
     if (!isRecoverableDatabaseError(error)) {
       throw error;
     }
 
-    logRecoverableDatabaseFallback("home-approved-member-testimonials", error);
+    logRecoverableDatabaseFallback("home-approved-public-testimonials", error);
     return [];
   }
+}
+
+function AtmosphereFrame({
+  children,
+  className
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative overflow-hidden", className)}>
+      <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-[0.08]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/45 to-transparent" />
+      {children}
+    </div>
+  );
+}
+
+function WhatBcnActuallyIsSection({
+  placement
+}: {
+  placement: VisualMediaRenderablePlacement | null;
+}) {
+  return (
+    <section className="public-section">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.65fr)] lg:items-stretch">
+        <div className="space-y-5">
+          <SectionHeading
+            label="What BCN Actually Is"
+            title="A private founder-led environment with enough structure to make trust useful."
+            description="BCN is built for owners, freelancers, founders, creators, specialists and serious self-employed people who want clearer conversations, stronger trust, useful resources and better rooms."
+          />
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {WHAT_BCN_IS.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <AtmosphereFrame
+                  key={item.title}
+                  className="group rounded-[1.65rem] border border-border/80 bg-card/66 p-5 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:border-gold/30 hover:bg-card/78 hover:shadow-gold-soft"
+                >
+                  <span className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold">
+                    <Icon size={18} />
+                  </span>
+                  <h3 className="relative mt-5 font-display text-2xl leading-tight text-foreground">
+                    {item.title}
+                  </h3>
+                  <p className="relative mt-3 text-sm leading-relaxed text-muted">
+                    {item.description}
+                  </p>
+                </AtmosphereFrame>
+              );
+            })}
+          </div>
+        </div>
+
+        {placement?.isActive && placement.imageUrl ? (
+          <SectionFeatureImage
+            placement={placement}
+            tone="founders"
+            className="min-h-[20rem]"
+            sizes="(min-width: 1280px) 32vw, (min-width: 1024px) 38vw, 100vw"
+          >
+            <div className="w-full p-5">
+              <p className="premium-kicker">Protected Room</p>
+              <p className="mt-3 max-w-sm text-lg leading-tight text-white">
+                Built to feel quieter, more serious and more useful than a public feed.
+              </p>
+            </div>
+          </SectionFeatureImage>
+        ) : (
+          <AtmosphereFrame className="min-h-[20rem] rounded-[2rem] border border-gold/22 bg-[linear-gradient(135deg,rgba(21,42,77,0.84),rgba(4,9,22,0.96)_48%,rgba(166,132,60,0.18))] p-6 shadow-gold-soft">
+            <div className="relative flex h-full min-h-[17rem] flex-col justify-end">
+              <p className="premium-kicker">Protected Room</p>
+              <p className="mt-4 max-w-sm font-display text-3xl leading-tight text-foreground">
+                A quieter digital room for real business context.
+              </p>
+            </div>
+          </AtmosphereFrame>
+        )}
+      </div>
+    </section>
+  );
 }
 
 function WhatChangesAfterJoiningSection() {
@@ -188,22 +365,130 @@ function WhatChangesAfterJoiningSection() {
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {WHAT_CHANGES_AFTER_JOINING.map((item) => {
+        {WHAT_CHANGES_AFTER_JOINING.map((item, index) => {
           const Icon = item.icon;
 
           return (
-            <article
+            <AtmosphereFrame
               key={item.title}
-              className="rounded-[1.55rem] border border-border/80 bg-card/66 p-5 shadow-panel-soft sm:p-6"
+              className={cn(
+                "group rounded-[1.7rem] border p-5 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:shadow-gold-soft sm:p-6",
+                index === 0
+                  ? "border-gold/28 bg-gradient-to-br from-gold/12 via-card/72 to-card/64"
+                  : "border-border/80 bg-card/66 hover:border-gold/28"
+              )}
             >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold">
-                <Icon size={18} />
-              </span>
-              <h3 className="mt-5 font-display text-2xl text-foreground">{item.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-            </article>
+              <div className="relative flex min-h-[12rem] flex-col">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold">
+                  <Icon size={18} />
+                </span>
+                <h3 className="mt-5 font-display text-2xl leading-tight text-foreground">
+                  {item.title}
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
+                <span className="mt-auto pt-5 text-[11px] uppercase tracking-[0.08em] text-silver">
+                  Room signal 0{index + 1}
+                </span>
+              </div>
+            </AtmosphereFrame>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function InsideFallbackVisual({
+  title,
+  icon: Icon
+}: {
+  title: string;
+  icon: (typeof INSIDE_FEATURE_CARDS)[number]["icon"];
+}) {
+  return (
+    <div className="relative flex aspect-[16/10] items-end overflow-hidden border-b border-border/70 bg-[linear-gradient(135deg,rgba(34,65,118,0.52),rgba(4,10,24,0.96)_48%,rgba(207,171,90,0.16))] p-5">
+      <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-[0.12]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.48))]" />
+      <div className="relative flex w-full items-end justify-between gap-4">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/28 bg-gold/10 text-gold">
+          <Icon size={18} />
+        </span>
+        <span className="max-w-[8rem] text-right text-[11px] uppercase tracking-[0.08em] text-silver">
+          {title}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function InsideEnvironmentCard({
+  title,
+  description,
+  placement,
+  icon: Icon,
+  tone
+}: {
+  title: string;
+  description: string;
+  placement?: VisualMediaRenderablePlacement | null;
+  icon: (typeof INSIDE_FEATURE_CARDS)[number]["icon"];
+  tone: (typeof INSIDE_FEATURE_CARDS)[number]["tone"];
+}) {
+  return (
+    <article className="group overflow-hidden rounded-[1.9rem] border border-border/80 bg-card/70 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:border-gold/28 hover:bg-card/82 hover:shadow-gold-soft">
+      {placement?.isActive && placement.imageUrl ? (
+        <SectionFeatureImage
+          placement={placement}
+          tone={tone}
+          aspectClassName="aspect-[16/10]"
+          className="min-h-[13rem] rounded-none border-0 bg-transparent shadow-none before:hidden"
+          sizes="(min-width: 1280px) 23vw, (min-width: 768px) 45vw, 100vw"
+        >
+          <div className="w-full p-5">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/24 bg-background/42 text-gold backdrop-blur">
+              <Icon size={18} />
+            </span>
+          </div>
+        </SectionFeatureImage>
+      ) : (
+        <InsideFallbackVisual title={title} icon={Icon} />
+      )}
+
+      <div className="space-y-3 p-5 sm:p-6">
+        <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+          Inside the room
+        </p>
+        <h3 className="font-display text-[1.6rem] leading-tight text-foreground">{title}</h3>
+        <p className="text-sm leading-relaxed text-muted">{description}</p>
+      </div>
+    </article>
+  );
+}
+
+function InsideEnvironmentSection({
+  placements
+}: {
+  placements: Record<InsidePlacementKey, VisualMediaRenderablePlacement | null>;
+}) {
+  return (
+    <section id="how-it-works" className="public-section">
+      <SectionHeading
+        label="What You Actually Get Inside"
+        title="A founder workspace you can step through before you join."
+        description="The value is not one feature. It is the way rooms, profiles, resources, calls, collaborations, wins and insight create a more useful operating environment around the business."
+      />
+
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        {INSIDE_FEATURE_CARDS.map((item) => (
+          <InsideEnvironmentCard
+            key={item.title}
+            title={item.title}
+            description={item.description}
+            placement={placements[item.placementKey]}
+            icon={item.icon}
+            tone={item.tone}
+          />
+        ))}
       </div>
     </section>
   );
@@ -216,74 +501,126 @@ function FounderSignalsSection({
 }) {
   return (
     <section className="public-section" aria-label="Founder Signals">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <article className="rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
-          <p className="premium-kicker">Founder Signals</p>
-          <h2 className="mt-4 font-display text-3xl leading-tight text-foreground sm:text-4xl">
-            Today&apos;s Owner Signal
-          </h2>
-          <p className="mt-4 text-base leading-relaxed text-muted sm:text-lg">
-            Public-safe observations from BCN. No private member data, no admin detail, just the
-            signal behind the founder-led environment.
-          </p>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.65fr)]">
+        <AtmosphereFrame className="rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
+          <div className="relative">
+            <p className="premium-kicker">Founder Signals</p>
+            <h2 className="mt-4 font-display text-3xl leading-tight text-foreground sm:text-4xl">
+              Today&apos;s Owner Signal
+            </h2>
+            <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted sm:text-lg">
+              Public-safe observations from BCN. No private member data, no admin detail, just the
+              signal behind the founder-led environment.
+            </p>
 
-          {latestInsight ? (
-            <Link
-              href={`/insights/${latestInsight.slug}`}
-              className="mt-6 block rounded-[1.35rem] border border-white/10 bg-background/24 p-4 transition-colors hover:border-gold/28 hover:bg-background/32"
-            >
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                New insight is added daily
-              </p>
-              <h3 className="mt-2 font-display text-2xl leading-tight text-foreground">
-                {latestInsight.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">{latestInsight.excerpt}</p>
-            </Link>
-          ) : (
-            <div className="mt-6 rounded-[1.35rem] border border-white/10 bg-background/24 p-4">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                New insight is added daily
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                The insight layer gives owners a useful public signal before deeper member
-                resources open inside BCN.
-              </p>
+            {latestInsight ? (
+              <Link
+                href={`/insights/${latestInsight.slug}`}
+                className="mt-6 block rounded-[1.35rem] border border-white/10 bg-background/24 p-4 transition-colors hover:border-gold/28 hover:bg-background/32"
+              >
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                  New insight is added daily
+                </p>
+                <h3 className="mt-2 font-display text-2xl leading-tight text-foreground">
+                  {latestInsight.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{latestInsight.excerpt}</p>
+              </Link>
+            ) : (
+              <div className="mt-6 rounded-[1.35rem] border border-white/10 bg-background/24 p-4">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                  New insight is added daily
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  The insight layer gives owners a useful public signal before deeper member
+                  resources open inside BCN.
+                </p>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link
+                href="/insights"
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+              >
+                Open insights hub
+              </Link>
+              <Link
+                href={buildFounderAuditHref({ source: "home", topic: "founder-signals" })}
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+              >
+                Run the Founder Audit
+              </Link>
             </div>
-          )}
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Link
-              href="/insights"
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
-            >
-              Open insights hub
-            </Link>
-            <Link
-              href={buildFounderAuditHref({ source: "home", topic: "founder-signals" })}
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
-            >
-              Run the Founder Audit
-            </Link>
           </div>
-        </article>
+        </AtmosphereFrame>
 
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-          {PUBLIC_SIGNAL_ITEMS.map((item) => (
+        <div className="grid gap-3">
+          {PUBLIC_SIGNAL_ITEMS.map((item, index) => (
             <article
               key={item.title}
-              className="rounded-[1.45rem] border border-border/80 bg-card/64 p-5 shadow-panel-soft"
+              className="group rounded-[1.45rem] border border-border/80 bg-card/64 p-5 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:border-gold/28 hover:bg-card/78"
             >
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                Public signal
-              </p>
-              <h3 className="mt-3 font-display text-2xl leading-tight text-foreground">
-                {item.title}
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
+              <div className="flex items-start gap-4">
+                <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/24 bg-gold/10 text-xs text-gold">
+                  {index + 1}
+                </span>
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                    Public signal
+                  </p>
+                  <h3 className="mt-2 font-display text-2xl leading-tight text-foreground">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
+                </div>
+              </div>
             </article>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function FirstSevenDaysHomeSection({
+  placement
+}: {
+  placement: VisualMediaRenderablePlacement | null;
+}) {
+  return (
+    <section className="public-section">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.45fr)] xl:items-stretch">
+        <FirstSevenDaysBlock frame="panel" className="h-full" />
+
+        {placement?.isActive && placement.imageUrl ? (
+          <SectionFeatureImage
+            placement={placement}
+            tone="platform"
+            aspectClassName="aspect-[16/10] xl:aspect-[4/5]"
+            className="min-h-[18rem]"
+            sizes="(min-width: 1280px) 28vw, (min-width: 1024px) 34vw, 100vw"
+          >
+            <div className="w-full p-5">
+              <p className="premium-kicker">First week</p>
+              <p className="mt-3 max-w-sm text-lg leading-tight text-white">
+                A structured start so the room feels useful from the first few moves.
+              </p>
+            </div>
+          </SectionFeatureImage>
+        ) : (
+          <AtmosphereFrame className="rounded-[2rem] border border-border/80 bg-card/64 p-6 shadow-panel-soft">
+            <div className="relative flex h-full min-h-[18rem] flex-col justify-end">
+              <p className="premium-kicker">First week</p>
+              <h3 className="mt-4 font-display text-3xl leading-tight text-foreground">
+                Orient, add signal, then make one useful move.
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                The first 7 days are designed to make joining feel calm, structured and active.
+              </p>
+            </div>
+          </AtmosphereFrame>
+        )}
       </div>
     </section>
   );
@@ -296,27 +633,31 @@ function ApprovedMemberProofSection({
 }) {
   return (
     <section className="public-section">
-      <SectionHeading
-        label="Approved member proof"
-        title="One proof layer, shown with permission."
-        description="Approved public testimonials are shown once here. Member proof is not copied into repeated trust blocks or exposed without permission."
-      />
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.55fr)_minmax(0,0.85fr)] lg:items-center">
+        <SectionHeading
+          label="Approved member proof"
+          title="Real words, shown once, with permission."
+          description="The homepage uses one approved proof carousel. It rotates public testimonials without duplicating them across trust blocks."
+        />
 
-      {testimonials.length ? (
-        <TestimonialCarousel testimonials={testimonials} />
-      ) : (
-        <article className="rounded-[1.8rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/76 to-card/68 p-5 shadow-gold-soft sm:p-6">
-          <Sparkles size={18} className="text-gold" />
-          <h3 className="mt-4 font-display text-3xl leading-tight text-foreground">
-            Approved member proof will appear here when it is ready.
-          </h3>
-          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted sm:text-base">
-            BCN only uses public testimonials when they are approved and permissioned. Until then,
-            the stronger trust signal is the standard: private by design, founder-led, and careful
-            with member context.
-          </p>
-        </article>
-      )}
+        {testimonials.length ? (
+          <TestimonialCarousel testimonials={testimonials} />
+        ) : (
+          <AtmosphereFrame className="rounded-[1.8rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/76 to-card/68 p-5 shadow-gold-soft sm:p-6">
+            <div className="relative">
+              <Sparkles size={18} className="text-gold" />
+              <h3 className="mt-4 font-display text-3xl leading-tight text-foreground">
+                Approved member proof will appear here when it is ready.
+              </h3>
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted sm:text-base">
+                BCN only uses public testimonials when they are approved and permissioned. Until
+                then, the stronger trust signal is the standard: private by design, founder-led and
+                careful with member context.
+              </p>
+            </div>
+          </AtmosphereFrame>
+        )}
+      </div>
     </section>
   );
 }
@@ -324,91 +665,119 @@ function ApprovedMemberProofSection({
 function TrustAndStandardsSection() {
   return (
     <section className="public-section">
-      <SectionHeading
-        label="Trust and standards"
-        title="The room has to be protected before it can be useful."
-        description="BCN keeps public proof, member privacy, payment trust and company credibility in one clear place."
-      />
+      <AtmosphereFrame className="rounded-[2rem] border border-border/80 bg-card/60 p-5 shadow-panel-soft sm:p-6 lg:p-8">
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,0.6fr)_minmax(0,1fr)] lg:items-start">
+          <SectionHeading
+            label="Trust and standards"
+            title="The room has to be protected before it can be useful."
+            description="BCN keeps public proof, member privacy, payment trust and company credibility in one clear place."
+          />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {TRUST_STANDARDS.map((item) => {
-          const Icon = item.icon;
+          <div className="grid gap-3 sm:grid-cols-2">
+            {TRUST_STANDARDS.map((item) => {
+              const Icon = item.icon;
 
-          return (
-            <article
-              key={item.title}
-              className="rounded-[1.45rem] border border-border/80 bg-card/64 p-5 shadow-panel-soft"
-            >
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gold/24 bg-gold/10 text-gold">
-                <Icon size={17} />
-              </span>
-              <h3 className="mt-4 font-display text-2xl leading-tight text-foreground">
-                {item.title}
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-            </article>
-          );
-        })}
-      </div>
+              return (
+                <article
+                  key={item.title}
+                  className="rounded-[1.35rem] border border-white/10 bg-background/24 p-4 transition duration-300 hover:border-gold/24 hover:bg-background/32"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/24 bg-gold/10 text-gold">
+                      <Icon size={17} />
+                    </span>
+                    <div>
+                      <h3 className="font-display text-xl leading-tight text-foreground">
+                        {item.title}
+                      </h3>
+                      <p className="mt-2 text-sm leading-relaxed text-muted">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </AtmosphereFrame>
     </section>
   );
 }
 
-function FitSection() {
+function FinalCinematicCta() {
   return (
     <section className="public-section">
-      <div className="max-w-4xl space-y-3">
-        <p className="premium-kicker">Who it is for</p>
-        <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
-          The fit is serious, but not cold.
-        </h2>
-        <p className="text-base leading-relaxed text-muted sm:text-lg">
-          BCN works when members respect the room, add useful signal and treat trust as part of
-          the value.
-        </p>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <article className="rounded-[1.8rem] border border-gold/24 bg-card/70 p-5 shadow-panel-soft sm:p-6">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-gold">For</p>
-          <div className="mt-5 grid gap-3">
-            {FOR_AUDIENCE.map((item) => (
-              <div
-                key={item}
-                className="rounded-[1.3rem] border border-border/80 bg-background/22 px-4 py-3 text-sm text-foreground"
-              >
-                {item}
-              </div>
-            ))}
+      <AtmosphereFrame className="rounded-[2.25rem] border border-gold/24 bg-[linear-gradient(135deg,rgba(28,57,111,0.78),rgba(3,8,20,0.98)_45%,rgba(190,152,75,0.18))] px-5 py-10 shadow-gold-soft sm:px-8 sm:py-12 lg:px-10">
+        <div className="relative mx-auto max-w-4xl text-center">
+          <p className="premium-kicker mx-auto max-w-fit">Next step</p>
+          <h2 className="mt-5 font-display text-4xl leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+            Step into the better room.
+          </h2>
+          <p className="mx-auto mt-5 max-w-3xl text-lg leading-relaxed text-white/80">
+            Run the Founder Audit if you want clarity first, or review membership when the room
+            already feels like the right next environment.
+          </p>
+          <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <Link
+              href={buildFounderAuditHref({ source: "home", topic: "final-cta" })}
+              className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
+            >
+              Run the Founder Audit
+              <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+            </Link>
+            <Link
+              href="/membership"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+            >
+              Review Membership
+            </Link>
           </div>
-        </article>
-
-        <article className="rounded-[1.8rem] border border-border/80 bg-card/66 p-5 shadow-panel sm:p-6">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Not for</p>
-          <div className="mt-5 grid gap-3">
-            {NOT_FOR_AUDIENCE.map((item) => (
-              <div
-                key={item}
-                className="rounded-[1.3rem] border border-border/80 bg-background/22 px-4 py-3 text-sm text-muted"
-              >
-                {item}
-              </div>
-            ))}
-          </div>
-        </article>
-      </div>
+        </div>
+      </AtmosphereFrame>
     </section>
   );
 }
 
 export default async function HomePage() {
-  const [homeHeroPlacement, approvedMemberTestimonials] = await Promise.all([
+  const [
+    homeHeroPlacement,
+    homeConnectionPlacement,
+    homePlatformPlacement,
+    homeJoinPlacement,
+    homeRoomsPlacement,
+    homeResourcesPlacement,
+    homeCallsPlacement,
+    homeCollaborationsPlacement,
+    homeWinsPlacement,
+    homeEcosystemPlacement,
+    approvedPublicTestimonials
+  ] = await Promise.all([
     getVisualMediaPlacement("home.hero"),
-    listHomeApprovedMemberTestimonials()
+    getVisualMediaPlacement("home.section.connection"),
+    getVisualMediaPlacement("home.section.platform"),
+    getVisualMediaPlacement("home.section.join"),
+    getVisualMediaPlacement("home.section.roomsPreview"),
+    getVisualMediaPlacement("home.section.resourcesPreview"),
+    getVisualMediaPlacement("home.section.callsPreview"),
+    getVisualMediaPlacement("home.section.collaborationsPreview"),
+    getVisualMediaPlacement("home.section.winsPreview"),
+    getVisualMediaPlacement("home.section.ecosystemMap"),
+    listHomeApprovedProofTestimonials()
   ]);
   const publicInsights = listPublicInsights();
   const latestPublicInsight = publicInsights[0] ?? null;
-  const carouselTestimonials = approvedMemberTestimonials.map(
+  const insidePlacements: Record<InsidePlacementKey, VisualMediaRenderablePlacement | null> = {
+    rooms: homeRoomsPlacement,
+    resources: homeResourcesPlacement,
+    calls: homeCallsPlacement,
+    group: homePlatformPlacement,
+    collaborations: homeCollaborationsPlacement,
+    wins: homeWinsPlacement,
+    profiles: homePlatformPlacement,
+    insight: homeEcosystemPlacement
+  };
+  const carouselTestimonials = approvedPublicTestimonials.map(
     (testimonial): CarouselTestimonial => ({
       id: testimonial.id,
       quote: testimonial.quote,
@@ -417,7 +786,8 @@ export default async function HomePage() {
       authorName: testimonial.authorName,
       authorRole: testimonial.authorRole,
       businessName: testimonial.businessName,
-      businessWebsite: testimonial.businessWebsite
+      businessWebsite: testimonial.businessWebsite,
+      imageUrl: testimonial.imageUrl
     })
   );
 
@@ -461,8 +831,8 @@ export default async function HomePage() {
         eyebrow="The Business Circle Network"
         title="Business owners do not need more noise. They need a better room."
         description="Business ownership can become isolated. BCN exists for owners who want clearer conversations, stronger trust, useful introductions and a calmer place to think, share, ask, build and grow."
-        tone="cinematic"
-        contentClassName="gap-4 px-5 py-7 sm:px-8 sm:py-9 lg:px-10 lg:py-10"
+        tone="immersive"
+        contentClassName="gap-4 px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12"
       >
         <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
           <Link
@@ -479,42 +849,34 @@ export default async function HomePage() {
             Review Membership
           </Link>
         </div>
+
+        <div className="mt-3 hidden max-w-4xl grid-cols-3 gap-3 sm:grid">
+          {HERO_SIGNALS.map((signal) => (
+            <div
+              key={signal}
+              className="rounded-[1.15rem] border border-white/12 bg-background/24 px-4 py-3 text-xs uppercase tracking-[0.08em] text-white/78 backdrop-blur"
+            >
+              {signal}
+            </div>
+          ))}
+        </div>
       </PublicTopVisual>
 
-      <AnswerBlock
-        label="What BCN is"
-        question="A private founder-led business environment for serious business owners."
-        answer="BCN is built for owners, freelancers, founders, creators, specialists and serious self-employed people who want clearer conversations, stronger trust, useful resources and better rooms. It is not another generic networking group. It is a calmer business environment designed around clarity, collaboration and signal over noise."
-      />
+      <WhatBcnActuallyIsSection placement={homeConnectionPlacement} />
 
       <WhatChangesAfterJoiningSection />
 
+      <InsideEnvironmentSection placements={insidePlacements} />
+
       <FounderSignalsSection latestInsight={latestPublicInsight} />
 
-      <MemberPreviewLayer id="how-it-works" />
-
-      <FirstSevenDaysBlock />
+      <FirstSevenDaysHomeSection placement={homeJoinPlacement} />
 
       <ApprovedMemberProofSection testimonials={carouselTestimonials} />
 
       <TrustAndStandardsSection />
 
-      <FitSection />
-
-      <CTASection
-        title="Step into the better room."
-        description="Run the Founder Audit if you want clarity first, or review membership when the room already feels like the right next environment."
-        primaryAction={{
-          href: buildFounderAuditHref({ source: "home", topic: "final-cta" }),
-          label: "Run the Founder Audit"
-        }}
-        secondaryAction={{
-          href: "/membership",
-          label: "Review Membership",
-          variant: "outline"
-        }}
-        analyticsSource="home"
-      />
+      <FinalCinematicCta />
     </div>
   );
 }

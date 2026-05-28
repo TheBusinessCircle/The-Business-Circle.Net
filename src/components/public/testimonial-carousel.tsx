@@ -13,6 +13,7 @@ type CarouselTestimonial = {
   authorRole: string | null;
   businessName: string | null;
   businessWebsite: string | null;
+  imageUrl: string | null;
 };
 
 type TestimonialCarouselProps = {
@@ -30,6 +31,19 @@ function ratingStars(rating: number) {
       ))}
     </div>
   );
+}
+
+function initialsForTestimonial(testimonial: CarouselTestimonial) {
+  const source = testimonial.businessName ?? testimonial.authorName;
+  const initials = source
+    .split(/\s+/)
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  return initials || "BC";
 }
 
 export function TestimonialCarousel({
@@ -106,17 +120,43 @@ export function TestimonialCarousel({
         }
       }}
     >
-      <article className="relative overflow-hidden rounded-[1.8rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-5 shadow-gold-soft sm:p-7">
+      <article className="relative overflow-hidden rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-5 shadow-gold-soft sm:p-7">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-[0.08]" />
-        <div className="relative grid gap-5 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
-            <Quote size={18} />
-          </span>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/45 to-transparent" />
+        <div className="relative grid gap-5 lg:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)] lg:items-stretch">
+          <div className="relative overflow-hidden rounded-[1.45rem] border border-white/10 bg-background/24 p-4">
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(42,82,150,0.22),rgba(4,10,24,0.78)_48%,rgba(212,175,55,0.16))]" />
+            <div className="relative flex min-h-[11rem] flex-col justify-between">
+              <span
+                className="inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-gold/30 bg-gold/10 bg-cover bg-center font-display text-xl text-gold shadow-gold-soft"
+                style={
+                  activeTestimonial.imageUrl
+                    ? { backgroundImage: `url(${activeTestimonial.imageUrl})` }
+                    : undefined
+                }
+              >
+                {activeTestimonial.imageUrl ? (
+                  <span className="sr-only">{initialsForTestimonial(activeTestimonial)}</span>
+                ) : (
+                  initialsForTestimonial(activeTestimonial)
+                )}
+              </span>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                  Founder proof
+                </p>
+                <p className="mt-2 font-display text-2xl leading-tight text-foreground">
+                  {activeTestimonial.businessName ?? activeTestimonial.authorName}
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                Approved member proof
+              <p className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-gold">
+                <Quote size={14} />
+                Approved public proof
               </p>
               {activeTestimonial.rating ? ratingStars(activeTestimonial.rating) : null}
             </div>

@@ -15,8 +15,9 @@ describe("testimonial display placement", () => {
 
     expect(home).toContain("TestimonialCarousel");
     expect(home).toContain("listApprovedTestimonials({");
-    expect(home).toContain("TestimonialProofType.BCN_MEMBER");
-    expect(home).toContain("TestimonialDisplayLocation.BCN_HOME");
+    expect(home).toContain("home-approved-public-testimonials");
+    expect(home).not.toContain("proofType: TestimonialProofType.BCN_MEMBER");
+    expect(home).not.toContain("location: TestimonialDisplayLocation.BCN_HOME");
     expect(home).not.toContain("PublicTrustProofSection");
     expect(home).not.toContain("<TestimonialSection");
     expect(membership).toContain("PublicTrustProofSection");
@@ -39,6 +40,8 @@ describe("testimonial display placement", () => {
     expect(carousel).toContain('aria-label="Show next testimonial"');
     expect(carousel).toContain("aria-current");
     expect(carousel).toContain("new Map");
+    expect(carousel).toContain("imageUrl");
+    expect(carousel).toContain("initialsForTestimonial");
   });
 
   it("wires approved Growth Architect testimonials into founder pages", () => {
