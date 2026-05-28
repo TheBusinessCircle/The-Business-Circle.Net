@@ -5,6 +5,10 @@ import type {
 } from "@prisma/client";
 import { Quote, Star, TrendingUp } from "lucide-react";
 import { SectionHeading } from "@/components/public/section-heading";
+import {
+  isRecoverableDatabaseError,
+  logRecoverableDatabaseFallback
+} from "@/lib/db-errors";
 import { cn } from "@/lib/utils";
 import {
   listApprovedTestimonials,
@@ -110,6 +114,13 @@ export async function TestimonialSection({
     category,
     highlightedOnly,
     limit
+  }).catch((error) => {
+    if (!isRecoverableDatabaseError(error)) {
+      throw error;
+    }
+
+    logRecoverableDatabaseFallback("public-testimonials", error);
+    return [];
   });
 
   if (!testimonials.length) {

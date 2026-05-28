@@ -13,8 +13,12 @@ describe("testimonial display placement", () => {
     const join = readSource("src/app/(auth)/join/page.tsx");
     const publicTrustProof = readSource("src/components/public/public-trust-proof-section.tsx");
 
-    expect(home).toContain("PublicTrustProofSection");
-    expect(home).toContain('source="home"');
+    expect(home).toContain("TestimonialCarousel");
+    expect(home).toContain("listApprovedTestimonials({");
+    expect(home).toContain("TestimonialProofType.BCN_MEMBER");
+    expect(home).toContain("TestimonialDisplayLocation.BCN_HOME");
+    expect(home).not.toContain("PublicTrustProofSection");
+    expect(home).not.toContain("<TestimonialSection");
     expect(membership).toContain("PublicTrustProofSection");
     expect(membership).toContain('source="membership"');
     expect(join).toContain("PublicTrustProofSection");
@@ -22,6 +26,19 @@ describe("testimonial display placement", () => {
     expect(publicTrustProof).toContain("TestimonialSection");
     expect(publicTrustProof).toContain("TestimonialProofType.BCN_MEMBER");
     expect(publicTrustProof).toContain("Approved member feedback from The Business Circle");
+  });
+
+  it("keeps the home testimonial carousel single-card, randomised and swipe-enabled", () => {
+    const carousel = readSource("src/components/public/testimonial-carousel.tsx");
+
+    expect(carousel).toContain('aria-label="Approved member testimonials"');
+    expect(carousel).toContain("Math.random()");
+    expect(carousel).toContain("onTouchStart");
+    expect(carousel).toContain("onTouchEnd");
+    expect(carousel).toContain('aria-label="Show previous testimonial"');
+    expect(carousel).toContain('aria-label="Show next testimonial"');
+    expect(carousel).toContain("aria-current");
+    expect(carousel).toContain("new Map");
   });
 
   it("wires approved Growth Architect testimonials into founder pages", () => {

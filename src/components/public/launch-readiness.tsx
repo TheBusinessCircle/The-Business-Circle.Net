@@ -3,8 +3,10 @@ import {
   BadgeCheck,
   BookOpen,
   Building2,
+  CalendarDays,
   CreditCard,
   Gauge,
+  Handshake,
   KeyRound,
   LayoutDashboard,
   MessageCircle,
@@ -13,8 +15,7 @@ import {
   Receipt,
   ShieldCheck,
   Sparkles,
-  Users,
-  Vote
+  Users
 } from "lucide-react";
 import { SectionHeading } from "@/components/public/section-heading";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ type CheckoutReassuranceBlockProps = {
 };
 
 type MemberPreviewLayerProps = {
+  id?: string;
   className?: string;
   compact?: boolean;
 };
@@ -97,19 +99,19 @@ const MEMBER_PREVIEW_ITEMS: PreviewItem[] = [
     icon: MessageSquare
   },
   {
-    title: "Blueprint voting",
-    description: "Member input shapes the platform direction where voting access is available.",
-    icon: Vote
-  },
-  {
     title: "Resources",
     description: "Structured material for decisions, positioning, operations, and growth.",
     icon: BookOpen
   },
   {
-    title: "Growth Architect access",
-    description: "Private member routes connect eligible requests to Founder service support.",
-    icon: Sparkles
+    title: "Calls",
+    description: "A way to move from thread-level context into a useful conversation when it matters.",
+    icon: CalendarDays
+  },
+  {
+    title: "Collaborations",
+    description: "Clearer offers, asks and member context make useful fit easier to spot.",
+    icon: Handshake
   }
 ];
 
@@ -193,15 +195,16 @@ export function CheckoutReassuranceBlock({
 }
 
 export function MemberPreviewLayer({
+  id,
   className,
   compact = false
 }: MemberPreviewLayerProps) {
   return (
-    <section className={cn(compact ? "space-y-4" : "public-section", className)}>
+    <section id={id} className={cn(compact ? "space-y-4" : "public-section", className)}>
       <SectionHeading
         label="Member Preview"
         title="What opens after payment confirmation."
-        description="A concise view of the member workspace before checkout: dashboard, profile context, discussions, resources, Blueprint input, and Growth Architect access."
+        description="A concise view of the member workspace before checkout: dashboard, profile context, private rooms, resources, calls, and collaboration paths."
       />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
