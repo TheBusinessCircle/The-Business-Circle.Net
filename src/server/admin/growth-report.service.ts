@@ -160,6 +160,7 @@ export type GrowthReportView = {
   opportunities: string[];
   recommendedActions: GrowthRecommendedAction[];
   priorityAction: string | null;
+  publicNarrativeSuggestion: string;
   metricsSnapshot: GrowthMetricsSnapshot;
   createdAt: Date;
   updatedAt: Date;
@@ -1247,6 +1248,47 @@ export function getPriorityAction(
   return actions[0]?.suggestedNextStep ?? "Create one founder-led post and review the next report window before changing direction.";
 }
 
+export function generatePublicNarrativeSuggestion(snapshot: Partial<GrowthMetricsSnapshot>) {
+  const visitors = snapshot.current?.visitors ?? 0;
+  const launchCodeSignals = snapshot.current?.launchCodeEvents ?? 0;
+  const membershipVisits = snapshot.membership?.pageVisits ?? 0;
+  const joinIntentEvents = snapshot.membership?.joinIntentEvents ?? 0;
+  const auditCompletions = snapshot.audit?.completions ?? 0;
+  const auditWeakArea = snapshot.audit?.weakAreas?.[0]?.label;
+  const reviewSignals =
+    (snapshot.reviews?.submissions ?? 0) + (snapshot.reviews?.googleReviewClicks ?? 0);
+  const checkoutCompletions = snapshot.checkout?.completions ?? 0;
+  const topSource = snapshot.trafficSources?.find((source) => source.visits > 0)?.source;
+
+  if (reviewSignals > 0) {
+    return "Use one testimonial or review signal as proof in the next public post, then connect it back to trust inside the room.";
+  }
+
+  if (auditCompletions > 0) {
+    return auditWeakArea
+      ? `Share a public-safe audit insight about ${auditWeakArea.toLowerCase()} without pushing membership too hard.`
+      : "Share a public-safe Founder Audit insight without pushing membership too hard.";
+  }
+
+  if (!snapshot.hasEnoughData || visitors < 3) {
+    return "Post a founder-led explanation of why BCN exists and invite owners to run the Founder Audit as a calm first step.";
+  }
+
+  if (membershipVisits >= 5 && joinIntentEvents === 0) {
+    return "Explain what changes after joining BCN so warm visitors understand the internal founder operating system.";
+  }
+
+  if (launchCodeSignals > 0 && checkoutCompletions === 0) {
+    return "Move away from discount-led messaging and post a founder-led explanation of the room, trust and useful conversations.";
+  }
+
+  if (topSource === "Facebook") {
+    return "Post a founder-led explanation of why BCN exists on Facebook, with one clear next step into the audit or membership page.";
+  }
+
+  return "Explain what changes after joining BCN and show how trust, clarity and useful introductions create momentum.";
+}
+
 function generateSummary(
   snapshot: GrowthMetricsSnapshot,
   comparison = compareWithPreviousPeriod(snapshot)
@@ -1318,6 +1360,8 @@ function normalizeReport(report: {
   createdAt: Date;
   updatedAt: Date;
 }): GrowthReportView {
+  const metricsSnapshot = report.metricsSnapshot as unknown as GrowthMetricsSnapshot;
+
   return {
     id: report.id,
     range: report.range,
@@ -1332,7 +1376,8 @@ function normalizeReport(report: {
     opportunities: toStringArray(report.opportunities),
     recommendedActions: toActionArray(report.recommendedActions),
     priorityAction: report.priorityAction,
-    metricsSnapshot: report.metricsSnapshot as unknown as GrowthMetricsSnapshot,
+    publicNarrativeSuggestion: generatePublicNarrativeSuggestion(metricsSnapshot),
+    metricsSnapshot,
     createdAt: report.createdAt,
     updatedAt: report.updatedAt
   };

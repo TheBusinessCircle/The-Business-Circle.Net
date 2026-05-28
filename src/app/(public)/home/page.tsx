@@ -36,7 +36,10 @@ import {
   SectionHeading,
   TrustTrailSection
 } from "@/components/public";
-import { buildFounderAuditHref } from "@/components/public/founder-audit-cta";
+import {
+  buildFounderAuditHref,
+  FounderAuditCta
+} from "@/components/public/founder-audit-cta";
 import { PublicTrustProofSection } from "@/components/public/public-trust-proof-section";
 import { TestimonialSection } from "@/components/public/testimonial-section";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
@@ -160,18 +163,68 @@ const ECOSYSTEM_ITEMS = [
 ] as const;
 
 const HERO_OUTCOMES = [
-  "Better conversations",
+  "Signal over noise",
   "Founder-led standards",
-  "Private member rooms",
-  "Useful business resources",
-  "Profile visibility",
-  "Serious owner connections"
+  "Private business environment",
+  "Useful introductions",
+  "Owner-readiness",
+  "Serious conversations"
 ] as const;
 
-const PUBLIC_PREVIEW_THEMES = [
-  "Business direction and decision quality",
-  "Positioning, visibility, and enquiry flow",
-  "Operations, capacity, and owner focus"
+const FOUNDER_RECOGNITION_POINTS = [
+  "Business ownership can become isolated, even when the calendar is full.",
+  "Most owners do not need another feed, louder networking, or more generic advice.",
+  "The useful work often starts in a calmer room with people who understand the weight of the decision."
+] as const;
+
+const WHAT_CHANGES_AFTER_JOINING = [
+  {
+    title: "The room gets quieter",
+    description:
+      "You enter a private business environment where the aim is clearer context, not louder visibility.",
+    icon: ShieldCheck
+  },
+  {
+    title: "People understand you faster",
+    description:
+      "Your profile, offers, asks and business context make useful introductions easier to spot.",
+    icon: Compass
+  },
+  {
+    title: "Conversations become more useful",
+    description:
+      "Members can ask clearly, offer help, share lessons, join calls and create movement with less performance.",
+    icon: Handshake
+  },
+  {
+    title: "Momentum has somewhere to land",
+    description:
+      "Resources, wins, insights and private rooms give progress a structure instead of letting it disappear into noise.",
+    icon: TrendingUp
+  }
+] as const;
+
+const FOUNDER_SIGNAL_ITEMS = [
+  {
+    title: "Trusted rooms matter more than more information",
+    description:
+      "Founders are not short of content. They are short of serious conversations with people they can actually trust."
+  },
+  {
+    title: "Clarity is coming before commitment",
+    description:
+      "Early interest is strongest where owners can understand fit, standards and the room before making a decision."
+  },
+  {
+    title: "Owner-readiness is becoming visible",
+    description:
+      "Audit engagement shows owners are curious about where their business stands before they choose a membership path."
+  },
+  {
+    title: "Trust proof beats discount-led messaging",
+    description:
+      "The strongest public story is not urgency. It is calm proof that BCN protects the room and values signal over noise."
+  }
 ] as const;
 
 const WHY_OWNERS_STAY = [
@@ -181,9 +234,9 @@ const WHY_OWNERS_STAY = [
 ] as const;
 
 const ENVIRONMENT_WORKS = [
-  "Public pages clarify fit and trust before joining.",
-  "Membership opens the dashboard, rooms, resources and profile context.",
-  "The return path keeps pointing back to one useful signal, conversation or resource."
+  "Public pages clarify fit, standards and trust before joining.",
+  "Membership opens the dashboard, private rooms, resources, calls and profile context.",
+  "The return path keeps pointing back to one useful signal, conversation, introduction or resource."
 ] as const;
 
 const HOW_IT_WORKS = [
@@ -286,6 +339,141 @@ function EcosystemFallbackDiagram() {
         </div>
       </div>
     </div>
+  );
+}
+
+function WhatChangesAfterJoiningSection() {
+  return (
+    <section className="public-section">
+      <SectionHeading
+        label="What changes after joining"
+        title="Inside BCN, the value comes from trust, context and useful contribution."
+        description="The platform stops selling once you are inside. It becomes a founder operating environment: a calmer place to show up, ask clearly, offer help, build visibility and create practical momentum."
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {WHAT_CHANGES_AFTER_JOINING.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <article
+              key={item.title}
+              className="rounded-[1.55rem] border border-border/80 bg-card/66 p-5 shadow-panel-soft sm:p-6"
+            >
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold">
+                <Icon size={18} />
+              </span>
+              <h3 className="mt-5 font-display text-2xl text-foreground">{item.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function FounderSignalsSection() {
+  return (
+    <section className="public-section" aria-label="Founder Signals">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
+        <article className="rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
+          <p className="premium-kicker">Founder Signals</p>
+          <h2 className="mt-4 font-display text-3xl leading-tight text-foreground sm:text-4xl">
+            What BCN is noticing.
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-muted sm:text-lg">
+            These are public-safe founder observations, not private member data. They show the
+            direction of the room: calmer decisions, stronger trust, clearer fit and practical
+            conversations before commitment.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Link
+              href={buildFounderAuditHref({ source: "home", topic: "founder-signals" })}
+              className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
+            >
+              Run the Founder Audit
+              <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+            </Link>
+            <Link
+              href="/insights"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+            >
+              Read BCN Intelligence
+            </Link>
+          </div>
+        </article>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {FOUNDER_SIGNAL_ITEMS.map((item) => (
+            <article
+              key={item.title}
+              className="rounded-[1.45rem] border border-border/80 bg-card/64 p-5 shadow-panel-soft"
+            >
+              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                Public signal
+              </p>
+              <h3 className="mt-3 font-display text-2xl leading-tight text-foreground">
+                {item.title}
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MembershipInvitationSection({ founderAccessLine }: { founderAccessLine: string }) {
+  return (
+    <section className="public-section">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.82fr)]">
+        <article className="rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
+          <p className="premium-kicker">Membership invitation</p>
+          <h2 className="mt-4 font-display text-3xl leading-tight text-foreground sm:text-4xl">
+            Step inside when the room feels like the right next environment.
+          </h2>
+          <p className="mt-4 max-w-4xl text-base leading-relaxed text-muted sm:text-lg">
+            BCN is for owners, freelancers, founders, creators, specialists and serious
+            self-employed people who want useful conversations, trust, visibility, collaboration
+            and momentum without generic networking noise.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Link
+              href="/join-mobile"
+              className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
+            >
+              Step Inside
+              <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+            </Link>
+            <Link
+              href="/membership"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+            >
+              Explore Membership
+            </Link>
+            <Link
+              href={buildFounderAuditHref({ source: "home", topic: "membership-invitation" })}
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+            >
+              Run the Founder Audit
+            </Link>
+          </div>
+        </article>
+
+        <aside className="rounded-[1.9rem] border border-border/80 bg-card/66 p-6 shadow-panel sm:p-8">
+          <p className="premium-kicker">Founder access</p>
+          <p className="mt-4 text-lg leading-relaxed text-foreground">
+            {founderAccessLine}
+          </p>
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            The invitation is serious rather than urgent. Choose the room because the environment
+            fits the way you want to build.
+          </p>
+        </aside>
+      </div>
+    </section>
   );
 }
 
@@ -392,38 +580,40 @@ export default async function HomePage() {
       <PublicTopVisual
         placement={homeHeroPlacement}
         eyebrow="The Business Circle Network"
-        title="A private business network for serious owners who want better conversations."
-        description="Clearer thinking, trusted relationships, useful resources and a calmer room around the business."
+        title="Business owners do not need more noise. They need a better room."
+        description="A private founder-led business environment for owners who want clearer conversations, stronger trust and useful momentum."
         tone="cinematic"
       />
 
       <HeroSection
-        eyebrow="Private founder-led business network"
-        title="A private business network for owners who need better conversations, clearer thinking and the right people around them."
-        description="The Business Circle Network gives serious business owners a calmer, structured place to connect, share context, access useful resources and build trusted relationships without the noise of normal networking."
-        supportLine="Built for business owners, founders and operators who want signal, trust and useful movement."
+        eyebrow="Private founder-led business environment"
+        title="Business owners do not need more noise. They need a better room."
+        description="The Business Circle Network was built for owners who want clearer conversations, stronger trust, useful introductions and a calmer place to think, share, ask, build and grow."
+        supportLine="For owners, freelancers, founders, creators, specialists and serious self-employed people who value signal over noise."
         callouts={[
-          "Better conversations",
-          "Founder-led standards",
-          "Useful business context"
+          "Calmer room",
+          "Useful introductions",
+          "Structured conversations"
         ]}
-        primaryAction={{ href: buildFounderAuditHref({ source: "home" }), label: "Run the Founder Audit" }}
-        secondaryAction={{ href: "/membership", label: "Review membership", variant: "outline" }}
+        primaryAction={{ href: "/join-mobile", label: "Step Inside" }}
+        secondaryAction={{
+          href: buildFounderAuditHref({ source: "home", topic: "primary-invitation" }),
+          label: "Run the Founder Audit",
+          variant: "outline"
+        }}
+        tertiaryAction={{ href: "/membership", label: "Explore Membership", variant: "outline" }}
         metrics={trustDisplay.items}
         analyticsSource="home"
+        className="public-hero-spacing-tight"
         aside={
           <div className="flex h-full flex-col gap-5">
             <article className="public-panel p-6 sm:p-7">
               <p className="premium-kicker inline-flex items-center gap-2">
                 <Sparkles size={14} />
-                What changes after joining
+                Founder recognition
               </p>
               <div className="mt-5 space-y-3">
-                {[
-                  "Fewer distractions around serious work.",
-                  "Better context before people speak.",
-                  "A stronger setting for the next decision."
-                ].map((item) => (
+                {FOUNDER_RECOGNITION_POINTS.map((item) => (
                   <div
                     key={item}
                     className="rounded-2xl border border-border/80 bg-background/28 px-4 py-3 text-sm leading-relaxed text-muted"
@@ -436,19 +626,19 @@ export default async function HomePage() {
 
             <article className="rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-card/72 p-6 shadow-gold-soft sm:p-7">
               <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                Founder access
+                Not generic networking
               </p>
               <p className="mt-4 text-lg leading-relaxed text-foreground">
-                {founderAccessLine}
+                A private founder-led business environment built around trust, clarity, useful introductions, structured conversations, insight, resources and action.
               </p>
               <p className="mt-3 text-sm leading-relaxed text-muted">
-                Early members enter while founder allocation remains open.
+                The room is protected so business owners can bring real decisions without the performance of a public feed.
               </p>
               <Link
                 href="/membership"
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-5 w-full sm:w-auto")}
               >
-                Review Membership
+                Explore Membership
               </Link>
             </article>
           </div>
@@ -458,9 +648,14 @@ export default async function HomePage() {
       <OutcomeStrip items={HERO_OUTCOMES} />
 
       <AnswerBlock
-        question="What is The Business Circle Network?"
-        answer="The Business Circle Network is a private founder-led business environment for UK business owners who want clearer thinking, better conversations, stronger relationships and a calmer place to make better business decisions. It is designed as a structured alternative to noisy networking groups, social feeds and loose business communities."
+        question="Why BCN exists"
+        answer="BCN exists because business ownership can become too isolated and too noisy at the same time. The platform creates a calmer, more serious room where owners can bring context, build trust, ask better questions, find useful introductions and keep momentum around the work that matters."
+        label="Why this exists"
       />
+
+      <WhatChangesAfterJoiningSection />
+
+      <FounderSignalsSection />
 
       {latestPublicInsight ? (
         <section className="public-section">
@@ -696,16 +891,16 @@ export default async function HomePage() {
 
       <section className="public-section">
         <SectionHeading
-          label="Public Preview"
-          title="A careful signal of what is active, without exposing private member content."
-          description="The homepage can show movement in the network while keeping member conversations, profiles, and private context protected."
+          label="How the environment works"
+          title="Public clarity leads into protected member depth."
+          description="The public layer explains fit and trust. The member layer holds the deeper conversations, resources, introductions and operating rhythm."
         />
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
           <article className="rounded-[1.8rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-5 shadow-gold-soft sm:p-6">
-            <p className="premium-kicker">Active discussion themes</p>
+            <p className="premium-kicker">Signal path</p>
             <div className="mt-5 grid gap-3">
-              {PUBLIC_PREVIEW_THEMES.map((theme) => (
+              {ENVIRONMENT_WORKS.map((theme) => (
                 <div
                   key={theme}
                   className="rounded-[1.3rem] border border-border/80 bg-background/22 px-4 py-3 text-sm text-foreground"
@@ -753,6 +948,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <MembershipInvitationSection founderAccessLine={founderAccessLine} />
 
       <LaunchTrustProof
         proofItems={homeContent.proofItems}
@@ -958,23 +1155,31 @@ export default async function HomePage() {
         items={homeContent.faqs}
       />
 
+      <FounderAuditCta
+        source="home"
+        topic="homepage-audit-cta"
+        title="Want a calmer way to check fit first?"
+        description="Run the Founder Audit if you want to understand your owner-readiness and which room may fit before you step inside."
+        membershipLabel="Explore Membership"
+      />
+
       <CTASection
-        title="Ready to choose the room that fits?"
-        description="Join as a founding member if you are ready. Run the Founder Audit first if you want a calmer way to check your fit."
-        primaryAction={{ href: buildFounderAuditHref({ source: "home", topic: "homepage-final" }), label: "Run the Founder Audit" }}
-        secondaryAction={{ href: "/membership", label: "Join as a founding member", variant: "outline" }}
+        title="Step into the better room."
+        description="Join when you are ready for calmer conversations, stronger trust and a private business environment built around useful momentum."
+        primaryAction={{ href: "/join-mobile", label: "Step Inside" }}
+        secondaryAction={{ href: "/membership", label: "Explore Membership", variant: "outline" }}
         analyticsSource="home"
       />
 
       <div className="fixed inset-x-4 bottom-4 z-40 lg:hidden">
         <Link
-          href="/membership"
+          href="/join-mobile"
           className={cn(
             buttonVariants({ size: "lg" }),
             "w-full rounded-[1.35rem] border border-gold/28 shadow-[0_18px_40px_rgba(2,6,23,0.32)] backdrop-blur"
           )}
         >
-          Join as a founding member
+          Step Inside
           <ArrowRight size={16} className="ml-2" />
         </Link>
       </div>

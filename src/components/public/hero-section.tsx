@@ -22,6 +22,7 @@ type HeroSectionProps = {
   callouts?: string[];
   primaryAction: HeroAction;
   secondaryAction?: HeroAction;
+  tertiaryAction?: HeroAction;
   metrics?: HeroMetric[];
   analyticsSource?: "home" | "about" | "membership" | "audit" | "insights" | "contact" | "intent" | "unknown";
   className?: string;
@@ -36,6 +37,7 @@ export function HeroSection({
   callouts,
   primaryAction,
   secondaryAction,
+  tertiaryAction,
   metrics,
   analyticsSource = "unknown",
   className,
@@ -97,6 +99,21 @@ export function HeroSection({
                   buttonVariants({
                     size: "lg",
                     variant: secondaryAction.variant ?? "outline"
+                  }),
+                  "w-full sm:w-auto"
+                )}
+              />
+            ) : null}
+
+            {tertiaryAction ? (
+              <TrackedPublicCtaLink
+                href={tertiaryAction.href}
+                label={tertiaryAction.label}
+                source={analyticsSource}
+                className={cn(
+                  buttonVariants({
+                    size: "lg",
+                    variant: tertiaryAction.variant ?? "outline"
                   }),
                   "w-full sm:w-auto"
                 )}

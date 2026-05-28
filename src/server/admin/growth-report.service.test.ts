@@ -36,6 +36,7 @@ vi.mock("@/lib/db", () => ({
 import {
   calculateGrowthHealthScore,
   EMPTY_GROWTH_REPORT_SUMMARY,
+  generatePublicNarrativeSuggestion,
   generateGrowthReportNow,
   getCurrentGrowthReport,
   type GrowthMetricsSnapshot
@@ -246,6 +247,7 @@ describe("growth-report.service", () => {
       submissions: 1,
       googleReviewClicks: 1
     });
+    expect(report.publicNarrativeSuggestion).toContain("testimonial or review signal");
     expect(report.recommendedActions.map((action) => action.title)).toContain(
       "Turn trust proof into the next post"
     );
@@ -323,5 +325,35 @@ describe("growth-report.service", () => {
 
     expect(rawScore).toBeGreaterThanOrEqual(0);
     expect(rawScore).toBeLessThanOrEqual(100);
+  });
+
+  it("generates a deterministic public narrative suggestion without external AI", () => {
+    const suggestion = generatePublicNarrativeSuggestion({
+      hasEnoughData: true,
+      current: {
+        visitors: 8,
+        uniqueVisitors: 8,
+        pageViews: 14,
+        membershipPageVisits: 8,
+        joinIntentEvents: 0,
+        auditStarts: 0,
+        auditCompletions: 0,
+        launchCodeEvents: 0,
+        checkoutStarts: 0,
+        checkoutCompletions: 0,
+        reviewSignals: 0,
+        pageViewsPerVisitor: 1.8,
+        joinIntentRate: 0,
+        checkoutCompletionRate: 0
+      },
+      membership: {
+        pageVisits: 8,
+        joinIntentEvents: 0
+      }
+    });
+
+    expect(suggestion).toBe(
+      "Explain what changes after joining BCN so warm visitors understand the internal founder operating system."
+    );
   });
 });

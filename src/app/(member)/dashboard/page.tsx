@@ -3,10 +3,14 @@ import Link from "next/link";
 import { CommunityPostKind, MembershipTier } from "@prisma/client";
 import {
   ArrowRight,
+  BookOpen,
+  CalendarDays,
   CheckCircle2,
   Circle,
   Crown,
+  Handshake,
   Link2,
+  Lightbulb,
   MessageSquare,
   Sparkles,
   UserCheck
@@ -304,11 +308,25 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     partnershipInterests: member?.profile?.partnershipInterests,
     acceptedRulesAt: member?.acceptedRulesAt
   });
+  const hasClearOffer = Boolean(member?.profile?.collaborationOffers?.trim());
+  const hasClearAsk = Boolean(member?.profile?.collaborationNeeds?.trim());
+  const hasPosted = Boolean(latestMemberPost);
+  const hasCommented = Boolean(latestMemberComment);
+  const hasReadResource = resourceReadCount > 0;
+  const hasTrustSignal = completion.percentage >= 85 && Boolean(member?.acceptedRulesAt);
+  const hasSharedWin = recentConnectionWins.some((win) => win.user.id === session.user.id);
   const nextAction = getMemberHomeNextAction({
     completionPercentage: completion.percentage,
     membershipTier: effectiveTier,
     hasRecentDiscussion: recentPosts.length > 0,
-    hasUpcomingEvent: upcomingEvents.length > 0
+    hasUpcomingEvent: upcomingEvents.length > 0,
+    hasPosted,
+    hasCommented,
+    hasClearOffer,
+    hasClearAsk,
+    hasReadResource,
+    hasTrustSignal,
+    hasSharedWin
   });
   const tierGuidance = getTierHomeGuidance(effectiveTier);
   const rankedRecentPosts = rankPostsByMomentum(recentPosts);
@@ -481,6 +499,92 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       })
     : null;
   const dailyOwnerSignalExperience = getDailyOwnerSignalExperience();
+  const founderMomentumItems = [
+    {
+      title: "Complete your trust profile",
+      description:
+        "Give other owners enough context to understand who you are, what you do and why a conversation may be useful.",
+      href: "/profile",
+      label: completion.percentage >= 85 ? "Review profile" : "Complete profile",
+      complete: completion.percentage >= 85,
+      statusLabel: completion.percentage >= 85 ? "Done" : "Next",
+      icon: UserCheck
+    },
+    {
+      title: "Introduce yourself properly",
+      description:
+        "Add one thoughtful post or reply so the room can place you with more context than a name on a list.",
+      href: "/community",
+      label: hasPosted ? "Return to community" : "Introduce yourself",
+      complete: hasPosted,
+      statusLabel: hasPosted ? "Done" : "Next",
+      icon: MessageSquare
+    },
+    {
+      title: "Share one clear offer",
+      description:
+        "Make it easy for members to know where you can help, advise, connect or collaborate.",
+      href: "/profile",
+      label: hasClearOffer ? "Review offer" : "Add offer",
+      complete: hasClearOffer,
+      statusLabel: hasClearOffer ? "Done" : "Next",
+      icon: Handshake
+    },
+    {
+      title: "Share one clear ask",
+      description:
+        "Specific asks create better replies, better introductions and faster support from the room.",
+      href: "/profile",
+      label: hasClearAsk ? "Review ask" : "Add ask",
+      complete: hasClearAsk,
+      statusLabel: hasClearAsk ? "Done" : "Next",
+      icon: Lightbulb
+    },
+    {
+      title: "Browse Founder Intelligence or Insights",
+      description:
+        "Use one structured resource to sharpen a decision before bringing the useful part into conversation.",
+      href: latestBcnIntelligence
+        ? `/dashboard/resources/${latestBcnIntelligence.slug}`
+        : "/dashboard/resources",
+      label: hasReadResource ? "Open latest insight" : "Browse insights",
+      complete: hasReadResource,
+      statusLabel: hasReadResource ? "Done" : "Next",
+      icon: BookOpen
+    },
+    {
+      title: "Join one conversation",
+      description:
+        "Reply where your experience can add signal. BCN becomes more useful as members contribute clearly.",
+      href: featuredDiscussion
+        ? buildCommunityPostPath(featuredDiscussion.id, featuredDiscussion.channel.slug)
+        : "/community",
+      label: hasCommented ? "Return to discussion" : "Join conversation",
+      complete: hasCommented,
+      statusLabel: hasCommented ? "Done" : "Next",
+      icon: MessageSquare
+    },
+    {
+      title: "Book or join a call when relevant",
+      description:
+        "Use calls when a conversation deserves more context than a thread can carry.",
+      href: "/calls",
+      label: upcomingEvents.length ? "Review live layer" : "Open calls",
+      complete: false,
+      statusLabel: upcomingEvents.length ? "Available" : "When relevant",
+      icon: CalendarDays
+    },
+    {
+      title: "Share a win or useful lesson",
+      description:
+        "Short, specific progress helps other owners see what is moving and what can be learned.",
+      href: "/wins/new",
+      label: hasSharedWin ? "Share another" : "Share a win",
+      complete: hasSharedWin,
+      statusLabel: hasSharedWin ? "Done" : "Next",
+      icon: Sparkles
+    }
+  ];
 
   return (
     <div className="member-page-stack">
@@ -991,6 +1095,98 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           />
         </CardContent>
       </Card>
+
+      <section className="space-y-4">
+        <div className="border-b border-silver/12 pb-3">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+            Your Founder Momentum
+          </p>
+          <h2 className="font-display text-2xl text-foreground">
+            Use the room with clear intent
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm text-muted">
+            You are now inside the room. The value comes from showing up, asking clearly,
+            offering help, sharing wins, building trust and using the tools with purpose.
+          </p>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
+          <Card className="border-gold/24 bg-gradient-to-br from-gold/12 via-card/78 to-card/66 shadow-gold-soft">
+            <CardHeader>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                {nextAction.eyebrow}
+              </p>
+              <CardTitle className="text-2xl">{nextAction.title}</CardTitle>
+              <CardDescription>{nextAction.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Link
+                href={nextAction.href}
+                className="inline-flex items-center gap-2 text-sm font-medium text-gold"
+              >
+                {nextAction.label}
+                <ArrowRight size={14} />
+              </Link>
+              <div className="rounded-2xl border border-gold/20 bg-background/20 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                  Why this matters
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  BCN becomes more valuable the more useful signal members add: profile context,
+                  clear offers, clear asks, thoughtful replies, wins and practical lessons.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {founderMomentumItems.map((item) => {
+              const Icon = item.icon;
+              const StatusIcon = item.complete ? CheckCircle2 : Circle;
+
+              return (
+                <Link
+                  key={item.title}
+                  href={item.href}
+                  className="rounded-2xl border border-silver/16 bg-card/60 p-4 transition-colors hover:border-silver/28 hover:bg-card/72"
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${
+                        item.complete
+                          ? "border-gold/26 bg-gold/10 text-gold"
+                          : "border-silver/18 bg-background/28 text-silver"
+                      }`}
+                    >
+                      <Icon size={16} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
+                            item.complete
+                              ? "border-gold/24 bg-gold/10 text-gold"
+                              : "border-silver/16 bg-background/22 text-silver"
+                          }`}
+                        >
+                          <StatusIcon size={11} />
+                          {item.statusLabel}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-relaxed text-muted">{item.description}</p>
+                      <span className="mt-3 inline-flex items-center gap-2 text-sm text-silver">
+                        {item.label}
+                        <ArrowRight size={13} />
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       <MemberTestimonialSubmission
         latestStatus={latestTestimonial?.status}

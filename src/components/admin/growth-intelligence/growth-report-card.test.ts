@@ -29,6 +29,8 @@ function reportFixture(): GrowthReportView {
       }
     ],
     priorityAction: "Make the membership next step clearer before pushing more traffic.",
+    publicNarrativeSuggestion:
+      "Explain what changes after joining BCN so warm visitors understand the internal founder operating system.",
     metricsSnapshot: {
       range: "24h",
       period: {
@@ -139,5 +141,7 @@ describe("GrowthReportCard", () => {
     expect(markup).toContain("Risks");
     expect(markup).toContain("Recommended Actions");
     expect(markup).toContain("One Priority Move");
+    expect(markup).toContain("Public narrative suggestion");
+    expect(markup).toContain("No external AI is used");
   });
 });

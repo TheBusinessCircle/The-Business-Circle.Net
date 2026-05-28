@@ -5,6 +5,13 @@ type MemberHomeNextActionInput = {
   membershipTier: MembershipTier;
   hasRecentDiscussion: boolean;
   hasUpcomingEvent: boolean;
+  hasPosted?: boolean;
+  hasCommented?: boolean;
+  hasClearOffer?: boolean;
+  hasClearAsk?: boolean;
+  hasReadResource?: boolean;
+  hasTrustSignal?: boolean;
+  hasSharedWin?: boolean;
 };
 
 export function getMemberHomeNextAction(input: MemberHomeNextActionInput) {
@@ -19,14 +26,80 @@ export function getMemberHomeNextAction(input: MemberHomeNextActionInput) {
     };
   }
 
-  if (!input.hasRecentDiscussion) {
+  if (!input.hasClearOffer) {
     return {
       eyebrow: "Next best move",
-      title: "Open the community and add one thoughtful post",
+      title: "Share one clear offer",
       description:
-        "The fastest way to settle in here is to contribute something useful in the right room.",
+        "Tell the room what you can help with so useful introductions and collaboration opportunities have something specific to attach to.",
+      href: "/profile",
+      label: "Add your offer"
+    };
+  }
+
+  if (!input.hasClearAsk) {
+    return {
+      eyebrow: "Next best move",
+      title: "Post one clear ask",
+      description:
+        "A clear ask helps the room help you faster. Keep it practical, specific and easy for another owner to respond to.",
+      href: "/profile",
+      label: "Add your ask"
+    };
+  }
+
+  if (!input.hasPosted) {
+    return {
+      eyebrow: "Next best move",
+      title: "Introduce yourself properly",
+      description:
+        "The fastest way to settle in is to make one thoughtful introduction with enough context for other owners to understand you.",
       href: "/community",
       label: "Open community"
+    };
+  }
+
+  if (!input.hasCommented && input.hasRecentDiscussion) {
+    return {
+      eyebrow: "Next best move",
+      title: "Join one useful conversation",
+      description:
+        "Reply once where you can add context, encouragement or a practical lesson. BCN becomes more valuable as useful signal is added.",
+      href: "/community",
+      label: "Find a conversation"
+    };
+  }
+
+  if (!input.hasReadResource) {
+    return {
+      eyebrow: "Next best move",
+      title: "Browse the latest insight before your next decision",
+      description:
+        "Use one structured resource to sharpen your thinking, then bring the useful part back into the room.",
+      href: "/dashboard/resources",
+      label: "Open resources"
+    };
+  }
+
+  if (!input.hasTrustSignal) {
+    return {
+      eyebrow: "Next best move",
+      title: "Add one trust signal to your profile",
+      description:
+        "A stronger trust profile helps other owners understand who you are, what you do and why a conversation may be worthwhile.",
+      href: "/profile",
+      label: "Strengthen profile"
+    };
+  }
+
+  if (!input.hasSharedWin) {
+    return {
+      eyebrow: "Next best move",
+      title: "Share one useful lesson or win from this week",
+      description:
+        "Short, specific progress helps the room learn what is moving and gives other owners a better reason to engage.",
+      href: "/wins/new",
+      label: "Share a win"
     };
   }
 

@@ -171,6 +171,18 @@ export function GrowthReportCard({ report, refreshAction }: GrowthReportCardProp
             </p>
           </div>
         ) : null}
+
+        <div className="rounded-2xl border border-silver/18 bg-background/24 p-5">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-silver">
+            Public narrative suggestion
+          </p>
+          <p className="mt-3 text-base font-semibold leading-relaxed text-foreground">
+            {report.publicNarrativeSuggestion}
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Deterministic guidance from first-party signals only. No external AI is used.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
