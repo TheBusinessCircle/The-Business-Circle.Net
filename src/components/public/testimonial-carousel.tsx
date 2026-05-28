@@ -87,7 +87,7 @@ export function TestimonialCarousel({
     <div
       role="region"
       aria-label="Approved member testimonials"
-      className="relative"
+      className="relative min-w-0"
       onTouchStart={(event) => {
         const touch = event.touches[0];
         if (touch) {
@@ -120,15 +120,15 @@ export function TestimonialCarousel({
         }
       }}
     >
-      <article className="relative overflow-hidden rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-5 shadow-gold-soft sm:p-7">
+      <article className="relative h-[32rem] overflow-hidden rounded-[1.7rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-4 shadow-gold-soft sm:h-[29rem] sm:p-5 lg:h-[24rem] lg:rounded-[1.9rem] lg:p-6">
         <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-[0.08]" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/45 to-transparent" />
-        <div className="relative grid gap-5 lg:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)] lg:items-stretch">
-          <div className="relative overflow-hidden rounded-[1.45rem] border border-white/10 bg-background/24 p-4">
+        <div className="relative grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,0.42fr)_minmax(0,1fr)] lg:grid-rows-1 lg:items-stretch">
+          <div className="relative overflow-hidden rounded-[1.25rem] border border-white/10 bg-background/24 p-3 sm:p-4">
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(42,82,150,0.22),rgba(4,10,24,0.78)_48%,rgba(212,175,55,0.16))]" />
-            <div className="relative flex min-h-[11rem] flex-col justify-between">
+            <div className="relative flex min-h-[7.5rem] flex-col justify-between sm:min-h-[8.5rem] lg:h-full lg:min-h-0">
               <span
-                className="inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-gold/30 bg-gold/10 bg-cover bg-center font-display text-xl text-gold shadow-gold-soft"
+                className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-gold/30 bg-gold/10 bg-cover bg-center font-display text-base text-gold shadow-gold-soft sm:h-14 sm:w-14 sm:text-lg"
                 style={
                   activeTestimonial.imageUrl
                     ? { backgroundImage: `url(${activeTestimonial.imageUrl})` }
@@ -145,15 +145,15 @@ export function TestimonialCarousel({
                 <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
                   Founder proof
                 </p>
-                <p className="mt-2 font-display text-2xl leading-tight text-foreground">
+                <p className="mt-1.5 font-display text-xl leading-tight text-foreground sm:text-2xl">
                   {activeTestimonial.businessName ?? activeTestimonial.authorName}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
               <p className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-gold">
                 <Quote size={14} />
                 Approved public proof
@@ -161,17 +161,19 @@ export function TestimonialCarousel({
               {activeTestimonial.rating ? ratingStars(activeTestimonial.rating) : null}
             </div>
 
-            <blockquote className="mt-4 text-xl leading-relaxed text-white/86 sm:text-2xl">
-              &quot;{activeTestimonial.quote}&quot;
-            </blockquote>
+            <div className="testimonial-scroll-area mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-[1.15rem] border border-white/8 bg-background/16 px-3 py-3 pr-2 [scrollbar-color:rgba(212,175,55,0.55)_rgba(255,255,255,0.08)] [scrollbar-width:thin] sm:mt-4 sm:px-4 sm:py-4">
+              <blockquote className="text-lg leading-relaxed text-white/86 sm:text-xl">
+                &quot;{activeTestimonial.quote}&quot;
+              </blockquote>
 
-            {activeTestimonial.outcome ? (
-              <p className="mt-4 rounded-2xl border border-gold/20 bg-background/24 px-4 py-3 text-sm leading-relaxed text-muted">
-                {activeTestimonial.outcome}
-              </p>
-            ) : null}
+              {activeTestimonial.outcome ? (
+                <p className="mt-3 rounded-2xl border border-gold/20 bg-background/24 px-4 py-3 text-sm leading-relaxed text-muted">
+                  {activeTestimonial.outcome}
+                </p>
+              ) : null}
+            </div>
 
-            <footer className="mt-5 border-t border-white/10 pt-4">
+            <footer className="mt-3 shrink-0 border-t border-white/10 pt-3 sm:mt-4 sm:pt-4">
               <p className="font-medium text-foreground">{activeTestimonial.authorName}</p>
               <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs uppercase tracking-[0.08em] text-silver">
                 {activeTestimonial.authorRole ? <span>{activeTestimonial.authorRole}</span> : null}
@@ -198,7 +200,7 @@ export function TestimonialCarousel({
 
       {hasMultiple ? (
         <>
-          <div className="mt-4 hidden items-center justify-between gap-3 md:flex">
+          <div className="mt-3 hidden items-center justify-between gap-3 md:flex">
             <Button
               type="button"
               variant="outline"
@@ -221,7 +223,7 @@ export function TestimonialCarousel({
             </Button>
           </div>
 
-          <div className="mt-4 flex justify-center gap-2" aria-label="Testimonial position">
+          <div className="mt-3 flex justify-center gap-2" aria-label="Testimonial position">
             {uniqueTestimonials.map((testimonial, index) => (
               <button
                 key={testimonial.id}

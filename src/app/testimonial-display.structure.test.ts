@@ -42,6 +42,33 @@ describe("testimonial display placement", () => {
     expect(carousel).toContain("new Map");
     expect(carousel).toContain("imageUrl");
     expect(carousel).toContain("initialsForTestimonial");
+    expect(carousel).toContain("testimonial-scroll-area");
+    expect(carousel).toContain("overflow-y-auto");
+    expect(carousel).toContain("h-[32rem]");
+    expect(carousel).toContain("lg:h-[24rem]");
+  });
+
+  it("keeps the immersive homepage inside preview with all eight cards", () => {
+    const home = readSource("src/app/(public)/home/page.tsx");
+
+    expect(home).toContain("What You Actually Get Inside");
+    expect(home).toContain("INSIDE_FEATURE_CARDS.map");
+    for (const title of [
+      "Private Rooms",
+      "Resources",
+      "1-to-1 Calls",
+      "Group Conversations",
+      "Collaborations",
+      "Wins",
+      "Member Profiles",
+      "Insight Layer"
+    ]) {
+      expect(home).toContain(`title: "${title}"`);
+    }
+
+    expect(home).toContain("aspect-[16/9]");
+    expect(home).toContain("min-w-0");
+    expect(home).not.toContain("w-screen");
   });
 
   it("wires approved Growth Architect testimonials into founder pages", () => {

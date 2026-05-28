@@ -91,6 +91,9 @@ const HERO_SIGNALS = [
   "Signal over noise"
 ] as const;
 
+const HOME_SECTION_CLASS = "public-section-compact";
+const HOME_SECTION_HEADING_CLASS = "gap-3 sm:gap-4";
+
 const WHAT_BCN_IS = [
   {
     title: "A protected digital business room",
@@ -116,25 +119,25 @@ const WHAT_CHANGES_AFTER_JOINING = [
   {
     title: "The room gets quieter",
     description:
-      "You move away from general noise and into a calmer room where business context matters.",
+      "A calmer room where business context matters more than visibility.",
     icon: ShieldCheck
   },
   {
     title: "People understand you faster",
     description:
-      "Your profile, offers and asks help other owners see what you do, what you need and where fit may exist.",
+      "Profiles, offers and asks make useful fit easier to see.",
     icon: Users
   },
   {
     title: "Conversations become more useful",
     description:
-      "The standard shifts from promotion to clear questions, useful answers, warm introductions and serious conversations.",
+      "Clear questions, useful answers and warm introductions replace performance.",
     icon: Handshake
   },
   {
     title: "Momentum has somewhere to land",
     description:
-      "Insights, resources, rooms, calls and collaboration paths give progress a place to continue.",
+      "Insights, rooms, calls and collaborations give progress somewhere to continue.",
     icon: TrendingUp
   }
 ] as const;
@@ -143,7 +146,7 @@ const INSIDE_FEATURE_CARDS = [
   {
     title: "Private Rooms",
     description:
-      "Focused spaces for introductions, business questions, owner updates and room-specific conversations.",
+      "Focused spaces for introductions, owner questions and room-specific conversation.",
     placementKey: "rooms",
     icon: Layers3,
     tone: "human" as const
@@ -151,7 +154,7 @@ const INSIDE_FEATURE_CARDS = [
   {
     title: "Resources",
     description:
-      "Practical material for decisions, positioning, operations, growth and the work that follows.",
+      "Practical material for decisions, positioning, operations and growth.",
     placementKey: "resources",
     icon: BookOpen,
     tone: "editorial" as const
@@ -159,7 +162,7 @@ const INSIDE_FEATURE_CARDS = [
   {
     title: "1-to-1 Calls",
     description:
-      "A way to move from thread-level context into a useful conversation when a connection needs more depth.",
+      "Move from thread-level context into a useful conversation when depth matters.",
     placementKey: "calls",
     icon: PhoneCall,
     tone: "human" as const
@@ -167,7 +170,7 @@ const INSIDE_FEATURE_CARDS = [
   {
     title: "Group Conversations",
     description:
-      "Live owner discussions around direction, decisions, pressure and member-led business themes.",
+      "Live owner discussions around direction, pressure and member-led business themes.",
     placementKey: "group",
     icon: CalendarDays,
     tone: "platform" as const
@@ -175,7 +178,7 @@ const INSIDE_FEATURE_CARDS = [
   {
     title: "Collaborations",
     description:
-      "A clearer way to spot useful fit, warm opportunities and practical reasons to connect.",
+      "Spot useful fit, warm opportunities and practical reasons to connect.",
     placementKey: "collaborations",
     icon: Handshake,
     tone: "founders" as const
@@ -183,7 +186,7 @@ const INSIDE_FEATURE_CARDS = [
   {
     title: "Wins",
     description:
-      "Visible member progress, useful lessons and the signals that show what is working.",
+      "Member progress, useful lessons and signals that show what is working.",
     placementKey: "wins",
     icon: Trophy,
     tone: "editorial" as const
@@ -191,7 +194,7 @@ const INSIDE_FEATURE_CARDS = [
   {
     title: "Member Profiles",
     description:
-      "Business context that makes the right people easier to understand before a conversation starts.",
+      "Business context that helps the right people understand one another faster.",
     placementKey: "profiles",
     icon: BadgeCheck,
     tone: "platform" as const
@@ -199,7 +202,7 @@ const INSIDE_FEATURE_CARDS = [
   {
     title: "Insight Layer",
     description:
-      "Public signals, member resources and founder-led intelligence that help the network keep its shape.",
+      "Public signals, member resources and founder-led intelligence for better decisions.",
     placementKey: "insight",
     icon: Sparkles,
     tone: "editorial" as const
@@ -256,6 +259,20 @@ const TRUST_STANDARDS = [
   }
 ] as const;
 
+const FOR_AUDIENCE = [
+  "Business owners carrying real decisions",
+  "Founders, freelancers, creators and specialists who want better rooms",
+  "Operators who value trust, clarity and useful introductions",
+  "Serious self-employed people who prefer signal over noise"
+] as const;
+
+const NOT_FOR_AUDIENCE = [
+  "People looking for a spammy promotion feed",
+  "People who want attention without contribution",
+  "People who do not respect private business context",
+  "People chasing hype instead of trusted relationships"
+] as const;
+
 async function listHomeApprovedProofTestimonials() {
   try {
     return await listApprovedTestimonials({
@@ -293,31 +310,32 @@ function WhatBcnActuallyIsSection({
   placement: VisualMediaRenderablePlacement | null;
 }) {
   return (
-    <section className="public-section">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.65fr)] lg:items-stretch">
-        <div className="space-y-5">
+    <section className={HOME_SECTION_CLASS}>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(300px,0.58fr)] lg:items-stretch">
+        <div className="space-y-4 sm:space-y-5">
           <SectionHeading
             label="What BCN Actually Is"
             title="A private founder-led environment with enough structure to make trust useful."
             description="BCN is built for owners, freelancers, founders, creators, specialists and serious self-employed people who want clearer conversations, stronger trust, useful resources and better rooms."
+            className={HOME_SECTION_HEADING_CLASS}
           />
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-3">
             {WHAT_BCN_IS.map((item) => {
               const Icon = item.icon;
 
               return (
                 <AtmosphereFrame
                   key={item.title}
-                  className="group rounded-[1.65rem] border border-border/80 bg-card/66 p-5 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:border-gold/30 hover:bg-card/78 hover:shadow-gold-soft"
+                  className="group rounded-[1.45rem] border border-border/80 bg-card/66 p-4 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:border-gold/30 hover:bg-card/78 hover:shadow-gold-soft sm:p-5"
                 >
-                  <span className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold">
+                  <span className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gold/24 bg-gold/10 text-gold">
                     <Icon size={18} />
                   </span>
-                  <h3 className="relative mt-5 font-display text-2xl leading-tight text-foreground">
+                  <h3 className="relative mt-4 font-display text-[1.35rem] leading-tight text-foreground sm:text-2xl">
                     {item.title}
                   </h3>
-                  <p className="relative mt-3 text-sm leading-relaxed text-muted">
+                  <p className="relative mt-2 text-sm leading-relaxed text-muted">
                     {item.description}
                   </p>
                 </AtmosphereFrame>
@@ -330,21 +348,21 @@ function WhatBcnActuallyIsSection({
           <SectionFeatureImage
             placement={placement}
             tone="founders"
-            className="min-h-[20rem]"
+            className="min-h-[15rem] sm:min-h-[17rem] lg:min-h-[18rem]"
             sizes="(min-width: 1280px) 32vw, (min-width: 1024px) 38vw, 100vw"
           >
-            <div className="w-full p-5">
+            <div className="w-full p-4 sm:p-5">
               <p className="premium-kicker">Protected Room</p>
-              <p className="mt-3 max-w-sm text-lg leading-tight text-white">
+              <p className="mt-2 max-w-sm text-base leading-tight text-white sm:text-lg">
                 Built to feel quieter, more serious and more useful than a public feed.
               </p>
             </div>
           </SectionFeatureImage>
         ) : (
-          <AtmosphereFrame className="min-h-[20rem] rounded-[2rem] border border-gold/22 bg-[linear-gradient(135deg,rgba(21,42,77,0.84),rgba(4,9,22,0.96)_48%,rgba(166,132,60,0.18))] p-6 shadow-gold-soft">
-            <div className="relative flex h-full min-h-[17rem] flex-col justify-end">
+          <AtmosphereFrame className="min-h-[15rem] rounded-[1.75rem] border border-gold/22 bg-[linear-gradient(135deg,rgba(21,42,77,0.84),rgba(4,9,22,0.96)_48%,rgba(166,132,60,0.18))] p-5 shadow-gold-soft sm:min-h-[17rem]">
+            <div className="relative flex h-full min-h-[12rem] flex-col justify-end sm:min-h-[14rem]">
               <p className="premium-kicker">Protected Room</p>
-              <p className="mt-4 max-w-sm font-display text-3xl leading-tight text-foreground">
+              <p className="mt-3 max-w-sm font-display text-2xl leading-tight text-foreground sm:text-3xl">
                 A quieter digital room for real business context.
               </p>
             </div>
@@ -357,14 +375,15 @@ function WhatBcnActuallyIsSection({
 
 function WhatChangesAfterJoiningSection() {
   return (
-    <section className="public-section">
+    <section className={HOME_SECTION_CLASS}>
       <SectionHeading
         label="What changes after joining"
         title="The room gives useful conversations somewhere to happen."
         description="BCN becomes valuable when members show up with signal: clear context, clear asks, useful offers and a willingness to contribute."
+        className={HOME_SECTION_HEADING_CLASS}
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {WHAT_CHANGES_AFTER_JOINING.map((item, index) => {
           const Icon = item.icon;
 
@@ -372,21 +391,21 @@ function WhatChangesAfterJoiningSection() {
             <AtmosphereFrame
               key={item.title}
               className={cn(
-                "group rounded-[1.7rem] border p-5 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:shadow-gold-soft sm:p-6",
+                "group rounded-[1.55rem] border p-4 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:shadow-gold-soft sm:p-5",
                 index === 0
                   ? "border-gold/28 bg-gradient-to-br from-gold/12 via-card/72 to-card/64"
                   : "border-border/80 bg-card/66 hover:border-gold/28"
               )}
             >
-              <div className="relative flex min-h-[12rem] flex-col">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold">
+              <div className="relative flex min-h-[10rem] flex-col sm:min-h-[11rem]">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gold/24 bg-gold/10 text-gold">
                   <Icon size={18} />
                 </span>
-                <h3 className="mt-5 font-display text-2xl leading-tight text-foreground">
+                <h3 className="mt-4 font-display text-[1.4rem] leading-tight text-foreground sm:text-2xl">
                   {item.title}
                 </h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
-                <span className="mt-auto pt-5 text-[11px] uppercase tracking-[0.08em] text-silver">
+                <p className="mt-2 text-sm leading-relaxed text-muted">{item.description}</p>
+                <span className="mt-auto pt-4 text-[11px] uppercase tracking-[0.08em] text-silver">
                   Room signal 0{index + 1}
                 </span>
               </div>
@@ -406,11 +425,11 @@ function InsideFallbackVisual({
   icon: (typeof INSIDE_FEATURE_CARDS)[number]["icon"];
 }) {
   return (
-    <div className="relative flex aspect-[16/10] items-end overflow-hidden border-b border-border/70 bg-[linear-gradient(135deg,rgba(34,65,118,0.52),rgba(4,10,24,0.96)_48%,rgba(207,171,90,0.16))] p-5">
+    <div className="relative flex aspect-[16/9] items-end overflow-hidden border-b border-border/70 bg-[linear-gradient(135deg,rgba(34,65,118,0.52),rgba(4,10,24,0.96)_48%,rgba(207,171,90,0.16))] p-4 sm:p-5">
       <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-[0.12]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.48))]" />
       <div className="relative flex w-full items-end justify-between gap-4">
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/28 bg-gold/10 text-gold">
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/28 bg-gold/10 text-gold">
           <Icon size={18} />
         </span>
         <span className="max-w-[8rem] text-right text-[11px] uppercase tracking-[0.08em] text-silver">
@@ -435,17 +454,17 @@ function InsideEnvironmentCard({
   tone: (typeof INSIDE_FEATURE_CARDS)[number]["tone"];
 }) {
   return (
-    <article className="group overflow-hidden rounded-[1.9rem] border border-border/80 bg-card/70 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:border-gold/28 hover:bg-card/82 hover:shadow-gold-soft">
+    <article className="group min-w-0 overflow-hidden rounded-[1.65rem] border border-border/80 bg-card/70 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:border-gold/28 hover:bg-card/82 hover:shadow-gold-soft sm:rounded-[1.8rem]">
       {placement?.isActive && placement.imageUrl ? (
         <SectionFeatureImage
           placement={placement}
           tone={tone}
-          aspectClassName="aspect-[16/10]"
-          className="min-h-[13rem] rounded-none border-0 bg-transparent shadow-none before:hidden"
+          aspectClassName="aspect-[16/9]"
+          className="min-h-[10rem] rounded-none border-0 bg-transparent shadow-none before:hidden sm:min-h-[11rem]"
           sizes="(min-width: 1280px) 23vw, (min-width: 768px) 45vw, 100vw"
         >
-          <div className="w-full p-5">
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/24 bg-background/42 text-gold backdrop-blur">
+          <div className="w-full p-4 sm:p-5">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gold/24 bg-background/42 text-gold backdrop-blur">
               <Icon size={18} />
             </span>
           </div>
@@ -454,11 +473,11 @@ function InsideEnvironmentCard({
         <InsideFallbackVisual title={title} icon={Icon} />
       )}
 
-      <div className="space-y-3 p-5 sm:p-6">
+      <div className="space-y-2.5 p-4 sm:p-5">
         <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
           Inside the room
         </p>
-        <h3 className="font-display text-[1.6rem] leading-tight text-foreground">{title}</h3>
+        <h3 className="font-display text-[1.45rem] leading-tight text-foreground sm:text-[1.55rem]">{title}</h3>
         <p className="text-sm leading-relaxed text-muted">{description}</p>
       </div>
     </article>
@@ -471,14 +490,15 @@ function InsideEnvironmentSection({
   placements: Record<InsidePlacementKey, VisualMediaRenderablePlacement | null>;
 }) {
   return (
-    <section id="how-it-works" className="public-section">
+    <section id="how-it-works" className={HOME_SECTION_CLASS}>
       <SectionHeading
         label="What You Actually Get Inside"
         title="A founder workspace you can step through before you join."
         description="The value is not one feature. It is the way rooms, profiles, resources, calls, collaborations, wins and insight create a more useful operating environment around the business."
+        className={HOME_SECTION_HEADING_CLASS}
       />
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {INSIDE_FEATURE_CARDS.map((item) => (
           <InsideEnvironmentCard
             key={item.title}
@@ -500,15 +520,15 @@ function FounderSignalsSection({
   latestInsight: PublicInsightSummary | null;
 }) {
   return (
-    <section className="public-section" aria-label="Founder Signals">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.65fr)]">
-        <AtmosphereFrame className="rounded-[2rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-6 shadow-gold-soft sm:p-8">
+    <section className={HOME_SECTION_CLASS} aria-label="Founder Signals">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(300px,0.62fr)]">
+        <AtmosphereFrame className="rounded-[1.8rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/80 to-card/72 p-5 shadow-gold-soft sm:p-6 lg:p-7">
           <div className="relative">
             <p className="premium-kicker">Founder Signals</p>
-            <h2 className="mt-4 font-display text-3xl leading-tight text-foreground sm:text-4xl">
+            <h2 className="mt-3 font-display text-3xl leading-tight text-foreground sm:text-4xl">
               Today&apos;s Owner Signal
             </h2>
-            <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted sm:text-lg">
+            <p className="mt-3 max-w-3xl text-base leading-relaxed text-muted sm:text-lg">
               Public-safe observations from BCN. No private member data, no admin detail, just the
               signal behind the founder-led environment.
             </p>
@@ -516,7 +536,7 @@ function FounderSignalsSection({
             {latestInsight ? (
               <Link
                 href={`/insights/${latestInsight.slug}`}
-                className="mt-6 block rounded-[1.35rem] border border-white/10 bg-background/24 p-4 transition-colors hover:border-gold/28 hover:bg-background/32"
+                className="mt-5 block rounded-[1.25rem] border border-white/10 bg-background/24 p-4 transition-colors hover:border-gold/28 hover:bg-background/32"
               >
                 <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
                   New insight is added daily
@@ -538,7 +558,7 @@ function FounderSignalsSection({
               </div>
             )}
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
               <Link
                 href="/insights"
                 className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
@@ -555,11 +575,11 @@ function FounderSignalsSection({
           </div>
         </AtmosphereFrame>
 
-        <div className="grid gap-3">
+        <div className="grid gap-2.5 sm:gap-3">
           {PUBLIC_SIGNAL_ITEMS.map((item, index) => (
             <article
               key={item.title}
-              className="group rounded-[1.45rem] border border-border/80 bg-card/64 p-5 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:border-gold/28 hover:bg-card/78"
+              className="group rounded-[1.35rem] border border-border/80 bg-card/64 p-4 shadow-panel-soft transition duration-300 hover:-translate-y-1 hover:border-gold/28 hover:bg-card/78 sm:p-5"
             >
               <div className="flex items-start gap-4">
                 <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/24 bg-gold/10 text-xs text-gold">
@@ -569,10 +589,10 @@ function FounderSignalsSection({
                   <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
                     Public signal
                   </p>
-                  <h3 className="mt-2 font-display text-2xl leading-tight text-foreground">
+                  <h3 className="mt-1.5 font-display text-[1.35rem] leading-tight text-foreground sm:text-2xl">
                     {item.title}
                   </h3>
-                  <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{item.description}</p>
                 </div>
               </div>
             </article>
@@ -589,33 +609,33 @@ function FirstSevenDaysHomeSection({
   placement: VisualMediaRenderablePlacement | null;
 }) {
   return (
-    <section className="public-section">
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.45fr)] xl:items-stretch">
+    <section className={HOME_SECTION_CLASS}>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.42fr)] xl:items-stretch">
         <FirstSevenDaysBlock frame="panel" className="h-full" />
 
         {placement?.isActive && placement.imageUrl ? (
           <SectionFeatureImage
             placement={placement}
             tone="platform"
-            aspectClassName="aspect-[16/10] xl:aspect-[4/5]"
-            className="min-h-[18rem]"
+            aspectClassName="aspect-[16/9] xl:aspect-[4/5]"
+            className="min-h-[14rem] sm:min-h-[16rem]"
             sizes="(min-width: 1280px) 28vw, (min-width: 1024px) 34vw, 100vw"
           >
-            <div className="w-full p-5">
+            <div className="w-full p-4 sm:p-5">
               <p className="premium-kicker">First week</p>
-              <p className="mt-3 max-w-sm text-lg leading-tight text-white">
+              <p className="mt-2 max-w-sm text-base leading-tight text-white sm:text-lg">
                 A structured start so the room feels useful from the first few moves.
               </p>
             </div>
           </SectionFeatureImage>
         ) : (
-          <AtmosphereFrame className="rounded-[2rem] border border-border/80 bg-card/64 p-6 shadow-panel-soft">
-            <div className="relative flex h-full min-h-[18rem] flex-col justify-end">
+          <AtmosphereFrame className="rounded-[1.8rem] border border-border/80 bg-card/64 p-5 shadow-panel-soft">
+            <div className="relative flex h-full min-h-[13rem] flex-col justify-end sm:min-h-[15rem]">
               <p className="premium-kicker">First week</p>
-              <h3 className="mt-4 font-display text-3xl leading-tight text-foreground">
+              <h3 className="mt-3 font-display text-2xl leading-tight text-foreground sm:text-3xl">
                 Orient, add signal, then make one useful move.
               </h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 The first 7 days are designed to make joining feel calm, structured and active.
               </p>
             </div>
@@ -632,18 +652,19 @@ function ApprovedMemberProofSection({
   testimonials: CarouselTestimonial[];
 }) {
   return (
-    <section className="public-section">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.55fr)_minmax(0,0.85fr)] lg:items-center">
+    <section className={HOME_SECTION_CLASS}>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.5fr)_minmax(0,0.9fr)] lg:items-center">
         <SectionHeading
           label="Approved member proof"
           title="Real words, shown once, with permission."
           description="The homepage uses one approved proof carousel. It rotates public testimonials without duplicating them across trust blocks."
+          className={HOME_SECTION_HEADING_CLASS}
         />
 
         {testimonials.length ? (
           <TestimonialCarousel testimonials={testimonials} />
         ) : (
-          <AtmosphereFrame className="rounded-[1.8rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/76 to-card/68 p-5 shadow-gold-soft sm:p-6">
+          <AtmosphereFrame className="rounded-[1.7rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/76 to-card/68 p-5 shadow-gold-soft sm:p-6">
             <div className="relative">
               <Sparkles size={18} className="text-gold" />
               <h3 className="mt-4 font-display text-3xl leading-tight text-foreground">
@@ -664,13 +685,14 @@ function ApprovedMemberProofSection({
 
 function TrustAndStandardsSection() {
   return (
-    <section className="public-section">
-      <AtmosphereFrame className="rounded-[2rem] border border-border/80 bg-card/60 p-5 shadow-panel-soft sm:p-6 lg:p-8">
-        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,0.6fr)_minmax(0,1fr)] lg:items-start">
+    <section className={HOME_SECTION_CLASS}>
+      <AtmosphereFrame className="rounded-[1.85rem] border border-border/80 bg-card/60 p-5 shadow-panel-soft sm:p-6 lg:p-7">
+        <div className="relative grid gap-5 lg:grid-cols-[minmax(0,0.56fr)_minmax(0,1fr)] lg:items-start">
           <SectionHeading
             label="Trust and standards"
             title="The room has to be protected before it can be useful."
             description="BCN keeps public proof, member privacy, payment trust and company credibility in one clear place."
+            className={HOME_SECTION_HEADING_CLASS}
           />
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -680,14 +702,14 @@ function TrustAndStandardsSection() {
               return (
                 <article
                   key={item.title}
-                  className="rounded-[1.35rem] border border-white/10 bg-background/24 p-4 transition duration-300 hover:border-gold/24 hover:bg-background/32"
+                  className="rounded-[1.25rem] border border-white/10 bg-background/24 p-4 transition duration-300 hover:border-gold/24 hover:bg-background/32"
                 >
                   <div className="flex items-start gap-3">
                     <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/24 bg-gold/10 text-gold">
                       <Icon size={17} />
                     </span>
                     <div>
-                      <h3 className="font-display text-xl leading-tight text-foreground">
+                      <h3 className="font-display text-lg leading-tight text-foreground sm:text-xl">
                         {item.title}
                       </h3>
                       <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -705,20 +727,69 @@ function TrustAndStandardsSection() {
   );
 }
 
+function FitSection() {
+  return (
+    <section className={HOME_SECTION_CLASS}>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.5fr)_minmax(0,0.9fr)] lg:items-start">
+        <SectionHeading
+          label="Fit matters"
+          title="For serious owners who want the room to stay useful."
+          description="BCN works when members respect the space, add useful signal and treat trust as part of the value."
+          className={HOME_SECTION_HEADING_CLASS}
+        />
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <AtmosphereFrame className="rounded-[1.55rem] border border-gold/24 bg-card/68 p-4 shadow-panel-soft sm:p-5">
+            <div className="relative">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">For</p>
+              <div className="mt-3 grid gap-2.5">
+                {FOR_AUDIENCE.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-[1rem] border border-white/10 bg-background/24 px-3 py-2.5 text-sm leading-relaxed text-foreground"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </AtmosphereFrame>
+
+          <AtmosphereFrame className="rounded-[1.55rem] border border-border/80 bg-card/62 p-4 shadow-panel-soft sm:p-5">
+            <div className="relative">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Not for</p>
+              <div className="mt-3 grid gap-2.5">
+                {NOT_FOR_AUDIENCE.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-[1rem] border border-white/10 bg-background/24 px-3 py-2.5 text-sm leading-relaxed text-muted"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </AtmosphereFrame>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FinalCinematicCta() {
   return (
-    <section className="public-section">
-      <AtmosphereFrame className="rounded-[2.25rem] border border-gold/24 bg-[linear-gradient(135deg,rgba(28,57,111,0.78),rgba(3,8,20,0.98)_45%,rgba(190,152,75,0.18))] px-5 py-10 shadow-gold-soft sm:px-8 sm:py-12 lg:px-10">
+    <section className={HOME_SECTION_CLASS}>
+      <AtmosphereFrame className="rounded-[2rem] border border-gold/24 bg-[linear-gradient(135deg,rgba(28,57,111,0.78),rgba(3,8,20,0.98)_45%,rgba(190,152,75,0.18))] px-5 py-8 shadow-gold-soft sm:px-8 sm:py-10 lg:px-10">
         <div className="relative mx-auto max-w-4xl text-center">
           <p className="premium-kicker mx-auto max-w-fit">Next step</p>
-          <h2 className="mt-5 font-display text-4xl leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+          <h2 className="mt-4 font-display text-4xl leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
             Step into the better room.
           </h2>
-          <p className="mx-auto mt-5 max-w-3xl text-lg leading-relaxed text-white/80">
+          <p className="mx-auto mt-4 max-w-3xl text-base leading-relaxed text-white/80 sm:text-lg">
             Run the Founder Audit if you want clarity first, or review membership when the room
             already feels like the right next environment.
           </p>
-          <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="mt-6 flex flex-col items-stretch justify-center gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
             <Link
               href={buildFounderAuditHref({ source: "home", topic: "final-cta" })}
               className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
@@ -832,9 +903,9 @@ export default async function HomePage() {
         title="Business owners do not need more noise. They need a better room."
         description="Business ownership can become isolated. BCN exists for owners who want clearer conversations, stronger trust, useful introductions and a calmer place to think, share, ask, build and grow."
         tone="immersive"
-        contentClassName="gap-4 px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12"
+        contentClassName="gap-3 px-5 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-10"
       >
-        <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
+        <div className="flex flex-col gap-2.5 pt-1 sm:flex-row sm:flex-wrap">
           <Link
             href={buildFounderAuditHref({ source: "home", topic: "hero" })}
             className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
@@ -850,7 +921,7 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        <div className="mt-3 hidden max-w-4xl grid-cols-3 gap-3 sm:grid">
+        <div className="mt-2 hidden max-w-4xl grid-cols-3 gap-2.5 sm:grid">
           {HERO_SIGNALS.map((signal) => (
             <div
               key={signal}
@@ -875,6 +946,8 @@ export default async function HomePage() {
       <ApprovedMemberProofSection testimonials={carouselTestimonials} />
 
       <TrustAndStandardsSection />
+
+      <FitSection />
 
       <FinalCinematicCta />
     </div>
