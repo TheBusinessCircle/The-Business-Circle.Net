@@ -51,7 +51,7 @@ describe("testimonial display placement", () => {
   it("keeps the immersive homepage inside preview with all eight cards", () => {
     const home = readSource("src/app/(public)/home/page.tsx");
 
-    expect(home).toContain("What You Actually Get Inside");
+    expect(home).toContain("How the environment works");
     expect(home).toContain("INSIDE_FEATURE_CARDS.map");
     for (const title of [
       "Private Rooms",

@@ -34,7 +34,7 @@ import {
   getMembershipTierRank
 } from "@/config/membership";
 import { authorName, buildCommunityPostPreview } from "@/lib/community-helpers";
-import { isConnectionWinTags } from "@/lib/connection-wins";
+import { CONNECTION_WIN_TAG, isConnectionWinTags } from "@/lib/connection-wins";
 import { buildCommunityChannelPath, buildCommunityPostPath } from "@/lib/community-paths";
 import {
   countActiveItems,
@@ -173,6 +173,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     latestMemberComment,
     resourceReadCount,
     blueprintVoteCount,
+    memberConnectionWin,
     latestTestimonial,
     reviewSettings
   ] = await Promise.all([
@@ -282,6 +283,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         userId: session.user.id
       }
     }),
+    prisma.communityPost.findFirst({
+      where: {
+        userId: session.user.id,
+        deletedAt: null,
+        tags: {
+          has: CONNECTION_WIN_TAG
+        }
+      },
+      select: {
+        id: true
+      }
+    }),
     getLatestMemberTestimonial(session.user.id),
     getReviewSettings()
   ]);
@@ -314,7 +327,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const hasCommented = Boolean(latestMemberComment);
   const hasReadResource = resourceReadCount > 0;
   const hasTrustSignal = completion.percentage >= 85 && Boolean(member?.acceptedRulesAt);
-  const hasSharedWin = recentConnectionWins.some((win) => win.user.id === session.user.id);
+  const hasSharedWin = Boolean(memberConnectionWin);
   const nextAction = getMemberHomeNextAction({
     completionPercentage: completion.percentage,
     membershipTier: effectiveTier,

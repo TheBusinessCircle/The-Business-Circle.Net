@@ -32,7 +32,7 @@ describe("public insights retention structure", () => {
   });
 
   it("surfaces the public return loop on the homepage", () => {
-    expect(homePage).toContain("Today&apos;s Owner Signal");
+    expect(homePage).toContain("What BCN is noticing before people join.");
     expect(homePage).toContain("New insight is added daily");
     expect(homePage).toContain("Open insights hub");
   });

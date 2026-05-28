@@ -38,6 +38,40 @@ describe("public conversion, SEO, AEO and GEO structure", () => {
     expect(insightArticle).toContain('buildFounderAuditHref({ source: "insights", topic: insight.clusterSlug })');
   });
 
+  it("keeps the homepage split between public invitation and founder operating system", () => {
+    const home = readSource("src/app/(public)/home/page.tsx");
+    const dashboard = readSource("src/app/(member)/dashboard/page.tsx");
+
+    expect(home).toContain("Business owners do not need more noise. They need a better room.");
+    expect(home).toContain('label="Step Inside"');
+    expect(home).toContain('label="Run the Founder Audit"');
+    expect(home).toContain('label="Explore Membership"');
+    expect(home).toContain("href={STEP_INSIDE_HREF}");
+    expect(home).toContain("Why BCN exists");
+    expect(home).toContain("What changes after joining");
+    expect(home).toContain("Founder Signals");
+    expect(home).toContain("How the environment works");
+    expect(home).toContain("Membership invitation");
+
+    expect(home.indexOf("<WhatBcnActuallyIsSection")).toBeLessThan(
+      home.indexOf("<WhatChangesAfterJoiningSection")
+    );
+    expect(home.indexOf("<WhatChangesAfterJoiningSection")).toBeLessThan(
+      home.indexOf("<FounderSignalsSection")
+    );
+    expect(home.indexOf("<FounderSignalsSection")).toBeLessThan(
+      home.indexOf("<InsideEnvironmentSection")
+    );
+    expect(home.indexOf("<InsideEnvironmentSection")).toBeLessThan(
+      home.indexOf("<MembershipInvitationSection")
+    );
+
+    expect(dashboard).toContain("Your Founder Momentum");
+    expect(dashboard).toContain("getMemberHomeNextAction");
+    expect(dashboard).toContain("CONNECTION_WIN_TAG");
+    expect(dashboard).toContain("memberConnectionWin");
+  });
+
   it("keeps structured data and crawler files aligned with public visibility", () => {
     const structuredData = readSource("src/lib/structured-data.ts");
     const membershipPage = readSource("src/app/(public)/membership/page.tsx");

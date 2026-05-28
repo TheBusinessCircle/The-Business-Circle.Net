@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   BadgeCheck,
   BookOpen,
   Building2,
@@ -21,10 +20,12 @@ import {
 } from "lucide-react";
 import {
   FirstSevenDaysBlock,
+  FounderAuditCta,
   JsonLd,
   SectionHeading
 } from "@/components/public";
 import { buildFounderAuditHref } from "@/components/public/founder-audit-cta";
+import { TrackedPublicCtaLink } from "@/components/public/tracked-public-cta-link";
 import { TestimonialCarousel } from "@/components/public/testimonial-carousel";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
 import { buttonVariants } from "@/components/ui/button";
@@ -91,6 +92,7 @@ const HERO_SIGNALS = [
   "Signal over noise"
 ] as const;
 
+const STEP_INSIDE_HREF = "/join-mobile?source=home&intent=step-inside";
 const HOME_SECTION_CLASS = "public-section-compact";
 const HOME_SECTION_HEADING_CLASS = "gap-3 sm:gap-4";
 
@@ -314,9 +316,9 @@ function WhatBcnActuallyIsSection({
       <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(300px,0.58fr)] lg:items-stretch">
         <div className="space-y-4 sm:space-y-5">
           <SectionHeading
-            label="What BCN Actually Is"
+            label="Why BCN exists"
             title="A private founder-led environment with enough structure to make trust useful."
-            description="BCN is built for owners, freelancers, founders, creators, specialists and serious self-employed people who want clearer conversations, stronger trust, useful resources and better rooms."
+            description="BCN is not another generic networking group. It is built for owners, freelancers, founders, creators, specialists and serious self-employed people who want clearer conversations, stronger trust, useful resources and better rooms."
             className={HOME_SECTION_HEADING_CLASS}
           />
 
@@ -492,8 +494,8 @@ function InsideEnvironmentSection({
   return (
     <section id="how-it-works" className={HOME_SECTION_CLASS}>
       <SectionHeading
-        label="What You Actually Get Inside"
-        title="A founder workspace you can step through before you join."
+        label="How the environment works"
+        title="Rooms, profiles, resources and conversations create one operating environment."
         description="The value is not one feature. It is the way rooms, profiles, resources, calls, collaborations, wins and insight create a more useful operating environment around the business."
         className={HOME_SECTION_HEADING_CLASS}
       />
@@ -526,11 +528,11 @@ function FounderSignalsSection({
           <div className="relative">
             <p className="premium-kicker">Founder Signals</p>
             <h2 className="mt-3 font-display text-3xl leading-tight text-foreground sm:text-4xl">
-              Today&apos;s Owner Signal
+              What BCN is noticing before people join.
             </h2>
             <p className="mt-3 max-w-3xl text-base leading-relaxed text-muted sm:text-lg">
-              Public-safe observations from BCN. No private member data, no admin detail, just the
-              signal behind the founder-led environment.
+              Public-safe observations from the founder-led environment. No private member data,
+              no admin detail, just the signals shaping better public conversations.
             </p>
 
             {latestInsight ? (
@@ -565,12 +567,12 @@ function FounderSignalsSection({
               >
                 Open insights hub
               </Link>
-              <Link
+              <TrackedPublicCtaLink
                 href={buildFounderAuditHref({ source: "home", topic: "founder-signals" })}
+                label="Run the Founder Audit"
+                source="home"
                 className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
-              >
-                Run the Founder Audit
-              </Link>
+              />
             </div>
           </div>
         </AtmosphereFrame>
@@ -603,44 +605,94 @@ function FounderSignalsSection({
   );
 }
 
-function FirstSevenDaysHomeSection({
+function MembershipInvitationSection({
   placement
 }: {
   placement: VisualMediaRenderablePlacement | null;
 }) {
   return (
     <section className={HOME_SECTION_CLASS}>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.42fr)] xl:items-stretch">
-        <FirstSevenDaysBlock frame="panel" className="h-full" />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(300px,0.72fr)] xl:items-stretch">
+        <AtmosphereFrame className="rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-5 shadow-gold-soft sm:p-6 lg:p-7">
+          <div className="relative flex h-full flex-col">
+            <p className="premium-kicker">Membership invitation</p>
+            <h2 className="mt-3 font-display text-3xl leading-tight text-foreground sm:text-4xl lg:text-5xl">
+              Join when you want the room, not another feed.
+            </h2>
+            <p className="mt-3 max-w-3xl text-base leading-relaxed text-muted sm:text-lg">
+              Membership opens the private business environment: a clearer place to build trust,
+              ask properly, offer help, find useful introductions and keep momentum moving with
+              people who understand ownership.
+            </p>
 
-        {placement?.isActive && placement.imageUrl ? (
-          <SectionFeatureImage
-            placement={placement}
-            tone="platform"
-            aspectClassName="aspect-[16/9] xl:aspect-[4/5]"
-            className="min-h-[14rem] sm:min-h-[16rem]"
-            sizes="(min-width: 1280px) 28vw, (min-width: 1024px) 34vw, 100vw"
-          >
-            <div className="w-full p-4 sm:p-5">
-              <p className="premium-kicker">First week</p>
-              <p className="mt-2 max-w-sm text-base leading-tight text-white sm:text-lg">
-                A structured start so the room feels useful from the first few moves.
-              </p>
+            <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
+              <TrackedPublicCtaLink
+                href={STEP_INSIDE_HREF}
+                label="Step Inside"
+                source="home"
+                showArrow
+                className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
+              />
+              <TrackedPublicCtaLink
+                href="/membership"
+                label="Explore Membership"
+                source="home"
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+              />
+              <TrackedPublicCtaLink
+                href={buildFounderAuditHref({ source: "home", topic: "membership-invitation" })}
+                label="Run the Founder Audit"
+                source="home"
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+              />
             </div>
-          </SectionFeatureImage>
-        ) : (
-          <AtmosphereFrame className="rounded-[1.8rem] border border-border/80 bg-card/64 p-5 shadow-panel-soft">
-            <div className="relative flex h-full min-h-[13rem] flex-col justify-end sm:min-h-[15rem]">
-              <p className="premium-kicker">First week</p>
-              <h3 className="mt-3 font-display text-2xl leading-tight text-foreground sm:text-3xl">
-                Orient, add signal, then make one useful move.
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                The first 7 days are designed to make joining feel calm, structured and active.
-              </p>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              <div className="rounded-[1.25rem] border border-gold/20 bg-background/24 p-4">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">For</p>
+                <div className="mt-3 grid gap-2.5">
+                  {FOR_AUDIENCE.map((item) => (
+                    <p key={item} className="text-sm leading-relaxed text-foreground">
+                      {item}
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[1.25rem] border border-white/10 bg-background/20 p-4">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Not for</p>
+                <div className="mt-3 grid gap-2.5">
+                  {NOT_FOR_AUDIENCE.map((item) => (
+                    <p key={item} className="text-sm leading-relaxed text-muted">
+                      {item}
+                    </p>
+                  ))}
+                </div>
+              </div>
             </div>
-          </AtmosphereFrame>
-        )}
+          </div>
+        </AtmosphereFrame>
+
+        <div className="grid gap-4">
+          <FirstSevenDaysBlock frame="panel" className="h-full" />
+
+          {placement?.isActive && placement.imageUrl ? (
+            <SectionFeatureImage
+              placement={placement}
+              tone="platform"
+              aspectClassName="aspect-[16/9]"
+              className="min-h-[14rem] sm:min-h-[16rem]"
+              sizes="(min-width: 1280px) 28vw, (min-width: 1024px) 34vw, 100vw"
+            >
+              <div className="w-full p-4 sm:p-5">
+                <p className="premium-kicker">First week</p>
+                <p className="mt-2 max-w-sm text-base leading-tight text-white sm:text-lg">
+                  A structured start so the room feels useful from the first few moves.
+                </p>
+              </div>
+            </SectionFeatureImage>
+          ) : null}
+        </div>
       </div>
     </section>
   );
@@ -727,55 +779,6 @@ function TrustAndStandardsSection() {
   );
 }
 
-function FitSection() {
-  return (
-    <section className={HOME_SECTION_CLASS}>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.5fr)_minmax(0,0.9fr)] lg:items-start">
-        <SectionHeading
-          label="Fit matters"
-          title="For serious owners who want the room to stay useful."
-          description="BCN works when members respect the space, add useful signal and treat trust as part of the value."
-          className={HOME_SECTION_HEADING_CLASS}
-        />
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <AtmosphereFrame className="rounded-[1.55rem] border border-gold/24 bg-card/68 p-4 shadow-panel-soft sm:p-5">
-            <div className="relative">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">For</p>
-              <div className="mt-3 grid gap-2.5">
-                {FOR_AUDIENCE.map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-[1rem] border border-white/10 bg-background/24 px-3 py-2.5 text-sm leading-relaxed text-foreground"
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </AtmosphereFrame>
-
-          <AtmosphereFrame className="rounded-[1.55rem] border border-border/80 bg-card/62 p-4 shadow-panel-soft sm:p-5">
-            <div className="relative">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Not for</p>
-              <div className="mt-3 grid gap-2.5">
-                {NOT_FOR_AUDIENCE.map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-[1rem] border border-white/10 bg-background/24 px-3 py-2.5 text-sm leading-relaxed text-muted"
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </AtmosphereFrame>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function FinalCinematicCta() {
   return (
     <section className={HOME_SECTION_CLASS}>
@@ -786,23 +789,29 @@ function FinalCinematicCta() {
             Step into the better room.
           </h2>
           <p className="mx-auto mt-4 max-w-3xl text-base leading-relaxed text-white/80 sm:text-lg">
-            Run the Founder Audit if you want clarity first, or review membership when the room
-            already feels like the right next environment.
+            Step inside when the room already feels right, run the Founder Audit if you want
+            clarity first, or review membership before choosing your path.
           </p>
           <div className="mt-6 flex flex-col items-stretch justify-center gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-            <Link
-              href={buildFounderAuditHref({ source: "home", topic: "final-cta" })}
+            <TrackedPublicCtaLink
+              href={STEP_INSIDE_HREF}
+              label="Step Inside"
+              source="home"
+              showArrow
               className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
-            >
-              Run the Founder Audit
-              <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link
-              href="/membership"
+            />
+            <TrackedPublicCtaLink
+              href={buildFounderAuditHref({ source: "home", topic: "final-cta" })}
+              label="Run the Founder Audit"
+              source="home"
               className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
-            >
-              Review Membership
-            </Link>
+            />
+            <TrackedPublicCtaLink
+              href="/membership"
+              label="Explore Membership"
+              source="home"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+            />
           </div>
         </div>
       </AtmosphereFrame>
@@ -906,19 +915,25 @@ export default async function HomePage() {
         contentClassName="gap-3 px-5 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-10"
       >
         <div className="flex flex-col gap-2.5 pt-1 sm:flex-row sm:flex-wrap">
-          <Link
-            href={buildFounderAuditHref({ source: "home", topic: "hero" })}
+          <TrackedPublicCtaLink
+            href={STEP_INSIDE_HREF}
+            label="Step Inside"
+            source="home"
+            showArrow
             className={cn(buttonVariants({ size: "lg" }), "group w-full sm:w-auto")}
-          >
-            Run the Founder Audit
-            <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-          </Link>
-          <Link
-            href="/membership"
+          />
+          <TrackedPublicCtaLink
+            href={buildFounderAuditHref({ source: "home", topic: "hero" })}
+            label="Run the Founder Audit"
+            source="home"
             className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
-          >
-            Review Membership
-          </Link>
+          />
+          <TrackedPublicCtaLink
+            href="/membership"
+            label="Explore Membership"
+            source="home"
+            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full sm:w-auto")}
+          />
         </div>
 
         <div className="mt-2 hidden max-w-4xl grid-cols-3 gap-2.5 sm:grid">
@@ -937,17 +952,23 @@ export default async function HomePage() {
 
       <WhatChangesAfterJoiningSection />
 
-      <InsideEnvironmentSection placements={insidePlacements} />
-
       <FounderSignalsSection latestInsight={latestPublicInsight} />
 
-      <FirstSevenDaysHomeSection placement={homeJoinPlacement} />
+      <InsideEnvironmentSection placements={insidePlacements} />
+
+      <MembershipInvitationSection placement={homeJoinPlacement} />
 
       <ApprovedMemberProofSection testimonials={carouselTestimonials} />
 
       <TrustAndStandardsSection />
 
-      <FitSection />
+      <FounderAuditCta
+        source="home"
+        topic="homepage-proof"
+        title="Want a clearer read before you choose?"
+        description="The Founder Audit gives business owners a calm owner-readiness checkpoint before stepping into membership."
+        membershipLabel="Explore Membership"
+      />
 
       <FinalCinematicCta />
     </div>
