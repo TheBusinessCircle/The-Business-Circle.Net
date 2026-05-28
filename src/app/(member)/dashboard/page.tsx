@@ -22,6 +22,7 @@ import { CommunityRecognitionPanel, MemberTestimonialSubmission } from "@/compon
 import { ResourceTierBadge } from "@/components/resources";
 import { BillingActions } from "@/components/platform/billing-actions";
 import { DailyOwnerSignalCarousel } from "@/components/member/daily-owner-signal-carousel";
+import { FirstThreeMovesCard } from "@/components/member/first-three-moves-card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -171,6 +172,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     recentConnectionWins,
     latestMemberPost,
     latestMemberComment,
+    memberIntroductionPost,
+    memberUsefulPost,
     resourceReadCount,
     blueprintVoteCount,
     memberConnectionWin,
@@ -273,6 +276,32 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         }
       }
     }),
+    prisma.communityPost.findFirst({
+      where: {
+        userId: session.user.id,
+        deletedAt: null,
+        channel: {
+          slug: "introductions"
+        }
+      },
+      select: {
+        id: true
+      }
+    }),
+    prisma.communityPost.findFirst({
+      where: {
+        userId: session.user.id,
+        deletedAt: null,
+        NOT: {
+          channel: {
+            slug: "introductions"
+          }
+        }
+      },
+      select: {
+        id: true
+      }
+    }),
     prisma.resourceRead.count({
       where: {
         userId: session.user.id
@@ -325,6 +354,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const hasClearAsk = Boolean(member?.profile?.collaborationNeeds?.trim());
   const hasPosted = Boolean(latestMemberPost);
   const hasCommented = Boolean(latestMemberComment);
+  const hasIntroduced = Boolean(memberIntroductionPost);
+  const hasStartedUsefulPost = Boolean(memberUsefulPost);
   const hasReadResource = resourceReadCount > 0;
   const hasTrustSignal = completion.percentage >= 85 && Boolean(member?.acceptedRulesAt);
   const hasSharedWin = Boolean(memberConnectionWin);
@@ -512,6 +543,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       })
     : null;
   const dailyOwnerSignalExperience = getDailyOwnerSignalExperience();
+  const firstThreeMovesComplete = hasIntroduced && hasStartedUsefulPost && hasCommented;
+  const firstThreeMovesExploreHref = featuredDiscussion
+    ? buildCommunityPostPath(featuredDiscussion.id, featuredDiscussion.channel.slug)
+    : "/community?channel=introductions";
   const founderMomentumItems = [
     {
       title: "Complete your trust profile",
@@ -527,10 +562,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       title: "Introduce yourself properly",
       description:
         "Add one thoughtful post or reply so the room can place you with more context than a name on a list.",
-      href: "/community",
-      label: hasPosted ? "Return to community" : "Introduce yourself",
-      complete: hasPosted,
-      statusLabel: hasPosted ? "Done" : "Next",
+      href: "/community?channel=introductions",
+      label: hasIntroduced ? "Return to introductions" : "Introduce yourself",
+      complete: hasIntroduced,
+      statusLabel: hasIntroduced ? "Done" : "Next",
       icon: MessageSquare
     },
     {
@@ -727,6 +762,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         signals={dailyOwnerSignalExperience.visibleSignals}
         todayKey={dailyOwnerSignalExperience.todayKey}
       />
+
+      {!firstThreeMovesComplete || showOnboardingExperience ? (
+        <FirstThreeMovesCard
+          hasIntroduced={hasIntroduced}
+          hasStartedUsefulPost={hasStartedUsefulPost}
+          hasSupportedAnotherMember={hasCommented}
+          exploreHref={firstThreeMovesExploreHref}
+        />
+      ) : null}
 
       {onboardingExperience ? (
         <section className="space-y-4">

@@ -138,7 +138,7 @@ export function getDashboardOnboardingExperience(
       title: hasJoinedFirstDiscussion ? "Return to the discussion rooms" : "Introduce yourself",
       description: hasJoinedFirstDiscussion
         ? "You have already posted or replied inside the Circle."
-        : "Start by introducing yourself so other members can see who you are and what you are building.",
+        : "Start with a short introduction. It gives other members a quick way to understand who you are, what you do and where a useful conversation could begin.",
       href: hasJoinedFirstDiscussion ? communityHref : introductionsHref,
       label: hasJoinedFirstDiscussion ? "Return to discussion" : "Go to Introductions",
       complete: hasJoinedFirstDiscussion
@@ -199,7 +199,7 @@ export function getDashboardOnboardingExperience(
               : "Open one strategic thread",
         description:
           !input.hasPosted && !input.hasCommented
-            ? "Start in the introductions room so members can understand who you are, what you do and what you are building."
+            ? "Start with a short introduction. It gives other members a quick way to understand who you are, what you do and where a useful conversation could begin."
             : "Return to the room that already has the strongest signal for you.",
         href: communityHref,
         label: !input.hasPosted && !input.hasCommented ? "Go to Introductions" : "Return to discussion"
@@ -233,7 +233,7 @@ export function getDashboardOnboardingExperience(
     engagementTitle: "Low-pressure first move",
     engagementDescription:
       !input.hasPosted && !input.hasCommented
-        ? "Start with a reply, not a perfect post. One useful response is enough to begin."
+        ? "After your introduction, one useful reply is enough to begin. The room becomes clearer when members add real context."
         : "Keep the first return simple. One reply or one reaction is often enough to re-enter the rhythm.",
     momentumTitle: "What is already moving around you",
     momentumDescription:

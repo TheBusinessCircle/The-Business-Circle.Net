@@ -44,6 +44,7 @@ type CommunityFeedProps = {
   viewerCanContinuePrivately: boolean;
   initialExpandedPostId?: string | null;
   featuredConnectionWin?: CommunityRecentPostModel | null;
+  viewerIsAdmin?: boolean;
 };
 
 function FeedActivitySnapshot({
@@ -130,7 +131,8 @@ export function CommunityFeed({
   currentUserId,
   viewerCanContinuePrivately,
   initialExpandedPostId,
-  featuredConnectionWin
+  featuredConnectionWin,
+  viewerIsAdmin = false
 }: CommunityFeedProps) {
   if (!feed.selectedChannel) {
     return (
@@ -144,6 +146,8 @@ export function CommunityFeed({
 
   const selectedChannel = feed.selectedChannel;
   const showComposer = selectedChannel.allowMemberPosts;
+  const isEarlyRoom = !selectedChannel.isAutomatedFeed && selectedChannel.postCount <= 2;
+  const showAdminStarterSuggestions = viewerIsAdmin && showComposer && isEarlyRoom;
   const roomGuidance = getCommunityRoomGuidance(selectedChannel.slug);
   const roomPromptSuggestions = getSuggestedConversationPrompts({
     membershipTier,
@@ -271,6 +275,21 @@ export function CommunityFeed({
           </Card>
         )}
 
+        {isEarlyRoom ? (
+          <Card className="border-gold/20 bg-gradient-to-br from-gold/10 via-card/72 to-card/62">
+            <CardContent className="py-4">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                Early room signal
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                This room is still early. That is not a weakness, it is the first layer of
+                the network being built. The first few posts shape the standard for everyone
+                who comes next.
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
+
         <FeedActivitySnapshot channelSlug={selectedChannel.slug} posts={feed.posts} />
 
         {feed.posts.length ? (
@@ -328,6 +347,41 @@ export function CommunityFeed({
             </div>
           </CardContent>
         </Card>
+
+        {showAdminStarterSuggestions ? (
+          <Card className="border-gold/24 bg-gradient-to-br from-gold/10 via-card/70 to-card/62">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <MessageSquareText size={16} className="text-gold" />
+                Admin starter prompts
+              </CardTitle>
+              <CardDescription>
+                Private suggestions for starting a quiet room without making it feel forced.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {[
+                "Ask members what they are working on this week",
+                "Invite members to share one thing they want feedback on",
+                "Start a weekly wins thread",
+                "Start a what are you building thread",
+                "Ask for one useful connection members would like"
+              ].map((suggestion) => (
+                <p
+                  key={suggestion}
+                  className="rounded-xl border border-silver/14 bg-background/18 px-3 py-3 text-sm leading-relaxed text-muted"
+                >
+                  {suggestion}
+                </p>
+              ))}
+              <a href="#start-community-post">
+                <Button variant="outline" className="w-full border-gold/24 text-gold hover:border-gold/40">
+                  Start a room prompt
+                </Button>
+              </a>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card className="border-silver/16 bg-card/62">
           <CardHeader>

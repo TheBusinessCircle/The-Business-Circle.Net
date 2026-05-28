@@ -4,6 +4,7 @@ import { MessageSquareText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { VisualPlacementBackground } from "@/components/visual-media";
+import { FirstThreeMovesCard } from "@/components/member/first-three-moves-card";
 import {
   CommunityFeed,
   CommunityFeedNav
@@ -11,6 +12,7 @@ import {
 import { isStandaloneCommunityChannelSlug } from "@/config/community";
 import { buildCommunityChannelPath, buildCommunityFeedPostPath } from "@/lib/community-paths";
 import { roleToTier } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
 import { allowedResourceTiers } from "@/lib/db/access";
@@ -104,7 +106,15 @@ export default async function CommunityPage({ searchParams }: PageProps) {
     redirect(`${redirectUrl.pathname}${redirectUrl.search}`);
   }
 
-  const [feed, upcomingEvents, recentConnectionWins, communityHeroPlacement] = await Promise.all([
+  const [
+    feed,
+    upcomingEvents,
+    recentConnectionWins,
+    communityHeroPlacement,
+    memberIntroductionPost,
+    memberUsefulPost,
+    latestMemberComment
+  ] = await Promise.all([
     getCommunityFeedPage({
       tiers,
       selectedSlug: selectedSlugRaw,
@@ -116,7 +126,42 @@ export default async function CommunityPage({ searchParams }: PageProps) {
       viewerUserId: session.user.id,
       take: 1
     }),
-    getVisualMediaPlacement("community.hero")
+    getVisualMediaPlacement("community.hero"),
+    prisma.communityPost.findFirst({
+      where: {
+        userId: session.user.id,
+        deletedAt: null,
+        channel: {
+          slug: "introductions"
+        }
+      },
+      select: {
+        id: true
+      }
+    }),
+    prisma.communityPost.findFirst({
+      where: {
+        userId: session.user.id,
+        deletedAt: null,
+        NOT: {
+          channel: {
+            slug: "introductions"
+          }
+        }
+      },
+      select: {
+        id: true
+      }
+    }),
+    prisma.communityComment.findFirst({
+      where: {
+        userId: session.user.id,
+        deletedAt: null
+      },
+      select: {
+        id: true
+      }
+    })
   ]);
 
   if (!feed.selectedChannel) {
@@ -133,6 +178,16 @@ export default async function CommunityPage({ searchParams }: PageProps) {
     notice: firstValue(params.notice),
     error: firstValue(params.error)
   });
+  const hasIntroduced = Boolean(memberIntroductionPost);
+  const hasStartedUsefulPost = Boolean(memberUsefulPost);
+  const hasSupportedAnotherMember = Boolean(latestMemberComment);
+  const firstThreeMovesComplete =
+    hasIntroduced && hasStartedUsefulPost && hasSupportedAnotherMember;
+  const firstPostToExplore =
+    feed.posts.find((post) => post.user.id !== session.user.id) ?? feed.posts[0] ?? null;
+  const firstThreeMovesExploreHref = firstPostToExplore
+    ? buildCommunityFeedPostPath(feed.selectedChannel.slug, firstPostToExplore.id)
+    : buildCommunityChannelPath(feed.selectedChannel.slug);
 
   return (
     <div className="member-page-stack">
@@ -174,6 +229,15 @@ export default async function CommunityPage({ searchParams }: PageProps) {
         </Card>
       ) : null}
 
+      {!firstThreeMovesComplete ? (
+        <FirstThreeMovesCard
+          hasIntroduced={hasIntroduced}
+          hasStartedUsefulPost={hasStartedUsefulPost}
+          hasSupportedAnotherMember={hasSupportedAnotherMember}
+          exploreHref={firstThreeMovesExploreHref}
+        />
+      ) : null}
+
       <CommunityFeed
         feed={feed}
         upcomingEvents={upcomingEvents}
@@ -185,6 +249,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
         }
         initialExpandedPostId={expandedPostId}
         featuredConnectionWin={recentConnectionWins[0] ?? null}
+        viewerIsAdmin={session.user.role === "ADMIN"}
       />
     </div>
   );
