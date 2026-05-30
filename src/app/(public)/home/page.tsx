@@ -612,18 +612,20 @@ function MembershipInvitationSection({
 }) {
   return (
     <section className={HOME_SECTION_CLASS}>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(300px,0.72fr)] xl:items-stretch">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.98fr)_minmax(320px,0.68fr)] lg:items-start">
         <AtmosphereFrame className="rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-5 shadow-gold-soft sm:p-6 lg:p-7">
-          <div className="relative flex h-full flex-col">
-            <p className="premium-kicker">Membership invitation</p>
-            <h2 className="mt-3 font-display text-3xl leading-tight text-foreground sm:text-4xl lg:text-5xl">
-              Join when you want the room, not another feed.
-            </h2>
-            <p className="mt-3 max-w-3xl text-base leading-relaxed text-muted sm:text-lg">
-              Membership opens the private business environment: a clearer place to build trust,
-              ask properly, offer help, find useful introductions and keep momentum moving with
-              people who understand ownership.
-            </p>
+          <div className="relative">
+            <div className="max-w-3xl">
+              <p className="premium-kicker">Membership Invitation</p>
+              <h2 className="mt-3 font-display text-3xl leading-tight text-foreground sm:text-4xl lg:text-[2.8rem]">
+                Join when you want the room, not another feed.
+              </h2>
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
+                Membership opens the private business environment: a clearer place to build trust,
+                ask properly, offer help, find useful introductions and keep momentum moving with
+                people who understand ownership.
+              </p>
+            </div>
 
             <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
               <TrackedPublicCtaLink
@@ -647,26 +649,39 @@ function MembershipInvitationSection({
               />
             </div>
 
-            <div className="mt-6 grid gap-3 md:grid-cols-2">
-              <div className="rounded-[1.25rem] border border-gold/20 bg-background/24 p-4">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">For</p>
-                <div className="mt-3 grid gap-2.5">
-                  {FOR_AUDIENCE.map((item) => (
-                    <p key={item} className="text-sm leading-relaxed text-foreground">
-                      {item}
-                    </p>
-                  ))}
+            <div className="mt-5 border-t border-white/10 pt-4 sm:mt-6 sm:pt-5">
+              <div className="grid gap-4 md:grid-cols-2 md:gap-5">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-gold">For</p>
+                  <div className="mt-3 grid gap-2.5">
+                    {FOR_AUDIENCE.map((item) => (
+                      <p
+                        key={item}
+                        className="flex gap-2.5 text-sm leading-snug text-foreground"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold"
+                        />
+                        <span>{item}</span>
+                      </p>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="rounded-[1.25rem] border border-white/10 bg-background/20 p-4">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Not for</p>
-                <div className="mt-3 grid gap-2.5">
-                  {NOT_FOR_AUDIENCE.map((item) => (
-                    <p key={item} className="text-sm leading-relaxed text-muted">
-                      {item}
-                    </p>
-                  ))}
+                <div className="min-w-0 md:border-l md:border-white/10 md:pl-5">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Not for</p>
+                  <div className="mt-3 grid gap-2.5">
+                    {NOT_FOR_AUDIENCE.map((item) => (
+                      <p key={item} className="flex gap-2.5 text-sm leading-snug text-muted">
+                        <span
+                          aria-hidden="true"
+                          className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full border border-silver/45"
+                        />
+                        <span>{item}</span>
+                      </p>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -674,14 +689,14 @@ function MembershipInvitationSection({
         </AtmosphereFrame>
 
         <div className="grid gap-4">
-          <FirstSevenDaysBlock frame="panel" className="h-full" />
+          <FirstSevenDaysBlock frame="panel" layout="compact" />
 
           {placement?.isActive && placement.imageUrl ? (
             <SectionFeatureImage
               placement={placement}
               tone="platform"
               aspectClassName="aspect-[16/9]"
-              className="min-h-[14rem] sm:min-h-[16rem]"
+              className="min-h-[12rem] sm:min-h-[14rem]"
               sizes="(min-width: 1280px) 28vw, (min-width: 1024px) 34vw, 100vw"
             >
               <div className="w-full p-4 sm:p-5">

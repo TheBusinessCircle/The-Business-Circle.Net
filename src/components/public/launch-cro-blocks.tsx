@@ -48,16 +48,19 @@ type FramedBlock = "section" | "panel";
 
 type FirstSevenDaysBlockProps = {
   frame?: FramedBlock;
+  layout?: "default" | "compact";
   variant?: "public" | "audit" | "member";
   className?: string;
 };
 
 export function FirstSevenDaysBlock({
   frame = "section",
+  layout = "default",
   variant = "public",
   className
 }: FirstSevenDaysBlockProps) {
   const isPanel = frame === "panel";
+  const isCompact = layout === "compact";
 
   return (
     <section
@@ -70,10 +73,15 @@ export function FirstSevenDaysBlock({
       )}
       data-testid="first-seven-days-block"
     >
-      <div className="min-w-0 space-y-5">
-        <div className="max-w-3xl space-y-2">
-          <p className="premium-kicker">First 7 days</p>
-          <h2 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+      <div className={cn("min-w-0", isCompact ? "space-y-4" : "space-y-5")}>
+        <div className={cn("space-y-2", isCompact ? "" : "max-w-3xl")}>
+          <p className="premium-kicker">First 7 Days</p>
+          <h2
+            className={cn(
+              "font-display leading-tight text-foreground",
+              isCompact ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"
+            )}
+          >
             Your first 7 days inside The Business Circle
           </h2>
           <p className="text-sm leading-relaxed text-muted sm:text-base">
@@ -82,16 +90,40 @@ export function FirstSevenDaysBlock({
           </p>
         </div>
 
-        <ol className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-7">
+        <ol
+          className={cn(
+            "grid min-w-0",
+            isCompact
+              ? "gap-0 rounded-[1.15rem] border border-white/10 bg-background/18 p-1.5"
+              : "gap-3 sm:grid-cols-2 xl:grid-cols-7"
+          )}
+        >
           {FIRST_SEVEN_DAYS_ITEMS.map((item, index) => (
             <li
               key={item}
-              className="min-w-0 rounded-[1.25rem] border border-white/10 bg-background/24 p-4 shadow-panel-soft"
+              className={cn(
+                "min-w-0",
+                isCompact
+                  ? "flex items-start gap-3 border-t border-white/10 px-2.5 py-2.5 first:border-t-0"
+                  : "rounded-[1.25rem] border border-white/10 bg-background/24 p-4 shadow-panel-soft"
+              )}
             >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gold/24 bg-gold/10 text-xs font-semibold text-gold">
+              <span
+                className={cn(
+                  "inline-flex shrink-0 items-center justify-center rounded-full border border-gold/24 bg-gold/10 text-xs font-semibold text-gold",
+                  isCompact ? "mt-0.5 h-7 w-7" : "h-8 w-8"
+                )}
+              >
                 {index + 1}
               </span>
-              <p className="mt-3 text-sm leading-relaxed text-foreground">{item}</p>
+              <p
+                className={cn(
+                  "text-foreground",
+                  isCompact ? "pt-1 text-sm leading-snug" : "mt-3 text-sm leading-relaxed"
+                )}
+              >
+                {item}
+              </p>
             </li>
           ))}
         </ol>
