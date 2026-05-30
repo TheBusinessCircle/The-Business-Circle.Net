@@ -73,7 +73,7 @@ export function FirstSevenDaysBlock({
       )}
       data-testid="first-seven-days-block"
     >
-      <div className={cn("min-w-0", isCompact ? "space-y-4" : "space-y-5")}>
+      <div className={cn("min-w-0", isCompact ? "space-y-3.5" : "space-y-5")}>
         <div className={cn("space-y-2", isCompact ? "" : "max-w-3xl")}>
           <p className="premium-kicker">First 7 Days</p>
           <h2
@@ -94,7 +94,7 @@ export function FirstSevenDaysBlock({
           className={cn(
             "grid min-w-0",
             isCompact
-              ? "gap-0 rounded-[1.15rem] border border-white/10 bg-background/18 p-1.5"
+              ? "gap-2 rounded-[1.15rem] border border-white/10 bg-background/18 p-2 sm:grid-cols-2"
               : "gap-3 sm:grid-cols-2 xl:grid-cols-7"
           )}
         >
@@ -104,14 +104,17 @@ export function FirstSevenDaysBlock({
               className={cn(
                 "min-w-0",
                 isCompact
-                  ? "flex items-start gap-3 border-t border-white/10 px-2.5 py-2.5 first:border-t-0"
+                  ? cn(
+                      "flex items-start gap-2.5 rounded-[0.85rem] border border-white/10 bg-card/40 px-2.5 py-2.5 shadow-inner-surface",
+                      index === FIRST_SEVEN_DAYS_ITEMS.length - 1 ? "sm:col-span-2" : ""
+                    )
                   : "rounded-[1.25rem] border border-white/10 bg-background/24 p-4 shadow-panel-soft"
               )}
             >
               <span
                 className={cn(
                   "inline-flex shrink-0 items-center justify-center rounded-full border border-gold/24 bg-gold/10 text-xs font-semibold text-gold",
-                  isCompact ? "mt-0.5 h-7 w-7" : "h-8 w-8"
+                  isCompact ? "mt-0.5 h-6 w-6" : "h-8 w-8"
                 )}
               >
                 {index + 1}
@@ -119,7 +122,7 @@ export function FirstSevenDaysBlock({
               <p
                 className={cn(
                   "text-foreground",
-                  isCompact ? "pt-1 text-sm leading-snug" : "mt-3 text-sm leading-relaxed"
+                  isCompact ? "pt-0.5 text-[13px] leading-snug" : "mt-3 text-sm leading-relaxed"
                 )}
               >
                 {item}

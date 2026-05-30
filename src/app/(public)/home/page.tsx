@@ -612,7 +612,7 @@ function MembershipInvitationSection({
 }) {
   return (
     <section className={HOME_SECTION_CLASS}>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.98fr)_minmax(320px,0.68fr)] lg:items-start">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,0.98fr)_minmax(320px,0.68fr)] lg:items-start lg:gap-x-4 lg:gap-y-3">
         <AtmosphereFrame className="rounded-[1.9rem] border border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 p-5 shadow-gold-soft sm:p-6 lg:p-7">
           <div className="relative">
             <div className="max-w-3xl">
@@ -688,26 +688,24 @@ function MembershipInvitationSection({
           </div>
         </AtmosphereFrame>
 
-        <div className="grid gap-4">
-          <FirstSevenDaysBlock frame="panel" layout="compact" />
+        <FirstSevenDaysBlock frame="panel" layout="compact" />
 
-          {placement?.isActive && placement.imageUrl ? (
-            <SectionFeatureImage
-              placement={placement}
-              tone="platform"
-              aspectClassName="aspect-[16/9]"
-              className="min-h-[12rem] sm:min-h-[14rem]"
-              sizes="(min-width: 1280px) 28vw, (min-width: 1024px) 34vw, 100vw"
-            >
-              <div className="w-full p-4 sm:p-5">
-                <p className="premium-kicker">First week</p>
-                <p className="mt-2 max-w-sm text-base leading-tight text-white sm:text-lg">
-                  A structured start so the room feels useful from the first few moves.
-                </p>
-              </div>
-            </SectionFeatureImage>
-          ) : null}
-        </div>
+        {placement?.isActive && placement.imageUrl ? (
+          <SectionFeatureImage
+            placement={placement}
+            tone="platform"
+            aspectClassName="aspect-[16/10] sm:aspect-[16/8] lg:aspect-[21/8]"
+            className="min-h-[13rem] sm:min-h-[15rem] lg:col-span-2 lg:min-h-[18rem]"
+            sizes="(min-width: 1280px) 76rem, (min-width: 1024px) 92vw, 100vw"
+          >
+            <div className="w-full p-4 sm:p-5 lg:p-6">
+              <p className="premium-kicker">First week</p>
+              <p className="mt-2 max-w-md text-base leading-tight text-white sm:text-lg">
+                A structured start so the room feels useful from the first few moves.
+              </p>
+            </div>
+          </SectionFeatureImage>
+        ) : null}
       </div>
     </section>
   );
