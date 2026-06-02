@@ -53,5 +53,15 @@ describe("visual media alt text", () => {
         false
       )
     ).toBe("Business clarity audit and website trust review");
+
+    expect(
+      resolveVisualPlacementAltText(
+        placement({
+          key: "founder.conversations",
+          altText: null
+        }),
+        false
+      )
+    ).toBe("Trevor Newton in a founder conversation with a business owner");
   });
 });

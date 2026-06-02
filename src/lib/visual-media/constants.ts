@@ -1610,6 +1610,316 @@ export const VISUAL_MEDIA_PLACEMENTS = {
     }),
     defaultOverlayStyle: "CINEMATIC"
   },
+  FOUNDER_WORKING: {
+    key: "founder.working",
+    label: "Founder / Growth Architect - Trevor Working",
+    page: "FOUNDER",
+    section: "trevor-working",
+    variant: "SECTION",
+    sortOrder: 34,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:9 or 4:5",
+    adminHelperText:
+      "Dedicated image slot for Trevor working in a grounded, practical, non-corporate context.",
+    imageFamilyTag: "founder-conversation",
+    adminPreviewFamily: "human",
+    imagePurpose:
+      "Show Trevor as a working founder whose advice comes from real environments and practical experience.",
+    bestImageType: "Authentic working-founder image, practical workspace, or editorial work moment.",
+    emotionalTone: ["authentic", "grounded", "practical", "human", "trust-building"],
+    recommendedSubjectMatter: [
+      "Trevor working",
+      "practical founder workspace",
+      "real notes and thinking",
+      "grounded business environment",
+      "calm premium editorial moment"
+    ],
+    recommendedComposition: [
+      "human focal point without looking posed",
+      "works beside copy about lived experience",
+      "clean enough for premium layout",
+      "details should feel real rather than staged"
+    ],
+    recommendedLightingMood: ["dark editorial", "warm practical", "premium but honest", "controlled"],
+    avoid: [
+      "corporate stock imagery",
+      "fake boardroom scenes",
+      "generic business photos",
+      "over-polished agency portraits",
+      "forced smiles"
+    ],
+    longAdminGuidance:
+      "Use this slot to make Trevor feel real and relatable. The visual should suggest useful work, not performance or personal-brand posing.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "founder-conversation"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Authentic working-founder image for Trevor Newton.",
+      sceneType: "Premium editorial working moment.",
+      subject:
+        "Grounded founder working through notes, business context, and practical strategy materials.",
+      environment:
+        "Realistic premium workspace with understated materials, no staged boardroom energy, and subtle royal blue and gold atmosphere.",
+      lighting: "Cinematic but natural lighting with warm highlights and controlled shadows.",
+      mood: "Honest, focused, human, practical, and trustworthy.",
+      style: "Ultra realistic editorial photography.",
+      cameraComposition:
+        "Medium environmental composition with a believable human focal point and enough negative space for section layout.",
+      qualityTags:
+        "Authentic founder working, premium realism, no watermark, no text in image, not stock-like.",
+      negativePrompt:
+        "corporate stock photo, fake boardroom, generic business photo, staged handshake, forced smile, cartoon, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  FOUNDER_JOURNEY: {
+    key: "founder.journey",
+    label: "Founder / Growth Architect - Trevor Journey",
+    page: "FOUNDER",
+    section: "trevor-journey",
+    variant: "SECTION",
+    sortOrder: 36,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:9 or 4:5",
+    adminHelperText:
+      "Dedicated image slot for the premium editorial Trevor journey section.",
+    imageFamilyTag: "story-mission",
+    adminPreviewFamily: "founders",
+    imagePurpose:
+      "Support Trevor's journey from early work and practical environments to founder-led business clarity.",
+    bestImageType: "Reflective founder journey visual or grounded editorial life-and-work image.",
+    emotionalTone: ["honest", "human", "humble", "experienced", "trustworthy"],
+    recommendedSubjectMatter: [
+      "Trevor's journey",
+      "working-life reflection",
+      "practical business materials",
+      "subtle references to work and resilience",
+      "premium editorial founder story"
+    ],
+    recommendedComposition: [
+      "reflective but not melodramatic",
+      "supports story copy",
+      "premium without feeling glossy",
+      "portrait-friendly crop if possible"
+    ],
+    recommendedLightingMood: ["warm dark editorial", "reflective", "cinematic", "restrained"],
+    avoid: [
+      "hero worship imagery",
+      "motivational poster style",
+      "corporate stock imagery",
+      "fake boardroom scenes",
+      "generic business photos"
+    ],
+    longAdminGuidance:
+      "Use this slot to make Trevor's working-life story feel credible and human. Avoid anything that turns the journey into a dramatic self-promotion piece.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "story-mission"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Premium editorial founder journey visual.",
+      sceneType: "Reflective founder journey scene.",
+      subject:
+        "A grounded founder in a reflective work moment with subtle practical-business context.",
+      environment:
+        "Premium dark workspace with hints of real working life, notes, tools, or business materials, handled subtly.",
+      lighting: "Warm cinematic lighting with controlled contrast.",
+      mood: "Honest, humble, resilient, and experienced.",
+      style: "Ultra realistic editorial photography.",
+      cameraComposition:
+        "Balanced 16:9 composition that also crops to portrait, with human presence and restrained detail.",
+      qualityTags:
+        "Founder journey, human realism, premium editorial, no watermark, no text in image.",
+      negativePrompt:
+        "motivational poster, triumphant hero pose, fake boardroom, corporate stock, generic smiling business person, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  FOUNDER_REVIEWING: {
+    key: "founder.reviewing",
+    label: "Founder / Growth Architect - Trevor Reviewing Businesses",
+    page: "FOUNDER",
+    section: "trevor-reviewing-businesses",
+    variant: "SECTION",
+    sortOrder: 52,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:9",
+    adminHelperText:
+      "Dedicated image slot for Trevor reviewing business data, websites, trust signals, and strategy materials.",
+    imageFamilyTag: "strategy-process",
+    adminPreviewFamily: "editorial",
+    imagePurpose:
+      "Show the Growth Architect review process as careful, practical, and human-led.",
+    bestImageType: "Business review, website analysis, audit workspace, or strategy document review.",
+    emotionalTone: ["careful", "analytical", "calm", "practical", "high trust"],
+    recommendedSubjectMatter: [
+      "Trevor reviewing businesses",
+      "website analysis",
+      "strategy documents",
+      "business data without private details",
+      "trust and conversion audit materials"
+    ],
+    recommendedComposition: [
+      "structured review scene",
+      "no readable private client data",
+      "clean focal plane",
+      "clear premium consulting atmosphere"
+    ],
+    recommendedLightingMood: ["dark premium", "focused", "clean", "cinematic"],
+    avoid: [
+      "generic SEO dashboard",
+      "fake analytics numbers",
+      "private client data",
+      "corporate stock imagery",
+      "overloaded spreadsheets"
+    ],
+    longAdminGuidance:
+      "Use this slot to show Trevor looking properly at a business. It should feel like a serious review, not an automated report or generic marketing audit.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "strategy-process"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Trevor reviewing businesses and finding clarity.",
+      sceneType: "Premium business review and audit workspace.",
+      subject:
+        "Founder reviewing website analysis, business notes, customer journey, and strategy documents.",
+      environment:
+        "Dark premium consulting workspace with laptop, notes, and structured audit materials, no readable private data.",
+      lighting: "Controlled cinematic lighting with crisp detail and subtle royal blue and gold accents.",
+      mood: "Focused, trustworthy, analytical, practical, and calm.",
+      style: "Ultra realistic editorial business photography.",
+      cameraComposition:
+        "Clean 16:9 composition with a clear focal point on the review process and human judgement.",
+      qualityTags:
+        "Premium business review, realistic, no watermark, no text in image, no private data.",
+      negativePrompt:
+        "generic SEO chart, fake dashboard text, private data, corporate stock, cartoon, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  FOUNDER_CONVERSATIONS: {
+    key: "founder.conversations",
+    label: "Founder / Growth Architect - Trevor Founder Conversations",
+    page: "FOUNDER",
+    section: "trevor-founder-conversations",
+    variant: "SECTION",
+    sortOrder: 72,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:9 or 4:5",
+    adminHelperText:
+      "Dedicated image slot for Trevor in calm, trust-building founder conversations.",
+    imageFamilyTag: "founder-conversation",
+    adminPreviewFamily: "human",
+    imagePurpose:
+      "Show the human trust layer behind Trevor's work with business owners.",
+    bestImageType: "Founder conversation, review discussion, or calm client strategy moment.",
+    emotionalTone: ["safe", "understood", "trusted", "human", "calm authority"],
+    recommendedSubjectMatter: [
+      "Trevor in founder conversations",
+      "business owner discussion",
+      "calm strategic conversation",
+      "review meeting",
+      "trust-building founder moment"
+    ],
+    recommendedComposition: [
+      "natural discussion posture",
+      "small number of people",
+      "no event crowd",
+      "keeps expressions grounded and serious"
+    ],
+    recommendedLightingMood: ["warm dark", "premium", "human", "calm"],
+    avoid: [
+      "fake handshake stock",
+      "large boardroom scene",
+      "conference event",
+      "forced smiling",
+      "generic business photos"
+    ],
+    longAdminGuidance:
+      "Use this slot to make visitors feel Trevor is safe to talk to. The visual should feel like a real founder conversation, not corporate performance.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "founder-conversation"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Trevor in calm founder conversations.",
+      sceneType: "Premium founder conversation scene.",
+      subject:
+        "Founder and business owner in a calm, focused conversation about business clarity and next steps.",
+      environment:
+        "Private premium workspace with refined materials, dark editorial atmosphere, and no staged boardroom feel.",
+      lighting: "Warm controlled lighting with subtle gold highlights.",
+      mood: "Understood, safe, trusted, respectful, and optimistic.",
+      style: "Ultra realistic editorial business photography.",
+      cameraComposition:
+        "Natural medium composition with two people, believable gestures, and quiet background depth.",
+      qualityTags:
+        "Human founder conversation, premium realism, no watermark, no text in image, authentic interaction.",
+      negativePrompt:
+        "fake handshake, conference crowd, corporate boardroom stock, forced laughter, generic business photo, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
+  FOUNDER_BUILDING_BCN: {
+    key: "founder.buildingBcn",
+    label: "Founder / Growth Architect - Trevor Building BCN",
+    page: "FOUNDER",
+    section: "trevor-building-bcn",
+    variant: "SECTION",
+    sortOrder: 78,
+    supportsMobile: true,
+    recommendedAspectRatio: "16:9",
+    adminHelperText:
+      "Dedicated image slot for the short section explaining why Trevor built The Business Circle Network.",
+    imageFamilyTag: "story-mission",
+    adminPreviewFamily: "founders",
+    imagePurpose:
+      "Show BCN as the environment Trevor built after seeing what serious owners needed around them.",
+    bestImageType: "Founder building an environment, private business circle, or structured founder ecosystem visual.",
+    emotionalTone: ["purposeful", "founder-led", "private", "calm", "trust-building"],
+    recommendedSubjectMatter: [
+      "Trevor building BCN",
+      "private founder-led environment",
+      "structured business owner ecosystem",
+      "calm founder room",
+      "trusted growth environment"
+    ],
+    recommendedComposition: [
+      "BCN should feel secondary to Trevor's purpose",
+      "shows environment rather than sales pitch",
+      "premium but understated",
+      "avoid crowded networking scenes"
+    ],
+    recommendedLightingMood: ["dark premium", "royal blue", "warm gold", "inviting", "calm"],
+    avoid: [
+      "networking event crowds",
+      "sales presentation imagery",
+      "generic business photos",
+      "fake boardroom scenes",
+      "hype community graphics"
+    ],
+    longAdminGuidance:
+      "Use this slot to explain the origin of BCN without turning the Founder page into a BCN sales page. The visual should support Trevor's purpose and the need for a better environment.",
+    qualityChecklist: buildQualityChecklist({
+      imageFamilyTag: "story-mission"
+    }),
+    promptTemplate: createPromptTemplate({
+      styleSummary: "Trevor building The Business Circle Network as a trusted founder environment.",
+      sceneType: "Premium founder-led environment creation visual.",
+      subject:
+        "Founder shaping a private business owner environment with notes, strategy materials, and subtle community structure.",
+      environment:
+        "Dark premium workspace suggesting a calm founder-led business circle, not a networking event.",
+      lighting: "Cinematic dark lighting with royal blue shadows and warm gold highlights.",
+      mood: "Purposeful, calm, trusted, founder-led, and serious.",
+      style: "Ultra realistic editorial photography.",
+      cameraComposition:
+        "Wide 16:9 composition with clear focal point and restrained environmental detail.",
+      qualityTags:
+        "Premium founder-led environment, realistic, no watermark, no text in image, calm BCN origin.",
+      negativePrompt:
+        "networking event crowd, sales presentation, generic business stock, fake boardroom, hype graphics, watermark"
+    }),
+    defaultOverlayStyle: "SOFT_DARK"
+  },
   FOUNDER_STORY: {
     key: "founder.story",
     label: "Founder / Growth Architect - BCN Story",

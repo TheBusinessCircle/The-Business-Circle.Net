@@ -12,6 +12,11 @@ describe("founder visual media placement wiring", () => {
 
     for (const key of [
       "founder.hero",
+      "founder.working",
+      "founder.journey",
+      "founder.reviewing",
+      "founder.conversations",
+      "founder.buildingBcn",
       "founder.story",
       "founder.growthArchitecture",
       "founder.audit",

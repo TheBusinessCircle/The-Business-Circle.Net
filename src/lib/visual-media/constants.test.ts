@@ -31,6 +31,15 @@ describe("visual media placement registry", () => {
       "services.section.approach"
     );
     expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_HERO.key).toBe("founder.hero");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_WORKING.key).toBe("founder.working");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_JOURNEY.key).toBe("founder.journey");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_REVIEWING.key).toBe("founder.reviewing");
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_CONVERSATIONS.key).toBe(
+      "founder.conversations"
+    );
+    expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_BUILDING_BCN.key).toBe(
+      "founder.buildingBcn"
+    );
     expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_STORY.key).toBe("founder.story");
     expect(VISUAL_MEDIA_PLACEMENTS.FOUNDER_GROWTH_ARCHITECTURE.key).toBe(
       "founder.growthArchitecture"
@@ -55,7 +64,7 @@ describe("visual media placement registry", () => {
       item.key.startsWith("founder.")
     );
 
-    expect(founderSlots).toHaveLength(12);
+    expect(founderSlots).toHaveLength(17);
     expect(founderSlots.every((item) => item.page === "FOUNDER")).toBe(true);
     expect(founderSlots.every((item) => item.adminHelperText)).toBe(true);
     expect(

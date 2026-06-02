@@ -39,6 +39,26 @@ function fallbackAltTextForPlacement(placement: VisualMediaRenderablePlacement) 
     return "Trevor Newton Growth Architect founder of The Business Circle Network";
   }
 
+  if (placement.key === "founder.working") {
+    return "Trevor Newton working through business growth strategy";
+  }
+
+  if (placement.key === "founder.journey") {
+    return "Trevor Newton founder journey and lived business experience";
+  }
+
+  if (placement.key === "founder.reviewing") {
+    return "Trevor Newton reviewing business clarity and growth opportunities";
+  }
+
+  if (placement.key === "founder.conversations") {
+    return "Trevor Newton in a founder conversation with a business owner";
+  }
+
+  if (placement.key === "founder.buildingBcn") {
+    return "Trevor Newton building The Business Circle Network founder environment";
+  }
+
   if (
     placement.key === "founder.growthArchitecture" ||
     placement.key === "founder.growthArchitectureMobile"

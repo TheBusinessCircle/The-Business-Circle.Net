@@ -103,6 +103,80 @@ const REALITY_LINES = [
   "Not because they lack effort, but because they are too close to the business to see what is really happening."
 ] as const;
 
+const FOUNDER_JOURNEY = [
+  {
+    chapter: "Started early",
+    detail:
+      "Trevor started working at 15. Cafe shifts, customer-facing work, building sites, factory floors, and practical jobs taught him how real work feels before business theory ever entered the picture."
+  },
+  {
+    chapter: "Learned how things are built",
+    detail:
+      "Engineering and workshop environments shaped his eye for systems, sequence, pressure points, and the small details that change whether something works properly."
+  },
+  {
+    chapter: "Saw business from the inside",
+    detail:
+      "Agency experience and running businesses gave him a close view of websites, marketing, sales, delivery, client expectations, cash flow, and the decisions owners carry quietly."
+  },
+  {
+    chapter: "Came back stronger",
+    detail:
+      "Personal setbacks changed the way Trevor works with founders. The advice became less theoretical, more grounded, and more respectful of what business owners are often carrying."
+  },
+  {
+    chapter: "Helped owners find clarity",
+    detail:
+      "After helping hundreds of business owners, he kept seeing the same pattern: good people, good businesses, and good ideas often held back by unclear positioning, weak trust signals, and noisy environments."
+  },
+  {
+    chapter: "Built the wider environment",
+    detail:
+      "That pattern became part of the foundation for The Business Circle Network: a calmer, founder-led place for serious owners to connect, learn, think, and grow with more trust around them."
+  }
+] as const;
+
+const RELATABLE_WORK = [
+  "Factory floors",
+  "Workshops",
+  "Customer-facing roles",
+  "Small businesses",
+  "Growing businesses",
+  "Owner-led service work"
+] as const;
+
+const OWNER_PRESSURES = [
+  "Cash flow worries",
+  "Hiring concerns",
+  "Time pressure",
+  "Website frustration",
+  "Marketing confusion",
+  "Growth uncertainty"
+] as const;
+
+const FOUNDER_PRINCIPLES = [
+  {
+    principle: "Trust over hype",
+    description: "Growth should make a business easier to believe, not louder for the sake of it."
+  },
+  {
+    principle: "Relationships over transactions",
+    description: "The best work usually starts with understanding the owner, not pushing a package."
+  },
+  {
+    principle: "Clarity over complexity",
+    description: "Most owners do not need more noise. They need to see the few things that matter."
+  },
+  {
+    principle: "Long-term growth over shortcuts",
+    description: "Quick wins are useful only when they support the business the owner is building."
+  },
+  {
+    principle: "Helping first",
+    description: "A useful conversation should leave the owner clearer, even before anything is sold."
+  }
+] as const;
+
 const AUDIT_AREAS = [
   {
     title: "Trust Signals",
@@ -194,10 +268,9 @@ const VIBE_METHOD = [
 ] as const;
 
 const FOUNDER_STORY = [
-  "Trevor has been working since the age of 15, moving through factory work, engineering, agency work, and eventually building businesses of his own.",
-  "That route shaped the way he looks at growth. He is interested in what actually works, what creates trust, what removes friction, and what helps an owner make better decisions under real pressure.",
-  "Personal challenges and years spent helping business owners have made the work more grounded, not more dramatic. The point is not performance. It is clarity.",
-  "The Business Circle Network grew from the same belief: serious business owners need calmer rooms, sharper thinking, and people around them who care about long-term progress."
+  "After helping hundreds of founders, Trevor noticed most owners were not lacking intelligence, effort, or ambition.",
+  "They were lacking the right environment: a place with calmer conversations, sharper questions, trusted relationships, and enough structure to think clearly before making the next decision.",
+  "The Business Circle Network grew from that observation. BCN is the wider room, but the Growth Architect work remains the direct layer: Trevor looking carefully at the business, finding what is holding it back, and helping the owner see a more practical path forward."
 ] as const;
 
 const CASE_STUDY_PATTERNS = [
@@ -483,6 +556,11 @@ export default async function FounderPage() {
     growthArchitectTestimonials,
     founderHeroPlacement,
     founderHeroMobilePlacement,
+    founderWorkingPlacement,
+    founderJourneyPlacement,
+    founderReviewingPlacement,
+    founderConversationsPlacement,
+    founderBuildingBcnPlacement,
     founderStoryPlacement,
     founderStoryMobilePlacement,
     founderGrowthArchitecturePlacement,
@@ -508,6 +586,11 @@ export default async function FounderPage() {
     }).catch(() => []),
     getVisualMediaPlacement("founder.hero"),
     getVisualMediaPlacement("founder.heroMobile"),
+    getVisualMediaPlacement("founder.working"),
+    getVisualMediaPlacement("founder.journey"),
+    getVisualMediaPlacement("founder.reviewing"),
+    getVisualMediaPlacement("founder.conversations"),
+    getVisualMediaPlacement("founder.buildingBcn"),
     getVisualMediaPlacement("founder.story"),
     getVisualMediaPlacement("founder.storyMobile"),
     getVisualMediaPlacement("founder.growthArchitecture"),
@@ -560,13 +643,12 @@ export default async function FounderPage() {
               </Badge>
               <div className="space-y-4">
                 <h1 className="max-w-5xl font-display text-4xl leading-[1.03] tracking-normal text-foreground sm:text-5xl lg:text-7xl">
-                  Most businesses do not have a traffic problem.
-                  <span className="block text-gold">They have a clarity problem.</span>
+                  Trevor Newton helps business owners see what is really holding growth back.
                 </h1>
                 <p className="max-w-3xl text-base leading-relaxed text-white/82 sm:text-xl">
-                  I help business owners identify what is holding their business back, uncover
-                  hidden opportunities, and create practical growth strategies built on trust,
-                  visibility, and long-term success.
+                  Not from textbook theory. From real work, real businesses, personal setbacks,
+                  hundreds of founder conversations, and a belief that trust, clarity, and practical
+                  action should come before hype.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -584,9 +666,9 @@ export default async function FounderPage() {
               </div>
               <div className="grid max-w-4xl gap-3 pt-2 sm:grid-cols-3">
                 {[
-                  "Business clarity review",
-                  "Trust and conversion analysis",
-                  "Practical growth direction"
+                  "Lived business experience",
+                  "Calm strategic analysis",
+                  "Growth built on trust"
                 ].map((item) => (
                   <div
                     key={item}
@@ -602,6 +684,113 @@ export default async function FounderPage() {
       </section>
 
       <div className="public-page-stack max-w-full overflow-x-clip">
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,0.5fr)_minmax(0,1fr)] xl:items-stretch">
+          <FounderVisual
+            placement={founderJourneyPlacement}
+            tone="story"
+            aspectClassName="aspect-[4/5] sm:aspect-[16/10] xl:aspect-auto"
+            className="min-h-[20rem] xl:h-full"
+            sizes="(min-width: 1280px) 34vw, 100vw"
+          >
+            <div className="w-full p-4 sm:p-5">
+              <div className="rounded-[1.25rem] border border-white/10 bg-background/50 p-4 backdrop-blur">
+                <p className="premium-kicker">Founder Journey</p>
+                <p className="mt-3 text-sm leading-relaxed text-muted">
+                  A working life shaped by real pressure, practical environments, and business
+                  owners who needed clearer decisions.
+                </p>
+              </div>
+            </div>
+          </FounderVisual>
+
+          <div className="space-y-5">
+            <FounderSectionHeader
+              eyebrow="The Trevor Newton Story"
+              title="He has lived enough life to understand business owners."
+              intro="Trevor's view of growth was not built in one neat lane. It came from working early, learning practical trades and systems, running businesses, navigating setbacks, and spending years around founders trying to build something that lasts."
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {FOUNDER_JOURNEY.map((item) => (
+                <div
+                  key={item.chapter}
+                  className="rounded-[1.3rem] border border-white/10 bg-card/68 p-4 shadow-panel-soft"
+                >
+                  <h3 className="font-display text-xl tracking-normal text-foreground">
+                    {item.chapter}
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.58fr)] xl:items-stretch">
+          <div className="space-y-5">
+            <FounderSectionHeader
+              eyebrow="Why Owners Relate"
+              title="Trevor is not a consultant who only learned business from textbooks."
+              intro="He has worked around people, pressure, deadlines, customers, tools, systems, and the quiet uncertainty that sits behind many owner decisions. That makes the Growth Architect work more practical, more direct, and more respectful of the real world."
+            />
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="border-border/90 bg-card/68 shadow-panel-soft">
+                <CardHeader className="p-5">
+                  <CardTitle className="font-display text-2xl tracking-normal">
+                    Places that shaped the thinking
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-2.5 p-5 pt-0">
+                  {RELATABLE_WORK.map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-[1.05rem] border border-white/8 bg-background/18 px-4 py-3 text-sm text-foreground"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card className="border-gold/24 bg-gradient-to-br from-gold/10 via-card/78 to-card/68 shadow-panel-soft">
+                <CardHeader className="p-5">
+                  <CardTitle className="font-display text-2xl tracking-normal">
+                    Pressures he understands
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-2.5 p-5 pt-0">
+                  {OWNER_PRESSURES.map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-[1.05rem] border border-gold/16 bg-background/18 px-4 py-3 text-sm text-foreground"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <FounderVisual
+            placement={founderWorkingPlacement}
+            tone="human"
+            aspectClassName="aspect-[4/5] sm:aspect-[16/10] xl:aspect-auto"
+            className="min-h-[18rem] xl:h-full"
+            sizes="(min-width: 1280px) 32vw, 100vw"
+          >
+            <div className="w-full p-4 sm:p-5">
+              <div className="rounded-[1.25rem] border border-white/10 bg-background/50 p-4 backdrop-blur">
+                <p className="premium-kicker">Lived experience</p>
+                <p className="mt-3 text-sm leading-relaxed text-muted">
+                  The value is not theory dressed up as confidence. It is pattern recognition from
+                  real owner problems and real working environments.
+                </p>
+              </div>
+            </div>
+          </FounderVisual>
+        </section>
+
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.62fr)] xl:items-stretch">
           <div className="space-y-5">
             <FounderSectionHeader
@@ -625,8 +814,7 @@ export default async function FounderPage() {
           </div>
 
           <FounderVisual
-            placement={founderGrowthArchitecturePlacement}
-            mobilePlacement={founderGrowthArchitectureMobilePlacement}
+            placement={founderReviewingPlacement}
             tone="editorial"
             aspectClassName="aspect-[4/5] sm:aspect-[16/10] xl:aspect-auto"
             className="min-h-[18rem] xl:h-full"
@@ -657,8 +845,7 @@ export default async function FounderPage() {
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.42fr)_minmax(0,1fr)] lg:items-stretch">
             <FounderVisual
-              placement={founderProofPlacement}
-              mobilePlacement={founderProofMobilePlacement}
+              placement={founderConversationsPlacement}
               tone="human"
               aspectClassName="aspect-[4/5] sm:aspect-[16/10] lg:aspect-auto"
               className="min-h-[16rem] lg:h-full"
@@ -845,7 +1032,10 @@ export default async function FounderPage() {
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.62fr)] xl:items-stretch">
           <Card className="border-border/90 bg-card/72 shadow-panel-soft">
             <CardHeader className="p-5 sm:p-6">
-              <FounderSectionHeader eyebrow="Why I Do This" title="The founder story." />
+              <FounderSectionHeader
+                eyebrow="Why I Built The Business Circle"
+                title="Most owners were not missing intelligence. They were missing the right environment."
+              />
             </CardHeader>
             <CardContent className="space-y-4 p-5 pt-0 text-base leading-relaxed text-muted sm:p-6 sm:pt-0">
               {FOUNDER_STORY.map((paragraph) => (
@@ -855,8 +1045,7 @@ export default async function FounderPage() {
           </Card>
 
           <FounderVisual
-            placement={founderStoryPlacement}
-            mobilePlacement={founderStoryMobilePlacement}
+            placement={founderBuildingBcnPlacement}
             tone="story"
             aspectClassName="aspect-[4/5] sm:aspect-[16/10] xl:aspect-auto"
             className="min-h-[18rem] xl:h-full"
@@ -869,12 +1058,55 @@ export default async function FounderPage() {
               <div className="rounded-[1.25rem] border border-white/10 bg-background/48 p-4 backdrop-blur">
                 <p className="premium-kicker">Founder note</p>
                 <p className="mt-3 text-sm leading-relaxed text-muted">
-                  The work is not about guru energy or generic advice. It is about looking properly,
-                  naming what matters, and giving owners a clearer path forward.
+                  BCN is secondary on this page, but it matters because it shows the same belief:
+                  founders grow better when trust, environment, and clearer thinking sit around
+                  them.
                 </p>
               </div>
             </div>
           </FounderVisual>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)] xl:items-stretch">
+          <FounderVisual
+            placement={founderStoryPlacement}
+            mobilePlacement={founderStoryMobilePlacement}
+            tone="founders"
+            aspectClassName="aspect-[4/5] sm:aspect-[16/10] xl:aspect-auto"
+            className="min-h-[18rem] xl:h-full"
+            sizes="(min-width: 1280px) 32vw, 100vw"
+          >
+            <div className="w-full p-4 sm:p-5">
+              <div className="rounded-[1.25rem] border border-white/10 bg-background/50 p-4 backdrop-blur">
+                <p className="premium-kicker">Founder Philosophy</p>
+                <p className="mt-3 text-sm leading-relaxed text-muted">
+                  Principles that keep the work calm, useful, and centred on the owner&apos;s real
+                  decision.
+                </p>
+              </div>
+            </div>
+          </FounderVisual>
+
+          <div className="space-y-5">
+            <FounderSectionHeader
+              eyebrow="How Trevor Thinks"
+              title="The principles behind the advice."
+              intro="These are not marketing slogans. They are the standards Trevor tries to bring into the review, the conversation, and the growth plan."
+            />
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              {FOUNDER_PRINCIPLES.map((item) => (
+                <div
+                  key={item.principle}
+                  className="rounded-[1.3rem] border border-white/10 bg-card/68 p-4 shadow-panel-soft"
+                >
+                  <h3 className="font-display text-lg tracking-normal text-foreground">
+                    {item.principle}
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="space-y-5">
@@ -887,6 +1119,25 @@ export default async function FounderPage() {
                 : "Specific client names and outcomes only appear when approved for public use. Until then, these examples show the kind of problems a review is built to uncover."
             }
           />
+
+          <FounderVisual
+            placement={founderProofPlacement}
+            mobilePlacement={founderProofMobilePlacement}
+            tone="editorial"
+            aspectClassName="aspect-[4/5] sm:aspect-[16/10] md:aspect-[16/8]"
+            className="min-h-[14rem] max-h-[24rem]"
+            sizes="(min-width: 1280px) 72vw, 100vw"
+          >
+            <div className="w-full max-w-full min-w-0 p-4 sm:p-5">
+              <div className="w-full max-w-xl min-w-0 rounded-[1.25rem] border border-white/10 bg-background/48 p-4 backdrop-blur">
+                <p className="premium-kicker">Proof over promises</p>
+                <p className="mt-3 text-sm leading-relaxed text-muted">
+                  Real examples stay grounded in problems found, opportunities uncovered, and what
+                  became clearer for the owner.
+                </p>
+              </div>
+            </div>
+          </FounderVisual>
 
           <div className="grid gap-4 lg:grid-cols-3">
             {caseStudyTestimonials.length
