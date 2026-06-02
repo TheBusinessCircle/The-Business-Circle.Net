@@ -14,6 +14,10 @@ describe("community source preview media", () => {
 
     expect(preview.kind).toBe("placeholder");
     expect(preview.url).toContain("data:image/svg+xml");
+    expect(preview.alt).toBe(
+      "Bank rate decision affects finance planning source preview unavailable"
+    );
+    expect(preview.alt).not.toMatch(/placeholder/i);
   });
 
   it("proxies external images so blocked hotlinks are not rendered directly", () => {

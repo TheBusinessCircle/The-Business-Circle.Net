@@ -32,31 +32,31 @@ function resolveObjectPosition(placement: VisualMediaRenderablePlacement) {
 }
 
 const UNSAFE_PUBLIC_ALT_TEXT_PATTERN =
-  /^(?:test|image:\s*test|image|business network)$/i;
+  /^(?:test|image:\s*test|image|photo|hero image|banner|graphic|placeholder|business image|business network)$/i;
 
 function fallbackAltTextForPlacement(placement: VisualMediaRenderablePlacement) {
   if (placement.key === "founder.hero" || placement.key === "founder.heroMobile") {
-    return "Trevor Newton Growth Architect founder of The Business Circle Network";
+    return "Founder-led Growth Architect workspace for business clarity and strategic review";
   }
 
   if (placement.key === "founder.working") {
-    return "Trevor Newton working through business growth strategy";
+    return "Practical business experience informing founder-led growth strategy";
   }
 
   if (placement.key === "founder.journey") {
-    return "Trevor Newton founder journey and lived business experience";
+    return "Founder journey and lived business experience behind Growth Architect work";
   }
 
   if (placement.key === "founder.reviewing") {
-    return "Trevor Newton reviewing business clarity and growth opportunities";
+    return "Business clarity review identifying direction and growth opportunities";
   }
 
   if (placement.key === "founder.conversations") {
-    return "Trevor Newton in a founder conversation with a business owner";
+    return "Business owners in a trusted Growth Architect review conversation";
   }
 
   if (placement.key === "founder.buildingBcn") {
-    return "Trevor Newton building The Business Circle Network founder environment";
+    return "Private founder-led business circle being shaped through strategy materials";
   }
 
   if (
@@ -71,7 +71,7 @@ function fallbackAltTextForPlacement(placement: VisualMediaRenderablePlacement) 
   }
 
   if (placement.key === "founder.proof" || placement.key === "founder.proofMobile") {
-    return "Founder proof and business owner testimonials";
+    return "Growth Architect testimonials and business owner feedback in a review setting";
   }
 
   if (
@@ -80,7 +80,7 @@ function fallbackAltTextForPlacement(placement: VisualMediaRenderablePlacement) 
     placement.key === "founder.finalCta" ||
     placement.key === "founder.finalCtaMobile"
   ) {
-    return "Business owner visibility and conversion audit";
+    return "Private founder-led growth environment supporting business clarity";
   }
 
   if (placement.key.startsWith("membership.")) {

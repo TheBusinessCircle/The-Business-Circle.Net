@@ -9,6 +9,7 @@ import {
 } from "@/lib/db-errors";
 import {
   getVisualMediaPlacementDefinition,
+  getVisualMediaPlacementDefault,
   VISUAL_MEDIA_LEGACY_KEY_MAP,
   VISUAL_MEDIA_PLACEMENT_KEYS,
   VISUAL_MEDIA_PLACEMENT_LIST,
@@ -32,6 +33,14 @@ import {
   type StoredVisualMediaAsset
 } from "@/server/visual-media/visual-media-upload.service";
 
+const UNSAFE_VISUAL_MEDIA_ALT_TEXT_PATTERN =
+  /^(?:test|image:\s*test|image|photo|hero image|banner|graphic|placeholder|business image|business network)$/i;
+
+function isUnsafeVisualMediaAltText(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return !trimmed || UNSAFE_VISUAL_MEDIA_ALT_TEXT_PATTERN.test(trimmed);
+}
+
 function toVisualMediaRecord(
   record: VisualMediaPlacementRow | null
 ): VisualMediaPlacementRecord | null {
@@ -40,6 +49,15 @@ function toVisualMediaRecord(
   }
 
   const definition = getVisualMediaPlacementDefinition(record.key as VisualMediaPlacementKey);
+  const defaultAsset = definition
+    ? getVisualMediaPlacementDefault(record.key as VisualMediaPlacementKey)
+    : null;
+  const imageUrl = record.imageUrl ?? defaultAsset?.imageUrl ?? null;
+  const mobileImageUrl = record.mobileImageUrl ?? defaultAsset?.mobileImageUrl ?? null;
+  const altText = isUnsafeVisualMediaAltText(record.altText)
+    ? defaultAsset?.altText ?? record.altText
+    : record.altText;
+  const objectPosition = record.objectPosition ?? defaultAsset?.objectPosition ?? null;
 
   return {
     id: record.id,
@@ -48,16 +66,16 @@ function toVisualMediaRecord(
     page: record.page,
     section: record.section ?? definition?.section ?? "general",
     variant: record.variant,
-    imageUrl: record.imageUrl,
-    mobileImageUrl: record.mobileImageUrl,
+    imageUrl,
+    mobileImageUrl,
     desktopStorageKey: record.desktopStorageKey,
     mobileStorageKey: record.mobileStorageKey,
     storageProvider: record.storageProvider,
-    altText: record.altText,
-    isActive: record.isActive,
+    altText,
+    isActive: record.isActive || Boolean(!record.imageUrl && defaultAsset?.imageUrl),
     sortOrder: record.sortOrder,
     overlayStyle: record.overlayStyle,
-    objectPosition: record.objectPosition,
+    objectPosition,
     focalPointX: record.focalPointX,
     focalPointY: record.focalPointY,
     adminHelperText: record.adminHelperText,
@@ -76,6 +94,7 @@ function createFallbackVisualMediaRecord(
   if (!definition) {
     return null;
   }
+  const defaultAsset = getVisualMediaPlacementDefault(key);
 
   return {
     id: null,
@@ -84,16 +103,16 @@ function createFallbackVisualMediaRecord(
     page: definition.page,
     section: definition.section,
     variant: definition.variant,
-    imageUrl: null,
-    mobileImageUrl: null,
+    imageUrl: defaultAsset?.imageUrl ?? null,
+    mobileImageUrl: defaultAsset?.mobileImageUrl ?? null,
     desktopStorageKey: null,
     mobileStorageKey: null,
     storageProvider: null,
-    altText: null,
-    isActive: false,
+    altText: defaultAsset?.altText ?? null,
+    isActive: Boolean(defaultAsset?.imageUrl),
     sortOrder: definition.sortOrder,
     overlayStyle: definition.defaultOverlayStyle ?? null,
-    objectPosition: null,
+    objectPosition: defaultAsset?.objectPosition ?? null,
     focalPointX: null,
     focalPointY: null,
     adminHelperText: definition.adminHelperText ?? null,
@@ -116,6 +135,7 @@ function createPlacementSeedInput(key: VisualMediaPlacementKey) {
   if (!definition) {
     throw new Error(`Unknown visual media placement key: ${key}`);
   }
+  const defaultAsset = getVisualMediaPlacementDefault(key);
 
   return {
     key: definition.key,
@@ -124,6 +144,11 @@ function createPlacementSeedInput(key: VisualMediaPlacementKey) {
     section: definition.section,
     variant: definition.variant,
     sortOrder: definition.sortOrder,
+    imageUrl: defaultAsset?.imageUrl,
+    mobileImageUrl: defaultAsset?.mobileImageUrl,
+    altText: defaultAsset?.altText,
+    isActive: Boolean(defaultAsset?.imageUrl),
+    objectPosition: defaultAsset?.objectPosition,
     overlayStyle: definition.defaultOverlayStyle ?? null,
     adminHelperText: definition.adminHelperText ?? null
   } satisfies Prisma.VisualMediaPlacementUncheckedCreateInput;
@@ -143,6 +168,59 @@ function canonicalPlacementUpdate(
     adminHelperText: seed.adminHelperText,
     overlayStyle: seed.overlayStyle
   };
+}
+
+function defaultVisualMediaPlacementUpdate(
+  placement: VisualMediaPlacementRow,
+  key: VisualMediaPlacementKey
+): Prisma.VisualMediaPlacementUncheckedUpdateInput | null {
+  const defaultAsset = getVisualMediaPlacementDefault(key);
+
+  if (!defaultAsset) {
+    return null;
+  }
+
+  const update: Prisma.VisualMediaPlacementUncheckedUpdateInput = {};
+
+  if (!placement.imageUrl) {
+    update.imageUrl = defaultAsset.imageUrl;
+    update.isActive = true;
+  }
+
+  if (!placement.mobileImageUrl && defaultAsset.mobileImageUrl) {
+    update.mobileImageUrl = defaultAsset.mobileImageUrl;
+  }
+
+  if (isUnsafeVisualMediaAltText(placement.altText)) {
+    update.altText = defaultAsset.altText;
+  }
+
+  if (!placement.objectPosition && defaultAsset.objectPosition) {
+    update.objectPosition = defaultAsset.objectPosition;
+  }
+
+  return Object.keys(update).length ? update : null;
+}
+
+async function ensureDefaultVisualMediaPlacement(placement: VisualMediaPlacementRow) {
+  const definition = getVisualMediaPlacementDefinition(
+    placement.key as VisualMediaPlacementKey
+  );
+
+  if (!definition) {
+    return placement;
+  }
+
+  const defaultUpdate = defaultVisualMediaPlacementUpdate(
+    placement,
+    definition.key as VisualMediaPlacementKey
+  );
+
+  if (!defaultUpdate) {
+    return placement;
+  }
+
+  return updateVisualMediaPlacementByKey(placement.key, defaultUpdate);
 }
 
 function findLegacyPlacementKey(targetKey: VisualMediaPlacementKey) {
@@ -229,21 +307,24 @@ export async function syncVisualMediaPlacementRegistry() {
       });
     })
   );
+  const hydratedPlacements = await Promise.all(
+    placements.map((placement) => ensureDefaultVisualMediaPlacement(placement))
+  );
 
-  return placements.map((placement) => toVisualMediaRecord(placement)).filter(Boolean);
+  return hydratedPlacements.map((placement) => toVisualMediaRecord(placement)).filter(Boolean);
 }
 
 async function loadVisualMediaPlacement(key: VisualMediaPlacementKey) {
   const existing = await findVisualMediaPlacementByKey(key);
 
   if (existing) {
-    return toVisualMediaRecord(existing);
+    return toVisualMediaRecord(await ensureDefaultVisualMediaPlacement(existing));
   }
 
   const migrated = await migrateLegacyPlacementKey(key);
 
   if (migrated) {
-    return toVisualMediaRecord(migrated);
+    return toVisualMediaRecord(await ensureDefaultVisualMediaPlacement(migrated));
   }
 
   const seed = createPlacementSeedInput(key);
@@ -259,10 +340,14 @@ async function loadVisualMediaPlacements() {
   );
 
   if (hasEveryRegisteredPlacement && existing.length === VISUAL_MEDIA_PLACEMENT_LIST.length) {
-    return existing
-      .filter((placement) => VISUAL_MEDIA_PLACEMENT_KEYS.includes(placement.key as VisualMediaPlacementKey))
-      .map((placement) => toVisualMediaRecord(placement))
-      .filter(Boolean);
+    const registeredPlacements = existing.filter((placement) =>
+      VISUAL_MEDIA_PLACEMENT_KEYS.includes(placement.key as VisualMediaPlacementKey)
+    );
+    const hydratedPlacements = await Promise.all(
+      registeredPlacements.map((placement) => ensureDefaultVisualMediaPlacement(placement))
+    );
+
+    return hydratedPlacements.map((placement) => toVisualMediaRecord(placement)).filter(Boolean);
   }
 
   return syncVisualMediaPlacementRegistry();

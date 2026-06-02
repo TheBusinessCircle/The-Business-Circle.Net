@@ -1,5 +1,8 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  VISUAL_MEDIA_DEFAULT_ASSETS,
   VISUAL_MEDIA_PLACEMENT_KEYS,
   VISUAL_MEDIA_PLACEMENT_LIST,
   VISUAL_MEDIA_PLACEMENTS,
@@ -113,5 +116,33 @@ describe("visual media placement registry", () => {
         );
       })
     ).toBe(true);
+  });
+
+  it("assigns a default image and useful alt text to every approved slot", () => {
+    expect(Object.keys(VISUAL_MEDIA_DEFAULT_ASSETS).sort()).toEqual(
+      [...VISUAL_MEDIA_PLACEMENT_KEYS].sort()
+    );
+
+    expect(
+      VISUAL_MEDIA_PLACEMENT_KEYS.every((key) => {
+        const asset = VISUAL_MEDIA_DEFAULT_ASSETS[key];
+        return (
+          asset.imageUrl.startsWith("/visual-media/defaults/") &&
+          asset.imageUrl.endsWith(".webp") &&
+          asset.altText.length > 24 &&
+          !/^(?:image|photo|banner|graphic|placeholder|business image)$/i.test(asset.altText)
+        );
+      })
+    ).toBe(true);
+  });
+
+  it("points default image assignments at committed public assets", () => {
+    const uniqueAssetUrls = Array.from(
+      new Set(Object.values(VISUAL_MEDIA_DEFAULT_ASSETS).map((asset) => asset.imageUrl))
+    );
+
+    for (const assetUrl of uniqueAssetUrls) {
+      expect(existsSync(join(process.cwd(), "public", assetUrl))).toBe(true);
+    }
   });
 });

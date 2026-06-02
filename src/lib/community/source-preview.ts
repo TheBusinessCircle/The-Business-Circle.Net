@@ -179,6 +179,6 @@ export function resolveCommunitySourcePreview(input: CommunitySourcePreviewInput
     sourceDomain: sourceDomain || null,
     sourceName,
     kind: "placeholder" as CommunitySourcePreviewKind,
-    alt: `${input.title} source preview placeholder`
+    alt: `${input.title} source preview unavailable`
   };
 }

@@ -168,9 +168,12 @@ describe("daily resource generation guards", () => {
     });
 
     expect(resolved.isFallback).toBe(true);
-    expect(resolved.url).toMatch(/^data:image\/svg\+xml/);
-    expect(decodeURIComponent(resolved.url)).not.toContain(
-      "Offer clarity without over-explaining"
+    expect(resolved.url).toBe(
+      "/visual-media/defaults/founder-insights-resources-intelligence.webp"
     );
+    expect(resolved.alt).toBe(
+      "Offer clarity without over-explaining resource cover visual for Offer Clarity"
+    );
+    expect(resolved.alt).not.toMatch(/placeholder|image$/i);
   });
 });

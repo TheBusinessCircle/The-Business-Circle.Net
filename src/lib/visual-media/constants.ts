@@ -2439,6 +2439,257 @@ export const VISUAL_MEDIA_PLACEMENT_LIST = Object.values(VISUAL_MEDIA_PLACEMENTS
 
 export const VISUAL_MEDIA_PLACEMENT_KEYS = VISUAL_MEDIA_PLACEMENT_LIST.map((item) => item.key);
 
+export type VisualMediaDefaultAsset = {
+  imageUrl: string;
+  mobileImageUrl?: string;
+  altText: string;
+  objectPosition?: string;
+};
+
+const DEFAULT_ASSET_BASE_PATH = "/visual-media/defaults";
+
+const defaultAssetUrl = (filename: string) => `${DEFAULT_ASSET_BASE_PATH}/${filename}`;
+
+const DEFAULT_VISUAL_MEDIA_URLS = {
+  publicAtmosphere: defaultAssetUrl("business-circle-premium-public-atmosphere.webp"),
+  platform: defaultAssetUrl("private-founder-network-platform.webp"),
+  insights: defaultAssetUrl("founder-insights-resources-intelligence.webp"),
+  collaboration: defaultAssetUrl("business-owner-collaboration-room.webp"),
+  founderHero: defaultAssetUrl("growth-architect-founder-hero.webp"),
+  founderWorking: defaultAssetUrl("founder-practical-business-experience.webp"),
+  founderJourney: defaultAssetUrl("founder-life-experience-journey.webp"),
+  founderReviewing: defaultAssetUrl("growth-architect-clarity-direction.webp"),
+  founderProof: defaultAssetUrl("growth-architect-testimonials-reviews.webp"),
+  founderStrategy: defaultAssetUrl("growth-architect-strategy-audit-workspace.webp"),
+  founderBuildingBcn: defaultAssetUrl("founder-building-business-circle-network.webp"),
+  founderFinalCta: defaultAssetUrl("founder-final-cta-private-invitation.webp")
+} as const;
+
+export const VISUAL_MEDIA_DEFAULT_ASSETS = {
+  "home.hero": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.publicAtmosphere,
+    altText:
+      "Premium private founder-led business network environment with deep blue and gold lighting"
+  },
+  "home.section.connection": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.collaboration,
+    altText:
+      "Business owners having a focused conversation inside a private founder-led room"
+  },
+  "home.section.platform": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.platform,
+    altText:
+      "Private founder network platform preview with rooms, resources and member activity"
+  },
+  "home.section.join": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.platform,
+    altText:
+      "Digital membership access preview for The Business Circle Network"
+  },
+  "home.section.roomsPreview": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.collaboration,
+    altText:
+      "Business owners in a calm private room built for useful founder conversations"
+  },
+  "home.section.resourcesPreview": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.insights,
+    altText:
+      "Founder resources and business intelligence materials arranged in a premium workspace"
+  },
+  "home.section.callsPreview": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.collaboration,
+    altText:
+      "Business owners discussing strategy in a private founder-led conversation room"
+  },
+  "home.section.collaborationsPreview": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.collaboration,
+    altText:
+      "Founder collaboration discussion inside a focused private business environment"
+  },
+  "home.section.winsPreview": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.insights,
+    altText:
+      "Business owner insight cards and progress signals in a premium strategy workspace"
+  },
+  "home.section.ecosystemMap": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.platform,
+    altText:
+      "Private founder network ecosystem map shown on a premium digital platform"
+  },
+  "join.hero": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.publicAtmosphere,
+    altText:
+      "Premium private business network environment for new member access"
+  },
+  "join.section.inside": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.collaboration,
+    altText:
+      "Business owners inside a calm private founder-led conversation room"
+  },
+  "join.section.afterPayment": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.platform,
+    altText:
+      "The Business Circle membership journey preview on a premium digital platform"
+  },
+  "membership.hero": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.publicAtmosphere,
+    altText:
+      "Premium founder-led membership environment with private room atmosphere"
+  },
+  "membership.section.rooms": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.platform,
+    altText:
+      "Private membership room previews inside The Business Circle Network platform"
+  },
+  "membership.section.tierComparison": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.platform,
+    altText:
+      "Structured membership tier comparison experience inside a private founder network"
+  },
+  "membership.section.founders": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderFinalCta,
+    altText:
+      "Private founder-led room inviting serious business owners into The Business Circle"
+  },
+  "about.hero": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.publicAtmosphere,
+    altText:
+      "Premium private founder-led business environment for The Business Circle story"
+  },
+  "about.section.story": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderJourney,
+    altText:
+      "Founder journey workspace connecting practical experience with business strategy"
+  },
+  "community.hero": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.collaboration,
+    altText:
+      "Business owners in a private founder-led community conversation"
+  },
+  "resources.hero": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.insights,
+    altText:
+      "Founder resources and strategic business intelligence in a premium workspace"
+  },
+  "intelligence.hero": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.insights,
+    altText:
+      "Business intelligence cards and insight signals for founder decision-making"
+  },
+  "services.hero": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderStrategy,
+    altText:
+      "Growth Architect strategy workspace reviewing business clarity and trust signals"
+  },
+  "services.section.approach": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderStrategy,
+    altText:
+      "Structured Growth Architect audit workspace with website review and strategy materials"
+  },
+  "founder.hero": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderHero,
+    altText:
+      "Founder-led Growth Architect workspace for business clarity and strategic review"
+  },
+  "founder.working": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderWorking,
+    altText:
+      "Practical business experience shown through workshop, factory and website strategy materials"
+  },
+  "founder.journey": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderJourney,
+    altText:
+      "Founder journey workspace showing resilience, practical trades and business strategy experience"
+  },
+  "founder.reviewing": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderReviewing,
+    altText:
+      "Business owner and adviser reviewing clear next steps toward growth and direction"
+  },
+  "founder.conversations": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderProof,
+    altText:
+      "Business owners in a trusted Growth Architect review conversation"
+  },
+  "founder.buildingBcn": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderBuildingBcn,
+    altText:
+      "Private founder-led business circle being shaped through strategy materials"
+  },
+  "founder.story": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderBuildingBcn,
+    altText:
+      "Private business circle environment supporting the founder story behind BCN"
+  },
+  "founder.growthArchitecture": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderStrategy,
+    altText:
+      "Growth Architecture workspace with business audit and website strategy materials"
+  },
+  "founder.audit": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderStrategy,
+    altText:
+      "Business clarity audit workspace reviewing trust, visibility and conversion opportunities"
+  },
+  "founder.proof": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderProof,
+    altText:
+      "Growth Architect testimonials and business owner feedback in a premium review setting"
+  },
+  "founder.finalCta": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderFinalCta,
+    altText:
+      "Private founder-led growth room presented as a calm next-step invitation"
+  },
+  "founder.heroMobile": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderHero,
+    altText:
+      "Mobile view of a founder-led Growth Architect workspace for business clarity"
+  },
+  "founder.storyMobile": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderBuildingBcn,
+    altText:
+      "Mobile view of a private founder-led business circle environment"
+  },
+  "founder.growthArchitectureMobile": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderStrategy,
+    altText:
+      "Mobile view of Growth Architecture audit and strategy materials"
+  },
+  "founder.auditMobile": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderStrategy,
+    altText:
+      "Mobile view of a business clarity audit and website review workspace"
+  },
+  "founder.proofMobile": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderProof,
+    altText:
+      "Mobile view of a trusted Growth Architect review conversation"
+  },
+  "founder.finalCtaMobile": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.founderFinalCta,
+    altText:
+      "Mobile view of a calm private founder-led growth invitation"
+  },
+  "global.public.top": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.publicAtmosphere,
+    altText:
+      "Premium private business environment for The Business Circle public pages"
+  },
+  "faq.section.trust": {
+    imageUrl: DEFAULT_VISUAL_MEDIA_URLS.publicAtmosphere,
+    altText:
+      "Calm private business environment supporting trust, privacy and membership standards"
+  }
+} satisfies Record<VisualMediaPlacementKey, VisualMediaDefaultAsset>;
+
+export function getVisualMediaPlacementDefault(
+  key: VisualMediaPlacementKey
+): VisualMediaDefaultAsset | null {
+  const assets = VISUAL_MEDIA_DEFAULT_ASSETS as Record<string, VisualMediaDefaultAsset>;
+  return assets[key] ?? null;
+}
+
 export const VISUAL_MEDIA_PAGE_LABELS: Record<VisualMediaPage, string> = {
   HOME: "Home",
   MEMBERSHIP: "Membership",

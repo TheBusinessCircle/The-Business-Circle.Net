@@ -62,6 +62,6 @@ describe("visual media alt text", () => {
         }),
         false
       )
-    ).toBe("Trevor Newton in a founder conversation with a business owner");
+    ).toBe("Business owners in a trusted Growth Architect review conversation");
   });
 });

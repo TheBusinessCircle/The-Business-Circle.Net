@@ -17,6 +17,9 @@ type ResourceImageResult = {
   isFallback: boolean;
 };
 
+const RESOURCE_FALLBACK_IMAGE_URL =
+  "/visual-media/defaults/founder-insights-resources-intelligence.webp";
+
 const RESOURCE_TYPE_STYLES: Record<
   ResourceType,
   {
@@ -158,8 +161,8 @@ export function resolveResourceImage(input: ResourceImageInput): ResourceImageRe
   }
 
   return {
-    url: buildResourcePlaceholderImage(input),
-    alt: `${input.title} placeholder image`,
+    url: RESOURCE_FALLBACK_IMAGE_URL,
+    alt: `${input.title} resource cover visual for ${input.category}`,
     isFallback: true
   };
 }
