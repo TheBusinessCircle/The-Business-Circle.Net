@@ -27,6 +27,7 @@ import {
   upsertCircleCardAction
 } from "@/actions/circle-card.actions";
 import {
+  CircleCardCopyLinkButton,
   CircleCardInstallPrompt,
   CircleCardQrPanel,
   CircleCardShareButton
@@ -46,7 +47,7 @@ import {
 import { readCircleCardSocialLinks, readCircleWalletTags } from "@/lib/circle-card/schema";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
-import { requireUser } from "@/lib/session";
+import { requireCircleCardUser } from "@/lib/session";
 import { absoluteUrl, cn, formatDate } from "@/lib/utils";
 import { getCircleCardAnalyticsSummary } from "@/server/circle-card";
 
@@ -182,9 +183,10 @@ function readActivityMethod(metadata: unknown) {
 }
 
 export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
-  const session = await requireUser();
+  const session = await requireCircleCardUser();
   const params = await searchParams;
   const notice = firstValue(params.notice);
+  const created = firstValue(params.created) === "1";
   const error = firstValue(params.error);
   const walletQuery = (firstValue(params.walletQuery) ?? "").trim();
   const walletView = resolveWalletView(firstValue(params.walletView));
@@ -414,6 +416,49 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       </section>
 
       <CircleCardInstallPrompt />
+
+      {created && card && publicUrl ? (
+        <section className="rounded-2xl border border-gold/28 bg-gold/10 p-5 shadow-gold-soft sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                Circle Card published
+              </p>
+              <h2 className="mt-2 font-display text-3xl text-foreground">
+                Your Circle Card is live.
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                Share your public card, copy the link, or open the QR panel whenever you are ready
+                to use it.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[420px]">
+              <Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">
+                <Button type="button" className="w-full gap-2">
+                  View Card
+                  <ArrowUpRight size={16} />
+                </Button>
+              </Link>
+              <CircleCardCopyLinkButton publicUrl={publicUrl} className="w-full" />
+              <a
+                href="#public-card"
+                className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
+              >
+                <QrCode size={16} />
+                View QR
+              </a>
+              <CircleCardShareButton
+                title={`${card.fullName} | Circle Card`}
+                publicUrl={publicUrl}
+                cardId={card.id}
+                analyticsSource="dashboard_created"
+                label="Share Card"
+                hideStatus
+              />
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {notice && NOTICE_MESSAGES[notice] ? (
         <p className="rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-gold">

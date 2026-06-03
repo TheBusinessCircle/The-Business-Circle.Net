@@ -15,6 +15,11 @@ import {
 import { auth } from "@/auth";
 import { CircleCardInstallPrompt } from "@/components/circle-card";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  CIRCLE_CARD_DASHBOARD_PATH,
+  CIRCLE_CARD_ONBOARDING_PATH
+} from "@/lib/circle-card/routes";
+import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
@@ -53,9 +58,22 @@ const HOW_IT_WORKS = [
 
 export default async function CircleCardLandingPage() {
   const session = await auth();
+  const existingCard = session?.user && !session.user.suspended
+    ? await prisma.circleCard.findFirst({
+        where: { userId: session.user.id },
+        select: { id: true }
+      })
+    : null;
   const primaryCtaHref = session?.user && !session.user.suspended
-    ? "/dashboard/circle-card"
+    ? existingCard
+      ? CIRCLE_CARD_DASHBOARD_PATH
+      : CIRCLE_CARD_ONBOARDING_PATH
     : "/register?source=circle-card";
+  const primaryCtaLabel = session?.user && !session.user.suspended
+    ? existingCard
+      ? "Open My Circle Card"
+      : "Finish Circle Card Setup"
+    : "Create Free Circle Card";
 
   return (
     <div className="public-page-stack">
@@ -82,7 +100,7 @@ export default async function CircleCardLandingPage() {
               href={primaryCtaHref}
               className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 sm:w-auto")}
             >
-              Create Free Circle Card
+              {primaryCtaLabel}
               <ArrowRight size={16} />
             </Link>
             <Link
@@ -219,7 +237,7 @@ export default async function CircleCardLandingPage() {
           </div>
           <Link href={primaryCtaHref}>
             <Button className="w-full gap-2 md:w-auto">
-              Create Free Circle Card
+              {primaryCtaLabel}
               <ArrowRight size={16} />
             </Button>
           </Link>

@@ -90,10 +90,10 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   };
 
   const circleCardNavItems = [
-    { label: "Card", href: "/dashboard/circle-card#circle-card-form" },
+    { label: "My Circle Card", href: "/dashboard/circle-card" },
     { label: "Wallet", href: "/dashboard/circle-card#wallet" },
     { label: "Analytics", href: "/dashboard/circle-card#analytics" },
-    { label: "Settings", href: "/dashboard/circle-card" }
+    { label: "Settings", href: "/dashboard/circle-card#circle-card-form" }
   ];
 
   const visibleNavItems = circleCardFree

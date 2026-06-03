@@ -302,7 +302,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
 
   if (existingCard) {
     revalidateCircleCardPaths(existingCard.slug);
-    redirectWithNotice("/dashboard/circle-card", "onboarding-complete");
+    redirect("/dashboard/circle-card?created=1");
   }
 
   const existingCardCount = await prisma.circleCard.count({
@@ -414,7 +414,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
   }
 
   revalidateCircleCardPaths(createdSlug);
-  redirectWithNotice("/dashboard/circle-card", "onboarding-complete");
+  redirect("/dashboard/circle-card?created=1");
 }
 
 export async function saveCircleWalletContactAction(formData: FormData) {

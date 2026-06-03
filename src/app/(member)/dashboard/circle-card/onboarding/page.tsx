@@ -60,7 +60,7 @@ export default async function CircleCardOnboardingPage({ searchParams }: PagePro
   ]);
 
   if (existingCard) {
-    redirect("/dashboard/circle-card?notice=onboarding-complete");
+    redirect("/dashboard/circle-card?created=1");
   }
 
   return (

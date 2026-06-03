@@ -8,11 +8,14 @@ import type { NavigationItem } from "@/types";
 import { NavbarBrand } from "@/components/public/navbar-brand";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { signOutAction } from "@/lib/actions/auth-actions";
-import { PUBLIC_NAV } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type NavbarClientProps = {
   isAuthenticated: boolean;
+  isCircleCardOnly: boolean;
+  navItems: readonly NavigationItem[];
+  dashboardHref: string;
+  dashboardLabel: string;
 };
 
 type NavigationLinksProps = {
@@ -39,7 +42,13 @@ function NavigationLinks({ items, className }: NavigationLinksProps) {
   );
 }
 
-export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
+export function NavbarClient({
+  isAuthenticated,
+  isCircleCardOnly,
+  navItems,
+  dashboardHref,
+  dashboardLabel
+}: NavbarClientProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
@@ -81,7 +90,7 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
 
           <nav className="hidden flex-1 items-center justify-center px-3 lg:flex">
             <div className="surface-subtle flex min-w-0 max-w-[44rem] items-center gap-1 rounded-2xl p-1.5">
-              <NavigationLinks items={PUBLIC_NAV} />
+              <NavigationLinks items={navItems} />
             </div>
           </nav>
 
@@ -95,10 +104,10 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
             {isAuthenticated ? (
               <>
                 <Link
-                  href="/dashboard"
+                  href={dashboardHref}
                   className={buttonVariants({ variant: "outline", size: "sm" })}
                 >
-                  Member home
+                  {dashboardLabel}
                 </Link>
                 <form action={signOutAction}>
                   <Button type="submit" variant="ghost" size="sm">
@@ -157,15 +166,19 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                 The Business Circle
               </p>
               <p className="mt-2 font-display text-2xl leading-tight text-foreground">
-                Clearer rooms for serious business owners.
+                {isCircleCardOnly
+                  ? "Your Circle Card tools are ready."
+                  : "Clearer rooms for serious business owners."}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-silver">
-                Choose where you want to go next.
+                {isCircleCardOnly
+                  ? "Open your card, wallet, analytics, and settings."
+                  : "Choose where you want to go next."}
               </p>
             </div>
 
             <nav className="mt-5 flex flex-col gap-2" aria-label="Public mobile navigation">
-              {PUBLIC_NAV.map((item) => (
+              {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -193,14 +206,14 @@ export function NavbarClient({ isAuthenticated }: NavbarClientProps) {
                       Share your experience
                     </Link>
                     <Link
-                      href="/dashboard"
+                      href={dashboardHref}
                       onClick={closeMobileMenu}
                       className={cn(
                         buttonVariants({ variant: "outline", size: "lg" }),
                         "min-h-12 w-full justify-center border-gold/35 bg-gold/10 text-gold hover:bg-gold/15"
                       )}
                     >
-                      Member home
+                      {dashboardLabel}
                     </Link>
                     <form action={signOutAction} onSubmit={closeMobileMenu}>
                       <Button
