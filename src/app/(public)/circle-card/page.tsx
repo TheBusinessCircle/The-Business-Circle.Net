@@ -12,6 +12,7 @@ import {
   UsersRound,
   WalletCards
 } from "lucide-react";
+import { CircleCardInstallPrompt } from "@/components/circle-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
@@ -71,18 +72,22 @@ export default function CircleCardLandingPage() {
             reconnect later, and move naturally into The Business Circle Network when ready.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Link href="/dashboard/circle-card" className={cn(buttonVariants({ size: "lg" }), "gap-2")}>
+            <Link
+              href="/dashboard/circle-card"
+              className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 sm:w-auto")}
+            >
               Create Free Circle Card
               <ArrowRight size={16} />
             </Link>
             <Link
               href="/card/demo"
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "gap-2")}
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full gap-2 sm:w-auto")}
             >
               View Demo Card
               <QrCode size={16} />
             </Link>
           </div>
+          <CircleCardInstallPrompt className="mt-5 max-w-xl" />
         </div>
 
         <div className="relative mx-auto w-full max-w-md">

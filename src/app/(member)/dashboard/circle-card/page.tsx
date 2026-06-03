@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ContactRound,
   Crown,
+  QrCode,
   Search,
   Save,
   Star,
@@ -20,9 +21,9 @@ import {
   updateCircleWalletContactDetailsAction,
   upsertCircleCardAction
 } from "@/actions/circle-card.actions";
-import { CircleCardQrPanel } from "@/components/circle-card";
+import { CircleCardInstallPrompt, CircleCardQrPanel } from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -275,6 +276,38 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Create a clean card, share it with a QR code, and give new contacts a direct route
               back to you and the Business Circle ecosystem.
             </p>
+            <div className="mt-5 grid gap-2 sm:grid-cols-3">
+              <a
+                href="#public-card"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+              >
+                <QrCode size={16} />
+                QR
+              </a>
+              <a
+                href="#wallet"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+              >
+                <WalletCards size={16} />
+                Wallet
+              </a>
+              {card ? (
+                <Link
+                  href={`/card/${card.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants(), "h-11 gap-2")}
+                >
+                  Public card
+                  <ArrowUpRight size={16} />
+                </Link>
+              ) : (
+                <a href="#circle-card-form" className={cn(buttonVariants(), "h-11 gap-2")}>
+                  Create card
+                  <ArrowUpRight size={16} />
+                </a>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="muted">{featureAccess.label}</Badge>
@@ -284,6 +317,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
         </div>
       </section>
+
+      <CircleCardInstallPrompt />
 
       {notice && NOTICE_MESSAGES[notice] ? (
         <p className="rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-gold">
@@ -298,7 +333,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <Card className="border-silver/16 bg-card/62">
+        <Card id="circle-card-form" className="scroll-mt-24 border-silver/16 bg-card/62">
           <CardHeader>
             <CardTitle>{card ? "Edit your Circle Card" : "Create your first Circle Card"}</CardTitle>
             <CardDescription>
@@ -467,7 +502,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </Card>
 
         <aside className="space-y-5">
-          <Card className="border-silver/16 bg-card/62">
+          <Card id="public-card" className="scroll-mt-24 border-silver/16 bg-card/62">
             <CardHeader>
               <CardTitle>Public card</CardTitle>
               <CardDescription>
@@ -757,30 +792,55 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 </div>
                               </div>
 
-                              <div className="flex flex-wrap gap-2 md:justify-end">
-                                <Link href={`/card/${contact.card.slug}`} target="_blank" rel="noopener noreferrer">
-                                  <Button type="button" variant="outline" size="sm" className="gap-2">
+                              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap md:justify-end">
+                                <Link
+                                  href={`/card/${contact.card.slug}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="min-w-0"
+                                >
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-10 w-full gap-2 sm:w-auto"
+                                  >
                                     Public card
                                     <ArrowUpRight size={14} />
                                   </Button>
                                 </Link>
-                                <Link href={detailHref}>
-                                  <Button type="button" variant={selected ? "default" : "outline"} size="sm">
+                                <Link href={detailHref} className="min-w-0">
+                                  <Button
+                                    type="button"
+                                    variant={selected ? "default" : "outline"}
+                                    size="sm"
+                                    className="h-10 w-full sm:w-auto"
+                                  >
                                     Details
                                   </Button>
                                 </Link>
-                                <form action={toggleCircleWalletFavouriteAction}>
+                                <form action={toggleCircleWalletFavouriteAction} className="min-w-0">
                                   <input type="hidden" name="walletContactId" value={contact.id} />
                                   <input type="hidden" name="returnPath" value={detailHref} />
-                                  <Button type="submit" variant="outline" size="sm" className="gap-2">
+                                  <Button
+                                    type="submit"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-10 w-full gap-2 sm:w-auto"
+                                  >
                                     <Star size={14} />
                                     {contact.favourite ? "Unfavourite" : "Favourite"}
                                   </Button>
                                 </form>
-                                <form action={removeCircleWalletContactAction}>
+                                <form action={removeCircleWalletContactAction} className="min-w-0">
                                   <input type="hidden" name="cardId" value={contact.card.id} />
                                   <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
-                                  <Button type="submit" variant="outline" size="sm" className="gap-2">
+                                  <Button
+                                    type="submit"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-10 w-full gap-2 sm:w-auto"
+                                  >
                                     <Trash2 size={14} />
                                     Remove
                                   </Button>

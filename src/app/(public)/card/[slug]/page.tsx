@@ -6,7 +6,11 @@ import {
   removeCircleWalletContactAction,
   saveCircleWalletContactAction
 } from "@/actions/circle-card.actions";
-import { CircleCardShareButton } from "@/components/circle-card";
+import {
+  CircleCardInstallPrompt,
+  CircleCardQrPanel,
+  CircleCardShareButton
+} from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
@@ -150,6 +154,8 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
     notFound();
   }
 
+  const publicCard = card;
+
   await incrementViewCount(card);
 
   const viewerUserId = session?.user?.id ?? null;
@@ -175,8 +181,73 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
     Boolean(entry[1])
   );
 
+  function renderWalletAction({ mobileBar = false }: { mobileBar?: boolean } = {}) {
+    const iconSize = mobileBar ? 15 : 16;
+    const actionClassName = mobileBar
+      ? "h-11 w-full min-w-0 flex-col gap-0.5 px-1 text-[11px] leading-none"
+      : "w-full gap-2";
+
+    if (viewerIsOwner) {
+      return (
+        <span
+          className={cn(buttonVariants({ variant: "outline" }), actionClassName, "opacity-70")}
+        >
+          <UserRound size={iconSize} />
+          {mobileBar ? "Mine" : "Your Card"}
+        </span>
+      );
+    }
+
+    if (publicCard.isDemo) {
+      return (
+        <span
+          className={cn(buttonVariants({ variant: "outline" }), actionClassName, "opacity-70")}
+        >
+          <WalletCards size={iconSize} />
+          {mobileBar ? "Demo" : "Demo Card"}
+        </span>
+      );
+    }
+
+    if (savedContact) {
+      return (
+        <form action={removeCircleWalletContactAction} className={mobileBar ? "min-w-0" : undefined}>
+          <input type="hidden" name="cardId" value={publicCard.id} />
+          <input type="hidden" name="returnPath" value={`/card/${publicCard.slug}`} />
+          <Button type="submit" variant="outline" className={actionClassName}>
+            <Trash2 size={iconSize} />
+            {mobileBar ? "Remove" : "Remove Saved"}
+          </Button>
+        </form>
+      );
+    }
+
+    if (session?.user) {
+      return (
+        <form action={saveCircleWalletContactAction} className={mobileBar ? "min-w-0" : undefined}>
+          <input type="hidden" name="cardId" value={publicCard.id} />
+          <input type="hidden" name="returnPath" value={`/card/${publicCard.slug}`} />
+          <Button type="submit" className={actionClassName}>
+            <WalletCards size={iconSize} />
+            {mobileBar ? "Wallet" : "Save to Wallet"}
+          </Button>
+        </form>
+      );
+    }
+
+    return (
+      <Link
+        href={`/login?from=${encodeURIComponent(`/card/${publicCard.slug}`)}`}
+        className={cn(buttonVariants({ variant: "outline" }), actionClassName)}
+      >
+        <WalletCards size={iconSize} />
+        {mobileBar ? "Wallet" : "Save to Wallet"}
+      </Link>
+    );
+  }
+
   return (
-    <div className="public-page-stack">
+    <div className="public-page-stack pb-28 lg:pb-0">
       <section className="mx-auto grid max-w-6xl gap-5 py-6 lg:grid-cols-[minmax(0,0.9fr)_340px] lg:py-10">
         <div className="rounded-[2rem] border border-silver/16 bg-card/72 p-5 shadow-panel-soft sm:p-7">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
@@ -257,43 +328,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
               Save to Phone
             </a>
 
-            {viewerIsOwner ? (
-              <span className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 opacity-70")}>
-                <UserRound size={16} />
-                Your Card
-              </span>
-            ) : card.isDemo ? (
-              <span className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 opacity-70")}>
-                <WalletCards size={16} />
-                Demo Card
-              </span>
-            ) : savedContact ? (
-              <form action={removeCircleWalletContactAction}>
-                <input type="hidden" name="cardId" value={card.id} />
-                <input type="hidden" name="returnPath" value={`/card/${card.slug}`} />
-                <Button type="submit" variant="outline" className="w-full gap-2">
-                  <Trash2 size={16} />
-                  Remove Saved
-                </Button>
-              </form>
-            ) : session?.user && !card.isDemo ? (
-              <form action={saveCircleWalletContactAction}>
-                <input type="hidden" name="cardId" value={card.id} />
-                <input type="hidden" name="returnPath" value={`/card/${card.slug}`} />
-                <Button type="submit" className="w-full gap-2">
-                  <WalletCards size={16} />
-                  Save to Wallet
-                </Button>
-              </form>
-            ) : (
-              <Link
-                href={`/login?from=${encodeURIComponent(`/card/${card.slug}`)}`}
-                className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
-              >
-                <WalletCards size={16} />
-                Save to Wallet
-              </Link>
-            )}
+            {renderWalletAction()}
 
             <CircleCardShareButton title={`${card.fullName} | Circle Card`} publicUrl={publicUrl} />
 
@@ -376,6 +411,16 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
         </div>
 
         <aside className="space-y-5">
+          <div id="qr" className="rounded-[2rem] border border-silver/16 bg-card/62 p-5">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Quick QR</p>
+            <p className="mt-2 text-sm text-muted">
+              Scan or share this Circle Card without hunting through the page.
+            </p>
+            <div className="mt-4">
+              <CircleCardQrPanel publicUrl={publicUrl} slug={card.slug} />
+            </div>
+          </div>
+
           <div className="rounded-[2rem] border border-gold/20 bg-gold/10 p-5">
             <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Trust indicators</p>
             <div className="mt-4 space-y-3">
@@ -432,6 +477,32 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
           </div>
         </aside>
       </section>
+
+      <CircleCardInstallPrompt className="lg:hidden" />
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-silver/14 bg-[#071126]/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-panel backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-lg grid-cols-3 gap-2">
+          <a
+            href={`/card/${card.slug}/vcard`}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "h-11 min-w-0 flex-col gap-0.5 px-1 text-[11px] leading-none"
+            )}
+          >
+            <Download size={15} />
+            Phone
+          </a>
+          <div className="min-w-0">{renderWalletAction({ mobileBar: true })}</div>
+          <CircleCardShareButton
+            title={`${card.fullName} | Circle Card`}
+            publicUrl={publicUrl}
+            label="Share"
+            hideStatus
+            className="min-w-0"
+            buttonClassName="h-11 min-w-0 flex-col gap-0.5 px-1 text-[11px] leading-none"
+          />
+        </div>
+      </div>
     </div>
   );
 }

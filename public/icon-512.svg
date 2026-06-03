@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Circle Card">
+  <defs>
+    <linearGradient id="bg" x1="96" x2="416" y1="56" y2="456" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0b1f4f"/>
+      <stop offset="0.58" stop-color="#071126"/>
+      <stop offset="1" stop-color="#040816"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="146" x2="366" y1="126" y2="386" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f3d58a"/>
+      <stop offset="1" stop-color="#9fb1c7"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="176" fill="#0d2a63" opacity="0.72"/>
+  <circle cx="256" cy="256" r="168" fill="none" stroke="url(#ring)" stroke-width="18"/>
+  <path fill="#f3d58a" d="M174 265c0-57 39-96 96-96 35 0 63 15 80 41l-37 29c-10-15-24-23-43-23-28 0-47 20-47 49 0 30 19 50 47 50 19 0 33-8 43-23l37 29c-17 26-45 41-80 41-57 0-96-40-96-97Z"/>
+  <path fill="#d6e0ed" d="M158 384h196c13 0 24-11 24-24v-18h-41v10H175V160h162v10h41v-18c0-13-11-24-24-24H158c-13 0-24 11-24 24v208c0 13 11 24 24 24Z" opacity="0.92"/>
+  <path fill="#f3d58a" d="M338 226h54v34h-54zM338 280h54v34h-54z"/>
+</svg>

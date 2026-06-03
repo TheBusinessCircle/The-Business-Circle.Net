@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Sora, Plus_Jakarta_Sans } from "next/font/google";
 import { CookieConsent } from "@/components/privacy/cookie-consent";
 import { Providers } from "@/components/providers";
@@ -19,9 +19,20 @@ const sans = Plus_Jakarta_Sans({
 const openGraphShareImage = getOpenGraphShareImage();
 const twitterShareImage = getTwitterShareImage();
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#070e1f" },
+    { media: "(prefers-color-scheme: light)", color: "#0b1f4f" }
+  ]
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_CONFIG.url),
   applicationName: SITE_CONFIG.name,
+  manifest: "/manifest.webmanifest",
   title: {
     default: SITE_CONFIG.seo.defaultTitle,
     template: SITE_CONFIG.seo.titleTemplate
@@ -38,11 +49,20 @@ export const metadata: Metadata = {
       { url: "/favicon.ico", sizes: "any" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" }
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.svg", sizes: "512x512", type: "image/svg+xml" }
     ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
     ]
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Circle Card",
+    statusBarStyle: "black-translucent"
+  },
+  formatDetection: {
+    telephone: true
   },
   openGraph: {
     title: SITE_CONFIG.seo.defaultTitle,
