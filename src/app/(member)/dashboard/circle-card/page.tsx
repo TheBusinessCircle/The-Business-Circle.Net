@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  Activity,
   ArrowUpRight,
   BarChart3,
   CalendarDays,
   ContactRound,
   Crown,
+  Download,
+  Eye,
+  MousePointerClick,
   QrCode,
   Search,
   Save,
+  Share2,
   Star,
   StickyNote,
   Tag,
@@ -37,6 +42,7 @@ import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
 import { absoluteUrl, cn, formatDate } from "@/lib/utils";
+import { getCircleCardAnalyticsSummary } from "@/server/circle-card";
 
 export const metadata: Metadata = createPageMetadata({
   title: "My Circle Card",
@@ -81,6 +87,13 @@ const WALLET_VIEW_OPTIONS = [
   { value: "all", label: "All" },
   { value: "favourites", label: "Favourites" },
   { value: "recent", label: "Recent" }
+] as const;
+
+const FUTURE_ANALYTICS_FEATURES = [
+  "30-day trends",
+  "Lead tracking",
+  "Advanced analytics",
+  "Team analytics"
 ] as const;
 
 type WalletView = (typeof WALLET_VIEW_OPTIONS)[number]["value"];
@@ -142,6 +155,23 @@ function walletContactMatchesQuery(input: {
     .toLowerCase();
 
   return haystack.includes(input.query.toLowerCase());
+}
+
+function activityBarWidth(value: number, maxValue: number) {
+  if (value <= 0) {
+    return "0%";
+  }
+
+  return `${Math.max(8, Math.round((value / Math.max(maxValue, 1)) * 100))}%`;
+}
+
+function readActivityMethod(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const method = (metadata as Record<string, unknown>).method;
+  return typeof method === "string" ? method.replace(/_/g, " ") : null;
 }
 
 export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
@@ -259,6 +289,45 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const publicUrl = card ? absoluteUrl(`/card/${card.slug}`) : null;
   const defaultWebsite =
     card?.websiteUrl ?? member?.profile?.website ?? member?.profile?.business?.website ?? "";
+  const analytics = card
+    ? await getCircleCardAnalyticsSummary({
+        cardId: card.id,
+        fallbackViewCount: card.viewCount
+      })
+    : null;
+  const analyticsOverview = [
+    {
+      label: "Total Views",
+      value: analytics?.counts.CARD_VIEW ?? card?.viewCount ?? 0,
+      description: "Public card views",
+      icon: Eye
+    },
+    {
+      label: "Wallet Saves",
+      value: analytics?.counts.WALLET_SAVE ?? 0,
+      description: "People who saved this card",
+      icon: WalletCards
+    },
+    {
+      label: "Shares",
+      value: analytics?.counts.SHARE ?? 0,
+      description: "Native shares and copied links",
+      icon: Share2
+    },
+    {
+      label: "Contact Downloads",
+      value: analytics?.counts.VCARD_DOWNLOAD ?? 0,
+      description: "vCard downloads",
+      icon: Download
+    }
+  ];
+  const analyticsActivityMix = [
+    { label: "QR views", value: analytics?.counts.QR_VIEW ?? 0 },
+    { label: "Website clicks", value: analytics?.counts.WEBSITE_CLICK ?? 0 },
+    { label: "Email clicks", value: analytics?.counts.EMAIL_CLICK ?? 0 },
+    { label: "Phone clicks", value: analytics?.counts.PHONE_CLICK ?? 0 },
+    { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
+  ];
 
   return (
     <div className="space-y-6">
@@ -276,7 +345,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Create a clean card, share it with a QR code, and give new contacts a direct route
               back to you and the Business Circle ecosystem.
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-3">
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <a
                 href="#public-card"
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
@@ -290,6 +359,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               >
                 <WalletCards size={16} />
                 Wallet
+              </a>
+              <a
+                href="#analytics"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+              >
+                <BarChart3 size={16} />
+                Analytics
               </a>
               {card ? (
                 <Link
@@ -594,6 +670,148 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
         </aside>
       </div>
+
+      <section id="analytics" className="scroll-mt-24 space-y-5">
+        <div className="flex flex-col gap-4 border-t border-silver/12 pt-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Analytics</p>
+            <h2 className="mt-2 font-display text-3xl text-foreground">Circle Card activity</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+              See the first signals from your public card, wallet saves and contact actions.
+              Advanced Pro and Teams analytics can build on this foundation later.
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit border-gold/25 text-gold">
+            Basic analytics included
+          </Badge>
+        </div>
+
+        {card ? (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {analyticsOverview.map((item) => (
+                <Card key={item.label} className="border-silver/16 bg-card/62">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.08em] text-muted">{item.label}</p>
+                        <p className="mt-3 font-display text-3xl text-foreground">{item.value}</p>
+                      </div>
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/10 text-gold">
+                        <item.icon size={17} />
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-muted">{item.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+              <Card className="border-silver/16 bg-card/62">
+                <CardHeader>
+                  <CardTitle className="inline-flex items-center gap-2">
+                    <Activity size={17} className="text-silver" />
+                    Recent activity
+                  </CardTitle>
+                  <CardDescription>
+                    The latest public actions tracked for this Circle Card.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {analytics?.recentEvents.length ? (
+                    analytics.recentEvents.map((event) => {
+                      const method = readActivityMethod(event.metadata);
+
+                      return (
+                        <div
+                          key={event.id}
+                          className="flex items-start justify-between gap-3 rounded-2xl border border-silver/14 bg-background/20 p-4"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{event.label}</p>
+                            {method ? (
+                              <p className="mt-1 text-xs capitalize text-muted">{method}</p>
+                            ) : null}
+                          </div>
+                          <p className="shrink-0 text-right text-xs text-muted">
+                            {formatDate(event.createdAt)}
+                          </p>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-5 text-sm text-muted">
+                      Activity will appear here as people view, save and share your card.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <aside className="space-y-5">
+                <Card className="border-silver/16 bg-card/62">
+                  <CardHeader>
+                    <CardTitle className="inline-flex items-center gap-2">
+                      <MousePointerClick size={17} className="text-silver" />
+                      Activity mix
+                    </CardTitle>
+                    <CardDescription>Simple action totals for quick scanning.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {analyticsActivityMix.map((item) => (
+                      <div key={item.label} className="space-y-2">
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <span className="text-muted">{item.label}</span>
+                          <span className="font-medium text-foreground">{item.value}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-background/46">
+                          <div
+                            className="h-full rounded-full bg-gold"
+                            style={{
+                              width: activityBarWidth(item.value, analytics?.maxActivityCount ?? 1)
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-gold/18 bg-gold/8">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Coming soon</CardTitle>
+                    <CardDescription>
+                      Future Pro and Teams analytics can build from the events now being captured.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {FUTURE_ANALYTICS_FEATURES.map((feature) => (
+                        <Badge key={feature} variant="outline" className="border-gold/25 text-gold">
+                          {feature}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </aside>
+            </div>
+          </>
+        ) : (
+          <Card className="border-dashed border-silver/18 bg-card/48">
+            <CardContent className="py-8 text-center">
+              <BarChart3 className="mx-auto text-silver" size={22} />
+              <h3 className="mt-4 font-display text-2xl text-foreground">
+                Analytics start after your first card is live
+              </h3>
+              <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                Create a Circle Card and the activity foundation will begin tracking views, saves,
+                shares and contact actions.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </section>
 
       <section id="wallet" className="space-y-5">
         <div className="flex flex-col gap-4 border-t border-silver/12 pt-6 lg:flex-row lg:items-end lg:justify-between">

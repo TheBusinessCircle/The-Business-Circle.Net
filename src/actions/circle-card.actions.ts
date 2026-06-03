@@ -19,6 +19,7 @@ import {
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
 import { prisma } from "@/lib/prisma";
+import { trackCircleCardEvent } from "@/server/circle-card";
 
 const CIRCLE_CARD_FORM_FIELDS = [
   "cardId",
@@ -305,6 +306,15 @@ export async function saveCircleWalletContactAction(formData: FormData) {
     }
   });
 
+  await trackCircleCardEvent({
+    cardId: card.id,
+    eventType: "WALLET_SAVE",
+    userId: user.id,
+    metadata: {
+      source: "circle_wallet"
+    }
+  });
+
   revalidatePath("/dashboard/circle-card");
   revalidatePath(`/card/${card.slug}`);
   redirectWithNotice(returnPath, "card-saved");
@@ -345,6 +355,15 @@ export async function removeCircleWalletContactAction(formData: FormData) {
         userId: user.id,
         cardId
       }
+    }
+  });
+
+  await trackCircleCardEvent({
+    cardId,
+    eventType: "WALLET_REMOVE",
+    userId: user.id,
+    metadata: {
+      source: "circle_wallet"
     }
   });
 

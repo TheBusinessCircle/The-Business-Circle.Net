@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import {
@@ -9,7 +10,8 @@ import {
 import {
   CircleCardInstallPrompt,
   CircleCardQrPanel,
-  CircleCardShareButton
+  CircleCardShareButton,
+  CircleCardTrackedLink
 } from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -18,7 +20,7 @@ import { SITE_CONFIG } from "@/config/site";
 import { getExternalLinkProps } from "@/lib/links";
 import { prisma } from "@/lib/prisma";
 import { absoluteUrl, cn } from "@/lib/utils";
-import { getPublicCircleCard } from "@/server/circle-card";
+import { getPublicCircleCard, trackCircleCardEvent } from "@/server/circle-card";
 import {
   BadgeCheck,
   BriefcaseBusiness,
@@ -74,7 +76,14 @@ function phoneHref(phone: string | null) {
   return normalized ? `tel:${normalized}` : null;
 }
 
-async function incrementViewCount(card: Awaited<ReturnType<typeof getPublicCircleCard>>) {
+async function incrementViewCount(
+  card: Awaited<ReturnType<typeof getPublicCircleCard>>,
+  input: {
+    visitorId?: string | null;
+    userId?: string | null;
+    viewerIsOwner?: boolean;
+  } = {}
+) {
   if (!card) {
     return;
   }
@@ -83,18 +92,27 @@ async function incrementViewCount(card: Awaited<ReturnType<typeof getPublicCircl
     return;
   }
 
-  try {
-    await prisma.circleCard.update({
+  await Promise.allSettled([
+    prisma.circleCard.update({
       where: { id: card.id },
       data: {
         viewCount: {
           increment: 1
         }
       }
-    });
-  } catch {
-    // Public card rendering should not fail because analytics could not be recorded.
-  }
+    }),
+    trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "CARD_VIEW",
+      visitorId: input.visitorId,
+      userId: input.userId,
+      metadata: {
+        source: "public_card",
+        slug: card.slug,
+        viewerIsOwner: input.viewerIsOwner ?? false
+      }
+    })
+  ]);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -155,11 +173,16 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
   }
 
   const publicCard = card;
-
-  await incrementViewCount(card);
-
   const viewerUserId = session?.user?.id ?? null;
   const viewerIsOwner = Boolean(viewerUserId && viewerUserId === card.userId);
+  const visitorId = (await cookies()).get("bcn_anon_id")?.value ?? null;
+
+  await incrementViewCount(card, {
+    visitorId,
+    userId: viewerUserId,
+    viewerIsOwner
+  });
+
   const savedContact =
     viewerUserId && !viewerIsOwner && !card.isDemo
       ? await prisma.circleWalletContact.findUnique({
@@ -177,6 +200,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
       : null;
   const publicUrl = absoluteUrl(`/card/${card.slug}`);
   const telHref = phoneHref(card.phone);
+  const analyticsCardId = card.isDemo ? null : card.id;
   const socialLinks = Object.entries(card.socialLinks).filter((entry): entry is [string, string] =>
     Boolean(entry[1])
   );
@@ -330,16 +354,23 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
 
             {renderWalletAction()}
 
-            <CircleCardShareButton title={`${card.fullName} | Circle Card`} publicUrl={publicUrl} />
+            <CircleCardShareButton
+              title={`${card.fullName} | Circle Card`}
+              publicUrl={publicUrl}
+              cardId={analyticsCardId ?? undefined}
+            />
 
             {card.websiteUrl ? (
-              <a
+              <CircleCardTrackedLink
+                cardId={analyticsCardId ?? ""}
+                eventType="WEBSITE_CLICK"
+                metadata={{ source: "public_card" }}
                 {...getExternalLinkProps(card.websiteUrl)}
                 className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
               >
                 <Globe2 size={16} />
                 Visit Website
-              </a>
+              </CircleCardTrackedLink>
             ) : (
               <span className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 opacity-50")}>
                 <Globe2 size={16} />
@@ -348,13 +379,16 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
             )}
 
             {card.email ? (
-              <a
+              <CircleCardTrackedLink
+                cardId={analyticsCardId ?? ""}
+                eventType="EMAIL_CLICK"
+                metadata={{ source: "public_card" }}
                 href={`mailto:${card.email}`}
                 className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
               >
                 <Mail size={16} />
                 Email
-              </a>
+              </CircleCardTrackedLink>
             ) : (
               <span className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 opacity-50")}>
                 <Mail size={16} />
@@ -363,10 +397,16 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
             )}
 
             {telHref ? (
-              <a href={telHref} className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}>
+              <CircleCardTrackedLink
+                cardId={analyticsCardId ?? ""}
+                eventType="PHONE_CLICK"
+                metadata={{ source: "public_card" }}
+                href={telHref}
+                className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
+              >
                 <Phone size={16} />
                 Call
-              </a>
+              </CircleCardTrackedLink>
             ) : (
               <span className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 opacity-50")}>
                 <Phone size={16} />
@@ -417,7 +457,18 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
               Scan or share this Circle Card without hunting through the page.
             </p>
             <div className="mt-4">
-              <CircleCardQrPanel publicUrl={publicUrl} slug={card.slug} />
+              <CircleCardQrPanel
+                publicUrl={publicUrl}
+                slug={card.slug}
+                analytics={
+                  analyticsCardId
+                    ? {
+                        cardId: analyticsCardId,
+                        source: "public_card"
+                      }
+                    : undefined
+                }
+              />
             </div>
           </div>
 
@@ -496,6 +547,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
           <CircleCardShareButton
             title={`${card.fullName} | Circle Card`}
             publicUrl={publicUrl}
+            cardId={analyticsCardId ?? undefined}
             label="Share"
             hideStatus
             className="min-w-0"

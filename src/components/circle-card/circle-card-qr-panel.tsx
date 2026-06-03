@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Copy, Download, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { trackCircleCardEvent } from "@/lib/circle-card/analytics-client";
 
 type CircleCardQrPanelProps = {
   publicUrl: string;
   slug: string;
+  analytics?: {
+    cardId: string;
+    source?: string;
+  };
 };
 
-export function CircleCardQrPanel({ publicUrl, slug }: CircleCardQrPanelProps) {
+export function CircleCardQrPanel({ publicUrl, slug, analytics }: CircleCardQrPanelProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -42,9 +48,63 @@ export function CircleCardQrPanel({ publicUrl, slug }: CircleCardQrPanelProps) {
     };
   }, [publicUrl]);
 
+  useEffect(() => {
+    if (!analytics?.cardId) {
+      return;
+    }
+
+    const element = panelRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      trackCircleCardEvent({
+        cardId: analytics.cardId,
+        eventType: "QR_VIEW",
+        metadata: {
+          source: analytics.source ?? "qr_panel"
+        }
+      });
+      return;
+    }
+
+    let tracked = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (tracked || !entries.some((entry) => entry.isIntersecting)) {
+          return;
+        }
+
+        tracked = true;
+        trackCircleCardEvent({
+          cardId: analytics.cardId,
+          eventType: "QR_VIEW",
+          metadata: {
+            source: analytics.source ?? "qr_panel"
+          }
+        });
+        observer.disconnect();
+      },
+      { threshold: 0.45 }
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [analytics?.cardId, analytics?.source]);
+
   async function copyPublicLink() {
     try {
       await navigator.clipboard.writeText(publicUrl);
+      if (analytics?.cardId) {
+        trackCircleCardEvent({
+          cardId: analytics.cardId,
+          eventType: "SHARE",
+          metadata: {
+            method: "qr_copy_link",
+            source: analytics.source ?? "qr_panel"
+          }
+        });
+      }
       setStatus("Link copied");
     } catch {
       setStatus("Copy failed");
@@ -64,7 +124,7 @@ export function CircleCardQrPanel({ publicUrl, slug }: CircleCardQrPanelProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-silver/16 bg-background/22 p-4">
+    <div ref={panelRef} className="rounded-2xl border border-silver/16 bg-background/22 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] uppercase tracking-[0.08em] text-silver">QR code</p>

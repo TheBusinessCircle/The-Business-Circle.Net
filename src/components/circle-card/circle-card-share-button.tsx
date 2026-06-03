@@ -3,13 +3,16 @@
 import { useState } from "react";
 import { Share2 } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
+import { trackCircleCardEvent } from "@/lib/circle-card/analytics-client";
 import { cn } from "@/lib/utils";
 
 type CircleCardShareButtonProps = {
   title: string;
   publicUrl: string;
+  cardId?: string;
   text?: string;
   label?: string;
+  analyticsSource?: string;
   variant?: ButtonProps["variant"];
   size?: ButtonProps["size"];
   className?: string;
@@ -38,8 +41,10 @@ function copyToClipboard(value: string) {
 export function CircleCardShareButton({
   title,
   publicUrl,
+  cardId,
   text = "Save or share this Circle Card from The Business Circle.",
   label = "Share Card",
+  analyticsSource = "public_card",
   variant = "outline",
   size = "default",
   className,
@@ -57,11 +62,31 @@ export function CircleCardShareButton({
           text,
           url: publicUrl
         });
+        if (cardId) {
+          trackCircleCardEvent({
+            cardId,
+            eventType: "SHARE",
+            metadata: {
+              method: "native",
+              source: analyticsSource
+            }
+          });
+        }
         setStatus("Shared");
         return;
       }
 
       await copyToClipboard(publicUrl);
+      if (cardId) {
+        trackCircleCardEvent({
+          cardId,
+          eventType: "SHARE",
+          metadata: {
+            method: "copy_link",
+            source: analyticsSource
+          }
+        });
+      }
       setStatus("Link copied");
     } catch {
       setStatus("Share unavailable");
