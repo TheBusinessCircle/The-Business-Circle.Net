@@ -67,7 +67,7 @@ const optionalImageUrl = z
       return value.startsWith("/uploads/") || isHttpUrl(value);
     },
     {
-      message: "Profile image must be an uploaded image path or a valid web address."
+      message: "Image must be an uploaded image path or a valid web address."
     }
   );
 
@@ -80,6 +80,7 @@ export const circleCardFormSchema = z.object({
   tagline: optionalText(180),
   about: optionalText(1600),
   profileImageUrl: optionalImageUrl,
+  businessLogoUrl: optionalImageUrl,
   websiteUrl: optionalHttpUrl("Website"),
   email: optionalEmail,
   phone: optionalText(48),
@@ -97,6 +98,7 @@ export type CircleCardFormValues = z.infer<typeof circleCardFormSchema>;
 
 export const circleCardOnboardingSchema = z.object({
   profileImageUrl: optionalImageUrl,
+  businessLogoUrl: optionalImageUrl,
   fullName: z.string().trim().min(2).max(120),
   businessName: optionalText(140),
   role: optionalText(120),

@@ -7,6 +7,7 @@ import {
   ArrowRight,
   BadgeCheck,
   BriefcaseBusiness,
+  Building2,
   Camera,
   ContactRound,
   Globe2,
@@ -14,6 +15,7 @@ import {
   UserRound
 } from "lucide-react";
 import { completeCircleCardOnboardingAction } from "@/actions/circle-card.actions";
+import { CircleCardImageUploadField } from "@/components/circle-card/circle-card-image-upload-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +30,7 @@ type CircleCardOnboardingDefaults = {
   tagline: string;
   websiteUrl: string;
   profileImageUrl: string;
+  businessLogoUrl: string;
 };
 
 type CircleCardOnboardingFlowProps = {
@@ -38,9 +41,18 @@ const STEPS = [
   {
     id: "profileImageUrl",
     title: "Profile photo",
-    label: "Profile photo URL",
-    description: "Use a direct image link for now, or skip and add a photo later.",
+    label: "Profile photo",
+    description: "Upload a portrait from your device, or skip and add a photo later.",
     icon: Camera,
+    optional: true,
+    placeholder: "https://..."
+  },
+  {
+    id: "businessLogoUrl",
+    title: "Business logo",
+    label: "Business logo",
+    description: "Add a business mark for the small identity badge, or skip this step.",
+    icon: Building2,
     optional: true,
     placeholder: "https://..."
   },
@@ -221,6 +233,17 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
                   Card dashboard after setup.
                 </p>
               </div>
+            ) : currentStep.id === "profileImageUrl" || currentStep.id === "businessLogoUrl" ? (
+              <CircleCardImageUploadField
+                id={`onboarding-${currentStep.id}`}
+                label={currentStep.label}
+                uploadKind={currentStep.id === "profileImageUrl" ? "profile-photo" : "business-logo"}
+                value={currentValue}
+                onValueChange={(nextValue) => updateValue(currentStep.id as FieldKey, nextValue)}
+                previewAlt="Circle Card onboarding image preview"
+                helperText="Optional. You can skip this for now."
+                previewClassName={currentStep.id === "profileImageUrl" ? "rounded-full" : undefined}
+              />
             ) : (
               <div className="space-y-2">
                 <Label htmlFor={`onboarding-${currentStep.id}`}>{currentStep.label}</Label>
@@ -283,7 +306,7 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
         <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Preview</p>
         <div className="mt-5 rounded-[1.5rem] border border-gold/24 bg-background/36 p-5">
           <div className="flex items-start gap-4">
-            <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-gold/24 bg-background/40 text-sm font-semibold text-foreground">
+            <div className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-gold/24 bg-background/40 text-sm font-semibold text-foreground">
               {values.profileImageUrl ? (
                 <img
                   src={values.profileImageUrl}
@@ -293,6 +316,11 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
               ) : (
                 previewName.slice(0, 2).toUpperCase()
               )}
+              {values.businessLogoUrl ? (
+                <span className="absolute bottom-0 right-0 grid h-7 w-7 overflow-hidden rounded-full border border-gold/60 bg-background shadow-gold-soft">
+                  <img src={values.businessLogoUrl} alt="" className="h-full w-full object-cover" />
+                </span>
+              ) : null}
             </div>
             <div className="min-w-0">
               <h2 className="font-display text-2xl leading-tight text-foreground">

@@ -29,6 +29,7 @@ import {
 import {
   CircleCardBcnDiscoveryPanel,
   CircleCardCopyLinkButton,
+  CircleCardImageUploadField,
   CircleCardInstallPrompt,
   CircleCardQrPanel,
   CircleCardShareButton
@@ -538,15 +539,25 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     defaultValue={card?.about ?? member?.profile?.bio ?? ""}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="profileImageUrl">Profile image URL</Label>
-                  <Input
-                    id="profileImageUrl"
-                    name="profileImageUrl"
-                    defaultValue={card?.profileImageUrl ?? member?.image ?? ""}
-                    placeholder="https://..."
-                  />
-                </div>
+                <CircleCardImageUploadField
+                  id="profileImageUrl"
+                  name="profileImageUrl"
+                  label="Profile photo"
+                  uploadKind="profile-photo"
+                  defaultValue={card?.profileImageUrl ?? member?.image ?? ""}
+                  previewAlt="Circle Card profile preview"
+                  helperText="Upload a JPG, PNG or WebP from your device, or keep using an image URL."
+                  previewClassName="rounded-full"
+                />
+                <CircleCardImageUploadField
+                  id="businessLogoUrl"
+                  name="businessLogoUrl"
+                  label="Business logo"
+                  uploadKind="business-logo"
+                  defaultValue={card?.businessLogoUrl ?? ""}
+                  previewAlt="Circle Card business logo preview"
+                  helperText="Optional. This appears as the small identity badge on your public card."
+                />
                 <div className="space-y-2">
                   <Label htmlFor="websiteUrl">Website</Label>
                   <Input id="websiteUrl" name="websiteUrl" type="url" defaultValue={defaultWebsite} />

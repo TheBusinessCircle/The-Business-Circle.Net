@@ -4,7 +4,6 @@ import {
   removeCircleWalletContactAction,
   saveCircleWalletContactAction
 } from "@/actions/circle-card.actions";
-import { BrandMark } from "@/components/branding/brand-mark";
 import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-about-expander";
 import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-install-prompt";
 import { CircleCardQrPanel } from "@/components/circle-card/circle-card-qr-panel";
@@ -95,6 +94,8 @@ const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
   { key: "youtube", label: "YouTube", icon: Youtube, handlePrefix: true }
 ] as const;
 
+const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
+
 const primaryActionClassName =
   "h-12 w-full rounded-2xl border border-gold/45 bg-[linear-gradient(135deg,#f0cf88_0%,#d3aa58_48%,#a9782e_100%)] text-[#061126] shadow-[0_18px_44px_rgba(211,170,88,0.2)] hover:border-gold/70 hover:bg-gold hover:text-[#061126]";
 
@@ -180,11 +181,28 @@ function membershipBadgeLabel(card: PublicCircleCard, ownerIsBcnMember: boolean)
   return "BCN Foundation";
 }
 
-function CircleCardBadgeMark() {
+function CircleCardLogoMark({ className, alt = "" }: { className?: string; alt?: string }) {
   return (
-    <span className="absolute bottom-2 right-2 inline-flex h-12 w-12 items-center justify-center rounded-full border border-gold/60 bg-[#061126] text-[11px] font-semibold text-gold shadow-[0_0_30px_rgba(64,112,255,0.26)]">
-      CC
-      <span className="sr-only">Circle Card badge</span>
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/45 bg-[#061126] shadow-[0_0_30px_rgba(47,109,255,0.24)]",
+        className
+      )}
+    >
+      <img src={CIRCLE_CARD_LOGO_SRC} alt={alt} className="h-full w-full object-cover" />
+    </span>
+  );
+}
+
+function CircleCardBadgeMark({ imageUrl, label }: { imageUrl?: string | null; label: string }) {
+  return (
+    <span className="absolute bottom-2 right-2 inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-gold/70 bg-[#061126] p-1 shadow-[0_0_34px_rgba(64,112,255,0.3)]">
+      <img
+        src={imageUrl || CIRCLE_CARD_LOGO_SRC}
+        alt=""
+        className="h-full w-full rounded-full object-cover"
+      />
+      <span className="sr-only">{label}</span>
     </span>
   );
 }
@@ -372,7 +390,7 @@ function TrustArea({ card, ownerAccountLabel, ownerIsBcnMember }: TrustAreaProps
       className="rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.86),rgba(4,10,24,0.94))] p-5 shadow-panel-soft"
     >
       <div className="flex items-center gap-3">
-        <BrandMark placement="workspace" className="h-11 w-11 border-gold/40" shine />
+        <CircleCardLogoMark className="h-11 w-11" alt="" />
         <div>
           <p className="text-sm font-semibold text-foreground">Powered by Circle Card</p>
           <p className="text-xs text-muted">Powered by The Business Circle</p>
@@ -554,10 +572,10 @@ export function PublicCircleCardProfile({
             href="/circle-card"
             className="inline-flex min-w-0 items-center gap-3 rounded-full border border-silver/12 bg-white/[0.035] px-3 py-2 shadow-inner-surface backdrop-blur"
           >
-            <BrandMark placement="workspace" className="h-9 w-9 border-gold/45" shine />
+            <CircleCardLogoMark className="h-9 w-9" alt="" />
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-foreground">Circle Card</span>
-              <span className="block text-xs text-muted">The Business Circle</span>
+              <span className="block text-xs text-muted">Premium identity</span>
             </span>
           </Link>
 
@@ -604,7 +622,10 @@ export function PublicCircleCardProfile({
                         )}
                       </div>
                     </div>
-                    <CircleCardBadgeMark />
+                    <CircleCardBadgeMark
+                      imageUrl={card.businessLogoUrl}
+                      label={card.businessName ? `${card.businessName} logo` : "Circle Card badge"}
+                    />
                   </div>
                 </div>
 

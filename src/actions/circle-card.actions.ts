@@ -32,6 +32,7 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "tagline",
   "about",
   "profileImageUrl",
+  "businessLogoUrl",
   "websiteUrl",
   "email",
   "phone",
@@ -47,6 +48,7 @@ const CIRCLE_CARD_FORM_FIELDS = [
 
 const CIRCLE_CARD_ONBOARDING_FIELDS = [
   "profileImageUrl",
+  "businessLogoUrl",
   "fullName",
   "businessName",
   "role",
@@ -240,6 +242,7 @@ export async function upsertCircleCardAction(formData: FormData) {
     tagline: nullableText(values.tagline),
     about: nullableText(values.about),
     profileImageUrl: nullableText(values.profileImageUrl),
+    businessLogoUrl: nullableText(values.businessLogoUrl),
     websiteUrl: nullableText(values.websiteUrl),
     email: nullableText(values.email),
     phone: nullableText(values.phone),
@@ -337,6 +340,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
   const websiteUrl = nullableText(values.websiteUrl);
   const role = nullableText(values.role);
   const profileImageUrl = nullableText(values.profileImageUrl);
+  const businessLogoUrl = nullableText(values.businessLogoUrl);
   const shouldUpsertBusiness = Boolean(businessName || websiteUrl);
   const businessData = {
     ...(businessName ? { companyName: businessName } : {}),
@@ -396,6 +400,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           role,
           tagline: nullableText(values.tagline),
           profileImageUrl,
+          businessLogoUrl,
           websiteUrl,
           socialLinks: {}
         },

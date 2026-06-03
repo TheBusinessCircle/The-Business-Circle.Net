@@ -393,6 +393,7 @@ model CircleCard {
   tagline         String?
   about           String?               @db.Text
   profileImageUrl String?
+  businessLogoUrl String?
   websiteUrl      String?
   email           String?
   phone           String?

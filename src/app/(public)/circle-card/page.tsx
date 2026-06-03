@@ -129,10 +129,10 @@ export default async function CircleCardLandingPage() {
                 </div>
                 <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-gold/25 bg-background/40">
                   <Image
-                    src="/branding/the-business-circle-logo.png"
+                    src="/branding/circle-card-logo.png"
                     width={52}
                     height={52}
-                    alt="The Business Circle logo"
+                    alt="Circle Card logo"
                     className="h-11 w-11 object-contain"
                   />
                 </div>
