@@ -24,7 +24,7 @@ export type CircleCardFeatureAccess = {
 
 export const CIRCLE_CARD_FEATURE_ACCESS: Record<CircleCardAccessLevel, CircleCardFeatureAccess> = {
   FREE: {
-    label: "Free",
+    label: "Circle Card Free",
     cardLimit: 1,
     futureCardLimit: 1,
     walletEnabled: true,
@@ -51,7 +51,7 @@ export const CIRCLE_CARD_FEATURE_ACCESS: Record<CircleCardAccessLevel, CircleCar
     teamsPreview: true
   },
   BCN_FOUNDATION: {
-    label: "BCN Foundation",
+    label: "Foundation Member",
     cardLimit: 1,
     futureCardLimit: 1,
     walletEnabled: true,
@@ -60,7 +60,7 @@ export const CIRCLE_CARD_FEATURE_ACCESS: Record<CircleCardAccessLevel, CircleCar
     teamsPreview: false
   },
   BCN_INNER_CIRCLE: {
-    label: "BCN Inner Circle",
+    label: "Inner Circle Member",
     cardLimit: 1,
     futureCardLimit: 3,
     walletEnabled: true,
@@ -69,7 +69,7 @@ export const CIRCLE_CARD_FEATURE_ACCESS: Record<CircleCardAccessLevel, CircleCar
     teamsPreview: false
   },
   BCN_CORE: {
-    label: "BCN Core",
+    label: "Core Member",
     cardLimit: 1,
     futureCardLimit: 5,
     walletEnabled: true,
@@ -82,6 +82,7 @@ export const CIRCLE_CARD_FEATURE_ACCESS: Record<CircleCardAccessLevel, CircleCar
 export function resolveCircleCardAccessLevel(input?: {
   role?: Role | null;
   membershipTier?: MembershipTier | null;
+  hasActiveSubscription?: boolean | null;
 }): CircleCardAccessLevel {
   if (!input?.role || !input.membershipTier) {
     return "FREE";
@@ -89,6 +90,10 @@ export function resolveCircleCardAccessLevel(input?: {
 
   if (input.role === "ADMIN") {
     return "BCN_CORE";
+  }
+
+  if (input.hasActiveSubscription === false) {
+    return "FREE";
   }
 
   if (getMembershipTierRank(input.membershipTier) >= getMembershipTierRank("CORE")) {
@@ -104,6 +109,43 @@ export function resolveCircleCardAccessLevel(input?: {
 
 export function getCircleCardFeatureAccess(accessLevel: CircleCardAccessLevel) {
   return CIRCLE_CARD_FEATURE_ACCESS[accessLevel];
+}
+
+export function canAccessCircleCard(input?: {
+  role?: Role | null;
+  suspended?: boolean | null;
+}) {
+  return Boolean(input?.role) && !input?.suspended;
+}
+
+export function canAccessBcnMemberFeatures(input?: {
+  role?: Role | null;
+  hasActiveSubscription?: boolean | null;
+  suspended?: boolean | null;
+}) {
+  if (!input?.role || input.suspended) {
+    return false;
+  }
+
+  return input.role === "ADMIN" || Boolean(input.hasActiveSubscription);
+}
+
+export function isCircleCardFreeAccount(input?: {
+  role?: Role | null;
+  hasActiveSubscription?: boolean | null;
+  suspended?: boolean | null;
+}) {
+  return canAccessCircleCard(input) && !canAccessBcnMemberFeatures(input);
+}
+
+export function getCircleCardAccountLabel(input?: {
+  role?: Role | null;
+  membershipTier?: MembershipTier | null;
+  hasActiveSubscription?: boolean | null;
+  suspended?: boolean | null;
+}) {
+  const accessLevel = resolveCircleCardAccessLevel(input);
+  return CIRCLE_CARD_FEATURE_ACCESS[accessLevel].label;
 }
 
 export function canCreateCircleCard(input: {

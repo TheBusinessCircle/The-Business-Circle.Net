@@ -1,7 +1,8 @@
 import "server-only";
-import type { MembershipTier, Prisma } from "@prisma/client";
+import type { MembershipTier, Prisma, Role } from "@prisma/client";
 import { SITE_CONFIG } from "@/config/site";
 import { readCircleCardSocialLinks, type CircleCardSocialLinks } from "@/lib/circle-card/schema";
+import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 
 export type PublicCircleCard = {
@@ -22,8 +23,10 @@ export type PublicCircleCard = {
   viewCount: number;
   isDemo: boolean;
   user: {
+    role: Role;
     membershipTier: MembershipTier;
     foundingTier: MembershipTier | null;
+    hasActiveSubscription: boolean;
   };
 };
 
@@ -51,8 +54,10 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   viewCount: 0,
   isDemo: true,
   user: {
+    role: "ADMIN",
     membershipTier: "CORE",
-    foundingTier: "CORE"
+    foundingTier: "CORE",
+    hasActiveSubscription: true
   }
 };
 
@@ -87,8 +92,14 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       viewCount: true,
       user: {
         select: {
+          role: true,
           membershipTier: true,
-          foundingTier: true
+          foundingTier: true,
+          subscription: {
+            select: {
+              status: true
+            }
+          }
         }
       }
     }
@@ -100,6 +111,15 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
 
   return {
     ...card,
+    user: {
+      role: card.user.role,
+      membershipTier: card.user.membershipTier,
+      foundingTier: card.user.foundingTier,
+      hasActiveSubscription:
+        card.user.role === "ADMIN"
+          ? true
+          : hasEntitledSubscription(card.user.subscription?.status ?? null)
+    },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     isDemo: false
   };

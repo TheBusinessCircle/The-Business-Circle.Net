@@ -10,6 +10,7 @@ import {
   buildCircleCardSlugBase,
   buildCircleCardSocialLinks,
   circleCardFormSchema,
+  circleCardOnboardingSchema,
   circleWalletContactDetailsSchema,
   nullableText,
   parseCircleWalletTagsInput
@@ -18,6 +19,7 @@ import {
   canCreateCircleCard,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
+import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { trackCircleCardEvent } from "@/server/circle-card";
 
@@ -42,10 +44,21 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "isPublished"
 ] as const;
 
+const CIRCLE_CARD_ONBOARDING_FIELDS = [
+  "profileImageUrl",
+  "fullName",
+  "businessName",
+  "role",
+  "tagline",
+  "websiteUrl",
+  "isPublished"
+] as const;
+
 type CircleCardActionUser = {
   id: string;
   role: Role;
   membershipTier: MembershipTier;
+  hasActiveSubscription: boolean;
 };
 
 async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
@@ -61,7 +74,12 @@ async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
       id: true,
       role: true,
       membershipTier: true,
-      suspended: true
+      suspended: true,
+      subscription: {
+        select: {
+          status: true
+        }
+      }
     }
   });
 
@@ -73,7 +91,13 @@ async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
     redirect("/login?error=suspended");
   }
 
-  return user;
+  return {
+    id: user.id,
+    role: user.role,
+    membershipTier: user.membershipTier,
+    hasActiveSubscription:
+      user.role === "ADMIN" ? true : hasEntitledSubscription(user.subscription?.status ?? null)
+  };
 }
 
 function appendQueryParam(path: string, key: string, value: string) {
@@ -97,6 +121,12 @@ function resolveReturnPath(value: FormDataEntryValue | null | undefined, fallbac
 function readCircleCardFormData(formData: FormData) {
   return Object.fromEntries(
     CIRCLE_CARD_FORM_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardOnboardingFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_ONBOARDING_FIELDS.map((field) => [field, formData.get(field) ?? ""])
   );
 }
 
@@ -179,7 +209,8 @@ export async function upsertCircleCardAction(formData: FormData) {
     });
     const accessLevel = resolveCircleCardAccessLevel({
       role: user.role,
-      membershipTier: user.membershipTier
+      membershipTier: user.membershipTier,
+      hasActiveSubscription: user.hasActiveSubscription
     });
 
     if (!canCreateCircleCard({ accessLevel, existingCardCount })) {
@@ -252,6 +283,138 @@ export async function upsertCircleCardAction(formData: FormData) {
 
     redirectWithError(returnPath, "card-save-failed");
   }
+}
+
+export async function completeCircleCardOnboardingAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = "/dashboard/circle-card/onboarding";
+  const parsed = circleCardOnboardingSchema.safeParse(readCircleCardOnboardingFormData(formData));
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "invalid-onboarding");
+  }
+
+  const values = parsed.data;
+  const existingCard = await prisma.circleCard.findFirst({
+    where: { userId: user.id },
+    select: { slug: true }
+  });
+
+  if (existingCard) {
+    revalidateCircleCardPaths(existingCard.slug);
+    redirectWithNotice("/dashboard/circle-card", "onboarding-complete");
+  }
+
+  const existingCardCount = await prisma.circleCard.count({
+    where: { userId: user.id }
+  });
+  const accessLevel = resolveCircleCardAccessLevel({
+    role: user.role,
+    membershipTier: user.membershipTier,
+    hasActiveSubscription: user.hasActiveSubscription
+  });
+
+  if (!canCreateCircleCard({ accessLevel, existingCardCount })) {
+    redirectWithError(returnPath, "card-limit");
+  }
+
+  const slugBase = buildCircleCardSlugBase({
+    slug: "",
+    fullName: values.fullName,
+    businessName: values.businessName
+  });
+  const slug = await resolveAvailableSlug({
+    slugBase,
+    userProvidedSlug: false
+  });
+
+  if (!slug) {
+    redirectWithError(returnPath, "slug-taken");
+  }
+
+  const businessName = nullableText(values.businessName);
+  const websiteUrl = nullableText(values.websiteUrl);
+  const role = nullableText(values.role);
+  const profileImageUrl = nullableText(values.profileImageUrl);
+  const shouldUpsertBusiness = Boolean(businessName || websiteUrl);
+  const businessData = {
+    ...(businessName ? { companyName: businessName } : {}),
+    ...(websiteUrl ? { website: websiteUrl } : {})
+  };
+
+  let createdSlug: string;
+
+  try {
+    const card = await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          name: values.fullName.trim(),
+          ...(profileImageUrl ? { image: profileImageUrl } : {}),
+          profile: {
+            upsert: {
+              create: {
+                headline: role,
+                website: websiteUrl,
+                collaborationTags: [],
+                ...(shouldUpsertBusiness
+                  ? {
+                      business: {
+                        create: businessData
+                      }
+                    }
+                  : {})
+              },
+              update: {
+                headline: role,
+                website: websiteUrl,
+                ...(shouldUpsertBusiness
+                  ? {
+                      business: {
+                        upsert: {
+                          create: businessData,
+                          update: businessData
+                        }
+                      }
+                    }
+                  : {})
+              }
+            }
+          }
+        }
+      });
+
+      return tx.circleCard.create({
+        data: {
+          slug,
+          userId: user.id,
+          isPrimary: true,
+          isPublished: values.isPublished,
+          fullName: values.fullName.trim(),
+          businessName,
+          role,
+          tagline: nullableText(values.tagline),
+          profileImageUrl,
+          websiteUrl,
+          socialLinks: {}
+        },
+        select: { slug: true }
+      });
+    });
+    createdSlug = card.slug;
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      redirectWithError(returnPath, "slug-taken");
+    }
+
+    redirectWithError(returnPath, "card-save-failed");
+  }
+
+  revalidateCircleCardPaths(createdSlug);
+  redirectWithNotice("/dashboard/circle-card", "onboarding-complete");
 }
 
 export async function saveCircleWalletContactAction(formData: FormData) {

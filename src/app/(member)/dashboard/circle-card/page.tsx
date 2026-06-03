@@ -26,7 +26,11 @@ import {
   updateCircleWalletContactDetailsAction,
   upsertCircleCardAction
 } from "@/actions/circle-card.actions";
-import { CircleCardInstallPrompt, CircleCardQrPanel } from "@/components/circle-card";
+import {
+  CircleCardInstallPrompt,
+  CircleCardQrPanel,
+  CircleCardShareButton
+} from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +38,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  getCircleCardAccountLabel,
   getCircleCardFeatureAccess,
+  isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
 import { readCircleCardSocialLinks, readCircleWalletTags } from "@/lib/circle-card/schema";
@@ -63,6 +69,7 @@ function firstValue(value: string | string[] | undefined) {
 
 const NOTICE_MESSAGES: Record<string, string> = {
   "card-created": "Circle Card created.",
+  "onboarding-complete": "Your Circle Card is live.",
   "card-updated": "Circle Card updated.",
   "card-saved": "Contact saved to your Circle Wallet.",
   "card-already-saved": "That card is already in your Circle Wallet.",
@@ -282,9 +289,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const savedContactCount = normalizedWalletContacts.length;
   const accessLevel = resolveCircleCardAccessLevel({
     role: session.user.role,
-    membershipTier: session.user.membershipTier
+    membershipTier: session.user.membershipTier,
+    hasActiveSubscription: session.user.hasActiveSubscription
   });
   const featureAccess = getCircleCardFeatureAccess(accessLevel);
+  const accountLabel = getCircleCardAccountLabel({
+    role: session.user.role,
+    membershipTier: session.user.membershipTier,
+    hasActiveSubscription: session.user.hasActiveSubscription,
+    suspended: session.user.suspended
+  });
+  const isCircleCardFree = isCircleCardFreeAccount({
+    role: session.user.role,
+    hasActiveSubscription: session.user.hasActiveSubscription,
+    suspended: session.user.suspended
+  });
   const socialLinks = readCircleCardSocialLinks(card?.socialLinks ?? null);
   const publicUrl = card ? absoluteUrl(`/card/${card.slug}`) : null;
   const defaultWebsite =
@@ -386,7 +405,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="muted">{featureAccess.label}</Badge>
+            <Badge variant="muted">{accountLabel}</Badge>
             <Badge variant="outline" className="border-silver/18 text-silver">
               {cardCount}/{featureAccess.cardLimit} active
             </Badge>
@@ -595,6 +614,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       <ArrowUpRight size={16} />
                     </Button>
                   </Link>
+                  <CircleCardShareButton
+                    title={`${card.fullName} | Circle Card`}
+                    publicUrl={publicUrl}
+                    cardId={card.id}
+                    analyticsSource="dashboard"
+                    label="Share card"
+                  />
                 </>
               ) : (
                 <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
@@ -644,10 +670,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <CardHeader>
                 <CardTitle className="inline-flex items-center gap-2">
                   <Crown size={17} className="text-gold" />
-                  Upgrade path
+                  {isCircleCardFree ? "Unlock Pro Features" : "Upgrade path"}
                 </CardTitle>
                 <CardDescription>
-                  Pro, Teams and BCN tier benefits are prepared in the access layer.
+                  {isCircleCardFree
+                    ? "Advanced Circle Card organisation is coming soon. Your free card, wallet and analytics stay available."
+                    : "Pro, Teams and BCN tier benefits are prepared in the access layer."}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -665,6 +693,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     BCN badges
                   </Badge>
                 </div>
+                {isCircleCardFree ? (
+                  <div className="mt-5 rounded-2xl border border-silver/14 bg-background/20 p-4">
+                    <p className="text-sm font-medium text-foreground">Explore The Business Circle</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                      Circle Card is free. BCN membership unlocks the private founder-led rooms,
+                      resources, calls and community when you choose to join.
+                    </p>
+                    <Link href="/membership" className="mt-4 inline-flex">
+                      <Button type="button" variant="outline" size="sm">
+                        Explore BCN
+                      </Button>
+                    </Link>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>

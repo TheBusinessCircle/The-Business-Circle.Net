@@ -1,5 +1,9 @@
 import { auth } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth/utils";
+import {
+  isCircleCardDashboardPath,
+  isCircleCardRegistrationSource
+} from "@/lib/circle-card/routes";
 import { membershipAccessBillingQuery } from "@/lib/membership/access";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -69,6 +73,16 @@ function toLoginRedirect(requestUrl: URL, fromPath: string, error?: string) {
   return loginUrl;
 }
 
+function nextWithCurrentPath(req: NextRequest, pathname: string) {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-bcn-pathname", pathname);
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders
+    }
+  });
+}
+
 export default auth((req) => {
   const httpsRedirect = maybeRedirectToHttps(req);
   if (httpsRedirect) {
@@ -89,6 +103,7 @@ export default auth((req) => {
 
   const isAuthRoute = AUTH_ROUTES.includes(pathname);
   const isMemberRoute = startsWithPath(pathname, MEMBER_ROUTE_PREFIXES);
+  const isCircleCardRoute = isCircleCardDashboardPath(pathname);
   const isAdminRoute = pathname === ADMIN_ROUTE_PREFIX || pathname.startsWith(`${ADMIN_ROUTE_PREFIX}/`);
   const isInnerCircleRoute = startsWithPath(pathname, INNER_CIRCLE_ROUTE_PREFIXES);
   const isProtectedRoute = isMemberRoute || isAdminRoute || isInnerCircleRoute;
@@ -96,10 +111,19 @@ export default auth((req) => {
   const isVerifiedRoute = startsWithPath(pathname, VERIFIED_MEMBER_ROUTE_PREFIXES);
   const isJoinRoute =
     pathname === "/join" || pathname === "/join-desktop" || pathname === "/join-mobile";
+  const authFromPath = safeRedirectPath(nextUrl.searchParams.get("from"), "");
 
   if (isAuthRoute && session?.user && !session.user.suspended) {
     if (isJoinRoute) {
-      return NextResponse.next();
+      return nextWithCurrentPath(req, pathname);
+    }
+
+    if (
+      isCircleCardRegistrationSource(nextUrl.searchParams.get("source")) ||
+      isCircleCardDashboardPath(authFromPath) ||
+      authFromPath.startsWith("/card/")
+    ) {
+      return NextResponse.redirect(new URL(authFromPath || "/dashboard/circle-card", nextUrl));
     }
 
     if (session.user.role !== "ADMIN" && !session.user.hasActiveSubscription) {
@@ -128,7 +152,12 @@ export default auth((req) => {
     return NextResponse.redirect(toLoginRedirect(nextUrl, pathname, "suspended"));
   }
 
-  if (isMemberAreaRoute && session.user.role !== "ADMIN" && !session.user.hasActiveSubscription) {
+  if (
+    isMemberAreaRoute &&
+    !isCircleCardRoute &&
+    session.user.role !== "ADMIN" &&
+    !session.user.hasActiveSubscription
+  ) {
     return NextResponse.redirect(
       new URL(
         `/membership?billing=${membershipAccessBillingQuery(
@@ -147,7 +176,7 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/dashboard?error=forbidden", nextUrl));
   }
 
-  return NextResponse.next();
+  return nextWithCurrentPath(req, pathname);
 });
 
 export const config = {

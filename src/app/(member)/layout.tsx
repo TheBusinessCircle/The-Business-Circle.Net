@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import type { CSSProperties, ReactNode } from "react";
 import { MembershipTier } from "@prisma/client";
 import { ArrowRight, ShieldCheck } from "lucide-react";
@@ -17,6 +18,11 @@ import { getMembershipTierLabel } from "@/config/membership";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { getAccentThemeCssVariables, resolveAccentTheme } from "@/lib/accent-themes";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
+import {
+  getCircleCardAccountLabel,
+  isCircleCardFreeAccount
+} from "@/lib/circle-card/permissions";
+import { isCircleCardDashboardPath } from "@/lib/circle-card/routes";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
@@ -36,11 +42,22 @@ export const metadata: Metadata = {
 };
 
 export default async function MemberLayout({ children }: { children: ReactNode }) {
-  const session = await requireUser();
+  const requestHeaders = await headers();
+  const currentPathname = requestHeaders.get("x-bcn-pathname") ?? "";
+  const session = await requireUser({
+    allowUnentitled: isCircleCardDashboardPath(currentPathname)
+  });
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
+  const circleCardFree = isCircleCardFreeAccount({
+    role: session.user.role,
+    hasActiveSubscription: session.user.hasActiveSubscription,
+    suspended: session.user.suspended
+  });
   const [messageCounts, rulesAccepted, profileTheme] = await Promise.all([
-    getDirectMessageNavCounts(session.user.id),
-    hasAcceptedBcnRules(session.user.id),
+    circleCardFree
+      ? Promise.resolve({ unreadCount: 0, pendingRequestCount: 0, pendingWinCredits: 0 })
+      : getDirectMessageNavCounts(session.user.id),
+    circleCardFree ? Promise.resolve(true) : hasAcceptedBcnRules(session.user.id),
     prisma.profile.findUnique({
       where: { userId: session.user.id },
       select: { accentTheme: true, workspaceAtmosphereEnabled: true }
@@ -72,21 +89,44 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     return item;
   };
 
-  const visibleNavItems = PLATFORM_NAV.filter((item) => {
+  const circleCardNavItems = [
+    { label: "Card", href: "/dashboard/circle-card#circle-card-form" },
+    { label: "Wallet", href: "/dashboard/circle-card#wallet" },
+    { label: "Analytics", href: "/dashboard/circle-card#analytics" },
+    { label: "Settings", href: "/dashboard/circle-card" }
+  ];
+
+  const visibleNavItems = circleCardFree
+    ? circleCardNavItems
+    : PLATFORM_NAV.filter((item) => {
     const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
     const tierAllowed = item.requiresTier ? canAccessTier(effectiveTier, item.requiresTier) : true;
     return roleAllowed && tierAllowed;
   }).map(applyMemberNavCounts);
 
-  const mobileNavItems = PLATFORM_NAV.filter((item) => {
+  const mobileNavItems = circleCardFree
+    ? circleCardNavItems
+    : PLATFORM_NAV.filter((item) => {
     return item.requiresRole ? item.requiresRole === session.user.role : true;
   }).map(applyMemberNavCounts);
 
-  const membershipBadge = `${getMembershipTierLabel(effectiveTier)} Active`;
+  const membershipBadge = circleCardFree
+    ? "Circle Card Free"
+    : `${getMembershipTierLabel(effectiveTier)} Active`;
+  const workspaceTitle = circleCardFree ? "Circle Card Workspace" : "Member Workspace";
+  const workspaceSubtitle = circleCardFree
+    ? "The relationship layer of The Business Circle"
+    : "The Business Circle Network";
+  const circleCardAccountLabel = getCircleCardAccountLabel({
+    role: session.user.role,
+    membershipTier: session.user.membershipTier,
+    hasActiveSubscription: session.user.hasActiveSubscription,
+    suspended: session.user.suspended
+  });
   const premiumLinkLabel = canAccessTier(effectiveTier, MembershipTier.CORE)
     ? "Open Core Access"
     : "Open Inner Circle";
-  const showRulesWelcome = shouldShowRulesWelcomeOverlay({
+  const showRulesWelcome = !circleCardFree && shouldShowRulesWelcomeOverlay({
     isLoggedIn: true,
     rulesAccepted
   });
@@ -97,14 +137,17 @@ export default async function MemberLayout({ children }: { children: ReactNode }
         <header className="member-shell-header member-mobile-header-solid border-b border-border/80 bg-background/78 backdrop-blur-xl">
           <div className="bcn-container-wide flex flex-col gap-4 py-4">
             <div className="flex items-center justify-between gap-4">
-              <Link href="/dashboard" className="inline-flex min-w-0 items-center gap-3">
+              <Link
+                href={circleCardFree ? "/dashboard/circle-card" : "/dashboard"}
+                className="inline-flex min-w-0 items-center gap-3"
+              >
                 <BrandMark placement="workspace" />
                 <div className="min-w-0">
                   <p className="truncate font-display text-base text-foreground">
-                    Member Workspace
+                    {workspaceTitle}
                   </p>
                   <p className="truncate text-[11px] tracking-[0.08em] text-muted uppercase">
-                    The Business Circle Network
+                    {workspaceSubtitle}
                   </p>
                 </div>
               </Link>
@@ -119,6 +162,14 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                   orientation="horizontal"
                   accentThemeStyle={memberShellStyle}
                   showAdminLink={session.user.role === "ADMIN"}
+                  workspaceEyebrow={circleCardFree ? "Circle Card Free" : undefined}
+                  workspaceTitle={circleCardFree ? "Relationship tools" : undefined}
+                  workspaceDescription={
+                    circleCardFree
+                      ? "Create your card, manage your wallet, and explore BCN when you are ready."
+                      : undefined
+                  }
+                  dialogLabel={circleCardFree ? "Circle Card navigation" : undefined}
                 />
                 {session.user.role === "ADMIN" ? (
                   <Link href="/admin" className="hidden lg:inline-flex">
@@ -161,15 +212,29 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Badge variant="muted">{ROLE_LABELS[session.user.role]}</Badge>
-        <MembershipTierBadge tier={effectiveTier} />
-        <FoundingBadge tier={session.user.foundingTier} />
+        {circleCardFree ? (
+          <Badge variant="muted">{circleCardAccountLabel}</Badge>
+        ) : (
+          <>
+            <Badge variant="muted">{ROLE_LABELS[session.user.role]}</Badge>
+            <MembershipTierBadge tier={effectiveTier} />
+            <FoundingBadge tier={session.user.foundingTier} />
+          </>
+        )}
       </div>
 
       <Separator className="my-4" />
       <MemberNavigation items={visibleNavItems} />
 
-      {canAccessTier(effectiveTier, MembershipTier.INNER_CIRCLE) ? (
+      {circleCardFree ? (
+        <Link
+          href="/membership"
+          className="mt-5 flex items-center gap-2 rounded-xl border border-gold/35 bg-gold/10 px-3 py-2 text-sm text-gold transition-colors hover:bg-gold/15"
+        >
+          <ShieldCheck size={16} />
+          Explore The Business Circle
+        </Link>
+      ) : canAccessTier(effectiveTier, MembershipTier.INNER_CIRCLE) ? (
         <Link
           href="/inner-circle"
           className="mt-5 flex items-center gap-2 rounded-xl border border-gold/35 bg-gold/10 px-3 py-2 text-sm text-gold transition-colors hover:bg-gold/15"
@@ -199,7 +264,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
         className="overflow-x-clip"
         header={header}
         sidebar={sidebar}
-        footer={<MemberFooter />}
+        footer={<MemberFooter variant={circleCardFree ? "circle-card-free" : "member"} />}
         contentClassName="py-6 sm:py-7 lg:py-8"
       >
         <div className="member-page-stack">

@@ -33,6 +33,10 @@ type MemberNavigationProps = {
   orientation?: "vertical" | "horizontal";
   accentThemeStyle?: CSSProperties;
   showAdminLink?: boolean;
+  workspaceEyebrow?: string;
+  workspaceTitle?: string;
+  workspaceDescription?: string;
+  dialogLabel?: string;
 };
 
 function iconForHref(href: string) {
@@ -88,18 +92,28 @@ function iconForHref(href: string) {
 }
 
 function isItemActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard") {
-    return pathname === href;
+  const hrefPath = href.split(/[?#]/)[0] || href;
+
+  if (href.includes("#")) {
+    return false;
   }
 
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (hrefPath === "/dashboard") {
+    return pathname === hrefPath;
+  }
+
+  return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
 }
 
 export function MemberNavigation({
   items,
   orientation = "vertical",
   accentThemeStyle,
-  showAdminLink = false
+  showAdminLink = false,
+  workspaceEyebrow = "Member Workspace",
+  workspaceTitle = "Inside The Business Circle",
+  workspaceDescription = "Move through the rooms without leaving the member environment.",
+  dialogLabel = "Member navigation"
 }: MemberNavigationProps) {
   const pathname = usePathname();
   const horizontal = orientation === "horizontal";
@@ -161,7 +175,7 @@ export function MemberNavigation({
         id="member-mobile-navigation-menu"
         role="dialog"
         aria-modal="true"
-        aria-label="Member navigation"
+        aria-label={dialogLabel}
         className="member-accent-theme fixed inset-0 z-[9999] min-h-dvh overflow-y-auto overflow-x-hidden overscroll-contain bg-[#07020d] text-foreground"
         style={mobileOverlayStyle}
       >
@@ -176,10 +190,10 @@ export function MemberNavigation({
                   />
                   <div className="min-w-0">
                     <p className="text-[11px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-text))]">
-                      Member Workspace
+                      {workspaceEyebrow}
                     </p>
                     <p className="mt-1 font-display text-xl leading-tight text-foreground">
-                      Inside The Business Circle
+                      {workspaceTitle}
                     </p>
                   </div>
                 </div>
@@ -193,7 +207,7 @@ export function MemberNavigation({
                 </button>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--member-accent-muted))]">
-                Move through the rooms without leaving the member environment.
+                {workspaceDescription}
               </p>
             </div>
 

@@ -92,6 +92,49 @@ export const registerMemberFormSchema = registerMemberBaseSchema
     }
   });
 
+const circleCardRegistrationBaseSchema = z.object({
+  source: z.literal("circle-card"),
+  name: z.string().trim().min(2).max(100),
+  email: emailSchema,
+  password: passwordSchema,
+  acceptedTerms: z.boolean().optional().default(false),
+  businessName: z.string().trim().max(140).optional().or(z.literal(""))
+});
+
+export const circleCardRegistrationSchema = circleCardRegistrationBaseSchema.superRefine(
+  (input, context) => {
+    if (!input.acceptedTerms) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["acceptedTerms"],
+        message: acceptedTermsMessage
+      });
+    }
+  }
+);
+
+export const circleCardRegistrationFormSchema = circleCardRegistrationBaseSchema
+  .extend({
+    confirmPassword: passwordSchema
+  })
+  .superRefine((input, context) => {
+    if (!input.acceptedTerms) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["acceptedTerms"],
+        message: acceptedTermsMessage
+      });
+    }
+
+    if (input.password !== input.confirmPassword) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmPassword"],
+        message: "Passwords must match."
+      });
+    }
+  });
+
 export const passwordResetRequestSchema = z.object({
   email: emailSchema
 });
@@ -116,6 +159,8 @@ export const passwordResetConfirmSchema = z
 export type CredentialsSignInInput = z.infer<typeof credentialsSignInSchema>;
 export type RegisterMemberInput = z.infer<typeof registerMemberSchema>;
 export type RegisterMemberFormInput = z.infer<typeof registerMemberFormSchema>;
+export type CircleCardRegistrationInput = z.infer<typeof circleCardRegistrationSchema>;
+export type CircleCardRegistrationFormInput = z.infer<typeof circleCardRegistrationFormSchema>;
 export type MembershipTierValue = z.infer<typeof membershipTierSchema>;
 export type MembershipBillingIntervalValue = z.infer<typeof membershipBillingIntervalSchema>;
 export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestSchema>;

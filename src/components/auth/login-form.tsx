@@ -46,6 +46,16 @@ export function LoginForm({
     initialNotice ?? resolveAuthErrorMessage(errorCode, errorDetailCode)
   );
   const targetPath = useMemo(() => safeRedirectPath(from), [from]);
+  const circleCardRegistrationHref = useMemo(() => {
+    const safeFrom = safeRedirectPath(from, "");
+    return safeFrom.startsWith("/card/") || safeFrom.startsWith("/dashboard/circle-card")
+      ? "/register?source=circle-card"
+      : withFrom("/membership", from);
+  }, [from]);
+  const circleCardRegistrationLabel =
+    circleCardRegistrationHref.startsWith("/register")
+      ? "Create a free Circle Card"
+      : "Create one";
 
   const form = useForm<CredentialsSignInInput>({
     resolver: zodResolver(credentialsSignInSchema),
@@ -135,8 +145,8 @@ export function LoginForm({
 
         <p className="text-sm text-muted">
           Need an account?{" "}
-          <Link href={withFrom("/membership", from)} className="text-primary hover:underline">
-            Create one
+          <Link href={circleCardRegistrationHref} className="text-primary hover:underline">
+            {circleCardRegistrationLabel}
           </Link>
         </p>
       </CardContent>

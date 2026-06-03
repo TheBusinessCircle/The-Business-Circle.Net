@@ -15,8 +15,8 @@ import {
 } from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { SITE_CONFIG } from "@/config/site";
+import { getCircleCardAccountLabel } from "@/lib/circle-card/permissions";
 import { getExternalLinkProps } from "@/lib/links";
 import { prisma } from "@/lib/prisma";
 import { absoluteUrl, cn } from "@/lib/utils";
@@ -199,6 +199,12 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
         })
       : null;
   const publicUrl = absoluteUrl(`/card/${card.slug}`);
+  const ownerAccountLabel = getCircleCardAccountLabel({
+    role: card.user.role,
+    membershipTier: card.user.membershipTier,
+    hasActiveSubscription: card.user.hasActiveSubscription
+  });
+  const ownerIsBcnMember = card.user.role === "ADMIN" || card.user.hasActiveSubscription;
   const telHref = phoneHref(card.phone);
   const analyticsCardId = card.isDemo ? null : card.id;
   const socialLinks = Object.entries(card.socialLinks).filter((entry): entry is [string, string] =>
@@ -291,7 +297,9 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
                 <Badge variant="outline" className="border-gold/25 text-gold">
                   Circle Card
                 </Badge>
-                <MembershipTierBadge tier={card.user.membershipTier} foundationLabel="BCN Member" />
+                <Badge variant="outline" className="border-silver/18 text-silver">
+                  {ownerAccountLabel}
+                </Badge>
                 <Badge variant="outline" className="border-silver/18 text-silver">
                   Founder verification ready
                 </Badge>
@@ -439,7 +447,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
                   Sign in
                 </Link>
                 <Link
-                  href="/circle-card"
+                  href="/register?source=circle-card"
                   className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
                 >
                   <UserPlus size={14} />
@@ -478,8 +486,12 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
               <div className="flex items-start gap-3 rounded-2xl border border-gold/20 bg-background/20 p-3">
                 <ShieldCheck size={17} className="mt-0.5 text-gold" />
                 <div>
-                  <p className="text-sm font-medium text-foreground">BCN Member</p>
-                  <p className="text-xs text-muted">Linked to an existing Business Circle account.</p>
+                  <p className="text-sm font-medium text-foreground">{ownerAccountLabel}</p>
+                  <p className="text-xs text-muted">
+                    {ownerIsBcnMember
+                      ? "Linked to an active Business Circle membership."
+                      : "A free Circle Card account inside The Business Circle ecosystem."}
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/20 p-3">

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { CircleCardRegisterForm } from "@/components/auth/circle-card-register-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildJoinConfirmationRedirect, firstValue } from "@/lib/join/routing";
+import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -16,6 +19,33 @@ type RegisterPageProps = {
 
 export default async function RegisterPage({ searchParams }: RegisterPageProps) {
   const params = await searchParams;
+
+  if (isCircleCardRegistrationSource(firstValue(params.source))) {
+    return (
+      <div className="grid w-full min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
+        <Card className="border-silver/16 bg-card/62">
+          <CardHeader>
+            <CardTitle className="font-display text-3xl">
+              Circle Card is free. BCN membership stays separate.
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm leading-relaxed text-muted">
+            <p>
+              Create a public card, save contacts into Circle Wallet, track basic activity and
+              install the mobile web app with the same BCN account system.
+            </p>
+            <p>
+              Community, calls, resources, messaging, founder rooms and member dashboards remain
+              for paid BCN members.
+            </p>
+          </CardContent>
+        </Card>
+
+        <CircleCardRegisterForm />
+      </div>
+    );
+  }
+
   redirect(
     buildJoinConfirmationRedirect({
       from: firstValue(params.from),

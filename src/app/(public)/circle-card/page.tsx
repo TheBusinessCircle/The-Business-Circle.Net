@@ -12,6 +12,7 @@ import {
   UsersRound,
   WalletCards
 } from "lucide-react";
+import { auth } from "@/auth";
 import { CircleCardInstallPrompt } from "@/components/circle-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
@@ -50,7 +51,12 @@ const HOW_IT_WORKS = [
   }
 ] as const;
 
-export default function CircleCardLandingPage() {
+export default async function CircleCardLandingPage() {
+  const session = await auth();
+  const primaryCtaHref = session?.user && !session.user.suspended
+    ? "/dashboard/circle-card"
+    : "/register?source=circle-card";
+
   return (
     <div className="public-page-stack">
       <section className="grid gap-6 py-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(360px,0.58fr)] lg:items-center lg:py-10">
@@ -73,7 +79,7 @@ export default function CircleCardLandingPage() {
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/dashboard/circle-card"
+              href={primaryCtaHref}
               className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 sm:w-auto")}
             >
               Create Free Circle Card
@@ -211,7 +217,7 @@ export default function CircleCardLandingPage() {
               Start with a free Circle Card.
             </h2>
           </div>
-          <Link href="/dashboard/circle-card">
+          <Link href={primaryCtaHref}>
             <Button className="w-full gap-2 md:w-auto">
               Create Free Circle Card
               <ArrowRight size={16} />

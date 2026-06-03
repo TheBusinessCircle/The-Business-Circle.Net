@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { createPendingRegistration, RegistrationServiceError } from "@/lib/auth/register";
+import {
+  createCircleCardFreeRegistration,
+  createPendingRegistration,
+  RegistrationServiceError
+} from "@/lib/auth/register";
+import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
 import {
   clientIpFromHeaders,
   consumeRateLimit,
@@ -44,6 +49,22 @@ export async function POST(request: Request) {
 
   try {
     const payload = await request.json();
+
+    if (
+      typeof payload === "object" &&
+      payload !== null &&
+      isCircleCardRegistrationSource((payload as { source?: string }).source)
+    ) {
+      const result = await createCircleCardFreeRegistration(payload);
+      return NextResponse.json(
+        {
+          ok: true,
+          redirectTo: result.redirectTo
+        },
+        { headers }
+      );
+    }
+
     const billingEnabled = isBillingEnabled();
 
     if (!billingEnabled) {

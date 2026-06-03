@@ -92,6 +92,18 @@ export const circleCardFormSchema = z.object({
 
 export type CircleCardFormValues = z.infer<typeof circleCardFormSchema>;
 
+export const circleCardOnboardingSchema = z.object({
+  profileImageUrl: optionalImageUrl,
+  fullName: z.string().trim().min(2).max(120),
+  businessName: optionalText(140),
+  role: optionalText(120),
+  tagline: optionalText(180),
+  websiteUrl: optionalHttpUrl("Website"),
+  isPublished: checkboxBoolean.default(true)
+});
+
+export type CircleCardOnboardingValues = z.infer<typeof circleCardOnboardingSchema>;
+
 export const circleWalletContactDetailsSchema = z.object({
   walletContactId: z.string().cuid(),
   notes: optionalText(2000),

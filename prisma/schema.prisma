@@ -26,6 +26,7 @@ model User {
   acceptedRulesAt                DateTime?
   acceptedTermsVersion           String?
   acceptedRulesVersion           String?
+  registrationSource             String?
   suspended                      Boolean                      @default(false)
   suspendedAt                    DateTime?
   createdAt                      DateTime                     @default(now())
@@ -111,6 +112,7 @@ model User {
   @@index([membershipTier])
   @@index([foundingMember])
   @@index([foundingTier])
+  @@index([registrationSource])
   @@index([suspended])
   @@index([createdAt])
   @@index([suspended, createdAt])

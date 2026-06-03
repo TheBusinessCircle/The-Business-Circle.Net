@@ -19,6 +19,8 @@ import { getMembershipPlan, type MembershipBillingInterval } from "@/config/memb
 import { sendEmailVerificationForUser } from "@/lib/auth/email-verification";
 import { hashPassword } from "@/lib/auth/password";
 import {
+  circleCardRegistrationSchema,
+  type CircleCardRegistrationInput,
   type MembershipBillingIntervalValue,
   type RegisterMemberInput,
   registerMemberSchema
@@ -74,6 +76,15 @@ export type CreatePendingRegistrationResult = {
   };
 };
 
+export type CreateCircleCardFreeRegistrationResult = {
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+  };
+  redirectTo: string;
+};
+
 export type ProvisionPendingRegistrationResult = {
   pendingRegistrationId: string;
   user: {
@@ -124,6 +135,10 @@ function normalizeBusinessStatus(value: RegisterMemberInput["businessStatus"]) {
 
 function normalizeBusinessStage(value: RegisterMemberInput["businessStage"]) {
   return value && value.length ? (value as BusinessStage) : null;
+}
+
+function normalizeCircleCardBusinessName(value: CircleCardRegistrationInput["businessName"]) {
+  return value?.trim() || null;
 }
 
 function hasEntitledSubscription(status: SubscriptionStatus | null | undefined) {
@@ -636,6 +651,87 @@ export async function createPendingRegistration(
     throw new RegistrationServiceError(
       "CREATE_FAILED",
       "Unable to start registration."
+    );
+  }
+}
+
+export async function createCircleCardFreeRegistration(
+  rawInput: unknown
+): Promise<CreateCircleCardFreeRegistrationResult> {
+  const parsed = circleCardRegistrationSchema.safeParse(rawInput);
+
+  if (!parsed.success) {
+    throw new RegistrationServiceError(
+      "INVALID_INPUT",
+      parsed.error.issues[0]?.message ?? "Invalid Circle Card registration payload."
+    );
+  }
+
+  const input = parsed.data;
+  const email = normalizeEmail(input.email);
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      suspended: true
+    }
+  });
+
+  if (existingUser) {
+    throw new RegistrationServiceError(
+      "EMAIL_IN_USE",
+      existingUser.suspended
+        ? "This account is currently suspended."
+        : "An account already exists with this email. Sign in or reset your password to continue."
+    );
+  }
+
+  const passwordHash = await hashPassword(input.password);
+  const acceptedAt = new Date();
+  const businessName = normalizeCircleCardBusinessName(input.businessName);
+
+  try {
+    const user = await prisma.user.create({
+      data: {
+        name: input.name,
+        email,
+        passwordHash,
+        role: Role.MEMBER,
+        membershipTier: MembershipTier.FOUNDATION,
+        acceptedTermsAt: acceptedAt,
+        acceptedTermsVersion: TERMS_VERSION,
+        registrationSource: "circle-card",
+        profile: {
+          create: buildProfileCreateData({
+            businessName,
+            businessStatus: null,
+            companyNumber: null,
+            businessStage: null
+          })
+        }
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true
+      }
+    });
+
+    return {
+      user,
+      redirectTo: "/dashboard/circle-card/onboarding"
+    };
+  } catch (error) {
+    if (isUniqueEmailError(error)) {
+      throw new RegistrationServiceError(
+        "EMAIL_IN_USE",
+        "An account already exists with this email. Sign in or reset your password to continue."
+      );
+    }
+
+    throw new RegistrationServiceError(
+      "CREATE_FAILED",
+      "Unable to create your free Circle Card account."
     );
   }
 }

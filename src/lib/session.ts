@@ -25,7 +25,11 @@ async function getFreshUserEntitlement(userId: string) {
   });
 }
 
-export async function requireUser() {
+type RequireUserOptions = {
+  allowUnentitled?: boolean;
+};
+
+export async function requireUser(options: RequireUserOptions = {}) {
   const session = await auth();
 
   if (!session?.user) {
@@ -52,7 +56,7 @@ export async function requireUser() {
   session.user.suspended = fresh.suspended;
   session.user.emailVerified = fresh.emailVerified ?? null;
 
-  if (fresh.role !== "ADMIN" && !hasActiveSubscription) {
+  if (!options.allowUnentitled && fresh.role !== "ADMIN" && !hasActiveSubscription) {
     redirect(
       `/membership?billing=${membershipAccessBillingQuery(
         fresh.subscription?.status ?? null
@@ -61,6 +65,10 @@ export async function requireUser() {
   }
 
   return session;
+}
+
+export async function requireCircleCardUser() {
+  return requireUser({ allowUnentitled: true });
 }
 
 export async function requireAdmin() {
