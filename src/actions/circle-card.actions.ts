@@ -37,6 +37,7 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "phone",
   "location",
   "linkedinUrl",
+  "tiktokUrl",
   "instagramUrl",
   "xUrl",
   "facebookUrl",

@@ -47,6 +47,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   location: "United Kingdom",
   socialLinks: {
     linkedin: SITE_CONFIG.social.linkedin,
+    tiktok: SITE_CONFIG.social.tiktok,
     instagram: SITE_CONFIG.social.instagram,
     facebook: SITE_CONFIG.social.facebook,
     youtube: SITE_CONFIG.social.youtube

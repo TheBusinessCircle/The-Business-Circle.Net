@@ -1,4 +1,5 @@
 export * from "@/components/circle-card/circle-card-bcn-discovery-panel";
+export * from "@/components/circle-card/circle-card-about-expander";
 export * from "@/components/circle-card/circle-card-install-prompt";
 export * from "@/components/circle-card/circle-card-copy-link-button";
 export * from "@/components/circle-card/circle-card-qr-panel";

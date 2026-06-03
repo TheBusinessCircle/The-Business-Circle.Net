@@ -5,6 +5,7 @@ import { slugify } from "@/lib/utils";
 
 export type CircleCardSocialLinks = {
   linkedin?: string;
+  tiktok?: string;
   instagram?: string;
   x?: string;
   facebook?: string;
@@ -13,6 +14,7 @@ export type CircleCardSocialLinks = {
 
 export const CIRCLE_CARD_SOCIAL_FIELDS = [
   "linkedin",
+  "tiktok",
   "instagram",
   "x",
   "facebook",
@@ -83,6 +85,7 @@ export const circleCardFormSchema = z.object({
   phone: optionalText(48),
   location: optionalText(120),
   linkedinUrl: optionalHttpUrl("LinkedIn"),
+  tiktokUrl: optionalHttpUrl("TikTok"),
   instagramUrl: optionalHttpUrl("Instagram"),
   xUrl: optionalHttpUrl("X"),
   facebookUrl: optionalHttpUrl("Facebook"),
@@ -185,12 +188,13 @@ export function buildCircleCardSlugBase(values: Pick<CircleCardFormValues, "slug
 export function buildCircleCardSocialLinks(
   values: Pick<
     CircleCardFormValues,
-    "linkedinUrl" | "instagramUrl" | "xUrl" | "facebookUrl" | "youtubeUrl"
+    "linkedinUrl" | "tiktokUrl" | "instagramUrl" | "xUrl" | "facebookUrl" | "youtubeUrl"
   >
 ): Prisma.InputJsonObject {
   return Object.fromEntries(
     [
       ["linkedin", values.linkedinUrl],
+      ["tiktok", values.tiktokUrl],
       ["instagram", values.instagramUrl],
       ["x", values.xUrl],
       ["facebook", values.facebookUrl],

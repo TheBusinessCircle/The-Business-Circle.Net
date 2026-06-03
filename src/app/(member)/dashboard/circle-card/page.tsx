@@ -215,6 +215,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             linkedin: true,
             instagram: true,
             facebook: true,
+            tiktok: true,
             youtube: true,
             business: {
               select: {
@@ -594,6 +595,16 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="tiktokUrl">TikTok</Label>
+                  <Input
+                    id="tiktokUrl"
+                    name="tiktokUrl"
+                    type="url"
+                    defaultValue={socialLinks.tiktok ?? member?.profile?.tiktok ?? ""}
+                    placeholder="https://www.tiktok.com/@..."
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="xUrl">X</Label>
                   <Input id="xUrl" name="xUrl" type="url" defaultValue={socialLinks.x ?? ""} />
                 </div>
@@ -606,7 +617,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     defaultValue={socialLinks.facebook ?? member?.profile?.facebook ?? ""}
                   />
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
                   <Label htmlFor="youtubeUrl">YouTube</Label>
                   <Input
                     id="youtubeUrl"
