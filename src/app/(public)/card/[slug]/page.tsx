@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
-import { saveCircleWalletContactAction } from "@/actions/circle-card.actions";
+import {
+  removeCircleWalletContactAction,
+  saveCircleWalletContactAction
+} from "@/actions/circle-card.actions";
 import { CircleCardShareButton } from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -10,19 +13,24 @@ import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { SITE_CONFIG } from "@/config/site";
 import { getExternalLinkProps } from "@/lib/links";
 import { prisma } from "@/lib/prisma";
-import { readCircleCardSocialLinks, type CircleCardSocialLinks } from "@/lib/circle-card/schema";
 import { absoluteUrl, cn } from "@/lib/utils";
+import { getPublicCircleCard } from "@/server/circle-card";
 import {
   BadgeCheck,
   BriefcaseBusiness,
+  CheckCircle2,
+  Download,
   ExternalLink,
   Globe2,
+  LogIn,
   Mail,
   MapPin,
   Phone,
   ShieldCheck,
   Sparkles,
   Star,
+  Trash2,
+  UserPlus,
   UserRound,
   WalletCards
 } from "lucide-react";
@@ -32,60 +40,10 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type PublicCircleCard = {
-  id: string;
-  userId: string;
-  slug: string;
-  fullName: string;
-  businessName: string | null;
-  role: string | null;
-  tagline: string | null;
-  about: string | null;
-  profileImageUrl: string | null;
-  websiteUrl: string | null;
-  email: string | null;
-  phone: string | null;
-  location: string | null;
-  socialLinks: CircleCardSocialLinks;
-  viewCount: number;
-  isDemo: boolean;
-  user: {
-    membershipTier: "FOUNDATION" | "INNER_CIRCLE" | "CORE";
-    foundingTier: "FOUNDATION" | "INNER_CIRCLE" | "CORE" | null;
-  };
-};
-
-const DEMO_CARD: PublicCircleCard = {
-  id: "demo",
-  userId: "demo",
-  slug: "demo",
-  fullName: "Trev Clarke",
-  businessName: "The Business Circle",
-  role: "Founder",
-  tagline: "Founder-led rooms for better business relationships.",
-  about:
-    "Circle Card gives professionals a clean identity layer for the people they meet, the details they need to share, and the relationships worth returning to later.",
-  profileImageUrl: "/branding/the-business-circle-logo.png",
-  websiteUrl: "https://thebusinesscircle.net",
-  email: SITE_CONFIG.supportEmail,
-  phone: null,
-  location: "United Kingdom",
-  socialLinks: {
-    linkedin: SITE_CONFIG.social.linkedin,
-    instagram: SITE_CONFIG.social.instagram,
-    facebook: SITE_CONFIG.social.facebook,
-    youtube: SITE_CONFIG.social.youtube
-  },
-  viewCount: 0,
-  isDemo: true,
-  user: {
-    membershipTier: "CORE",
-    foundingTier: "CORE"
-  }
-};
-
 const NOTICE_MESSAGES: Record<string, string> = {
   "card-saved": "Card saved to your Circle Wallet.",
+  "card-already-saved": "This card is already in your Circle Wallet.",
+  "card-removed": "Card removed from your Circle Wallet.",
   "own-card": "This is your Circle Card."
 };
 
@@ -112,56 +70,11 @@ function phoneHref(phone: string | null) {
   return normalized ? `tel:${normalized}` : null;
 }
 
-async function getPublicCircleCard(slug: string): Promise<PublicCircleCard | null> {
-  if (slug === "demo") {
-    return DEMO_CARD;
-  }
-
-  const card = await prisma.circleCard.findFirst({
-    where: {
-      slug,
-      isPublished: true,
-      user: {
-        suspended: false
-      }
-    },
-    select: {
-      id: true,
-      userId: true,
-      slug: true,
-      fullName: true,
-      businessName: true,
-      role: true,
-      tagline: true,
-      about: true,
-      profileImageUrl: true,
-      websiteUrl: true,
-      email: true,
-      phone: true,
-      location: true,
-      socialLinks: true,
-      viewCount: true,
-      user: {
-        select: {
-          membershipTier: true,
-          foundingTier: true
-        }
-      }
-    }
-  });
-
+async function incrementViewCount(card: Awaited<ReturnType<typeof getPublicCircleCard>>) {
   if (!card) {
-    return null;
+    return;
   }
 
-  return {
-    ...card,
-    socialLinks: readCircleCardSocialLinks(card.socialLinks),
-    isDemo: false
-  };
-}
-
-async function incrementViewCount(card: PublicCircleCard) {
   if (card.isDemo) {
     return;
   }
@@ -239,6 +152,23 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
 
   await incrementViewCount(card);
 
+  const viewerUserId = session?.user?.id ?? null;
+  const viewerIsOwner = Boolean(viewerUserId && viewerUserId === card.userId);
+  const savedContact =
+    viewerUserId && !viewerIsOwner && !card.isDemo
+      ? await prisma.circleWalletContact.findUnique({
+          where: {
+            userId_cardId: {
+              userId: viewerUserId,
+              cardId: card.id
+            }
+          },
+          select: {
+            id: true,
+            favourite: true
+          }
+        })
+      : null;
   const publicUrl = absoluteUrl(`/card/${card.slug}`);
   const telHref = phoneHref(card.phone);
   const socialLinks = Object.entries(card.socialLinks).filter((entry): entry is [string, string] =>
@@ -318,23 +248,50 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
             </div>
           ) : null}
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {session?.user && !card.isDemo ? (
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <a
+              href={`/card/${card.slug}/vcard`}
+              className={cn(buttonVariants(), "w-full gap-2")}
+            >
+              <Download size={16} />
+              Save to Phone
+            </a>
+
+            {viewerIsOwner ? (
+              <span className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 opacity-70")}>
+                <UserRound size={16} />
+                Your Card
+              </span>
+            ) : card.isDemo ? (
+              <span className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 opacity-70")}>
+                <WalletCards size={16} />
+                Demo Card
+              </span>
+            ) : savedContact ? (
+              <form action={removeCircleWalletContactAction}>
+                <input type="hidden" name="cardId" value={card.id} />
+                <input type="hidden" name="returnPath" value={`/card/${card.slug}`} />
+                <Button type="submit" variant="outline" className="w-full gap-2">
+                  <Trash2 size={16} />
+                  Remove Saved
+                </Button>
+              </form>
+            ) : session?.user && !card.isDemo ? (
               <form action={saveCircleWalletContactAction}>
                 <input type="hidden" name="cardId" value={card.id} />
                 <input type="hidden" name="returnPath" value={`/card/${card.slug}`} />
                 <Button type="submit" className="w-full gap-2">
                   <WalletCards size={16} />
-                  Save Contact
+                  Save to Wallet
                 </Button>
               </form>
             ) : (
               <Link
                 href={`/login?from=${encodeURIComponent(`/card/${card.slug}`)}`}
-                className={cn(buttonVariants(), "w-full gap-2")}
+                className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
               >
                 <WalletCards size={16} />
-                Save Contact
+                Save to Wallet
               </Link>
             )}
 
@@ -382,6 +339,40 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
               </span>
             )}
           </div>
+
+          {savedContact ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm text-gold">
+              <CheckCircle2 size={16} />
+              Saved in your Circle Wallet
+              {savedContact.favourite ? <span className="text-xs text-gold/80">Favourite</span> : null}
+            </div>
+          ) : null}
+
+          {!session?.user ? (
+            <div className="mt-4 rounded-2xl border border-silver/14 bg-background/20 p-4">
+              <p className="text-sm font-medium text-foreground">Save to Circle Wallet</p>
+              <p className="mt-2 text-sm text-muted">
+                Download the phone contact now, or sign in to save this person into your private
+                Circle Wallet with notes, tags and favourites.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <Link
+                  href={`/login?from=${encodeURIComponent(`/card/${card.slug}`)}`}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+                >
+                  <LogIn size={14} />
+                  Sign in
+                </Link>
+                <Link
+                  href="/circle-card"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+                >
+                  <UserPlus size={14} />
+                  Create Circle Card
+                </Link>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <aside className="space-y-5">

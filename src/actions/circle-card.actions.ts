@@ -1,21 +1,24 @@
 "use server";
 
+import type { MembershipTier, Role } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import {
   buildCircleCardSlugBase,
   buildCircleCardSocialLinks,
   circleCardFormSchema,
-  nullableText
+  circleWalletContactDetailsSchema,
+  nullableText,
+  parseCircleWalletTagsInput
 } from "@/lib/circle-card/schema";
 import {
   canCreateCircleCard,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/session";
 
 const CIRCLE_CARD_FORM_FIELDS = [
   "cardId",
@@ -37,6 +40,40 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "youtubeUrl",
   "isPublished"
 ] as const;
+
+type CircleCardActionUser = {
+  id: string;
+  role: Role;
+  membershipTier: MembershipTier;
+};
+
+async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      role: true,
+      membershipTier: true,
+      suspended: true
+    }
+  });
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  if (user.suspended) {
+    redirect("/login?error=suspended");
+  }
+
+  return user;
+}
 
 function appendQueryParam(path: string, key: string, value: string) {
   const url = new URL(path, "http://localhost");
@@ -108,7 +145,7 @@ function revalidateCircleCardPaths(slug?: string | null) {
 }
 
 export async function upsertCircleCardAction(formData: FormData) {
-  const session = await requireUser();
+  const user = await requireCircleCardActionUser();
   const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
   const parsed = circleCardFormSchema.safeParse(readCircleCardFormData(formData));
 
@@ -122,7 +159,7 @@ export async function upsertCircleCardAction(formData: FormData) {
     ? await prisma.circleCard.findFirst({
         where: {
           id: cardId,
-          userId: session.user.id
+          userId: user.id
         },
         select: {
           id: true,
@@ -137,11 +174,11 @@ export async function upsertCircleCardAction(formData: FormData) {
 
   if (!cardId) {
     const existingCardCount = await prisma.circleCard.count({
-      where: { userId: session.user.id }
+      where: { userId: user.id }
     });
     const accessLevel = resolveCircleCardAccessLevel({
-      role: session.user.role,
-      membershipTier: session.user.membershipTier
+      role: user.role,
+      membershipTier: user.membershipTier
     });
 
     if (!canCreateCircleCard({ accessLevel, existingCardCount })) {
@@ -191,12 +228,12 @@ export async function upsertCircleCardAction(formData: FormData) {
     }
 
     const cardCount = await prisma.circleCard.count({
-      where: { userId: session.user.id }
+      where: { userId: user.id }
     });
     const card = await prisma.circleCard.create({
       data: {
         ...data,
-        userId: session.user.id,
+        userId: user.id,
         isPrimary: cardCount === 0
       },
       select: { slug: true }
@@ -217,7 +254,7 @@ export async function upsertCircleCardAction(formData: FormData) {
 }
 
 export async function saveCircleWalletContactAction(formData: FormData) {
-  const session = await requireUser();
+  const user = await requireCircleCardActionUser();
   const returnPath = resolveReturnPath(formData.get("returnPath"), "/circle-card");
   const cardId = String(formData.get("cardId") || "");
 
@@ -241,27 +278,163 @@ export async function saveCircleWalletContactAction(formData: FormData) {
     redirectWithError(returnPath, "card-not-found");
   }
 
-  if (card.userId === session.user.id) {
+  if (card.userId === user.id) {
     redirectWithNotice(returnPath, "own-card");
   }
 
-  await prisma.circleWalletContact.upsert({
+  const existingSave = await prisma.circleWalletContact.findUnique({
     where: {
       userId_cardId: {
-        userId: session.user.id,
+        userId: user.id,
         cardId: card.id
       }
     },
-    create: {
-      userId: session.user.id,
+    select: { id: true }
+  });
+
+  if (existingSave) {
+    revalidatePath("/dashboard/circle-card");
+    revalidatePath(`/card/${card.slug}`);
+    redirectWithNotice(returnPath, "card-already-saved");
+  }
+
+  await prisma.circleWalletContact.create({
+    data: {
+      userId: user.id,
       cardId: card.id
-    },
-    update: {
-      savedAt: new Date()
     }
   });
 
   revalidatePath("/dashboard/circle-card");
   revalidatePath(`/card/${card.slug}`);
   redirectWithNotice(returnPath, "card-saved");
+}
+
+export async function removeCircleWalletContactAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const cardId = String(formData.get("cardId") || "");
+
+  if (!cardId) {
+    redirectWithError(returnPath, "missing-card");
+  }
+
+  const savedContact = await prisma.circleWalletContact.findUnique({
+    where: {
+      userId_cardId: {
+        userId: user.id,
+        cardId
+      }
+    },
+    select: {
+      card: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!savedContact) {
+    redirectWithNotice(returnPath, "card-removed");
+  }
+
+  await prisma.circleWalletContact.delete({
+    where: {
+      userId_cardId: {
+        userId: user.id,
+        cardId
+      }
+    }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  revalidatePath(`/card/${savedContact.card.slug}`);
+  redirectWithNotice(returnPath, "card-removed");
+}
+
+export async function toggleCircleWalletFavouriteAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const walletContactId = String(formData.get("walletContactId") || "");
+
+  if (!walletContactId) {
+    redirectWithError(returnPath, "wallet-contact-missing");
+  }
+
+  const savedContact = await prisma.circleWalletContact.findFirst({
+    where: {
+      id: walletContactId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      favourite: true,
+      card: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!savedContact) {
+    redirectWithError(returnPath, "wallet-contact-not-found");
+  }
+
+  await prisma.circleWalletContact.update({
+    where: { id: savedContact.id },
+    data: {
+      favourite: !savedContact.favourite
+    }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  revalidatePath(`/card/${savedContact.card.slug}`);
+  redirectWithNotice(returnPath, savedContact.favourite ? "favourite-removed" : "favourite-added");
+}
+
+export async function updateCircleWalletContactDetailsAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleWalletContactDetailsSchema.safeParse({
+    walletContactId: formData.get("walletContactId"),
+    notes: formData.get("notes"),
+    tagsInput: formData.get("tagsInput")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "wallet-contact-invalid");
+  }
+
+  const savedContact = await prisma.circleWalletContact.findFirst({
+    where: {
+      id: parsed.data.walletContactId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      card: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!savedContact) {
+    redirectWithError(returnPath, "wallet-contact-not-found");
+  }
+
+  await prisma.circleWalletContact.update({
+    where: { id: savedContact.id },
+    data: {
+      notes: nullableText(parsed.data.notes),
+      tags: parseCircleWalletTagsInput(parsed.data.tagsInput)
+    }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  revalidatePath(`/card/${savedContact.card.slug}`);
+  redirectWithNotice(returnPath, "relationship-updated");
 }

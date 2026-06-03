@@ -92,6 +92,12 @@ export const circleCardFormSchema = z.object({
 
 export type CircleCardFormValues = z.infer<typeof circleCardFormSchema>;
 
+export const circleWalletContactDetailsSchema = z.object({
+  walletContactId: z.string().cuid(),
+  notes: optionalText(2000),
+  tagsInput: optionalText(300)
+});
+
 export function normalizeCircleCardUrl(value?: string | null) {
   const trimmed = value?.trim();
 
@@ -128,6 +134,35 @@ function isHttpUrl(value: string) {
 export function nullableText(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+export function parseCircleWalletTagsInput(value?: string | null) {
+  if (!value?.trim()) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean)
+        .map((item) => item.replace(/[^a-z0-9 -]/g, "").replace(/\s+/g, "-"))
+        .filter(Boolean)
+    )
+  ).slice(0, 12);
+}
+
+export function readCircleWalletTags(value: Prisma.JsonValue | null | undefined) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 12);
 }
 
 export function buildCircleCardSlugBase(values: Pick<CircleCardFormValues, "slug" | "fullName" | "businessName">) {

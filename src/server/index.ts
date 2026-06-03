@@ -11,3 +11,4 @@ export * from "@/server/subscriptions";
 export * from "@/server/contact";
 export * from "@/server/visual-media";
 export * from "@/server/testimonials";
+export * from "@/server/circle-card";

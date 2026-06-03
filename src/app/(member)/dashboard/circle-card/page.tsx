@@ -3,12 +3,23 @@ import Link from "next/link";
 import {
   ArrowUpRight,
   BarChart3,
+  CalendarDays,
   ContactRound,
   Crown,
+  Search,
   Save,
+  Star,
+  StickyNote,
+  Tag,
+  Trash2,
   WalletCards
 } from "lucide-react";
-import { upsertCircleCardAction } from "@/actions/circle-card.actions";
+import {
+  removeCircleWalletContactAction,
+  toggleCircleWalletFavouriteAction,
+  updateCircleWalletContactDetailsAction,
+  upsertCircleCardAction
+} from "@/actions/circle-card.actions";
 import { CircleCardQrPanel } from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,11 +31,11 @@ import {
   getCircleCardFeatureAccess,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
-import { readCircleCardSocialLinks } from "@/lib/circle-card/schema";
+import { readCircleCardSocialLinks, readCircleWalletTags } from "@/lib/circle-card/schema";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
-import { absoluteUrl } from "@/lib/utils";
+import { absoluteUrl, cn, formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = createPageMetadata({
   title: "My Circle Card",
@@ -47,6 +58,11 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "card-created": "Circle Card created.",
   "card-updated": "Circle Card updated.",
   "card-saved": "Contact saved to your Circle Wallet.",
+  "card-already-saved": "That card is already in your Circle Wallet.",
+  "card-removed": "Contact removed from your Circle Wallet.",
+  "favourite-added": "Contact marked as a favourite.",
+  "favourite-removed": "Contact removed from favourites.",
+  "relationship-updated": "Relationship details updated.",
   "own-card": "This is already your Circle Card."
 };
 
@@ -55,15 +71,87 @@ const ERROR_MESSAGES: Record<string, string> = {
   "card-not-found": "That Circle Card could not be found.",
   "card-limit": "Your current Circle Card access includes one card in Phase 1.",
   "slug-taken": "That public card link is already taken.",
-  "card-save-failed": "The Circle Card could not be saved."
+  "card-save-failed": "The Circle Card could not be saved.",
+  "wallet-contact-invalid": "Check the relationship details and try again.",
+  "wallet-contact-not-found": "That saved contact could not be found."
 };
+
+const WALLET_VIEW_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "favourites", label: "Favourites" },
+  { value: "recent", label: "Recent" }
+] as const;
+
+type WalletView = (typeof WALLET_VIEW_OPTIONS)[number]["value"];
+
+function resolveWalletView(value: string | undefined): WalletView {
+  return value === "favourites" || value === "recent" ? value : "all";
+}
+
+function buildWalletHref(input: {
+  walletQuery?: string;
+  walletView?: WalletView;
+  contactId?: string | null;
+}) {
+  const params = new URLSearchParams();
+
+  if (input.walletQuery) {
+    params.set("walletQuery", input.walletQuery);
+  }
+
+  if (input.walletView && input.walletView !== "all") {
+    params.set("walletView", input.walletView);
+  }
+
+  if (input.contactId) {
+    params.set("contactId", input.contactId);
+  }
+
+  const query = params.toString();
+  return query ? `/dashboard/circle-card?${query}` : "/dashboard/circle-card";
+}
+
+function walletContactMatchesQuery(input: {
+  query: string;
+  card: {
+    fullName: string;
+    businessName: string | null;
+    role: string | null;
+    tagline: string | null;
+    location: string | null;
+  };
+  notes: string | null;
+  tags: string[];
+}) {
+  if (!input.query) {
+    return true;
+  }
+
+  const haystack = [
+    input.card.fullName,
+    input.card.businessName,
+    input.card.role,
+    input.card.tagline,
+    input.card.location,
+    input.notes,
+    ...input.tags
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(input.query.toLowerCase());
+}
 
 export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
   const session = await requireUser();
   const params = await searchParams;
   const notice = firstValue(params.notice);
   const error = firstValue(params.error);
-  const [card, cardCount, member] = await Promise.all([
+  const walletQuery = (firstValue(params.walletQuery) ?? "").trim();
+  const walletView = resolveWalletView(firstValue(params.walletView));
+  const selectedContactId = firstValue(params.contactId);
+  const [card, cardCount, member, walletContacts] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
       orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }]
@@ -96,13 +184,71 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           }
         }
       }
+    }),
+    prisma.circleWalletContact.findMany({
+      where: { userId: session.user.id },
+      orderBy: [{ savedAt: "desc" }],
+      select: {
+        id: true,
+        savedAt: true,
+        favourite: true,
+        notes: true,
+        tags: true,
+        card: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            tagline: true,
+            location: true,
+            profileImageUrl: true,
+            websiteUrl: true,
+            email: true,
+            phone: true,
+            isPublished: true
+          }
+        }
+      }
     })
   ]);
-  const savedContactCount = card
-    ? await prisma.circleWalletContact.count({
-        where: { cardId: card.id }
-      })
-    : 0;
+  const normalizedWalletContacts = walletContacts.map((contact) => ({
+    ...contact,
+    tags: readCircleWalletTags(contact.tags)
+  }));
+  const searchedWalletContacts = normalizedWalletContacts.filter((contact) =>
+    walletContactMatchesQuery({
+      query: walletQuery,
+      card: contact.card,
+      notes: contact.notes,
+      tags: contact.tags
+    })
+  );
+  const filteredWalletContacts = searchedWalletContacts.filter((contact) => {
+    if (walletView === "favourites") {
+      return contact.favourite;
+    }
+
+    return true;
+  });
+  const visibleWalletContacts =
+    walletView === "recent" ? filteredWalletContacts.slice(0, 8) : filteredWalletContacts;
+  const favouriteWalletContacts = normalizedWalletContacts
+    .filter((contact) => contact.favourite)
+    .slice(0, 4);
+  const recentWalletContacts = normalizedWalletContacts.slice(0, 4);
+  const selectedWalletContact =
+    normalizedWalletContacts.find((contact) => contact.id === selectedContactId) ??
+    visibleWalletContacts[0] ??
+    normalizedWalletContacts[0] ??
+    null;
+  const walletReturnPath = buildWalletHref({
+    walletQuery,
+    walletView,
+    contactId: selectedWalletContact?.id ?? null
+  });
+  const savedContactCount = normalizedWalletContacts.length;
   const accessLevel = resolveCircleCardAccessLevel({
     role: session.user.role,
     membershipTier: session.user.membershipTier
@@ -355,13 +501,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   Circle Wallet
                 </CardTitle>
                 <CardDescription>
-                  {savedContactCount} saved contact{savedContactCount === 1 ? "" : "s"} linked to this card.
+                  {savedContactCount} saved contact{savedContactCount === 1 ? "" : "s"} in your wallet.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted">
-                  Favourites, notes and tags are structured in the database and ready for the full
-                  wallet view.
+                  Search, favourites, private notes and tags are available in the wallet section
+                  below.
                 </p>
               </CardContent>
             </Card>
@@ -413,6 +559,372 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
         </aside>
       </div>
+
+      <section id="wallet" className="space-y-5">
+        <div className="flex flex-col gap-4 border-t border-silver/12 pt-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Circle Wallet</p>
+            <h2 className="mt-2 font-display text-3xl text-foreground">Saved relationships</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+              Search the people you have saved, keep private relationship context, and return to
+              the right card when it is time to reconnect.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="muted">{savedContactCount} saved</Badge>
+            <Badge variant="outline" className="border-silver/18 text-silver">
+              {favouriteWalletContacts.length} favourite
+            </Badge>
+          </div>
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="space-y-5">
+            <Card className="border-silver/16 bg-card/62">
+              <CardContent className="space-y-4 pt-6 sm:pt-7">
+                <form action="/dashboard/circle-card" method="get" className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                  {walletView !== "all" ? (
+                    <input type="hidden" name="walletView" value={walletView} />
+                  ) : null}
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-3 text-muted" size={16} />
+                    <Input
+                      name="walletQuery"
+                      defaultValue={walletQuery}
+                      placeholder="Search names, companies, notes or tags"
+                      className="pl-10"
+                    />
+                  </div>
+                  <Button type="submit" variant="outline" className="w-full gap-2 md:w-auto">
+                    <Search size={16} />
+                    Search
+                  </Button>
+                </form>
+
+                <div className="flex flex-wrap gap-2">
+                  {WALLET_VIEW_OPTIONS.map((option) => (
+                    <Link
+                      key={option.value}
+                      href={buildWalletHref({ walletQuery, walletView: option.value })}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                        walletView === option.value
+                          ? "border-gold/32 bg-gold/10 text-gold"
+                          : "border-silver/14 bg-background/20 text-muted hover:border-silver/28 hover:text-foreground"
+                      )}
+                    >
+                      {option.label}
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {savedContactCount === 0 ? (
+              <Card className="border-dashed border-silver/18 bg-card/48">
+                <CardContent className="py-10 text-center">
+                  <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
+                    <WalletCards size={20} />
+                  </div>
+                  <h3 className="mt-4 font-display text-2xl text-foreground">
+                    No saved contacts yet
+                  </h3>
+                  <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                    When you save a public Circle Card, it will appear here with private notes,
+                    tags and favourite status.
+                  </p>
+                  <Link href="/circle-card" className="mt-5 inline-flex">
+                    <Button variant="outline">Explore Circle Card</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Card className="border-gold/18 bg-gold/8">
+                    <CardHeader>
+                      <CardTitle className="inline-flex items-center gap-2 text-lg">
+                        <Star size={16} className="text-gold" />
+                        Favourite contacts
+                      </CardTitle>
+                      <CardDescription>People you want close at hand.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {favouriteWalletContacts.length ? (
+                        favouriteWalletContacts.map((contact) => (
+                          <Link
+                            key={contact.id}
+                            href={buildWalletHref({ walletQuery, walletView, contactId: contact.id })}
+                            className="block rounded-2xl border border-gold/18 bg-background/22 px-4 py-3 text-sm text-foreground hover:border-gold/32"
+                          >
+                            {contact.card.fullName}
+                            <span className="mt-1 block text-xs text-muted">
+                              {contact.card.businessName || contact.card.role || "Circle Card contact"}
+                            </span>
+                          </Link>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted">Favourite important contacts as you save them.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-silver/16 bg-card/62">
+                    <CardHeader>
+                      <CardTitle className="inline-flex items-center gap-2 text-lg">
+                        <CalendarDays size={16} className="text-silver" />
+                        Recently saved
+                      </CardTitle>
+                      <CardDescription>Your newest relationship context.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {recentWalletContacts.map((contact) => (
+                        <Link
+                          key={contact.id}
+                          href={buildWalletHref({ walletQuery, walletView, contactId: contact.id })}
+                          className="block rounded-2xl border border-silver/14 bg-background/20 px-4 py-3 text-sm text-foreground hover:border-silver/28"
+                        >
+                          {contact.card.fullName}
+                          <span className="mt-1 block text-xs text-muted">
+                            Saved {formatDate(contact.savedAt)}
+                          </span>
+                        </Link>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="space-y-3">
+                  {visibleWalletContacts.length ? (
+                    visibleWalletContacts.map((contact) => {
+                      const detailHref = buildWalletHref({
+                        walletQuery,
+                        walletView,
+                        contactId: contact.id
+                      });
+                      const selected = selectedWalletContact?.id === contact.id;
+
+                      return (
+                        <Card
+                          key={contact.id}
+                          className={cn(
+                            "border-silver/16 bg-card/62",
+                            selected ? "border-gold/28 bg-gold/8" : ""
+                          )}
+                        >
+                          <CardContent className="p-4 sm:p-5">
+                            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                              <div className="flex min-w-0 gap-3">
+                                <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-silver/16 bg-background/28 text-sm font-semibold text-foreground">
+                                  {contact.card.profileImageUrl ? (
+                                    <img
+                                      src={contact.card.profileImageUrl}
+                                      alt={contact.card.fullName}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    contact.card.fullName.slice(0, 2).toUpperCase()
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-base font-semibold text-foreground">
+                                      {contact.card.fullName}
+                                    </h3>
+                                    {contact.favourite ? (
+                                      <Badge variant="outline" className="border-gold/25 text-gold">
+                                        Favourite
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                  <p className="mt-1 text-sm text-silver">
+                                    {[contact.card.role, contact.card.businessName].filter(Boolean).join(" at ") ||
+                                      "Circle Card contact"}
+                                  </p>
+                                  {contact.card.tagline ? (
+                                    <p className="mt-2 text-sm text-muted">{contact.card.tagline}</p>
+                                  ) : null}
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {contact.card.location ? (
+                                      <Badge variant="muted">{contact.card.location}</Badge>
+                                    ) : null}
+                                    {contact.tags.map((tag) => (
+                                      <Badge key={tag} variant="outline" className="border-silver/18 text-silver">
+                                        {tag}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2 md:justify-end">
+                                <Link href={`/card/${contact.card.slug}`} target="_blank" rel="noopener noreferrer">
+                                  <Button type="button" variant="outline" size="sm" className="gap-2">
+                                    Public card
+                                    <ArrowUpRight size={14} />
+                                  </Button>
+                                </Link>
+                                <Link href={detailHref}>
+                                  <Button type="button" variant={selected ? "default" : "outline"} size="sm">
+                                    Details
+                                  </Button>
+                                </Link>
+                                <form action={toggleCircleWalletFavouriteAction}>
+                                  <input type="hidden" name="walletContactId" value={contact.id} />
+                                  <input type="hidden" name="returnPath" value={detailHref} />
+                                  <Button type="submit" variant="outline" size="sm" className="gap-2">
+                                    <Star size={14} />
+                                    {contact.favourite ? "Unfavourite" : "Favourite"}
+                                  </Button>
+                                </form>
+                                <form action={removeCircleWalletContactAction}>
+                                  <input type="hidden" name="cardId" value={contact.card.id} />
+                                  <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                                  <Button type="submit" variant="outline" size="sm" className="gap-2">
+                                    <Trash2 size={14} />
+                                    Remove
+                                  </Button>
+                                </form>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  ) : (
+                    <Card className="border-dashed border-silver/18 bg-card/48">
+                      <CardContent className="py-8 text-center text-sm text-muted">
+                        No saved contacts match that search.
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <aside className="space-y-5">
+            <Card className="border-silver/16 bg-card/62">
+              <CardHeader>
+                <CardTitle>Relationship details</CardTitle>
+                <CardDescription>
+                  Private memory for the saved contact selected in your wallet.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {selectedWalletContact ? (
+                  <>
+                    <div className="rounded-2xl border border-silver/14 bg-background/20 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                        Selected contact
+                      </p>
+                      <h3 className="mt-2 text-lg font-semibold text-foreground">
+                        {selectedWalletContact.card.fullName}
+                      </h3>
+                      <p className="mt-1 text-sm text-muted">
+                        {[selectedWalletContact.card.role, selectedWalletContact.card.businessName]
+                          .filter(Boolean)
+                          .join(" at ") || "Circle Card contact"}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
+                        <CalendarDays size={16} className="text-silver" />
+                        <p className="mt-3 text-[11px] uppercase tracking-[0.08em] text-silver">
+                          Date saved
+                        </p>
+                        <p className="mt-1 text-sm text-foreground">
+                          {formatDate(selectedWalletContact.savedAt)}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
+                        <Star size={16} className="text-silver" />
+                        <p className="mt-3 text-[11px] uppercase tracking-[0.08em] text-silver">
+                          Favourite
+                        </p>
+                        <p className="mt-1 text-sm text-foreground">
+                          {selectedWalletContact.favourite ? "Yes" : "No"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <form action={updateCircleWalletContactDetailsAction} className="space-y-4">
+                      <input type="hidden" name="walletContactId" value={selectedWalletContact.id} />
+                      <input type="hidden" name="returnPath" value={walletReturnPath} />
+                      <div className="space-y-2">
+                        <Label htmlFor="wallet-notes" className="inline-flex items-center gap-2">
+                          <StickyNote size={15} className="text-silver" />
+                          Notes
+                        </Label>
+                        <Textarea
+                          id="wallet-notes"
+                          name="notes"
+                          rows={5}
+                          defaultValue={selectedWalletContact.notes ?? ""}
+                          placeholder="Where you met, what mattered, and why to reconnect."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="wallet-tags" className="inline-flex items-center gap-2">
+                          <Tag size={15} className="text-silver" />
+                          Tags
+                        </Label>
+                        <Input
+                          id="wallet-tags"
+                          name="tagsInput"
+                          defaultValue={selectedWalletContact.tags.join(", ")}
+                          placeholder="investor, local, follow-up"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          {selectedWalletContact.tags.length ? (
+                            selectedWalletContact.tags.map((tag) => (
+                              <Badge key={tag} variant="outline" className="border-silver/18 text-silver">
+                                {tag}
+                              </Badge>
+                            ))
+                          ) : (
+                            <p className="text-xs text-muted">No tags added yet.</p>
+                          )}
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full gap-2">
+                        <Save size={16} />
+                        Save relationship details
+                      </Button>
+                    </form>
+
+                    <div className="grid gap-3">
+                      <Link href={`/card/${selectedWalletContact.card.slug}`} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" variant="outline" className="w-full gap-2">
+                          Open public card
+                          <ArrowUpRight size={16} />
+                        </Button>
+                      </Link>
+                      <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                        Last interaction and introductions will appear here in a later phase.
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                    Save a Circle Card to start building relationship memory.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-gold/18 bg-gold/8">
+              <CardHeader>
+                <CardTitle className="text-lg">Future organisation</CardTitle>
+                <CardDescription>
+                  Pro and Teams organisation can build on tags, favourites and private notes.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </aside>
+        </div>
+      </section>
     </div>
   );
 }
