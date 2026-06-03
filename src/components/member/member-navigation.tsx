@@ -30,6 +30,9 @@ import { cn } from "@/lib/utils";
 
 type MemberNavigationProps = {
   items: NavigationItem[];
+  secondaryItems?: NavigationItem[];
+  secondaryLabel?: string;
+  secondaryDescription?: string;
   orientation?: "vertical" | "horizontal";
   accentThemeStyle?: CSSProperties;
   showAdminLink?: boolean;
@@ -40,6 +43,10 @@ type MemberNavigationProps = {
 };
 
 function iconForHref(href: string) {
+  if (href === "/home") {
+    return Compass;
+  }
+
   if (href.startsWith("/dashboard/resources")) {
     return Search;
   }
@@ -107,6 +114,9 @@ function isItemActive(pathname: string, href: string): boolean {
 
 export function MemberNavigation({
   items,
+  secondaryItems = [],
+  secondaryLabel,
+  secondaryDescription,
   orientation = "vertical",
   accentThemeStyle,
   showAdminLink = false,
@@ -155,6 +165,100 @@ export function MemberNavigation({
 
   function closeMobileMenu() {
     setMobileMenuOpen(false);
+  }
+
+  function renderMobileNavLink(item: NavigationItem) {
+    const Icon = iconForHref(item.href);
+    const active = isItemActive(pathname, item.href);
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        data-active={active ? "true" : "false"}
+        onClick={closeMobileMenu}
+        className={cn(
+          "flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-base font-medium shadow-inner-surface transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]",
+          active
+            ? "border-[hsl(var(--member-accent-border)/0.72)] bg-[#160725] text-[hsl(var(--member-accent-text))] shadow-[0_18px_48px_rgba(0,0,0,0.36)]"
+            : "border-[hsl(var(--member-accent-border)/0.26)] bg-[#0d0415] text-foreground hover:border-[hsl(var(--member-accent-border)/0.5)] hover:bg-[#160725] hover:text-[hsl(var(--member-accent-text))]"
+        )}
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+              active
+                ? "border-[hsl(var(--member-accent-border)/0.56)] bg-[hsl(var(--member-accent-strong))] text-[hsl(var(--member-accent-text))]"
+                : "border-[hsl(var(--member-accent-border)/0.24)] bg-[hsl(var(--member-atmosphere-to))] text-[hsl(var(--member-accent-muted))]"
+            )}
+          >
+            <Icon size={17} />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate">{item.label}</span>
+            {item.description ? (
+              <span className="mt-1 block text-xs font-normal leading-snug text-[hsl(var(--member-accent-muted))]">
+                {item.description}
+              </span>
+            ) : null}
+          </span>
+        </span>
+        {item.badgeCount ? (
+          <span className="rounded-full border border-[hsl(var(--member-accent-border)/0.36)] bg-[hsl(var(--member-accent-strong))] px-2 py-0.5 text-[11px] text-[hsl(var(--member-accent-text))]">
+            {item.badgeCount}
+          </span>
+        ) : (
+          <span
+            className={cn(
+              "h-2 w-2 shrink-0 rounded-full",
+              active ? "bg-[hsl(var(--member-accent-soft))]" : "bg-[hsl(var(--member-accent-border)/0.42)]"
+            )}
+            aria-hidden="true"
+          />
+        )}
+      </Link>
+    );
+  }
+
+  function renderDesktopNavLink(item: NavigationItem) {
+    const Icon = iconForHref(item.href);
+    const active = isItemActive(pathname, item.href);
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        data-active={active ? "true" : "false"}
+        className={cn(
+          "member-nav-item inline-flex w-full items-start gap-2 rounded-xl border px-3 py-2 text-sm transition-all duration-200",
+          active
+            ? "border-[hsl(var(--member-accent-border)/0.55)] bg-[hsl(var(--member-accent)/0.14)] text-[hsl(var(--member-accent-text))] shadow-[0_12px_34px_var(--member-accent-glow)]"
+            : "border-border/70 bg-background/20 text-muted hover:border-[hsl(var(--member-accent-border)/0.38)] hover:bg-[hsl(var(--member-accent)/0.09)] hover:text-foreground"
+        )}
+      >
+        <Icon
+          size={16}
+          className={cn(
+            "mt-0.5 shrink-0",
+            active ? "text-[hsl(var(--member-accent-text))]" : "text-[hsl(var(--member-accent-muted))]"
+          )}
+        />
+        <span className="min-w-0">
+          <span className="block">{item.label}</span>
+          {item.description ? (
+            <span className="mt-1 block text-xs leading-snug text-[hsl(var(--member-accent-muted))]">
+              {item.description}
+            </span>
+          ) : null}
+        </span>
+        {item.badgeCount ? (
+          <span className="ml-auto rounded-full bg-[hsl(var(--member-accent)/0.15)] px-2 py-0.5 text-[11px] text-[hsl(var(--member-accent-text))]">
+            {item.badgeCount}
+          </span>
+        ) : null}
+      </Link>
+    );
   }
 
   if (horizontal) {
@@ -212,55 +316,26 @@ export function MemberNavigation({
             </div>
 
             <nav className="mt-5 flex flex-col gap-2" aria-label="Member mobile navigation">
-              {items.map((item) => {
-                const Icon = iconForHref(item.href);
-                const active = isItemActive(pathname, item.href);
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    data-active={active ? "true" : "false"}
-                    onClick={closeMobileMenu}
-                    className={cn(
-                      "flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-base font-medium shadow-inner-surface transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--member-accent-soft)/0.75)]",
-                      active
-                        ? "border-[hsl(var(--member-accent-border)/0.72)] bg-[#160725] text-[hsl(var(--member-accent-text))] shadow-[0_18px_48px_rgba(0,0,0,0.36)]"
-                        : "border-[hsl(var(--member-accent-border)/0.26)] bg-[#0d0415] text-foreground hover:border-[hsl(var(--member-accent-border)/0.5)] hover:bg-[#160725] hover:text-[hsl(var(--member-accent-text))]"
-                    )}
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span
-                        className={cn(
-                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
-                          active
-                            ? "border-[hsl(var(--member-accent-border)/0.56)] bg-[hsl(var(--member-accent-strong))] text-[hsl(var(--member-accent-text))]"
-                            : "border-[hsl(var(--member-accent-border)/0.24)] bg-[hsl(var(--member-atmosphere-to))] text-[hsl(var(--member-accent-muted))]"
-                        )}
-                      >
-                        <Icon size={17} />
-                      </span>
-                      <span className="truncate">{item.label}</span>
-                    </span>
-                    {item.badgeCount ? (
-                      <span className="rounded-full border border-[hsl(var(--member-accent-border)/0.36)] bg-[hsl(var(--member-accent-strong))] px-2 py-0.5 text-[11px] text-[hsl(var(--member-accent-text))]">
-                        {item.badgeCount}
-                      </span>
-                    ) : (
-                      <span
-                        className={cn(
-                          "h-2 w-2 shrink-0 rounded-full",
-                          active
-                            ? "bg-[hsl(var(--member-accent-soft))]"
-                            : "bg-[hsl(var(--member-accent-border)/0.42)]"
-                        )}
-                        aria-hidden="true"
-                      />
-                    )}
-                  </Link>
-                );
-              })}
+              {items.map(renderMobileNavLink)}
             </nav>
+
+            {secondaryItems.length ? (
+              <div className="mt-5 border-t border-[hsl(var(--member-accent-border)/0.24)] pt-5">
+                {secondaryLabel ? (
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-text))]">
+                    {secondaryLabel}
+                  </p>
+                ) : null}
+                {secondaryDescription ? (
+                  <p className="mt-2 text-sm leading-relaxed text-[hsl(var(--member-accent-muted))]">
+                    {secondaryDescription}
+                  </p>
+                ) : null}
+                <nav className="mt-3 flex flex-col gap-2" aria-label={`${secondaryLabel ?? "Secondary"} navigation`}>
+                  {secondaryItems.map(renderMobileNavLink)}
+                </nav>
+              </div>
+            ) : null}
 
             <div className="mt-auto pt-6">
               <div className="rounded-3xl border border-[hsl(var(--member-accent-border)/0.24)] bg-[hsl(var(--member-atmosphere-via))] p-3">
@@ -317,36 +392,20 @@ export function MemberNavigation({
 
   return (
     <nav className="space-y-1.5">
-      {items.map((item) => {
-        const Icon = iconForHref(item.href);
-        const active = isItemActive(pathname, item.href);
-
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            data-active={active ? "true" : "false"}
-            className={cn(
-              "member-nav-item inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all duration-200",
-              "w-full",
-              active
-                ? "border-[hsl(var(--member-accent-border)/0.55)] bg-[hsl(var(--member-accent)/0.14)] text-[hsl(var(--member-accent-text))] shadow-[0_12px_34px_var(--member-accent-glow)]"
-                : "border-border/70 bg-background/20 text-muted hover:border-[hsl(var(--member-accent-border)/0.38)] hover:bg-[hsl(var(--member-accent)/0.09)] hover:text-foreground"
-            )}
-          >
-            <Icon
-              size={16}
-              className={cn(active ? "text-[hsl(var(--member-accent-text))]" : "text-[hsl(var(--member-accent-muted))]")}
-            />
-            <span>{item.label}</span>
-            {item.badgeCount ? (
-              <span className="ml-auto rounded-full bg-[hsl(var(--member-accent)/0.15)] px-2 py-0.5 text-[11px] text-[hsl(var(--member-accent-text))]">
-                {item.badgeCount}
-              </span>
-            ) : null}
-          </Link>
-        );
-      })}
+      {items.map(renderDesktopNavLink)}
+      {secondaryItems.length ? (
+        <div className="mt-4 border-t border-border/70 pt-4">
+          {secondaryLabel ? (
+            <p className="px-1 text-[11px] uppercase tracking-[0.12em] text-[hsl(var(--member-accent-text))]">
+              {secondaryLabel}
+            </p>
+          ) : null}
+          {secondaryDescription ? (
+            <p className="mt-2 px-1 text-xs leading-relaxed text-muted">{secondaryDescription}</p>
+          ) : null}
+          <div className="mt-3 space-y-1.5">{secondaryItems.map(renderDesktopNavLink)}</div>
+        </div>
+      ) : null}
     </nav>
   );
 }

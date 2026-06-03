@@ -27,6 +27,7 @@ import {
   upsertCircleCardAction
 } from "@/actions/circle-card.actions";
 import {
+  CircleCardBcnDiscoveryPanel,
   CircleCardCopyLinkButton,
   CircleCardInstallPrompt,
   CircleCardQrPanel,
@@ -417,6 +418,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
       <CircleCardInstallPrompt />
 
+      {isCircleCardFree ? <CircleCardBcnDiscoveryPanel /> : null}
+
       {created && card && publicUrl ? (
         <section className="rounded-2xl border border-gold/28 bg-gold/10 p-5 shadow-gold-soft sm:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -715,11 +718,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <CardHeader>
                 <CardTitle className="inline-flex items-center gap-2">
                   <Crown size={17} className="text-gold" />
-                  {isCircleCardFree ? "Unlock Pro Features" : "Upgrade path"}
+                  {isCircleCardFree ? "Future Circle Card tools" : "Upgrade path"}
                 </CardTitle>
                 <CardDescription>
                   {isCircleCardFree
-                    ? "Advanced Circle Card organisation is coming soon. Your free card, wallet and analytics stay available."
+                    ? "More relationship tools can build on your card, wallet and analytics over time."
                     : "Pro, Teams and BCN tier benefits are prepared in the access layer."}
                 </CardDescription>
               </CardHeader>
@@ -738,20 +741,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     BCN badges
                   </Badge>
                 </div>
-                {isCircleCardFree ? (
-                  <div className="mt-5 rounded-2xl border border-silver/14 bg-background/20 p-4">
-                    <p className="text-sm font-medium text-foreground">Explore The Business Circle</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">
-                      Circle Card is free. BCN membership unlocks the private founder-led rooms,
-                      resources, calls and community when you choose to join.
-                    </p>
-                    <Link href="/membership" className="mt-4 inline-flex">
-                      <Button type="button" variant="outline" size="sm">
-                        Explore BCN
-                      </Button>
-                    </Link>
-                  </div>
-                ) : null}
               </CardContent>
             </Card>
           </div>

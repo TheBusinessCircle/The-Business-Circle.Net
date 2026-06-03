@@ -95,6 +95,13 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     { label: "Analytics", href: "/dashboard/circle-card#analytics" },
     { label: "Settings", href: "/dashboard/circle-card#circle-card-form" }
   ];
+  const circleCardDiscoveryNavItems = [
+    {
+      label: "The Business Circle",
+      href: "/home",
+      description: "Discover the founder community behind Circle Card."
+    }
+  ];
 
   const visibleNavItems = circleCardFree
     ? circleCardNavItems
@@ -159,6 +166,13 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                 <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
                 <MemberNavigation
                   items={mobileNavItems}
+                  secondaryItems={circleCardFree ? circleCardDiscoveryNavItems : undefined}
+                  secondaryLabel={circleCardFree ? "The Business Circle" : undefined}
+                  secondaryDescription={
+                    circleCardFree
+                      ? "Discover the founder community behind Circle Card."
+                      : undefined
+                  }
                   orientation="horizontal"
                   accentThemeStyle={memberShellStyle}
                   showAdminLink={session.user.role === "ADMIN"}
@@ -224,17 +238,16 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       </div>
 
       <Separator className="my-4" />
-      <MemberNavigation items={visibleNavItems} />
+      <MemberNavigation
+        items={visibleNavItems}
+        secondaryItems={circleCardFree ? circleCardDiscoveryNavItems : undefined}
+        secondaryLabel={circleCardFree ? "The Business Circle" : undefined}
+        secondaryDescription={
+          circleCardFree ? "Discover the founder community behind Circle Card." : undefined
+        }
+      />
 
-      {circleCardFree ? (
-        <Link
-          href="/membership"
-          className="mt-5 flex items-center gap-2 rounded-xl border border-gold/35 bg-gold/10 px-3 py-2 text-sm text-gold transition-colors hover:bg-gold/15"
-        >
-          <ShieldCheck size={16} />
-          Explore The Business Circle
-        </Link>
-      ) : canAccessTier(effectiveTier, MembershipTier.INNER_CIRCLE) ? (
+      {circleCardFree ? null : canAccessTier(effectiveTier, MembershipTier.INNER_CIRCLE) ? (
         <Link
           href="/inner-circle"
           className="mt-5 flex items-center gap-2 rounded-xl border border-gold/35 bg-gold/10 px-3 py-2 text-sm text-gold transition-colors hover:bg-gold/15"
