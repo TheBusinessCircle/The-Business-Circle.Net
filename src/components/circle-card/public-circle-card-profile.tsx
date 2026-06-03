@@ -5,6 +5,7 @@ import {
   saveCircleWalletContactAction
 } from "@/actions/circle-card.actions";
 import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-about-expander";
+import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
 import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-install-prompt";
 import { CircleCardQrPanel } from "@/components/circle-card/circle-card-qr-panel";
 import { CircleCardShareButton } from "@/components/circle-card/circle-card-share-button";
@@ -194,13 +195,32 @@ function CircleCardLogoMark({ className, alt = "" }: { className?: string; alt?:
   );
 }
 
-function CircleCardBadgeMark({ imageUrl, label }: { imageUrl?: string | null; label: string }) {
+function CircleCardBadgeMark({
+  imageUrl,
+  label,
+  positionX,
+  positionY,
+  scale
+}: {
+  imageUrl?: string | null;
+  label: string;
+  positionX?: number | null;
+  positionY?: number | null;
+  scale?: number | null;
+}) {
   return (
     <span className="absolute bottom-2 right-2 inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-gold/70 bg-[#061126] p-1 shadow-[0_0_34px_rgba(64,112,255,0.3)]">
-      <img
+      <CircleCardFramedImage
         src={imageUrl || CIRCLE_CARD_LOGO_SRC}
+        fallbackSrc={CIRCLE_CARD_LOGO_SRC}
         alt=""
-        className="h-full w-full rounded-full object-cover"
+        positionX={positionX}
+        positionY={positionY}
+        scale={scale}
+        fallbackPositionX={50}
+        fallbackPositionY={50}
+        fallbackScale={1}
+        className="rounded-full"
       />
       <span className="sr-only">{label}</span>
     </span>
@@ -612,11 +632,15 @@ export function PublicCircleCardProfile({
                     <div className="grid h-40 w-40 place-items-center rounded-full border border-gold/60 bg-gold/12 p-1.5 shadow-[0_0_0_10px_rgba(212,175,95,0.05),0_0_64px_rgba(47,109,255,0.3)] sm:h-48 sm:w-48">
                       <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground">
                         {card.profileImageUrl ? (
-                          <img
+                          <CircleCardFramedImage
                             src={card.profileImageUrl}
                             alt={card.fullName}
-                            className="h-full w-full object-cover object-center"
-                          />
+                            positionX={card.profileImagePositionX}
+                            positionY={card.profileImagePositionY}
+                            scale={card.profileImageScale}
+                          >
+                            <span>{initials(card.fullName)}</span>
+                          </CircleCardFramedImage>
                         ) : (
                           <span>{initials(card.fullName)}</span>
                         )}
@@ -625,6 +649,9 @@ export function PublicCircleCardProfile({
                     <CircleCardBadgeMark
                       imageUrl={card.businessLogoUrl}
                       label={card.businessName ? `${card.businessName} logo` : "Circle Card badge"}
+                      positionX={card.businessLogoPositionX}
+                      positionY={card.businessLogoPositionY}
+                      scale={card.businessLogoScale}
                     />
                   </div>
                 </div>

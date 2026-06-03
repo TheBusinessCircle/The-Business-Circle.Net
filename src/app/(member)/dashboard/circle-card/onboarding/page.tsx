@@ -94,7 +94,13 @@ export default async function CircleCardOnboardingPage({ searchParams }: PagePro
           tagline: "",
           websiteUrl: member?.profile?.website ?? member?.profile?.business?.website ?? "",
           profileImageUrl: member?.image ?? "",
-          businessLogoUrl: ""
+          businessLogoUrl: "",
+          profileImagePositionX: 50,
+          profileImagePositionY: 50,
+          profileImageScale: 1,
+          businessLogoPositionX: 50,
+          businessLogoPositionY: 50,
+          businessLogoScale: 1
         }}
       />
     </div>

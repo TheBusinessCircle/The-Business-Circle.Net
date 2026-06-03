@@ -15,6 +15,7 @@ import {
   UserRound
 } from "lucide-react";
 import { completeCircleCardOnboardingAction } from "@/actions/circle-card.actions";
+import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
 import { CircleCardImageUploadField } from "@/components/circle-card/circle-card-image-upload-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,12 @@ type CircleCardOnboardingDefaults = {
   websiteUrl: string;
   profileImageUrl: string;
   businessLogoUrl: string;
+  profileImagePositionX: number;
+  profileImagePositionY: number;
+  profileImageScale: number;
+  businessLogoPositionX: number;
+  businessLogoPositionY: number;
+  businessLogoScale: number;
 };
 
 type CircleCardOnboardingFlowProps = {
@@ -113,6 +120,17 @@ const STEPS = [
 ] as const;
 
 type FieldKey = keyof CircleCardOnboardingDefaults;
+type TextFieldKey = Exclude<
+  FieldKey,
+  | "profileImagePositionX"
+  | "profileImagePositionY"
+  | "profileImageScale"
+  | "businessLogoPositionX"
+  | "businessLogoPositionY"
+  | "businessLogoScale"
+>;
+
+const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -132,7 +150,7 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
   const currentStep = STEPS[stepIndex];
   const StepIcon = currentStep.icon;
   const progress = Math.round(((stepIndex + 1) / STEPS.length) * 100);
-  const currentValue = currentStep.id !== "publish" ? values[currentStep.id as FieldKey] : "";
+  const currentValue = currentStep.id !== "publish" ? String(values[currentStep.id as TextFieldKey] ?? "") : "";
 
   const previewName = values.fullName.trim() || "Your name";
   const previewMeta = useMemo(
@@ -140,7 +158,7 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
     [values.businessName, values.role]
   );
 
-  function updateValue(key: FieldKey, value: string) {
+  function updateValue(key: TextFieldKey, value: string) {
     setValues((previous) => ({
       ...previous,
       [key]: value
@@ -149,6 +167,32 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
     if (key === "fullName" && value.trim().length >= 2) {
       setNameError(null);
     }
+  }
+
+  function updateImageAdjustments(
+    prefix: "profileImage" | "businessLogo",
+    adjustment: {
+      positionX: number;
+      positionY: number;
+      scale: number;
+    }
+  ) {
+    if (prefix === "profileImage") {
+      setValues((previous) => ({
+        ...previous,
+        profileImagePositionX: adjustment.positionX,
+        profileImagePositionY: adjustment.positionY,
+        profileImageScale: adjustment.scale
+      }));
+      return;
+    }
+
+    setValues((previous) => ({
+      ...previous,
+      businessLogoPositionX: adjustment.positionX,
+      businessLogoPositionY: adjustment.positionY,
+      businessLogoScale: adjustment.scale
+    }));
   }
 
   function canLeaveCurrentStep() {
@@ -179,7 +223,7 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
 
   function skipStep() {
     if (currentStep.id !== "publish" && currentStep.optional) {
-      updateValue(currentStep.id as FieldKey, "");
+      updateValue(currentStep.id as TextFieldKey, "");
     }
 
     goNext();
@@ -221,7 +265,7 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
 
           <form action={completeCircleCardOnboardingAction} className="space-y-5">
             {Object.entries(values).map(([key, value]) => (
-              <input key={key} type="hidden" name={key} value={value} />
+              <input key={key} type="hidden" name={key} value={String(value)} />
             ))}
             <input type="hidden" name="isPublished" value="true" />
 
@@ -239,10 +283,31 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
                 label={currentStep.label}
                 uploadKind={currentStep.id === "profileImageUrl" ? "profile-photo" : "business-logo"}
                 value={currentValue}
-                onValueChange={(nextValue) => updateValue(currentStep.id as FieldKey, nextValue)}
+                onValueChange={(nextValue) => updateValue(currentStep.id as TextFieldKey, nextValue)}
+                positionX={
+                  currentStep.id === "profileImageUrl"
+                    ? values.profileImagePositionX
+                    : values.businessLogoPositionX
+                }
+                positionY={
+                  currentStep.id === "profileImageUrl"
+                    ? values.profileImagePositionY
+                    : values.businessLogoPositionY
+                }
+                scale={
+                  currentStep.id === "profileImageUrl"
+                    ? values.profileImageScale
+                    : values.businessLogoScale
+                }
+                onAdjustmentChange={(nextValues) =>
+                  updateImageAdjustments(
+                    currentStep.id === "profileImageUrl" ? "profileImage" : "businessLogo",
+                    nextValues
+                  )
+                }
                 previewAlt="Circle Card onboarding image preview"
                 helperText="Optional. You can skip this for now."
-                previewClassName={currentStep.id === "profileImageUrl" ? "rounded-full" : undefined}
+                previewClassName="rounded-full"
               />
             ) : (
               <div className="space-y-2">
@@ -253,7 +318,7 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
                   placeholder={currentStep.placeholder}
                   type={currentStep.id === "websiteUrl" ? "url" : "text"}
                   autoComplete={currentStep.id === "fullName" ? "name" : undefined}
-                  onChange={(event) => updateValue(currentStep.id as FieldKey, event.target.value)}
+                  onChange={(event) => updateValue(currentStep.id as TextFieldKey, event.target.value)}
                 />
                 {currentStep.id === "fullName" && nameError ? (
                   <p className="text-xs text-destructive">{nameError}</p>
@@ -308,17 +373,31 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
           <div className="flex items-start gap-4">
             <div className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-gold/24 bg-background/40 text-sm font-semibold text-foreground">
               {values.profileImageUrl ? (
-                <img
+                <CircleCardFramedImage
                   src={values.profileImageUrl}
                   alt=""
-                  className="h-full w-full object-cover"
-                />
+                  positionX={values.profileImagePositionX}
+                  positionY={values.profileImagePositionY}
+                  scale={values.profileImageScale}
+                >
+                  {previewName.slice(0, 2).toUpperCase()}
+                </CircleCardFramedImage>
               ) : (
                 previewName.slice(0, 2).toUpperCase()
               )}
               {values.businessLogoUrl ? (
                 <span className="absolute bottom-0 right-0 grid h-7 w-7 overflow-hidden rounded-full border border-gold/60 bg-background shadow-gold-soft">
-                  <img src={values.businessLogoUrl} alt="" className="h-full w-full object-cover" />
+                  <CircleCardFramedImage
+                    src={values.businessLogoUrl}
+                    fallbackSrc={CIRCLE_CARD_LOGO_SRC}
+                    alt=""
+                    positionX={values.businessLogoPositionX}
+                    positionY={values.businessLogoPositionY}
+                    scale={values.businessLogoScale}
+                    fallbackPositionX={50}
+                    fallbackPositionY={50}
+                    fallbackScale={1}
+                  />
                 </span>
               ) : null}
             </div>

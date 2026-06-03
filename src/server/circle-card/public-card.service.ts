@@ -16,6 +16,12 @@ export type PublicCircleCard = {
   about: string | null;
   profileImageUrl: string | null;
   businessLogoUrl: string | null;
+  profileImagePositionX: number | null;
+  profileImagePositionY: number | null;
+  profileImageScale: number | null;
+  businessLogoPositionX: number | null;
+  businessLogoPositionY: number | null;
+  businessLogoScale: number | null;
   websiteUrl: string | null;
   email: string | null;
   phone: string | null;
@@ -43,6 +49,12 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     "Circle Card gives professionals a clean identity layer for the people they meet, the details they need to share, and the relationships worth returning to later.",
   profileImageUrl: "/branding/the-business-circle-logo.png",
   businessLogoUrl: "/branding/circle-card-logo.png",
+  profileImagePositionX: 50,
+  profileImagePositionY: 50,
+  profileImageScale: 1,
+  businessLogoPositionX: 50,
+  businessLogoPositionY: 50,
+  businessLogoScale: 1,
   websiteUrl: "https://thebusinesscircle.net",
   email: SITE_CONFIG.supportEmail,
   phone: null,
@@ -88,6 +100,12 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       about: true,
       profileImageUrl: true,
       businessLogoUrl: true,
+      profileImagePositionX: true,
+      profileImagePositionY: true,
+      profileImageScale: true,
+      businessLogoPositionX: true,
+      businessLogoPositionY: true,
+      businessLogoScale: true,
       websiteUrl: true,
       email: true,
       phone: true,

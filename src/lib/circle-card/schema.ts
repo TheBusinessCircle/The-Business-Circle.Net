@@ -23,6 +23,28 @@ export const CIRCLE_CARD_SOCIAL_FIELDS = [
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalEmail = z.string().trim().email().max(320).optional().or(z.literal(""));
+const optionalImagePosition = z.preprocess(
+  (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return undefined;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : value;
+  },
+  z.number().min(0).max(100).optional()
+);
+const optionalImageScale = z.preprocess(
+  (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return undefined;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : value;
+  },
+  z.number().min(1).max(3).optional()
+);
 const optionalSlug = z
   .string()
   .trim()
@@ -81,6 +103,12 @@ export const circleCardFormSchema = z.object({
   about: optionalText(1600),
   profileImageUrl: optionalImageUrl,
   businessLogoUrl: optionalImageUrl,
+  profileImagePositionX: optionalImagePosition,
+  profileImagePositionY: optionalImagePosition,
+  profileImageScale: optionalImageScale,
+  businessLogoPositionX: optionalImagePosition,
+  businessLogoPositionY: optionalImagePosition,
+  businessLogoScale: optionalImageScale,
   websiteUrl: optionalHttpUrl("Website"),
   email: optionalEmail,
   phone: optionalText(48),
@@ -99,6 +127,12 @@ export type CircleCardFormValues = z.infer<typeof circleCardFormSchema>;
 export const circleCardOnboardingSchema = z.object({
   profileImageUrl: optionalImageUrl,
   businessLogoUrl: optionalImageUrl,
+  profileImagePositionX: optionalImagePosition,
+  profileImagePositionY: optionalImagePosition,
+  profileImageScale: optionalImageScale,
+  businessLogoPositionX: optionalImagePosition,
+  businessLogoPositionY: optionalImagePosition,
+  businessLogoScale: optionalImageScale,
   fullName: z.string().trim().min(2).max(120),
   businessName: optionalText(140),
   role: optionalText(120),
@@ -151,6 +185,10 @@ function isHttpUrl(value: string) {
 export function nullableText(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+export function nullableNumber(value?: number | null) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 export function parseCircleWalletTagsInput(value?: string | null) {

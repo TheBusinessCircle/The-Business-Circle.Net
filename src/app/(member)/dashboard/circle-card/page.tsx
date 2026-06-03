@@ -545,8 +545,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   label="Profile photo"
                   uploadKind="profile-photo"
                   defaultValue={card?.profileImageUrl ?? member?.image ?? ""}
+                  positionXName="profileImagePositionX"
+                  positionYName="profileImagePositionY"
+                  scaleName="profileImageScale"
+                  defaultPositionX={card?.profileImagePositionX}
+                  defaultPositionY={card?.profileImagePositionY}
+                  defaultScale={card?.profileImageScale}
                   previewAlt="Circle Card profile preview"
-                  helperText="Upload a JPG, PNG or WebP from your device, or keep using an image URL."
+                  helperText="Upload a JPG, PNG or WebP from your device, adjust the crop, or keep using an image URL."
                   previewClassName="rounded-full"
                 />
                 <CircleCardImageUploadField
@@ -555,8 +561,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   label="Business logo"
                   uploadKind="business-logo"
                   defaultValue={card?.businessLogoUrl ?? ""}
+                  positionXName="businessLogoPositionX"
+                  positionYName="businessLogoPositionY"
+                  scaleName="businessLogoScale"
+                  defaultPositionX={card?.businessLogoPositionX}
+                  defaultPositionY={card?.businessLogoPositionY}
+                  defaultScale={card?.businessLogoScale}
                   previewAlt="Circle Card business logo preview"
-                  helperText="Optional. This appears as the small identity badge on your public card."
+                  helperText="Optional. This appears as the small circular identity badge on your public card."
+                  previewClassName="rounded-full"
                 />
                 <div className="space-y-2">
                   <Label htmlFor="websiteUrl">Website</Label>

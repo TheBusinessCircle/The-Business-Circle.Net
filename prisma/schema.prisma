@@ -394,6 +394,12 @@ model CircleCard {
   about           String?               @db.Text
   profileImageUrl String?
   businessLogoUrl String?
+  profileImagePositionX Float?
+  profileImagePositionY Float?
+  profileImageScale     Float?
+  businessLogoPositionX Float?
+  businessLogoPositionY Float?
+  businessLogoScale     Float?
   websiteUrl      String?
   email           String?
   phone           String?

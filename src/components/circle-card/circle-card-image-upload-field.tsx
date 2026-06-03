@@ -1,11 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, ImagePlus, Loader2, Upload, X } from "lucide-react";
+import {
+  CheckCircle2,
+  ImagePlus,
+  Loader2,
+  SlidersHorizontal,
+  Upload,
+  X
+} from "lucide-react";
+import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+
+type ImageAdjustmentValues = {
+  positionX: number;
+  positionY: number;
+  scale: number;
+};
 
 type CircleCardImageUploadFieldProps = {
   id: string;
@@ -15,10 +29,23 @@ type CircleCardImageUploadFieldProps = {
   defaultValue?: string;
   value?: string;
   onValueChange?: (value: string) => void;
+  positionXName?: string;
+  positionYName?: string;
+  scaleName?: string;
+  defaultPositionX?: number | null;
+  defaultPositionY?: number | null;
+  defaultScale?: number | null;
+  positionX?: number | null;
+  positionY?: number | null;
+  scale?: number | null;
+  onAdjustmentChange?: (values: ImageAdjustmentValues) => void;
   previewAlt: string;
   helperText?: string;
+  saveReminder?: string;
   className?: string;
   previewClassName?: string;
+  fallbackSrc?: string;
+  showAdjustments?: boolean;
 };
 
 type UploadResponse = {
@@ -27,8 +54,30 @@ type UploadResponse = {
   error?: string;
 };
 
+const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const DEFAULT_ADJUSTMENTS: ImageAdjustmentValues = {
+  positionX: 50,
+  positionY: 50,
+  scale: 1
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizePosition(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? clamp(Math.round(value), 0, 100)
+    : 50;
+}
+
+function normalizeScale(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? clamp(Number(value.toFixed(2)), 1, 3)
+    : 1;
+}
 
 function isSupportedImage(file: File) {
   if (file.type) {
@@ -46,10 +95,23 @@ export function CircleCardImageUploadField({
   defaultValue = "",
   value,
   onValueChange,
+  positionXName,
+  positionYName,
+  scaleName,
+  defaultPositionX,
+  defaultPositionY,
+  defaultScale,
+  positionX,
+  positionY,
+  scale,
+  onAdjustmentChange,
   previewAlt,
   helperText,
+  saveReminder = "After uploading or adjusting images, save your Circle Card below.",
   className,
-  previewClassName
+  previewClassName,
+  fallbackSrc,
+  showAdjustments = true
 }: CircleCardImageUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl] = useState(value ?? defaultValue);
@@ -57,13 +119,33 @@ export function CircleCardImageUploadField({
   const [selectedPreviewUrl, setSelectedPreviewUrl] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustments, setAdjustments] = useState<ImageAdjustmentValues>(() => ({
+    positionX: normalizePosition(positionX ?? defaultPositionX),
+    positionY: normalizePosition(positionY ?? defaultPositionY),
+    scale: normalizeScale(scale ?? defaultScale)
+  }));
   const previewUrl = selectedPreviewUrl ?? imageUrl;
+  const hasImageToAdjust = Boolean(previewUrl);
+  const fallbackImageSrc = fallbackSrc ?? (uploadKind === "business-logo" ? CIRCLE_CARD_LOGO_SRC : undefined);
 
   useEffect(() => {
     if (value !== undefined) {
       setImageUrl(value);
     }
   }, [value]);
+
+  useEffect(() => {
+    if (positionX === undefined && positionY === undefined && scale === undefined) {
+      return;
+    }
+
+    setAdjustments((previous) => ({
+      positionX: normalizePosition(positionX ?? previous.positionX),
+      positionY: normalizePosition(positionY ?? previous.positionY),
+      scale: normalizeScale(scale ?? previous.scale)
+    }));
+  }, [positionX, positionY, scale]);
 
   useEffect(() => {
     return () => {
@@ -76,6 +158,23 @@ export function CircleCardImageUploadField({
   function commitImageUrl(nextValue: string) {
     setImageUrl(nextValue);
     onValueChange?.(nextValue);
+  }
+
+  function commitAdjustments(nextValues: ImageAdjustmentValues) {
+    setAdjustments(nextValues);
+    onAdjustmentChange?.(nextValues);
+  }
+
+  function updateAdjustment(key: keyof ImageAdjustmentValues, nextValue: number) {
+    commitAdjustments({
+      ...adjustments,
+      [key]: key === "scale" ? normalizeScale(nextValue) : normalizePosition(nextValue)
+    });
+    setNotice(null);
+  }
+
+  function resetAdjustments() {
+    commitAdjustments(DEFAULT_ADJUSTMENTS);
   }
 
   function selectFile(file: File | null) {
@@ -105,6 +204,8 @@ export function CircleCardImageUploadField({
 
     setSelectedFile(file);
     setSelectedPreviewUrl(URL.createObjectURL(file));
+    commitAdjustments(DEFAULT_ADJUSTMENTS);
+    setAdjustOpen(true);
   }
 
   async function uploadSelectedFile() {
@@ -134,7 +235,7 @@ export function CircleCardImageUploadField({
 
       commitImageUrl(data.imageUrl);
       setSelectedFile(null);
-      setNotice("Image uploaded.");
+      setNotice("Image uploaded. Save your Circle Card below.");
 
       if (selectedPreviewUrl) {
         URL.revokeObjectURL(selectedPreviewUrl);
@@ -155,6 +256,8 @@ export function CircleCardImageUploadField({
     commitImageUrl("");
     setSelectedFile(null);
     setNotice(null);
+    commitAdjustments(DEFAULT_ADJUSTMENTS);
+    setAdjustOpen(false);
 
     if (selectedPreviewUrl) {
       URL.revokeObjectURL(selectedPreviewUrl);
@@ -168,17 +271,30 @@ export function CircleCardImageUploadField({
 
   return (
     <div className={cn("space-y-3", className)}>
+      {positionXName ? <input type="hidden" name={positionXName} value={adjustments.positionX} /> : null}
+      {positionYName ? <input type="hidden" name={positionYName} value={adjustments.positionY} /> : null}
+      {scaleName ? <input type="hidden" name={scaleName} value={adjustments.scale} /> : null}
+
       <div className="space-y-2">
         <Label htmlFor={id}>{label}</Label>
-        <div className="grid gap-3 sm:grid-cols-[96px_minmax(0,1fr)]">
+        <div className="grid gap-3 sm:grid-cols-[104px_minmax(0,1fr)]">
           <div
             className={cn(
-              "grid h-24 w-24 place-items-center overflow-hidden rounded-2xl border border-gold/24 bg-background/38 text-xs font-semibold text-muted shadow-inner-surface",
+              "relative grid h-24 w-24 place-items-center overflow-hidden rounded-full border border-gold/24 bg-background/38 text-xs font-semibold text-muted shadow-inner-surface",
               previewClassName
             )}
           >
-            {previewUrl ? (
-              <img src={previewUrl} alt={previewAlt} className="h-full w-full object-cover" />
+            {previewUrl || fallbackImageSrc ? (
+              <CircleCardFramedImage
+                src={previewUrl}
+                fallbackSrc={fallbackImageSrc}
+                alt={previewUrl ? previewAlt : ""}
+                positionX={adjustments.positionX}
+                positionY={adjustments.positionY}
+                scale={adjustments.scale}
+              >
+                <ImagePlus size={22} aria-hidden="true" />
+              </CircleCardFramedImage>
             ) : (
               <ImagePlus size={22} aria-hidden="true" />
             )}
@@ -213,6 +329,18 @@ export function CircleCardImageUploadField({
                 <ImagePlus size={14} />
                 Choose
               </Button>
+              {showAdjustments && hasImageToAdjust ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setAdjustOpen((open) => !open)}
+                >
+                  <SlidersHorizontal size={14} />
+                  Adjust
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
@@ -239,15 +367,69 @@ export function CircleCardImageUploadField({
             </div>
           </div>
         </div>
+
+        {showAdjustments && hasImageToAdjust && adjustOpen ? (
+          <div className="rounded-2xl border border-silver/14 bg-background/22 p-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="space-y-1.5 text-xs text-muted">
+                <span className="flex items-center justify-between gap-2">
+                  Position X <span className="text-silver">{adjustments.positionX}%</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={adjustments.positionX}
+                  className="w-full accent-primary"
+                  onChange={(event) => updateAdjustment("positionX", Number(event.target.value))}
+                />
+              </label>
+              <label className="space-y-1.5 text-xs text-muted">
+                <span className="flex items-center justify-between gap-2">
+                  Position Y <span className="text-silver">{adjustments.positionY}%</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={adjustments.positionY}
+                  className="w-full accent-primary"
+                  onChange={(event) => updateAdjustment("positionY", Number(event.target.value))}
+                />
+              </label>
+              <label className="space-y-1.5 text-xs text-muted">
+                <span className="flex items-center justify-between gap-2">
+                  Zoom <span className="text-silver">{adjustments.scale.toFixed(2)}x</span>
+                </span>
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.01"
+                  value={adjustments.scale}
+                  className="w-full accent-primary"
+                  onChange={(event) => updateAdjustment("scale", Number(event.target.value))}
+                />
+              </label>
+            </div>
+            <Button type="button" variant="ghost" size="sm" className="mt-3" onClick={resetAdjustments}>
+              Reset crop
+            </Button>
+          </div>
+        ) : null}
+
         {helperText ? <p className="text-xs text-muted">{helperText}</p> : null}
+        <p className="text-xs text-silver">{saveReminder}</p>
         {notice ? (
           <p
             className={cn(
               "inline-flex items-center gap-1.5 text-xs",
-              notice === "Image uploaded." ? "text-gold" : "text-muted"
+              notice.startsWith("Image uploaded") ? "text-gold" : "text-muted"
             )}
           >
-            {notice === "Image uploaded." ? <CheckCircle2 size={13} /> : null}
+            {notice.startsWith("Image uploaded") ? <CheckCircle2 size={13} /> : null}
             {notice}
           </p>
         ) : null}
