@@ -6,6 +6,7 @@ const publicNavigation: NavigationItem[] = [
   { label: "Home", href: "/home" },
   { label: "About", href: "/about" },
   { label: "Membership", href: "/membership" },
+  { label: "Circle Card", href: "/circle-card" },
   { label: "Founder Audit", href: "/audit" },
   { label: "Founder", href: "/founder" },
   { label: "Insights", href: "/insights" },
@@ -14,6 +15,7 @@ const publicNavigation: NavigationItem[] = [
 
 const memberNavigation: NavigationItem[] = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "My Circle Card", href: "/dashboard/circle-card" },
   { label: "Community", href: "/community" },
   { label: "Messages", href: "/messages" },
   { label: "Directory", href: "/directory" },

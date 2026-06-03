@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   CalendarDays,
+  ContactRound,
   Compass,
   Crown,
   GitBranch,
@@ -37,6 +38,9 @@ type MemberNavigationProps = {
 function iconForHref(href: string) {
   if (href.startsWith("/dashboard/resources")) {
     return Search;
+  }
+  if (href.startsWith("/dashboard/circle-card")) {
+    return ContactRound;
   }
   if (href.startsWith("/dashboard")) {
     return LayoutGrid;

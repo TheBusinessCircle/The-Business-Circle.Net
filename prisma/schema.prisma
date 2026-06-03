@@ -102,6 +102,8 @@ model User {
   approvedTestimonials           Testimonial[]                @relation("TestimonialApprovedByAdmin")
   submittedTestimonials          Testimonial[]                @relation("TestimonialSubmittedByUser")
   reviewApprovedTestimonials     Testimonial[]                @relation("TestimonialApprovedByUser")
+  circleCards                    CircleCard[]
+  circleWalletContacts           CircleWalletContact[]
 
   @@index([role])
   @@index([memberRoleTag])
@@ -376,6 +378,53 @@ model Business {
   @@index([stage])
   @@index([location])
   @@index([isPublic])
+}
+
+model CircleCard {
+  id              String                @id @default(cuid())
+  userId          String
+  slug            String                @unique
+  fullName        String
+  businessName    String?
+  role            String?
+  tagline         String?
+  about           String?               @db.Text
+  profileImageUrl String?
+  websiteUrl      String?
+  email           String?
+  phone           String?
+  location        String?
+  socialLinks     Json                  @default("{}")
+  isPrimary       Boolean               @default(false)
+  isPublished     Boolean               @default(true)
+  viewCount       Int                   @default(0)
+  qrCodeUrl       String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletContacts  CircleWalletContact[]
+
+  @@index([userId])
+  @@index([isPublished])
+}
+
+model CircleWalletContact {
+  id        String     @id @default(cuid())
+  userId    String
+  cardId    String
+  savedAt   DateTime   @default(now())
+  favourite Boolean    @default(false)
+  notes     String?    @db.Text
+  tags      Json       @default("[]")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card      CircleCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cardId])
+  @@index([userId])
+  @@index([cardId])
+  @@index([savedAt])
 }
 
 model Category {
