@@ -423,10 +423,16 @@ model CircleCard {
 model CircleCardLink {
   id          String     @id @default(cuid())
   cardId      String
+  type        String     @default("GENERAL")
   label       String
-  url         String
+  url         String?
   description String?
   icon        String?
+  fileUrl     String?
+  fileName    String?
+  fileMimeType String?
+  buttonText  String?
+  expiresAt   DateTime?
   sortOrder   Int        @default(0)
   isActive    Boolean    @default(true)
   createdAt   DateTime   @default(now())

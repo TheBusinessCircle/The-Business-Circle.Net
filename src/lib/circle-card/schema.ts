@@ -36,6 +36,32 @@ export const CIRCLE_CARD_CUSTOM_LINK_ICONS = [
 
 export type CircleCardCustomLinkIcon = (typeof CIRCLE_CARD_CUSTOM_LINK_ICONS)[number];
 
+export const CIRCLE_CARD_LINK_TYPES = [
+  "GENERAL",
+  "BOOK_CALL",
+  "PORTFOLIO",
+  "LATEST_OFFER",
+  "COMMUNITY",
+  "DOWNLOAD",
+  "REVIEW",
+  "SHOP",
+  "MENU",
+  "CASE_STUDY"
+] as const;
+
+export type CircleCardLinkType = (typeof CIRCLE_CARD_LINK_TYPES)[number];
+
+export const CIRCLE_CARD_FILE_LINK_TYPES = ["DOWNLOAD", "MENU", "CASE_STUDY"] as const;
+
+const CIRCLE_CARD_FILE_LINK_TYPE_SET = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
+const SUPPORTED_CIRCLE_CARD_LINK_FILE_MIME_TYPES = new Set([
+  "application/pdf",
+  "text/html",
+  "image/jpeg",
+  "image/png",
+  "image/webp"
+]);
+
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalEmail = z.string().trim().email().max(320).optional().or(z.literal(""));
 const optionalImagePosition = z.preprocess(
@@ -88,17 +114,35 @@ function optionalHttpUrl(label: string) {
     });
 }
 
-function requiredHttpUrl(label: string) {
-  return z
-    .string()
-    .trim()
-    .min(1, { message: `${label} is required.` })
-    .max(2048)
-    .transform((value) => normalizeCircleCardUrl(value))
-    .refine((value) => isHttpUrl(value), {
-      message: `${label} must be a valid web address.`
-    });
-}
+const optionalLinkFileUrl = z
+  .string()
+  .trim()
+  .max(2048)
+  .optional()
+  .or(z.literal(""))
+  .refine((value) => {
+    if (!value) {
+      return true;
+    }
+
+    return value.startsWith("/api/circle-card/link-file/") || isHttpUrl(value);
+  }, "Uploaded file URL must be a valid Circle Card file or web address.");
+
+const optionalDate = z.preprocess(
+  (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return undefined;
+    }
+
+    if (value instanceof Date) {
+      return value;
+    }
+
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? value : parsed;
+  },
+  z.date().optional()
+);
 
 const optionalImageUrl = z
   .string()
@@ -179,10 +223,25 @@ export const circleWalletContactDetailsSchema = z.object({
 export const circleCardLinkFormSchema = z.object({
   cardId: z.string().cuid(),
   linkId: z.string().cuid().optional().or(z.literal("")),
+  type: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() ? value.trim() : "GENERAL"),
+    z.enum(CIRCLE_CARD_LINK_TYPES).default("GENERAL")
+  ),
   label: z.string().trim().min(2).max(90),
-  url: requiredHttpUrl("URL"),
+  url: optionalHttpUrl("URL"),
   description: optionalText(220),
   icon: z.enum(CIRCLE_CARD_CUSTOM_LINK_ICONS).optional().or(z.literal("")),
+  fileUrl: optionalLinkFileUrl,
+  fileName: optionalText(180),
+  fileMimeType: optionalText(120).refine((value) => {
+    if (!value) {
+      return true;
+    }
+
+    return SUPPORTED_CIRCLE_CARD_LINK_FILE_MIME_TYPES.has(value);
+  }, "Unsupported uploaded file type."),
+  buttonText: optionalText(80),
+  expiresAt: optionalDate,
   sortOrder: z.preprocess(
     (value) => {
       if (value === "" || value === null || value === undefined) {
@@ -195,6 +254,29 @@ export const circleCardLinkFormSchema = z.object({
     z.number().int().min(0).max(999).optional()
   ),
   isActive: checkboxBoolean.default(false)
+}).superRefine((value, ctx) => {
+  const hasUrl = Boolean(value.url);
+  const hasFile = Boolean(value.fileUrl);
+
+  if (CIRCLE_CARD_FILE_LINK_TYPE_SET.has(value.type)) {
+    if (!hasUrl && !hasFile) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["url"],
+        message: "Add a URL or upload a file for this link type."
+      });
+    }
+
+    return;
+  }
+
+  if (!hasUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["url"],
+      message: "URL is required for this link type."
+    });
+  }
 });
 
 export const circleCardLinkIdSchema = z.object({

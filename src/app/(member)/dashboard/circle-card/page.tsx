@@ -39,17 +39,18 @@ import {
 import {
   CircleCardBcnDiscoveryPanel,
   CircleCardCopyLinkButton,
+  CircleCardDashboardSection,
   CircleCardImageUploadField,
   CircleCardInstallPrompt,
   CircleCardQrPanel,
-  CircleCardShareButton
+  CircleCardShareButton,
+  CircleCardSmartLinkFields
 } from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getCircleCardAccountLabel,
@@ -58,7 +59,7 @@ import {
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
 import {
-  type CircleCardCustomLinkIcon,
+  type CircleCardLinkType,
   readCircleCardSocialLinks,
   readCircleWalletTags
 } from "@/lib/circle-card/schema";
@@ -134,18 +135,18 @@ const FUTURE_ANALYTICS_FEATURES = [
 
 const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
 
-const CUSTOM_LINK_ICON_OPTIONS: { value: CircleCardCustomLinkIcon; label: string }[] = [
-  { value: "link", label: "General link" },
-  { value: "calendar", label: "Book a call" },
-  { value: "portfolio", label: "Portfolio" },
-  { value: "offer", label: "Latest offer" },
-  { value: "community", label: "Community" },
-  { value: "download", label: "Download" },
-  { value: "review", label: "Review" },
-  { value: "shop", label: "Shop" },
-  { value: "menu", label: "Menu" },
-  { value: "case-studies", label: "Case studies" }
-];
+const CUSTOM_LINK_TYPE_LABELS: Record<CircleCardLinkType, string> = {
+  GENERAL: "General",
+  BOOK_CALL: "Book a call",
+  PORTFOLIO: "Portfolio",
+  LATEST_OFFER: "Latest offer",
+  COMMUNITY: "Community",
+  DOWNLOAD: "Download",
+  REVIEW: "Review",
+  SHOP: "Shop",
+  MENU: "Menu",
+  CASE_STUDY: "Case study"
+};
 
 const CUSTOM_LINK_EXAMPLES = [
   "Book a call",
@@ -244,11 +245,19 @@ function readActivityDetail(metadata: unknown) {
   return typeof method === "string" ? method.replace(/_/g, " ") : null;
 }
 
-function customLinkIconLabel(icon: string | null | undefined) {
-  return CUSTOM_LINK_ICON_OPTIONS.find((option) => option.value === icon)?.label ?? "General link";
+function resolveCustomLinkType(value: string | null | undefined): CircleCardLinkType {
+  return value && value in CUSTOM_LINK_TYPE_LABELS ? (value as CircleCardLinkType) : "GENERAL";
 }
 
-function displayCustomLinkUrl(value: string) {
+function customLinkTypeLabel(type: string | null | undefined) {
+  return CUSTOM_LINK_TYPE_LABELS[resolveCustomLinkType(type)];
+}
+
+function displayCustomLinkUrl(value: string | null | undefined) {
+  if (!value) {
+    return "Uploaded file";
+  }
+
   try {
     const url = new URL(value);
     return `${url.hostname.replace(/^www\./, "")}${url.pathname === "/" ? "" : url.pathname}`;
@@ -257,7 +266,30 @@ function displayCustomLinkUrl(value: string) {
   }
 }
 
-function CustomLinkIcon({ icon }: { icon: string | null | undefined }) {
+function CustomLinkIcon({ icon, type }: { icon: string | null | undefined; type?: string | null }) {
+  switch (resolveCustomLinkType(type)) {
+    case "BOOK_CALL":
+      return <CalendarDays size={16} />;
+    case "PORTFOLIO":
+      return <ContactRound size={16} />;
+    case "LATEST_OFFER":
+      return <Crown size={16} />;
+    case "COMMUNITY":
+      return <WalletCards size={16} />;
+    case "DOWNLOAD":
+      return <Download size={16} />;
+    case "REVIEW":
+      return <Star size={16} />;
+    case "SHOP":
+      return <ShoppingBag size={16} />;
+    case "MENU":
+      return <MenuIcon size={16} />;
+    case "CASE_STUDY":
+      return <BookOpen size={16} />;
+    default:
+      break;
+  }
+
   switch (icon) {
     case "calendar":
       return <CalendarDays size={16} />;
@@ -607,167 +639,198 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
               {card ? <input type="hidden" name="cardId" value={card.id} /> : null}
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full name</Label>
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    defaultValue={card?.fullName ?? member?.name ?? ""}
-                    required
-                  />
+              <CircleCardDashboardSection
+                id="card-identity"
+                title="Card identity"
+                summary={card?.fullName || "Name, role, slug, tagline and about text"}
+                defaultOpen
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full name</Label>
+                    <Input
+                      id="fullName"
+                      name="fullName"
+                      defaultValue={card?.fullName ?? member?.name ?? ""}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="businessName">Business name</Label>
+                    <Input
+                      id="businessName"
+                      name="businessName"
+                      defaultValue={card?.businessName ?? member?.profile?.business?.companyName ?? ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Input
+                      id="role"
+                      name="role"
+                      defaultValue={card?.role ?? member?.profile?.headline ?? ""}
+                      placeholder="Founder, operator, advisor"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="slug">Public link slug</Label>
+                    <Input id="slug" name="slug" defaultValue={card?.slug ?? ""} placeholder="your-name" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="tagline">Tagline</Label>
+                    <Input
+                      id="tagline"
+                      name="tagline"
+                      defaultValue={card?.tagline ?? ""}
+                      placeholder="Sharper strategy for growing businesses"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="about">About</Label>
+                    <Textarea
+                      id="about"
+                      name="about"
+                      rows={5}
+                      defaultValue={card?.about ?? member?.profile?.bio ?? ""}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="businessName">Business name</Label>
-                  <Input
-                    id="businessName"
-                    name="businessName"
-                    defaultValue={card?.businessName ?? member?.profile?.business?.companyName ?? ""}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Input
-                    id="role"
-                    name="role"
-                    defaultValue={card?.role ?? member?.profile?.headline ?? ""}
-                    placeholder="Founder, operator, advisor"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="slug">Public link slug</Label>
-                  <Input id="slug" name="slug" defaultValue={card?.slug ?? ""} placeholder="your-name" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="tagline">Tagline</Label>
-                  <Input
-                    id="tagline"
-                    name="tagline"
-                    defaultValue={card?.tagline ?? ""}
-                    placeholder="Sharper strategy for growing businesses"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="about">About</Label>
-                  <Textarea
-                    id="about"
-                    name="about"
-                    rows={5}
-                    defaultValue={card?.about ?? member?.profile?.bio ?? ""}
-                  />
-                </div>
-                <CircleCardImageUploadField
-                  id="profileImageUrl"
-                  name="profileImageUrl"
-                  label="Profile photo"
-                  uploadKind="profile-photo"
-                  defaultValue={card?.profileImageUrl ?? member?.image ?? ""}
-                  positionXName="profileImagePositionX"
-                  positionYName="profileImagePositionY"
-                  scaleName="profileImageScale"
-                  defaultPositionX={card?.profileImagePositionX}
-                  defaultPositionY={card?.profileImagePositionY}
-                  defaultScale={card?.profileImageScale}
-                  previewAlt="Circle Card profile preview"
-                  helperText="Upload a JPG, PNG or WebP from your device, adjust the crop, or keep using an image URL."
-                  previewClassName="rounded-full"
-                />
-                <CircleCardImageUploadField
-                  id="businessLogoUrl"
-                  name="businessLogoUrl"
-                  label="Business logo"
-                  uploadKind="business-logo"
-                  defaultValue={card?.businessLogoUrl ?? ""}
-                  positionXName="businessLogoPositionX"
-                  positionYName="businessLogoPositionY"
-                  scaleName="businessLogoScale"
-                  defaultPositionX={card?.businessLogoPositionX}
-                  defaultPositionY={card?.businessLogoPositionY}
-                  defaultScale={card?.businessLogoScale}
-                  previewAlt="Circle Card business logo preview"
-                  helperText="Optional. This appears as the small circular identity badge on your public card."
-                  previewClassName="rounded-full"
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="websiteUrl">Website</Label>
-                  <Input id="websiteUrl" name="websiteUrl" type="url" defaultValue={defaultWebsite} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    defaultValue={card?.email ?? member?.email ?? ""}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" name="phone" defaultValue={card?.phone ?? ""} />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    name="location"
-                    defaultValue={card?.location ?? member?.profile?.location ?? ""}
-                    placeholder="London, United Kingdom"
-                  />
-                </div>
-              </div>
+              </CircleCardDashboardSection>
 
-              <div className="grid gap-4 border-t border-silver/12 pt-5 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="linkedinUrl">LinkedIn</Label>
-                  <Input
-                    id="linkedinUrl"
-                    name="linkedinUrl"
-                    type="url"
-                    defaultValue={socialLinks.linkedin ?? member?.profile?.linkedin ?? ""}
+              <CircleCardDashboardSection
+                id="card-images"
+                title="Images"
+                summary={card?.profileImageUrl || card?.businessLogoUrl ? "Profile photo and logo set" : "Profile photo, business logo and crop controls"}
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <CircleCardImageUploadField
+                    id="profileImageUrl"
+                    name="profileImageUrl"
+                    label="Profile photo"
+                    uploadKind="profile-photo"
+                    defaultValue={card?.profileImageUrl ?? member?.image ?? ""}
+                    positionXName="profileImagePositionX"
+                    positionYName="profileImagePositionY"
+                    scaleName="profileImageScale"
+                    defaultPositionX={card?.profileImagePositionX}
+                    defaultPositionY={card?.profileImagePositionY}
+                    defaultScale={card?.profileImageScale}
+                    previewAlt="Circle Card profile preview"
+                    helperText="Upload a JPG, PNG or WebP from your device, adjust the crop, or keep using an image URL."
+                    previewClassName="rounded-full"
+                  />
+                  <CircleCardImageUploadField
+                    id="businessLogoUrl"
+                    name="businessLogoUrl"
+                    label="Business logo"
+                    uploadKind="business-logo"
+                    defaultValue={card?.businessLogoUrl ?? ""}
+                    positionXName="businessLogoPositionX"
+                    positionYName="businessLogoPositionY"
+                    scaleName="businessLogoScale"
+                    defaultPositionX={card?.businessLogoPositionX}
+                    defaultPositionY={card?.businessLogoPositionY}
+                    defaultScale={card?.businessLogoScale}
+                    previewAlt="Circle Card business logo preview"
+                    helperText="Optional. This appears as the small circular identity badge on your public card."
+                    previewClassName="rounded-full"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="instagramUrl">Instagram</Label>
-                  <Input
-                    id="instagramUrl"
-                    name="instagramUrl"
-                    type="url"
-                    defaultValue={socialLinks.instagram ?? member?.profile?.instagram ?? ""}
-                  />
+              </CircleCardDashboardSection>
+
+              <CircleCardDashboardSection
+                id="card-contact-details"
+                title="Contact details"
+                summary={[card?.websiteUrl, card?.email, card?.phone, card?.location].filter(Boolean).length ? "Website, email, phone and location" : "Add direct ways for people to reach you"}
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="websiteUrl">Website</Label>
+                    <Input id="websiteUrl" name="websiteUrl" type="url" defaultValue={defaultWebsite} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      defaultValue={card?.email ?? member?.email ?? ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input id="phone" name="phone" defaultValue={card?.phone ?? ""} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location</Label>
+                    <Input
+                      id="location"
+                      name="location"
+                      defaultValue={card?.location ?? member?.profile?.location ?? ""}
+                      placeholder="London, United Kingdom"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tiktokUrl">TikTok</Label>
-                  <Input
-                    id="tiktokUrl"
-                    name="tiktokUrl"
-                    type="url"
-                    defaultValue={socialLinks.tiktok ?? member?.profile?.tiktok ?? ""}
-                    placeholder="https://www.tiktok.com/@..."
-                  />
+              </CircleCardDashboardSection>
+
+              <CircleCardDashboardSection
+                id="card-social-profiles"
+                title="Social profiles"
+                summary={`${Object.values(socialLinks).filter(Boolean).length} social profile${Object.values(socialLinks).filter(Boolean).length === 1 ? "" : "s"} connected`}
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="linkedinUrl">LinkedIn</Label>
+                    <Input
+                      id="linkedinUrl"
+                      name="linkedinUrl"
+                      type="url"
+                      defaultValue={socialLinks.linkedin ?? member?.profile?.linkedin ?? ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="instagramUrl">Instagram</Label>
+                    <Input
+                      id="instagramUrl"
+                      name="instagramUrl"
+                      type="url"
+                      defaultValue={socialLinks.instagram ?? member?.profile?.instagram ?? ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tiktokUrl">TikTok</Label>
+                    <Input
+                      id="tiktokUrl"
+                      name="tiktokUrl"
+                      type="url"
+                      defaultValue={socialLinks.tiktok ?? member?.profile?.tiktok ?? ""}
+                      placeholder="https://www.tiktok.com/@..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="facebookUrl">Facebook</Label>
+                    <Input
+                      id="facebookUrl"
+                      name="facebookUrl"
+                      type="url"
+                      defaultValue={socialLinks.facebook ?? member?.profile?.facebook ?? ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="xUrl">X</Label>
+                    <Input id="xUrl" name="xUrl" type="url" defaultValue={socialLinks.x ?? ""} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="youtubeUrl">YouTube</Label>
+                    <Input
+                      id="youtubeUrl"
+                      name="youtubeUrl"
+                      type="url"
+                      defaultValue={socialLinks.youtube ?? member?.profile?.youtube ?? ""}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="xUrl">X</Label>
-                  <Input id="xUrl" name="xUrl" type="url" defaultValue={socialLinks.x ?? ""} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="facebookUrl">Facebook</Label>
-                  <Input
-                    id="facebookUrl"
-                    name="facebookUrl"
-                    type="url"
-                    defaultValue={socialLinks.facebook ?? member?.profile?.facebook ?? ""}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="youtubeUrl">YouTube</Label>
-                  <Input
-                    id="youtubeUrl"
-                    name="youtubeUrl"
-                    type="url"
-                    defaultValue={socialLinks.youtube ?? member?.profile?.youtube ?? ""}
-                  />
-                </div>
-              </div>
+              </CircleCardDashboardSection>
 
               <label
                 htmlFor="isPublished"
@@ -797,14 +860,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </Card>
 
         <aside className="space-y-5">
-          <Card id="public-card" className="scroll-mt-24 border-silver/16 bg-card/62">
-            <CardHeader>
-              <CardTitle>Public card</CardTitle>
-              <CardDescription>
-                Your clean share link and QR code stay generated from the current slug.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <CircleCardDashboardSection
+            id="public-card"
+            title="Public card"
+            summary={publicUrl ? "QR, copy link, view public card and share tools" : "Public tools appear after your first save"}
+          >
+            <div className="space-y-4">
               {publicUrl && card ? (
                 <>
                   <CircleCardQrPanel publicUrl={publicUrl} slug={card.slug} />
@@ -827,8 +888,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   Your public link and QR code will appear after the first save.
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CircleCardDashboardSection>
 
           <div className="grid gap-4">
             <Card className="border-silver/16 bg-card/62">
@@ -899,22 +960,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </aside>
       </div>
 
-      <section id="custom-links" className="scroll-mt-24 space-y-5">
-        <div className="flex flex-col gap-4 border-t border-silver/12 pt-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Custom Links</p>
-            <h2 className="mt-2 font-display text-3xl text-foreground">Professional link hub</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-              Add useful links so your Circle Card can act as your professional link hub.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <CircleCardDashboardSection
+        id="custom-links"
+        title="Featured links"
+        summary="Smart action blocks for bookings, offers, downloads, reviews, shops, menus and case studies"
+        badge={
+          <span className="inline-flex gap-2">
             <Badge variant="muted">{customLinks.length} saved</Badge>
             <Badge variant="outline" className="border-gold/25 text-gold">
               {customLinkLimitLabel}
             </Badge>
-          </div>
-        </div>
+          </span>
+        }
+      >
+        <div className="space-y-5">
 
         {card ? (
           <>
@@ -934,65 +993,26 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   <input type="hidden" name="cardId" value={card.id} />
                   <input type="hidden" name="sortOrder" value={customLinks.length} />
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="customLinkLabel">Label</Label>
-                      <Input
-                        id="customLinkLabel"
-                        name="label"
-                        placeholder="Book a call"
-                        maxLength={90}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="customLinkUrl">URL</Label>
-                      <Input
-                        id="customLinkUrl"
-                        name="url"
-                        type="url"
-                        placeholder="https://example.com/book"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="customLinkDescription">Optional description</Label>
-                      <Textarea
-                        id="customLinkDescription"
-                        name="description"
-                        rows={3}
-                        placeholder="Short context for why someone should tap this link."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="customLinkIcon">Optional icon/type</Label>
-                      <Select id="customLinkIcon" name="icon" defaultValue="link">
-                        {CUSTOM_LINK_ICON_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <label
-                      htmlFor="customLinkIsActive"
-                      className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
-                    >
-                      <input
-                        id="customLinkIsActive"
-                        name="isActive"
-                        type="checkbox"
-                        defaultChecked={!freeActiveCustomLinkLimitReached}
-                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                      />
-                      <span>
-                        Active on public card
-                        <span className="mt-1 block text-xs text-muted">
-                          Free cards can keep up to {FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links.
-                        </span>
+                  <CircleCardSmartLinkFields idPrefix="customLinkNew" />
+
+                  <label
+                    htmlFor="customLinkIsActive"
+                    className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
+                  >
+                    <input
+                      id="customLinkIsActive"
+                      name="isActive"
+                      type="checkbox"
+                      defaultChecked={!freeActiveCustomLinkLimitReached}
+                      className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                    />
+                    <span>
+                      Active on public card
+                      <span className="mt-1 block text-xs text-muted">
+                        Free cards can keep up to {FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links.
                       </span>
-                    </label>
-                  </div>
+                    </span>
+                  </label>
 
                   <div className="flex flex-wrap gap-2">
                     {CUSTOM_LINK_EXAMPLES.map((example) => (
@@ -1029,7 +1049,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <div className="flex min-w-0 gap-3">
                               <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gold/18 bg-gold/10 text-gold">
-                                <CustomLinkIcon icon={customLink.icon} />
+                                <CustomLinkIcon icon={customLink.icon} type={customLink.type} />
                               </span>
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -1044,7 +1064,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                   </Badge>
                                 </div>
                                 <p className="mt-1 truncate text-sm text-silver">
-                                  {displayCustomLinkUrl(customLink.url)}
+                                  {displayCustomLinkUrl(customLink.fileUrl || customLink.url)}
                                 </p>
                                 {customLink.description ? (
                                   <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -1052,7 +1072,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                   </p>
                                 ) : null}
                                 <p className="mt-2 text-xs text-muted">
-                                  {customLinkIconLabel(customLink.icon)}
+                                  {customLinkTypeLabel(customLink.type)}
+                                  {customLink.fileName ? ` · ${customLink.fileName}` : ""}
                                 </p>
                               </div>
                             </div>
@@ -1132,72 +1153,37 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                               <input type="hidden" name="linkId" value={customLink.id} />
                               <input type="hidden" name="sortOrder" value={customLink.sortOrder} />
 
-                              <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                  <Label htmlFor={`customLinkLabel-${customLink.id}`}>Label</Label>
-                                  <Input
-                                    id={`customLinkLabel-${customLink.id}`}
-                                    name="label"
-                                    defaultValue={customLink.label}
-                                    required
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`customLinkUrl-${customLink.id}`}>URL</Label>
-                                  <Input
-                                    id={`customLinkUrl-${customLink.id}`}
-                                    name="url"
-                                    type="url"
-                                    defaultValue={customLink.url}
-                                    required
-                                  />
-                                </div>
-                                <div className="space-y-2 md:col-span-2">
-                                  <Label htmlFor={`customLinkDescription-${customLink.id}`}>
-                                    Optional description
-                                  </Label>
-                                  <Textarea
-                                    id={`customLinkDescription-${customLink.id}`}
-                                    name="description"
-                                    rows={3}
-                                    defaultValue={customLink.description ?? ""}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`customLinkIcon-${customLink.id}`}>
-                                    Optional icon/type
-                                  </Label>
-                                  <Select
-                                    id={`customLinkIcon-${customLink.id}`}
-                                    name="icon"
-                                    defaultValue={customLink.icon ?? "link"}
-                                  >
-                                    {CUSTOM_LINK_ICON_OPTIONS.map((option) => (
-                                      <option key={option.value} value={option.value}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                </div>
-                                <label
-                                  htmlFor={`customLinkIsActive-${customLink.id}`}
-                                  className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
-                                >
-                                  <input
-                                    id={`customLinkIsActive-${customLink.id}`}
-                                    name="isActive"
-                                    type="checkbox"
-                                    defaultChecked={customLink.isActive}
-                                    className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                                  />
-                                  <span>
-                                    Active on public card
-                                    <span className="mt-1 block text-xs text-muted">
-                                      Paused links stay saved but hidden from /card/{card.slug}.
-                                    </span>
+                              <CircleCardSmartLinkFields
+                                idPrefix={`customLink-${customLink.id}`}
+                                defaultType={customLink.type}
+                                defaultLabel={customLink.label}
+                                defaultUrl={customLink.url}
+                                defaultDescription={customLink.description}
+                                defaultFileUrl={customLink.fileUrl}
+                                defaultFileName={customLink.fileName}
+                                defaultFileMimeType={customLink.fileMimeType}
+                                defaultButtonText={customLink.buttonText}
+                                defaultExpiresAt={customLink.expiresAt}
+                              />
+
+                              <label
+                                htmlFor={`customLinkIsActive-${customLink.id}`}
+                                className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
+                              >
+                                <input
+                                  id={`customLinkIsActive-${customLink.id}`}
+                                  name="isActive"
+                                  type="checkbox"
+                                  defaultChecked={customLink.isActive}
+                                  className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                                />
+                                <span>
+                                  Active on public card
+                                  <span className="mt-1 block text-xs text-muted">
+                                    Paused links stay saved but hidden from /card/{card.slug}.
                                   </span>
-                                </label>
-                              </div>
+                                </span>
+                              </label>
 
                               <Button type="submit" className="w-full gap-2 sm:w-auto">
                                 <Save size={16} />
@@ -1269,22 +1255,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </CardContent>
           </Card>
         )}
-      </section>
+        </div>
+      </CircleCardDashboardSection>
 
-      <section id="analytics" className="scroll-mt-24 space-y-5">
-        <div className="flex flex-col gap-4 border-t border-silver/12 pt-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Analytics</p>
-            <h2 className="mt-2 font-display text-3xl text-foreground">Circle Card activity</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-              See the first signals from your public card, wallet saves and contact actions.
-              Advanced Pro and Teams analytics can build on this foundation later.
-            </p>
-          </div>
+      <CircleCardDashboardSection
+        id="analytics"
+        title="Analytics"
+        summary="Views, wallet saves, shares, downloads and featured-link clicks"
+        badge={
           <Badge variant="outline" className="w-fit border-gold/25 text-gold">
             Basic analytics included
           </Badge>
-        </div>
+        }
+      >
+        <div className="space-y-5">
 
         {card ? (
           <>
@@ -1411,25 +1395,23 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </CardContent>
           </Card>
         )}
-      </section>
+        </div>
+      </CircleCardDashboardSection>
 
-      <section id="wallet" className="space-y-5">
-        <div className="flex flex-col gap-4 border-t border-silver/12 pt-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Circle Wallet</p>
-            <h2 className="mt-2 font-display text-3xl text-foreground">Saved relationships</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-              Search the people you have saved, keep private relationship context, and return to
-              the right card when it is time to reconnect.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <CircleCardDashboardSection
+        id="wallet"
+        title="Wallet"
+        summary="Search saved contacts, notes, tags and relationship context"
+        badge={
+          <span className="inline-flex gap-2">
             <Badge variant="muted">{savedContactCount} saved</Badge>
             <Badge variant="outline" className="border-silver/18 text-silver">
               {favouriteWalletContacts.length} favourite
             </Badge>
-          </div>
-        </div>
+          </span>
+        }
+      >
+        <div className="space-y-5">
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-5">
@@ -1802,7 +1784,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </Card>
           </aside>
         </div>
-      </section>
+        </div>
+      </CircleCardDashboardSection>
     </div>
   );
 }

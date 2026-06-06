@@ -248,8 +248,31 @@ function analyticsUrlValue(value: string) {
   }
 }
 
-function customLinkIcon(icon: PublicCircleCard["customLinks"][number]["icon"]) {
-  switch (icon) {
+function customLinkIcon(link: PublicCircleCard["customLinks"][number]) {
+  switch (link.type) {
+    case "BOOK_CALL":
+      return <CalendarDays size={18} />;
+    case "PORTFOLIO":
+      return <BriefcaseBusiness size={18} />;
+    case "LATEST_OFFER":
+      return <Sparkles size={18} />;
+    case "COMMUNITY":
+      return <Users size={18} />;
+    case "DOWNLOAD":
+      return <Download size={18} />;
+    case "REVIEW":
+      return <Star size={18} />;
+    case "SHOP":
+      return <ShoppingBag size={18} />;
+    case "MENU":
+      return <MenuIcon size={18} />;
+    case "CASE_STUDY":
+      return <BookOpen size={18} />;
+    default:
+      break;
+  }
+
+  switch (link.icon) {
     case "calendar":
       return <CalendarDays size={18} />;
     case "portfolio":
@@ -271,6 +294,72 @@ function customLinkIcon(icon: PublicCircleCard["customLinks"][number]["icon"]) {
     default:
       return <LinkIcon size={18} />;
   }
+}
+
+function customLinkDisplayLabel(link: PublicCircleCard["customLinks"][number]) {
+  if (link.buttonText) {
+    return link.buttonText;
+  }
+
+  switch (link.type) {
+    case "BOOK_CALL":
+      return link.label || "Book a call";
+    case "DOWNLOAD":
+      return link.label || "Download";
+    case "REVIEW":
+      return link.label || "Leave a review";
+    case "SHOP":
+      return link.label || "Shop";
+    case "MENU":
+      return link.label || "View menu";
+    case "CASE_STUDY":
+      return link.label || "View case study";
+    default:
+      return link.label;
+  }
+}
+
+function customLinkActionType(link: PublicCircleCard["customLinks"][number]) {
+  switch (link.type) {
+    case "BOOK_CALL":
+      return "Book a call";
+    case "PORTFOLIO":
+      return "Portfolio";
+    case "LATEST_OFFER":
+      return "Latest offer";
+    case "COMMUNITY":
+      return "Community";
+    case "DOWNLOAD":
+      return link.fileUrl ? "Download" : "Download link";
+    case "REVIEW":
+      return "Review";
+    case "SHOP":
+      return "Shop";
+    case "MENU":
+      return "Menu";
+    case "CASE_STUDY":
+      return "Case study";
+    default:
+      return "Custom link";
+  }
+}
+
+function customLinkHref(link: PublicCircleCard["customLinks"][number]) {
+  return link.fileUrl || link.url || "";
+}
+
+function offerEndDescription(link: PublicCircleCard["customLinks"][number]) {
+  if (link.type !== "LATEST_OFFER" || !link.expiresAt) {
+    return link.description;
+  }
+
+  const dateLabel = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(link.expiresAt));
+
+  return [link.description, `Offer ends ${dateLabel}`].filter(Boolean).join(" · ");
 }
 
 function roleLine(card: PublicCircleCard) {
@@ -954,25 +1043,34 @@ export function PublicCircleCardProfile({
                 {card.customLinks.length ? (
                   <div className="mt-3 space-y-2 border-t border-gold/14 pt-4">
                     <p className="px-1 text-xs font-medium text-gold">Featured links</p>
-                    {card.customLinks.map((link) => (
-                      <ContactAction
-                        key={link.id}
-                        icon={customLinkIcon(link.icon)}
-                        label="Custom link"
-                        value={link.label}
-                        description={link.description}
-                        href={link.url}
-                        anchorProps={getExternalLinkProps(link.url)}
-                        analyticsCardId={analyticsCardId}
-                        eventType="CUSTOM_LINK_CLICK"
-                        metadata={{
-                          source: "public_card",
-                          linkId: link.id,
-                          label: link.label,
-                          url: analyticsUrlValue(link.url)
-                        }}
-                      />
-                    ))}
+                    {card.customLinks.map((link) => {
+                      const href = customLinkHref(link);
+
+                      if (!href) {
+                        return null;
+                      }
+
+                      return (
+                        <ContactAction
+                          key={link.id}
+                          icon={customLinkIcon(link)}
+                          label={customLinkActionType(link)}
+                          value={customLinkDisplayLabel(link)}
+                          description={offerEndDescription(link)}
+                          href={href}
+                          anchorProps={getExternalLinkProps(href)}
+                          analyticsCardId={analyticsCardId}
+                          eventType="CUSTOM_LINK_CLICK"
+                          metadata={{
+                            source: "public_card",
+                            linkId: link.id,
+                            label: link.label,
+                            type: link.type,
+                            url: analyticsUrlValue(href)
+                          }}
+                        />
+                      );
+                    })}
                   </div>
                 ) : null}
               </div>

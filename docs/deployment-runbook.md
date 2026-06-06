@@ -109,6 +109,12 @@ Use a production environment (systemd, PM2, or host-level env manager) and set:
 - `CLOUDINARY_RESOURCE_FOLDER=business-circle/resources`
 - `CLOUDINARY_PROFILE_FOLDER=business-circle/profiles`
 
+### Circle Card link file uploads
+
+- Circle Card downloadable link files are stored under `.uploads/circle-card-link-files`.
+- Keep this directory on persistent server storage and include it in backups.
+- Do not expose the directory directly; files are served through `/api/circle-card/link-file/[filename]` so HTML uploads are treated as downloadable files.
+
 ## 3) Deploy on VPS (no Docker)
 
 From project root on the server:

@@ -9,6 +9,7 @@ import { safeRedirectPath } from "@/lib/auth/utils";
 import {
   buildCircleCardSlugBase,
   buildCircleCardSocialLinks,
+  type CircleCardLinkType,
   circleCardLinkFormSchema,
   circleCardLinkIdSchema,
   circleCardLinkMoveSchema,
@@ -77,10 +78,16 @@ const CIRCLE_CARD_ONBOARDING_FIELDS = [
 const CIRCLE_CARD_LINK_FORM_FIELDS = [
   "cardId",
   "linkId",
+  "type",
   "label",
   "url",
   "description",
   "icon",
+  "fileUrl",
+  "fileName",
+  "fileMimeType",
+  "buttonText",
+  "expiresAt",
   "sortOrder",
   "isActive"
 ] as const;
@@ -237,6 +244,31 @@ function isFreeCircleCardActionUser(user: CircleCardActionUser) {
     hasActiveSubscription: user.hasActiveSubscription,
     suspended: false
   });
+}
+
+function circleCardLinkIconForType(type: CircleCardLinkType) {
+  switch (type) {
+    case "BOOK_CALL":
+      return "calendar";
+    case "PORTFOLIO":
+      return "portfolio";
+    case "LATEST_OFFER":
+      return "offer";
+    case "COMMUNITY":
+      return "community";
+    case "DOWNLOAD":
+      return "download";
+    case "REVIEW":
+      return "review";
+    case "SHOP":
+      return "shop";
+    case "MENU":
+      return "menu";
+    case "CASE_STUDY":
+      return "case-studies";
+    default:
+      return "link";
+  }
 }
 
 async function enforceCircleCardCustomLinkActivationLimit(input: {
@@ -416,7 +448,8 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
         select: {
           id: true,
           isActive: true,
-          sortOrder: true
+          sortOrder: true,
+          icon: true
         }
       })
     : null;
@@ -451,10 +484,16 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
       where: { cardId: card.id }
     }));
   const data = {
+    type: values.type,
     label: values.label.trim(),
-    url: values.url,
+    url: nullableText(values.url),
     description: nullableText(values.description),
-    icon: nullableText(values.icon),
+    icon: nullableText(values.icon) || existingLink?.icon || circleCardLinkIconForType(values.type),
+    fileUrl: nullableText(values.fileUrl),
+    fileName: nullableText(values.fileName),
+    fileMimeType: nullableText(values.fileMimeType),
+    buttonText: nullableText(values.buttonText),
+    expiresAt: values.expiresAt ?? null,
     sortOrder,
     isActive: values.isActive
   };

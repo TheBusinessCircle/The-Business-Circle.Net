@@ -1,0 +1,7 @@
+ALTER TABLE "CircleCardLink" ADD COLUMN "type" TEXT NOT NULL DEFAULT 'GENERAL';
+ALTER TABLE "CircleCardLink" ADD COLUMN "fileUrl" TEXT;
+ALTER TABLE "CircleCardLink" ADD COLUMN "fileName" TEXT;
+ALTER TABLE "CircleCardLink" ADD COLUMN "fileMimeType" TEXT;
+ALTER TABLE "CircleCardLink" ADD COLUMN "buttonText" TEXT;
+ALTER TABLE "CircleCardLink" ADD COLUMN "expiresAt" TIMESTAMP(3);
+ALTER TABLE "CircleCardLink" ALTER COLUMN "url" DROP NOT NULL;
