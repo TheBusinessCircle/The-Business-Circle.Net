@@ -20,8 +20,10 @@ import {
   AtSign,
   BadgeCheck,
   BarChart3,
+  BookOpen,
   BriefcaseBusiness,
   Building2,
+  CalendarDays,
   CheckCircle2,
   ChevronRight,
   Crown,
@@ -30,14 +32,17 @@ import {
   Gem,
   Globe2,
   Instagram,
+  LinkIcon,
   Linkedin,
   Lock,
   LogIn,
   Mail,
+  Menu as MenuIcon,
   MapPin,
   Music2,
   Network,
   Phone,
+  ShoppingBag,
   ShieldCheck,
   Sparkles,
   Star,
@@ -92,7 +97,7 @@ const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
   { key: "instagram", label: "Instagram", icon: Instagram, handlePrefix: true },
   { key: "facebook", label: "Facebook", icon: Facebook },
   { key: "x", label: "X", icon: AtSign, handlePrefix: true },
-  { key: "youtube", label: "YouTube", icon: Youtube, handlePrefix: true }
+  { key: "youtube", label: "YouTube", icon: Youtube }
 ] as const;
 
 const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
@@ -143,23 +148,129 @@ function readPathSegments(value: string) {
   }
 }
 
+function readUrl(value: string) {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function cleanUrlSegment(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    return decodeURIComponent(value)
+      .replace(/^@+/, "")
+      .replace(/\.(aspx|html?)$/i, "")
+      .replace(/[-_]+/g, " ")
+      .trim();
+  } catch {
+    return value.replace(/^@+/, "").replace(/[-_]+/g, " ").trim();
+  }
+}
+
+function handleValue(value: string) {
+  try {
+    const cleaned = decodeURIComponent(value).replace(/^@+/, "").trim();
+    return cleaned ? `@${cleaned}` : "";
+  } catch {
+    const cleaned = value.replace(/^@+/, "").trim();
+    return cleaned ? `@${cleaned}` : "";
+  }
+}
+
 function socialDisplayValue(platform: SocialPlatformConfig, href: string) {
+  const url = readUrl(href);
   const segments = readPathSegments(href);
-  const ignoredSegments = new Set(["in", "company", "watch", "channel", "c", "user", "shorts"]);
-  const candidate =
-    platform.key === "linkedin"
-      ? segments.slice(0, 2).join("/")
-      : segments.find((segment) => !ignoredSegments.has(segment.toLowerCase()));
+  const firstSegment = segments[0]?.toLowerCase();
+
+  if (platform.key === "linkedin") {
+    if ((firstSegment === "in" || firstSegment === "company") && segments[1]) {
+      return cleanUrlSegment(segments[1]);
+    }
+
+    return cleanUrlSegment(segments[0]) || displayHost(href);
+  }
+
+  if (platform.key === "youtube") {
+    if (segments[0]?.startsWith("@")) {
+      return handleValue(segments[0]);
+    }
+
+    if ((firstSegment === "c" || firstSegment === "user") && segments[1]) {
+      return cleanUrlSegment(segments[1]);
+    }
+
+    if (firstSegment === "channel") {
+      return "YouTube channel";
+    }
+
+    return cleanUrlSegment(segments[0]) || "YouTube";
+  }
+
+  if (platform.key === "facebook") {
+    if (firstSegment === "profile.php") {
+      return "Facebook profile";
+    }
+
+    if ((firstSegment === "pages" || firstSegment === "groups") && segments[1]) {
+      return cleanUrlSegment(segments[1]);
+    }
+
+    return cleanUrlSegment(segments[0]) || displayHost(href);
+  }
+
+  const ignoredSegments = new Set(["i", "intent", "share", "status", "video", "reel", "p"]);
+  const candidate = segments.find((segment) => !ignoredSegments.has(segment.toLowerCase()));
 
   if (!candidate) {
-    return displayHost(href);
+    return url ? url.hostname.replace(/^www\./, "") : displayHost(href);
   }
 
   if (platform.handlePrefix) {
-    return candidate.startsWith("@") ? candidate : `@${candidate}`;
+    return handleValue(candidate);
   }
 
-  return candidate;
+  return cleanUrlSegment(candidate);
+}
+
+function analyticsUrlValue(value: string) {
+  try {
+    const url = new URL(value);
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
+function customLinkIcon(icon: PublicCircleCard["customLinks"][number]["icon"]) {
+  switch (icon) {
+    case "calendar":
+      return <CalendarDays size={18} />;
+    case "portfolio":
+      return <BriefcaseBusiness size={18} />;
+    case "offer":
+      return <Sparkles size={18} />;
+    case "community":
+      return <Users size={18} />;
+    case "download":
+      return <Download size={18} />;
+    case "review":
+      return <Star size={18} />;
+    case "shop":
+      return <ShoppingBag size={18} />;
+    case "menu":
+      return <MenuIcon size={18} />;
+    case "case-studies":
+      return <BookOpen size={18} />;
+    default:
+      return <LinkIcon size={18} />;
+  }
 }
 
 function roleLine(card: PublicCircleCard) {
@@ -253,6 +364,7 @@ type ContactActionProps = {
   icon: ReactNode;
   label: string;
   value: string;
+  description?: string | null;
   href: string;
   anchorProps?: AnchorHTMLAttributes<HTMLAnchorElement>;
   analyticsCardId?: string;
@@ -268,6 +380,7 @@ function ContactAction({
   icon,
   label,
   value,
+  description,
   href,
   anchorProps,
   analyticsCardId,
@@ -285,6 +398,11 @@ function ContactAction({
         <span className="min-w-0">
           <span className="block text-xs text-muted">{label}</span>
           <span className="block truncate text-sm font-medium text-foreground">{value}</span>
+          {description ? (
+            <span className="mt-0.5 block line-clamp-2 text-xs leading-relaxed text-muted">
+              {description}
+            </span>
+          ) : null}
         </span>
       </span>
       <ChevronRight
@@ -824,6 +942,7 @@ export function PublicCircleCardProfile({
                     icon={row.icon}
                     label={row.label}
                     value={row.value}
+                    description={row.description}
                     href={row.href}
                     anchorProps={row.anchorProps}
                     analyticsCardId={analyticsCardId}
@@ -831,6 +950,31 @@ export function PublicCircleCardProfile({
                     metadata={row.metadata}
                   />
                 ))}
+
+                {card.customLinks.length ? (
+                  <div className="mt-3 space-y-2 border-t border-gold/14 pt-4">
+                    <p className="px-1 text-xs font-medium text-gold">Featured links</p>
+                    {card.customLinks.map((link) => (
+                      <ContactAction
+                        key={link.id}
+                        icon={customLinkIcon(link.icon)}
+                        label="Custom link"
+                        value={link.label}
+                        description={link.description}
+                        href={link.url}
+                        anchorProps={getExternalLinkProps(link.url)}
+                        analyticsCardId={analyticsCardId}
+                        eventType="CUSTOM_LINK_CLICK"
+                        metadata={{
+                          source: "public_card",
+                          linkId: link.id,
+                          label: link.label,
+                          url: analyticsUrlValue(link.url)
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </section>
 

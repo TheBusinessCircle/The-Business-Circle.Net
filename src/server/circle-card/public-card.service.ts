@@ -1,9 +1,22 @@
 import "server-only";
 import type { MembershipTier, Prisma, Role } from "@prisma/client";
 import { SITE_CONFIG } from "@/config/site";
-import { readCircleCardSocialLinks, type CircleCardSocialLinks } from "@/lib/circle-card/schema";
+import {
+  readCircleCardSocialLinks,
+  type CircleCardCustomLinkIcon,
+  type CircleCardSocialLinks
+} from "@/lib/circle-card/schema";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
+
+export type PublicCircleCardLink = {
+  id: string;
+  label: string;
+  url: string;
+  description: string | null;
+  icon: CircleCardCustomLinkIcon | null;
+  sortOrder: number;
+};
 
 export type PublicCircleCard = {
   id: string;
@@ -27,6 +40,7 @@ export type PublicCircleCard = {
   phone: string | null;
   location: string | null;
   socialLinks: CircleCardSocialLinks;
+  customLinks: PublicCircleCardLink[];
   viewCount: number;
   isDemo: boolean;
   user: {
@@ -66,6 +80,24 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     facebook: SITE_CONFIG.social.facebook,
     youtube: SITE_CONFIG.social.youtube
   },
+  customLinks: [
+    {
+      id: "demo-book-call",
+      label: "Book a call",
+      url: "https://thebusinesscircle.net/contact",
+      description: "Start a founder-led conversation",
+      icon: "calendar",
+      sortOrder: 0
+    },
+    {
+      id: "demo-latest-offer",
+      label: "Latest offer",
+      url: "https://thebusinesscircle.net/membership",
+      description: "Explore current BCN membership access",
+      icon: "offer",
+      sortOrder: 1
+    }
+  ],
   viewCount: 0,
   isDemo: true,
   user: {
@@ -111,6 +143,20 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       phone: true,
       location: true,
       socialLinks: true,
+      customLinks: {
+        where: {
+          isActive: true
+        },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          label: true,
+          url: true,
+          description: true,
+          icon: true,
+          sortOrder: true
+        }
+      },
       viewCount: true,
       user: {
         select: {
@@ -143,6 +189,10 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           : hasEntitledSubscription(card.user.subscription?.status ?? null)
     },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
+    customLinks: card.customLinks.map((link) => ({
+      ...link,
+      icon: link.icon as CircleCardCustomLinkIcon | null
+    })),
     isDemo: false
   };
 }

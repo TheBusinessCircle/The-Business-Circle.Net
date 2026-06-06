@@ -412,11 +412,31 @@ model CircleCard {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customLinks     CircleCardLink[]
   walletContacts  CircleWalletContact[]
   events          CircleCardEvent[]
 
   @@index([userId])
   @@index([isPublished])
+}
+
+model CircleCardLink {
+  id          String     @id @default(cuid())
+  cardId      String
+  label       String
+  url         String
+  description String?
+  icon        String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  card        CircleCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+  @@index([sortOrder])
+  @@index([isActive])
+  @@index([cardId, isActive, sortOrder])
 }
 
 model CircleCardEvent {
@@ -2126,6 +2146,7 @@ enum CircleCardEventType {
   WEBSITE_CLICK
   EMAIL_CLICK
   PHONE_CLICK
+  CUSTOM_LINK_CLICK
   WALLET_SAVE
   WALLET_REMOVE
 }

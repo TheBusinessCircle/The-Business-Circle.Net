@@ -3,12 +3,17 @@ import Link from "next/link";
 import {
   Activity,
   ArrowUpRight,
+  ArrowDown,
+  ArrowUp,
   BarChart3,
+  BookOpen,
   CalendarDays,
   ContactRound,
   Crown,
   Download,
   Eye,
+  Link as LinkIcon,
+  Menu as MenuIcon,
   MousePointerClick,
   QrCode,
   Search,
@@ -18,13 +23,18 @@ import {
   StickyNote,
   Tag,
   Trash2,
+  ShoppingBag,
   WalletCards
 } from "lucide-react";
 import {
+  deleteCircleCardLinkAction,
+  moveCircleCardLinkAction,
   removeCircleWalletContactAction,
   toggleCircleWalletFavouriteAction,
+  toggleCircleCardLinkAction,
   updateCircleWalletContactDetailsAction,
-  upsertCircleCardAction
+  upsertCircleCardAction,
+  upsertCircleCardLinkAction
 } from "@/actions/circle-card.actions";
 import {
   CircleCardBcnDiscoveryPanel,
@@ -39,6 +49,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getCircleCardAccountLabel,
@@ -46,7 +57,11 @@ import {
   isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
-import { readCircleCardSocialLinks, readCircleWalletTags } from "@/lib/circle-card/schema";
+import {
+  type CircleCardCustomLinkIcon,
+  readCircleCardSocialLinks,
+  readCircleWalletTags
+} from "@/lib/circle-card/schema";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireCircleCardUser } from "@/lib/session";
@@ -80,6 +95,12 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "favourite-added": "Contact marked as a favourite.",
   "favourite-removed": "Contact removed from favourites.",
   "relationship-updated": "Relationship details updated.",
+  "custom-link-created": "Custom link added.",
+  "custom-link-updated": "Custom link updated.",
+  "custom-link-deleted": "Custom link deleted.",
+  "custom-link-enabled": "Custom link enabled.",
+  "custom-link-disabled": "Custom link paused.",
+  "custom-link-reordered": "Custom links reordered.",
   "own-card": "This is already your Circle Card."
 };
 
@@ -89,6 +110,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   "card-limit": "Your current Circle Card access includes one card in Phase 1.",
   "slug-taken": "That public card link is already taken.",
   "card-save-failed": "The Circle Card could not be saved.",
+  "custom-link-invalid": "Check the custom link fields and try again.",
+  "custom-link-not-found": "That custom link could not be found.",
+  "custom-link-save-failed": "The custom link could not be saved.",
+  "custom-link-active-limit": "Free Circle Cards can keep up to 5 active custom links in this phase.",
+  "custom-link-total-limit": "This Circle Card already has the maximum number of saved custom links.",
   "wallet-contact-invalid": "Check the relationship details and try again.",
   "wallet-contact-not-found": "That saved contact could not be found."
 };
@@ -104,6 +130,33 @@ const FUTURE_ANALYTICS_FEATURES = [
   "Lead tracking",
   "Advanced analytics",
   "Team analytics"
+] as const;
+
+const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
+
+const CUSTOM_LINK_ICON_OPTIONS: { value: CircleCardCustomLinkIcon; label: string }[] = [
+  { value: "link", label: "General link" },
+  { value: "calendar", label: "Book a call" },
+  { value: "portfolio", label: "Portfolio" },
+  { value: "offer", label: "Latest offer" },
+  { value: "community", label: "Community" },
+  { value: "download", label: "Download" },
+  { value: "review", label: "Review" },
+  { value: "shop", label: "Shop" },
+  { value: "menu", label: "Menu" },
+  { value: "case-studies", label: "Case studies" }
+];
+
+const CUSTOM_LINK_EXAMPLES = [
+  "Book a call",
+  "View portfolio",
+  "Latest offer",
+  "Join my community",
+  "Download brochure",
+  "Leave a review",
+  "Shop",
+  "Menu",
+  "Case studies"
 ] as const;
 
 type WalletView = (typeof WALLET_VIEW_OPTIONS)[number]["value"];
@@ -175,13 +228,58 @@ function activityBarWidth(value: number, maxValue: number) {
   return `${Math.max(8, Math.round((value / Math.max(maxValue, 1)) * 100))}%`;
 }
 
-function readActivityMethod(metadata: unknown) {
+function readActivityDetail(metadata: unknown) {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
     return null;
   }
 
-  const method = (metadata as Record<string, unknown>).method;
+  const record = metadata as Record<string, unknown>;
+  const label = record.label;
+
+  if (typeof label === "string" && label.trim()) {
+    return label.trim();
+  }
+
+  const method = record.method;
   return typeof method === "string" ? method.replace(/_/g, " ") : null;
+}
+
+function customLinkIconLabel(icon: string | null | undefined) {
+  return CUSTOM_LINK_ICON_OPTIONS.find((option) => option.value === icon)?.label ?? "General link";
+}
+
+function displayCustomLinkUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return `${url.hostname.replace(/^www\./, "")}${url.pathname === "/" ? "" : url.pathname}`;
+  } catch {
+    return value;
+  }
+}
+
+function CustomLinkIcon({ icon }: { icon: string | null | undefined }) {
+  switch (icon) {
+    case "calendar":
+      return <CalendarDays size={16} />;
+    case "download":
+      return <Download size={16} />;
+    case "review":
+      return <Star size={16} />;
+    case "shop":
+      return <ShoppingBag size={16} />;
+    case "menu":
+      return <MenuIcon size={16} />;
+    case "case-studies":
+      return <BookOpen size={16} />;
+    case "offer":
+      return <Crown size={16} />;
+    case "portfolio":
+      return <ContactRound size={16} />;
+    case "community":
+      return <WalletCards size={16} />;
+    default:
+      return <LinkIcon size={16} />;
+  }
 }
 
 export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
@@ -196,7 +294,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const [card, cardCount, member, walletContacts] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
-      orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }]
+      orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+      include: {
+        customLinks: {
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+        }
+      }
     }),
     prisma.circleCard.count({
       where: { userId: session.user.id }
@@ -309,6 +412,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     hasActiveSubscription: session.user.hasActiveSubscription,
     suspended: session.user.suspended
   });
+  const customLinks = card?.customLinks ?? [];
+  const activeCustomLinkCount = customLinks.filter((link) => link.isActive).length;
+  const customLinkLimitLabel = isCircleCardFree
+    ? `${activeCustomLinkCount}/${FREE_ACTIVE_CUSTOM_LINK_LIMIT} active links`
+    : `${activeCustomLinkCount} active links`;
+  const freeActiveCustomLinkLimitReached =
+    isCircleCardFree && activeCustomLinkCount >= FREE_ACTIVE_CUSTOM_LINK_LIMIT;
   const socialLinks = readCircleCardSocialLinks(card?.socialLinks ?? null);
   const publicUrl = card ? absoluteUrl(`/card/${card.slug}`) : null;
   const defaultWebsite =
@@ -339,6 +449,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       icon: Share2
     },
     {
+      label: "Link Clicks",
+      value: analytics?.counts.CUSTOM_LINK_CLICK ?? 0,
+      description: "Custom link hub clicks",
+      icon: MousePointerClick
+    },
+    {
       label: "Contact Downloads",
       value: analytics?.counts.VCARD_DOWNLOAD ?? 0,
       description: "vCard downloads",
@@ -350,6 +466,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Website clicks", value: analytics?.counts.WEBSITE_CLICK ?? 0 },
     { label: "Email clicks", value: analytics?.counts.EMAIL_CLICK ?? 0 },
     { label: "Phone clicks", value: analytics?.counts.PHONE_CLICK ?? 0 },
+    { label: "Custom link clicks", value: analytics?.counts.CUSTOM_LINK_CLICK ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
 
@@ -782,6 +899,378 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </aside>
       </div>
 
+      <section id="custom-links" className="scroll-mt-24 space-y-5">
+        <div className="flex flex-col gap-4 border-t border-silver/12 pt-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Custom Links</p>
+            <h2 className="mt-2 font-display text-3xl text-foreground">Professional link hub</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+              Add useful links so your Circle Card can act as your professional link hub.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="muted">{customLinks.length} saved</Badge>
+            <Badge variant="outline" className="border-gold/25 text-gold">
+              {customLinkLimitLabel}
+            </Badge>
+          </div>
+        </div>
+
+        {card ? (
+          <>
+            <Card className="border-gold/18 bg-gold/8">
+              <CardHeader>
+                <CardTitle className="inline-flex items-center gap-2">
+                  <LinkIcon size={17} className="text-gold" />
+                  Add link
+                </CardTitle>
+                <CardDescription>
+                  Add booking pages, offers, downloads, reviews, shops, menus or portfolio links.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form action={upsertCircleCardLinkAction} className="space-y-4">
+                  <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                  <input type="hidden" name="cardId" value={card.id} />
+                  <input type="hidden" name="sortOrder" value={customLinks.length} />
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="customLinkLabel">Label</Label>
+                      <Input
+                        id="customLinkLabel"
+                        name="label"
+                        placeholder="Book a call"
+                        maxLength={90}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customLinkUrl">URL</Label>
+                      <Input
+                        id="customLinkUrl"
+                        name="url"
+                        type="url"
+                        placeholder="https://example.com/book"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="customLinkDescription">Optional description</Label>
+                      <Textarea
+                        id="customLinkDescription"
+                        name="description"
+                        rows={3}
+                        placeholder="Short context for why someone should tap this link."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customLinkIcon">Optional icon/type</Label>
+                      <Select id="customLinkIcon" name="icon" defaultValue="link">
+                        {CUSTOM_LINK_ICON_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <label
+                      htmlFor="customLinkIsActive"
+                      className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
+                    >
+                      <input
+                        id="customLinkIsActive"
+                        name="isActive"
+                        type="checkbox"
+                        defaultChecked={!freeActiveCustomLinkLimitReached}
+                        className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                      />
+                      <span>
+                        Active on public card
+                        <span className="mt-1 block text-xs text-muted">
+                          Free cards can keep up to {FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {CUSTOM_LINK_EXAMPLES.map((example) => (
+                      <Badge key={example} variant="outline" className="border-silver/18 text-silver">
+                        {example}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <Button type="submit" className="w-full gap-2 sm:w-auto">
+                    <Save size={16} />
+                    Add link
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="space-y-3">
+                {customLinks.length ? (
+                  customLinks.map((customLink, index) => {
+                    const isFirst = index === 0;
+                    const isLast = index === customLinks.length - 1;
+
+                    return (
+                      <Card
+                        key={customLink.id}
+                        className={cn(
+                          "border-silver/16 bg-card/62",
+                          customLink.isActive ? "border-gold/20" : "opacity-78"
+                        )}
+                      >
+                        <CardContent className="space-y-4 p-4 sm:p-5">
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div className="flex min-w-0 gap-3">
+                              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gold/18 bg-gold/10 text-gold">
+                                <CustomLinkIcon icon={customLink.icon} />
+                              </span>
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h3 className="text-base font-semibold text-foreground">
+                                    {customLink.label}
+                                  </h3>
+                                  <Badge
+                                    variant={customLink.isActive ? "outline" : "muted"}
+                                    className={customLink.isActive ? "border-gold/25 text-gold" : ""}
+                                  >
+                                    {customLink.isActive ? "Active" : "Paused"}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 truncate text-sm text-silver">
+                                  {displayCustomLinkUrl(customLink.url)}
+                                </p>
+                                {customLink.description ? (
+                                  <p className="mt-2 text-sm leading-relaxed text-muted">
+                                    {customLink.description}
+                                  </p>
+                                ) : null}
+                                <p className="mt-2 text-xs text-muted">
+                                  {customLinkIconLabel(customLink.icon)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap md:justify-end">
+                              <form action={moveCircleCardLinkAction}>
+                                <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                                <input type="hidden" name="cardId" value={card.id} />
+                                <input type="hidden" name="linkId" value={customLink.id} />
+                                <input type="hidden" name="direction" value="up" />
+                                <Button
+                                  type="submit"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-10 w-full gap-2 sm:w-10 sm:px-0"
+                                  disabled={isFirst}
+                                  title="Move link up"
+                                >
+                                  <ArrowUp size={14} />
+                                  <span className="sm:sr-only">Move up</span>
+                                </Button>
+                              </form>
+                              <form action={moveCircleCardLinkAction}>
+                                <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                                <input type="hidden" name="cardId" value={card.id} />
+                                <input type="hidden" name="linkId" value={customLink.id} />
+                                <input type="hidden" name="direction" value="down" />
+                                <Button
+                                  type="submit"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-10 w-full gap-2 sm:w-10 sm:px-0"
+                                  disabled={isLast}
+                                  title="Move link down"
+                                >
+                                  <ArrowDown size={14} />
+                                  <span className="sm:sr-only">Move down</span>
+                                </Button>
+                              </form>
+                              <form action={toggleCircleCardLinkAction}>
+                                <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                                <input type="hidden" name="cardId" value={card.id} />
+                                <input type="hidden" name="linkId" value={customLink.id} />
+                                <Button
+                                  type="submit"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-10 w-full gap-2 sm:w-auto"
+                                >
+                                  {customLink.isActive ? "Pause" : "Activate"}
+                                </Button>
+                              </form>
+                              <form action={deleteCircleCardLinkAction}>
+                                <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                                <input type="hidden" name="cardId" value={card.id} />
+                                <input type="hidden" name="linkId" value={customLink.id} />
+                                <Button
+                                  type="submit"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-10 w-full gap-2 sm:w-auto"
+                                >
+                                  <Trash2 size={14} />
+                                  Delete
+                                </Button>
+                              </form>
+                            </div>
+                          </div>
+
+                          <details className="rounded-2xl border border-silver/14 bg-background/18 p-3">
+                            <summary className="cursor-pointer list-none text-sm font-medium text-silver">
+                              Edit link
+                            </summary>
+                            <form action={upsertCircleCardLinkAction} className="mt-4 space-y-4">
+                              <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                              <input type="hidden" name="cardId" value={card.id} />
+                              <input type="hidden" name="linkId" value={customLink.id} />
+                              <input type="hidden" name="sortOrder" value={customLink.sortOrder} />
+
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                  <Label htmlFor={`customLinkLabel-${customLink.id}`}>Label</Label>
+                                  <Input
+                                    id={`customLinkLabel-${customLink.id}`}
+                                    name="label"
+                                    defaultValue={customLink.label}
+                                    required
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`customLinkUrl-${customLink.id}`}>URL</Label>
+                                  <Input
+                                    id={`customLinkUrl-${customLink.id}`}
+                                    name="url"
+                                    type="url"
+                                    defaultValue={customLink.url}
+                                    required
+                                  />
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                  <Label htmlFor={`customLinkDescription-${customLink.id}`}>
+                                    Optional description
+                                  </Label>
+                                  <Textarea
+                                    id={`customLinkDescription-${customLink.id}`}
+                                    name="description"
+                                    rows={3}
+                                    defaultValue={customLink.description ?? ""}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`customLinkIcon-${customLink.id}`}>
+                                    Optional icon/type
+                                  </Label>
+                                  <Select
+                                    id={`customLinkIcon-${customLink.id}`}
+                                    name="icon"
+                                    defaultValue={customLink.icon ?? "link"}
+                                  >
+                                    {CUSTOM_LINK_ICON_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                </div>
+                                <label
+                                  htmlFor={`customLinkIsActive-${customLink.id}`}
+                                  className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
+                                >
+                                  <input
+                                    id={`customLinkIsActive-${customLink.id}`}
+                                    name="isActive"
+                                    type="checkbox"
+                                    defaultChecked={customLink.isActive}
+                                    className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                                  />
+                                  <span>
+                                    Active on public card
+                                    <span className="mt-1 block text-xs text-muted">
+                                      Paused links stay saved but hidden from /card/{card.slug}.
+                                    </span>
+                                  </span>
+                                </label>
+                              </div>
+
+                              <Button type="submit" className="w-full gap-2 sm:w-auto">
+                                <Save size={16} />
+                                Save link
+                              </Button>
+                            </form>
+                          </details>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                ) : (
+                  <Card className="border-dashed border-silver/18 bg-card/48">
+                    <CardContent className="py-8 text-center">
+                      <LinkIcon className="mx-auto text-silver" size={22} />
+                      <h3 className="mt-4 font-display text-2xl text-foreground">
+                        No custom links yet
+                      </h3>
+                      <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                        Add a booking page, portfolio, offer, review page or download to turn this
+                        Circle Card into a link hub.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              <aside className="space-y-5">
+                <Card className="border-silver/16 bg-card/62">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Public behavior</CardTitle>
+                    <CardDescription>
+                      Active links appear below website, phone, email and social rows on your
+                      public Circle Card.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm text-muted">
+                    <p>Each custom link opens externally and records a basic click event.</p>
+                    <p>
+                      Link click metadata stores the link id, label and a query-stripped URL for
+                      sensible analytics.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-gold/18 bg-gold/8">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Phase limit</CardTitle>
+                    <CardDescription>
+                      Free Circle Cards can keep up to {FREE_ACTIVE_CUSTOM_LINK_LIMIT} active
+                      custom links. Paused links can stay saved for later.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </aside>
+            </div>
+          </>
+        ) : (
+          <Card className="border-dashed border-silver/18 bg-card/48">
+            <CardContent className="py-8 text-center">
+              <LinkIcon className="mx-auto text-silver" size={22} />
+              <h3 className="mt-4 font-display text-2xl text-foreground">
+                Create your card before adding links
+              </h3>
+              <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                Once your Circle Card exists, you can add useful public links and turn it into a
+                professional action hub.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </section>
+
       <section id="analytics" className="scroll-mt-24 space-y-5">
         <div className="flex flex-col gap-4 border-t border-silver/12 pt-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -799,7 +1288,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
         {card ? (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               {analyticsOverview.map((item) => (
                 <Card key={item.label} className="border-silver/16 bg-card/62">
                   <CardContent className="p-5">
@@ -832,7 +1321,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 <CardContent className="space-y-3">
                   {analytics?.recentEvents.length ? (
                     analytics.recentEvents.map((event) => {
-                      const method = readActivityMethod(event.metadata);
+                      const detail = readActivityDetail(event.metadata);
 
                       return (
                         <div
@@ -841,8 +1330,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         >
                           <div>
                             <p className="text-sm font-medium text-foreground">{event.label}</p>
-                            {method ? (
-                              <p className="mt-1 text-xs capitalize text-muted">{method}</p>
+                            {detail ? (
+                              <p className="mt-1 text-xs capitalize text-muted">{detail}</p>
                             ) : null}
                           </div>
                           <p className="shrink-0 text-right text-xs text-muted">

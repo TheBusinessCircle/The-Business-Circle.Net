@@ -21,6 +21,21 @@ export const CIRCLE_CARD_SOCIAL_FIELDS = [
   "youtube"
 ] as const satisfies readonly (keyof CircleCardSocialLinks)[];
 
+export const CIRCLE_CARD_CUSTOM_LINK_ICONS = [
+  "link",
+  "calendar",
+  "portfolio",
+  "offer",
+  "community",
+  "download",
+  "review",
+  "shop",
+  "menu",
+  "case-studies"
+] as const;
+
+export type CircleCardCustomLinkIcon = (typeof CIRCLE_CARD_CUSTOM_LINK_ICONS)[number];
+
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalEmail = z.string().trim().email().max(320).optional().or(z.literal(""));
 const optionalImagePosition = z.preprocess(
@@ -69,6 +84,18 @@ function optionalHttpUrl(label: string) {
     .or(z.literal(""))
     .transform((value) => normalizeCircleCardUrl(value))
     .refine((value) => !value || isHttpUrl(value), {
+      message: `${label} must be a valid web address.`
+    });
+}
+
+function requiredHttpUrl(label: string) {
+  return z
+    .string()
+    .trim()
+    .min(1, { message: `${label} is required.` })
+    .max(2048)
+    .transform((value) => normalizeCircleCardUrl(value))
+    .refine((value) => isHttpUrl(value), {
       message: `${label} must be a valid web address.`
     });
 }
@@ -147,6 +174,36 @@ export const circleWalletContactDetailsSchema = z.object({
   walletContactId: z.string().cuid(),
   notes: optionalText(2000),
   tagsInput: optionalText(300)
+});
+
+export const circleCardLinkFormSchema = z.object({
+  cardId: z.string().cuid(),
+  linkId: z.string().cuid().optional().or(z.literal("")),
+  label: z.string().trim().min(2).max(90),
+  url: requiredHttpUrl("URL"),
+  description: optionalText(220),
+  icon: z.enum(CIRCLE_CARD_CUSTOM_LINK_ICONS).optional().or(z.literal("")),
+  sortOrder: z.preprocess(
+    (value) => {
+      if (value === "" || value === null || value === undefined) {
+        return undefined;
+      }
+
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : value;
+    },
+    z.number().int().min(0).max(999).optional()
+  ),
+  isActive: checkboxBoolean.default(false)
+});
+
+export const circleCardLinkIdSchema = z.object({
+  cardId: z.string().cuid(),
+  linkId: z.string().cuid()
+});
+
+export const circleCardLinkMoveSchema = circleCardLinkIdSchema.extend({
+  direction: z.enum(["up", "down"])
 });
 
 export function normalizeCircleCardUrl(value?: string | null) {

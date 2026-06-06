@@ -9,6 +9,9 @@ import { safeRedirectPath } from "@/lib/auth/utils";
 import {
   buildCircleCardSlugBase,
   buildCircleCardSocialLinks,
+  circleCardLinkFormSchema,
+  circleCardLinkIdSchema,
+  circleCardLinkMoveSchema,
   circleCardFormSchema,
   circleCardOnboardingSchema,
   circleWalletContactDetailsSchema,
@@ -18,6 +21,7 @@ import {
 } from "@/lib/circle-card/schema";
 import {
   canCreateCircleCard,
+  isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
 import { hasEntitledSubscription } from "@/lib/membership/access";
@@ -69,6 +73,24 @@ const CIRCLE_CARD_ONBOARDING_FIELDS = [
   "websiteUrl",
   "isPublished"
 ] as const;
+
+const CIRCLE_CARD_LINK_FORM_FIELDS = [
+  "cardId",
+  "linkId",
+  "label",
+  "url",
+  "description",
+  "icon",
+  "sortOrder",
+  "isActive"
+] as const;
+
+const CIRCLE_CARD_LINK_ID_FIELDS = ["cardId", "linkId"] as const;
+
+const CIRCLE_CARD_LINK_MOVE_FIELDS = ["cardId", "linkId", "direction"] as const;
+
+const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
+const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = 24;
 
 type CircleCardActionUser = {
   id: string;
@@ -146,6 +168,24 @@ function readCircleCardOnboardingFormData(formData: FormData) {
   );
 }
 
+function readCircleCardLinkFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_LINK_FORM_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardLinkIdFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_LINK_ID_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardLinkMoveFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_LINK_MOVE_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
 async function resolveAvailableSlug(input: {
   slugBase: string;
   cardId?: string | null;
@@ -188,6 +228,39 @@ function revalidateCircleCardPaths(slug?: string | null) {
 
   if (slug) {
     revalidatePath(`/card/${slug}`);
+  }
+}
+
+function isFreeCircleCardActionUser(user: CircleCardActionUser) {
+  return isCircleCardFreeAccount({
+    role: user.role,
+    hasActiveSubscription: user.hasActiveSubscription,
+    suspended: false
+  });
+}
+
+async function enforceCircleCardCustomLinkActivationLimit(input: {
+  user: CircleCardActionUser;
+  cardId: string;
+  linkId?: string | null;
+  existingIsActive?: boolean;
+  wantsActive: boolean;
+  returnPath: string;
+}) {
+  if (!input.wantsActive || input.existingIsActive || !isFreeCircleCardActionUser(input.user)) {
+    return;
+  }
+
+  const activeLinkCount = await prisma.circleCardLink.count({
+    where: {
+      cardId: input.cardId,
+      isActive: true,
+      ...(input.linkId ? { NOT: { id: input.linkId } } : {})
+    }
+  });
+
+  if (activeLinkCount >= FREE_ACTIVE_CUSTOM_LINK_LIMIT) {
+    redirectWithError(input.returnPath, "custom-link-active-limit");
   }
 }
 
@@ -306,6 +379,257 @@ export async function upsertCircleCardAction(formData: FormData) {
 
     redirectWithError(returnPath, "card-save-failed");
   }
+}
+
+export async function upsertCircleCardLinkAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardLinkFormSchema.safeParse(readCircleCardLinkFormData(formData));
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "custom-link-invalid");
+  }
+
+  const values = parsed.data;
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: values.cardId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      slug: true
+    }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  const linkId = values.linkId || null;
+  const existingLink = linkId
+    ? await prisma.circleCardLink.findFirst({
+        where: {
+          id: linkId,
+          cardId: card.id
+        },
+        select: {
+          id: true,
+          isActive: true,
+          sortOrder: true
+        }
+      })
+    : null;
+
+  if (linkId && !existingLink) {
+    redirectWithError(returnPath, "custom-link-not-found");
+  }
+
+  if (!linkId) {
+    const linkCount = await prisma.circleCardLink.count({
+      where: { cardId: card.id }
+    });
+
+    if (linkCount >= CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT) {
+      redirectWithError(returnPath, "custom-link-total-limit");
+    }
+  }
+
+  await enforceCircleCardCustomLinkActivationLimit({
+    user,
+    cardId: card.id,
+    linkId,
+    existingIsActive: existingLink?.isActive,
+    wantsActive: values.isActive,
+    returnPath
+  });
+
+  const sortOrder =
+    values.sortOrder ??
+    existingLink?.sortOrder ??
+    (await prisma.circleCardLink.count({
+      where: { cardId: card.id }
+    }));
+  const data = {
+    label: values.label.trim(),
+    url: values.url,
+    description: nullableText(values.description),
+    icon: nullableText(values.icon),
+    sortOrder,
+    isActive: values.isActive
+  };
+
+  try {
+    if (linkId) {
+      await prisma.circleCardLink.update({
+        where: { id: linkId },
+        data
+      });
+    } else {
+      await prisma.circleCardLink.create({
+        data: {
+          ...data,
+          cardId: card.id
+        }
+      });
+    }
+  } catch {
+    redirectWithError(returnPath, "custom-link-save-failed");
+  }
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, linkId ? "custom-link-updated" : "custom-link-created");
+}
+
+export async function toggleCircleCardLinkAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardLinkIdSchema.safeParse(readCircleCardLinkIdFormData(formData));
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "custom-link-invalid");
+  }
+
+  const link = await prisma.circleCardLink.findFirst({
+    where: {
+      id: parsed.data.linkId,
+      cardId: parsed.data.cardId,
+      card: {
+        userId: user.id
+      }
+    },
+    select: {
+      id: true,
+      isActive: true,
+      cardId: true,
+      card: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!link) {
+    redirectWithError(returnPath, "custom-link-not-found");
+  }
+
+  await enforceCircleCardCustomLinkActivationLimit({
+    user,
+    cardId: link.cardId,
+    linkId: link.id,
+    existingIsActive: link.isActive,
+    wantsActive: !link.isActive,
+    returnPath
+  });
+
+  await prisma.circleCardLink.update({
+    where: { id: link.id },
+    data: {
+      isActive: !link.isActive
+    }
+  });
+
+  revalidateCircleCardPaths(link.card.slug);
+  redirectWithNotice(returnPath, link.isActive ? "custom-link-disabled" : "custom-link-enabled");
+}
+
+export async function deleteCircleCardLinkAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardLinkIdSchema.safeParse(readCircleCardLinkIdFormData(formData));
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "custom-link-invalid");
+  }
+
+  const link = await prisma.circleCardLink.findFirst({
+    where: {
+      id: parsed.data.linkId,
+      cardId: parsed.data.cardId,
+      card: {
+        userId: user.id
+      }
+    },
+    select: {
+      id: true,
+      card: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!link) {
+    redirectWithError(returnPath, "custom-link-not-found");
+  }
+
+  await prisma.circleCardLink.delete({
+    where: { id: link.id }
+  });
+
+  revalidateCircleCardPaths(link.card.slug);
+  redirectWithNotice(returnPath, "custom-link-deleted");
+}
+
+export async function moveCircleCardLinkAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardLinkMoveSchema.safeParse(readCircleCardLinkMoveFormData(formData));
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "custom-link-invalid");
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: parsed.data.cardId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      slug: true,
+      customLinks: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true
+        }
+      }
+    }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  const currentIndex = card.customLinks.findIndex((link) => link.id === parsed.data.linkId);
+
+  if (currentIndex < 0) {
+    redirectWithError(returnPath, "custom-link-not-found");
+  }
+
+  const targetIndex = parsed.data.direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+  if (targetIndex < 0 || targetIndex >= card.customLinks.length) {
+    redirectWithNotice(returnPath, "custom-link-reordered");
+  }
+
+  const reorderedLinks = [...card.customLinks];
+  const [movedLink] = reorderedLinks.splice(currentIndex, 1);
+  reorderedLinks.splice(targetIndex, 0, movedLink);
+
+  await prisma.$transaction(
+    reorderedLinks.map((link, index) =>
+      prisma.circleCardLink.update({
+        where: { id: link.id },
+        data: { sortOrder: index }
+      })
+    )
+  );
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, "custom-link-reordered");
 }
 
 export async function completeCircleCardOnboardingAction(formData: FormData) {

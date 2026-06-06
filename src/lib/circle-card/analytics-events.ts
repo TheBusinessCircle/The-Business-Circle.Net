@@ -6,6 +6,7 @@ export const CIRCLE_CARD_EVENT_TYPES = [
   "WEBSITE_CLICK",
   "EMAIL_CLICK",
   "PHONE_CLICK",
+  "CUSTOM_LINK_CLICK",
   "WALLET_SAVE",
   "WALLET_REMOVE"
 ] as const;
@@ -20,6 +21,7 @@ export const CIRCLE_CARD_EVENT_LABELS: Record<CircleCardEventTypeValue, string> 
   WEBSITE_CLICK: "Clicked website",
   EMAIL_CLICK: "Clicked email",
   PHONE_CLICK: "Clicked phone",
+  CUSTOM_LINK_CLICK: "Clicked custom link",
   WALLET_SAVE: "Saved to wallet",
   WALLET_REMOVE: "Removed from wallet"
 };
