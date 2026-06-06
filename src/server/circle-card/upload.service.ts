@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
+import {
+  CIRCLE_CARD_LINK_FILE_MIME_BY_EXTENSION,
+  CIRCLE_CARD_SUPPORTED_LINK_FILE_EXTENSIONS,
+  CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES
+} from "@/lib/circle-card/file-actions";
 import { isCloudinaryConfigured, uploadImageToCloudinary } from "@/lib/media/cloudinary";
 
 export type CircleCardImageUploadKind = "profile-photo" | "business-logo";
@@ -19,23 +24,8 @@ const CIRCLE_CARD_UPLOAD_KINDS = new Set<CircleCardImageUploadKind>([
 ]);
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const SUPPORTED_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
-const SUPPORTED_LINK_FILE_MIME_TYPES = new Set([
-  "application/pdf",
-  "text/html",
-  "image/jpeg",
-  "image/png",
-  "image/webp"
-]);
-const SUPPORTED_LINK_FILE_EXTENSIONS = new Set([".pdf", ".html", ".htm", ".jpg", ".jpeg", ".png", ".webp"]);
-const LINK_FILE_MIME_BY_EXTENSION: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".html": "text/html",
-  ".htm": "text/html",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp"
-};
+const SUPPORTED_LINK_FILE_MIME_TYPES = new Set<string>(CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES);
+const SUPPORTED_LINK_FILE_EXTENSIONS = new Set<string>(CIRCLE_CARD_SUPPORTED_LINK_FILE_EXTENSIONS);
 
 export function isCircleCardImageUploadKind(value: string): value is CircleCardImageUploadKind {
   return CIRCLE_CARD_UPLOAD_KINDS.has(value as CircleCardImageUploadKind);
@@ -70,7 +60,9 @@ function imageExtension(file: File) {
   const typeMap: Record<string, string> = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
-    "image/webp": ".webp"
+    "image/webp": ".webp",
+    "application/zip": ".zip",
+    "application/x-zip-compressed": ".zip"
   };
 
   return typeMap[file.type] ?? ".jpg";
@@ -131,7 +123,7 @@ async function persistUploadedLinkFileLocally(input: {
   return {
     fileUrl: `/api/circle-card/link-file/${filename}`,
     fileName: sanitizeOriginalFileName(input.file.name),
-    fileMimeType: input.file.type || LINK_FILE_MIME_BY_EXTENSION[extension] || "application/octet-stream"
+    fileMimeType: input.file.type || CIRCLE_CARD_LINK_FILE_MIME_BY_EXTENSION[extension] || "application/octet-stream"
   };
 }
 
@@ -174,7 +166,7 @@ export async function persistCircleCardLinkFileUpload(input: {
 }
 
 export async function readCircleCardLinkFile(filename: string) {
-  if (!/^[0-9]+-[a-f0-9]{16}\.(pdf|html?|jpg|png|webp)$/i.test(filename)) {
+  if (!/^[0-9]+-[a-f0-9]{16}\.(pdf|html?|jpg|png|webp|zip)$/i.test(filename)) {
     return null;
   }
 
@@ -185,12 +177,12 @@ export async function readCircleCardLinkFile(filename: string) {
   }
 
   const extension = extname(filename).toLowerCase();
-  const mimeType = LINK_FILE_MIME_BY_EXTENSION[extension] || "application/octet-stream";
+  const mimeType = CIRCLE_CARD_LINK_FILE_MIME_BY_EXTENSION[extension] || "application/octet-stream";
 
   return {
     bytes,
     mimeType,
     originalFilename: `circle-card-file${extension === ".htm" ? ".html" : extension}`,
-    forceDownload: mimeType === "text/html"
+    forceDownload: false
   };
 }

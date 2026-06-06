@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 export type PublicCircleCardLink = {
   id: string;
   type: CircleCardLinkType;
+  actionMode: string;
   visibility: CircleCardLinkVisibility;
   label: string;
   url: string | null;
@@ -95,6 +96,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     {
       id: "demo-book-call",
       type: "BOOK_CALL",
+      actionMode: "AUTO",
       visibility: "PUBLIC",
       label: "Book a call",
       url: "https://thebusinesscircle.net/contact",
@@ -112,6 +114,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     {
       id: "demo-latest-offer",
       type: "LATEST_OFFER",
+      actionMode: "AUTO",
       visibility: "PUBLIC",
       label: "Latest offer",
       url: "https://thebusinesscircle.net/membership",
@@ -180,6 +183,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
         select: {
           id: true,
           type: true,
+          actionMode: true,
           visibility: true,
           label: true,
           url: true,

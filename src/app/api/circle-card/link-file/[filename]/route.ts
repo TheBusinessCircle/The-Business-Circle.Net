@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { buildCircleCardFileResponse } from "@/server/circle-card/file-response.service";
 import { readCircleCardLinkFile } from "@/server/circle-card/upload.service";
 
 type RouteProps = {
@@ -32,22 +33,38 @@ export async function GET(_request: Request, { params }: RouteProps) {
     return NextResponse.json({ error: "Access code required." }, { status: 403 });
   }
 
+  const publicLink = await prisma.circleCardLink.findFirst({
+    where: {
+      fileUrl,
+      isActive: true,
+      visibility: "PUBLIC",
+      card: {
+        isPublished: true,
+        user: {
+          suspended: false
+        }
+      }
+    },
+    select: {
+      actionMode: true,
+      fileName: true,
+      fileMimeType: true
+    }
+  });
   const file = await readCircleCardLinkFile(filename);
 
   if (!file) {
     return NextResponse.json({ error: "Circle Card file not found." }, { status: 404 });
   }
 
-  const disposition = file.forceDownload ? "attachment" : "inline";
-  const safeFilename = encodeURIComponent(file.originalFilename);
-
-  return new NextResponse(file.bytes, {
-    status: 200,
-    headers: {
-      "Content-Type": file.forceDownload ? "application/octet-stream" : file.mimeType,
-      "Content-Disposition": `${disposition}; filename*=UTF-8''${safeFilename}`,
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "public, max-age=31536000, immutable"
-    }
-  });
+  return buildCircleCardFileResponse({
+    bytes: file.bytes,
+    mimeType: file.mimeType,
+    fallbackFilename: file.originalFilename,
+    fileName: publicLink?.fileName,
+    fileMimeType: publicLink?.fileMimeType,
+    fileUrl,
+    actionMode: publicLink?.actionMode,
+    cacheControl: "public, max-age=31536000, immutable"
+  }).response;
 }

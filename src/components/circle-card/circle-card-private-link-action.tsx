@@ -33,6 +33,7 @@ type CircleCardPrivateLinkActionProps = {
 type LinkAccessResponse = {
   ok?: boolean;
   accessUrl?: string;
+  action?: "VIEW" | "DOWNLOAD";
   error?: string;
 };
 
@@ -95,7 +96,14 @@ export function CircleCardPrivateLinkAction({
         return;
       }
 
-      window.location.assign(data.accessUrl);
+      if (data.action === "VIEW") {
+        const opened = window.open(data.accessUrl, "_blank", "noopener,noreferrer");
+        if (!opened) {
+          window.location.assign(data.accessUrl);
+        }
+      } else {
+        window.location.assign(data.accessUrl);
+      }
     } catch {
       setError("Unable to verify the code. Try again.");
     } finally {

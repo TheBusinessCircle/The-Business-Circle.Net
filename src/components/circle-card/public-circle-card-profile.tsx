@@ -13,6 +13,13 @@ import { CircleCardShareButton } from "@/components/circle-card/circle-card-shar
 import { CircleCardTrackedLink } from "@/components/circle-card/circle-card-tracked-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
+import {
+  buildCircleCardFileActionLabel,
+  circleCardFileActionLabel,
+  circleCardFileKindLabel,
+  detectCircleCardFileKind,
+  resolveCircleCardFileAction
+} from "@/lib/circle-card/file-actions";
 import { getExternalLinkProps } from "@/lib/links";
 import { cn } from "@/lib/utils";
 import type { PublicCircleCard } from "@/server/circle-card";
@@ -298,6 +305,18 @@ function customLinkIcon(link: PublicCircleCard["customLinks"][number]) {
 }
 
 function customLinkDisplayLabel(link: PublicCircleCard["customLinks"][number]) {
+  if (link.fileUrl || link.fileMimeType || link.fileName) {
+    return buildCircleCardFileActionLabel({
+      linkType: link.type,
+      label: link.label,
+      buttonText: link.buttonText,
+      actionMode: link.actionMode,
+      fileMimeType: link.fileMimeType,
+      fileName: link.fileName,
+      fileUrl: link.fileUrl
+    });
+  }
+
   if (link.buttonText) {
     return link.buttonText;
   }
@@ -321,6 +340,12 @@ function customLinkDisplayLabel(link: PublicCircleCard["customLinks"][number]) {
 }
 
 function customLinkActionType(link: PublicCircleCard["customLinks"][number]) {
+  if (link.fileUrl || link.fileMimeType || link.fileName) {
+    return `${circleCardFileActionLabel(resolveCircleCardFileAction(link))} ${circleCardFileKindLabel(
+      detectCircleCardFileKind(link)
+    )}`.replace(" Unknown", " File");
+  }
+
   switch (link.type) {
     case "BOOK_CALL":
       return "Book a call";
@@ -351,6 +376,22 @@ function customLinkHref(link: PublicCircleCard["customLinks"][number]) {
   }
 
   return link.fileUrl || link.url || "";
+}
+
+function customLinkAnchorProps(link: PublicCircleCard["customLinks"][number], href: string) {
+  if (link.fileUrl || link.fileMimeType || link.fileName) {
+    const action = resolveCircleCardFileAction(link);
+
+    if (action === "VIEW") {
+      return {
+        href,
+        target: "_blank" as const,
+        rel: "noopener noreferrer"
+      };
+    }
+  }
+
+  return getExternalLinkProps(href);
 }
 
 function offerEndDescription(link: PublicCircleCard["customLinks"][number]) {
@@ -1077,7 +1118,7 @@ export function PublicCircleCardProfile({
                           value={customLinkDisplayLabel(link)}
                           description={offerEndDescription(link)}
                           href={href}
-                          anchorProps={getExternalLinkProps(href)}
+                          anchorProps={customLinkAnchorProps(link, href)}
                           analyticsCardId={analyticsCardId}
                           eventType="CUSTOM_LINK_CLICK"
                           metadata={{
@@ -1085,6 +1126,10 @@ export function PublicCircleCardProfile({
                             linkId: link.id,
                             label: link.label,
                             type: link.type,
+                            actionMode: link.actionMode,
+                            resolvedAction: link.fileUrl || link.fileMimeType || link.fileName
+                              ? resolveCircleCardFileAction(link)
+                              : undefined,
                             url: analyticsUrlValue(href)
                           }}
                         />

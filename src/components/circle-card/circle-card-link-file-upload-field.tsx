@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { CheckCircle2, FileUp, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES } from "@/lib/circle-card/file-actions";
 import { cn } from "@/lib/utils";
 
 type UploadResponse = {
@@ -17,29 +18,29 @@ type CircleCardLinkFileUploadFieldProps = {
   defaultFileUrl?: string | null;
   defaultFileName?: string | null;
   defaultFileMimeType?: string | null;
+  onFileMetadataChange?: (metadata: {
+    fileUrl: string;
+    fileName: string;
+    fileMimeType: string;
+  }) => void;
 };
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const SUPPORTED_FILE_TYPES = new Set([
-  "application/pdf",
-  "text/html",
-  "image/jpeg",
-  "image/png",
-  "image/webp"
-]);
+const SUPPORTED_FILE_TYPES = new Set<string>(CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES);
 
 function isSupportedFile(file: File) {
   if (file.type) {
     return SUPPORTED_FILE_TYPES.has(file.type);
   }
 
-  return /\.(pdf|html?|jpe?g|png|webp)$/i.test(file.name);
+  return /\.(pdf|html?|jpe?g|png|webp|zip)$/i.test(file.name);
 }
 
 export function CircleCardLinkFileUploadField({
   defaultFileUrl = "",
   defaultFileName = "",
-  defaultFileMimeType = ""
+  defaultFileMimeType = "",
+  onFileMetadataChange
 }: CircleCardLinkFileUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileUrl, setFileUrl] = useState(defaultFileUrl ?? "");
@@ -63,7 +64,7 @@ export function CircleCardLinkFileUploadField({
     }
 
     if (!isSupportedFile(file)) {
-      setNotice("Upload a PDF, HTML, JPG, PNG or WebP file.");
+      setNotice("Upload a PDF, HTML, JPG, PNG, WebP or ZIP file.");
       return;
     }
 
@@ -98,6 +99,11 @@ export function CircleCardLinkFileUploadField({
       setFileUrl(data.fileUrl);
       setFileName(data.fileName ?? selectedFile.name);
       setFileMimeType(data.fileMimeType ?? selectedFile.type);
+      onFileMetadataChange?.({
+        fileUrl: data.fileUrl,
+        fileName: data.fileName ?? selectedFile.name,
+        fileMimeType: data.fileMimeType ?? selectedFile.type
+      });
       setSelectedFile(null);
       setNotice("File uploaded. Save the link below.");
 
@@ -115,6 +121,11 @@ export function CircleCardLinkFileUploadField({
     setFileUrl("");
     setFileName("");
     setFileMimeType("");
+    onFileMetadataChange?.({
+      fileUrl: "",
+      fileName: "",
+      fileMimeType: ""
+    });
     setSelectedFile(null);
     setNotice(null);
 
@@ -131,7 +142,7 @@ export function CircleCardLinkFileUploadField({
       <input
         ref={fileInputRef}
         type="file"
-        accept="application/pdf,text/html,image/jpeg,image/png,image/webp"
+        accept="application/pdf,text/html,image/jpeg,image/png,image/webp,application/zip,.zip"
         className="sr-only"
         onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
       />
@@ -140,7 +151,7 @@ export function CircleCardLinkFileUploadField({
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">File upload</p>
           <p className="mt-1 truncate text-xs text-muted">
-            {selectedFile?.name || fileName || "PDF, HTML, JPG, PNG or WebP"}
+            {selectedFile?.name || fileName || "PDF, HTML, JPG, PNG, WebP or ZIP"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

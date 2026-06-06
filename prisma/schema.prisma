@@ -433,6 +433,7 @@ model CircleCardLink {
   fileMimeType String?
   buttonText  String?
   expiresAt   DateTime?
+  actionMode  String     @default("AUTO")
   visibility  String     @default("PUBLIC")
   accessCodeHash String?
   accessCodeLastGeneratedAt DateTime?

@@ -1,5 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import {
+  CIRCLE_CARD_LINK_ACTION_MODES,
+  type CircleCardLinkActionMode,
+  CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES
+} from "@/lib/circle-card/file-actions";
 import { normalizeExternalHref } from "@/lib/links";
 import { slugify } from "@/lib/utils";
 
@@ -56,15 +61,12 @@ export const CIRCLE_CARD_FILE_LINK_TYPES = ["DOWNLOAD", "MENU", "CASE_STUDY"] as
 export const CIRCLE_CARD_LINK_VISIBILITIES = ["PUBLIC", "PRIVATE_CODE"] as const;
 
 export type CircleCardLinkVisibility = (typeof CIRCLE_CARD_LINK_VISIBILITIES)[number];
+export type { CircleCardLinkActionMode };
 
 const CIRCLE_CARD_FILE_LINK_TYPE_SET = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
-const SUPPORTED_CIRCLE_CARD_LINK_FILE_MIME_TYPES = new Set([
-  "application/pdf",
-  "text/html",
-  "image/jpeg",
-  "image/png",
-  "image/webp"
-]);
+const SUPPORTED_CIRCLE_CARD_LINK_FILE_MIME_TYPES = new Set<string>(
+  CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES
+);
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalEmail = z.string().trim().email().max(320).optional().or(z.literal(""));
@@ -246,6 +248,10 @@ export const circleCardLinkFormSchema = z.object({
   }, "Unsupported uploaded file type."),
   buttonText: optionalText(80),
   expiresAt: optionalDate,
+  actionMode: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() ? value.trim() : "AUTO"),
+    z.enum(CIRCLE_CARD_LINK_ACTION_MODES).default("AUTO")
+  ),
   visibility: z.preprocess(
     (value) => (typeof value === "string" && value.trim() ? value.trim() : "PUBLIC"),
     z.enum(CIRCLE_CARD_LINK_VISIBILITIES).default("PUBLIC")

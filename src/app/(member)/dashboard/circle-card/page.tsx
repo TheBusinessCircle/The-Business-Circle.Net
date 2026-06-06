@@ -54,6 +54,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  circleCardFileActionLabel,
+  circleCardFileKindLabel,
+  detectCircleCardFileKind,
+  resolveCircleCardFileAction
+} from "@/lib/circle-card/file-actions";
+import {
   getCircleCardAccountLabel,
   getCircleCardFeatureAccess,
   isCircleCardFreeAccount,
@@ -1082,6 +1088,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 <p className="mt-2 text-xs text-muted">
                                   {customLinkTypeLabel(customLink.type)}
                                   {customLink.fileName ? ` · ${customLink.fileName}` : ""}
+                                  {customLink.fileUrl || customLink.fileMimeType ? (
+                                    <>
+                                      {" · "}
+                                      {circleCardFileKindLabel(detectCircleCardFileKind(customLink))}
+                                      {" · "}
+                                      {circleCardFileActionLabel(resolveCircleCardFileAction(customLink))}
+                                    </>
+                                  ) : null}
                                 </p>
                               </div>
                             </div>
@@ -1172,6 +1186,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 defaultFileMimeType={customLink.fileMimeType}
                                 defaultButtonText={customLink.buttonText}
                                 defaultExpiresAt={customLink.expiresAt}
+                                defaultActionMode={customLink.actionMode}
                                 defaultVisibility={customLink.visibility}
                                 defaultAccessCodeHint={customLink.accessCodeHint}
                                 hasAccessCode={Boolean(customLink.accessCodeHash)}

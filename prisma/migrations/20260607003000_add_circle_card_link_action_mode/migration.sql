@@ -1,0 +1,1 @@
+ALTER TABLE "CircleCardLink" ADD COLUMN "actionMode" TEXT NOT NULL DEFAULT 'AUTO';

@@ -10,6 +10,7 @@ import {
   buildCircleCardSlugBase,
   buildCircleCardSocialLinks,
   CIRCLE_CARD_FILE_LINK_TYPES,
+  type CircleCardLinkActionMode,
   type CircleCardLinkVisibility,
   type CircleCardLinkType,
   circleCardLinkFormSchema,
@@ -91,6 +92,7 @@ const CIRCLE_CARD_LINK_FORM_FIELDS = [
   "fileMimeType",
   "buttonText",
   "expiresAt",
+  "actionMode",
   "visibility",
   "accessCodePlain",
   "accessCodeHint",
@@ -283,6 +285,13 @@ function circleCardLinkVisibilityForType(
   visibility: CircleCardLinkVisibility
 ) {
   return CIRCLE_CARD_PRIVATE_LINK_TYPES.has(type) ? visibility : "PUBLIC";
+}
+
+function circleCardLinkActionModeForType(
+  type: CircleCardLinkType,
+  actionMode: CircleCardLinkActionMode
+) {
+  return CIRCLE_CARD_PRIVATE_LINK_TYPES.has(type) ? actionMode : "AUTO";
 }
 
 async function enforceCircleCardCustomLinkActivationLimit(input: {
@@ -521,6 +530,7 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
     fileMimeType: nullableText(values.fileMimeType),
     buttonText: nullableText(values.buttonText),
     expiresAt: values.expiresAt ?? null,
+    actionMode: circleCardLinkActionModeForType(values.type, values.actionMode),
     visibility,
     accessCodeHash,
     accessCodeLastGeneratedAt:

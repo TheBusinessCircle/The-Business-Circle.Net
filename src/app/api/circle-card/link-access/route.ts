@@ -8,10 +8,12 @@ import {
   rateLimitHeaders
 } from "@/lib/security/rate-limit";
 import { prisma } from "@/lib/prisma";
+import { resolveCircleCardFileAction } from "@/lib/circle-card/file-actions";
 import {
   readCircleCardVisitorIdFromCookieHeader,
   trackCircleCardEvent
 } from "@/server/circle-card";
+import { buildCircleCardFileResponse } from "@/server/circle-card/file-response.service";
 import {
   createCircleCardLinkAccessToken,
   verifyCircleCardAccessCode,
@@ -60,6 +62,8 @@ function linkAccessMetadata(input: {
   label: string;
   type: string;
   destinationType?: "file" | "url" | "missing";
+  actionMode?: string | null;
+  resolvedAction?: "VIEW" | "DOWNLOAD";
 }) {
   return {
     source: "private_link_access",
@@ -67,7 +71,9 @@ function linkAccessMetadata(input: {
     label: input.label,
     type: input.type,
     visibility: "PRIVATE_CODE",
-    destinationType: input.destinationType
+    destinationType: input.destinationType,
+    actionMode: input.actionMode,
+    resolvedAction: input.resolvedAction
   };
 }
 
@@ -93,6 +99,7 @@ async function findPrivatePublicLink(linkId: string) {
       fileUrl: true,
       fileName: true,
       fileMimeType: true,
+      actionMode: true,
       accessCodeHash: true
     }
   });
@@ -159,6 +166,7 @@ export async function POST(request: Request) {
     }
 
     const destinationType = link.fileUrl ? "file" : link.url ? "url" : "missing";
+    const resolvedAction = resolveCircleCardFileAction(link);
 
     if (destinationType === "missing") {
       return NextResponse.json(
@@ -176,7 +184,9 @@ export async function POST(request: Request) {
           linkId: link.id,
           label: link.label,
           type: link.type,
-          destinationType
+          destinationType,
+          actionMode: link.actionMode,
+          resolvedAction
         })
       }),
       trackCircleCardEvent({
@@ -187,7 +197,9 @@ export async function POST(request: Request) {
           linkId: link.id,
           label: link.label,
           type: link.type,
-          destinationType
+          destinationType,
+          actionMode: link.actionMode,
+          resolvedAction
         })
       })
     ]);
@@ -195,6 +207,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: true,
+        action: resolvedAction,
         accessUrl: `/api/circle-card/link-access?token=${encodeURIComponent(
           createCircleCardLinkAccessToken(link.id)
         )}`
@@ -229,18 +242,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Circle Card file not found." }, { status: 404 });
     }
 
-    const disposition = file.forceDownload ? "attachment" : "inline";
-    const safeFilename = encodeURIComponent(link.fileName || file.originalFilename);
-
-    return new NextResponse(file.bytes, {
-      status: 200,
-      headers: {
-        "Content-Type": file.forceDownload ? "application/octet-stream" : file.mimeType,
-        "Content-Disposition": `${disposition}; filename*=UTF-8''${safeFilename}`,
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "private, max-age=60"
-      }
-    });
+    return buildCircleCardFileResponse({
+      bytes: file.bytes,
+      mimeType: file.mimeType,
+      fallbackFilename: file.originalFilename,
+      fileName: link.fileName,
+      fileMimeType: link.fileMimeType,
+      fileUrl: link.fileUrl,
+      actionMode: link.actionMode,
+      cacheControl: "private, max-age=60"
+    }).response;
   }
 
   const destination = link.fileUrl || link.url;

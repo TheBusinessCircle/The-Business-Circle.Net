@@ -8,6 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  CIRCLE_CARD_LINK_ACTION_MODES,
+  circleCardFileActionLabel,
+  circleCardFileKindLabel,
+  detectCircleCardFileKind,
+  recommendedCircleCardFileAction,
+  type CircleCardLinkActionMode
+} from "@/lib/circle-card/file-actions";
+import {
   CIRCLE_CARD_FILE_LINK_TYPES,
   CIRCLE_CARD_LINK_TYPES,
   CIRCLE_CARD_LINK_VISIBILITIES,
@@ -27,6 +35,7 @@ type CircleCardSmartLinkFieldsProps = {
   defaultFileMimeType?: string | null;
   defaultButtonText?: string | null;
   defaultExpiresAt?: Date | string | null;
+  defaultActionMode?: string | null;
   defaultVisibility?: string | null;
   defaultAccessCodeHint?: string | null;
   hasAccessCode?: boolean;
@@ -77,6 +86,18 @@ const VISIBILITY_LABELS: Record<CircleCardLinkVisibility, string> = {
   PRIVATE_CODE: "Private with access code"
 };
 
+const ACTION_MODE_LABELS: Record<CircleCardLinkActionMode, string> = {
+  AUTO: "Auto",
+  VIEW: "View in Browser",
+  DOWNLOAD: "Force Download"
+};
+
+const ACTION_MODE_HELPERS: Record<CircleCardLinkActionMode, string> = {
+  AUTO: "Circle Card chooses the best experience based on file type.",
+  VIEW: "Open file in browser where supported.",
+  DOWNLOAD: "Always download."
+};
+
 function resolveLinkType(value: string | null | undefined): CircleCardLinkType {
   return CIRCLE_CARD_LINK_TYPES.includes(value as CircleCardLinkType)
     ? (value as CircleCardLinkType)
@@ -87,6 +108,12 @@ function resolveVisibility(value: string | null | undefined): CircleCardLinkVisi
   return CIRCLE_CARD_LINK_VISIBILITIES.includes(value as CircleCardLinkVisibility)
     ? (value as CircleCardLinkVisibility)
     : "PUBLIC";
+}
+
+function resolveActionMode(value: string | null | undefined): CircleCardLinkActionMode {
+  return CIRCLE_CARD_LINK_ACTION_MODES.includes(value as CircleCardLinkActionMode)
+    ? (value as CircleCardLinkActionMode)
+    : "AUTO";
 }
 
 function generateFourDigitCode() {
@@ -124,6 +151,7 @@ export function CircleCardSmartLinkFields({
   defaultFileMimeType = "",
   defaultButtonText = "",
   defaultExpiresAt,
+  defaultActionMode,
   defaultVisibility,
   defaultAccessCodeHint = "",
   hasAccessCode = false
@@ -132,6 +160,14 @@ export function CircleCardSmartLinkFields({
   const [visibility, setVisibility] = useState<CircleCardLinkVisibility>(() =>
     resolveVisibility(defaultVisibility)
   );
+  const [actionMode, setActionMode] = useState<CircleCardLinkActionMode>(() =>
+    resolveActionMode(defaultActionMode)
+  );
+  const [fileMetadata, setFileMetadata] = useState({
+    fileUrl: defaultFileUrl ?? "",
+    fileName: defaultFileName ?? "",
+    fileMimeType: defaultFileMimeType ?? ""
+  });
   const [generatedCode, setGeneratedCode] = useState("");
   const [copyNotice, setCopyNotice] = useState("");
   const supportsFile = useMemo(
@@ -141,6 +177,8 @@ export function CircleCardSmartLinkFields({
   const requiresOfferDate = type === "LATEST_OFFER";
   const showsButtonText = type === "DOWNLOAD";
   const isPrivate = supportsFile && visibility === "PRIVATE_CODE";
+  const detectedFileKind = detectCircleCardFileKind(fileMetadata);
+  const recommendedAction = recommendedCircleCardFileAction(fileMetadata);
 
   function handleTypeChange(value: string) {
     const nextType = resolveLinkType(value);
@@ -148,6 +186,7 @@ export function CircleCardSmartLinkFields({
 
     if (!CIRCLE_CARD_FILE_LINK_TYPES.includes(nextType as (typeof CIRCLE_CARD_FILE_LINK_TYPES)[number])) {
       setVisibility("PUBLIC");
+      setActionMode("AUTO");
       setGeneratedCode("");
       setCopyNotice("");
     }
@@ -240,11 +279,39 @@ export function CircleCardSmartLinkFields({
                 defaultFileUrl={defaultFileUrl}
                 defaultFileName={defaultFileName}
                 defaultFileMimeType={defaultFileMimeType}
+                onFileMetadataChange={setFileMetadata}
               />
             </div>
 
             <div className="space-y-3 rounded-2xl border border-silver/14 bg-background/18 p-4 md:col-span-2">
               <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor={`${idPrefix}-actionMode`}>Action Mode</Label>
+                  <Select
+                    id={`${idPrefix}-actionMode`}
+                    name="actionMode"
+                    value={actionMode}
+                    onChange={(event) => setActionMode(resolveActionMode(event.target.value))}
+                  >
+                    {CIRCLE_CARD_LINK_ACTION_MODES.map((option) => (
+                      <option key={option} value={option}>
+                        {ACTION_MODE_LABELS[option]}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <p className="rounded-2xl border border-silver/14 bg-background/22 p-3 text-xs leading-relaxed text-muted">
+                    {ACTION_MODE_HELPERS[actionMode]}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-gold/18 bg-gold/8 p-3 text-xs leading-relaxed text-muted md:col-span-2">
+                  <span className="font-medium text-foreground">Detected file type:</span>{" "}
+                  {circleCardFileKindLabel(detectedFileKind)}
+                  <span className="mx-2 text-silver">|</span>
+                  <span className="font-medium text-foreground">Recommended Action:</span>{" "}
+                  {circleCardFileActionLabel(recommendedAction)}
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor={`${idPrefix}-visibility`}>Visibility</Label>
                   <Select
@@ -325,6 +392,7 @@ export function CircleCardSmartLinkFields({
             <input type="hidden" name="fileUrl" value="" />
             <input type="hidden" name="fileName" value="" />
             <input type="hidden" name="fileMimeType" value="" />
+            <input type="hidden" name="actionMode" value="AUTO" />
             <input type="hidden" name="visibility" value="PUBLIC" />
             <input type="hidden" name="accessCodePlain" value="" />
             <input type="hidden" name="accessCodeHint" value="" />
