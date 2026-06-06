@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { readCircleCardLinkFile } from "@/server/circle-card/upload.service";
 
 type RouteProps = {
@@ -9,6 +10,28 @@ export const runtime = "nodejs";
 
 export async function GET(_request: Request, { params }: RouteProps) {
   const { filename } = await params;
+  const fileUrl = `/api/circle-card/link-file/${filename}`;
+  const privateLink = await prisma.circleCardLink.findFirst({
+    where: {
+      fileUrl,
+      isActive: true,
+      visibility: "PRIVATE_CODE",
+      card: {
+        isPublished: true,
+        user: {
+          suspended: false
+        }
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (privateLink) {
+    return NextResponse.json({ error: "Access code required." }, { status: 403 });
+  }
+
   const file = await readCircleCardLinkFile(filename);
 
   if (!file) {

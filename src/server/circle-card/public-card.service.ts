@@ -4,6 +4,7 @@ import { SITE_CONFIG } from "@/config/site";
 import {
   readCircleCardSocialLinks,
   type CircleCardCustomLinkIcon,
+  type CircleCardLinkVisibility,
   type CircleCardLinkType,
   type CircleCardSocialLinks
 } from "@/lib/circle-card/schema";
@@ -13,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 export type PublicCircleCardLink = {
   id: string;
   type: CircleCardLinkType;
+  visibility: CircleCardLinkVisibility;
   label: string;
   url: string | null;
   description: string | null;
@@ -22,6 +24,8 @@ export type PublicCircleCardLink = {
   fileMimeType: string | null;
   buttonText: string | null;
   expiresAt: Date | null;
+  accessCodeHint: string | null;
+  hasAccessCode: boolean;
   sortOrder: number;
 };
 
@@ -91,6 +95,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     {
       id: "demo-book-call",
       type: "BOOK_CALL",
+      visibility: "PUBLIC",
       label: "Book a call",
       url: "https://thebusinesscircle.net/contact",
       description: "Start a founder-led conversation",
@@ -100,11 +105,14 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
       fileMimeType: null,
       buttonText: null,
       expiresAt: null,
+      accessCodeHint: null,
+      hasAccessCode: false,
       sortOrder: 0
     },
     {
       id: "demo-latest-offer",
       type: "LATEST_OFFER",
+      visibility: "PUBLIC",
       label: "Latest offer",
       url: "https://thebusinesscircle.net/membership",
       description: "Explore current BCN membership access",
@@ -114,6 +122,8 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
       fileMimeType: null,
       buttonText: null,
       expiresAt: null,
+      accessCodeHint: null,
+      hasAccessCode: false,
       sortOrder: 1
     }
   ],
@@ -170,6 +180,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
         select: {
           id: true,
           type: true,
+          visibility: true,
           label: true,
           url: true,
           description: true,
@@ -179,6 +190,8 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           fileMimeType: true,
           buttonText: true,
           expiresAt: true,
+          accessCodeHint: true,
+          accessCodeHash: true,
           sortOrder: true
         }
       },
@@ -214,11 +227,22 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           : hasEntitledSubscription(card.user.subscription?.status ?? null)
     },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
-    customLinks: card.customLinks.map((link) => ({
-      ...link,
-      type: (link.type || "GENERAL") as CircleCardLinkType,
-      icon: link.icon as CircleCardCustomLinkIcon | null
-    })),
+    customLinks: card.customLinks.map((link) => {
+      const { accessCodeHash, ...publicLink } = link;
+      const visibility = (link.visibility || "PUBLIC") as CircleCardLinkVisibility;
+      const isPrivate = visibility === "PRIVATE_CODE";
+
+      return {
+        ...publicLink,
+        type: (link.type || "GENERAL") as CircleCardLinkType,
+        visibility,
+        url: isPrivate ? null : link.url,
+        fileUrl: isPrivate ? null : link.fileUrl,
+        accessCodeHint: isPrivate ? link.accessCodeHint : null,
+        hasAccessCode: Boolean(accessCodeHash),
+        icon: link.icon as CircleCardCustomLinkIcon | null
+      };
+    }),
     isDemo: false
   };
 }

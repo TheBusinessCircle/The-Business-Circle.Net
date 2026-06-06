@@ -13,6 +13,7 @@ import {
   Download,
   Eye,
   Link as LinkIcon,
+  Lock,
   Menu as MenuIcon,
   MousePointerClick,
   QrCode,
@@ -114,6 +115,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   "custom-link-invalid": "Check the custom link fields and try again.",
   "custom-link-not-found": "That custom link could not be found.",
   "custom-link-save-failed": "The custom link could not be saved.",
+  "custom-link-access-code-required": "Generate a 4-digit access code before saving a private link.",
   "custom-link-active-limit": "Free Circle Cards can keep up to 5 active custom links in this phase.",
   "custom-link-total-limit": "This Circle Card already has the maximum number of saved custom links.",
   "wallet-contact-invalid": "Check the relationship details and try again.",
@@ -1062,6 +1064,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                   >
                                     {customLink.isActive ? "Active" : "Paused"}
                                   </Badge>
+                                  {customLink.visibility === "PRIVATE_CODE" ? (
+                                    <Badge variant="outline" className="gap-1 border-gold/25 text-gold">
+                                      <Lock size={12} />
+                                      Private code
+                                    </Badge>
+                                  ) : null}
                                 </div>
                                 <p className="mt-1 truncate text-sm text-silver">
                                   {displayCustomLinkUrl(customLink.fileUrl || customLink.url)}
@@ -1164,6 +1172,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 defaultFileMimeType={customLink.fileMimeType}
                                 defaultButtonText={customLink.buttonText}
                                 defaultExpiresAt={customLink.expiresAt}
+                                defaultVisibility={customLink.visibility}
+                                defaultAccessCodeHint={customLink.accessCodeHint}
+                                hasAccessCode={Boolean(customLink.accessCodeHash)}
                               />
 
                               <label
@@ -1221,7 +1232,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-muted">
-                    <p>Each custom link opens externally and records a basic click event.</p>
+                    <p>Each public custom link opens externally and records a basic click event.</p>
+                    <p>
+                      Private file-backed links appear locked and only resolve after the visitor enters
+                      the access code.
+                    </p>
                     <p>
                       Link click metadata stores the link id, label and a query-stripped URL for
                       sensible analytics.

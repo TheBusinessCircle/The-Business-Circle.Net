@@ -9,6 +9,8 @@ import { safeRedirectPath } from "@/lib/auth/utils";
 import {
   buildCircleCardSlugBase,
   buildCircleCardSocialLinks,
+  CIRCLE_CARD_FILE_LINK_TYPES,
+  type CircleCardLinkVisibility,
   type CircleCardLinkType,
   circleCardLinkFormSchema,
   circleCardLinkIdSchema,
@@ -28,6 +30,7 @@ import {
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { trackCircleCardEvent } from "@/server/circle-card";
+import { hashCircleCardAccessCode } from "@/server/circle-card/link-access.service";
 
 const CIRCLE_CARD_FORM_FIELDS = [
   "cardId",
@@ -88,6 +91,9 @@ const CIRCLE_CARD_LINK_FORM_FIELDS = [
   "fileMimeType",
   "buttonText",
   "expiresAt",
+  "visibility",
+  "accessCodePlain",
+  "accessCodeHint",
   "sortOrder",
   "isActive"
 ] as const;
@@ -98,6 +104,7 @@ const CIRCLE_CARD_LINK_MOVE_FIELDS = ["cardId", "linkId", "direction"] as const;
 
 const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
 const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = 24;
+const CIRCLE_CARD_PRIVATE_LINK_TYPES = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
 
 type CircleCardActionUser = {
   id: string;
@@ -269,6 +276,13 @@ function circleCardLinkIconForType(type: CircleCardLinkType) {
     default:
       return "link";
   }
+}
+
+function circleCardLinkVisibilityForType(
+  type: CircleCardLinkType,
+  visibility: CircleCardLinkVisibility
+) {
+  return CIRCLE_CARD_PRIVATE_LINK_TYPES.has(type) ? visibility : "PUBLIC";
 }
 
 async function enforceCircleCardCustomLinkActivationLimit(input: {
@@ -449,7 +463,8 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
           id: true,
           isActive: true,
           sortOrder: true,
-          icon: true
+          icon: true,
+          accessCodeHash: true
         }
       })
     : null;
@@ -483,6 +498,18 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
     (await prisma.circleCardLink.count({
       where: { cardId: card.id }
     }));
+  const visibility = circleCardLinkVisibilityForType(values.type, values.visibility);
+  const accessCodeHash =
+    visibility === "PRIVATE_CODE"
+      ? values.accessCodePlain
+        ? await hashCircleCardAccessCode(values.accessCodePlain)
+        : existingLink?.accessCodeHash ?? null
+      : null;
+
+  if (visibility === "PRIVATE_CODE" && !accessCodeHash) {
+    redirectWithError(returnPath, "custom-link-access-code-required");
+  }
+
   const data = {
     type: values.type,
     label: values.label.trim(),
@@ -494,6 +521,16 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
     fileMimeType: nullableText(values.fileMimeType),
     buttonText: nullableText(values.buttonText),
     expiresAt: values.expiresAt ?? null,
+    visibility,
+    accessCodeHash,
+    accessCodeLastGeneratedAt:
+      visibility === "PRIVATE_CODE" && values.accessCodePlain
+        ? new Date()
+        : visibility === "PRIVATE_CODE"
+          ? undefined
+          : null,
+    accessCodeHint:
+      visibility === "PRIVATE_CODE" ? nullableText(values.accessCodeHint) : null,
     sortOrder,
     isActive: values.isActive
   };

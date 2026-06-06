@@ -433,6 +433,10 @@ model CircleCardLink {
   fileMimeType String?
   buttonText  String?
   expiresAt   DateTime?
+  visibility  String     @default("PUBLIC")
+  accessCodeHash String?
+  accessCodeLastGeneratedAt DateTime?
+  accessCodeHint String?
   sortOrder   Int        @default(0)
   isActive    Boolean    @default(true)
   createdAt   DateTime   @default(now())
@@ -2153,6 +2157,8 @@ enum CircleCardEventType {
   EMAIL_CLICK
   PHONE_CLICK
   CUSTOM_LINK_CLICK
+  CUSTOM_LINK_UNLOCK_SUCCESS
+  CUSTOM_LINK_UNLOCK_FAILED
   WALLET_SAVE
   WALLET_REMOVE
 }

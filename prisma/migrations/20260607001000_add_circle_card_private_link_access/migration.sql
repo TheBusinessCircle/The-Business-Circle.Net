@@ -1,0 +1,7 @@
+ALTER TABLE "CircleCardLink" ADD COLUMN "visibility" TEXT NOT NULL DEFAULT 'PUBLIC';
+ALTER TABLE "CircleCardLink" ADD COLUMN "accessCodeHash" TEXT;
+ALTER TABLE "CircleCardLink" ADD COLUMN "accessCodeLastGeneratedAt" TIMESTAMP(3);
+ALTER TABLE "CircleCardLink" ADD COLUMN "accessCodeHint" TEXT;
+
+ALTER TYPE "CircleCardEventType" ADD VALUE 'CUSTOM_LINK_UNLOCK_SUCCESS';
+ALTER TYPE "CircleCardEventType" ADD VALUE 'CUSTOM_LINK_UNLOCK_FAILED';

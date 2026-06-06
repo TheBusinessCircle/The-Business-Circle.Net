@@ -53,6 +53,10 @@ export type CircleCardLinkType = (typeof CIRCLE_CARD_LINK_TYPES)[number];
 
 export const CIRCLE_CARD_FILE_LINK_TYPES = ["DOWNLOAD", "MENU", "CASE_STUDY"] as const;
 
+export const CIRCLE_CARD_LINK_VISIBILITIES = ["PUBLIC", "PRIVATE_CODE"] as const;
+
+export type CircleCardLinkVisibility = (typeof CIRCLE_CARD_LINK_VISIBILITIES)[number];
+
 const CIRCLE_CARD_FILE_LINK_TYPE_SET = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
 const SUPPORTED_CIRCLE_CARD_LINK_FILE_MIME_TYPES = new Set([
   "application/pdf",
@@ -242,6 +246,17 @@ export const circleCardLinkFormSchema = z.object({
   }, "Unsupported uploaded file type."),
   buttonText: optionalText(80),
   expiresAt: optionalDate,
+  visibility: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() ? value.trim() : "PUBLIC"),
+    z.enum(CIRCLE_CARD_LINK_VISIBILITIES).default("PUBLIC")
+  ),
+  accessCodePlain: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .refine((value) => !value || /^\d{4}$/.test(value), "Access codes must be 4 digits."),
+  accessCodeHint: optionalText(120),
   sortOrder: z.preprocess(
     (value) => {
       if (value === "" || value === null || value === undefined) {
@@ -257,8 +272,17 @@ export const circleCardLinkFormSchema = z.object({
 }).superRefine((value, ctx) => {
   const hasUrl = Boolean(value.url);
   const hasFile = Boolean(value.fileUrl);
+  const isFileBackedType = CIRCLE_CARD_FILE_LINK_TYPE_SET.has(value.type);
 
-  if (CIRCLE_CARD_FILE_LINK_TYPE_SET.has(value.type)) {
+  if (value.visibility === "PRIVATE_CODE" && !isFileBackedType) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["visibility"],
+      message: "Private access codes are available for download, menu and case study links."
+    });
+  }
+
+  if (isFileBackedType) {
     if (!hasUrl && !hasFile) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

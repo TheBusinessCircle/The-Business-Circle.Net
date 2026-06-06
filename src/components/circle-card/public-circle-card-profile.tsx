@@ -7,6 +7,7 @@ import {
 import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-about-expander";
 import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
 import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-install-prompt";
+import { CircleCardPrivateLinkAction } from "@/components/circle-card/circle-card-private-link-action";
 import { CircleCardQrPanel } from "@/components/circle-card/circle-card-qr-panel";
 import { CircleCardShareButton } from "@/components/circle-card/circle-card-share-button";
 import { CircleCardTrackedLink } from "@/components/circle-card/circle-card-tracked-link";
@@ -345,6 +346,10 @@ function customLinkActionType(link: PublicCircleCard["customLinks"][number]) {
 }
 
 function customLinkHref(link: PublicCircleCard["customLinks"][number]) {
+  if (link.visibility === "PRIVATE_CODE") {
+    return "";
+  }
+
   return link.fileUrl || link.url || "";
 }
 
@@ -1044,6 +1049,20 @@ export function PublicCircleCardProfile({
                   <div className="mt-3 space-y-2 border-t border-gold/14 pt-4">
                     <p className="px-1 text-xs font-medium text-gold">Featured links</p>
                     {card.customLinks.map((link) => {
+                      if (link.visibility === "PRIVATE_CODE") {
+                        return (
+                          <CircleCardPrivateLinkAction
+                            key={link.id}
+                            linkId={link.id}
+                            type={link.type}
+                            value={customLinkDisplayLabel(link)}
+                            description={offerEndDescription(link)}
+                            accessCodeHint={link.accessCodeHint}
+                            hasAccessCode={link.hasAccessCode}
+                          />
+                        );
+                      }
+
                       const href = customLinkHref(link);
 
                       if (!href) {
