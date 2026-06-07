@@ -1,8 +1,12 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import Link from "next/link";
 import {
+  acceptCircleCardConnectionRequestAction,
+  cancelCircleCardConnectionRequestAction,
+  declineCircleCardConnectionRequestAction,
   removeCircleWalletContactAction,
-  saveCircleWalletContactAction
+  saveCircleWalletContactAction,
+  sendCircleCardConnectionRequestAction
 } from "@/actions/circle-card.actions";
 import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-about-expander";
 import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
@@ -12,6 +16,7 @@ import { CircleCardQrPanel } from "@/components/circle-card/circle-card-qr-panel
 import { CircleCardShareButton } from "@/components/circle-card/circle-card-share-button";
 import { CircleCardTrackedLink } from "@/components/circle-card/circle-card-tracked-link";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
 import {
   buildCircleCardFileActionLabel,
@@ -36,6 +41,7 @@ import {
   ChevronRight,
   Crown,
   Download,
+  Handshake,
   Facebook,
   Gem,
   Globe2,
@@ -50,15 +56,19 @@ import {
   Music2,
   Network,
   Phone,
+  Send,
   ShoppingBag,
   ShieldCheck,
   Sparkles,
   Star,
   Trash2,
+  UserCheck,
   UserPlus,
   UserRound,
+  UserX,
   Users,
   WalletCards,
+  XCircle,
   Youtube
 } from "lucide-react";
 
@@ -67,6 +77,16 @@ type SavedCircleWalletContact = {
   favourite: boolean;
 } | null;
 
+type PublicCircleCardConnectionState = {
+  viewerPrimaryCardId: string | null;
+  request: {
+    id: string;
+    status: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED";
+    direction: "OUTGOING" | "INCOMING";
+    message: string | null;
+  } | null;
+};
+
 type PublicCircleCardProfileProps = {
   card: PublicCircleCard;
   publicUrl: string;
@@ -74,6 +94,7 @@ type PublicCircleCardProfileProps = {
   viewerIsOwner: boolean;
   isAuthenticated: boolean;
   savedContact: SavedCircleWalletContact;
+  connectionState: PublicCircleCardConnectionState;
   ownerAccountLabel: string;
   ownerIsBcnMember: boolean;
   notice?: string;
@@ -91,12 +112,25 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "card-saved": "Card saved to your Circle Wallet.",
   "card-already-saved": "This card is already in your Circle Wallet.",
   "card-removed": "Card removed from your Circle Wallet.",
-  "own-card": "This is your Circle Card."
+  "own-card": "This is your Circle Card.",
+  "connection-request-sent": "Connection request sent.",
+  "connection-request-accepted": "Connection request accepted. You are now mutually saved.",
+  "connection-request-declined": "Connection request declined.",
+  "connection-request-cancelled": "Connection request cancelled.",
+  "connection-request-pending": "A connection request is already pending.",
+  "connection-request-incoming": "They have already sent you a connection request.",
+  "connection-already-connected": "You are already connected."
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
   "missing-card": "That Circle Card could not be saved.",
-  "card-not-found": "That Circle Card could not be found."
+  "card-not-found": "That Circle Card could not be found.",
+  "connection-invalid": "Check the connection request and try again.",
+  "connection-card-not-found": "That Circle Card could not be found.",
+  "connection-primary-card-required": "Create your own Circle Card before sending requests.",
+  "connection-save-first": "Save this card to your Circle Wallet before sending a request.",
+  "connection-request-not-found": "That connection request is no longer pending.",
+  "connection-request-failed": "The connection request could not be sent."
 };
 
 const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
@@ -691,6 +725,7 @@ export function PublicCircleCardProfile({
   viewerIsOwner,
   isAuthenticated,
   savedContact,
+  connectionState,
   ownerAccountLabel,
   ownerIsBcnMember,
   notice,
@@ -829,6 +864,162 @@ export function PublicCircleCardProfile({
         <WalletCards size={iconSize} />
         {mobileBar ? "Wallet" : "Save to Wallet"}
       </Link>
+    );
+  }
+
+  function renderConnectionAction() {
+    if (viewerIsOwner || card.isDemo || !isAuthenticated) {
+      return null;
+    }
+
+    const request = connectionState.request;
+
+    if (!connectionState.viewerPrimaryCardId) {
+      return (
+        <div className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                <Handshake size={16} className="text-gold" />
+                Connection request
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                Create your own Circle Card before sending connection requests.
+              </p>
+            </div>
+            <Link href="/dashboard/circle-card" className="shrink-0">
+              <Button type="button" variant="outline" className="w-full gap-2 sm:w-auto">
+                Create card
+                <ChevronRight size={15} />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
+    if (request?.status === "ACCEPTED") {
+      return (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm text-gold">
+          <UserCheck size={16} />
+          Connected
+        </div>
+      );
+    }
+
+    if (request?.status === "PENDING" && request.direction === "OUTGOING") {
+      return (
+        <div className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                <Send size={16} className="text-gold" />
+                Request sent
+              </p>
+              {request.message ? (
+                <p className="mt-2 text-sm text-muted">&ldquo;{request.message}&rdquo;</p>
+              ) : (
+                <p className="mt-1 text-sm text-muted">Waiting for a response.</p>
+              )}
+            </div>
+            <form action={cancelCircleCardConnectionRequestAction} className="shrink-0">
+              <input type="hidden" name="requestId" value={request.id} />
+              <input type="hidden" name="returnPath" value={`/card/${card.slug}`} />
+              <Button type="submit" variant="outline" className="w-full gap-2 sm:w-auto">
+                <XCircle size={15} />
+                Cancel Request
+              </Button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    if (request?.status === "PENDING" && request.direction === "INCOMING") {
+      return (
+        <div className="mt-4 rounded-2xl border border-gold/24 bg-gold/10 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-gold">
+                <Handshake size={16} />
+                They sent you a connection request
+              </p>
+              {request.message ? (
+                <p className="mt-2 text-sm text-gold/80">&ldquo;{request.message}&rdquo;</p>
+              ) : null}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <form action={acceptCircleCardConnectionRequestAction}>
+                <input type="hidden" name="requestId" value={request.id} />
+                <input type="hidden" name="returnPath" value={`/card/${card.slug}`} />
+                <Button type="submit" className="w-full gap-2">
+                  <UserCheck size={15} />
+                  Accept
+                </Button>
+              </form>
+              <form action={declineCircleCardConnectionRequestAction}>
+                <input type="hidden" name="requestId" value={request.id} />
+                <input type="hidden" name="returnPath" value={`/card/${card.slug}`} />
+                <Button type="submit" variant="outline" className="w-full gap-2">
+                  <UserX size={15} />
+                  Decline
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (!savedContact) {
+      return (
+        <div className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                <Handshake size={16} className="text-gold" />
+                Connection request
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                Save this card to your Circle Wallet before sending a request.
+              </p>
+            </div>
+            <Button type="button" variant="outline" disabled className="w-full gap-2 sm:w-auto">
+              <Send size={15} />
+              Save first
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <form
+        action={sendCircleCardConnectionRequestAction}
+        className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4"
+      >
+        <input type="hidden" name="recipientCardId" value={card.id} />
+        <input type="hidden" name="returnPath" value={`/card/${card.slug}`} />
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div className="space-y-2">
+            <p className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+              <Handshake size={16} className="text-gold" />
+              Send Connection Request
+            </p>
+            <Textarea
+              name="message"
+              rows={3}
+              maxLength={240}
+              placeholder="Hi, good to connect through Circle Card."
+              aria-label="Connection request message"
+            />
+          </div>
+          <Button type="submit" className="h-11 w-full gap-2 md:w-auto">
+            <Send size={15} />
+            Send Request
+          </Button>
+        </div>
+      </form>
     );
   }
 
@@ -1009,6 +1200,8 @@ export function PublicCircleCardProfile({
                   ) : null}
                 </div>
               ) : null}
+
+              {renderConnectionAction()}
 
               {!isAuthenticated ? (
                 <div className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4">

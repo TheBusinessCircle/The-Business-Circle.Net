@@ -63,6 +63,8 @@ export const CIRCLE_CARD_LINK_VISIBILITIES = ["PUBLIC", "PRIVATE_CODE"] as const
 export type CircleCardLinkVisibility = (typeof CIRCLE_CARD_LINK_VISIBILITIES)[number];
 export type { CircleCardLinkActionMode };
 
+export const CIRCLE_CARD_CONNECTION_MESSAGE_MAX_LENGTH = 240;
+
 const CIRCLE_CARD_FILE_LINK_TYPE_SET = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
 const SUPPORTED_CIRCLE_CARD_LINK_FILE_MIME_TYPES = new Set<string>(
   CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES
@@ -224,6 +226,15 @@ export const circleWalletContactDetailsSchema = z.object({
   walletContactId: z.string().cuid(),
   notes: optionalText(2000),
   tagsInput: optionalText(300)
+});
+
+export const circleCardConnectionRequestFormSchema = z.object({
+  recipientCardId: z.string().cuid(),
+  message: optionalText(CIRCLE_CARD_CONNECTION_MESSAGE_MAX_LENGTH)
+});
+
+export const circleCardConnectionRequestIdSchema = z.object({
+  requestId: z.string().cuid()
 });
 
 export const circleCardLinkFormSchema = z.object({

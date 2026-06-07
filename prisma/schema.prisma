@@ -106,6 +106,8 @@ model User {
   circleCards                    CircleCard[]
   circleWalletContacts           CircleWalletContact[]
   circleCardEvents               CircleCardEvent[]
+  circleCardConnectionRequestsSent     CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestsSent")
+  circleCardConnectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestsReceived")
 
   @@index([role])
   @@index([memberRoleTag])
@@ -415,6 +417,8 @@ model CircleCard {
   customLinks     CircleCardLink[]
   walletContacts  CircleWalletContact[]
   events          CircleCardEvent[]
+  connectionRequestsSent     CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRequesterCard")
+  connectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRecipientCard")
 
   @@index([userId])
   @@index([isPublished])
@@ -485,6 +489,30 @@ model CircleWalletContact {
   @@index([userId])
   @@index([cardId])
   @@index([savedAt])
+}
+
+model CircleCardConnectionRequest {
+  id              String                            @id @default(cuid())
+  requesterId     String
+  requesterCardId String
+  recipientId     String
+  recipientCardId String
+  status          CircleCardConnectionRequestStatus @default(PENDING)
+  message         String?                           @db.VarChar(240)
+  createdAt       DateTime                          @default(now())
+  updatedAt       DateTime                          @updatedAt
+  respondedAt     DateTime?
+  requester       User                              @relation("CircleCardConnectionRequestsSent", fields: [requesterId], references: [id], onDelete: Cascade)
+  recipient       User                              @relation("CircleCardConnectionRequestsReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+  requesterCard   CircleCard                        @relation("CircleCardConnectionRequestRequesterCard", fields: [requesterCardId], references: [id], onDelete: Cascade)
+  recipientCard   CircleCard                        @relation("CircleCardConnectionRequestRecipientCard", fields: [recipientCardId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId])
+  @@index([recipientId])
+  @@index([requesterCardId])
+  @@index([recipientCardId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Category {
@@ -2162,6 +2190,17 @@ enum CircleCardEventType {
   CUSTOM_LINK_UNLOCK_FAILED
   WALLET_SAVE
   WALLET_REMOVE
+  CONNECTION_REQUEST_SENT
+  CONNECTION_REQUEST_ACCEPTED
+  CONNECTION_REQUEST_DECLINED
+  CONNECTION_REQUEST_CANCELLED
+}
+
+enum CircleCardConnectionRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
 }
 
 enum TestimonialSourceType {

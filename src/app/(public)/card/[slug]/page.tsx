@@ -124,9 +124,17 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
     viewerIsOwner
   });
 
-  const savedContact =
-    viewerUserId && !viewerIsOwner && !card.isDemo
-      ? await prisma.circleWalletContact.findUnique({
+  let savedContact: {
+    id: string;
+    favourite: boolean;
+  } | null = null;
+  let viewerPrimaryCard: {
+    id: string;
+  } | null = null;
+
+  if (viewerUserId && !viewerIsOwner && !card.isDemo) {
+    [savedContact, viewerPrimaryCard] = await Promise.all([
+      prisma.circleWalletContact.findUnique({
           where: {
             userId_cardId: {
               userId: viewerUserId,
@@ -136,6 +144,45 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
           select: {
             id: true,
             favourite: true
+          }
+        }),
+      prisma.circleCard.findFirst({
+        where: {
+          userId: viewerUserId,
+          isPrimary: true
+        },
+        orderBy: [{ updatedAt: "desc" }],
+        select: {
+          id: true
+        }
+      })
+    ]);
+  }
+
+  const connectionRequest =
+    viewerUserId && !viewerIsOwner && !card.isDemo && viewerPrimaryCard
+      ? await prisma.circleCardConnectionRequest.findFirst({
+          where: {
+            status: {
+              in: ["PENDING", "ACCEPTED"]
+            },
+            OR: [
+              {
+                requesterCardId: viewerPrimaryCard.id,
+                recipientCardId: card.id
+              },
+              {
+                requesterCardId: card.id,
+                recipientCardId: viewerPrimaryCard.id
+              }
+            ]
+          },
+          orderBy: [{ createdAt: "desc" }],
+          select: {
+            id: true,
+            status: true,
+            message: true,
+            requesterId: true
           }
         })
       : null;
@@ -155,6 +202,17 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
       viewerIsOwner={viewerIsOwner}
       isAuthenticated={Boolean(session?.user)}
       savedContact={savedContact}
+      connectionState={{
+        viewerPrimaryCardId: viewerPrimaryCard?.id ?? null,
+        request: connectionRequest
+          ? {
+              id: connectionRequest.id,
+              status: connectionRequest.status,
+              direction: connectionRequest.requesterId === viewerUserId ? "OUTGOING" : "INCOMING",
+              message: connectionRequest.message
+            }
+          : null
+      }}
       ownerAccountLabel={ownerAccountLabel}
       ownerIsBcnMember={ownerIsBcnMember}
       notice={notice}

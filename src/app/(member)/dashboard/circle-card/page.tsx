@@ -8,6 +8,7 @@ import {
   BarChart3,
   BookOpen,
   CalendarDays,
+  CheckCircle2,
   ContactRound,
   Crown,
   Download,
@@ -15,9 +16,11 @@ import {
   Link as LinkIcon,
   Lock,
   Menu as MenuIcon,
+  MessageSquare,
   MousePointerClick,
   QrCode,
   Search,
+  Send,
   Save,
   Share2,
   Star,
@@ -25,12 +28,19 @@ import {
   Tag,
   Trash2,
   ShoppingBag,
-  WalletCards
+  UserCheck,
+  UserX,
+  WalletCards,
+  XCircle
 } from "lucide-react";
 import {
+  acceptCircleCardConnectionRequestAction,
+  cancelCircleCardConnectionRequestAction,
   deleteCircleCardLinkAction,
+  declineCircleCardConnectionRequestAction,
   moveCircleCardLinkAction,
   removeCircleWalletContactAction,
+  sendCircleCardConnectionRequestAction,
   toggleCircleWalletFavouriteAction,
   toggleCircleCardLinkAction,
   updateCircleWalletContactDetailsAction,
@@ -103,6 +113,13 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "favourite-added": "Contact marked as a favourite.",
   "favourite-removed": "Contact removed from favourites.",
   "relationship-updated": "Relationship details updated.",
+  "connection-request-sent": "Connection request sent.",
+  "connection-request-accepted": "Connection request accepted. You are now mutually saved.",
+  "connection-request-declined": "Connection request declined.",
+  "connection-request-cancelled": "Connection request cancelled.",
+  "connection-request-pending": "A connection request is already pending.",
+  "connection-request-incoming": "That contact has already sent you a request.",
+  "connection-already-connected": "You are already connected.",
   "custom-link-created": "Custom link added.",
   "custom-link-updated": "Custom link updated.",
   "custom-link-deleted": "Custom link deleted.",
@@ -124,6 +141,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   "custom-link-access-code-required": "Generate a 4-digit access code before saving a private link.",
   "custom-link-active-limit": "Free Circle Cards can keep up to 5 active custom links in this phase.",
   "custom-link-total-limit": "This Circle Card already has the maximum number of saved custom links.",
+  "connection-invalid": "Check the connection request and try again.",
+  "connection-card-not-found": "That Circle Card could not be found.",
+  "connection-primary-card-required": "Create your own Circle Card before sending requests.",
+  "connection-save-first": "Save that Circle Card before sending a request.",
+  "connection-request-not-found": "That connection request is no longer pending.",
+  "connection-request-failed": "The connection request could not be sent.",
   "wallet-contact-invalid": "Check the relationship details and try again.",
   "wallet-contact-not-found": "That saved contact could not be found."
 };
@@ -331,7 +354,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const walletQuery = (firstValue(params.walletQuery) ?? "").trim();
   const walletView = resolveWalletView(firstValue(params.walletView));
   const selectedContactId = firstValue(params.contactId);
-  const [card, cardCount, member, walletContacts] = await Promise.all([
+  const [card, cardCount, member, walletContacts, connectionRequests] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
       orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
@@ -397,6 +420,45 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           }
         }
       }
+    }),
+    prisma.circleCardConnectionRequest.findMany({
+      where: {
+        OR: [{ requesterId: session.user.id }, { recipientId: session.user.id }]
+      },
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true,
+        requesterId: true,
+        recipientId: true,
+        requesterCardId: true,
+        recipientCardId: true,
+        status: true,
+        message: true,
+        createdAt: true,
+        respondedAt: true,
+        requesterCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true,
+            isPublished: true
+          }
+        },
+        recipientCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true,
+            isPublished: true
+          }
+        }
+      }
     })
   ]);
   const normalizedWalletContacts = walletContacts.map((contact) => ({
@@ -429,6 +491,55 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     visibleWalletContacts[0] ??
     normalizedWalletContacts[0] ??
     null;
+  const pendingIncomingRequests = connectionRequests.filter(
+    (request) => request.status === "PENDING" && request.recipientId === session.user.id
+  );
+  const pendingOutgoingRequests = connectionRequests.filter(
+    (request) => request.status === "PENDING" && request.requesterId === session.user.id
+  );
+  const acceptedConnectionRequests = connectionRequests.filter(
+    (request) => request.status === "ACCEPTED"
+  );
+  function otherConnectionCard(request: (typeof connectionRequests)[number]) {
+    return request.requesterId === session.user.id ? request.recipientCard : request.requesterCard;
+  }
+  const pendingOutgoingByCardId = new Map(
+    pendingOutgoingRequests.map((request) => [request.recipientCardId, request])
+  );
+  const pendingIncomingByCardId = new Map(
+    pendingIncomingRequests.map((request) => [request.requesterCardId, request])
+  );
+  const connectedByCardId = new Map(
+    acceptedConnectionRequests.map((request) => [otherConnectionCard(request).id, request])
+  );
+  const connectedCards = acceptedConnectionRequests.map((request) => ({
+    request,
+    card: otherConnectionCard(request)
+  }));
+  function walletConnectionState(cardId: string) {
+    const connected = connectedByCardId.get(cardId);
+
+    if (connected) {
+      return { kind: "connected" as const, request: connected };
+    }
+
+    const incoming = pendingIncomingByCardId.get(cardId);
+
+    if (incoming) {
+      return { kind: "pending_incoming" as const, request: incoming };
+    }
+
+    const outgoing = pendingOutgoingByCardId.get(cardId);
+
+    if (outgoing) {
+      return { kind: "pending_outgoing" as const, request: outgoing };
+    }
+
+    return { kind: "none" as const, request: null };
+  }
+  const selectedWalletConnection = selectedWalletContact
+    ? walletConnectionState(selectedWalletContact.card.id)
+    : null;
   const walletReturnPath = buildWalletHref({
     walletQuery,
     walletView,
@@ -1435,6 +1546,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         badge={
           <span className="inline-flex gap-2">
             <Badge variant="muted">{savedContactCount} saved</Badge>
+            {pendingIncomingRequests.length ? (
+              <Badge variant="outline" className="border-gold/28 text-gold">
+                {pendingIncomingRequests.length} request{pendingIncomingRequests.length === 1 ? "" : "s"}
+              </Badge>
+            ) : null}
             <Badge variant="outline" className="border-silver/18 text-silver">
               {favouriteWalletContacts.length} favourite
             </Badge>
@@ -1442,6 +1558,193 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         }
       >
         <div className="space-y-5">
+
+        <Card className="border-silver/16 bg-card/62">
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="inline-flex items-center gap-2">
+                  <MessageSquare size={18} className="text-gold" />
+                  Connection Requests
+                </CardTitle>
+                <CardDescription>
+                  Move saved cards into mutual Circle Wallet connections.
+                </CardDescription>
+              </div>
+              {pendingIncomingRequests.length ? (
+                <Badge variant="outline" className="w-fit border-gold/28 text-gold">
+                  {pendingIncomingRequests.length} incoming
+                </Badge>
+              ) : null}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-foreground">Incoming Requests</h3>
+                  <Badge variant="muted">{pendingIncomingRequests.length}</Badge>
+                </div>
+                {pendingIncomingRequests.length ? (
+                  pendingIncomingRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="rounded-2xl border border-gold/18 bg-gold/8 p-4"
+                    >
+                      <div className="flex min-w-0 gap-3">
+                        <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-gold/20 bg-background/24 text-xs font-semibold text-foreground">
+                          {request.requesterCard.profileImageUrl ? (
+                            <img
+                              src={request.requesterCard.profileImageUrl}
+                              alt={request.requesterCard.fullName}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            request.requesterCard.fullName.slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {request.requesterCard.fullName}
+                          </p>
+                          <p className="mt-1 text-xs text-muted">
+                            {[request.requesterCard.role, request.requesterCard.businessName]
+                              .filter(Boolean)
+                              .join(" at ") || "Circle Card contact"}
+                          </p>
+                        </div>
+                      </div>
+                      {request.message ? (
+                        <p className="mt-3 rounded-xl border border-gold/14 bg-background/18 p-3 text-sm text-muted">
+                          &ldquo;{request.message}&rdquo;
+                        </p>
+                      ) : null}
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <form action={acceptCircleCardConnectionRequestAction}>
+                          <input type="hidden" name="requestId" value={request.id} />
+                          <input type="hidden" name="returnPath" value="/dashboard/circle-card#wallet" />
+                          <Button type="submit" size="sm" className="w-full gap-2">
+                            <UserCheck size={14} />
+                            Accept
+                          </Button>
+                        </form>
+                        <form action={declineCircleCardConnectionRequestAction}>
+                          <input type="hidden" name="requestId" value={request.id} />
+                          <input type="hidden" name="returnPath" value="/dashboard/circle-card#wallet" />
+                          <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                            <UserX size={14} />
+                            Decline
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                    No incoming requests.
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-foreground">Outgoing Requests</h3>
+                  <Badge variant="muted">{pendingOutgoingRequests.length}</Badge>
+                </div>
+                {pendingOutgoingRequests.length ? (
+                  pendingOutgoingRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="rounded-2xl border border-silver/14 bg-background/18 p-4"
+                    >
+                      <div className="flex min-w-0 gap-3">
+                        <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-silver/16 bg-background/24 text-xs font-semibold text-foreground">
+                          {request.recipientCard.profileImageUrl ? (
+                            <img
+                              src={request.recipientCard.profileImageUrl}
+                              alt={request.recipientCard.fullName}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            request.recipientCard.fullName.slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {request.recipientCard.fullName}
+                          </p>
+                          <p className="mt-1 text-xs text-muted">
+                            {[request.recipientCard.role, request.recipientCard.businessName]
+                              .filter(Boolean)
+                              .join(" at ") || "Circle Card contact"}
+                          </p>
+                        </div>
+                      </div>
+                      {request.message ? (
+                        <p className="mt-3 rounded-xl border border-silver/14 bg-background/20 p-3 text-sm text-muted">
+                          &ldquo;{request.message}&rdquo;
+                        </p>
+                      ) : null}
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <Badge variant="outline" className="border-silver/18 text-silver">
+                          Pending
+                        </Badge>
+                        <form action={cancelCircleCardConnectionRequestAction}>
+                          <input type="hidden" name="requestId" value={request.id} />
+                          <input type="hidden" name="returnPath" value="/dashboard/circle-card#wallet" />
+                          <Button type="submit" variant="outline" size="sm" className="gap-2">
+                            <XCircle size={14} />
+                            Cancel
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                    No outgoing requests.
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-foreground">Connected</h3>
+                  <Badge variant="muted">{connectedCards.length}</Badge>
+                </div>
+                {connectedCards.length ? (
+                  connectedCards.map(({ request, card: connectedCard }) => (
+                    <Link
+                      key={request.id}
+                      href={`/card/${connectedCard.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-2xl border border-gold/18 bg-gold/8 p-4 hover:border-gold/32"
+                    >
+                      <div className="flex min-w-0 items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {connectedCard.fullName}
+                          </p>
+                          <p className="mt-1 text-xs text-muted">
+                            {[connectedCard.role, connectedCard.businessName]
+                              .filter(Boolean)
+                              .join(" at ") || "Circle Card contact"}
+                          </p>
+                        </div>
+                        <CheckCircle2 size={16} className="shrink-0 text-gold" />
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                    Accepted connections will appear here.
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-5">
@@ -1568,6 +1871,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         contactId: contact.id
                       });
                       const selected = selectedWalletContact?.id === contact.id;
+                      const contactConnection = walletConnectionState(contact.card.id);
 
                       return (
                         <Card
@@ -1599,6 +1903,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                     {contact.favourite ? (
                                       <Badge variant="outline" className="border-gold/25 text-gold">
                                         Favourite
+                                      </Badge>
+                                    ) : null}
+                                    {contactConnection.kind === "connected" ? (
+                                      <Badge variant="outline" className="border-gold/25 text-gold">
+                                        Connected
+                                      </Badge>
+                                    ) : null}
+                                    {contactConnection.kind === "pending_outgoing" ? (
+                                      <Badge variant="outline" className="border-silver/18 text-silver">
+                                        Request sent
+                                      </Badge>
+                                    ) : null}
+                                    {contactConnection.kind === "pending_incoming" ? (
+                                      <Badge variant="outline" className="border-gold/25 text-gold">
+                                        Respond
                                       </Badge>
                                     ) : null}
                                   </div>
@@ -1717,6 +2036,105 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           .join(" at ") || "Circle Card contact"}
                       </p>
                     </div>
+
+                    {selectedWalletConnection ? (
+                      <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare size={16} className="text-gold" />
+                          <p className="text-sm font-semibold text-foreground">Connection</p>
+                        </div>
+                        {selectedWalletConnection.kind === "connected" ? (
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gold">
+                            <CheckCircle2 size={16} />
+                            Connected in both Circle Wallets
+                          </div>
+                        ) : null}
+                        {selectedWalletConnection.kind === "pending_outgoing" ? (
+                          <div className="mt-3 space-y-3">
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-silver">
+                              <Send size={15} />
+                              Request sent
+                            </div>
+                            {selectedWalletConnection.request.message ? (
+                              <p className="rounded-xl border border-silver/14 bg-background/20 p-3 text-sm text-muted">
+                                &ldquo;{selectedWalletConnection.request.message}&rdquo;
+                              </p>
+                            ) : null}
+                            <form action={cancelCircleCardConnectionRequestAction}>
+                              <input
+                                type="hidden"
+                                name="requestId"
+                                value={selectedWalletConnection.request.id}
+                              />
+                              <input type="hidden" name="returnPath" value={walletReturnPath} />
+                              <Button type="submit" variant="outline" size="sm" className="gap-2">
+                                <XCircle size={14} />
+                                Cancel request
+                              </Button>
+                            </form>
+                          </div>
+                        ) : null}
+                        {selectedWalletConnection.kind === "pending_incoming" ? (
+                          <div className="mt-3 space-y-3">
+                            <p className="text-sm text-muted">
+                              This contact has asked to connect with you.
+                            </p>
+                            {selectedWalletConnection.request.message ? (
+                              <p className="rounded-xl border border-gold/14 bg-gold/8 p-3 text-sm text-muted">
+                                &ldquo;{selectedWalletConnection.request.message}&rdquo;
+                              </p>
+                            ) : null}
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <form action={acceptCircleCardConnectionRequestAction}>
+                                <input
+                                  type="hidden"
+                                  name="requestId"
+                                  value={selectedWalletConnection.request.id}
+                                />
+                                <input type="hidden" name="returnPath" value={walletReturnPath} />
+                                <Button type="submit" size="sm" className="w-full gap-2">
+                                  <UserCheck size={14} />
+                                  Accept
+                                </Button>
+                              </form>
+                              <form action={declineCircleCardConnectionRequestAction}>
+                                <input
+                                  type="hidden"
+                                  name="requestId"
+                                  value={selectedWalletConnection.request.id}
+                                />
+                                <input type="hidden" name="returnPath" value={walletReturnPath} />
+                                <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                                  <UserX size={14} />
+                                  Decline
+                                </Button>
+                              </form>
+                            </div>
+                          </div>
+                        ) : null}
+                        {selectedWalletConnection.kind === "none" ? (
+                          <form action={sendCircleCardConnectionRequestAction} className="mt-3 space-y-3">
+                            <input
+                              type="hidden"
+                              name="recipientCardId"
+                              value={selectedWalletContact.card.id}
+                            />
+                            <input type="hidden" name="returnPath" value={walletReturnPath} />
+                            <Textarea
+                              name="message"
+                              rows={3}
+                              maxLength={240}
+                              placeholder="Hi, good to connect through Circle Card."
+                              aria-label="Connection request message"
+                            />
+                            <Button type="submit" size="sm" className="w-full gap-2">
+                              <Send size={14} />
+                              Send Connection Request
+                            </Button>
+                          </form>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">

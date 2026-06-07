@@ -10,6 +10,8 @@ import {
   buildCircleCardSlugBase,
   buildCircleCardSocialLinks,
   CIRCLE_CARD_FILE_LINK_TYPES,
+  circleCardConnectionRequestFormSchema,
+  circleCardConnectionRequestIdSchema,
   type CircleCardLinkActionMode,
   type CircleCardLinkVisibility,
   type CircleCardLinkType,
@@ -245,6 +247,61 @@ function revalidateCircleCardPaths(slug?: string | null) {
   if (slug) {
     revalidatePath(`/card/${slug}`);
   }
+}
+
+function revalidateCircleCardConnectionPaths(slugs: Array<string | null | undefined>) {
+  revalidatePath("/dashboard/circle-card");
+
+  for (const slug of slugs) {
+    if (slug) {
+      revalidatePath(`/card/${slug}`);
+    }
+  }
+}
+
+async function getPrimaryCircleCardForUser(userId: string) {
+  return prisma.circleCard.findFirst({
+    where: {
+      userId,
+      isPrimary: true
+    },
+    orderBy: [{ updatedAt: "desc" }],
+    select: {
+      id: true,
+      slug: true,
+      userId: true
+    }
+  });
+}
+
+async function findActiveCircleCardConnectionRequest(input: {
+  requesterCardId: string;
+  recipientCardId: string;
+}) {
+  return prisma.circleCardConnectionRequest.findFirst({
+    where: {
+      status: {
+        in: ["PENDING", "ACCEPTED"]
+      },
+      OR: [
+        {
+          requesterCardId: input.requesterCardId,
+          recipientCardId: input.recipientCardId
+        },
+        {
+          requesterCardId: input.recipientCardId,
+          recipientCardId: input.requesterCardId
+        }
+      ]
+    },
+    orderBy: [{ createdAt: "desc" }],
+    select: {
+      id: true,
+      status: true,
+      requesterId: true,
+      recipientId: true
+    }
+  });
 }
 
 function isFreeCircleCardActionUser(user: CircleCardActionUser) {
@@ -928,6 +985,405 @@ export async function saveCircleWalletContactAction(formData: FormData) {
   revalidatePath("/dashboard/circle-card");
   revalidatePath(`/card/${card.slug}`);
   redirectWithNotice(returnPath, "card-saved");
+}
+
+export async function sendCircleCardConnectionRequestAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardConnectionRequestFormSchema.safeParse({
+    recipientCardId: formData.get("recipientCardId"),
+    message: formData.get("message")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "connection-invalid");
+  }
+
+  const [requesterCard, recipientCard] = await Promise.all([
+    getPrimaryCircleCardForUser(user.id),
+    prisma.circleCard.findFirst({
+      where: {
+        id: parsed.data.recipientCardId,
+        isPublished: true,
+        user: {
+          suspended: false
+        }
+      },
+      select: {
+        id: true,
+        slug: true,
+        userId: true
+      }
+    })
+  ]);
+
+  if (!requesterCard) {
+    redirectWithError(returnPath, "connection-primary-card-required");
+  }
+
+  if (!recipientCard) {
+    redirectWithError(returnPath, "connection-card-not-found");
+  }
+
+  if (recipientCard.userId === user.id || recipientCard.id === requesterCard.id) {
+    redirectWithNotice(returnPath, "own-card");
+  }
+
+  const savedContact = await prisma.circleWalletContact.findUnique({
+    where: {
+      userId_cardId: {
+        userId: user.id,
+        cardId: recipientCard.id
+      }
+    },
+    select: { id: true }
+  });
+
+  if (!savedContact) {
+    redirectWithError(returnPath, "connection-save-first");
+  }
+
+  const activeRequest = await findActiveCircleCardConnectionRequest({
+    requesterCardId: requesterCard.id,
+    recipientCardId: recipientCard.id
+  });
+
+  if (activeRequest?.status === "ACCEPTED") {
+    redirectWithNotice(returnPath, "connection-already-connected");
+  }
+
+  if (activeRequest?.status === "PENDING") {
+    redirectWithNotice(
+      returnPath,
+      activeRequest.requesterId === user.id
+        ? "connection-request-pending"
+        : "connection-request-incoming"
+    );
+  }
+
+  try {
+    await prisma.circleCardConnectionRequest.create({
+      data: {
+        requesterId: user.id,
+        requesterCardId: requesterCard.id,
+        recipientId: recipientCard.userId,
+        recipientCardId: recipientCard.id,
+        message: nullableText(parsed.data.message)
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      redirectWithNotice(returnPath, "connection-request-pending");
+    }
+
+    redirectWithError(returnPath, "connection-request-failed");
+  }
+
+  await trackCircleCardEvent({
+    cardId: recipientCard.id,
+    eventType: "CONNECTION_REQUEST_SENT",
+    userId: user.id,
+    metadata: {
+      source: "circle_card_connection",
+      requesterCardId: requesterCard.id
+    }
+  });
+
+  revalidateCircleCardConnectionPaths([requesterCard.slug, recipientCard.slug]);
+  redirectWithNotice(returnPath, "connection-request-sent");
+}
+
+export async function acceptCircleCardConnectionRequestAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardConnectionRequestIdSchema.safeParse({
+    requestId: formData.get("requestId")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "connection-invalid");
+  }
+
+  const request = await prisma.circleCardConnectionRequest.findFirst({
+    where: {
+      id: parsed.data.requestId,
+      recipientId: user.id,
+      status: "PENDING"
+    },
+    select: {
+      id: true,
+      requesterId: true,
+      requesterCardId: true,
+      recipientId: true,
+      recipientCardId: true,
+      requesterCard: {
+        select: {
+          slug: true
+        }
+      },
+      recipientCard: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!request) {
+    redirectWithError(returnPath, "connection-request-not-found");
+  }
+
+  let walletSaveResult: {
+    createdRequesterWalletSave: boolean;
+    createdRecipientWalletSave: boolean;
+  };
+
+  try {
+    walletSaveResult = await prisma.$transaction(async (tx) => {
+      const [requesterWalletSave, recipientWalletSave] = await Promise.all([
+        tx.circleWalletContact.findUnique({
+          where: {
+            userId_cardId: {
+              userId: request.requesterId,
+              cardId: request.recipientCardId
+            }
+          },
+          select: { id: true }
+        }),
+        tx.circleWalletContact.findUnique({
+          where: {
+            userId_cardId: {
+              userId: request.recipientId,
+              cardId: request.requesterCardId
+            }
+          },
+          select: { id: true }
+        })
+      ]);
+      const updated = await tx.circleCardConnectionRequest.updateMany({
+        where: {
+          id: request.id,
+          recipientId: user.id,
+          status: "PENDING"
+        },
+        data: {
+          status: "ACCEPTED",
+          respondedAt: new Date()
+        }
+      });
+
+      if (updated.count !== 1) {
+        throw new Error("Connection request is no longer pending.");
+      }
+
+      await Promise.all([
+        tx.circleWalletContact.upsert({
+          where: {
+            userId_cardId: {
+              userId: request.requesterId,
+              cardId: request.recipientCardId
+            }
+          },
+          create: {
+            userId: request.requesterId,
+            cardId: request.recipientCardId
+          },
+          update: {}
+        }),
+        tx.circleWalletContact.upsert({
+          where: {
+            userId_cardId: {
+              userId: request.recipientId,
+              cardId: request.requesterCardId
+            }
+          },
+          create: {
+            userId: request.recipientId,
+            cardId: request.requesterCardId
+          },
+          update: {}
+        })
+      ]);
+
+      return {
+        createdRequesterWalletSave: !requesterWalletSave,
+        createdRecipientWalletSave: !recipientWalletSave
+      };
+    });
+  } catch {
+    redirectWithError(returnPath, "connection-request-not-found");
+  }
+
+  await Promise.all([
+    trackCircleCardEvent({
+      cardId: request.recipientCardId,
+      eventType: "CONNECTION_REQUEST_ACCEPTED",
+      userId: user.id,
+      metadata: {
+        source: "circle_card_connection",
+        requestId: request.id,
+        requesterCardId: request.requesterCardId
+      }
+    }),
+    walletSaveResult.createdRequesterWalletSave
+      ? trackCircleCardEvent({
+          cardId: request.recipientCardId,
+          eventType: "WALLET_SAVE",
+          userId: request.requesterId,
+          metadata: {
+            source: "circle_card_connection_accept"
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
+    walletSaveResult.createdRecipientWalletSave
+      ? trackCircleCardEvent({
+          cardId: request.requesterCardId,
+          eventType: "WALLET_SAVE",
+          userId: request.recipientId,
+          metadata: {
+            source: "circle_card_connection_accept"
+          }
+        })
+      : Promise.resolve({ stored: false as const })
+  ]);
+
+  revalidateCircleCardConnectionPaths([request.requesterCard.slug, request.recipientCard.slug]);
+  redirectWithNotice(returnPath, "connection-request-accepted");
+}
+
+export async function declineCircleCardConnectionRequestAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardConnectionRequestIdSchema.safeParse({
+    requestId: formData.get("requestId")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "connection-invalid");
+  }
+
+  const request = await prisma.circleCardConnectionRequest.findFirst({
+    where: {
+      id: parsed.data.requestId,
+      recipientId: user.id,
+      status: "PENDING"
+    },
+    select: {
+      id: true,
+      requesterCardId: true,
+      recipientCardId: true,
+      requesterCard: {
+        select: {
+          slug: true
+        }
+      },
+      recipientCard: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!request) {
+    redirectWithError(returnPath, "connection-request-not-found");
+  }
+
+  const updated = await prisma.circleCardConnectionRequest.updateMany({
+    where: {
+      id: request.id,
+      recipientId: user.id,
+      status: "PENDING"
+    },
+    data: {
+      status: "DECLINED",
+      respondedAt: new Date()
+    }
+  });
+
+  if (updated.count !== 1) {
+    redirectWithError(returnPath, "connection-request-not-found");
+  }
+
+  await trackCircleCardEvent({
+    cardId: request.recipientCardId,
+    eventType: "CONNECTION_REQUEST_DECLINED",
+    userId: user.id,
+    metadata: {
+      source: "circle_card_connection",
+      requestId: request.id,
+      requesterCardId: request.requesterCardId
+    }
+  });
+
+  revalidateCircleCardConnectionPaths([request.requesterCard.slug, request.recipientCard.slug]);
+  redirectWithNotice(returnPath, "connection-request-declined");
+}
+
+export async function cancelCircleCardConnectionRequestAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardConnectionRequestIdSchema.safeParse({
+    requestId: formData.get("requestId")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "connection-invalid");
+  }
+
+  const request = await prisma.circleCardConnectionRequest.findFirst({
+    where: {
+      id: parsed.data.requestId,
+      requesterId: user.id,
+      status: "PENDING"
+    },
+    select: {
+      id: true,
+      recipientCardId: true,
+      requesterCard: {
+        select: {
+          slug: true
+        }
+      },
+      recipientCard: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!request) {
+    redirectWithError(returnPath, "connection-request-not-found");
+  }
+
+  const updated = await prisma.circleCardConnectionRequest.updateMany({
+    where: {
+      id: request.id,
+      requesterId: user.id,
+      status: "PENDING"
+    },
+    data: {
+      status: "CANCELLED"
+    }
+  });
+
+  if (updated.count !== 1) {
+    redirectWithError(returnPath, "connection-request-not-found");
+  }
+
+  await trackCircleCardEvent({
+    cardId: request.recipientCardId,
+    eventType: "CONNECTION_REQUEST_CANCELLED",
+    userId: user.id,
+    metadata: {
+      source: "circle_card_connection",
+      requestId: request.id
+    }
+  });
+
+  revalidateCircleCardConnectionPaths([request.requesterCard.slug, request.recipientCard.slug]);
+  redirectWithNotice(returnPath, "connection-request-cancelled");
 }
 
 export async function removeCircleWalletContactAction(formData: FormData) {
