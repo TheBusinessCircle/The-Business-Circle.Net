@@ -23,7 +23,9 @@ import {
   circleWalletContactDetailsSchema,
   nullableNumber,
   nullableText,
-  parseCircleWalletTagsInput
+  parseCircleWalletDateInput,
+  parseCircleWalletTagsInput,
+  resolveCircleWalletLastInteractionDate
 } from "@/lib/circle-card/schema";
 import {
   canCreateCircleCard,
@@ -1485,6 +1487,11 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
   const parsed = circleWalletContactDetailsSchema.safeParse({
     walletContactId: formData.get("walletContactId"),
     notes: formData.get("notes"),
+    metAt: formData.get("metAt"),
+    followUpDate: formData.get("followUpDate"),
+    lastInteractionDate: formData.get("lastInteractionDate"),
+    lastInteractionQuick: formData.get("lastInteractionQuick") || "",
+    category: formData.get("category"),
     tagsInput: formData.get("tagsInput")
   });
 
@@ -1492,32 +1499,85 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
     redirectWithError(returnPath, "wallet-contact-invalid");
   }
 
-  const savedContact = await prisma.circleWalletContact.findFirst({
-    where: {
-      id: parsed.data.walletContactId,
-      userId: user.id
-    },
-    select: {
-      id: true,
-      card: {
-        select: {
-          slug: true
+  const [savedContact, primaryCard] = await Promise.all([
+    prisma.circleWalletContact.findFirst({
+      where: {
+        id: parsed.data.walletContactId,
+        userId: user.id
+      },
+      select: {
+        id: true,
+        notes: true,
+        followUpDate: true,
+        category: true,
+        card: {
+          select: {
+            slug: true
+          }
         }
       }
-    }
-  });
+    }),
+    prisma.circleCard.findFirst({
+      where: {
+        userId: user.id,
+        isPrimary: true
+      },
+      orderBy: [{ updatedAt: "desc" }],
+      select: {
+        id: true
+      }
+    })
+  ]);
 
   if (!savedContact) {
     redirectWithError(returnPath, "wallet-contact-not-found");
   }
 
+  const nextNotes = nullableText(parsed.data.notes);
+  const nextFollowUpDate = parseCircleWalletDateInput(parsed.data.followUpDate);
+  const nextLastInteractionDate = resolveCircleWalletLastInteractionDate({
+    dateInput: parsed.data.lastInteractionDate,
+    quick: parsed.data.lastInteractionQuick
+  });
+  const nextCategory = nullableText(parsed.data.category);
+
   await prisma.circleWalletContact.update({
     where: { id: savedContact.id },
     data: {
-      notes: nullableText(parsed.data.notes),
+      notes: nextNotes,
+      metAt: nullableText(parsed.data.metAt),
+      followUpDate: nextFollowUpDate,
+      lastInteractionDate: nextLastInteractionDate,
+      category: nextCategory,
       tags: parseCircleWalletTagsInput(parsed.data.tagsInput)
     }
   });
+
+  const previousFollowUp = savedContact.followUpDate?.toISOString().slice(0, 10) ?? null;
+  const nextFollowUp = nextFollowUpDate?.toISOString().slice(0, 10) ?? null;
+  const relationshipEvents = [
+    savedContact.notes !== nextNotes ? "CONTACT_NOTE_UPDATED" : null,
+    previousFollowUp !== nextFollowUp ? "CONTACT_FOLLOWUP_SET" : null,
+    savedContact.category !== nextCategory ? "CONTACT_CATEGORY_SET" : null
+  ].filter((eventType): eventType is "CONTACT_NOTE_UPDATED" | "CONTACT_FOLLOWUP_SET" | "CONTACT_CATEGORY_SET" =>
+    Boolean(eventType)
+  );
+
+  if (primaryCard && relationshipEvents.length) {
+    await Promise.all(
+      relationshipEvents.map((eventType) =>
+        trackCircleCardEvent({
+          cardId: primaryCard.id,
+          eventType,
+          userId: user.id,
+          metadata: {
+            source: "circle_wallet_personal_crm",
+            walletContactId: savedContact.id
+          }
+        })
+      )
+    );
+  }
 
   revalidatePath("/dashboard/circle-card");
   revalidatePath(`/card/${savedContact.card.slug}`);

@@ -65,12 +65,52 @@ export type { CircleCardLinkActionMode };
 
 export const CIRCLE_CARD_CONNECTION_MESSAGE_MAX_LENGTH = 240;
 
+export const CIRCLE_WALLET_CATEGORY_OPTIONS = [
+  "Accountant",
+  "Photographer",
+  "Designer",
+  "Developer",
+  "Tradesperson",
+  "Venue",
+  "Consultant",
+  "Marketing",
+  "Recruitment",
+  "Referral Partner",
+  "Other"
+] as const;
+
+export const CIRCLE_WALLET_MET_AT_OPTIONS = [
+  "Strelley Hall",
+  "LinkedIn",
+  "Business Expo",
+  "TikTok Live",
+  "Networking Event",
+  "Referral"
+] as const;
+
+export const CIRCLE_WALLET_LAST_INTERACTION_QUICK_VALUES = [
+  "today",
+  "one-week-ago",
+  "one-month-ago"
+] as const;
+
+export type CircleWalletLastInteractionQuick =
+  (typeof CIRCLE_WALLET_LAST_INTERACTION_QUICK_VALUES)[number];
+
 const CIRCLE_CARD_FILE_LINK_TYPE_SET = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
 const SUPPORTED_CIRCLE_CARD_LINK_FILE_MIME_TYPES = new Set<string>(
   CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES
 );
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
+const optionalDateInput = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""))
+  .refine((value) => !value || isCircleWalletDateInput(value), {
+    message: "Use a valid date."
+  });
 const optionalEmail = z.string().trim().email().max(320).optional().or(z.literal(""));
 const optionalImagePosition = z.preprocess(
   (value) => {
@@ -225,6 +265,14 @@ export type CircleCardOnboardingValues = z.infer<typeof circleCardOnboardingSche
 export const circleWalletContactDetailsSchema = z.object({
   walletContactId: z.string().cuid(),
   notes: optionalText(2000),
+  metAt: optionalText(140),
+  followUpDate: optionalDateInput,
+  lastInteractionDate: optionalDateInput,
+  lastInteractionQuick: z
+    .enum(CIRCLE_WALLET_LAST_INTERACTION_QUICK_VALUES)
+    .optional()
+    .or(z.literal("")),
+  category: optionalText(80),
   tagsInput: optionalText(300)
 });
 
@@ -369,6 +417,58 @@ export function nullableText(value?: string | null) {
 
 export function nullableNumber(value?: number | null) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+export function isCircleWalletDateInput(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+export function parseCircleWalletDateInput(value?: string | null) {
+  const trimmed = value?.trim();
+
+  if (!trimmed || !isCircleWalletDateInput(trimmed)) {
+    return null;
+  }
+
+  const [year, month, day] = trimmed.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function utcDateOnly(value: Date) {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+}
+
+export function resolveCircleWalletLastInteractionDate(input: {
+  dateInput?: string | null;
+  quick?: CircleWalletLastInteractionQuick | "" | null;
+  now?: Date;
+}) {
+  if (!input.quick) {
+    return parseCircleWalletDateInput(input.dateInput);
+  }
+
+  const date = utcDateOnly(input.now ?? new Date());
+
+  if (input.quick === "one-week-ago") {
+    date.setUTCDate(date.getUTCDate() - 7);
+  }
+
+  if (input.quick === "one-month-ago") {
+    date.setUTCMonth(date.getUTCMonth() - 1);
+  }
+
+  return date;
 }
 
 export function parseCircleWalletTagsInput(value?: string | null) {

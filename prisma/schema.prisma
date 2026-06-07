@@ -473,20 +473,29 @@ model CircleCardEvent {
 }
 
 model CircleWalletContact {
-  id        String     @id @default(cuid())
-  userId    String
-  cardId    String
-  savedAt   DateTime   @default(now())
-  favourite Boolean    @default(false)
-  notes     String?    @db.Text
-  tags      Json       @default("[]")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  card      CircleCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  id                  String     @id @default(cuid())
+  userId              String
+  cardId              String
+  savedAt             DateTime   @default(now())
+  favourite           Boolean    @default(false)
+  notes               String?    @db.Text
+  metAt               String?    @db.VarChar(140)
+  followUpDate        DateTime?  @db.Date
+  lastInteractionDate DateTime?  @db.Date
+  category            String?    @db.VarChar(80)
+  tags                Json       @default("[]")
+  relationshipContext Json       @default("{}")
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card                CircleCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@unique([userId, cardId])
   @@index([userId])
+  @@index([userId, favourite])
+  @@index([userId, category])
+  @@index([userId, followUpDate])
+  @@index([userId, savedAt])
   @@index([cardId])
   @@index([savedAt])
 }
@@ -2190,6 +2199,9 @@ enum CircleCardEventType {
   CUSTOM_LINK_UNLOCK_FAILED
   WALLET_SAVE
   WALLET_REMOVE
+  CONTACT_NOTE_UPDATED
+  CONTACT_FOLLOWUP_SET
+  CONTACT_CATEGORY_SET
   CONNECTION_REQUEST_SENT
   CONNECTION_REQUEST_ACCEPTED
   CONNECTION_REQUEST_DECLINED
