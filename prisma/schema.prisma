@@ -110,6 +110,9 @@ model User {
   circleCardConnectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestsReceived")
   circleCardRecommendationsGiven       CircleCardRecommendation[] @relation("CircleCardRecommendationRecommender")
   circleCardRecommendationsReceived    CircleCardRecommendation[] @relation("CircleCardRecommendationRecommendedUser")
+  circleCardIntroductionsMade          CircleCardIntroduction[] @relation("CircleCardIntroductionIntroducer")
+  circleCardIntroductionsAsPersonA     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonA")
+  circleCardIntroductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonB")
 
   @@index([role])
   @@index([memberRoleTag])
@@ -423,6 +426,9 @@ model CircleCard {
   connectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRecipientCard")
   recommendationsGiven       CircleCardRecommendation[] @relation("CircleCardRecommendationRecommenderCard")
   recommendationsReceived    CircleCardRecommendation[] @relation("CircleCardRecommendationRecommendedCard")
+  introductionsMade          CircleCardIntroduction[] @relation("CircleCardIntroductionIntroducerCard")
+  introductionsAsPersonA     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonACard")
+  introductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonBCard")
 
   @@index([userId])
   @@index([isPublished])
@@ -551,6 +557,42 @@ model CircleCardRecommendation {
   @@index([walletContactId])
   @@index([recommendedCardId, visibility, status, createdAt])
   @@index([recommenderCardId, recommendedCardId, category, visibility, status])
+}
+
+model CircleCardIntroduction {
+  id                String                       @id @default(cuid())
+  introducerUserId  String
+  introducerCardId  String
+  personAUserId     String
+  personACardId     String
+  personBUserId     String
+  personBCardId     String
+  reason            String                       @db.VarChar(600)
+  status            CircleCardIntroductionStatus @default(PENDING)
+  personAAcceptedAt DateTime?
+  personBAcceptedAt DateTime?
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  respondedAt       DateTime?
+  introducerUser    User                         @relation("CircleCardIntroductionIntroducer", fields: [introducerUserId], references: [id], onDelete: Cascade)
+  introducerCard    CircleCard                   @relation("CircleCardIntroductionIntroducerCard", fields: [introducerCardId], references: [id], onDelete: Cascade)
+  personAUser       User                         @relation("CircleCardIntroductionPersonA", fields: [personAUserId], references: [id], onDelete: Cascade)
+  personACard       CircleCard                   @relation("CircleCardIntroductionPersonACard", fields: [personACardId], references: [id], onDelete: Cascade)
+  personBUser       User                         @relation("CircleCardIntroductionPersonB", fields: [personBUserId], references: [id], onDelete: Cascade)
+  personBCard       CircleCard                   @relation("CircleCardIntroductionPersonBCard", fields: [personBCardId], references: [id], onDelete: Cascade)
+
+  @@index([introducerUserId])
+  @@index([introducerCardId])
+  @@index([personAUserId])
+  @@index([personACardId])
+  @@index([personBUserId])
+  @@index([personBCardId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([introducerUserId, status, createdAt])
+  @@index([personAUserId, status, createdAt])
+  @@index([personBUserId, status, createdAt])
+  @@index([introducerCardId, personACardId, personBCardId, status])
 }
 
 model CircleCardConnectionRequest {
@@ -2275,6 +2317,10 @@ enum CircleCardEventType {
   DISCOVER_CARD_VIEWED
   DISCOVER_CARD_SAVED
   DISCOVER_CONNECTION_REQUEST_SENT
+  INTRODUCTION_CREATED
+  INTRODUCTION_ACCEPTED
+  INTRODUCTION_DECLINED
+  INTRODUCTION_COMPLETED
 }
 
 enum CircleWalletContactSource {
@@ -2300,6 +2346,14 @@ enum CircleCardRecommendationStatus {
   ACTIVE
   HIDDEN
   REMOVED
+}
+
+enum CircleCardIntroductionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  COMPLETED
+  CANCELLED
 }
 
 enum TestimonialSourceType {

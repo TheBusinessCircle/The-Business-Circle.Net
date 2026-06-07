@@ -42,6 +42,11 @@ import {
   circleCardRecommendationVisibilityLabel
 } from "@/lib/circle-card/recommendations";
 import {
+  CIRCLE_CARD_INTRODUCTION_ACTIVE_STATUSES,
+  circleCardIntroductionFormSchema,
+  circleCardIntroductionIdSchema
+} from "@/lib/circle-card/introductions";
+import {
   canCreateCircleCard,
   isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
@@ -406,6 +411,124 @@ async function findActiveCircleCardConnectionRequest(input: {
       recipientId: true
     }
   });
+}
+
+async function ensureAcceptedIntroductionConnection(
+  tx: Prisma.TransactionClient,
+  input: {
+    personAUserId: string;
+    personACardId: string;
+    personBUserId: string;
+    personBCardId: string;
+    requesterUserId: string;
+    requesterCardId: string;
+    recipientUserId: string;
+    recipientCardId: string;
+    now: Date;
+  }
+) {
+  const [personAWalletSave, personBWalletSave] = await Promise.all([
+    tx.circleWalletContact.findUnique({
+      where: {
+        userId_cardId: {
+          userId: input.personAUserId,
+          cardId: input.personBCardId
+        }
+      },
+      select: { id: true }
+    }),
+    tx.circleWalletContact.findUnique({
+      where: {
+        userId_cardId: {
+          userId: input.personBUserId,
+          cardId: input.personACardId
+        }
+      },
+      select: { id: true }
+    })
+  ]);
+
+  const activeConnection = await tx.circleCardConnectionRequest.findFirst({
+    where: {
+      status: {
+        in: ["PENDING", "ACCEPTED"]
+      },
+      OR: [
+        {
+          requesterCardId: input.personACardId,
+          recipientCardId: input.personBCardId
+        },
+        {
+          requesterCardId: input.personBCardId,
+          recipientCardId: input.personACardId
+        }
+      ]
+    },
+    orderBy: [{ createdAt: "desc" }],
+    select: {
+      id: true,
+      status: true
+    }
+  });
+
+  if (activeConnection?.status === "PENDING") {
+    await tx.circleCardConnectionRequest.update({
+      where: { id: activeConnection.id },
+      data: {
+        status: "ACCEPTED",
+        respondedAt: input.now
+      }
+    });
+  }
+
+  if (!activeConnection) {
+    await tx.circleCardConnectionRequest.create({
+      data: {
+        requesterId: input.requesterUserId,
+        requesterCardId: input.requesterCardId,
+        recipientId: input.recipientUserId,
+        recipientCardId: input.recipientCardId,
+        status: "ACCEPTED",
+        respondedAt: input.now
+      }
+    });
+  }
+
+  await Promise.all([
+    tx.circleWalletContact.upsert({
+      where: {
+        userId_cardId: {
+          userId: input.personAUserId,
+          cardId: input.personBCardId
+        }
+      },
+      create: {
+        userId: input.personAUserId,
+        cardId: input.personBCardId
+      },
+      update: {}
+    }),
+    tx.circleWalletContact.upsert({
+      where: {
+        userId_cardId: {
+          userId: input.personBUserId,
+          cardId: input.personACardId
+        }
+      },
+      create: {
+        userId: input.personBUserId,
+        cardId: input.personACardId
+      },
+      update: {}
+    })
+  ]);
+
+  return {
+    createdPersonAWalletSave: !personAWalletSave,
+    createdPersonBWalletSave: !personBWalletSave,
+    createdConnection: !activeConnection,
+    acceptedPendingConnection: activeConnection?.status === "PENDING"
+  };
 }
 
 function isFreeCircleCardActionUser(user: CircleCardActionUser) {
@@ -1950,6 +2073,553 @@ export async function cancelCircleCardConnectionRequestAction(formData: FormData
 
   revalidateCircleCardConnectionPaths([request.requesterCard.slug, request.recipientCard.slug]);
   redirectWithNotice(returnPath, "connection-request-cancelled");
+}
+
+export async function createCircleCardIntroductionAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardIntroductionFormSchema.safeParse({
+    personAWalletContactId: formData.get("personAWalletContactId"),
+    personBWalletContactId: formData.get("personBWalletContactId"),
+    reason: formData.get("reason"),
+    returnPath: formData.get("returnPath")
+  });
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#introductions"
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "introduction-invalid");
+  }
+
+  const values = parsed.data;
+
+  if (values.personAWalletContactId === values.personBWalletContactId) {
+    redirectWithError(returnPath, "introduction-same-contact");
+  }
+
+  const [primaryCard, walletContacts] = await Promise.all([
+    getPrimaryCircleCardForUser(user.id),
+    prisma.circleWalletContact.findMany({
+      where: {
+        userId: user.id,
+        id: {
+          in: [values.personAWalletContactId, values.personBWalletContactId]
+        },
+        cardId: {
+          not: null
+        }
+      },
+      select: {
+        id: true,
+        card: {
+          select: {
+            id: true,
+            slug: true,
+            userId: true,
+            fullName: true,
+            isPublished: true,
+            user: {
+              select: {
+                suspended: true
+              }
+            }
+          }
+        }
+      }
+    })
+  ]);
+
+  if (!primaryCard) {
+    redirectWithError(returnPath, "introduction-primary-card-required");
+  }
+
+  const walletContactById = new Map(walletContacts.map((contact) => [contact.id, contact]));
+  const personAContact = walletContactById.get(values.personAWalletContactId);
+  const personBContact = walletContactById.get(values.personBWalletContactId);
+
+  if (!personAContact?.card || !personBContact?.card) {
+    redirectWithError(returnPath, "introduction-wallet-required");
+  }
+
+  if (!personAContact.card.isPublished || !personBContact.card.isPublished) {
+    redirectWithError(returnPath, "introduction-wallet-required");
+  }
+
+  if (personAContact.card.user.suspended || personBContact.card.user.suspended) {
+    redirectWithError(returnPath, "introduction-wallet-required");
+  }
+
+  if (
+    personAContact.card.id === personBContact.card.id ||
+    personAContact.card.userId === personBContact.card.userId
+  ) {
+    redirectWithError(returnPath, "introduction-same-contact");
+  }
+
+  if (
+    personAContact.card.id === primaryCard.id ||
+    personBContact.card.id === primaryCard.id ||
+    personAContact.card.userId === user.id ||
+    personBContact.card.userId === user.id
+  ) {
+    redirectWithError(returnPath, "introduction-self");
+  }
+
+  const duplicateIntroduction = await prisma.circleCardIntroduction.findFirst({
+    where: {
+      introducerCardId: primaryCard.id,
+      status: {
+        in: [...CIRCLE_CARD_INTRODUCTION_ACTIVE_STATUSES]
+      },
+      OR: [
+        {
+          personACardId: personAContact.card.id,
+          personBCardId: personBContact.card.id
+        },
+        {
+          personACardId: personBContact.card.id,
+          personBCardId: personAContact.card.id
+        }
+      ]
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (duplicateIntroduction) {
+    redirectWithError(returnPath, "introduction-duplicate");
+  }
+
+  const introduction = await prisma.circleCardIntroduction.create({
+    data: {
+      introducerUserId: user.id,
+      introducerCardId: primaryCard.id,
+      personAUserId: personAContact.card.userId,
+      personACardId: personAContact.card.id,
+      personBUserId: personBContact.card.userId,
+      personBCardId: personBContact.card.id,
+      reason: values.reason
+    },
+    select: {
+      id: true
+    }
+  });
+
+  await trackCircleCardEvent({
+    cardId: primaryCard.id,
+    eventType: "INTRODUCTION_CREATED",
+    userId: user.id,
+    metadata: {
+      source: "circle_card_introductions",
+      introductionId: introduction.id,
+      personAWalletContactId: personAContact.id,
+      personBWalletContactId: personBContact.id,
+      personACardId: personAContact.card.id,
+      personBCardId: personBContact.card.id
+    }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  redirectWithNotice(returnPath, "introduction-created");
+}
+
+export async function acceptCircleCardIntroductionAction(formData: FormData) {
+  const parsed = circleCardIntroductionIdSchema.safeParse({
+    introductionId: formData.get("introductionId"),
+    returnPath: formData.get("returnPath")
+  });
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#introductions"
+  );
+  const user = await requireCircleCardActionUser();
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "introduction-invalid");
+  }
+
+  const introduction = await prisma.circleCardIntroduction.findFirst({
+    where: {
+      id: parsed.data.introductionId,
+      status: {
+        in: [...CIRCLE_CARD_INTRODUCTION_ACTIVE_STATUSES]
+      },
+      OR: [{ personAUserId: user.id }, { personBUserId: user.id }]
+    },
+    select: {
+      id: true,
+      introducerCardId: true,
+      personAUserId: true,
+      personACardId: true,
+      personBUserId: true,
+      personBCardId: true,
+      personAAcceptedAt: true,
+      personBAcceptedAt: true,
+      introducerCard: {
+        select: {
+          slug: true
+        }
+      },
+      personACard: {
+        select: {
+          slug: true
+        }
+      },
+      personBCard: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!introduction) {
+    redirectWithError(returnPath, "introduction-not-found");
+  }
+
+  const actorIsPersonA = introduction.personAUserId === user.id;
+  const actorAlreadyAccepted = actorIsPersonA
+    ? introduction.personAAcceptedAt
+    : introduction.personBAcceptedAt;
+
+  if (actorAlreadyAccepted) {
+    redirectWithNotice(returnPath, "introduction-already-accepted");
+  }
+
+  let responseResult: {
+    nextStatus: "ACCEPTED" | "COMPLETED";
+    connectionResult: Awaited<ReturnType<typeof ensureAcceptedIntroductionConnection>>;
+  };
+
+  try {
+    responseResult = await prisma.$transaction(async (tx) => {
+      const current = await tx.circleCardIntroduction.findFirst({
+        where: {
+          id: introduction.id,
+          status: {
+            in: [...CIRCLE_CARD_INTRODUCTION_ACTIVE_STATUSES]
+          },
+          OR: [{ personAUserId: user.id }, { personBUserId: user.id }]
+        },
+        select: {
+          id: true,
+          personAUserId: true,
+          personACardId: true,
+          personBUserId: true,
+          personBCardId: true,
+          personAAcceptedAt: true,
+          personBAcceptedAt: true
+        }
+      });
+
+      if (!current) {
+        throw new Error("Introduction is no longer active.");
+      }
+
+      const currentActorIsPersonA = current.personAUserId === user.id;
+      const currentActorAccepted = currentActorIsPersonA
+        ? current.personAAcceptedAt
+        : current.personBAcceptedAt;
+
+      if (currentActorAccepted) {
+        throw new Error("Introduction has already been accepted by this user.");
+      }
+
+      const otherPersonAccepted = currentActorIsPersonA
+        ? Boolean(current.personBAcceptedAt)
+        : Boolean(current.personAAcceptedAt);
+      const nextStatus = otherPersonAccepted ? "COMPLETED" : "ACCEPTED";
+      const now = new Date();
+
+      await tx.circleCardIntroduction.update({
+        where: { id: current.id },
+        data: currentActorIsPersonA
+          ? {
+              personAAcceptedAt: now,
+              status: nextStatus,
+              respondedAt: now
+            }
+          : {
+              personBAcceptedAt: now,
+              status: nextStatus,
+              respondedAt: now
+            }
+      });
+
+      const requesterUserId = currentActorIsPersonA ? current.personAUserId : current.personBUserId;
+      const requesterCardId = currentActorIsPersonA ? current.personACardId : current.personBCardId;
+      const recipientUserId = currentActorIsPersonA ? current.personBUserId : current.personAUserId;
+      const recipientCardId = currentActorIsPersonA ? current.personBCardId : current.personACardId;
+      const connectionResult = await ensureAcceptedIntroductionConnection(tx, {
+        personAUserId: current.personAUserId,
+        personACardId: current.personACardId,
+        personBUserId: current.personBUserId,
+        personBCardId: current.personBCardId,
+        requesterUserId,
+        requesterCardId,
+        recipientUserId,
+        recipientCardId,
+        now
+      });
+
+      return {
+        nextStatus,
+        connectionResult
+      };
+    });
+  } catch {
+    redirectWithError(returnPath, "introduction-not-found");
+  }
+
+  const analyticsEvents: Array<Promise<unknown>> = [
+    trackCircleCardEvent({
+      cardId: introduction.introducerCardId,
+      eventType: "INTRODUCTION_ACCEPTED",
+      userId: user.id,
+      metadata: {
+        source: "circle_card_introductions",
+        introductionId: introduction.id,
+        personACardId: introduction.personACardId,
+        personBCardId: introduction.personBCardId,
+        status: responseResult.nextStatus,
+        createdConnection: responseResult.connectionResult.createdConnection,
+        acceptedPendingConnection: responseResult.connectionResult.acceptedPendingConnection
+      }
+    })
+  ];
+
+  if (responseResult.nextStatus === "COMPLETED") {
+    analyticsEvents.push(
+      trackCircleCardEvent({
+        cardId: introduction.introducerCardId,
+        eventType: "INTRODUCTION_COMPLETED",
+        userId: user.id,
+        metadata: {
+          source: "circle_card_introductions",
+          introductionId: introduction.id,
+          personACardId: introduction.personACardId,
+          personBCardId: introduction.personBCardId
+        }
+      })
+    );
+  }
+
+  if (responseResult.connectionResult.createdPersonAWalletSave) {
+    analyticsEvents.push(
+      trackCircleCardEvent({
+        cardId: introduction.personBCardId,
+        eventType: "WALLET_SAVE",
+        userId: introduction.personAUserId,
+        metadata: {
+          source: "circle_card_introduction_accept",
+          introductionId: introduction.id
+        }
+      })
+    );
+  }
+
+  if (responseResult.connectionResult.createdPersonBWalletSave) {
+    analyticsEvents.push(
+      trackCircleCardEvent({
+        cardId: introduction.personACardId,
+        eventType: "WALLET_SAVE",
+        userId: introduction.personBUserId,
+        metadata: {
+          source: "circle_card_introduction_accept",
+          introductionId: introduction.id
+        }
+      })
+    );
+  }
+
+  await Promise.all(analyticsEvents);
+
+  revalidateCircleCardConnectionPaths([
+    introduction.introducerCard.slug,
+    introduction.personACard.slug,
+    introduction.personBCard.slug
+  ]);
+  redirectWithNotice(
+    returnPath,
+    responseResult.nextStatus === "COMPLETED" ? "introduction-completed" : "introduction-accepted"
+  );
+}
+
+export async function declineCircleCardIntroductionAction(formData: FormData) {
+  const parsed = circleCardIntroductionIdSchema.safeParse({
+    introductionId: formData.get("introductionId"),
+    returnPath: formData.get("returnPath")
+  });
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#introductions"
+  );
+  const user = await requireCircleCardActionUser();
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "introduction-invalid");
+  }
+
+  const introduction = await prisma.circleCardIntroduction.findFirst({
+    where: {
+      id: parsed.data.introductionId,
+      status: {
+        in: [...CIRCLE_CARD_INTRODUCTION_ACTIVE_STATUSES]
+      },
+      OR: [{ personAUserId: user.id }, { personBUserId: user.id }]
+    },
+    select: {
+      id: true,
+      introducerCardId: true,
+      personAUserId: true,
+      personACardId: true,
+      personBUserId: true,
+      personBCardId: true,
+      personAAcceptedAt: true,
+      personBAcceptedAt: true,
+      introducerCard: {
+        select: {
+          slug: true
+        }
+      },
+      personACard: {
+        select: {
+          slug: true
+        }
+      },
+      personBCard: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!introduction) {
+    redirectWithError(returnPath, "introduction-not-found");
+  }
+
+  const actorIsPersonA = introduction.personAUserId === user.id;
+  const actorAlreadyAccepted = actorIsPersonA
+    ? introduction.personAAcceptedAt
+    : introduction.personBAcceptedAt;
+
+  if (actorAlreadyAccepted) {
+    redirectWithError(returnPath, "introduction-already-accepted");
+  }
+
+  const updated = await prisma.circleCardIntroduction.updateMany({
+    where: {
+      id: introduction.id,
+      status: {
+        in: [...CIRCLE_CARD_INTRODUCTION_ACTIVE_STATUSES]
+      },
+      OR: [{ personAUserId: user.id }, { personBUserId: user.id }],
+      ...(actorIsPersonA ? { personAAcceptedAt: null } : { personBAcceptedAt: null })
+    },
+    data: {
+      status: "DECLINED",
+      respondedAt: new Date()
+    }
+  });
+
+  if (updated.count !== 1) {
+    redirectWithError(returnPath, "introduction-not-found");
+  }
+
+  await trackCircleCardEvent({
+    cardId: introduction.introducerCardId,
+    eventType: "INTRODUCTION_DECLINED",
+    userId: user.id,
+    metadata: {
+      source: "circle_card_introductions",
+      introductionId: introduction.id,
+      personACardId: introduction.personACardId,
+      personBCardId: introduction.personBCardId
+    }
+  });
+
+  revalidateCircleCardConnectionPaths([
+    introduction.introducerCard.slug,
+    introduction.personACard.slug,
+    introduction.personBCard.slug
+  ]);
+  redirectWithNotice(returnPath, "introduction-declined");
+}
+
+export async function cancelCircleCardIntroductionAction(formData: FormData) {
+  const parsed = circleCardIntroductionIdSchema.safeParse({
+    introductionId: formData.get("introductionId"),
+    returnPath: formData.get("returnPath")
+  });
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#introductions"
+  );
+  const user = await requireCircleCardActionUser();
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "introduction-invalid");
+  }
+
+  const introduction = await prisma.circleCardIntroduction.findFirst({
+    where: {
+      id: parsed.data.introductionId,
+      introducerUserId: user.id,
+      status: {
+        in: [...CIRCLE_CARD_INTRODUCTION_ACTIVE_STATUSES]
+      }
+    },
+    select: {
+      id: true,
+      introducerCard: {
+        select: {
+          slug: true
+        }
+      },
+      personACard: {
+        select: {
+          slug: true
+        }
+      },
+      personBCard: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!introduction) {
+    redirectWithError(returnPath, "introduction-not-found");
+  }
+
+  const updated = await prisma.circleCardIntroduction.updateMany({
+    where: {
+      id: introduction.id,
+      introducerUserId: user.id,
+      status: {
+        in: [...CIRCLE_CARD_INTRODUCTION_ACTIVE_STATUSES]
+      }
+    },
+    data: {
+      status: "CANCELLED",
+      respondedAt: new Date()
+    }
+  });
+
+  if (updated.count !== 1) {
+    redirectWithError(returnPath, "introduction-not-found");
+  }
+
+  revalidateCircleCardConnectionPaths([
+    introduction.introducerCard.slug,
+    introduction.personACard.slug,
+    introduction.personBCard.slug
+  ]);
+  redirectWithNotice(returnPath, "introduction-cancelled");
 }
 
 export async function removeCircleWalletContactAction(formData: FormData) {

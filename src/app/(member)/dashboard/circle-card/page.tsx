@@ -38,9 +38,13 @@ import {
 } from "lucide-react";
 import {
   acceptCircleCardConnectionRequestAction,
+  acceptCircleCardIntroductionAction,
   cancelCircleCardConnectionRequestAction,
+  cancelCircleCardIntroductionAction,
+  createCircleCardIntroductionAction,
   deleteCircleCardLinkAction,
   declineCircleCardConnectionRequestAction,
+  declineCircleCardIntroductionAction,
   generateBusinessCardClaimLinkAction,
   moveCircleCardLinkAction,
   removeCircleWalletContactAction,
@@ -92,6 +96,7 @@ import {
   CIRCLE_CARD_RECOMMENDATION_CATEGORIES,
   circleCardRecommendationVisibilityLabel
 } from "@/lib/circle-card/recommendations";
+import { circleCardIntroductionStatusLabel } from "@/lib/circle-card/introductions";
 import {
   type CircleCardLinkType,
   CIRCLE_WALLET_CATEGORY_OPTIONS,
@@ -150,6 +155,12 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "recommendation-updated": "Recommendation updated.",
   "recommendation-hidden": "Recommendation hidden from public display.",
   "recommendation-removed": "Recommendation removed.",
+  "introduction-created": "Introduction sent.",
+  "introduction-accepted": "Introduction accepted.",
+  "introduction-declined": "Introduction declined.",
+  "introduction-completed": "Introduction completed.",
+  "introduction-cancelled": "Introduction cancelled.",
+  "introduction-already-accepted": "You have already accepted this introduction.",
   "custom-link-created": "Custom link added.",
   "custom-link-updated": "Custom link updated.",
   "custom-link-deleted": "Custom link deleted.",
@@ -188,7 +199,15 @@ const ERROR_MESSAGES: Record<string, string> = {
   "recommendation-self": "You cannot recommend yourself.",
   "recommendation-public-card-required": "Public recommendations need a saved public Circle Card contact.",
   "recommendation-duplicate": "You already publicly recommend this person in that category.",
-  "recommendation-not-found": "That recommendation could not be found."
+  "recommendation-not-found": "That recommendation could not be found.",
+  "introduction-invalid": "Check the introduction details and try again.",
+  "introduction-primary-card-required": "Create your own Circle Card before making introductions.",
+  "introduction-wallet-required": "Introductions need two saved published Circle Card contacts.",
+  "introduction-same-contact": "Choose two different people to introduce.",
+  "introduction-self": "You cannot introduce yourself.",
+  "introduction-duplicate": "You already have an active introduction for that pair.",
+  "introduction-not-found": "That introduction is no longer active.",
+  "introduction-already-accepted": "You have already accepted this introduction."
 };
 
 const WALLET_VIEW_OPTIONS = [
@@ -198,6 +217,12 @@ const WALLET_VIEW_OPTIONS = [
   { value: "recommended", label: "People I Recommend" },
   { value: "requests", label: "Requests" },
   { value: "recent", label: "Recent" }
+] as const;
+
+const INTRODUCTION_VIEW_OPTIONS = [
+  { value: "incoming", label: "Incoming" },
+  { value: "outgoing", label: "Outgoing" },
+  { value: "completed", label: "Completed" }
 ] as const;
 
 const WALLET_FOLLOW_UP_FILTER_OPTIONS = [
@@ -240,6 +265,7 @@ const CUSTOM_LINK_EXAMPLES = [
 ] as const;
 
 type WalletView = (typeof WALLET_VIEW_OPTIONS)[number]["value"];
+type IntroductionView = (typeof INTRODUCTION_VIEW_OPTIONS)[number]["value"];
 type WalletFollowUpFilter = (typeof WALLET_FOLLOW_UP_FILTER_OPTIONS)[number]["value"];
 
 function resolveWalletView(value: string | undefined): WalletView {
@@ -254,6 +280,21 @@ function resolveWalletView(value: string | undefined): WalletView {
 
 function resolveWalletFollowUpFilter(value: string | undefined): WalletFollowUpFilter {
   return value === "needs-follow-up" ? value : "";
+}
+
+function resolveIntroductionView(value: string | undefined): IntroductionView {
+  return value === "outgoing" || value === "completed" ? value : "incoming";
+}
+
+function buildIntroductionHref(input: { introductionView?: IntroductionView }) {
+  const params = new URLSearchParams();
+
+  if (input.introductionView && input.introductionView !== "incoming") {
+    params.set("introductionView", input.introductionView);
+  }
+
+  const query = params.toString();
+  return query ? `/dashboard/circle-card?${query}#introductions` : "/dashboard/circle-card#introductions";
 }
 
 function buildWalletHref(input: {
@@ -551,8 +592,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const discoverLocation = (firstValue(params.discoverLocation) ?? "").trim();
   const discoverRecommended = firstValue(params.discoverRecommended) === "1";
   const discoverBcn = firstValue(params.discoverBcn) === "1";
-  const [card, cardCount, member, walletContacts, connectionRequests, connectHubCard, discoverCandidateCards] =
-    await Promise.all([
+  const introductionView = resolveIntroductionView(firstValue(params.introductionView));
+  const [
+    card,
+    cardCount,
+    member,
+    walletContacts,
+    connectionRequests,
+    connectHubCard,
+    discoverCandidateCards,
+    introductions
+  ] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
       orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
@@ -623,6 +673,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         card: {
           select: {
             id: true,
+            userId: true,
             slug: true,
             fullName: true,
             businessName: true,
@@ -801,6 +852,63 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 role: true
               }
             }
+          }
+        }
+      }
+    }),
+    prisma.circleCardIntroduction.findMany({
+      where: {
+        OR: [
+          { introducerUserId: session.user.id },
+          { personAUserId: session.user.id },
+          { personBUserId: session.user.id }
+        ]
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 80,
+      select: {
+        id: true,
+        introducerUserId: true,
+        introducerCardId: true,
+        personAUserId: true,
+        personACardId: true,
+        personBUserId: true,
+        personBCardId: true,
+        reason: true,
+        status: true,
+        personAAcceptedAt: true,
+        personBAcceptedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        respondedAt: true,
+        introducerCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
+          }
+        },
+        personACard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
+          }
+        },
+        personBCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
           }
         }
       }
@@ -1093,6 +1201,69 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         candidate.matchesRecommended
     )
     .slice(0, 24);
+  const introductionReturnPath = buildIntroductionHref({ introductionView });
+  const introductionOutgoingReturnPath = buildIntroductionHref({ introductionView: "outgoing" });
+  const introductionActiveStatuses = new Set(["PENDING", "ACCEPTED"]);
+  const introductionTerminalStatuses = new Set(["COMPLETED", "DECLINED", "CANCELLED"]);
+  const incomingIntroductions = introductions.filter((introduction) => {
+    const viewerIsPersonA = introduction.personAUserId === session.user.id;
+    const viewerIsPersonB = introduction.personBUserId === session.user.id;
+    const viewerAccepted = viewerIsPersonA
+      ? introduction.personAAcceptedAt
+      : viewerIsPersonB
+        ? introduction.personBAcceptedAt
+        : null;
+
+    return (
+      (viewerIsPersonA || viewerIsPersonB) &&
+      introductionActiveStatuses.has(introduction.status) &&
+      !viewerAccepted
+    );
+  });
+  const outgoingIntroductions = introductions.filter(
+    (introduction) =>
+      introduction.introducerUserId === session.user.id &&
+      introductionActiveStatuses.has(introduction.status)
+  );
+  const completedIntroductions = introductions.filter((introduction) => {
+    const viewerIsPersonA = introduction.personAUserId === session.user.id;
+    const viewerIsPersonB = introduction.personBUserId === session.user.id;
+    const viewerAccepted = viewerIsPersonA
+      ? introduction.personAAcceptedAt
+      : viewerIsPersonB
+        ? introduction.personBAcceptedAt
+        : null;
+
+    return (
+      introductionTerminalStatuses.has(introduction.status) ||
+      (introduction.status === "ACCEPTED" && Boolean(viewerAccepted))
+    );
+  });
+  const introductionViewCounts: Record<IntroductionView, number> = {
+    incoming: incomingIntroductions.length,
+    outgoing: outgoingIntroductions.length,
+    completed: completedIntroductions.length
+  };
+  const visibleIntroductions =
+    introductionView === "outgoing"
+      ? outgoingIntroductions
+      : introductionView === "completed"
+        ? completedIntroductions
+        : incomingIntroductions;
+  const introducibleWalletContacts = normalizedWalletContacts.filter(
+    (contact) => contact.card?.id && contact.card.userId !== session.user.id
+  );
+  const selectedIntroductionOptions =
+    selectedWalletContact?.card?.id
+      ? introducibleWalletContacts.filter(
+          (contact) =>
+            contact.id !== selectedWalletContact.id &&
+            contact.card?.id !== selectedWalletContact.card?.id
+        )
+      : [];
+  const canIntroduceSelectedContact = Boolean(
+    card && selectedWalletContact?.card?.id && selectedWalletContact.card.userId !== session.user.id
+  );
   const connectHubRecentlyConnected = [...acceptedConnectionRequests]
     .sort((a, b) => Number(b.respondedAt ?? b.createdAt) - Number(a.respondedAt ?? a.createdAt))
     .map((request) => otherConnectionCard(request))
@@ -1188,6 +1359,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Discover card views", value: analytics?.counts.DISCOVER_CARD_VIEWED ?? 0 },
     { label: "Discover saves", value: analytics?.counts.DISCOVER_CARD_SAVED ?? 0 },
     { label: "Discover connection requests", value: analytics?.counts.DISCOVER_CONNECTION_REQUEST_SENT ?? 0 },
+    { label: "Introductions created", value: analytics?.counts.INTRODUCTION_CREATED ?? 0 },
+    { label: "Introductions accepted", value: analytics?.counts.INTRODUCTION_ACCEPTED ?? 0 },
+    { label: "Introductions declined", value: analytics?.counts.INTRODUCTION_DECLINED ?? 0 },
+    { label: "Introductions completed", value: analytics?.counts.INTRODUCTION_COMPLETED ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
 
@@ -1224,7 +1399,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Create a clean card, share it with a QR code, and give new contacts a direct route
               back to you and the Business Circle ecosystem.
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
               <a
                 href="#connect-hub"
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
@@ -1238,6 +1413,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               >
                 <Compass size={16} />
                 Discover
+              </a>
+              <a
+                href="#introductions"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+              >
+                <UserCheck size={16} />
+                Introductions
               </a>
               <a
                 href="#public-card"
@@ -1687,6 +1869,216 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     Share your card
                   </a>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </CircleCardDashboardSection>
+
+      <CircleCardDashboardSection
+        id="introductions"
+        title="Introductions"
+        summary="Introduce two people from your Circle Wallet and track private responses"
+        defaultOpen={incomingIntroductions.length > 0}
+        badge={
+          <Badge variant="outline" className="border-gold/28 text-gold">
+            {incomingIntroductions.length} incoming
+          </Badge>
+        }
+      >
+        <div className="space-y-5">
+          <Card className="border-silver/16 bg-card/62">
+            <CardContent className="space-y-4 pt-6 sm:pt-7">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {INTRODUCTION_VIEW_OPTIONS.map((option) => (
+                  <Link
+                    key={option.value}
+                    href={buildIntroductionHref({ introductionView: option.value })}
+                    className={cn(
+                      "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      introductionView === option.value
+                        ? "border-gold/32 bg-gold/10 text-gold"
+                        : "border-silver/14 bg-background/20 text-muted hover:border-silver/28 hover:text-foreground"
+                    )}
+                  >
+                    {option.label} ({introductionViewCounts[option.value]})
+                  </Link>
+                ))}
+              </div>
+              <p className="text-sm leading-relaxed text-muted">
+                Introductions are private dashboard activity. They are not shown on public Circle Cards.
+              </p>
+            </CardContent>
+          </Card>
+
+          {visibleIntroductions.length ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {visibleIntroductions.map((introduction) => {
+                const viewerIsPersonA = introduction.personAUserId === session.user.id;
+                const viewerIsPersonB = introduction.personBUserId === session.user.id;
+                const viewerAccepted = viewerIsPersonA
+                  ? introduction.personAAcceptedAt
+                  : viewerIsPersonB
+                    ? introduction.personBAcceptedAt
+                    : null;
+                const otherCard = viewerIsPersonA ? introduction.personBCard : introduction.personACard;
+                const acceptedCount =
+                  Number(Boolean(introduction.personAAcceptedAt)) +
+                  Number(Boolean(introduction.personBAcceptedAt));
+                const statusLabel = circleCardIntroductionStatusLabel(introduction.status);
+                const canRespond =
+                  (viewerIsPersonA || viewerIsPersonB) &&
+                  introductionActiveStatuses.has(introduction.status) &&
+                  !viewerAccepted;
+                const canCancel =
+                  introduction.introducerUserId === session.user.id &&
+                  introductionActiveStatuses.has(introduction.status);
+
+                return (
+                  <Card key={introduction.id} className="border-silver/16 bg-card/62">
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className={
+                                introduction.status === "COMPLETED"
+                                  ? "border-gold/25 text-gold"
+                                  : "border-silver/18 text-silver"
+                              }
+                            >
+                              {statusLabel}
+                            </Badge>
+                            {acceptedCount ? (
+                              <Badge variant="outline" className="border-gold/20 text-gold">
+                                {acceptedCount}/2 accepted
+                              </Badge>
+                            ) : null}
+                          </div>
+                          {introductionView === "incoming" ? (
+                            <>
+                              <h3 className="mt-3 text-base font-semibold text-foreground">
+                                Introduced by {introduction.introducerCard.fullName}
+                              </h3>
+                              <p className="mt-1 text-sm text-silver">
+                                With {otherCard.fullName}
+                                {otherCard.businessName ? `, ${otherCard.businessName}` : ""}
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <h3 className="mt-3 text-base font-semibold text-foreground">
+                                {introduction.personACard.fullName} <span className="text-muted">{"<->"}</span>{" "}
+                                {introduction.personBCard.fullName}
+                              </h3>
+                              <p className="mt-1 text-sm text-silver">
+                                Introduced by {introduction.introducerCard.fullName}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex -space-x-2">
+                          {[introduction.personACard, introduction.personBCard].map((introCard) => (
+                            <div
+                              key={introCard.id}
+                              className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border border-background bg-card text-xs font-semibold text-foreground shadow-inner-surface"
+                              title={introCard.fullName}
+                            >
+                              {introCard.profileImageUrl ? (
+                                <img
+                                  src={introCard.profileImageUrl}
+                                  alt={introCard.fullName}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                introCard.fullName.slice(0, 2).toUpperCase()
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-silver">Reason</p>
+                        <p className="mt-2 text-sm leading-relaxed text-muted">
+                          &ldquo;{introduction.reason}&rdquo;
+                        </p>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Link
+                          href={`/card/${introduction.personACard.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
+                        >
+                          {introduction.personACard.fullName}
+                          <ArrowUpRight size={16} />
+                        </Link>
+                        <Link
+                          href={`/card/${introduction.personBCard.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
+                        >
+                          {introduction.personBCard.fullName}
+                          <ArrowUpRight size={16} />
+                        </Link>
+                      </div>
+
+                      {canRespond ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <form action={acceptCircleCardIntroductionAction}>
+                            <input type="hidden" name="introductionId" value={introduction.id} />
+                            <input type="hidden" name="returnPath" value={introductionReturnPath} />
+                            <Button type="submit" className="w-full gap-2">
+                              <UserCheck size={16} />
+                              Accept
+                            </Button>
+                          </form>
+                          <form action={declineCircleCardIntroductionAction}>
+                            <input type="hidden" name="introductionId" value={introduction.id} />
+                            <input type="hidden" name="returnPath" value={introductionReturnPath} />
+                            <Button type="submit" variant="outline" className="w-full gap-2">
+                              <UserX size={16} />
+                              Decline
+                            </Button>
+                          </form>
+                        </div>
+                      ) : null}
+
+                      {canCancel ? (
+                        <form action={cancelCircleCardIntroductionAction}>
+                          <input type="hidden" name="introductionId" value={introduction.id} />
+                          <input type="hidden" name="returnPath" value={introductionOutgoingReturnPath} />
+                          <Button type="submit" variant="outline" className="w-full gap-2">
+                            <XCircle size={16} />
+                            Cancel Introduction
+                          </Button>
+                        </form>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="border-dashed border-silver/18 bg-card/48">
+              <CardContent className="py-10 text-center">
+                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
+                  <UserCheck size={20} />
+                </div>
+                <h3 className="mt-4 font-display text-2xl text-foreground">
+                  No introductions here yet
+                </h3>
+                <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                  Use the Introduce panel inside a wallet contact to connect two saved Circle Card contacts.
+                </p>
+                <a href="#wallet" className={cn(buttonVariants({ variant: "outline" }), "mt-5 gap-2")}>
+                  <WalletCards size={16} />
+                  Open Wallet
+                </a>
               </CardContent>
             </Card>
           )}
@@ -3741,6 +4133,72 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         ) : null}
                       </div>
                     ) : null}
+
+                    <div className="rounded-2xl border border-gold/18 bg-background/18 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <UserCheck size={16} className="text-gold" />
+                            <p className="text-sm font-semibold text-foreground">Introduce</p>
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed text-muted">
+                            Introduce this contact to another saved Circle Card contact with a short reason.
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="w-fit border-gold/20 text-gold">
+                          Private
+                        </Badge>
+                      </div>
+
+                      {canIntroduceSelectedContact && selectedIntroductionOptions.length ? (
+                        <form action={createCircleCardIntroductionAction} className="mt-4 space-y-3">
+                          <input
+                            type="hidden"
+                            name="personAWalletContactId"
+                            value={selectedWalletContact.id}
+                          />
+                          <input type="hidden" name="returnPath" value={introductionOutgoingReturnPath} />
+                          <div className="space-y-2">
+                            <Label htmlFor="introduction-person-b">Introduce to</Label>
+                            <Select id="introduction-person-b" name="personBWalletContactId" required>
+                              {selectedIntroductionOptions.map((contact) => (
+                                <option key={contact.id} value={contact.id}>
+                                  {contact.display.fullName}
+                                  {contact.display.businessName ? `, ${contact.display.businessName}` : ""}
+                                </option>
+                              ))}
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="introduction-reason">Reason</Label>
+                            <Textarea
+                              id="introduction-reason"
+                              name="reason"
+                              rows={4}
+                              maxLength={600}
+                              required
+                              placeholder="Sarah is looking at improving her website and Rhys specialises in web design."
+                            />
+                          </div>
+                          <Button type="submit" className="w-full gap-2">
+                            <Send size={16} />
+                            Send Introduction
+                          </Button>
+                        </form>
+                      ) : (
+                        <p className="mt-4 rounded-xl border border-silver/14 bg-background/18 p-3 text-xs leading-relaxed text-muted">
+                          Introductions need your own Circle Card and two saved contacts linked to published
+                          Circle Cards.
+                        </p>
+                      )}
+
+                      <Link
+                        href="/dashboard/circle-card#introductions"
+                        className="mt-3 inline-flex text-xs font-medium text-silver hover:text-foreground"
+                      >
+                        View Introduction Centre
+                      </Link>
+                    </div>
 
                     <div className="rounded-2xl border border-gold/18 bg-gold/8 p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

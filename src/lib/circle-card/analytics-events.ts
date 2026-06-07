@@ -33,7 +33,11 @@ export const CIRCLE_CARD_EVENT_TYPES = [
   "DISCOVER_SEARCH",
   "DISCOVER_CARD_VIEWED",
   "DISCOVER_CARD_SAVED",
-  "DISCOVER_CONNECTION_REQUEST_SENT"
+  "DISCOVER_CONNECTION_REQUEST_SENT",
+  "INTRODUCTION_CREATED",
+  "INTRODUCTION_ACCEPTED",
+  "INTRODUCTION_DECLINED",
+  "INTRODUCTION_COMPLETED"
 ] as const;
 
 export type CircleCardEventTypeValue = (typeof CIRCLE_CARD_EVENT_TYPES)[number];
@@ -73,5 +77,9 @@ export const CIRCLE_CARD_EVENT_LABELS: Record<CircleCardEventTypeValue, string> 
   DISCOVER_SEARCH: "Discover search",
   DISCOVER_CARD_VIEWED: "Discover card viewed",
   DISCOVER_CARD_SAVED: "Discover card saved",
-  DISCOVER_CONNECTION_REQUEST_SENT: "Discover connection request sent"
+  DISCOVER_CONNECTION_REQUEST_SENT: "Discover connection request sent",
+  INTRODUCTION_CREATED: "Introduction created",
+  INTRODUCTION_ACCEPTED: "Introduction accepted",
+  INTRODUCTION_DECLINED: "Introduction declined",
+  INTRODUCTION_COMPLETED: "Introduction completed"
 };
