@@ -9,6 +9,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
+  Compass,
   ContactRound,
   Camera,
   Crown,
@@ -64,6 +65,7 @@ import {
   CircleCardQrPanel,
   CircleCardShareAssetsPanel,
   CircleCardShareButton,
+  CircleCardTrackedLink,
   CircleCardSmartLinkFields
 } from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
@@ -103,7 +105,7 @@ import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireCircleCardUser } from "@/lib/session";
 import { absoluteUrl, cn, formatDate } from "@/lib/utils";
-import { getCircleCardAnalyticsSummary } from "@/server/circle-card";
+import { getCircleCardAnalyticsSummary, trackCircleCardEvent } from "@/server/circle-card";
 
 export const metadata: Metadata = createPageMetadata({
   title: "My Circle Card",
@@ -285,6 +287,39 @@ function buildWalletHref(input: {
 
   const query = params.toString();
   return query ? `/dashboard/circle-card?${query}` : "/dashboard/circle-card";
+}
+
+function buildDiscoverHref(input: {
+  discoverQuery?: string;
+  discoverCategory?: string;
+  discoverLocation?: string;
+  discoverRecommended?: boolean;
+  discoverBcn?: boolean;
+}) {
+  const params = new URLSearchParams();
+
+  if (input.discoverQuery) {
+    params.set("discoverQuery", input.discoverQuery);
+  }
+
+  if (input.discoverCategory) {
+    params.set("discoverCategory", input.discoverCategory);
+  }
+
+  if (input.discoverLocation) {
+    params.set("discoverLocation", input.discoverLocation);
+  }
+
+  if (input.discoverRecommended) {
+    params.set("discoverRecommended", "1");
+  }
+
+  if (input.discoverBcn) {
+    params.set("discoverBcn", "1");
+  }
+
+  const query = params.toString();
+  return query ? `/dashboard/circle-card?${query}#discover` : "/dashboard/circle-card#discover";
 }
 
 function walletContactMatchesQuery(input: {
@@ -511,7 +546,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const walletFollowUp = resolveWalletFollowUpFilter(firstValue(params.walletFollowUp));
   const selectedContactId = firstValue(params.contactId);
   const connectCardSlug = resolveCircleCardLookupSlug(firstValue(params.connectCard));
-  const [card, cardCount, member, walletContacts, connectionRequests, connectHubCard] = await Promise.all([
+  const discoverQuery = (firstValue(params.discoverQuery) ?? "").trim();
+  const discoverCategory = (firstValue(params.discoverCategory) ?? "").trim();
+  const discoverLocation = (firstValue(params.discoverLocation) ?? "").trim();
+  const discoverRecommended = firstValue(params.discoverRecommended) === "1";
+  const discoverBcn = firstValue(params.discoverBcn) === "1";
+  const [card, cardCount, member, walletContacts, connectionRequests, connectHubCard, discoverCandidateCards] =
+    await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
       orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
@@ -679,7 +720,91 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             businessLogoUrl: true
           }
         })
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    prisma.circleCard.findMany({
+      where: {
+        isPublished: true,
+        userId: {
+          not: session.user.id
+        },
+        user: {
+          suspended: false,
+          ...(discoverBcn
+            ? {
+                OR: [
+                  { role: "ADMIN" },
+                  {
+                    subscription: {
+                      is: {
+                        status: {
+                          in: ["ACTIVE", "TRIALING"]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            : {})
+        }
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      take: 80,
+      select: {
+        id: true,
+        userId: true,
+        slug: true,
+        fullName: true,
+        businessName: true,
+        role: true,
+        tagline: true,
+        location: true,
+        profileImageUrl: true,
+        businessLogoUrl: true,
+        socialLinks: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            role: true,
+            membershipTier: true,
+            subscription: {
+              select: {
+                status: true
+              }
+            }
+          }
+        },
+        recommendationsReceived: {
+          where: {
+            visibility: "PUBLIC",
+            status: "ACTIVE",
+            recommenderCard: {
+              isPublished: true,
+              user: {
+                suspended: false
+              }
+            }
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: 8,
+          select: {
+            id: true,
+            category: true,
+            reason: true,
+            recommenderCardId: true,
+            recommenderCard: {
+              select: {
+                id: true,
+                slug: true,
+                fullName: true,
+                businessName: true,
+                role: true
+              }
+            }
+          }
+        }
+      }
+    })
   ]);
   const normalizedWalletContacts = walletContacts.map((contact) => {
     const socialLinks = readCircleWalletBusinessCardSocialLinks(contact.socialLinks);
@@ -888,6 +1013,86 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const connectHubReturnPath = connectHubCard
     ? `/dashboard/circle-card?connectCard=${encodeURIComponent(connectHubCard.slug)}#connect-hub`
     : "/dashboard/circle-card#connect-hub";
+  const discoverReturnPath = buildDiscoverHref({
+    discoverQuery,
+    discoverCategory,
+    discoverLocation,
+    discoverRecommended,
+    discoverBcn
+  });
+  const discoverHasFilters = Boolean(
+    discoverQuery || discoverCategory || discoverLocation || discoverRecommended || discoverBcn
+  );
+  const discoverCategoryOptions = Array.from(
+    new Set([...CIRCLE_CARD_RECOMMENDATION_CATEGORIES, ...CIRCLE_WALLET_CATEGORY_OPTIONS])
+  );
+  const savedContactByCardId = new Map(
+    normalizedWalletContacts
+      .filter((contact) => Boolean(contact.card?.id))
+      .map((contact) => [contact.card?.id ?? "", contact])
+  );
+  const discoverQueryLower = discoverQuery.toLowerCase();
+  const discoverLocationLower = discoverLocation.toLowerCase();
+  const discoverCards = discoverCandidateCards
+    .map((candidate) => {
+      const candidateSocialLinks = readCircleCardSocialLinks(candidate.socialLinks);
+      const recommendations = candidate.recommendationsReceived;
+      const recommendedByKnown = recommendations.filter((recommendation) =>
+        connectedByCardId.has(recommendation.recommenderCardId)
+      );
+      const recommendationCategories = recommendations.map((recommendation) => recommendation.category);
+      const recommendationCategoryLabels = Array.from(new Set(recommendationCategories)).slice(0, 3);
+      const knownRecommenderNames = Array.from(
+        new Set(recommendedByKnown.map((recommendation) => recommendation.recommenderCard.fullName))
+      ).slice(0, 3);
+      const isBcnMember =
+        candidate.user.role === "ADMIN" ||
+        candidate.user.subscription?.status === "ACTIVE" ||
+        candidate.user.subscription?.status === "TRIALING";
+      const savedContact = savedContactByCardId.get(candidate.id) ?? null;
+      const connectionState = walletConnectionState(candidate.id);
+      const searchable = [
+        candidate.fullName,
+        candidate.businessName,
+        candidate.role,
+        candidate.tagline,
+        candidate.location,
+        ...Object.values(candidateSocialLinks),
+        ...recommendationCategories,
+        ...recommendations.map((recommendation) => recommendation.reason),
+        ...recommendations.map((recommendation) => recommendation.recommenderCard.fullName),
+        ...recommendations.map((recommendation) => recommendation.recommenderCard.businessName)
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return {
+        ...candidate,
+        socialLinks: candidateSocialLinks,
+        recommendationCount: recommendations.length,
+        recommendationCategories,
+        recommendationCategoryLabels,
+        recommendedByKnown,
+        knownRecommenderNames,
+        isBcnMember,
+        savedContact,
+        connectionState,
+        matchesSearch: !discoverQueryLower || searchable.includes(discoverQueryLower),
+        matchesLocation:
+          !discoverLocationLower || Boolean(candidate.location?.toLowerCase().includes(discoverLocationLower)),
+        matchesCategory: !discoverCategory || recommendationCategories.includes(discoverCategory),
+        matchesRecommended: !discoverRecommended || recommendations.length > 0
+      };
+    })
+    .filter(
+      (candidate) =>
+        candidate.matchesSearch &&
+        candidate.matchesLocation &&
+        candidate.matchesCategory &&
+        candidate.matchesRecommended
+    )
+    .slice(0, 24);
   const connectHubRecentlyConnected = [...acceptedConnectionRequests]
     .sort((a, b) => Number(b.respondedAt ?? b.createdAt) - Number(a.respondedAt ?? a.createdAt))
     .map((request) => otherConnectionCard(request))
@@ -979,8 +1184,29 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Recommendations updated", value: analytics?.counts.RECOMMENDATION_UPDATED ?? 0 },
     { label: "Recommendations removed", value: analytics?.counts.RECOMMENDATION_REMOVED ?? 0 },
     { label: "Public recommendations viewed", value: analytics?.counts.PUBLIC_RECOMMENDATION_VIEWED ?? 0 },
+    { label: "Discover searches", value: analytics?.counts.DISCOVER_SEARCH ?? 0 },
+    { label: "Discover card views", value: analytics?.counts.DISCOVER_CARD_VIEWED ?? 0 },
+    { label: "Discover saves", value: analytics?.counts.DISCOVER_CARD_SAVED ?? 0 },
+    { label: "Discover connection requests", value: analytics?.counts.DISCOVER_CONNECTION_REQUEST_SENT ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
+
+  if (card && discoverHasFilters) {
+    await trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "DISCOVER_SEARCH",
+      userId: session.user.id,
+      metadata: {
+        source: "discover",
+        query: discoverQuery || null,
+        category: discoverCategory || null,
+        location: discoverLocation || null,
+        recommendedOnly: discoverRecommended,
+        bcnOnly: discoverBcn,
+        resultCount: discoverCards.length
+      }
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -998,13 +1224,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Create a clean card, share it with a QR code, and give new contacts a direct route
               back to you and the Business Circle ecosystem.
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
               <a
                 href="#connect-hub"
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
               >
                 <Share2 size={16} />
                 Connect Hub
+              </a>
+              <a
+                href="#discover"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+              >
+                <Compass size={16} />
+                Discover
               </a>
               <a
                 href="#public-card"
@@ -1112,6 +1345,353 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           {ERROR_MESSAGES[error]}
         </p>
       ) : null}
+
+      <CircleCardDashboardSection
+        id="discover"
+        title="Discover"
+        summary="Find published Circle Cards, save useful people, and start connection requests"
+        defaultOpen
+        badge={
+          <Badge variant="outline" className="border-gold/28 text-gold">
+            {discoverCards.length} result{discoverCards.length === 1 ? "" : "s"}
+          </Badge>
+        }
+      >
+        <div className="space-y-5">
+          <Card className="border-silver/16 bg-card/62">
+            <CardContent className="space-y-4 pt-6 sm:pt-7">
+              <form
+                action="/dashboard/circle-card#discover"
+                method="get"
+                className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_220px_180px_160px_150px_auto]"
+              >
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-3 text-muted" size={16} />
+                  <Input
+                    name="discoverQuery"
+                    defaultValue={discoverQuery}
+                    placeholder="Search name, business, role, tagline or handles"
+                    className="pl-10"
+                    aria-label="Search Circle Cards"
+                  />
+                </div>
+                <Select
+                  name="discoverCategory"
+                  defaultValue={discoverCategory}
+                  aria-label="Discover category filter"
+                >
+                  <option value="">All categories</option>
+                  {discoverCategoryOptions.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </Select>
+                <div className="relative">
+                  <Compass className="pointer-events-none absolute left-3 top-3 text-muted" size={16} />
+                  <Input
+                    name="discoverLocation"
+                    defaultValue={discoverLocation}
+                    placeholder="Location"
+                    className="pl-10"
+                    aria-label="Discover location filter"
+                  />
+                </div>
+                <label
+                  htmlFor="discoverRecommended"
+                  className="flex h-11 items-center gap-2 rounded-xl border border-silver/14 bg-background/20 px-3 text-sm text-foreground"
+                >
+                  <input
+                    id="discoverRecommended"
+                    name="discoverRecommended"
+                    type="checkbox"
+                    value="1"
+                    defaultChecked={discoverRecommended}
+                    className="h-4 w-4 rounded border-silver/30 bg-background"
+                  />
+                  Recommended
+                </label>
+                <label
+                  htmlFor="discoverBcn"
+                  className="flex h-11 items-center gap-2 rounded-xl border border-silver/14 bg-background/20 px-3 text-sm text-foreground"
+                >
+                  <input
+                    id="discoverBcn"
+                    name="discoverBcn"
+                    type="checkbox"
+                    value="1"
+                    defaultChecked={discoverBcn}
+                    className="h-4 w-4 rounded border-silver/30 bg-background"
+                  />
+                  BCN member
+                </label>
+                <Button type="submit" variant="outline" className="w-full gap-2 xl:w-auto">
+                  <Filter size={16} />
+                  Filter
+                </Button>
+              </form>
+
+              <div className="flex flex-col gap-2 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                  Showing published cards, excluding your own. Recently updated cards appear first.
+                </p>
+                {discoverHasFilters ? (
+                  <Link
+                    href="/dashboard/circle-card#discover"
+                    className="text-xs font-medium text-silver hover:text-foreground"
+                  >
+                    Clear discover filters
+                  </Link>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+
+          {discoverCards.length ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {discoverCards.map((candidate) => {
+                const roleLine =
+                  [candidate.role, candidate.businessName].filter(Boolean).join(" at ") ||
+                  "Circle Card contact";
+                const topRecommendation = candidate.recommendationsReceived[0] ?? null;
+                const recommendedByKnown = candidate.recommendedByKnown.length > 0;
+                const isSaved = Boolean(candidate.savedContact);
+
+                return (
+                  <Card key={candidate.id} className="border-silver/16 bg-card/62">
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                      <div className="flex min-w-0 gap-3">
+                        <div className="relative h-16 w-16 shrink-0">
+                          <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-silver/16 bg-background/28 text-base font-semibold text-foreground">
+                            {candidate.profileImageUrl ? (
+                              <img
+                                src={candidate.profileImageUrl}
+                                alt={candidate.fullName}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              candidate.fullName.slice(0, 2).toUpperCase()
+                            )}
+                          </div>
+                          {candidate.businessLogoUrl ? (
+                            <div className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center overflow-hidden rounded-xl border border-background bg-card shadow-inner-surface">
+                              <img
+                                src={candidate.businessLogoUrl}
+                                alt={`${candidate.fullName} business logo`}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base font-semibold text-foreground">{candidate.fullName}</h3>
+                            {candidate.isBcnMember ? (
+                              <Badge variant="outline" className="border-gold/25 text-gold">
+                                BCN member
+                              </Badge>
+                            ) : null}
+                            {isSaved ? (
+                              <Badge variant="outline" className="border-gold/25 text-gold">
+                                Saved
+                              </Badge>
+                            ) : null}
+                            {candidate.connectionState.kind === "connected" ? (
+                              <Badge variant="outline" className="border-gold/25 text-gold">
+                                Connected
+                              </Badge>
+                            ) : null}
+                            {candidate.connectionState.kind === "pending_outgoing" ? (
+                              <Badge variant="outline" className="border-silver/18 text-silver">
+                                Request Pending
+                              </Badge>
+                            ) : null}
+                            {candidate.connectionState.kind === "pending_incoming" ? (
+                              <Badge variant="outline" className="border-gold/25 text-gold">
+                                Request Incoming
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-sm text-silver">{roleLine}</p>
+                          {candidate.tagline ? (
+                            <p className="mt-2 text-sm leading-relaxed text-muted">{candidate.tagline}</p>
+                          ) : null}
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {candidate.location ? <Badge variant="muted">{candidate.location}</Badge> : null}
+                            <Badge variant="outline" className="border-silver/18 text-silver">
+                              {candidate.recommendationCount} recommendation
+                              {candidate.recommendationCount === 1 ? "" : "s"}
+                            </Badge>
+                            {candidate.recommendationCategoryLabels.map((category) => (
+                              <Badge key={category} variant="outline" className="border-silver/18 text-silver">
+                                {category}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {candidate.recommendationCount ? (
+                        <div className="rounded-2xl border border-gold/16 bg-gold/8 p-4">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <Star size={15} className="text-gold" />
+                            {recommendedByKnown
+                              ? "Recommended by people you know"
+                              : "Recommended by trusted connections"}
+                          </div>
+                          {candidate.knownRecommenderNames.length ? (
+                            <p className="mt-2 text-xs text-silver">
+                              {candidate.knownRecommenderNames.join(", ")}
+                            </p>
+                          ) : topRecommendation ? (
+                            <p className="mt-2 text-xs text-silver">
+                              {topRecommendation.recommenderCard.fullName}
+                              {topRecommendation.recommenderCard.businessName
+                                ? `, ${topRecommendation.recommenderCard.businessName}`
+                                : ""}
+                            </p>
+                          ) : null}
+                          {topRecommendation?.reason ? (
+                            <p className="mt-3 text-sm leading-relaxed text-muted">
+                              &ldquo;{topRecommendation.reason}&rdquo;
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-silver/14 bg-background/18 p-4 text-sm text-muted">
+                          Public recommendations will appear here when trusted connections vouch for this card.
+                        </div>
+                      )}
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <CircleCardTrackedLink
+                          href={`/card/${candidate.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          cardId={candidate.id}
+                          eventType="DISCOVER_CARD_VIEWED"
+                          metadata={{
+                            source: "discover",
+                            query: discoverQuery || null,
+                            category: discoverCategory || null,
+                            location: discoverLocation || null
+                          }}
+                          className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
+                        >
+                          View Card
+                          <ArrowUpRight size={16} />
+                        </CircleCardTrackedLink>
+
+                        {!isSaved ? (
+                          <form action={saveCircleWalletContactAction}>
+                            <input type="hidden" name="cardId" value={candidate.id} />
+                            <input type="hidden" name="returnPath" value={discoverReturnPath} />
+                            <input type="hidden" name="source" value="discover" />
+                            <Button type="submit" className="w-full gap-2">
+                              <WalletCards size={16} />
+                              Save to Wallet
+                            </Button>
+                          </form>
+                        ) : null}
+
+                        {isSaved && candidate.connectionState.kind === "none" ? (
+                          card ? (
+                            <form action={sendCircleCardConnectionRequestAction}>
+                              <input type="hidden" name="recipientCardId" value={candidate.id} />
+                              <input type="hidden" name="returnPath" value={discoverReturnPath} />
+                              <input type="hidden" name="source" value="discover" />
+                              <Button type="submit" className="w-full gap-2">
+                                <Send size={16} />
+                                Send Connection Request
+                              </Button>
+                            </form>
+                          ) : (
+                            <Button type="button" variant="outline" disabled className="w-full gap-2">
+                              <Send size={16} />
+                              Create card to connect
+                            </Button>
+                          )
+                        ) : null}
+
+                        {!isSaved ? (
+                          <Button type="button" variant="outline" disabled className="w-full gap-2">
+                            <Send size={16} />
+                            Save first to connect
+                          </Button>
+                        ) : null}
+
+                        {isSaved && candidate.connectionState.kind === "pending_outgoing" ? (
+                          <form action={cancelCircleCardConnectionRequestAction}>
+                            <input
+                              type="hidden"
+                              name="requestId"
+                              value={candidate.connectionState.request.id}
+                            />
+                            <input type="hidden" name="returnPath" value={discoverReturnPath} />
+                            <Button type="submit" variant="outline" className="w-full gap-2">
+                              <XCircle size={16} />
+                              Cancel Request
+                            </Button>
+                          </form>
+                        ) : null}
+
+                        {isSaved && candidate.connectionState.kind === "pending_incoming" ? (
+                          <Link
+                            href="/dashboard/circle-card?walletView=requests#wallet"
+                            className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
+                          >
+                            <MessageSquare size={16} />
+                            Request Incoming
+                          </Link>
+                        ) : null}
+
+                        {isSaved && candidate.connectionState.kind === "connected" ? (
+                          <Button type="button" variant="outline" disabled className="w-full gap-2">
+                            <CheckCircle2 size={16} />
+                            Connected
+                          </Button>
+                        ) : null}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="border-dashed border-silver/18 bg-card/48">
+              <CardContent className="py-10 text-center">
+                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
+                  <Compass size={20} />
+                </div>
+                <h3 className="mt-4 font-display text-2xl text-foreground">
+                  No Circle Cards found yet.
+                </h3>
+                <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                  Try a different search, add people through Connect Hub, or share your card so
+                  more people can find their way back to you.
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  {discoverHasFilters ? (
+                    <Link href="/dashboard/circle-card#discover">
+                      <Button type="button" variant="outline">
+                        Try a different search
+                      </Button>
+                    </Link>
+                  ) : null}
+                  <a href="#connect-hub" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+                    <Share2 size={16} />
+                    Add people through Connect Hub
+                  </a>
+                  <a href="#share-assets" className={cn(buttonVariants(), "gap-2")}>
+                    <QrCode size={16} />
+                    Share your card
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </CircleCardDashboardSection>
 
       <CircleCardDashboardSection
         id="connect-hub"

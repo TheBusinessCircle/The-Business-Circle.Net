@@ -1029,6 +1029,7 @@ export async function saveCircleWalletContactAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
   const returnPath = resolveReturnPath(formData.get("returnPath"), "/circle-card");
   const cardId = String(formData.get("cardId") || "");
+  const source = String(formData.get("source") || "").trim();
 
   if (!cardId) {
     redirectWithError(returnPath, "missing-card");
@@ -1082,9 +1083,20 @@ export async function saveCircleWalletContactAction(formData: FormData) {
     eventType: "WALLET_SAVE",
     userId: user.id,
     metadata: {
-      source: "circle_wallet"
+      source: source === "discover" ? "discover" : "circle_wallet"
     }
   });
+
+  if (source === "discover") {
+    await trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "DISCOVER_CARD_SAVED",
+      userId: user.id,
+      metadata: {
+        source: "discover"
+      }
+    });
+  }
 
   revalidatePath("/dashboard/circle-card");
   revalidatePath(`/card/${card.slug}`);
@@ -1531,6 +1543,7 @@ export async function resolveCircleCardLinkAction(formData: FormData) {
 export async function sendCircleCardConnectionRequestAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
   const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const source = String(formData.get("source") || "").trim();
   const parsed = circleCardConnectionRequestFormSchema.safeParse({
     recipientCardId: formData.get("recipientCardId"),
     message: formData.get("message")
@@ -1625,10 +1638,22 @@ export async function sendCircleCardConnectionRequestAction(formData: FormData) 
     eventType: "CONNECTION_REQUEST_SENT",
     userId: user.id,
     metadata: {
-      source: "circle_card_connection",
+      source: source === "discover" ? "discover" : "circle_card_connection",
       requesterCardId: requesterCard.id
     }
   });
+
+  if (source === "discover") {
+    await trackCircleCardEvent({
+      cardId: recipientCard.id,
+      eventType: "DISCOVER_CONNECTION_REQUEST_SENT",
+      userId: user.id,
+      metadata: {
+        source: "discover",
+        requesterCardId: requesterCard.id
+      }
+    });
+  }
 
   revalidateCircleCardConnectionPaths([requesterCard.slug, recipientCard.slug]);
   redirectWithNotice(returnPath, "connection-request-sent");

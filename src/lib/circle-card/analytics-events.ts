@@ -29,7 +29,11 @@ export const CIRCLE_CARD_EVENT_TYPES = [
   "RECOMMENDATION_CREATED",
   "RECOMMENDATION_UPDATED",
   "RECOMMENDATION_REMOVED",
-  "PUBLIC_RECOMMENDATION_VIEWED"
+  "PUBLIC_RECOMMENDATION_VIEWED",
+  "DISCOVER_SEARCH",
+  "DISCOVER_CARD_VIEWED",
+  "DISCOVER_CARD_SAVED",
+  "DISCOVER_CONNECTION_REQUEST_SENT"
 ] as const;
 
 export type CircleCardEventTypeValue = (typeof CIRCLE_CARD_EVENT_TYPES)[number];
@@ -65,5 +69,9 @@ export const CIRCLE_CARD_EVENT_LABELS: Record<CircleCardEventTypeValue, string> 
   RECOMMENDATION_CREATED: "Recommendation created",
   RECOMMENDATION_UPDATED: "Recommendation updated",
   RECOMMENDATION_REMOVED: "Recommendation removed",
-  PUBLIC_RECOMMENDATION_VIEWED: "Public recommendation viewed"
+  PUBLIC_RECOMMENDATION_VIEWED: "Public recommendation viewed",
+  DISCOVER_SEARCH: "Discover search",
+  DISCOVER_CARD_VIEWED: "Discover card viewed",
+  DISCOVER_CARD_SAVED: "Discover card saved",
+  DISCOVER_CONNECTION_REQUEST_SENT: "Discover connection request sent"
 };
