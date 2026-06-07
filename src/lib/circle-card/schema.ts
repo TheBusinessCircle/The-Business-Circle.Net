@@ -419,6 +419,43 @@ export function nullableNumber(value?: number | null) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+export function resolveCircleCardLookupSlug(value?: string | null) {
+  const raw = value?.trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  let candidate = raw;
+
+  try {
+    if (/^https?:\/\//i.test(raw)) {
+      candidate = new URL(raw).pathname;
+    }
+  } catch {
+    candidate = raw;
+  }
+
+  candidate = candidate.split(/[?#]/)[0]?.trim() ?? "";
+  const lowerCandidate = candidate.toLowerCase();
+  const embeddedCardPathIndex = lowerCandidate.indexOf("/card/");
+
+  if (embeddedCardPathIndex >= 0) {
+    candidate = candidate.slice(embeddedCardPathIndex + "/card/".length);
+  }
+
+  candidate = candidate
+    .replace(/^\/+/, "")
+    .replace(/^card\//i, "")
+    .replace(/^@/, "")
+    .replace(/\/+$/, "")
+    .split("/")[0]
+    ?.trim()
+    .toLowerCase() ?? "";
+
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(candidate) ? candidate : null;
+}
+
 export function isCircleWalletDateInput(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;

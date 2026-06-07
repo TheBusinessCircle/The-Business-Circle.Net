@@ -25,6 +25,7 @@ import {
   nullableText,
   parseCircleWalletDateInput,
   parseCircleWalletTagsInput,
+  resolveCircleCardLookupSlug,
   resolveCircleWalletLastInteractionDate
 } from "@/lib/circle-card/schema";
 import {
@@ -161,7 +162,7 @@ async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
 function appendQueryParam(path: string, key: string, value: string) {
   const url = new URL(path, "http://localhost");
   url.searchParams.set(key, value);
-  return `${url.pathname}${url.search}`;
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 function redirectWithNotice(path: string, notice: string): never {
@@ -987,6 +988,67 @@ export async function saveCircleWalletContactAction(formData: FormData) {
   revalidatePath("/dashboard/circle-card");
   revalidatePath(`/card/${card.slug}`);
   redirectWithNotice(returnPath, "card-saved");
+}
+
+export async function resolveCircleCardLinkAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const rawLookup = String(formData.get("cardLookup") || "");
+  const slug = resolveCircleCardLookupSlug(rawLookup);
+  const primaryCard = await getPrimaryCircleCardForUser(user.id);
+
+  async function trackFailedResolve(reason: string) {
+    if (!primaryCard) {
+      return;
+    }
+
+    await trackCircleCardEvent({
+      cardId: primaryCard.id,
+      eventType: "CARD_LINK_RESOLVE_FAILED",
+      userId: user.id,
+      metadata: {
+        source: "connect_hub",
+        reason
+      }
+    });
+  }
+
+  if (!slug) {
+    await trackFailedResolve("invalid_input");
+    redirect("/dashboard/circle-card?error=card-link-invalid#connect-hub");
+  }
+
+  const resolvedCard = await prisma.circleCard.findFirst({
+    where: {
+      slug,
+      isPublished: true,
+      user: {
+        suspended: false
+      }
+    },
+    select: {
+      id: true,
+      slug: true,
+      userId: true
+    }
+  });
+
+  if (!resolvedCard) {
+    await trackFailedResolve("not_found");
+    redirect("/dashboard/circle-card?error=card-link-not-found#connect-hub");
+  }
+
+  await trackCircleCardEvent({
+    cardId: primaryCard?.id ?? resolvedCard.id,
+    eventType: "CARD_LINK_RESOLVED",
+    userId: user.id,
+    metadata: {
+      source: "connect_hub",
+      resolvedSlug: resolvedCard.slug,
+      ownCard: resolvedCard.userId === user.id
+    }
+  });
+
+  redirect(`/dashboard/circle-card?connectCard=${encodeURIComponent(resolvedCard.slug)}#connect-hub`);
 }
 
 export async function sendCircleCardConnectionRequestAction(formData: FormData) {

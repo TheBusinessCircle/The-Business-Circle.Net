@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Share2 } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
+import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
 import { trackCircleCardEvent } from "@/lib/circle-card/analytics-client";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,7 @@ type CircleCardShareButtonProps = {
   text?: string;
   label?: string;
   analyticsSource?: string;
+  eventType?: CircleCardEventTypeValue;
   variant?: ButtonProps["variant"];
   size?: ButtonProps["size"];
   className?: string;
@@ -45,6 +47,7 @@ export function CircleCardShareButton({
   text = "Save or share this Circle Card from The Business Circle.",
   label = "Share Card",
   analyticsSource = "public_card",
+  eventType = "SHARE",
   variant = "outline",
   size = "default",
   className,
@@ -65,7 +68,7 @@ export function CircleCardShareButton({
         if (cardId) {
           trackCircleCardEvent({
             cardId,
-            eventType: "SHARE",
+            eventType,
             metadata: {
               method: "native",
               source: analyticsSource
@@ -80,7 +83,7 @@ export function CircleCardShareButton({
       if (cardId) {
         trackCircleCardEvent({
           cardId,
-          eventType: "SHARE",
+          eventType,
           metadata: {
             method: "copy_link",
             source: analyticsSource

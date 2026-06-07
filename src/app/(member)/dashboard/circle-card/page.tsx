@@ -10,6 +10,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ContactRound,
+  Camera,
   Crown,
   Download,
   Eye,
@@ -41,6 +42,8 @@ import {
   declineCircleCardConnectionRequestAction,
   moveCircleCardLinkAction,
   removeCircleWalletContactAction,
+  resolveCircleCardLinkAction,
+  saveCircleWalletContactAction,
   sendCircleCardConnectionRequestAction,
   toggleCircleWalletFavouriteAction,
   toggleCircleCardLinkAction,
@@ -82,7 +85,8 @@ import {
   CIRCLE_WALLET_CATEGORY_OPTIONS,
   CIRCLE_WALLET_MET_AT_OPTIONS,
   readCircleCardSocialLinks,
-  readCircleWalletTags
+  readCircleWalletTags,
+  resolveCircleCardLookupSlug
 } from "@/lib/circle-card/schema";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
@@ -124,6 +128,7 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "connection-request-pending": "A connection request is already pending.",
   "connection-request-incoming": "That contact has already sent you a request.",
   "connection-already-connected": "You are already connected.",
+  "card-link-resolved": "Circle Card link resolved.",
   "custom-link-created": "Custom link added.",
   "custom-link-updated": "Custom link updated.",
   "custom-link-deleted": "Custom link deleted.",
@@ -151,6 +156,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   "connection-save-first": "Save that Circle Card before sending a request.",
   "connection-request-not-found": "That connection request is no longer pending.",
   "connection-request-failed": "The connection request could not be sent.",
+  "card-link-invalid": "Enter a valid Circle Card link or slug.",
+  "card-link-not-found": "No published Circle Card was found for that link.",
   "wallet-contact-invalid": "Check the relationship details and try again.",
   "wallet-contact-not-found": "That saved contact could not be found."
 };
@@ -447,7 +454,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const walletCategory = (firstValue(params.walletCategory) ?? "").trim();
   const walletFollowUp = resolveWalletFollowUpFilter(firstValue(params.walletFollowUp));
   const selectedContactId = firstValue(params.contactId);
-  const [card, cardCount, member, walletContacts, connectionRequests] = await Promise.all([
+  const connectCardSlug = resolveCircleCardLookupSlug(firstValue(params.connectCard));
+  const [card, cardCount, member, walletContacts, connectionRequests, connectHubCard] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
       orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
@@ -557,7 +565,30 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           }
         }
       }
-    })
+    }),
+    connectCardSlug
+      ? prisma.circleCard.findFirst({
+          where: {
+            slug: connectCardSlug,
+            isPublished: true,
+            user: {
+              suspended: false
+            }
+          },
+          select: {
+            id: true,
+            slug: true,
+            userId: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            tagline: true,
+            location: true,
+            profileImageUrl: true,
+            businessLogoUrl: true
+          }
+        })
+      : Promise.resolve(null)
   ]);
   const normalizedWalletContacts = walletContacts.map((contact) => ({
     ...contact,
@@ -701,6 +732,19 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     recent: Math.min(savedContactCount, 8)
   };
   const activeWalletFilters = Boolean(walletQuery || walletCategory || walletFollowUp);
+  const connectHubSavedContact = connectHubCard
+    ? normalizedWalletContacts.find((contact) => contact.card.id === connectHubCard.id) ?? null
+    : null;
+  const connectHubConnectionState = connectHubCard ? walletConnectionState(connectHubCard.id) : null;
+  const connectHubOwnCard = Boolean(connectHubCard && connectHubCard.userId === session.user.id);
+  const connectHubReturnPath = connectHubCard
+    ? `/dashboard/circle-card?connectCard=${encodeURIComponent(connectHubCard.slug)}#connect-hub`
+    : "/dashboard/circle-card#connect-hub";
+  const connectHubRecentlyConnected = [...acceptedConnectionRequests]
+    .sort((a, b) => Number(b.respondedAt ?? b.createdAt) - Number(a.respondedAt ?? a.createdAt))
+    .map((request) => otherConnectionCard(request))
+    .slice(0, 5);
+  const connectHubLookupMissing = Boolean(connectCardSlug && !connectHubCard);
   const accessLevel = resolveCircleCardAccessLevel({
     role: session.user.role,
     membershipTier: session.user.membershipTier,
@@ -773,6 +817,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Email clicks", value: analytics?.counts.EMAIL_CLICK ?? 0 },
     { label: "Phone clicks", value: analytics?.counts.PHONE_CLICK ?? 0 },
     { label: "Custom link clicks", value: analytics?.counts.CUSTOM_LINK_CLICK ?? 0 },
+    { label: "Connect Hub shares", value: analytics?.counts.CONNECT_HUB_SHARE ?? 0 },
+    { label: "Connect Hub copies", value: analytics?.counts.CONNECT_HUB_COPY_LINK ?? 0 },
+    { label: "Card link resolves", value: analytics?.counts.CARD_LINK_RESOLVED ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
 
@@ -792,7 +839,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Create a clean card, share it with a QR code, and give new contacts a direct route
               back to you and the Business Circle ecosystem.
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              <a
+                href="#connect-hub"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+              >
+                <Share2 size={16} />
+                Connect Hub
+              </a>
               <a
                 href="#public-card"
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
@@ -899,6 +953,366 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           {ERROR_MESSAGES[error]}
         </p>
       ) : null}
+
+      <CircleCardDashboardSection
+        id="connect-hub"
+        title="Connect Hub"
+        summary="Share your card, add someone by link, and move quickly into wallet connections"
+        defaultOpen
+        badge={
+          <Badge variant="outline" className="border-gold/28 text-gold">
+            {pendingIncomingRequests.length + pendingOutgoingRequests.length} request
+            {pendingIncomingRequests.length + pendingOutgoingRequests.length === 1 ? "" : "s"}
+          </Badge>
+        }
+      >
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+          <div className="grid gap-4">
+            <Card className="border-gold/18 bg-gold/8">
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="inline-flex items-center gap-2 text-lg">
+                      <Share2 size={17} className="text-gold" />
+                      Share My Card
+                    </CardTitle>
+                    <CardDescription>
+                      Send your Circle Card to someone so they can save you or connect back.
+                    </CardDescription>
+                  </div>
+                  {card?.isPublished ? (
+                    <Badge variant="outline" className="w-fit border-gold/28 text-gold">
+                      Published
+                    </Badge>
+                  ) : null}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {card && publicUrl ? (
+                  <>
+                    <div className="rounded-2xl border border-gold/18 bg-background/24 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gold">
+                        Public card link
+                      </p>
+                      <p className="mt-2 break-all text-sm text-foreground">{publicUrl}</p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                      <CircleCardCopyLinkButton
+                        publicUrl={publicUrl}
+                        label="Copy Link"
+                        className="h-10 w-full"
+                        analytics={{
+                          cardId: card.id,
+                          eventType: "CONNECT_HUB_COPY_LINK",
+                          source: "connect_hub"
+                        }}
+                      />
+                      <CircleCardShareButton
+                        title={`${card.fullName} | Circle Card`}
+                        publicUrl={publicUrl}
+                        cardId={card.id}
+                        analyticsSource="connect_hub"
+                        eventType="CONNECT_HUB_SHARE"
+                        label="Share"
+                        hideStatus
+                        buttonClassName="h-10"
+                      />
+                      <a href="#public-card" className={cn(buttonVariants({ variant: "outline" }), "h-10 gap-2")}>
+                        <QrCode size={16} />
+                        QR
+                      </a>
+                      <Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" variant="outline" className="h-10 w-full gap-2">
+                          Open
+                          <ArrowUpRight size={16} />
+                        </Button>
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                    Create and publish your Circle Card before sharing.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="border-silver/16 bg-card/62">
+                <CardHeader>
+                  <CardTitle className="inline-flex items-center gap-2 text-lg">
+                    <Camera size={17} className="text-silver" />
+                    Scan QR
+                  </CardTitle>
+                  <CardDescription>Camera scanning will live here when the scanner route is ready.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                    QR scanning is coming soon.
+                  </div>
+                  <Button type="button" variant="outline" disabled className="w-full gap-2">
+                    <QrCode size={16} />
+                    Scanner Coming Soon
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-silver/16 bg-card/62">
+                <CardHeader>
+                  <CardTitle className="inline-flex items-center gap-2 text-lg">
+                    <MessageSquare size={17} className="text-silver" />
+                    Connection Requests
+                  </CardTitle>
+                  <CardDescription>
+                    {pendingIncomingRequests.length} incoming, {pendingOutgoingRequests.length} outgoing.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                  <a
+                    href="/dashboard/circle-card?walletView=requests#wallet"
+                    className="rounded-2xl border border-gold/18 bg-gold/8 p-4 hover:border-gold/32"
+                  >
+                    <span className="text-2xl font-semibold text-foreground">{pendingIncomingRequests.length}</span>
+                    <span className="mt-1 block text-xs uppercase tracking-[0.08em] text-gold">Incoming</span>
+                  </a>
+                  <a
+                    href="/dashboard/circle-card?walletView=requests#wallet"
+                    className="rounded-2xl border border-silver/14 bg-background/18 p-4 hover:border-silver/28"
+                  >
+                    <span className="text-2xl font-semibold text-foreground">{pendingOutgoingRequests.length}</span>
+                    <span className="mt-1 block text-xs uppercase tracking-[0.08em] text-silver">Outgoing</span>
+                  </a>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <Card className="border-silver/16 bg-card/62">
+              <CardHeader>
+                <CardTitle className="inline-flex items-center gap-2 text-lg">
+                  <LinkIcon size={17} className="text-silver" />
+                  Enter Card Link
+                </CardTitle>
+                <CardDescription>Paste a Circle Card link, path or slug.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form action={resolveCircleCardLinkAction} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  <Input
+                    name="cardLookup"
+                    defaultValue={connectHubCard ? `/card/${connectHubCard.slug}` : ""}
+                    placeholder="https://thebusinesscircle.net/card/rhys"
+                    aria-label="Circle Card link or slug"
+                  />
+                  <Button type="submit" className="w-full gap-2 sm:w-auto">
+                    <Search size={16} />
+                    Find Card
+                  </Button>
+                </form>
+
+                {connectHubLookupMissing ? (
+                  <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                    No preview is available for that card link.
+                  </div>
+                ) : null}
+
+                {connectHubCard ? (
+                  <div className="rounded-2xl border border-silver/14 bg-background/20 p-4">
+                    <div className="flex min-w-0 gap-3">
+                      <div className="relative h-14 w-14 shrink-0">
+                        <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-silver/16 bg-background/28 text-sm font-semibold text-foreground">
+                          {connectHubCard.profileImageUrl ? (
+                            <img
+                              src={connectHubCard.profileImageUrl}
+                              alt={connectHubCard.fullName}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            connectHubCard.fullName.slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        {connectHubCard.businessLogoUrl ? (
+                          <div className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center overflow-hidden rounded-xl border border-background bg-card shadow-inner-surface">
+                            <img
+                              src={connectHubCard.businessLogoUrl}
+                              alt={`${connectHubCard.fullName} business logo`}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base font-semibold text-foreground">{connectHubCard.fullName}</h3>
+                          {connectHubOwnCard ? (
+                            <Badge variant="outline" className="border-gold/25 text-gold">
+                              This is your card
+                            </Badge>
+                          ) : null}
+                          {connectHubSavedContact ? (
+                            <Badge variant="outline" className="border-gold/25 text-gold">
+                              Saved
+                            </Badge>
+                          ) : null}
+                          {connectHubConnectionState?.kind === "connected" ? (
+                            <Badge variant="outline" className="border-gold/25 text-gold">
+                              Connected
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-sm text-silver">
+                          {[connectHubCard.role, connectHubCard.businessName].filter(Boolean).join(" at ") ||
+                            "Circle Card contact"}
+                        </p>
+                        {connectHubCard.tagline ? (
+                          <p className="mt-2 text-sm text-muted">{connectHubCard.tagline}</p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <Link href={`/card/${connectHubCard.slug}`} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" variant="outline" className="w-full gap-2">
+                          Open Card
+                          <ArrowUpRight size={16} />
+                        </Button>
+                      </Link>
+
+                      {!connectHubOwnCard && !connectHubSavedContact ? (
+                        <form action={saveCircleWalletContactAction}>
+                          <input type="hidden" name="cardId" value={connectHubCard.id} />
+                          <input type="hidden" name="returnPath" value={connectHubReturnPath} />
+                          <Button type="submit" className="w-full gap-2">
+                            <WalletCards size={16} />
+                            Save to Wallet
+                          </Button>
+                        </form>
+                      ) : null}
+
+                      {!connectHubOwnCard && connectHubSavedContact && connectHubConnectionState?.kind === "none" ? (
+                        card ? (
+                          <form action={sendCircleCardConnectionRequestAction} className="space-y-2 sm:col-span-2">
+                            <input type="hidden" name="recipientCardId" value={connectHubCard.id} />
+                            <input type="hidden" name="returnPath" value={connectHubReturnPath} />
+                            <Textarea
+                              name="message"
+                              rows={2}
+                              maxLength={240}
+                              placeholder="Hi, good to connect through Circle Card."
+                              aria-label="Connection request message"
+                            />
+                            <Button type="submit" className="w-full gap-2">
+                              <Send size={16} />
+                              Send Connection Request
+                            </Button>
+                          </form>
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted sm:col-span-2">
+                            Create your Circle Card before sending connection requests.
+                          </div>
+                        )
+                      ) : null}
+
+                      {!connectHubOwnCard && connectHubSavedContact && connectHubConnectionState?.kind === "pending_outgoing" ? (
+                        <form action={cancelCircleCardConnectionRequestAction}>
+                          <input type="hidden" name="requestId" value={connectHubConnectionState.request.id} />
+                          <input type="hidden" name="returnPath" value={connectHubReturnPath} />
+                          <Button type="submit" variant="outline" className="w-full gap-2">
+                            <XCircle size={16} />
+                            Cancel Request
+                          </Button>
+                        </form>
+                      ) : null}
+
+                      {!connectHubOwnCard && connectHubSavedContact && connectHubConnectionState?.kind === "pending_incoming" ? (
+                        <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2">
+                          <form action={acceptCircleCardConnectionRequestAction}>
+                            <input type="hidden" name="requestId" value={connectHubConnectionState.request.id} />
+                            <input type="hidden" name="returnPath" value={connectHubReturnPath} />
+                            <Button type="submit" className="w-full gap-2">
+                              <UserCheck size={16} />
+                              Accept
+                            </Button>
+                          </form>
+                          <form action={declineCircleCardConnectionRequestAction}>
+                            <input type="hidden" name="requestId" value={connectHubConnectionState.request.id} />
+                            <input type="hidden" name="returnPath" value={connectHubReturnPath} />
+                            <Button type="submit" variant="outline" className="w-full gap-2">
+                              <UserX size={16} />
+                              Decline
+                            </Button>
+                          </form>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="border-silver/16 bg-card/62">
+                <CardHeader>
+                  <CardTitle className="inline-flex items-center gap-2 text-lg">
+                    <WalletCards size={17} className="text-silver" />
+                    Recently Added
+                  </CardTitle>
+                  <CardDescription>Latest saved wallet contacts.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {recentWalletContacts.slice(0, 5).length ? (
+                    recentWalletContacts.slice(0, 5).map((contact) => (
+                      <Link
+                        key={contact.id}
+                        href={`${buildWalletHref({ contactId: contact.id })}#wallet`}
+                        className="block rounded-2xl border border-silver/14 bg-background/20 px-4 py-3 text-sm text-foreground hover:border-silver/28"
+                      >
+                        {contact.card.fullName}
+                        <span className="mt-1 block text-xs text-muted">
+                          {contact.card.businessName || contact.card.role || "Circle Card contact"}
+                        </span>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted">Saved cards will appear here.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-silver/16 bg-card/62">
+                <CardHeader>
+                  <CardTitle className="inline-flex items-center gap-2 text-lg">
+                    <UserCheck size={17} className="text-silver" />
+                    Connected People
+                  </CardTitle>
+                  <CardDescription>Latest mutual Circle Card connections.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {connectHubRecentlyConnected.length ? (
+                    connectHubRecentlyConnected.map((connectedCard) => (
+                      <Link
+                        key={connectedCard.id}
+                        href={`/card/${connectedCard.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block rounded-2xl border border-gold/18 bg-gold/8 px-4 py-3 text-sm text-foreground hover:border-gold/32"
+                      >
+                        {connectedCard.fullName}
+                        <span className="mt-1 block text-xs text-muted">
+                          {[connectedCard.role, connectedCard.businessName].filter(Boolean).join(" at ") ||
+                            "Circle Card contact"}
+                        </span>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted">Mutual connections will appear here.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </CircleCardDashboardSection>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
         <Card id="circle-card-form" className="scroll-mt-24 border-silver/16 bg-card/62">
