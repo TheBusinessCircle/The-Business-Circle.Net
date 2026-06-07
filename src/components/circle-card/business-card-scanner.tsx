@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type MouseEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowUpRight,
   Camera,
@@ -147,6 +148,20 @@ const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"])
 const SUPPORTED_IMAGE_EXTENSIONS = /\.(jpe?g|png|webp)$/i;
 const DEVICE_TOO_LARGE_MESSAGE =
   "This image is too large for your device to process. Please retake the photo a little further away or choose a smaller image.";
+const SCANNER_DEBUG = process.env.NODE_ENV !== "production";
+
+function debugScanner(message: string, metadata?: Record<string, unknown>) {
+  if (!SCANNER_DEBUG) {
+    return;
+  }
+
+  if (metadata) {
+    console.debug(`[business-card-scanner] ${message}`, metadata);
+    return;
+  }
+
+  console.debug(`[business-card-scanner] ${message}`);
+}
 
 function toScannerFields(payload: NonNullable<BusinessCardScanPayload["scan"]>["fields"]): ScannerFields {
   return {
@@ -433,12 +448,17 @@ function friendlyImageError(error: unknown) {
 export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardScannerProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const [inputHost, setInputHost] = useState<HTMLElement | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [stage, setStage] = useState<ScannerStage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [preparedImage, setPreparedImage] = useState<PreparedImage | null>(null);
   const [scan, setScan] = useState<BusinessCardScanPayload["scan"] | null>(null);
   const [fields, setFields] = useState<ScannerFields>(EMPTY_FIELDS);
+
+  useEffect(() => {
+    setInputHost(document.body);
+  }, []);
 
   useEffect(() => {
     const previewUrl = preparedImage?.previewUrl;
@@ -455,6 +475,11 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
       return;
     }
 
+    debugScanner("file selected", {
+      name: file.name,
+      size: file.size,
+      type: file.type || "unknown"
+    });
     setExpanded(true);
     setError(null);
     setScan(null);
@@ -465,7 +490,14 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
     try {
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setStage("optimising");
+      debugScanner("optimisation started");
       const optimised = await optimiseBusinessCardImage(file);
+      debugScanner("optimisation complete", {
+        optimisedSize: optimised.file.size,
+        originalSize: optimised.originalSize,
+        width: optimised.width,
+        height: optimised.height
+      });
       setPreparedImage(optimised);
       setStage("ready");
     } catch (optimisationError) {
@@ -491,6 +523,10 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
     setStage("uploading");
 
     try {
+      debugScanner("scan request started", {
+        size: preparedImage.file.size,
+        type: preparedImage.file.type
+      });
       const payload = await uploadBusinessCardScan(preparedImage.file, setStage);
 
       if (!payload.scan) {
@@ -509,7 +545,32 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    void handleFile(event.target.files?.[0]);
+    event.preventDefault();
+    event.stopPropagation();
+
+    void handleFile(event.currentTarget.files?.[0]);
+  }
+
+  function handlePickerClick(event: MouseEvent<HTMLInputElement>) {
+    event.stopPropagation();
+  }
+
+  function openCameraPicker(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    cameraInputRef.current?.click();
+  }
+
+  function openUploadPicker(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    uploadInputRef.current?.click();
+  }
+
+  function scanPreparedImage(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    void handleScanPreparedImage();
   }
 
   function updateField(field: keyof Omit<ScannerFields, "socialHandles">, value: string) {
@@ -535,6 +596,31 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
   const returnPath = firstMatch
     ? `/dashboard/circle-card?connectCard=${encodeURIComponent(firstMatch.slug)}#connect-hub`
     : "/dashboard/circle-card#connect-hub";
+  const fileInputs = (
+    <>
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        tabIndex={-1}
+        data-business-card-scanner-input="camera"
+        onClick={handlePickerClick}
+        onChange={handleFileChange}
+      />
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+        className="hidden"
+        tabIndex={-1}
+        data-business-card-scanner-input="upload"
+        onClick={handlePickerClick}
+        onChange={handleFileChange}
+      />
+    </>
+  );
 
   return (
     <Card id="business-card-scanner" className="scroll-mt-24 border-gold/18 bg-gold/8">
@@ -555,28 +641,14 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-          capture="environment"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-        <input
-          ref={uploadInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-          className="hidden"
-          onChange={handleFileChange}
-        />
+        {inputHost ? createPortal(fileInputs, inputHost) : null}
 
         <div className="grid gap-2 sm:grid-cols-2">
           <Button
             type="button"
             className="gap-2"
             disabled={busy}
-            onClick={() => cameraInputRef.current?.click()}
+            onClick={openCameraPicker}
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
             Take Photo
@@ -586,7 +658,7 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
             variant="outline"
             className="gap-2"
             disabled={busy}
-            onClick={() => uploadInputRef.current?.click()}
+            onClick={openUploadPicker}
           >
             <ImageUp size={16} />
             Upload Image
@@ -631,7 +703,7 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
                 type="button"
                 className="gap-2 sm:col-span-1"
                 disabled={busy}
-                onClick={() => void handleScanPreparedImage()}
+                onClick={scanPreparedImage}
               >
                 <ScanLine size={16} />
                 Scan this card
@@ -641,7 +713,7 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
                 variant="outline"
                 className="gap-2"
                 disabled={busy}
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={openCameraPicker}
               >
                 <RotateCcw size={16} />
                 Retake
@@ -651,7 +723,7 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
                 variant="outline"
                 className="gap-2"
                 disabled={busy}
-                onClick={() => uploadInputRef.current?.click()}
+                onClick={openUploadPicker}
               >
                 <ImageUp size={16} />
                 Choose another
