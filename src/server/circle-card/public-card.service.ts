@@ -30,6 +30,19 @@ export type PublicCircleCardLink = {
   sortOrder: number;
 };
 
+export type PublicCircleCardRecommendation = {
+  id: string;
+  category: string;
+  reason: string | null;
+  createdAt: Date;
+  recommenderCard: {
+    slug: string;
+    fullName: string;
+    businessName: string | null;
+    role: string | null;
+  };
+};
+
 export type PublicCircleCard = {
   id: string;
   userId: string;
@@ -53,6 +66,7 @@ export type PublicCircleCard = {
   location: string | null;
   socialLinks: CircleCardSocialLinks;
   customLinks: PublicCircleCardLink[];
+  recommendations: PublicCircleCardRecommendation[];
   viewCount: number;
   isDemo: boolean;
   user: {
@@ -130,6 +144,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
       sortOrder: 1
     }
   ],
+  recommendations: [],
   viewCount: 0,
   isDemo: true,
   user: {
@@ -199,6 +214,34 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           sortOrder: true
         }
       },
+      recommendationsReceived: {
+        where: {
+          visibility: "PUBLIC",
+          status: "ACTIVE",
+          recommenderCard: {
+            isPublished: true,
+            user: {
+              suspended: false
+            }
+          }
+        },
+        orderBy: [{ createdAt: "desc" }],
+        take: 12,
+        select: {
+          id: true,
+          category: true,
+          reason: true,
+          createdAt: true,
+          recommenderCard: {
+            select: {
+              slug: true,
+              fullName: true,
+              businessName: true,
+              role: true
+            }
+          }
+        }
+      },
       viewCount: true,
       user: {
         select: {
@@ -231,6 +274,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           : hasEntitledSubscription(card.user.subscription?.status ?? null)
     },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
+    recommendations: card.recommendationsReceived,
     customLinks: card.customLinks.map((link) => {
       const { accessCodeHash, ...publicLink } = link;
       const visibility = (link.visibility || "PUBLIC") as CircleCardLinkVisibility;

@@ -711,9 +711,107 @@ function TrustArea({ card, ownerAccountLabel, ownerIsBcnMember }: TrustAreaProps
         ) : (
           <PremiumBadge icon={<ShieldCheck size={13} />} label={ownerAccountLabel} muted />
         )}
+        {card.recommendations.length ? (
+          <PremiumBadge
+            icon={<UserCheck size={13} />}
+            label={`Trusted by ${card.recommendations.length} connection${card.recommendations.length === 1 ? "" : "s"}`}
+            muted
+          />
+        ) : null}
         <PremiumBadge icon={<BadgeCheck size={13} />} label="Founder Verification Ready" muted />
         <PremiumBadge icon={<Gem size={13} />} label="Future Verified Founder" muted />
       </div>
+    </section>
+  );
+}
+
+function PublicRecommendationItem({
+  recommendation
+}: {
+  recommendation: PublicCircleCard["recommendations"][number];
+}) {
+  const recommenderDetail = [
+    recommendation.recommenderCard.role,
+    recommendation.recommenderCard.businessName
+  ]
+    .filter(Boolean)
+    .join(" at ");
+
+  return (
+    <article className="rounded-2xl border border-silver/14 bg-white/[0.035] p-4 shadow-inner-surface">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            href={`/card/${recommendation.recommenderCard.slug}`}
+            className="text-sm font-semibold text-foreground hover:text-gold"
+          >
+            {recommendation.recommenderCard.fullName}
+          </Link>
+          {recommenderDetail ? (
+            <p className="mt-1 text-xs text-muted">{recommenderDetail}</p>
+          ) : null}
+        </div>
+        <span className="rounded-full border border-gold/22 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold">
+          {recommendation.category}
+        </span>
+      </div>
+      {recommendation.reason ? (
+        <p className="mt-3 text-sm leading-relaxed text-silver">
+          &ldquo;{recommendation.reason}&rdquo;
+        </p>
+      ) : null}
+    </article>
+  );
+}
+
+function PublicRecommendations({
+  recommendations
+}: {
+  recommendations: PublicCircleCard["recommendations"];
+}) {
+  if (!recommendations.length) {
+    return null;
+  }
+
+  const visibleRecommendations = recommendations.slice(0, 3);
+  const hiddenRecommendations = recommendations.slice(3);
+
+  return (
+    <section
+      aria-labelledby="circle-card-recommendations-title"
+      className="rounded-[1.75rem] border border-gold/20 bg-[linear-gradient(145deg,rgba(9,20,45,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-medium text-gold">Trust Layer</p>
+          <h2 id="circle-card-recommendations-title" className="mt-1 font-display text-2xl text-foreground">
+            Recommended by trusted connections
+          </h2>
+        </div>
+        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-gold/22 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold">
+          <UserCheck size={13} />
+          Recommended by {recommendations.length} people
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {visibleRecommendations.map((recommendation) => (
+          <PublicRecommendationItem key={recommendation.id} recommendation={recommendation} />
+        ))}
+      </div>
+
+      {hiddenRecommendations.length ? (
+        <details className="mt-3 rounded-2xl border border-silver/14 bg-white/[0.03] p-3">
+          <summary className="cursor-pointer text-sm font-medium text-silver hover:text-foreground">
+            View more
+          </summary>
+          <div className="mt-3 grid gap-3">
+            {hiddenRecommendations.map((recommendation) => (
+              <PublicRecommendationItem key={recommendation.id} recommendation={recommendation} />
+            ))}
+          </div>
+        </details>
+      ) : null}
     </section>
   );
 }
@@ -737,6 +835,7 @@ export function PublicCircleCardProfile({
   const errorMessage = error ? ERROR_MESSAGES[error] : null;
   const viewLabel = card.isDemo ? "Demo identity" : `${card.viewCount + 1} public views`;
   const membershipLabel = membershipBadgeLabel(card, ownerIsBcnMember);
+  const recommendationCount = card.recommendations.length;
   const contactRows: ContactRow[] = [];
 
   if (card.websiteUrl) {
@@ -1143,6 +1242,13 @@ export function PublicCircleCardProfile({
                   ) : (
                     <PremiumBadge icon={<ShieldCheck size={13} />} label={ownerAccountLabel} muted />
                   )}
+                  {recommendationCount ? (
+                    <PremiumBadge
+                      icon={<UserCheck size={13} />}
+                      label={`Recommended by ${recommendationCount} people`}
+                      muted
+                    />
+                  ) : null}
                   <PremiumBadge icon={<BadgeCheck size={13} />} label="Founder Verification Ready" muted />
                   <PremiumBadge icon={<Gem size={13} />} label="Future Verified Founder" muted />
                 </div>
@@ -1229,6 +1335,8 @@ export function PublicCircleCardProfile({
                 </div>
               ) : null}
             </section>
+
+            <PublicRecommendations recommendations={card.recommendations} />
 
             <section id="qr" aria-label="Circle Card QR code" className="scroll-mt-24 xl:hidden">
               <CircleCardQrPanel

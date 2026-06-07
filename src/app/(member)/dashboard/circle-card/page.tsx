@@ -48,7 +48,9 @@ import {
   sendCircleCardConnectionRequestAction,
   toggleCircleWalletFavouriteAction,
   toggleCircleCardLinkAction,
+  updateCircleCardRecommendationStatusAction,
   updateCircleWalletContactDetailsAction,
+  upsertCircleCardRecommendationAction,
   upsertCircleCardAction,
   upsertCircleCardLinkAction
 } from "@/actions/circle-card.actions";
@@ -84,6 +86,10 @@ import {
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
 import { buildCircleCardShareSourceUrl } from "@/lib/circle-card/share-sources";
+import {
+  CIRCLE_CARD_RECOMMENDATION_CATEGORIES,
+  circleCardRecommendationVisibilityLabel
+} from "@/lib/circle-card/recommendations";
 import {
   type CircleCardLinkType,
   CIRCLE_WALLET_CATEGORY_OPTIONS,
@@ -138,6 +144,10 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "business-card-match-found": "Existing Circle Card found for that business card.",
   "business-card-duplicate": "That contact is already in your Circle Wallet.",
   "claim-link-generated": "Claim link generated. Copy it from the selected contact.",
+  "recommendation-created": "Recommendation saved.",
+  "recommendation-updated": "Recommendation updated.",
+  "recommendation-hidden": "Recommendation hidden from public display.",
+  "recommendation-removed": "Recommendation removed.",
   "custom-link-created": "Custom link added.",
   "custom-link-updated": "Custom link updated.",
   "custom-link-deleted": "Custom link deleted.",
@@ -170,13 +180,20 @@ const ERROR_MESSAGES: Record<string, string> = {
   "wallet-contact-invalid": "Check the relationship details and try again.",
   "wallet-contact-not-found": "That saved contact could not be found.",
   "business-card-invalid": "Check the scanned business card details and try again.",
-  "claim-link-email-required": "Add an email before generating a claim link."
+  "claim-link-email-required": "Add an email before generating a claim link.",
+  "recommendation-invalid": "Check the recommendation fields and try again.",
+  "recommendation-primary-card-required": "Create your own Circle Card before recommending someone.",
+  "recommendation-self": "You cannot recommend yourself.",
+  "recommendation-public-card-required": "Public recommendations need a saved public Circle Card contact.",
+  "recommendation-duplicate": "You already publicly recommend this person in that category.",
+  "recommendation-not-found": "That recommendation could not be found."
 };
 
 const WALLET_VIEW_OPTIONS = [
   { value: "all", label: "All" },
   { value: "connected", label: "Connected" },
   { value: "favourites", label: "Favourites" },
+  { value: "recommended", label: "People I Recommend" },
   { value: "requests", label: "Requests" },
   { value: "recent", label: "Recent" }
 ] as const;
@@ -224,7 +241,11 @@ type WalletView = (typeof WALLET_VIEW_OPTIONS)[number]["value"];
 type WalletFollowUpFilter = (typeof WALLET_FOLLOW_UP_FILTER_OPTIONS)[number]["value"];
 
 function resolveWalletView(value: string | undefined): WalletView {
-  return value === "connected" || value === "favourites" || value === "requests" || value === "recent"
+  return value === "connected" ||
+    value === "favourites" ||
+    value === "recommended" ||
+    value === "requests" ||
+    value === "recent"
     ? value
     : "all";
 }
@@ -574,6 +595,26 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             phone: true,
             isPublished: true
           }
+        },
+        recommendations: {
+          where: {
+            recommenderUserId: session.user.id,
+            status: {
+              not: "REMOVED"
+            }
+          },
+          orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+          select: {
+            id: true,
+            category: true,
+            reason: true,
+            visibility: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            recommendedCardId: true,
+            walletContactId: true
+          }
         }
       }
     }),
@@ -730,6 +771,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     contact.card?.id ? connectedByCardId.has(contact.card.id) : false
   );
   const favouriteWalletContacts = normalizedWalletContacts.filter((contact) => contact.favourite);
+  const recommendedWalletContacts = normalizedWalletContacts.filter(
+    (contact) => contact.recommendations.length > 0
+  );
   const recentWalletContacts = normalizedWalletContacts.slice(0, 4);
   const needsFollowUpWalletContacts = normalizedWalletContacts.filter((contact) => {
     const status = getFollowUpStatus(contact.followUpDate, todayUtc);
@@ -777,6 +821,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       return contact.favourite;
     }
 
+    if (walletView === "recommended") {
+      return contact.recommendations.length > 0;
+    }
+
     if (walletView === "requests") {
       return false;
     }
@@ -795,6 +843,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       ? walletConnectionState(selectedWalletContact.card.id)
       : null
     : null;
+  const selectedWalletRecommendation =
+    selectedWalletContact?.recommendations.find((recommendation) => recommendation.status === "ACTIVE") ??
+    selectedWalletContact?.recommendations[0] ??
+    null;
+  const selectedRecommendationCategory =
+    selectedWalletRecommendation?.category &&
+    CIRCLE_CARD_RECOMMENDATION_CATEGORIES.includes(
+      selectedWalletRecommendation.category as (typeof CIRCLE_CARD_RECOMMENDATION_CATEGORIES)[number]
+    )
+      ? selectedWalletRecommendation.category
+      : "Other";
+  const selectedRecommendationVisibility =
+    selectedWalletRecommendation?.visibility === "PUBLIC" && selectedWalletContact?.card?.id
+      ? "PUBLIC"
+      : "PRIVATE";
   const selectedFollowUpStatus = selectedWalletContact
     ? getFollowUpStatus(selectedWalletContact.followUpDate, todayUtc)
     : null;
@@ -812,6 +875,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     all: savedContactCount,
     connected: connectedWalletContacts.length,
     favourites: favouriteWalletContacts.length,
+    recommended: recommendedWalletContacts.length,
     requests: pendingIncomingRequests.length + pendingOutgoingRequests.length,
     recent: Math.min(savedContactCount, 8)
   };
@@ -911,6 +975,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Business card matches", value: analytics?.counts.BUSINESS_CARD_MATCH_FOUND ?? 0 },
     { label: "Scanned contacts", value: analytics?.counts.BUSINESS_CARD_CONTACT_CREATED ?? 0 },
     { label: "Claim links", value: analytics?.counts.CLAIM_LINK_GENERATED ?? 0 },
+    { label: "Recommendations created", value: analytics?.counts.RECOMMENDATION_CREATED ?? 0 },
+    { label: "Recommendations updated", value: analytics?.counts.RECOMMENDATION_UPDATED ?? 0 },
+    { label: "Recommendations removed", value: analytics?.counts.RECOMMENDATION_REMOVED ?? 0 },
+    { label: "Public recommendations viewed", value: analytics?.counts.PUBLIC_RECOMMENDATION_VIEWED ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
 
@@ -2244,6 +2312,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             <Badge variant="outline" className="border-gold/28 text-gold">
               {connectedWalletContacts.length} connected
             </Badge>
+            <Badge variant="outline" className="border-gold/28 text-gold">
+              {recommendedWalletContacts.length} recommended
+            </Badge>
             {pendingIncomingRequests.length ? (
               <Badge variant="outline" className="border-gold/28 text-gold">
                 {pendingIncomingRequests.length} request{pendingIncomingRequests.length === 1 ? "" : "s"}
@@ -2730,6 +2801,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                         Favourite
                                       </Badge>
                                     ) : null}
+                                    {contact.recommendations.length ? (
+                                      <Badge variant="outline" className="border-gold/25 text-gold">
+                                        Recommended
+                                      </Badge>
+                                    ) : null}
                                     {contactConnection?.kind === "connected" ? (
                                       <Badge variant="outline" className="border-gold/25 text-gold">
                                         Connected
@@ -2916,6 +2992,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             {selectedWalletContact.category}
                           </Badge>
                         ) : null}
+                        {selectedWalletRecommendation ? (
+                          <Badge variant="outline" className="border-gold/25 text-gold">
+                            You recommend this person
+                          </Badge>
+                        ) : null}
                         {selectedWalletContact.metAt ? (
                           <Badge variant="outline" className="border-silver/18 text-silver">
                             Met: {selectedWalletContact.metAt}
@@ -3080,6 +3161,148 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         ) : null}
                       </div>
                     ) : null}
+
+                    <div className="rounded-2xl border border-gold/18 bg-gold/8 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Star size={16} className="text-gold" />
+                            <p className="text-sm font-semibold text-foreground">
+                              Vouch For / Recommend
+                            </p>
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed text-muted">
+                            Public recommendations may appear on their Circle Card and help others
+                            discover trusted businesses.
+                          </p>
+                        </div>
+                        {selectedWalletRecommendation ? (
+                          <Badge
+                            variant="outline"
+                            className={
+                              selectedWalletRecommendation.status === "ACTIVE"
+                                ? "w-fit border-gold/28 text-gold"
+                                : "w-fit border-silver/18 text-silver"
+                            }
+                          >
+                            {selectedWalletRecommendation.status === "ACTIVE" ? "You recommend this person" : "Hidden"}
+                          </Badge>
+                        ) : null}
+                      </div>
+
+                      {selectedWalletRecommendation ? (
+                        <div className="mt-4 rounded-xl border border-gold/14 bg-background/18 p-3">
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline" className="border-gold/22 text-gold">
+                              {selectedWalletRecommendation.category}
+                            </Badge>
+                            <Badge variant="outline" className="border-silver/18 text-silver">
+                              {circleCardRecommendationVisibilityLabel(selectedWalletRecommendation.visibility)}
+                            </Badge>
+                          </div>
+                          {selectedWalletRecommendation.reason ? (
+                            <p className="mt-3 text-sm leading-relaxed text-muted">
+                              &ldquo;{selectedWalletRecommendation.reason}&rdquo;
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {!selectedWalletContact.card?.id ? (
+                        <p className="mt-4 rounded-xl border border-silver/14 bg-background/18 p-3 text-xs leading-relaxed text-muted">
+                          This contact is not linked to a Circle Card yet. You can keep a private
+                          recommendation in your wallet; public display unlocks once the contact has
+                          a Circle Card.
+                        </p>
+                      ) : null}
+
+                      <form action={upsertCircleCardRecommendationAction} className="mt-4 space-y-3">
+                        <input type="hidden" name="walletContactId" value={selectedWalletContact.id} />
+                        <input type="hidden" name="returnPath" value={walletReturnPath} />
+                        {selectedWalletRecommendation ? (
+                          <input
+                            type="hidden"
+                            name="recommendationId"
+                            value={selectedWalletRecommendation.id}
+                          />
+                        ) : null}
+                        <div className="space-y-2">
+                          <Label htmlFor="recommendation-category">Category</Label>
+                          <Select
+                            id="recommendation-category"
+                            name="category"
+                            defaultValue={selectedRecommendationCategory}
+                          >
+                            {CIRCLE_CARD_RECOMMENDATION_CATEGORIES.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="recommendation-reason">Short reason</Label>
+                          <Textarea
+                            id="recommendation-reason"
+                            name="reason"
+                            rows={3}
+                            maxLength={360}
+                            defaultValue={selectedWalletRecommendation?.reason ?? ""}
+                            placeholder="Strong technically and easy to work with."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="recommendation-visibility">Visibility</Label>
+                          <Select
+                            id="recommendation-visibility"
+                            name="visibility"
+                            defaultValue={selectedRecommendationVisibility}
+                          >
+                            <option value="PRIVATE">Private note only</option>
+                            <option value="PUBLIC" disabled={!selectedWalletContact.card?.id}>
+                              Public recommendation
+                            </option>
+                          </Select>
+                        </div>
+                        <Button type="submit" className="w-full gap-2">
+                          <Star size={16} />
+                          {selectedWalletRecommendation ? "Save recommendation" : "Vouch For / Recommend"}
+                        </Button>
+                      </form>
+
+                      {selectedWalletRecommendation ? (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {selectedWalletRecommendation.status === "ACTIVE" ? (
+                            <form action={updateCircleCardRecommendationStatusAction}>
+                              <input
+                                type="hidden"
+                                name="recommendationId"
+                                value={selectedWalletRecommendation.id}
+                              />
+                              <input type="hidden" name="status" value="HIDDEN" />
+                              <input type="hidden" name="returnPath" value={walletReturnPath} />
+                              <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                                <Eye size={14} />
+                                Hide
+                              </Button>
+                            </form>
+                          ) : null}
+                          <form action={updateCircleCardRecommendationStatusAction}>
+                            <input
+                              type="hidden"
+                              name="recommendationId"
+                              value={selectedWalletRecommendation.id}
+                            />
+                            <input type="hidden" name="status" value="REMOVED" />
+                            <input type="hidden" name="returnPath" value={walletReturnPath} />
+                            <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                              <Trash2 size={14} />
+                              Remove
+                            </Button>
+                          </form>
+                        </div>
+                      ) : null}
+                    </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">

@@ -108,6 +108,8 @@ model User {
   circleCardEvents               CircleCardEvent[]
   circleCardConnectionRequestsSent     CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestsSent")
   circleCardConnectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestsReceived")
+  circleCardRecommendationsGiven       CircleCardRecommendation[] @relation("CircleCardRecommendationRecommender")
+  circleCardRecommendationsReceived    CircleCardRecommendation[] @relation("CircleCardRecommendationRecommendedUser")
 
   @@index([role])
   @@index([memberRoleTag])
@@ -419,6 +421,8 @@ model CircleCard {
   events          CircleCardEvent[]
   connectionRequestsSent     CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRequesterCard")
   connectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRecipientCard")
+  recommendationsGiven       CircleCardRecommendation[] @relation("CircleCardRecommendationRecommenderCard")
+  recommendationsReceived    CircleCardRecommendation[] @relation("CircleCardRecommendationRecommendedCard")
 
   @@index([userId])
   @@index([isPublished])
@@ -503,6 +507,7 @@ model CircleWalletContact {
   updatedAt           DateTime   @updatedAt
   user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   card                CircleCard? @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  recommendations     CircleCardRecommendation[]
 
   @@unique([userId, cardId])
   @@index([userId])
@@ -515,6 +520,37 @@ model CircleWalletContact {
   @@index([userId, savedAt])
   @@index([cardId])
   @@index([savedAt])
+}
+
+model CircleCardRecommendation {
+  id                String                             @id @default(cuid())
+  recommenderUserId String
+  recommenderCardId String
+  recommendedCardId String?
+  recommendedUserId String?
+  walletContactId   String?
+  category          String                             @db.VarChar(80)
+  reason            String?                            @db.VarChar(360)
+  visibility        CircleCardRecommendationVisibility @default(PRIVATE)
+  status            CircleCardRecommendationStatus     @default(ACTIVE)
+  createdAt         DateTime                           @default(now())
+  updatedAt         DateTime                           @updatedAt
+  recommenderUser   User                               @relation("CircleCardRecommendationRecommender", fields: [recommenderUserId], references: [id], onDelete: Cascade)
+  recommendedUser   User?                              @relation("CircleCardRecommendationRecommendedUser", fields: [recommendedUserId], references: [id], onDelete: SetNull)
+  recommenderCard   CircleCard                         @relation("CircleCardRecommendationRecommenderCard", fields: [recommenderCardId], references: [id], onDelete: Cascade)
+  recommendedCard   CircleCard?                        @relation("CircleCardRecommendationRecommendedCard", fields: [recommendedCardId], references: [id], onDelete: Cascade)
+  walletContact     CircleWalletContact?               @relation(fields: [walletContactId], references: [id], onDelete: SetNull)
+
+  @@index([recommenderUserId])
+  @@index([recommenderCardId])
+  @@index([recommendedCardId])
+  @@index([category])
+  @@index([visibility])
+  @@index([status])
+  @@index([createdAt])
+  @@index([walletContactId])
+  @@index([recommendedCardId, visibility, status, createdAt])
+  @@index([recommenderCardId, recommendedCardId, category, visibility, status])
 }
 
 model CircleCardConnectionRequest {
@@ -2231,6 +2267,10 @@ enum CircleCardEventType {
   BUSINESS_CARD_MATCH_FOUND
   BUSINESS_CARD_CONTACT_CREATED
   CLAIM_LINK_GENERATED
+  RECOMMENDATION_CREATED
+  RECOMMENDATION_UPDATED
+  RECOMMENDATION_REMOVED
+  PUBLIC_RECOMMENDATION_VIEWED
 }
 
 enum CircleWalletContactSource {
@@ -2245,6 +2285,17 @@ enum CircleCardConnectionRequestStatus {
   ACCEPTED
   DECLINED
   CANCELLED
+}
+
+enum CircleCardRecommendationVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum CircleCardRecommendationStatus {
+  ACTIVE
+  HIDDEN
+  REMOVED
 }
 
 enum TestimonialSourceType {

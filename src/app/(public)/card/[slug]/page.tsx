@@ -56,7 +56,21 @@ async function incrementViewCount(
         slug: card.slug,
         viewerIsOwner: input.viewerIsOwner ?? false
       }
-    })
+    }),
+    card.recommendations.length
+      ? trackCircleCardEvent({
+          cardId: card.id,
+          eventType: "PUBLIC_RECOMMENDATION_VIEWED",
+          visitorId: input.visitorId,
+          userId: input.userId,
+          metadata: {
+            source: input.source ?? "direct",
+            surface: "public_card",
+            slug: card.slug,
+            count: card.recommendations.length
+          }
+        })
+      : Promise.resolve({ stored: false as const })
   ]);
 }
 

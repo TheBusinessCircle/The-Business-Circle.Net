@@ -25,7 +25,11 @@ export const CIRCLE_CARD_EVENT_TYPES = [
   "BUSINESS_CARD_SCANNED",
   "BUSINESS_CARD_MATCH_FOUND",
   "BUSINESS_CARD_CONTACT_CREATED",
-  "CLAIM_LINK_GENERATED"
+  "CLAIM_LINK_GENERATED",
+  "RECOMMENDATION_CREATED",
+  "RECOMMENDATION_UPDATED",
+  "RECOMMENDATION_REMOVED",
+  "PUBLIC_RECOMMENDATION_VIEWED"
 ] as const;
 
 export type CircleCardEventTypeValue = (typeof CIRCLE_CARD_EVENT_TYPES)[number];
@@ -57,5 +61,9 @@ export const CIRCLE_CARD_EVENT_LABELS: Record<CircleCardEventTypeValue, string> 
   BUSINESS_CARD_SCANNED: "Business card scanned",
   BUSINESS_CARD_MATCH_FOUND: "Business card match found",
   BUSINESS_CARD_CONTACT_CREATED: "Business card contact created",
-  CLAIM_LINK_GENERATED: "Claim link generated"
+  CLAIM_LINK_GENERATED: "Claim link generated",
+  RECOMMENDATION_CREATED: "Recommendation created",
+  RECOMMENDATION_UPDATED: "Recommendation updated",
+  RECOMMENDATION_REMOVED: "Recommendation removed",
+  PUBLIC_RECOMMENDATION_VIEWED: "Public recommendation viewed"
 };

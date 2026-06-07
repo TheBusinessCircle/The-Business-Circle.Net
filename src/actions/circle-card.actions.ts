@@ -37,6 +37,11 @@ import {
   resolveCircleWalletLastInteractionDate
 } from "@/lib/circle-card/schema";
 import {
+  circleCardRecommendationFormSchema,
+  circleCardRecommendationStatusSchema,
+  circleCardRecommendationVisibilityLabel
+} from "@/lib/circle-card/recommendations";
+import {
   canCreateCircleCard,
   isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
@@ -142,6 +147,19 @@ const CIRCLE_WALLET_BUSINESS_CARD_FIELDS = [
 
 const CIRCLE_WALLET_MATCHED_CARD_FIELDS = ["cardId", "message", "returnPath"] as const;
 const CIRCLE_WALLET_CONTACT_ID_FIELDS = ["walletContactId", "returnPath"] as const;
+const CIRCLE_CARD_RECOMMENDATION_FORM_FIELDS = [
+  "recommendationId",
+  "walletContactId",
+  "category",
+  "reason",
+  "visibility",
+  "returnPath"
+] as const;
+const CIRCLE_CARD_RECOMMENDATION_STATUS_FIELDS = [
+  "recommendationId",
+  "status",
+  "returnPath"
+] as const;
 
 const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
 const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = 24;
@@ -256,6 +274,18 @@ function readCircleWalletMatchedCardFormData(formData: FormData) {
 function readCircleWalletContactIdFormData(formData: FormData) {
   return Object.fromEntries(
     CIRCLE_WALLET_CONTACT_ID_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardRecommendationFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_RECOMMENDATION_FORM_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardRecommendationStatusFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_RECOMMENDATION_STATUS_FIELDS.map((field) => [field, formData.get(field) ?? ""])
   );
 }
 
@@ -1932,6 +1962,19 @@ export async function removeCircleWalletContactAction(formData: FormData) {
     redirectWithNotice(returnPath, "card-removed");
   }
 
+  const removedRecommendations = await prisma.circleCardRecommendation.updateMany({
+    where: {
+      walletContactId: savedContact.id,
+      recommenderUserId: user.id,
+      status: {
+        not: "REMOVED"
+      }
+    },
+    data: {
+      status: "REMOVED"
+    }
+  });
+
   await prisma.circleWalletContact.delete({
     where: {
       id: savedContact.id
@@ -1956,6 +1999,31 @@ export async function removeCircleWalletContactAction(formData: FormData) {
         walletContactId: savedContact.id
       }
     });
+  }
+
+  if (removedRecommendations.count > 0) {
+    if (savedContact.cardId) {
+      await trackCircleCardEvent({
+        cardId: savedContact.cardId,
+        eventType: "RECOMMENDATION_REMOVED",
+        userId: user.id,
+        metadata: {
+          source: "circle_wallet_contact_removed",
+          walletContactId: savedContact.id,
+          count: removedRecommendations.count
+        }
+      });
+    } else {
+      await trackPrimaryCircleCardEvent({
+        userId: user.id,
+        eventType: "RECOMMENDATION_REMOVED",
+        metadata: {
+          source: "circle_wallet_contact_removed",
+          walletContactId: savedContact.id,
+          count: removedRecommendations.count
+        }
+      });
+    }
   }
 
   revalidatePath("/dashboard/circle-card");
@@ -2111,4 +2179,229 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
     revalidatePath(`/card/${savedContact.card.slug}`);
   }
   redirectWithNotice(returnPath, "relationship-updated");
+}
+
+export async function upsertCircleCardRecommendationAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card#wallet");
+  const parsed = circleCardRecommendationFormSchema.safeParse(
+    readCircleCardRecommendationFormData(formData)
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "recommendation-invalid");
+  }
+
+  const values = parsed.data;
+  const [primaryCard, walletContact] = await Promise.all([
+    getPrimaryCircleCardForUser(user.id),
+    prisma.circleWalletContact.findFirst({
+      where: {
+        id: values.walletContactId,
+        userId: user.id
+      },
+      select: {
+        id: true,
+        source: true,
+        cardId: true,
+        card: {
+          select: {
+            id: true,
+            slug: true,
+            userId: true,
+            fullName: true,
+            businessName: true,
+            isPublished: true,
+            user: {
+              select: {
+                suspended: true
+              }
+            }
+          }
+        }
+      }
+    })
+  ]);
+
+  if (!primaryCard) {
+    redirectWithError(returnPath, "recommendation-primary-card-required");
+  }
+
+  if (!walletContact) {
+    redirectWithError(returnPath, "wallet-contact-not-found");
+  }
+
+  if (walletContact.card && (walletContact.card.userId === user.id || walletContact.card.id === primaryCard.id)) {
+    redirectWithError(returnPath, "recommendation-self");
+  }
+
+  if (values.visibility === "PUBLIC" && !walletContact.card) {
+    redirectWithError(returnPath, "recommendation-public-card-required");
+  }
+
+  if (values.visibility === "PUBLIC" && walletContact.card?.user.suspended) {
+    redirectWithError(returnPath, "recommendation-public-card-required");
+  }
+
+  const recommendationId = values.recommendationId || null;
+  const existingRecommendation = recommendationId
+    ? await prisma.circleCardRecommendation.findFirst({
+        where: {
+          id: recommendationId,
+          recommenderUserId: user.id,
+          status: {
+            not: "REMOVED"
+          }
+        },
+        select: {
+          id: true,
+          walletContactId: true
+        }
+      })
+    : null;
+
+  if (recommendationId && !existingRecommendation) {
+    redirectWithError(returnPath, "recommendation-not-found");
+  }
+
+  if (existingRecommendation?.walletContactId && existingRecommendation.walletContactId !== walletContact.id) {
+    redirectWithError(returnPath, "recommendation-not-found");
+  }
+
+  if (values.visibility === "PUBLIC" && walletContact.card?.id) {
+    const duplicatePublicRecommendation = await prisma.circleCardRecommendation.findFirst({
+      where: {
+        recommenderCardId: primaryCard.id,
+        recommendedCardId: walletContact.card.id,
+        category: values.category,
+        visibility: "PUBLIC",
+        status: "ACTIVE",
+        ...(recommendationId ? { NOT: { id: recommendationId } } : {})
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (duplicatePublicRecommendation) {
+      redirectWithError(returnPath, "recommendation-duplicate");
+    }
+  }
+
+  const targetCardId = walletContact.card?.id ?? primaryCard.id;
+  const eventType = recommendationId ? "RECOMMENDATION_UPDATED" : "RECOMMENDATION_CREATED";
+  const recommendationData = {
+    recommenderUserId: user.id,
+    recommenderCardId: primaryCard.id,
+    recommendedCardId: walletContact.card?.id ?? null,
+    recommendedUserId: walletContact.card?.userId ?? null,
+    walletContactId: walletContact.id,
+    category: values.category,
+    reason: nullableText(values.reason),
+    visibility: values.visibility,
+    status: "ACTIVE" as const
+  };
+
+  if (recommendationId) {
+    await prisma.circleCardRecommendation.update({
+      where: { id: recommendationId },
+      data: recommendationData
+    });
+  } else {
+    await prisma.circleCardRecommendation.create({
+      data: recommendationData
+    });
+  }
+
+  await trackCircleCardEvent({
+    cardId: targetCardId,
+    eventType,
+    userId: user.id,
+    metadata: {
+      source: "circle_wallet_recommendations",
+      walletContactId: walletContact.id,
+      recommenderCardId: primaryCard.id,
+      category: values.category,
+      visibility: values.visibility,
+      visibilityLabel: circleCardRecommendationVisibilityLabel(values.visibility)
+    }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  if (walletContact.card?.slug) {
+    revalidatePath(`/card/${walletContact.card.slug}`);
+  }
+  redirectWithNotice(returnPath, recommendationId ? "recommendation-updated" : "recommendation-created");
+}
+
+export async function updateCircleCardRecommendationStatusAction(formData: FormData) {
+  const parsed = circleCardRecommendationStatusSchema.safeParse(
+    readCircleCardRecommendationStatusFormData(formData)
+  );
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#wallet"
+  );
+  const user = await requireCircleCardActionUser();
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "recommendation-invalid");
+  }
+
+  const recommendation = await prisma.circleCardRecommendation.findFirst({
+    where: {
+      id: parsed.data.recommendationId,
+      recommenderUserId: user.id,
+      status: {
+        not: "REMOVED"
+      }
+    },
+    select: {
+      id: true,
+      category: true,
+      visibility: true,
+      recommenderCardId: true,
+      recommendedCardId: true,
+      walletContactId: true,
+      recommendedCard: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!recommendation) {
+    redirectWithError(returnPath, "recommendation-not-found");
+  }
+
+  await prisma.circleCardRecommendation.update({
+    where: { id: recommendation.id },
+    data: {
+      status: parsed.data.status
+    }
+  });
+
+  await trackCircleCardEvent({
+    cardId: recommendation.recommendedCardId ?? recommendation.recommenderCardId,
+    eventType: parsed.data.status === "REMOVED" ? "RECOMMENDATION_REMOVED" : "RECOMMENDATION_UPDATED",
+    userId: user.id,
+    metadata: {
+      source: "circle_wallet_recommendations",
+      walletContactId: recommendation.walletContactId,
+      recommenderCardId: recommendation.recommenderCardId,
+      category: recommendation.category,
+      visibility: recommendation.visibility,
+      status: parsed.data.status
+    }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  if (recommendation.recommendedCard?.slug) {
+    revalidatePath(`/card/${recommendation.recommendedCard.slug}`);
+  }
+  redirectWithNotice(
+    returnPath,
+    parsed.data.status === "REMOVED" ? "recommendation-removed" : "recommendation-hidden"
+  );
 }
