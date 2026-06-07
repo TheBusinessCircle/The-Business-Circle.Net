@@ -112,6 +112,7 @@ const optionalDateInput = z
     message: "Use a valid date."
   });
 const optionalEmail = z.string().trim().email().max(320).optional().or(z.literal(""));
+const optionalSocialHandle = z.string().trim().max(2048).optional().or(z.literal(""));
 const optionalImagePosition = z.preprocess(
   (value) => {
     if (value === "" || value === null || value === undefined) {
@@ -276,6 +277,63 @@ export const circleWalletContactDetailsSchema = z.object({
   tagsInput: optionalText(300)
 });
 
+export const circleWalletBusinessCardContactSchema = z
+  .object({
+    fullName: optionalText(120),
+    businessName: optionalText(140),
+    role: optionalText(120),
+    phone: optionalText(48),
+    mobilePhone: optionalText(48),
+    email: optionalEmail,
+    websiteUrl: optionalHttpUrl("Website"),
+    address: optionalText(1000),
+    linkedin: optionalSocialHandle,
+    instagram: optionalSocialHandle,
+    x: optionalSocialHandle,
+    facebook: optionalSocialHandle,
+    tiktok: optionalSocialHandle,
+    youtube: optionalSocialHandle,
+    originalCardImageUrl: optionalImageUrl,
+    returnPath: optionalText(600)
+  })
+  .superRefine((value, context) => {
+    const hasContactValue = [
+      value.fullName,
+      value.businessName,
+      value.role,
+      value.phone,
+      value.mobilePhone,
+      value.email,
+      value.websiteUrl,
+      value.address,
+      value.linkedin,
+      value.instagram,
+      value.x,
+      value.facebook,
+      value.tiktok,
+      value.youtube
+    ].some(Boolean);
+
+    if (!hasContactValue) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["fullName"],
+        message: "Add at least one contact detail before saving."
+      });
+    }
+  });
+
+export const circleWalletMatchedCardActionSchema = z.object({
+  cardId: z.string().cuid(),
+  message: optionalText(CIRCLE_CARD_CONNECTION_MESSAGE_MAX_LENGTH),
+  returnPath: optionalText(600)
+});
+
+export const circleWalletContactIdSchema = z.object({
+  walletContactId: z.string().cuid(),
+  returnPath: optionalText(600)
+});
+
 export const circleCardConnectionRequestFormSchema = z.object({
   recipientCardId: z.string().cuid(),
   message: optionalText(CIRCLE_CARD_CONNECTION_MESSAGE_MAX_LENGTH)
@@ -385,6 +443,35 @@ export function normalizeCircleCardUrl(value?: string | null) {
   }
 
   return normalizeExternalHref(trimmed);
+}
+
+export function normalizeCircleCardEmail(value?: string | null) {
+  const trimmed = value?.trim().toLowerCase();
+  return trimmed || null;
+}
+
+export function normalizeWebsiteDomain(value?: string | null) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const normalized = normalizeCircleCardUrl(trimmed);
+
+  try {
+    const url = new URL(normalized);
+    return url.hostname.toLowerCase().replace(/^www\./, "") || null;
+  } catch {
+    const domain = trimmed
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split(/[/?#]/)[0]
+      ?.trim();
+
+    return domain && domain.includes(".") ? domain : null;
+  }
 }
 
 function normalizeCircleCardImageUrl(value?: string | null) {
@@ -558,6 +645,37 @@ export function buildCircleCardSocialLinks(
       ["youtube", values.youtubeUrl]
     ].filter((entry): entry is [keyof CircleCardSocialLinks, string] => Boolean(entry[1]))
   );
+}
+
+export function buildCircleWalletBusinessCardSocialLinks(
+  values: Partial<Record<keyof CircleCardSocialLinks, string>>
+): Prisma.InputJsonObject {
+  return Object.fromEntries(
+    CIRCLE_CARD_SOCIAL_FIELDS.map((field) => {
+      const value = values[field]?.trim();
+      return value ? [field, value.slice(0, 2048)] : null;
+    }).filter((entry): entry is [keyof CircleCardSocialLinks, string] => Boolean(entry))
+  );
+}
+
+export function readCircleWalletBusinessCardSocialLinks(
+  value: Prisma.JsonValue | null | undefined
+): CircleCardSocialLinks {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const links: CircleCardSocialLinks = {};
+
+  for (const key of CIRCLE_CARD_SOCIAL_FIELDS) {
+    const candidate = value[key];
+
+    if (typeof candidate === "string" && candidate.trim()) {
+      links[key] = candidate.trim().slice(0, 2048);
+    }
+  }
+
+  return links;
 }
 
 export function readCircleCardSocialLinks(value: Prisma.JsonValue | null | undefined): CircleCardSocialLinks {

@@ -40,6 +40,7 @@ import {
   cancelCircleCardConnectionRequestAction,
   deleteCircleCardLinkAction,
   declineCircleCardConnectionRequestAction,
+  generateBusinessCardClaimLinkAction,
   moveCircleCardLinkAction,
   removeCircleWalletContactAction,
   resolveCircleCardLinkAction,
@@ -52,6 +53,7 @@ import {
   upsertCircleCardLinkAction
 } from "@/actions/circle-card.actions";
 import {
+  BusinessCardScanner,
   CircleCardBcnDiscoveryPanel,
   CircleCardCopyLinkButton,
   CircleCardDashboardSection,
@@ -85,6 +87,7 @@ import {
   CIRCLE_WALLET_CATEGORY_OPTIONS,
   CIRCLE_WALLET_MET_AT_OPTIONS,
   readCircleCardSocialLinks,
+  readCircleWalletBusinessCardSocialLinks,
   readCircleWalletTags,
   resolveCircleCardLookupSlug
 } from "@/lib/circle-card/schema";
@@ -129,6 +132,10 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "connection-request-incoming": "That contact has already sent you a request.",
   "connection-already-connected": "You are already connected.",
   "card-link-resolved": "Circle Card link resolved.",
+  "business-card-contact-created": "Scanned business card saved to your Circle Wallet.",
+  "business-card-match-found": "Existing Circle Card found for that business card.",
+  "business-card-duplicate": "That contact is already in your Circle Wallet.",
+  "claim-link-generated": "Claim link generated. Copy it from the selected contact.",
   "custom-link-created": "Custom link added.",
   "custom-link-updated": "Custom link updated.",
   "custom-link-deleted": "Custom link deleted.",
@@ -159,7 +166,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   "card-link-invalid": "Enter a valid Circle Card link or slug.",
   "card-link-not-found": "No published Circle Card was found for that link.",
   "wallet-contact-invalid": "Check the relationship details and try again.",
-  "wallet-contact-not-found": "That saved contact could not be found."
+  "wallet-contact-not-found": "That saved contact could not be found.",
+  "business-card-invalid": "Check the scanned business card details and try again.",
+  "claim-link-email-required": "Add an email before generating a claim link."
 };
 
 const WALLET_VIEW_OPTIONS = [
@@ -263,6 +272,10 @@ function walletContactMatchesQuery(input: {
     role: string | null;
     tagline: string | null;
     location: string | null;
+    email?: string | null;
+    phone?: string | null;
+    websiteUrl?: string | null;
+    address?: string | null;
   };
   notes: string | null;
   metAt: string | null;
@@ -279,6 +292,10 @@ function walletContactMatchesQuery(input: {
     input.card.role,
     input.card.tagline,
     input.card.location,
+    input.card.email,
+    input.card.phone,
+    input.card.websiteUrl,
+    input.card.address,
     input.notes,
     input.metAt,
     input.category,
@@ -348,6 +365,22 @@ function getFollowUpStatus(followUpDate: Date | string | null | undefined, today
     className: "border-silver/18 bg-silver/10 text-silver",
     isDue: false
   };
+}
+
+function walletContactSourceLabel(source: string) {
+  if (source === "BUSINESS_CARD_SCAN") {
+    return "Scanned Business Card";
+  }
+
+  if (source === "LINK_IMPORT") {
+    return "Link Import";
+  }
+
+  if (source === "MANUAL") {
+    return "Manual";
+  }
+
+  return "Circle Card";
 }
 
 function activityBarWidth(value: number, maxValue: number) {
@@ -500,8 +533,23 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       orderBy: [{ savedAt: "desc" }],
       select: {
         id: true,
+        cardId: true,
+        source: true,
         savedAt: true,
         favourite: true,
+        fullName: true,
+        businessName: true,
+        role: true,
+        phone: true,
+        mobilePhone: true,
+        email: true,
+        websiteUrl: true,
+        websiteDomain: true,
+        address: true,
+        socialLinks: true,
+        originalCardImageUrl: true,
+        claimToken: true,
+        claimTokenGeneratedAt: true,
         notes: true,
         metAt: true,
         followUpDate: true,
@@ -590,10 +638,39 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         })
       : Promise.resolve(null)
   ]);
-  const normalizedWalletContacts = walletContacts.map((contact) => ({
-    ...contact,
-    tags: readCircleWalletTags(contact.tags)
-  }));
+  const normalizedWalletContacts = walletContacts.map((contact) => {
+    const socialLinks = readCircleWalletBusinessCardSocialLinks(contact.socialLinks);
+    const fullName =
+      contact.card?.fullName ??
+      contact.fullName ??
+      contact.businessName ??
+      contact.email ??
+      "Scanned contact";
+    const display = {
+      fullName,
+      businessName: contact.card?.businessName ?? contact.businessName,
+      role: contact.card?.role ?? contact.role,
+      tagline: contact.card?.tagline ?? null,
+      location: contact.card?.location ?? null,
+      address: contact.address,
+      profileImageUrl: contact.card?.profileImageUrl ?? null,
+      businessLogoUrl: contact.card?.businessLogoUrl ?? null,
+      websiteUrl: contact.card?.websiteUrl ?? contact.websiteUrl,
+      email: contact.card?.email ?? contact.email,
+      phone: contact.card?.phone ?? contact.mobilePhone ?? contact.phone,
+      isPublished: contact.card?.isPublished ?? false,
+      publicCardHref: contact.card?.slug ? `/card/${contact.card.slug}` : null,
+      sourceLabel: walletContactSourceLabel(contact.source),
+      isScannedBusinessCard: contact.source === "BUSINESS_CARD_SCAN"
+    };
+
+    return {
+      ...contact,
+      tags: readCircleWalletTags(contact.tags),
+      socialLinks,
+      display
+    };
+  });
   const pendingIncomingRequests = connectionRequests.filter(
     (request) => request.status === "PENDING" && request.recipientId === session.user.id
   );
@@ -648,7 +725,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const todayUtc = utcDateNumber(new Date());
   const savedContactCount = normalizedWalletContacts.length;
   const connectedWalletContacts = normalizedWalletContacts.filter((contact) =>
-    connectedByCardId.has(contact.card.id)
+    contact.card?.id ? connectedByCardId.has(contact.card.id) : false
   );
   const favouriteWalletContacts = normalizedWalletContacts.filter((contact) => contact.favourite);
   const recentWalletContacts = normalizedWalletContacts.slice(0, 4);
@@ -672,7 +749,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const searchedWalletContacts = normalizedWalletContacts.filter((contact) =>
     walletContactMatchesQuery({
       query: walletQuery,
-      card: contact.card,
+      card: contact.display,
       notes: contact.notes,
       metAt: contact.metAt,
       category: contact.category,
@@ -691,7 +768,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     }
 
     if (walletView === "connected") {
-      return connectedByCardId.has(contact.card.id);
+      return contact.card?.id ? connectedByCardId.has(contact.card.id) : false;
     }
 
     if (walletView === "favourites") {
@@ -712,10 +789,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     normalizedWalletContacts[0] ??
     null;
   const selectedWalletConnection = selectedWalletContact
-    ? walletConnectionState(selectedWalletContact.card.id)
+    ? selectedWalletContact.card?.id
+      ? walletConnectionState(selectedWalletContact.card.id)
+      : null
     : null;
   const selectedFollowUpStatus = selectedWalletContact
     ? getFollowUpStatus(selectedWalletContact.followUpDate, todayUtc)
+    : null;
+  const selectedClaimLink = selectedWalletContact?.claimToken
+    ? absoluteUrl(`/register?source=circle-card&claim=${selectedWalletContact.claimToken}`)
     : null;
   const walletReturnPath = buildWalletHref({
     walletQuery,
@@ -733,7 +815,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   };
   const activeWalletFilters = Boolean(walletQuery || walletCategory || walletFollowUp);
   const connectHubSavedContact = connectHubCard
-    ? normalizedWalletContacts.find((contact) => contact.card.id === connectHubCard.id) ?? null
+    ? normalizedWalletContacts.find((contact) => contact.card?.id === connectHubCard.id) ?? null
     : null;
   const connectHubConnectionState = connectHubCard ? walletConnectionState(connectHubCard.id) : null;
   const connectHubOwnCard = Boolean(connectHubCard && connectHubCard.userId === session.user.id);
@@ -820,6 +902,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Connect Hub shares", value: analytics?.counts.CONNECT_HUB_SHARE ?? 0 },
     { label: "Connect Hub copies", value: analytics?.counts.CONNECT_HUB_COPY_LINK ?? 0 },
     { label: "Card link resolves", value: analytics?.counts.CARD_LINK_RESOLVED ?? 0 },
+    { label: "Business card scans", value: analytics?.counts.BUSINESS_CARD_SCANNED ?? 0 },
+    { label: "Business card matches", value: analytics?.counts.BUSINESS_CARD_MATCH_FOUND ?? 0 },
+    { label: "Scanned contacts", value: analytics?.counts.BUSINESS_CARD_CONTACT_CREATED ?? 0 },
+    { label: "Claim links", value: analytics?.counts.CLAIM_LINK_GENERATED ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
 
@@ -1085,6 +1171,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 </CardContent>
               </Card>
             </div>
+
+            <BusinessCardScanner canSendConnectionRequest={Boolean(card)} />
           </div>
 
           <div className="grid gap-4">
@@ -1267,9 +1355,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         href={`${buildWalletHref({ contactId: contact.id })}#wallet`}
                         className="block rounded-2xl border border-silver/14 bg-background/20 px-4 py-3 text-sm text-foreground hover:border-silver/28"
                       >
-                        {contact.card.fullName}
+                        {contact.display.fullName}
                         <span className="mt-1 block text-xs text-muted">
-                          {contact.card.businessName || contact.card.role || "Circle Card contact"}
+                          {contact.display.businessName || contact.display.role || contact.display.sourceLabel}
                         </span>
                       </Link>
                     ))
@@ -2429,8 +2517,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     No saved contacts yet
                   </h3>
                   <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
-                    When you save a public Circle Card, it will appear here with private notes,
-                    tags and favourite status.
+                    Saved Circle Cards and scanned business cards will appear here with private
+                    notes, tags and favourite status.
                   </p>
                   <Link href="/circle-card" className="mt-5 inline-flex">
                     <Button variant="outline">Explore Circle Card</Button>
@@ -2462,9 +2550,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             })}
                             className="block rounded-2xl border border-gold/18 bg-background/22 px-4 py-3 text-sm text-foreground hover:border-gold/32"
                           >
-                            {contact.card.fullName}
+                            {contact.display.fullName}
                             <span className="mt-1 block text-xs text-muted">
-                              {contact.card.businessName || contact.card.role || "Circle Card contact"}
+                              {contact.display.businessName || contact.display.role || contact.display.sourceLabel}
                             </span>
                           </Link>
                         ))
@@ -2495,7 +2583,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           })}
                           className="block rounded-2xl border border-silver/14 bg-background/20 px-4 py-3 text-sm text-foreground hover:border-silver/28"
                         >
-                          {contact.card.fullName}
+                          {contact.display.fullName}
                           <span className="mt-1 block text-xs text-muted">
                             Saved {formatDate(contact.savedAt)}
                           </span>
@@ -2527,7 +2615,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           })}
                           className="block rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-foreground hover:border-amber-500/36"
                         >
-                          {contact.card.fullName}
+                          {contact.display.fullName}
                           <span className="mt-1 block text-xs text-muted">
                             {contact.followUpDate ? formatRelationshipDate(contact.followUpDate) : "Follow-up"}
                           </span>
@@ -2551,7 +2639,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         contactId: contact.id
                       });
                       const selected = selectedWalletContact?.id === contact.id;
-                      const contactConnection = walletConnectionState(contact.card.id);
+                      const contactConnection = contact.card?.id
+                        ? walletConnectionState(contact.card.id)
+                        : null;
                       const followUpStatus = getFollowUpStatus(contact.followUpDate, todayUtc);
 
                       return (
@@ -2567,21 +2657,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                               <div className="flex min-w-0 gap-3">
                                 <div className="relative h-14 w-14 shrink-0">
                                   <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-silver/16 bg-background/28 text-sm font-semibold text-foreground">
-                                    {contact.card.profileImageUrl ? (
+                                    {contact.display.profileImageUrl ? (
                                       <img
-                                        src={contact.card.profileImageUrl}
-                                        alt={contact.card.fullName}
+                                        src={contact.display.profileImageUrl}
+                                        alt={contact.display.fullName}
                                         className="h-full w-full object-cover"
                                       />
                                     ) : (
-                                      contact.card.fullName.slice(0, 2).toUpperCase()
+                                      contact.display.fullName.slice(0, 2).toUpperCase()
                                     )}
                                   </div>
-                                  {contact.card.businessLogoUrl ? (
+                                  {contact.display.businessLogoUrl ? (
                                     <div className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center overflow-hidden rounded-xl border border-background bg-card shadow-inner-surface">
                                       <img
-                                        src={contact.card.businessLogoUrl}
-                                        alt={`${contact.card.fullName} business logo`}
+                                        src={contact.display.businessLogoUrl}
+                                        alt={`${contact.display.fullName} business logo`}
                                         className="h-full w-full object-cover"
                                       />
                                     </div>
@@ -2590,24 +2680,29 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 <div className="min-w-0">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <h3 className="text-base font-semibold text-foreground">
-                                      {contact.card.fullName}
+                                      {contact.display.fullName}
                                     </h3>
+                                    {contact.display.isScannedBusinessCard ? (
+                                      <Badge variant="outline" className="border-gold/25 text-gold">
+                                        Scanned Business Card
+                                      </Badge>
+                                    ) : null}
                                     {contact.favourite ? (
                                       <Badge variant="outline" className="border-gold/25 text-gold">
                                         Favourite
                                       </Badge>
                                     ) : null}
-                                    {contactConnection.kind === "connected" ? (
+                                    {contactConnection?.kind === "connected" ? (
                                       <Badge variant="outline" className="border-gold/25 text-gold">
                                         Connected
                                       </Badge>
                                     ) : null}
-                                    {contactConnection.kind === "pending_outgoing" ? (
+                                    {contactConnection?.kind === "pending_outgoing" ? (
                                       <Badge variant="outline" className="border-silver/18 text-silver">
                                         Request Pending
                                       </Badge>
                                     ) : null}
-                                    {contactConnection.kind === "pending_incoming" ? (
+                                    {contactConnection?.kind === "pending_incoming" ? (
                                       <Badge variant="outline" className="border-gold/25 text-gold">
                                         Request Incoming
                                       </Badge>
@@ -2624,15 +2719,25 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                     ) : null}
                                   </div>
                                   <p className="mt-1 text-sm text-silver">
-                                    {[contact.card.role, contact.card.businessName].filter(Boolean).join(" at ") ||
-                                      "Circle Card contact"}
+                                    {[contact.display.role, contact.display.businessName].filter(Boolean).join(" at ") ||
+                                      contact.display.sourceLabel}
                                   </p>
-                                  {contact.card.tagline ? (
-                                    <p className="mt-2 text-sm text-muted">{contact.card.tagline}</p>
+                                  {contact.display.tagline ? (
+                                    <p className="mt-2 text-sm text-muted">{contact.display.tagline}</p>
                                   ) : null}
                                   <div className="mt-3 flex flex-wrap gap-2">
-                                    {contact.card.location ? (
-                                      <Badge variant="muted">{contact.card.location}</Badge>
+                                    {contact.display.location ? (
+                                      <Badge variant="muted">{contact.display.location}</Badge>
+                                    ) : null}
+                                    {contact.display.email ? (
+                                      <Badge variant="outline" className="border-silver/18 text-silver">
+                                        {contact.display.email}
+                                      </Badge>
+                                    ) : null}
+                                    {contact.display.phone ? (
+                                      <Badge variant="outline" className="border-silver/18 text-silver">
+                                        {contact.display.phone}
+                                      </Badge>
                                     ) : null}
                                     {contact.metAt ? (
                                       <Badge variant="outline" className="border-silver/18 text-silver">
@@ -2659,22 +2764,24 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                               </div>
 
                               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap md:justify-end">
-                                <Link
-                                  href={`/card/${contact.card.slug}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="min-w-0"
-                                >
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-10 w-full gap-2 sm:w-auto"
+                                {contact.display.publicCardHref ? (
+                                  <Link
+                                    href={contact.display.publicCardHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="min-w-0"
                                   >
-                                    Public card
-                                    <ArrowUpRight size={14} />
-                                  </Button>
-                                </Link>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-10 w-full gap-2 sm:w-auto"
+                                    >
+                                      Public card
+                                      <ArrowUpRight size={14} />
+                                    </Button>
+                                  </Link>
+                                ) : null}
                                 <Link href={detailHref} className="min-w-0">
                                   <Button
                                     type="button"
@@ -2699,7 +2806,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                   </Button>
                                 </form>
                                 <form action={removeCircleWalletContactAction} className="min-w-0">
-                                  <input type="hidden" name="cardId" value={contact.card.id} />
+                                  <input type="hidden" name="walletContactId" value={contact.id} />
+                                  {contact.card?.id ? (
+                                    <input type="hidden" name="cardId" value={contact.card.id} />
+                                  ) : null}
                                   <input type="hidden" name="returnPath" value={detailHref} />
                                   <Button
                                     type="submit"
@@ -2745,14 +2855,24 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         Selected contact
                       </p>
                       <h3 className="mt-2 text-lg font-semibold text-foreground">
-                        {selectedWalletContact.card.fullName}
+                        {selectedWalletContact.display.fullName}
                       </h3>
                       <p className="mt-1 text-sm text-muted">
-                        {[selectedWalletContact.card.role, selectedWalletContact.card.businessName]
+                        {[selectedWalletContact.display.role, selectedWalletContact.display.businessName]
                           .filter(Boolean)
-                          .join(" at ") || "Circle Card contact"}
+                          .join(" at ") || selectedWalletContact.display.sourceLabel}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
+                        <Badge
+                          variant="outline"
+                          className={
+                            selectedWalletContact.display.isScannedBusinessCard
+                              ? "border-gold/25 text-gold"
+                              : "border-silver/18 text-silver"
+                          }
+                        >
+                          {selectedWalletContact.display.sourceLabel}
+                        </Badge>
                         {selectedWalletContact.category ? (
                           <Badge variant="outline" className="border-silver/18 text-silver">
                             {selectedWalletContact.category}
@@ -2770,6 +2890,59 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         ) : null}
                       </div>
                     </div>
+
+                    {selectedWalletContact.display.isScannedBusinessCard ? (
+                      <div className="rounded-2xl border border-gold/18 bg-gold/8 p-4">
+                        <div className="flex items-center gap-2">
+                          <ContactRound size={16} className="text-gold" />
+                          <p className="text-sm font-semibold text-foreground">Scanned Business Card</p>
+                        </div>
+                        {selectedWalletContact.originalCardImageUrl ? (
+                          <div className="mt-3 overflow-hidden rounded-xl border border-gold/14 bg-background/20">
+                            <img
+                              src={selectedWalletContact.originalCardImageUrl}
+                              alt="Original scanned business card"
+                              className="max-h-52 w-full object-contain"
+                            />
+                          </div>
+                        ) : null}
+                        <div className="mt-3 grid gap-2 text-sm text-muted">
+                          {selectedWalletContact.display.email ? (
+                            <p className="break-all">
+                              <span className="font-medium text-foreground">Email: </span>
+                              {selectedWalletContact.display.email}
+                            </p>
+                          ) : null}
+                          {selectedWalletContact.display.phone ? (
+                            <p>
+                              <span className="font-medium text-foreground">Phone: </span>
+                              {selectedWalletContact.display.phone}
+                            </p>
+                          ) : null}
+                          {selectedWalletContact.websiteUrl ? (
+                            <p className="break-all">
+                              <span className="font-medium text-foreground">Website: </span>
+                              {selectedWalletContact.websiteUrl}
+                            </p>
+                          ) : null}
+                          {selectedWalletContact.address ? (
+                            <p>
+                              <span className="font-medium text-foreground">Address: </span>
+                              {selectedWalletContact.address}
+                            </p>
+                          ) : null}
+                        </div>
+                        {Object.entries(selectedWalletContact.socialLinks).length ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {Object.entries(selectedWalletContact.socialLinks).map(([key, value]) => (
+                              <Badge key={key} variant="outline" className="border-gold/18 text-gold">
+                                {key}: {value}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {selectedWalletConnection ? (
                       <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
@@ -2846,7 +3019,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             </div>
                           </div>
                         ) : null}
-                        {selectedWalletConnection.kind === "none" ? (
+                        {selectedWalletConnection.kind === "none" && selectedWalletContact.card?.id ? (
                           <form action={sendCircleCardConnectionRequestAction} className="mt-3 space-y-3">
                             <input
                               type="hidden"
@@ -2912,6 +3085,44 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         </p>
                       </div>
                     </div>
+
+                    {selectedWalletContact.display.isScannedBusinessCard ? (
+                      <div className="rounded-2xl border border-gold/18 bg-background/18 p-4">
+                        <div className="flex items-center gap-2">
+                          <WalletCards size={16} className="text-gold" />
+                          <p className="text-sm font-semibold text-foreground">Claim Circle Card</p>
+                        </div>
+                        <p className="mt-2 text-sm text-muted">
+                          We scanned your business card and added you to Circle Wallet. Claim your Circle Card.
+                        </p>
+                        {selectedClaimLink ? (
+                          <div className="mt-3 space-y-2">
+                            <Input readOnly value={selectedClaimLink} aria-label="Claim Circle Card link" />
+                            <CircleCardCopyLinkButton
+                              publicUrl={selectedClaimLink}
+                              label="Copy Claim Link"
+                              className="w-full"
+                            />
+                          </div>
+                        ) : null}
+                        <form action={generateBusinessCardClaimLinkAction} className="mt-3">
+                          <input type="hidden" name="walletContactId" value={selectedWalletContact.id} />
+                          <input type="hidden" name="returnPath" value={walletReturnPath} />
+                          <Button
+                            type="submit"
+                            variant={selectedClaimLink ? "outline" : "default"}
+                            className="w-full gap-2"
+                            disabled={!selectedWalletContact.email}
+                          >
+                            <WalletCards size={16} />
+                            {selectedClaimLink ? "Refresh Claim Link" : "Claim Circle Card"}
+                          </Button>
+                        </form>
+                        {!selectedWalletContact.email ? (
+                          <p className="mt-2 text-xs text-muted">Add an email to generate a claim link.</p>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     <form action={updateCircleWalletContactDetailsAction} className="space-y-4">
                       <input type="hidden" name="walletContactId" value={selectedWalletContact.id} />
@@ -3052,12 +3263,18 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     </form>
 
                     <div className="grid gap-3">
-                      <Link href={`/card/${selectedWalletContact.card.slug}`} target="_blank" rel="noopener noreferrer">
-                        <Button type="button" variant="outline" className="w-full gap-2">
-                          Open public card
-                          <ArrowUpRight size={16} />
-                        </Button>
-                      </Link>
+                      {selectedWalletContact.display.publicCardHref ? (
+                        <Link
+                          href={selectedWalletContact.display.publicCardHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button type="button" variant="outline" className="w-full gap-2">
+                            Open public card
+                            <ArrowUpRight size={16} />
+                          </Button>
+                        </Link>
+                      ) : null}
                     </div>
                   </>
                 ) : (

@@ -21,7 +21,11 @@ export const CIRCLE_CARD_EVENT_TYPES = [
   "CONNECTION_REQUEST_SENT",
   "CONNECTION_REQUEST_ACCEPTED",
   "CONNECTION_REQUEST_DECLINED",
-  "CONNECTION_REQUEST_CANCELLED"
+  "CONNECTION_REQUEST_CANCELLED",
+  "BUSINESS_CARD_SCANNED",
+  "BUSINESS_CARD_MATCH_FOUND",
+  "BUSINESS_CARD_CONTACT_CREATED",
+  "CLAIM_LINK_GENERATED"
 ] as const;
 
 export type CircleCardEventTypeValue = (typeof CIRCLE_CARD_EVENT_TYPES)[number];
@@ -49,5 +53,9 @@ export const CIRCLE_CARD_EVENT_LABELS: Record<CircleCardEventTypeValue, string> 
   CONNECTION_REQUEST_SENT: "Connection request sent",
   CONNECTION_REQUEST_ACCEPTED: "Connection request accepted",
   CONNECTION_REQUEST_DECLINED: "Connection request declined",
-  CONNECTION_REQUEST_CANCELLED: "Connection request cancelled"
+  CONNECTION_REQUEST_CANCELLED: "Connection request cancelled",
+  BUSINESS_CARD_SCANNED: "Business card scanned",
+  BUSINESS_CARD_MATCH_FOUND: "Business card match found",
+  BUSINESS_CARD_CONTACT_CREATED: "Business card contact created",
+  CLAIM_LINK_GENERATED: "Claim link generated"
 };

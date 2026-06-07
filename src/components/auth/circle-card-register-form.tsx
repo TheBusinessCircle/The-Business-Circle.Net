@@ -24,7 +24,15 @@ type CircleCardRegisterResponse = {
   redirectTo?: string;
 };
 
-export function CircleCardRegisterForm() {
+type CircleCardRegisterFormProps = {
+  defaults?: {
+    name?: string;
+    email?: string;
+    businessName?: string;
+  };
+};
+
+export function CircleCardRegisterForm({ defaults }: CircleCardRegisterFormProps = {}) {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -35,12 +43,12 @@ export function CircleCardRegisterForm() {
     reValidateMode: "onChange",
     defaultValues: {
       source: "circle-card",
-      name: "",
-      email: "",
+      name: defaults?.name ?? "",
+      email: defaults?.email ?? "",
       password: "",
       confirmPassword: "",
       acceptedTerms: false,
-      businessName: ""
+      businessName: defaults?.businessName ?? ""
     }
   });
 

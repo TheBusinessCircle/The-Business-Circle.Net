@@ -4,6 +4,7 @@ import { CircleCardRegisterForm } from "@/components/auth/circle-card-register-f
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildJoinConfirmationRedirect, firstValue } from "@/lib/join/routing";
 import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
+import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -21,6 +22,19 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
   const params = await searchParams;
 
   if (isCircleCardRegistrationSource(firstValue(params.source))) {
+    const claimToken = firstValue(params.claim);
+    const claimContact =
+      claimToken && /^[a-f0-9]{64}$/i.test(claimToken)
+        ? await prisma.circleWalletContact.findUnique({
+            where: { claimToken },
+            select: {
+              fullName: true,
+              businessName: true,
+              email: true
+            }
+          })
+        : null;
+
     return (
       <div className="grid w-full min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
         <Card className="border-silver/16 bg-card/62">
@@ -41,7 +55,13 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
           </CardContent>
         </Card>
 
-        <CircleCardRegisterForm />
+        <CircleCardRegisterForm
+          defaults={{
+            name: claimContact?.fullName ?? "",
+            email: claimContact?.email ?? "",
+            businessName: claimContact?.businessName ?? ""
+          }}
+        />
       </div>
     );
   }

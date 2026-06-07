@@ -8,7 +8,7 @@ import {
 } from "@/lib/circle-card/file-actions";
 import { isCloudinaryConfigured, uploadImageToCloudinary } from "@/lib/media/cloudinary";
 
-export type CircleCardImageUploadKind = "profile-photo" | "business-logo";
+export type CircleCardImageUploadKind = "profile-photo" | "business-logo" | "business-card-scan";
 export type CircleCardLinkFileUploadKind = "link-file";
 export type CircleCardUploadKind = CircleCardImageUploadKind | CircleCardLinkFileUploadKind;
 
@@ -20,7 +20,8 @@ const CLOUDINARY_CIRCLE_CARD_FOLDER =
   process.env.CLOUDINARY_CIRCLE_CARD_FOLDER?.trim() || "business-circle/circle-card";
 const CIRCLE_CARD_UPLOAD_KINDS = new Set<CircleCardImageUploadKind>([
   "profile-photo",
-  "business-logo"
+  "business-logo",
+  "business-card-scan"
 ]);
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const SUPPORTED_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);

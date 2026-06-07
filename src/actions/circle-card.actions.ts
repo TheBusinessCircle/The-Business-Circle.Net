@@ -1,14 +1,17 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import type { MembershipTier, Role } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth/utils";
+import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
 import {
   buildCircleCardSlugBase,
   buildCircleCardSocialLinks,
+  buildCircleWalletBusinessCardSocialLinks,
   CIRCLE_CARD_FILE_LINK_TYPES,
   circleCardConnectionRequestFormSchema,
   circleCardConnectionRequestIdSchema,
@@ -20,9 +23,14 @@ import {
   circleCardLinkMoveSchema,
   circleCardFormSchema,
   circleCardOnboardingSchema,
+  circleWalletBusinessCardContactSchema,
   circleWalletContactDetailsSchema,
+  circleWalletContactIdSchema,
+  circleWalletMatchedCardActionSchema,
   nullableNumber,
   nullableText,
+  normalizeCircleCardEmail,
+  normalizeWebsiteDomain,
   parseCircleWalletDateInput,
   parseCircleWalletTagsInput,
   resolveCircleCardLookupSlug,
@@ -35,7 +43,11 @@ import {
 } from "@/lib/circle-card/permissions";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
-import { trackCircleCardEvent } from "@/server/circle-card";
+import {
+  findBusinessCardCircleCardMatches,
+  findDuplicateBusinessCardWalletContact,
+  trackCircleCardEvent
+} from "@/server/circle-card";
 import { hashCircleCardAccessCode } from "@/server/circle-card/link-access.service";
 
 const CIRCLE_CARD_FORM_FIELDS = [
@@ -108,6 +120,28 @@ const CIRCLE_CARD_LINK_FORM_FIELDS = [
 const CIRCLE_CARD_LINK_ID_FIELDS = ["cardId", "linkId"] as const;
 
 const CIRCLE_CARD_LINK_MOVE_FIELDS = ["cardId", "linkId", "direction"] as const;
+
+const CIRCLE_WALLET_BUSINESS_CARD_FIELDS = [
+  "fullName",
+  "businessName",
+  "role",
+  "phone",
+  "mobilePhone",
+  "email",
+  "websiteUrl",
+  "address",
+  "linkedin",
+  "instagram",
+  "x",
+  "facebook",
+  "tiktok",
+  "youtube",
+  "originalCardImageUrl",
+  "returnPath"
+] as const;
+
+const CIRCLE_WALLET_MATCHED_CARD_FIELDS = ["cardId", "message", "returnPath"] as const;
+const CIRCLE_WALLET_CONTACT_ID_FIELDS = ["walletContactId", "returnPath"] as const;
 
 const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
 const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = 24;
@@ -207,6 +241,24 @@ function readCircleCardLinkMoveFormData(formData: FormData) {
   );
 }
 
+function readCircleWalletBusinessCardFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_WALLET_BUSINESS_CARD_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleWalletMatchedCardFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_WALLET_MATCHED_CARD_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleWalletContactIdFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_WALLET_CONTACT_ID_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
 async function resolveAvailableSlug(input: {
   slugBase: string;
   cardId?: string | null;
@@ -274,6 +326,25 @@ async function getPrimaryCircleCardForUser(userId: string) {
       slug: true,
       userId: true
     }
+  });
+}
+
+async function trackPrimaryCircleCardEvent(input: {
+  userId: string;
+  eventType: CircleCardEventTypeValue;
+  metadata?: Record<string, unknown>;
+}) {
+  const primaryCard = await getPrimaryCircleCardForUser(input.userId);
+
+  if (!primaryCard) {
+    return { stored: false as const };
+  }
+
+  return trackCircleCardEvent({
+    cardId: primaryCard.id,
+    eventType: input.eventType,
+    userId: input.userId,
+    metadata: input.metadata
   });
 }
 
@@ -990,6 +1061,382 @@ export async function saveCircleWalletContactAction(formData: FormData) {
   redirectWithNotice(returnPath, "card-saved");
 }
 
+function walletContactReturnPath(walletContactId: string) {
+  return `/dashboard/circle-card?contactId=${encodeURIComponent(walletContactId)}#wallet`;
+}
+
+export async function saveBusinessCardScanWalletContactAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card#connect-hub");
+  const parsed = circleWalletBusinessCardContactSchema.safeParse(
+    readCircleWalletBusinessCardFormData(formData)
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "business-card-invalid");
+  }
+
+  const values = parsed.data;
+  const email = normalizeCircleCardEmail(values.email);
+  const websiteDomain = normalizeWebsiteDomain(values.websiteUrl);
+  const [matches, duplicateContact] = await Promise.all([
+    findBusinessCardCircleCardMatches({
+      userId: user.id,
+      email,
+      websiteDomain
+    }),
+    findDuplicateBusinessCardWalletContact({
+      userId: user.id,
+      email,
+      websiteDomain
+    })
+  ]);
+
+  if (matches.length) {
+    redirectWithNotice(
+      `/dashboard/circle-card?connectCard=${encodeURIComponent(matches[0].slug)}#connect-hub`,
+      "business-card-match-found"
+    );
+  }
+
+  if (duplicateContact) {
+    redirectWithNotice(walletContactReturnPath(duplicateContact.id), "business-card-duplicate");
+  }
+
+  const contact = await prisma.circleWalletContact.create({
+    data: {
+      userId: user.id,
+      source: "BUSINESS_CARD_SCAN",
+      fullName: nullableText(values.fullName),
+      businessName: nullableText(values.businessName),
+      role: nullableText(values.role),
+      phone: nullableText(values.phone),
+      mobilePhone: nullableText(values.mobilePhone),
+      email,
+      websiteUrl: nullableText(values.websiteUrl),
+      websiteDomain,
+      address: nullableText(values.address),
+      socialLinks: buildCircleWalletBusinessCardSocialLinks({
+        linkedin: values.linkedin,
+        instagram: values.instagram,
+        x: values.x,
+        facebook: values.facebook,
+        tiktok: values.tiktok,
+        youtube: values.youtube
+      }),
+      originalCardImageUrl: nullableText(values.originalCardImageUrl),
+      relationshipContext: {
+        source: "business_card_scan",
+        scannedAt: new Date().toISOString()
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  await trackPrimaryCircleCardEvent({
+    userId: user.id,
+    eventType: "BUSINESS_CARD_CONTACT_CREATED",
+    metadata: {
+      source: "connect_hub",
+      walletContactId: contact.id,
+      hasEmail: Boolean(email),
+      hasWebsite: Boolean(websiteDomain)
+    }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  redirectWithNotice(walletContactReturnPath(contact.id), "business-card-contact-created");
+}
+
+export async function saveMatchedBusinessCardCircleCardAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleWalletMatchedCardActionSchema.safeParse(
+    readCircleWalletMatchedCardFormData(formData)
+  );
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#connect-hub"
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "business-card-invalid");
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: parsed.data.cardId,
+      isPublished: true,
+      user: {
+        suspended: false
+      }
+    },
+    select: {
+      id: true,
+      slug: true,
+      userId: true
+    }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "connection-card-not-found");
+  }
+
+  if (card.userId === user.id) {
+    redirectWithNotice(returnPath, "own-card");
+  }
+
+  const existingSave = await prisma.circleWalletContact.findUnique({
+    where: {
+      userId_cardId: {
+        userId: user.id,
+        cardId: card.id
+      }
+    },
+    select: { id: true }
+  });
+
+  if (existingSave) {
+    revalidateCircleCardConnectionPaths([card.slug]);
+    redirectWithNotice(returnPath, "card-already-saved");
+  }
+
+  const contact = await prisma.circleWalletContact.create({
+    data: {
+      userId: user.id,
+      cardId: card.id,
+      source: "CIRCLE_CARD"
+    },
+    select: {
+      id: true
+    }
+  });
+
+  await Promise.all([
+    trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "WALLET_SAVE",
+      userId: user.id,
+      metadata: {
+        source: "business_card_scan_match"
+      }
+    }),
+    trackPrimaryCircleCardEvent({
+      userId: user.id,
+      eventType: "BUSINESS_CARD_CONTACT_CREATED",
+      metadata: {
+        source: "business_card_match",
+        walletContactId: contact.id,
+        matchedCardId: card.id
+      }
+    })
+  ]);
+
+  revalidateCircleCardConnectionPaths([card.slug]);
+  redirectWithNotice(returnPath, "card-saved");
+}
+
+export async function saveMatchedBusinessCardAndSendConnectionRequestAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleWalletMatchedCardActionSchema.safeParse(
+    readCircleWalletMatchedCardFormData(formData)
+  );
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#connect-hub"
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "business-card-invalid");
+  }
+
+  const [requesterCard, recipientCard] = await Promise.all([
+    getPrimaryCircleCardForUser(user.id),
+    prisma.circleCard.findFirst({
+      where: {
+        id: parsed.data.cardId,
+        isPublished: true,
+        user: {
+          suspended: false
+        }
+      },
+      select: {
+        id: true,
+        slug: true,
+        userId: true
+      }
+    })
+  ]);
+
+  if (!requesterCard) {
+    redirectWithError(returnPath, "connection-primary-card-required");
+  }
+
+  if (!recipientCard) {
+    redirectWithError(returnPath, "connection-card-not-found");
+  }
+
+  if (recipientCard.userId === user.id || recipientCard.id === requesterCard.id) {
+    redirectWithNotice(returnPath, "own-card");
+  }
+
+  const [savedContact, activeRequest] = await Promise.all([
+    prisma.circleWalletContact.findUnique({
+      where: {
+        userId_cardId: {
+          userId: user.id,
+          cardId: recipientCard.id
+        }
+      },
+      select: { id: true }
+    }),
+    findActiveCircleCardConnectionRequest({
+      requesterCardId: requesterCard.id,
+      recipientCardId: recipientCard.id
+    })
+  ]);
+
+  let createdWalletContactId: string | null = null;
+
+  if (!savedContact) {
+    const contact = await prisma.circleWalletContact.create({
+      data: {
+        userId: user.id,
+        cardId: recipientCard.id,
+        source: "CIRCLE_CARD"
+      },
+      select: { id: true }
+    });
+    createdWalletContactId = contact.id;
+  }
+
+  if (activeRequest?.status === "ACCEPTED") {
+    revalidateCircleCardConnectionPaths([requesterCard.slug, recipientCard.slug]);
+    redirectWithNotice(returnPath, "connection-already-connected");
+  }
+
+  if (activeRequest?.status === "PENDING") {
+    revalidateCircleCardConnectionPaths([requesterCard.slug, recipientCard.slug]);
+    redirectWithNotice(
+      returnPath,
+      activeRequest.requesterId === user.id
+        ? "connection-request-pending"
+        : "connection-request-incoming"
+    );
+  }
+
+  try {
+    await prisma.circleCardConnectionRequest.create({
+      data: {
+        requesterId: user.id,
+        requesterCardId: requesterCard.id,
+        recipientId: recipientCard.userId,
+        recipientCardId: recipientCard.id,
+        message: nullableText(parsed.data.message)
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      redirectWithNotice(returnPath, "connection-request-pending");
+    }
+
+    redirectWithError(returnPath, "connection-request-failed");
+  }
+
+  await Promise.all([
+    createdWalletContactId
+      ? trackCircleCardEvent({
+          cardId: recipientCard.id,
+          eventType: "WALLET_SAVE",
+          userId: user.id,
+          metadata: {
+            source: "business_card_scan_match"
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
+    createdWalletContactId
+      ? trackPrimaryCircleCardEvent({
+          userId: user.id,
+          eventType: "BUSINESS_CARD_CONTACT_CREATED",
+          metadata: {
+            source: "business_card_match_request",
+            walletContactId: createdWalletContactId,
+            matchedCardId: recipientCard.id
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
+    trackCircleCardEvent({
+      cardId: recipientCard.id,
+      eventType: "CONNECTION_REQUEST_SENT",
+      userId: user.id,
+      metadata: {
+        source: "business_card_scan_match",
+        requesterCardId: requesterCard.id
+      }
+    })
+  ]);
+
+  revalidateCircleCardConnectionPaths([requesterCard.slug, recipientCard.slug]);
+  redirectWithNotice(returnPath, "connection-request-sent");
+}
+
+export async function generateBusinessCardClaimLinkAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleWalletContactIdSchema.safeParse(readCircleWalletContactIdFormData(formData));
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#wallet"
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "wallet-contact-invalid");
+  }
+
+  const contact = await prisma.circleWalletContact.findFirst({
+    where: {
+      id: parsed.data.walletContactId,
+      userId: user.id,
+      source: "BUSINESS_CARD_SCAN"
+    },
+    select: {
+      id: true,
+      email: true,
+      claimToken: true
+    }
+  });
+
+  if (!contact) {
+    redirectWithError(returnPath, "wallet-contact-not-found");
+  }
+
+  if (!contact.email) {
+    redirectWithError(returnPath, "claim-link-email-required");
+  }
+
+  const claimToken = contact.claimToken || randomBytes(32).toString("hex");
+
+  await prisma.circleWalletContact.update({
+    where: { id: contact.id },
+    data: {
+      claimToken,
+      claimTokenGeneratedAt: new Date()
+    }
+  });
+
+  await trackPrimaryCircleCardEvent({
+    userId: user.id,
+    eventType: "CLAIM_LINK_GENERATED",
+    metadata: {
+      source: "circle_wallet_business_card_scan",
+      walletContactId: contact.id
+    }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  redirectWithNotice(returnPath, "claim-link-generated");
+}
+
 export async function resolveCircleCardLinkAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
   const rawLookup = String(formData.get("cardLookup") || "");
@@ -1453,20 +1900,26 @@ export async function cancelCircleCardConnectionRequestAction(formData: FormData
 export async function removeCircleWalletContactAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
   const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const walletContactId = String(formData.get("walletContactId") || "");
   const cardId = String(formData.get("cardId") || "");
 
-  if (!cardId) {
+  if (!cardId && !walletContactId) {
     redirectWithError(returnPath, "missing-card");
   }
 
-  const savedContact = await prisma.circleWalletContact.findUnique({
-    where: {
-      userId_cardId: {
-        userId: user.id,
-        cardId
-      }
-    },
+  const savedContact = await prisma.circleWalletContact.findFirst({
+    where: walletContactId
+      ? {
+          id: walletContactId,
+          userId: user.id
+        }
+      : {
+          userId: user.id,
+          cardId
+        },
     select: {
+      id: true,
+      cardId: true,
       card: {
         select: {
           slug: true
@@ -1481,24 +1934,34 @@ export async function removeCircleWalletContactAction(formData: FormData) {
 
   await prisma.circleWalletContact.delete({
     where: {
-      userId_cardId: {
-        userId: user.id,
-        cardId
-      }
+      id: savedContact.id
     }
   });
 
-  await trackCircleCardEvent({
-    cardId,
-    eventType: "WALLET_REMOVE",
-    userId: user.id,
-    metadata: {
-      source: "circle_wallet"
-    }
-  });
+  if (savedContact.cardId) {
+    await trackCircleCardEvent({
+      cardId: savedContact.cardId,
+      eventType: "WALLET_REMOVE",
+      userId: user.id,
+      metadata: {
+        source: "circle_wallet"
+      }
+    });
+  } else {
+    await trackPrimaryCircleCardEvent({
+      userId: user.id,
+      eventType: "WALLET_REMOVE",
+      metadata: {
+        source: "circle_wallet_business_card_scan",
+        walletContactId: savedContact.id
+      }
+    });
+  }
 
   revalidatePath("/dashboard/circle-card");
-  revalidatePath(`/card/${savedContact.card.slug}`);
+  if (savedContact.card?.slug) {
+    revalidatePath(`/card/${savedContact.card.slug}`);
+  }
   redirectWithNotice(returnPath, "card-removed");
 }
 
@@ -1539,7 +2002,9 @@ export async function toggleCircleWalletFavouriteAction(formData: FormData) {
   });
 
   revalidatePath("/dashboard/circle-card");
-  revalidatePath(`/card/${savedContact.card.slug}`);
+  if (savedContact.card?.slug) {
+    revalidatePath(`/card/${savedContact.card.slug}`);
+  }
   redirectWithNotice(returnPath, savedContact.favourite ? "favourite-removed" : "favourite-added");
 }
 
@@ -1642,6 +2107,8 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
   }
 
   revalidatePath("/dashboard/circle-card");
-  revalidatePath(`/card/${savedContact.card.slug}`);
+  if (savedContact.card?.slug) {
+    revalidatePath(`/card/${savedContact.card.slug}`);
+  }
   redirectWithNotice(returnPath, "relationship-updated");
 }

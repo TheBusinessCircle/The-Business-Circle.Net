@@ -475,9 +475,23 @@ model CircleCardEvent {
 model CircleWalletContact {
   id                  String     @id @default(cuid())
   userId              String
-  cardId              String
+  cardId              String?
+  source              CircleWalletContactSource @default(CIRCLE_CARD)
   savedAt             DateTime   @default(now())
   favourite           Boolean    @default(false)
+  fullName            String?    @db.VarChar(120)
+  businessName        String?    @db.VarChar(140)
+  role                String?    @db.VarChar(120)
+  phone               String?    @db.VarChar(48)
+  mobilePhone         String?    @db.VarChar(48)
+  email               String?    @db.VarChar(320)
+  websiteUrl          String?    @db.VarChar(2048)
+  websiteDomain       String?    @db.VarChar(255)
+  address             String?    @db.Text
+  socialLinks         Json       @default("{}")
+  originalCardImageUrl String?   @db.VarChar(2048)
+  claimToken          String?    @unique
+  claimTokenGeneratedAt DateTime?
   notes               String?    @db.Text
   metAt               String?    @db.VarChar(140)
   followUpDate        DateTime?  @db.Date
@@ -488,10 +502,13 @@ model CircleWalletContact {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
   user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  card                CircleCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  card                CircleCard? @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@unique([userId, cardId])
   @@index([userId])
+  @@index([userId, source])
+  @@index([userId, email])
+  @@index([userId, websiteDomain])
   @@index([userId, favourite])
   @@index([userId, category])
   @@index([userId, followUpDate])
@@ -2210,6 +2227,17 @@ enum CircleCardEventType {
   CONNECTION_REQUEST_ACCEPTED
   CONNECTION_REQUEST_DECLINED
   CONNECTION_REQUEST_CANCELLED
+  BUSINESS_CARD_SCANNED
+  BUSINESS_CARD_MATCH_FOUND
+  BUSINESS_CARD_CONTACT_CREATED
+  CLAIM_LINK_GENERATED
+}
+
+enum CircleWalletContactSource {
+  MANUAL
+  CIRCLE_CARD
+  BUSINESS_CARD_SCAN
+  LINK_IMPORT
 }
 
 enum CircleCardConnectionRequestStatus {
