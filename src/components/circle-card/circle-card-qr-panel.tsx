@@ -13,6 +13,7 @@ type CircleCardQrPanelProps = {
   label?: string;
   variant?: "default" | "premium";
   className?: string;
+  showCopyImage?: boolean;
   analytics?: {
     cardId: string;
     source?: string;
@@ -25,12 +26,21 @@ export function CircleCardQrPanel({
   label = "QR code",
   variant = "default",
   className,
+  showCopyImage = false,
   analytics
 }: CircleCardQrPanelProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [canCopyQrImage, setCanCopyQrImage] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const premium = variant === "premium";
+
+  useEffect(() => {
+    setCanCopyQrImage(
+      typeof ClipboardItem !== "undefined" &&
+        Boolean(navigator.clipboard && "write" in navigator.clipboard)
+    );
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -135,6 +145,36 @@ export function CircleCardQrPanel({
     setStatus("QR downloaded");
   }
 
+  async function copyQrImage() {
+    if (!qrDataUrl || !canCopyQrImage || !navigator.clipboard.write) {
+      setStatus("QR image copy unavailable");
+      return;
+    }
+
+    try {
+      const response = await fetch(qrDataUrl);
+      const blob = await response.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type || "image/png"]: blob
+        })
+      ]);
+      if (analytics?.cardId) {
+        trackCircleCardEvent({
+          cardId: analytics.cardId,
+          eventType: "SHARE",
+          metadata: {
+            method: "qr_copy_image",
+            source: analytics.source ?? "qr_panel"
+          }
+        });
+      }
+      setStatus("QR image copied");
+    } catch {
+      setStatus("QR image copy failed");
+    }
+  }
+
   return (
     <div
       ref={panelRef}
@@ -221,6 +261,23 @@ export function CircleCardQrPanel({
             <Download size={16} />
             Download QR
           </Button>
+          {showCopyImage ? (
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "w-full justify-center gap-2",
+                premium
+                  ? "h-11 rounded-2xl border-[#2f6dff]/30 bg-[#0b1c3f]/72 hover:border-gold/35 hover:bg-[#102958]"
+                  : null
+              )}
+              onClick={copyQrImage}
+              disabled={!qrDataUrl || !canCopyQrImage}
+            >
+              <Copy size={16} />
+              Copy QR Image
+            </Button>
+          ) : null}
         </div>
         {status ? <p className="text-xs text-muted">{status}</p> : null}
       </div>

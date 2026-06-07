@@ -55,6 +55,7 @@ export function CircleCardCopyLinkButton({
           cardId: analytics.cardId,
           eventType: analytics.eventType ?? "CONNECT_HUB_COPY_LINK",
           metadata: {
+            method: "copy_link",
             source: analytics.source ?? "connect_hub"
           }
         });

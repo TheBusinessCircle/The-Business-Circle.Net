@@ -60,6 +60,7 @@ import {
   CircleCardImageUploadField,
   CircleCardInstallPrompt,
   CircleCardQrPanel,
+  CircleCardShareAssetsPanel,
   CircleCardShareButton,
   CircleCardSmartLinkFields
 } from "@/components/circle-card";
@@ -82,6 +83,7 @@ import {
   isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
+import { buildCircleCardShareSourceUrl } from "@/lib/circle-card/share-sources";
 import {
   type CircleCardLinkType,
   CIRCLE_WALLET_CATEGORY_OPTIONS,
@@ -853,6 +855,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isCircleCardFree && activeCustomLinkCount >= FREE_ACTIVE_CUSTOM_LINK_LIMIT;
   const socialLinks = readCircleCardSocialLinks(card?.socialLinks ?? null);
   const publicUrl = card ? absoluteUrl(`/card/${card.slug}`) : null;
+  const qrUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "qr") : null;
+  const nfcUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "nfc") : null;
+  const eventUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "event") : null;
   const defaultWebsite =
     card?.websiteUrl ?? member?.profile?.website ?? member?.profile?.business?.website ?? "";
   const analytics = card
@@ -1082,7 +1087,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       </p>
                       <p className="mt-2 break-all text-sm text-foreground">{publicUrl}</p>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
                       <CircleCardCopyLinkButton
                         publicUrl={publicUrl}
                         label="Copy Link"
@@ -1106,6 +1111,16 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       <a href="#public-card" className={cn(buttonVariants({ variant: "outline" }), "h-10 gap-2")}>
                         <QrCode size={16} />
                         QR
+                      </a>
+                      <a
+                        href="#share-assets"
+                        className={cn(
+                          buttonVariants({ variant: "outline" }),
+                          "h-auto min-h-10 gap-2 px-2 text-center text-xs leading-tight sm:text-sm"
+                        )}
+                      >
+                        <QrCode size={16} />
+                        <span>Need QR/NFC assets?</span>
                       </a>
                       <Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">
                         <Button type="button" variant="outline" className="h-10 w-full gap-2">
@@ -1400,6 +1415,29 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </div>
           </div>
         </div>
+      </CircleCardDashboardSection>
+
+      <CircleCardDashboardSection
+        id="share-assets"
+        title="Share Assets"
+        summary="Public link, QR code, NFC-ready URL and print asset placeholders"
+        defaultOpen={Boolean(card)}
+      >
+        {card && publicUrl && qrUrl && nfcUrl && eventUrl ? (
+          <CircleCardShareAssetsPanel
+            cardId={card.id}
+            fullName={card.fullName}
+            slug={card.slug}
+            publicUrl={publicUrl}
+            qrUrl={qrUrl}
+            nfcUrl={nfcUrl}
+            eventUrl={eventUrl}
+          />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+            Create and publish your Circle Card before generating share assets.
+          </div>
+        )}
       </CircleCardDashboardSection>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">

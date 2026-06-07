@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { PublicCircleCardProfile } from "@/components/circle-card";
 import { SITE_CONFIG } from "@/config/site";
 import { getCircleCardAccountLabel } from "@/lib/circle-card/permissions";
+import { resolveCircleCardShareSource, type CircleCardShareSource } from "@/lib/circle-card/share-sources";
 import { prisma } from "@/lib/prisma";
 import { absoluteUrl } from "@/lib/utils";
 import { getPublicCircleCard, trackCircleCardEvent } from "@/server/circle-card";
@@ -24,6 +25,7 @@ async function incrementViewCount(
     visitorId?: string | null;
     userId?: string | null;
     viewerIsOwner?: boolean;
+    source?: CircleCardShareSource;
   } = {}
 ) {
   if (!card) {
@@ -49,7 +51,8 @@ async function incrementViewCount(
       visitorId: input.visitorId,
       userId: input.userId,
       metadata: {
-        source: "public_card",
+        source: input.source ?? "direct",
+        surface: "public_card",
         slug: card.slug,
         viewerIsOwner: input.viewerIsOwner ?? false
       }
@@ -108,6 +111,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
   const paramsValue = await searchParams;
   const notice = firstValue(paramsValue.notice);
   const error = firstValue(paramsValue.error);
+  const source = resolveCircleCardShareSource(firstValue(paramsValue.source));
   const card = await getPublicCircleCard(slug);
 
   if (!card) {
@@ -121,7 +125,8 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
   await incrementViewCount(card, {
     visitorId,
     userId: viewerUserId,
-    viewerIsOwner
+    viewerIsOwner,
+    source
   });
 
   let savedContact: {
