@@ -5,6 +5,10 @@ import { logServerError } from "@/lib/security/logging";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { scanBusinessCardImage, trackCircleCardEvent } from "@/server/circle-card";
+import {
+  isSupportedCircleCardImageFile,
+  MAX_CIRCLE_CARD_IMAGE_UPLOAD_BYTES
+} from "@/server/circle-card/upload.service";
 
 export const runtime = "nodejs";
 
@@ -62,6 +66,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Choose a business card image." }, { status: 400, headers });
     }
 
+    if (!isSupportedCircleCardImageFile(image)) {
+      return NextResponse.json(
+        { error: "Upload a JPG, JPEG, PNG or WEBP business card image." },
+        { status: 400, headers }
+      );
+    }
+
+    if (image.size > MAX_CIRCLE_CARD_IMAGE_UPLOAD_BYTES) {
+      return NextResponse.json(
+        {
+          error:
+            "Business card images must be 5MB or smaller. Please retake the photo a little further away or choose a smaller image."
+        },
+        { status: 413, headers }
+      );
+    }
+
     const scan = await scanBusinessCardImage({
       file: image,
       userId: authResult.user.id
@@ -99,14 +120,17 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Error && error.message === "circle-card-image-too-large") {
       return NextResponse.json(
-        { error: "Business card images must be 5MB or smaller." },
+        {
+          error:
+            "Business card images must be 5MB or smaller. Please retake the photo a little further away or choose a smaller image."
+        },
         { status: 400, headers }
       );
     }
 
     if (error instanceof Error && error.message === "invalid-circle-card-image") {
       return NextResponse.json(
-        { error: "Upload a JPG, PNG or WebP business card image." },
+        { error: "Upload a JPG, JPEG, PNG or WEBP business card image." },
         { status: 400, headers }
       );
     }

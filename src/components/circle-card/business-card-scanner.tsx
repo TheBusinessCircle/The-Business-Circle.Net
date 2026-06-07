@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type ChangeEvent, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Camera,
@@ -9,7 +9,9 @@ import {
   ContactRound,
   ImageUp,
   Loader2,
+  RotateCcw,
   Save,
+  ScanLine,
   Send,
   WalletCards
 } from "lucide-react";
@@ -98,6 +100,23 @@ type BusinessCardScannerProps = {
   canSendConnectionRequest: boolean;
 };
 
+type ScannerStage = "idle" | "preparing" | "optimising" | "ready" | "uploading" | "scanning";
+
+type PreparedImage = {
+  file: File;
+  previewUrl: string;
+  width: number;
+  height: number;
+  originalSize: number;
+};
+
+type LoadedImageSource = {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  release: () => void;
+};
+
 const EMPTY_FIELDS: ScannerFields = {
   fullName: "",
   businessName: "",
@@ -118,6 +137,16 @@ const SOCIAL_FIELDS = [
   ["tiktok", "TikTok"],
   ["youtube", "YouTube"]
 ] as const;
+
+const BUSINESS_CARD_MAX_DIMENSION = 1600;
+const BUSINESS_CARD_IMAGE_QUALITY = 0.82;
+const BUSINESS_CARD_OUTPUT_TYPE = "image/jpeg";
+const BUSINESS_CARD_OUTPUT_EXTENSION = "jpg";
+const BUSINESS_CARD_UPLOAD_LIMIT_BYTES = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const SUPPORTED_IMAGE_EXTENSIONS = /\.(jpe?g|png|webp)$/i;
+const DEVICE_TOO_LARGE_MESSAGE =
+  "This image is too large for your device to process. Please retake the photo a little further away or choose a smaller image.";
 
 function toScannerFields(payload: NonNullable<BusinessCardScanPayload["scan"]>["fields"]): ScannerFields {
   return {
@@ -161,14 +190,265 @@ function extractionLabel(value: NonNullable<BusinessCardScanPayload["scan"]>["ex
   return "Manual review";
 }
 
+function scannerStageLabel(stage: ScannerStage) {
+  if (stage === "preparing") {
+    return "Preparing image";
+  }
+
+  if (stage === "optimising") {
+    return "Optimising image";
+  }
+
+  if (stage === "uploading") {
+    return "Uploading image";
+  }
+
+  if (stage === "scanning") {
+    return "Scanning card";
+  }
+
+  return "";
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isSupportedImageFile(file: File) {
+  return SUPPORTED_IMAGE_TYPES.has(file.type) || SUPPORTED_IMAGE_EXTENSIONS.test(file.name);
+}
+
+function fitWithinMaxDimension(width: number, height: number) {
+  const scale = Math.min(1, BUSINESS_CARD_MAX_DIMENSION / width, BUSINESS_CARD_MAX_DIMENSION / height);
+
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale))
+  };
+}
+
+function baseFileName(file: File) {
+  return (
+    file.name
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^\w.-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 80) || "business-card"
+  );
+}
+
+async function loadImageSource(file: File): Promise<LoadedImageSource> {
+  if ("createImageBitmap" in window) {
+    try {
+      const options: ImageBitmapOptions = { imageOrientation: "from-image" };
+      const bitmap = await createImageBitmap(file, options);
+
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        release: () => bitmap.close()
+      };
+    } catch {
+      // Fall back to an HTMLImageElement below. Some mobile browsers reject imageBitmap options.
+    }
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("image-load-failed"));
+      img.src = objectUrl;
+    });
+
+    return {
+      source: image,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      release: () => {
+        image.removeAttribute("src");
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("image-optimisation-failed"));
+          return;
+        }
+
+        resolve(blob);
+      },
+      BUSINESS_CARD_OUTPUT_TYPE,
+      quality
+    );
+  });
+}
+
+async function renderOptimisedImage(file: File) {
+  const loaded = await loadImageSource(file);
+  let canvas: HTMLCanvasElement | null = null;
+
+  try {
+    if (!loaded.width || !loaded.height) {
+      throw new Error("image-optimisation-failed");
+    }
+
+    const size = fitWithinMaxDimension(loaded.width, loaded.height);
+    canvas = document.createElement("canvas");
+    canvas.width = size.width;
+    canvas.height = size.height;
+
+    const context = canvas.getContext("2d", { alpha: false });
+    if (!context) {
+      throw new Error("image-optimisation-failed");
+    }
+
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(loaded.source, 0, 0, size.width, size.height);
+
+    let blob = await canvasToBlob(canvas, BUSINESS_CARD_IMAGE_QUALITY);
+
+    if (blob.size > BUSINESS_CARD_UPLOAD_LIMIT_BYTES) {
+      blob = await canvasToBlob(canvas, 0.78);
+    }
+
+    if (blob.size > BUSINESS_CARD_UPLOAD_LIMIT_BYTES) {
+      blob = await canvasToBlob(canvas, 0.75);
+    }
+
+    if (blob.size > BUSINESS_CARD_UPLOAD_LIMIT_BYTES) {
+      throw new Error("image-too-large-after-optimisation");
+    }
+
+    return {
+      blob,
+      width: size.width,
+      height: size.height
+    };
+  } finally {
+    loaded.release();
+
+    if (canvas) {
+      const context = canvas.getContext("2d");
+      context?.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width = 1;
+      canvas.height = 1;
+    }
+  }
+}
+
+async function optimiseBusinessCardImage(file: File): Promise<PreparedImage> {
+  if (!isSupportedImageFile(file)) {
+    throw new Error("unsupported-image-type");
+  }
+
+  const optimised = await renderOptimisedImage(file);
+  const optimisedFile = new File(
+    [optimised.blob],
+    `${baseFileName(file)}-scan.${BUSINESS_CARD_OUTPUT_EXTENSION}`,
+    {
+      type: BUSINESS_CARD_OUTPUT_TYPE,
+      lastModified: Date.now()
+    }
+  );
+
+  return {
+    file: optimisedFile,
+    previewUrl: URL.createObjectURL(optimised.blob),
+    width: optimised.width,
+    height: optimised.height,
+    originalSize: file.size
+  };
+}
+
+function uploadBusinessCardScan(
+  file: File,
+  onStageChange: (stage: ScannerStage) => void
+): Promise<BusinessCardScanPayload> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    const formData = new FormData();
+
+    formData.append("image", file);
+    request.open("POST", "/api/circle-card/business-card-scan");
+    request.upload.onloadstart = () => onStageChange("uploading");
+    request.upload.onloadend = () => onStageChange("scanning");
+    request.onerror = () => reject(new Error("network-error"));
+    request.onload = () => {
+      let payload: BusinessCardScanPayload = {};
+
+      try {
+        payload = JSON.parse(request.responseText || "{}") as BusinessCardScanPayload;
+      } catch {
+        payload = {};
+      }
+
+      if (request.status >= 200 && request.status < 300) {
+        resolve(payload);
+        return;
+      }
+
+      reject(new Error(payload.error || "Unable to scan business card."));
+    };
+    request.send(formData);
+  });
+}
+
+function friendlyImageError(error: unknown) {
+  if (error instanceof Error && error.message === "unsupported-image-type") {
+    return "Upload a JPG, JPEG, PNG or WEBP business card image.";
+  }
+
+  if (
+    error instanceof Error &&
+    (error.message === "image-too-large-after-optimisation" ||
+      error.message === "image-load-failed" ||
+      error.message === "image-optimisation-failed")
+  ) {
+    return DEVICE_TOO_LARGE_MESSAGE;
+  }
+
+  return DEVICE_TOO_LARGE_MESSAGE;
+}
+
 export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardScannerProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [expanded, setExpanded] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
+  const [stage, setStage] = useState<ScannerStage>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [preparedImage, setPreparedImage] = useState<PreparedImage | null>(null);
   const [scan, setScan] = useState<BusinessCardScanPayload["scan"] | null>(null);
   const [fields, setFields] = useState<ScannerFields>(EMPTY_FIELDS);
+
+  useEffect(() => {
+    const previewUrl = preparedImage?.previewUrl;
+
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [preparedImage?.previewUrl]);
 
   async function handleFile(file: File | undefined) {
     if (!file) {
@@ -177,34 +457,54 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
 
     setExpanded(true);
     setError(null);
-    setIsScanning(true);
+    setScan(null);
+    setFields(EMPTY_FIELDS);
+    setPreparedImage(null);
+    setStage("preparing");
 
     try {
-      const formData = new FormData();
-      formData.append("image", file);
-      const response = await fetch("/api/circle-card/business-card-scan", {
-        method: "POST",
-        body: formData
-      });
-      const payload = (await response.json().catch(() => ({}))) as BusinessCardScanPayload;
-
-      if (!response.ok || !payload.scan) {
-        setError(payload.error ?? "Unable to scan business card.");
-        return;
-      }
-
-      setScan(payload.scan);
-      setFields(toScannerFields(payload.scan.fields));
-    } catch {
-      setError("Unable to scan business card.");
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      setStage("optimising");
+      const optimised = await optimiseBusinessCardImage(file);
+      setPreparedImage(optimised);
+      setStage("ready");
+    } catch (optimisationError) {
+      setError(friendlyImageError(optimisationError));
+      setStage("idle");
     } finally {
-      setIsScanning(false);
       if (cameraInputRef.current) {
         cameraInputRef.current.value = "";
       }
       if (uploadInputRef.current) {
         uploadInputRef.current.value = "";
       }
+    }
+  }
+
+  async function handleScanPreparedImage() {
+    if (!preparedImage) {
+      return;
+    }
+
+    setError(null);
+    setScan(null);
+    setStage("uploading");
+
+    try {
+      const payload = await uploadBusinessCardScan(preparedImage.file, setStage);
+
+      if (!payload.scan) {
+        setError(payload.error ?? "Unable to scan business card.");
+        setStage("ready");
+        return;
+      }
+
+      setScan(payload.scan);
+      setFields(toScannerFields(payload.scan.fields));
+      setStage("idle");
+    } catch (scanError) {
+      setError(scanError instanceof Error ? scanError.message : "Unable to scan business card.");
+      setStage("ready");
     }
   }
 
@@ -229,6 +529,8 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
     }));
   }
 
+  const busy = stage === "preparing" || stage === "optimising" || stage === "uploading" || stage === "scanning";
+  const stageLabel = scannerStageLabel(stage);
   const firstMatch = scan?.matches[0] ?? null;
   const returnPath = firstMatch
     ? `/dashboard/circle-card?connectCard=${encodeURIComponent(firstMatch.slug)}#connect-hub`
@@ -273,17 +575,17 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
           <Button
             type="button"
             className="gap-2"
-            disabled={isScanning}
+            disabled={busy}
             onClick={() => cameraInputRef.current?.click()}
           >
-            {isScanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
             Take Photo
           </Button>
           <Button
             type="button"
             variant="outline"
             className="gap-2"
-            disabled={isScanning}
+            disabled={busy}
             onClick={() => uploadInputRef.current?.click()}
           >
             <ImageUp size={16} />
@@ -291,16 +593,70 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
           </Button>
         </div>
 
+        {stageLabel ? (
+          <div className="rounded-2xl border border-gold/18 bg-background/20 p-4 text-sm text-muted">
+            <Loader2 size={16} className="mr-2 inline animate-spin text-gold" />
+            {stageLabel}
+          </div>
+        ) : null}
+
         {error ? (
           <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
           </p>
         ) : null}
 
-        {isScanning ? (
-          <div className="rounded-2xl border border-gold/18 bg-background/20 p-4 text-sm text-muted">
-            <Loader2 size={16} className="mr-2 inline animate-spin text-gold" />
-            Reading business card...
+        {expanded && preparedImage && !scan ? (
+          <div className="space-y-4 rounded-2xl border border-silver/14 bg-background/20 p-4">
+            <div className="overflow-hidden rounded-xl border border-silver/14 bg-background/24">
+              <img
+                src={preparedImage.previewUrl}
+                alt="Optimised business card preview"
+                className="max-h-64 w-full object-contain"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="border-gold/25 text-gold">
+                Optimised JPEG
+              </Badge>
+              <Badge variant="outline" className="border-silver/18 text-silver">
+                {preparedImage.width}x{preparedImage.height}
+              </Badge>
+              <Badge variant="outline" className="border-silver/18 text-silver">
+                {formatFileSize(preparedImage.originalSize)} to {formatFileSize(preparedImage.file.size)}
+              </Badge>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Button
+                type="button"
+                className="gap-2 sm:col-span-1"
+                disabled={busy}
+                onClick={() => void handleScanPreparedImage()}
+              >
+                <ScanLine size={16} />
+                Scan this card
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                disabled={busy}
+                onClick={() => cameraInputRef.current?.click()}
+              >
+                <RotateCcw size={16} />
+                Retake
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                disabled={busy}
+                onClick={() => uploadInputRef.current?.click()}
+              >
+                <ImageUp size={16} />
+                Choose another
+              </Button>
+            </div>
           </div>
         ) : null}
 

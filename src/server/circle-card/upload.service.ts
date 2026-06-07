@@ -14,7 +14,7 @@ export type CircleCardUploadKind = CircleCardImageUploadKind | CircleCardLinkFil
 
 const CIRCLE_CARD_UPLOAD_DIR = join(process.cwd(), "public", "uploads", "circle-card");
 const CIRCLE_CARD_LINK_FILE_UPLOAD_DIR = join(process.cwd(), ".uploads", "circle-card-link-files");
-const MAX_CIRCLE_CARD_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_CIRCLE_CARD_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_CIRCLE_CARD_LINK_FILE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const CLOUDINARY_CIRCLE_CARD_FOLDER =
   process.env.CLOUDINARY_CIRCLE_CARD_FOLDER?.trim() || "business-circle/circle-card";
@@ -36,7 +36,7 @@ export function isCircleCardLinkFileUploadKind(value: string): value is CircleCa
   return value === "link-file";
 }
 
-function isSupportedCircleCardImageFile(file: File) {
+export function isSupportedCircleCardImageFile(file: File) {
   if (file.type) {
     return SUPPORTED_IMAGE_MIME_TYPES.has(file.type);
   }
