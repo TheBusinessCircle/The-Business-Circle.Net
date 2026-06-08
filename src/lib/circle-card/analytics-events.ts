@@ -48,7 +48,9 @@ export const CIRCLE_CARD_EVENT_TYPES = [
   "OPPORTUNITY_UPDATED",
   "OPPORTUNITY_WON",
   "OPPORTUNITY_LOST",
-  "OPPORTUNITY_FOLLOWUP_SET"
+  "OPPORTUNITY_FOLLOWUP_SET",
+  "NOTIFICATION_READ",
+  "NOTIFICATION_MARK_ALL_READ"
 ] as const;
 
 export type CircleCardEventTypeValue = (typeof CIRCLE_CARD_EVENT_TYPES)[number];
@@ -103,5 +105,7 @@ export const CIRCLE_CARD_EVENT_LABELS: Record<CircleCardEventTypeValue, string> 
   OPPORTUNITY_UPDATED: "Opportunity updated",
   OPPORTUNITY_WON: "Opportunity won",
   OPPORTUNITY_LOST: "Opportunity lost",
-  OPPORTUNITY_FOLLOWUP_SET: "Opportunity follow-up set"
+  OPPORTUNITY_FOLLOWUP_SET: "Opportunity follow-up set",
+  NOTIFICATION_READ: "Notification read",
+  NOTIFICATION_MARK_ALL_READ: "Notifications marked read"
 };

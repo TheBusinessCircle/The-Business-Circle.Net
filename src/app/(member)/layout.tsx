@@ -31,6 +31,7 @@ import {
 } from "@/lib/rules-acceptance";
 import { shouldShowRulesWelcomeOverlay } from "@/lib/rules-onboarding";
 import { requireUser } from "@/lib/session";
+import { getCircleCardNotificationUnreadCount } from "@/server/circle-card";
 import { getDirectMessageNavCounts } from "@/server/messages";
 
 export const metadata: Metadata = {
@@ -53,7 +54,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     hasActiveSubscription: session.user.hasActiveSubscription,
     suspended: session.user.suspended
   });
-  const [messageCounts, rulesAccepted, profileTheme] = await Promise.all([
+  const [messageCounts, rulesAccepted, profileTheme, circleCardUnreadCount] = await Promise.all([
     circleCardFree
       ? Promise.resolve({ unreadCount: 0, pendingRequestCount: 0, pendingWinCredits: 0 })
       : getDirectMessageNavCounts(session.user.id),
@@ -61,7 +62,8 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     prisma.profile.findUnique({
       where: { userId: session.user.id },
       select: { accentTheme: true, workspaceAtmosphereEnabled: true }
-    })
+    }),
+    getCircleCardNotificationUnreadCount(session.user.id)
   ]);
   const accentTheme = resolveAccentTheme(profileTheme?.accentTheme);
   const workspaceAtmosphereEnabled = profileTheme?.workspaceAtmosphereEnabled ?? false;
@@ -79,6 +81,13 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       };
     }
 
+    if (item.href === "/dashboard/circle-card") {
+      return {
+        ...item,
+        badgeCount: circleCardUnreadCount
+      };
+    }
+
     if (item.href === "/wins") {
       return {
         ...item,
@@ -90,7 +99,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   };
 
   const circleCardNavItems = [
-    { label: "My Circle Card", href: "/dashboard/circle-card" },
+    { label: "My Circle Card", href: "/dashboard/circle-card", badgeCount: circleCardUnreadCount },
     { label: "Wallet", href: "/dashboard/circle-card#wallet" },
     { label: "Analytics", href: "/dashboard/circle-card#analytics" },
     { label: "Settings", href: "/dashboard/circle-card#circle-card-form" }

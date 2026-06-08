@@ -6,6 +6,7 @@ import {
   ArrowDown,
   ArrowUp,
   BarChart3,
+  Bell,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -49,6 +50,8 @@ import {
   declineCircleCardConnectionRequestAction,
   declineCircleCardIntroductionAction,
   generateBusinessCardClaimLinkAction,
+  markAllCircleCardNotificationsReadAction,
+  markCircleCardNotificationReadAction,
   moveCircleCardLinkAction,
   removeCircleWalletContactAction,
   resolveCircleCardLinkAction,
@@ -117,6 +120,10 @@ import {
   isCircleCardOpportunityOpenStatus
 } from "@/lib/circle-card/opportunities";
 import {
+  circleCardNotificationHref,
+  circleCardNotificationTypeLabel
+} from "@/lib/circle-card/notifications";
+import {
   type CircleCardLinkType,
   CIRCLE_WALLET_CATEGORY_OPTIONS,
   CIRCLE_WALLET_MET_AT_OPTIONS,
@@ -129,7 +136,11 @@ import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireCircleCardUser } from "@/lib/session";
 import { absoluteUrl, cn, formatCurrency, formatDate } from "@/lib/utils";
-import { getCircleCardAnalyticsSummary, trackCircleCardEvent } from "@/server/circle-card";
+import {
+  createDueOpportunityNotificationsForUser,
+  getCircleCardAnalyticsSummary,
+  trackCircleCardEvent
+} from "@/server/circle-card";
 
 export const metadata: Metadata = createPageMetadata({
   title: "My Circle Card",
@@ -190,6 +201,8 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "opportunity-updated": "Opportunity updated.",
   "opportunity-won": "Opportunity marked won.",
   "opportunity-lost": "Opportunity marked lost.",
+  "notification-read": "Notification marked as read.",
+  "notifications-read": "All notifications marked as read.",
   "custom-link-created": "Custom link added.",
   "custom-link-updated": "Custom link updated.",
   "custom-link-deleted": "Custom link deleted.",
@@ -245,7 +258,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   "referral-status-not-allowed": "That referral status change is not available.",
   "opportunity-invalid": "Check the opportunity fields and try again.",
   "opportunity-primary-card-required": "Create your own Circle Card before tracking opportunities.",
-  "opportunity-not-found": "That opportunity could not be found."
+  "opportunity-not-found": "That opportunity could not be found.",
+  "notification-invalid": "Check the notification action and try again.",
+  "notification-not-found": "That notification could not be found."
 };
 
 const WALLET_VIEW_OPTIONS = [
@@ -494,6 +509,35 @@ function formatRelationshipDate(value: Date | string) {
   return new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium"
   }).format(new Date(value));
+}
+
+function formatTimeAgo(value: Date | string) {
+  const timestamp = new Date(value).getTime();
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+
+  if (seconds < 60) {
+    return "Just now";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  if (days < 14) {
+    return `${days}d ago`;
+  }
+
+  return formatRelationshipDate(value);
 }
 
 function utcDateNumber(value: Date | string) {
@@ -802,6 +846,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const discoverBcn = firstValue(params.discoverBcn) === "1";
   const introductionView = resolveIntroductionView(firstValue(params.introductionView));
   const referralView = resolveReferralView(firstValue(params.referralView));
+  await createDueOpportunityNotificationsForUser(session.user.id);
   const [
     card,
     cardCount,
@@ -812,7 +857,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     discoverCandidateCards,
     introductions,
     referrals,
-    opportunities
+    opportunities,
+    notifications,
+    unreadNotificationCount
   ] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
@@ -1210,6 +1257,28 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             }
           }
         }
+      }
+    }),
+    prisma.circleCardNotification.findMany({
+      where: { userId: session.user.id },
+      orderBy: [{ isRead: "asc" }, { createdAt: "desc" }],
+      take: 24,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        message: true,
+        entityType: true,
+        entityId: true,
+        isRead: true,
+        readAt: true,
+        createdAt: true
+      }
+    }),
+    prisma.circleCardNotification.count({
+      where: {
+        userId: session.user.id,
+        isRead: false
       }
     })
   ]);
@@ -1622,6 +1691,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedWalletOpportunities = selectedWalletContact
     ? walletOpportunitiesByContactId.get(selectedWalletContact.id) ?? []
     : [];
+  const dueOpportunityFollowUps = openOpportunities.filter((opportunity) =>
+    Boolean(getOpportunityFollowUpStatus(opportunity.nextFollowUpAt, todayUtc))
+  );
+  const followUpsDueCount = needsFollowUpWalletContacts.length + dueOpportunityFollowUps.length;
+  const notificationReturnPath = "/dashboard/circle-card#notifications";
   const connectHubRecentlyConnected = [...acceptedConnectionRequests]
     .sort((a, b) => Number(b.respondedAt ?? b.createdAt) - Number(a.respondedAt ?? a.createdAt))
     .map((request) => otherConnectionCard(request))
@@ -1732,6 +1806,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Opportunities won", value: analytics?.counts.OPPORTUNITY_WON ?? 0 },
     { label: "Opportunities lost", value: analytics?.counts.OPPORTUNITY_LOST ?? 0 },
     { label: "Opportunity follow-ups set", value: analytics?.counts.OPPORTUNITY_FOLLOWUP_SET ?? 0 },
+    { label: "Notifications read", value: analytics?.counts.NOTIFICATION_READ ?? 0 },
+    { label: "Notification mark-all reads", value: analytics?.counts.NOTIFICATION_MARK_ALL_READ ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
 
@@ -1910,6 +1986,164 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           {ERROR_MESSAGES[error]}
         </p>
       ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          {
+            label: "Unread Notifications",
+            value: unreadNotificationCount,
+            href: "#notifications",
+            icon: Bell
+          },
+          {
+            label: "Pending Connections",
+            value: pendingIncomingRequests.length,
+            href: "/dashboard/circle-card?walletView=requests#wallet",
+            icon: MessageSquare
+          },
+          {
+            label: "Incoming Introductions",
+            value: incomingIntroductions.length,
+            href: "#introductions",
+            icon: UserCheck
+          },
+          {
+            label: "Incoming Referrals",
+            value: receivedReferrals.length,
+            href: "#referrals",
+            icon: Handshake
+          },
+          {
+            label: "Follow-Ups Due",
+            value: followUpsDueCount,
+            href: followUpsDueCount === dueOpportunityFollowUps.length ? "#opportunities" : "#wallet",
+            icon: CalendarDays
+          }
+        ].map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              className="rounded-2xl border border-silver/14 bg-card/54 p-4 transition-colors hover:border-gold/28 hover:bg-card/72"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <Icon size={17} className="text-gold" />
+                <Badge variant={item.value ? "outline" : "muted"} className={item.value ? "border-gold/28 text-gold" : ""}>
+                  {item.value}
+                </Badge>
+              </div>
+              <p className="mt-3 text-sm font-semibold text-foreground">{item.label}</p>
+            </a>
+          );
+        })}
+      </section>
+
+      <CircleCardDashboardSection
+        id="notifications"
+        title="Notification Centre"
+        summary="Recent Circle Card activity and relationship items that need attention"
+        defaultOpen={unreadNotificationCount > 0}
+        badge={
+          <Badge variant="outline" className="border-gold/28 text-gold">
+            {unreadNotificationCount} unread
+          </Badge>
+        }
+      >
+        <div className="space-y-5">
+          <Card className="border-silver/16 bg-card/62">
+            <CardContent className="flex flex-col gap-3 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Recent notifications</p>
+                <p className="mt-1 text-sm text-muted">
+                  Relationship activity, pending responses, and due follow-ups appear here.
+                </p>
+              </div>
+              <form action={markAllCircleCardNotificationsReadAction}>
+                <input type="hidden" name="returnPath" value={notificationReturnPath} />
+                <Button type="submit" variant="outline" className="w-full gap-2 sm:w-auto" disabled={!unreadNotificationCount}>
+                  <CheckCircle2 size={16} />
+                  Mark all as read
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {notifications.length ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {notifications.map((notification) => (
+                <Card
+                  key={notification.id}
+                  className={cn(
+                    "border-silver/16 bg-card/62",
+                    notification.isRead ? "opacity-72" : "border-gold/24 bg-gold/8"
+                  )}
+                >
+                  <CardContent className="space-y-4 p-4 sm:p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className={notification.isRead ? "border-silver/18 text-silver" : "border-gold/28 text-gold"}
+                          >
+                            {circleCardNotificationTypeLabel(notification.type)}
+                          </Badge>
+                          {!notification.isRead ? (
+                            <Badge variant="outline" className="border-gold/28 text-gold">
+                              Unread
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <h3 className="mt-3 text-base font-semibold text-foreground">{notification.title}</h3>
+                        <p className="mt-1 text-sm leading-relaxed text-muted">{notification.message}</p>
+                      </div>
+                      <p className="shrink-0 text-xs text-muted">{formatTimeAgo(notification.createdAt)}</p>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <a
+                        href={circleCardNotificationHref(notification.type)}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+                      >
+                        Open related section
+                        <ArrowUpRight size={14} />
+                      </a>
+                      {!notification.isRead ? (
+                        <form action={markCircleCardNotificationReadAction}>
+                          <input type="hidden" name="notificationId" value={notification.id} />
+                          <input type="hidden" name="returnPath" value={notificationReturnPath} />
+                          <Button type="submit" size="sm" className="w-full gap-2">
+                            <CheckCircle2 size={14} />
+                            Mark as read
+                          </Button>
+                        </form>
+                      ) : (
+                        <div className="flex min-h-9 items-center rounded-md border border-silver/12 px-3 text-xs text-muted">
+                          Read{notification.readAt ? ` ${formatTimeAgo(notification.readAt)}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="border-dashed border-silver/18 bg-card/48">
+              <CardContent className="py-10 text-center">
+                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
+                  <Bell size={20} />
+                </div>
+                <h3 className="mt-4 font-display text-2xl text-foreground">No notifications yet</h3>
+                <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                  New connection requests, introductions, referrals and due opportunity follow-ups will appear here.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </CircleCardDashboardSection>
 
       <CircleCardDashboardSection
         id="introductions"
