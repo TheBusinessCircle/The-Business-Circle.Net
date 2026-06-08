@@ -117,6 +117,7 @@ model User {
   circleCardReferralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipient")
   opportunities                        Opportunity[]
   circleCardNotifications              CircleCardNotification[]
+  circleCardActivities                 CircleCardActivity[]
 
   @@index([role])
   @@index([memberRoleTag])
@@ -437,6 +438,7 @@ model CircleCard {
   referralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipientCard")
   opportunities              Opportunity[]
   notifications              CircleCardNotification[]
+  activities                 CircleCardActivity[]
 
   @@index([userId])
   @@index([isPublished])
@@ -713,6 +715,27 @@ model CircleCardNotification {
   @@index([createdAt])
   @@index([circleCardId])
   @@index([entityType, entityId])
+}
+
+model CircleCardActivity {
+  id           String                 @id @default(cuid())
+  userId       String
+  circleCardId String?
+  type         CircleCardActivityType
+  title        String                 @db.VarChar(160)
+  message      String                 @db.VarChar(360)
+  entityType   String?                @db.VarChar(80)
+  entityId     String?
+  metadata     Json?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  circleCard   CircleCard?            @relation(fields: [circleCardId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([circleCardId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model Category {
@@ -2512,6 +2535,34 @@ enum CircleCardNotificationType {
   OPPORTUNITY_UPDATED
   BUSINESS_CARD_CLAIMED
   SYSTEM
+}
+
+enum CircleCardActivityType {
+  CARD_CREATED
+  CARD_UPDATED
+  CONTACT_SAVED
+  CONTACT_UPDATED
+  CONNECTION_REQUEST_SENT
+  CONNECTION_ACCEPTED
+  RECOMMENDATION_CREATED
+  RECOMMENDATION_RECEIVED
+  INTRODUCTION_CREATED
+  INTRODUCTION_ACCEPTED
+  INTRODUCTION_DECLINED
+  INTRODUCTION_COMPLETED
+  REFERRAL_CREATED
+  REFERRAL_RECEIVED
+  REFERRAL_ACCEPTED
+  REFERRAL_WON
+  REFERRAL_LOST
+  OPPORTUNITY_CREATED
+  OPPORTUNITY_UPDATED
+  OPPORTUNITY_WON
+  OPPORTUNITY_LOST
+  BUSINESS_CARD_SCANNED
+  BUSINESS_CARD_CONTACT_CREATED
+  SMART_LINK_CLICKED
+  PRIVATE_LINK_UNLOCKED
 }
 
 enum TestimonialSourceType {

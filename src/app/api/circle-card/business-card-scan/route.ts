@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logServerError } from "@/lib/security/logging";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
-import { scanBusinessCardImage, trackCircleCardEvent } from "@/server/circle-card";
+import { createCircleCardActivity, scanBusinessCardImage, trackCircleCardEvent } from "@/server/circle-card";
 import {
   isSupportedCircleCardImageFile,
   MAX_CIRCLE_CARD_IMAGE_UPLOAD_BYTES
@@ -112,7 +112,23 @@ export async function POST(request: Request) {
                 matchCount: scan.matches.length
               }
             })
-          : Promise.resolve({ stored: false as const })
+          : Promise.resolve({ stored: false as const }),
+        createCircleCardActivity({
+          userId: authResult.user.id,
+          circleCardId: primaryCardId,
+          type: "BUSINESS_CARD_SCANNED",
+          title: "Business card scanned",
+          message: scan.matches.length
+            ? "A business card was scanned and matched to an existing Circle Card."
+            : "A business card was scanned in Connect Hub.",
+          entityType: "BUSINESS_CARD_SCAN",
+          metadata: {
+            source: "connect_hub",
+            extractionMethod: scan.extractionMethod,
+            matchCount: scan.matches.length,
+            duplicateFound: Boolean(scan.duplicateContact)
+          }
+        })
       ]);
     }
 

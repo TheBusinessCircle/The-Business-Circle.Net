@@ -10,6 +10,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { resolveCircleCardFileAction } from "@/lib/circle-card/file-actions";
 import {
+  createCircleCardActivityForCardOwner,
   readCircleCardVisitorIdFromCookieHeader,
   trackCircleCardEvent
 } from "@/server/circle-card";
@@ -201,6 +202,23 @@ export async function POST(request: Request) {
           actionMode: link.actionMode,
           resolvedAction
         })
+      }),
+      createCircleCardActivityForCardOwner({
+        cardId: link.cardId,
+        type: "PRIVATE_LINK_UNLOCKED",
+        title: "Private link unlocked",
+        message: `${link.label} was unlocked with its access code.`,
+        entityType: "CUSTOM_LINK",
+        entityId: link.id,
+        metadata: {
+          source: "private_link_access",
+          linkId: link.id,
+          label: link.label,
+          type: link.type,
+          destinationType,
+          actionMode: link.actionMode,
+          resolvedAction
+        }
       })
     ]);
 

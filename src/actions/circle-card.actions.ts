@@ -70,6 +70,7 @@ import {
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import {
+  createCircleCardActivity,
   createCircleCardNotification,
   findBusinessCardCircleCardMatches,
   findDuplicateBusinessCardWalletContact,
@@ -980,6 +981,16 @@ export async function upsertCircleCardAction(formData: FormData) {
         data
       });
 
+      await createCircleCardActivity({
+        userId: user.id,
+        circleCardId: cardId,
+        type: "CARD_UPDATED",
+        title: "Circle Card updated",
+        message: `${data.fullName}'s Circle Card details were updated.`,
+        entityType: "CIRCLE_CARD",
+        entityId: cardId
+      });
+
       revalidateCircleCardPaths(existingCard?.slug);
       revalidateCircleCardPaths(slug);
       redirectWithNotice(returnPath, "card-updated");
@@ -994,7 +1005,17 @@ export async function upsertCircleCardAction(formData: FormData) {
         userId: user.id,
         isPrimary: cardCount === 0
       },
-      select: { slug: true }
+      select: { id: true, slug: true }
+    });
+
+    await createCircleCardActivity({
+      userId: user.id,
+      circleCardId: card.id,
+      type: "CARD_CREATED",
+      title: "Circle Card created",
+      message: `${data.fullName}'s Circle Card was created.`,
+      entityType: "CIRCLE_CARD",
+      entityId: card.id
     });
 
     revalidateCircleCardPaths(card.slug);
@@ -1420,10 +1441,22 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           websiteUrl,
           socialLinks: {}
         },
-        select: { slug: true }
+        select: { id: true, slug: true }
       });
     });
     createdSlug = card.slug;
+    await createCircleCardActivity({
+      userId: user.id,
+      circleCardId: card.id,
+      type: "CARD_CREATED",
+      title: "Circle Card created",
+      message: `${values.fullName.trim()}'s Circle Card was created.`,
+      entityType: "CIRCLE_CARD",
+      entityId: card.id,
+      metadata: {
+        source: "circle_card_onboarding"
+      }
+    });
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -1457,7 +1490,9 @@ export async function saveCircleWalletContactAction(formData: FormData) {
     select: {
       id: true,
       slug: true,
-      userId: true
+      userId: true,
+      fullName: true,
+      businessName: true
     }
   });
 
@@ -1485,32 +1520,47 @@ export async function saveCircleWalletContactAction(formData: FormData) {
     redirectWithNotice(returnPath, "card-already-saved");
   }
 
-  await prisma.circleWalletContact.create({
+  const contact = await prisma.circleWalletContact.create({
     data: {
       userId: user.id,
       cardId: card.id
-    }
+    },
+    select: { id: true }
   });
 
-  await trackCircleCardEvent({
-    cardId: card.id,
-    eventType: "WALLET_SAVE",
-    userId: user.id,
-    metadata: {
-      source: source === "discover" ? "discover" : "circle_wallet"
-    }
-  });
-
-  if (source === "discover") {
-    await trackCircleCardEvent({
+  await Promise.all([
+    trackCircleCardEvent({
       cardId: card.id,
-      eventType: "DISCOVER_CARD_SAVED",
+      eventType: "WALLET_SAVE",
       userId: user.id,
       metadata: {
-        source: "discover"
+        source: source === "discover" ? "discover" : "circle_wallet"
       }
-    });
-  }
+    }),
+    source === "discover"
+      ? trackCircleCardEvent({
+          cardId: card.id,
+          eventType: "DISCOVER_CARD_SAVED",
+          userId: user.id,
+          metadata: {
+            source: "discover"
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: card.id,
+      type: "CONTACT_SAVED",
+      title: "Contact saved",
+      message: `${circleCardDisplayName(card)} was saved to your Circle Wallet.`,
+      entityType: "WALLET_CONTACT",
+      entityId: contact.id,
+      metadata: {
+        source: source === "discover" ? "discover" : "circle_wallet",
+        savedCardId: card.id
+      }
+    })
+  ]);
 
   revalidatePath("/dashboard/circle-card");
   revalidatePath(`/card/${card.slug}`);
@@ -1591,16 +1641,32 @@ export async function saveBusinessCardScanWalletContactAction(formData: FormData
     }
   });
 
-  await trackPrimaryCircleCardEvent({
-    userId: user.id,
-    eventType: "BUSINESS_CARD_CONTACT_CREATED",
-    metadata: {
-      source: "connect_hub",
-      walletContactId: contact.id,
-      hasEmail: Boolean(email),
-      hasWebsite: Boolean(websiteDomain)
-    }
-  });
+  await Promise.all([
+    trackPrimaryCircleCardEvent({
+      userId: user.id,
+      eventType: "BUSINESS_CARD_CONTACT_CREATED",
+      metadata: {
+        source: "connect_hub",
+        walletContactId: contact.id,
+        hasEmail: Boolean(email),
+        hasWebsite: Boolean(websiteDomain)
+      }
+    }),
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: null,
+      type: "BUSINESS_CARD_CONTACT_CREATED",
+      title: "Scanned contact created",
+      message: `${values.fullName || "A scanned business card"} was saved to your Circle Wallet.`,
+      entityType: "WALLET_CONTACT",
+      entityId: contact.id,
+      metadata: {
+        source: "connect_hub",
+        hasEmail: Boolean(email),
+        hasWebsite: Boolean(websiteDomain)
+      }
+    })
+  ]);
 
   revalidatePath("/dashboard/circle-card");
   redirectWithNotice(walletContactReturnPath(contact.id), "business-card-contact-created");
@@ -1631,7 +1697,9 @@ export async function saveMatchedBusinessCardCircleCardAction(formData: FormData
     select: {
       id: true,
       slug: true,
-      userId: true
+      userId: true,
+      fullName: true,
+      businessName: true
     }
   });
 
@@ -1684,6 +1752,19 @@ export async function saveMatchedBusinessCardCircleCardAction(formData: FormData
       metadata: {
         source: "business_card_match",
         walletContactId: contact.id,
+        matchedCardId: card.id
+      }
+    }),
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: card.id,
+      type: "BUSINESS_CARD_CONTACT_CREATED",
+      title: "Scanned contact created",
+      message: `${circleCardDisplayName(card)} was saved from a scanned business card match.`,
+      entityType: "WALLET_CONTACT",
+      entityId: contact.id,
+      metadata: {
+        source: "business_card_match",
         matchedCardId: card.id
       }
     })
@@ -1828,6 +1909,21 @@ export async function saveMatchedBusinessCardAndSendConnectionRequestAction(form
           }
         })
       : Promise.resolve({ stored: false as const }),
+    createdWalletContactId
+      ? createCircleCardActivity({
+          userId: user.id,
+          circleCardId: recipientCard.id,
+          type: "BUSINESS_CARD_CONTACT_CREATED",
+          title: "Scanned contact created",
+          message: `${circleCardDisplayName(recipientCard)} was saved from a scanned business card match.`,
+          entityType: "WALLET_CONTACT",
+          entityId: createdWalletContactId,
+          metadata: {
+            source: "business_card_match_request",
+            matchedCardId: recipientCard.id
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
     trackCircleCardEvent({
       cardId: recipientCard.id,
       eventType: "CONNECTION_REQUEST_SENT",
@@ -1835,6 +1931,19 @@ export async function saveMatchedBusinessCardAndSendConnectionRequestAction(form
       metadata: {
         source: "business_card_scan_match",
         requesterCardId: requesterCard.id
+      }
+    }),
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: requesterCard.id,
+      type: "CONNECTION_REQUEST_SENT",
+      title: "Connection request sent",
+      message: `You sent a connection request to ${circleCardDisplayName(recipientCard)}.`,
+      entityType: "CONNECTION_REQUEST",
+      entityId: connectionRequestId,
+      metadata: {
+        source: "business_card_scan_match",
+        recipientCardId: recipientCard.id
       }
     }),
     createCircleCardNotification({
@@ -2088,6 +2197,20 @@ export async function sendCircleCardConnectionRequestAction(formData: FormData) 
     entityId: connectionRequestId
   });
 
+  await createCircleCardActivity({
+    userId: user.id,
+    circleCardId: requesterCard.id,
+    type: "CONNECTION_REQUEST_SENT",
+    title: "Connection request sent",
+    message: `You sent a connection request to ${circleCardDisplayName(recipientCard)}.`,
+    entityType: "CONNECTION_REQUEST",
+    entityId: connectionRequestId,
+    metadata: {
+      source: source === "discover" ? "discover" : "circle_card_connection",
+      recipientCardId: recipientCard.id
+    }
+  });
+
   if (source === "discover") {
     await trackCircleCardEvent({
       cardId: recipientCard.id,
@@ -2268,6 +2391,32 @@ export async function acceptCircleCardConnectionRequestAction(formData: FormData
       message: `${circleCardDisplayName(request.recipientCard)} accepted your Circle Card connection request.`,
       entityType: "CONNECTION_REQUEST",
       entityId: request.id
+    }),
+    createCircleCardActivity({
+      userId: request.requesterId,
+      circleCardId: request.requesterCardId,
+      type: "CONNECTION_ACCEPTED",
+      title: "Connection accepted",
+      message: `${circleCardDisplayName(request.recipientCard)} accepted your connection request.`,
+      entityType: "CONNECTION_REQUEST",
+      entityId: request.id,
+      metadata: {
+        source: "circle_card_connection",
+        otherCardId: request.recipientCardId
+      }
+    }),
+    createCircleCardActivity({
+      userId: request.recipientId,
+      circleCardId: request.recipientCardId,
+      type: "CONNECTION_ACCEPTED",
+      title: "Connection accepted",
+      message: `You accepted ${circleCardDisplayName(request.requesterCard)}'s connection request.`,
+      entityType: "CONNECTION_REQUEST",
+      entityId: request.id,
+      metadata: {
+        source: "circle_card_connection",
+        otherCardId: request.requesterCardId
+      }
     })
   ]);
 
@@ -2556,6 +2705,20 @@ export async function createCircleCardIntroductionAction(formData: FormData) {
         personBCardId: personBContact.card.id
       }
     }),
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: primaryCard.id,
+      type: "INTRODUCTION_CREATED",
+      title: "Introduction created",
+      message: `You introduced ${personAContact.card.fullName} and ${personBContact.card.fullName}.`,
+      entityType: "INTRODUCTION",
+      entityId: introduction.id,
+      metadata: {
+        source: "circle_card_introductions",
+        personACardId: personAContact.card.id,
+        personBCardId: personBContact.card.id
+      }
+    }),
     createCircleCardNotification({
       userId: personAContact.card.userId,
       circleCardId: personAContact.card.id,
@@ -2796,9 +2959,61 @@ export async function acceptCircleCardIntroductionAction(formData: FormData) {
     );
   }
 
-  if (introduction.introducerUserId !== user.id) {
-    const actorCard = actorIsPersonA ? introduction.personACard : introduction.personBCard;
+  const actorCard = actorIsPersonA ? introduction.personACard : introduction.personBCard;
+  const otherCard = actorIsPersonA ? introduction.personBCard : introduction.personACard;
+  const actorCardId = actorIsPersonA ? introduction.personACardId : introduction.personBCardId;
+
+  analyticsEvents.push(
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: actorCardId,
+      type: "INTRODUCTION_ACCEPTED",
+      title: "Introduction accepted",
+      message: `You accepted an introduction to ${circleCardDisplayName(otherCard)}.`,
+      entityType: "INTRODUCTION",
+      entityId: introduction.id,
+      metadata: {
+        source: "circle_card_introductions",
+        status: responseResult.nextStatus,
+        otherCardId: actorIsPersonA ? introduction.personBCardId : introduction.personACardId
+      }
+    })
+  );
+
+  if (responseResult.nextStatus === "COMPLETED") {
     analyticsEvents.push(
+      createCircleCardActivity({
+        userId: introduction.introducerUserId,
+        circleCardId: introduction.introducerCardId,
+        type: "INTRODUCTION_COMPLETED",
+        title: "Introduction completed",
+        message: `${introduction.personACard.fullName} and ${introduction.personBCard.fullName} both accepted your introduction.`,
+        entityType: "INTRODUCTION",
+        entityId: introduction.id,
+        metadata: {
+          source: "circle_card_introductions",
+          personACardId: introduction.personACardId,
+          personBCardId: introduction.personBCardId
+        }
+      })
+    );
+  }
+
+  if (introduction.introducerUserId !== user.id) {
+    analyticsEvents.push(
+      createCircleCardActivity({
+        userId: introduction.introducerUserId,
+        circleCardId: introduction.introducerCardId,
+        type: "INTRODUCTION_ACCEPTED",
+        title: "Introduction accepted",
+        message: `${circleCardDisplayName(actorCard)} accepted your introduction.`,
+        entityType: "INTRODUCTION",
+        entityId: introduction.id,
+        metadata: {
+          source: "circle_card_introductions",
+          status: responseResult.nextStatus
+        }
+      }),
       createCircleCardNotification({
         userId: introduction.introducerUserId,
         circleCardId: introduction.introducerCardId,
@@ -2927,6 +3142,34 @@ export async function declineCircleCardIntroductionAction(formData: FormData) {
         personBCardId: introduction.personBCardId
       }
     }),
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: actorIsPersonA ? introduction.personACardId : introduction.personBCardId,
+      type: "INTRODUCTION_DECLINED",
+      title: "Introduction declined",
+      message: `You declined an introduction from ${circleCardDisplayName(introduction.introducerCard)}.`,
+      entityType: "INTRODUCTION",
+      entityId: introduction.id,
+      metadata: {
+        source: "circle_card_introductions",
+        introducerCardId: introduction.introducerCardId
+      }
+    }),
+    introduction.introducerUserId !== user.id
+      ? createCircleCardActivity({
+          userId: introduction.introducerUserId,
+          circleCardId: introduction.introducerCardId,
+          type: "INTRODUCTION_DECLINED",
+          title: "Introduction declined",
+          message: `${circleCardDisplayName(actorCard)} declined your introduction.`,
+          entityType: "INTRODUCTION",
+          entityId: introduction.id,
+          metadata: {
+            source: "circle_card_introductions",
+            actorCardId: actorIsPersonA ? introduction.personACardId : introduction.personBCardId
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
     introduction.introducerUserId !== user.id
       ? createCircleCardNotification({
           userId: introduction.introducerUserId,
@@ -3044,6 +3287,8 @@ export async function createCircleCardReferralAction(formData: FormData) {
     id: string;
     slug: string;
     userId: string;
+    fullName: string;
+    businessName: string | null;
     isPublished: boolean;
     user: {
       suspended: boolean;
@@ -3063,6 +3308,8 @@ export async function createCircleCardReferralAction(formData: FormData) {
             id: true,
             slug: true,
             userId: true,
+            fullName: true,
+            businessName: true,
             isPublished: true,
             user: {
               select: {
@@ -3094,6 +3341,8 @@ export async function createCircleCardReferralAction(formData: FormData) {
         id: true,
         slug: true,
         userId: true,
+        fullName: true,
+        businessName: true,
         isPublished: true,
         user: {
           select: {
@@ -3150,6 +3399,39 @@ export async function createCircleCardReferralAction(formData: FormData) {
         hasEstimatedValue: Boolean(values.estimatedValue)
       }
     }),
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: primaryCard.id,
+      type: "REFERRAL_CREATED",
+      title: "Referral created",
+      message: recipientCard
+        ? `You sent ${circleCardDisplayName(recipientCard)} a referral for ${values.referredContactName}.`
+        : `You created a referral for ${values.referredContactName}.`,
+      entityType: "REFERRAL",
+      entityId: referral.id,
+      metadata: {
+        source: values.source || "circle_card_referrals",
+        recipientCardId: recipientCard?.id ?? null,
+        visibility: values.visibility,
+        hasEstimatedValue: Boolean(values.estimatedValue)
+      }
+    }),
+    recipientCard
+      ? createCircleCardActivity({
+          userId: recipientCard.userId,
+          circleCardId: recipientCard.id,
+          type: "REFERRAL_RECEIVED",
+          title: "Referral received",
+          message: `${circleCardDisplayName(primaryCard)} sent you a referral for ${values.referredContactName}.`,
+          entityType: "REFERRAL",
+          entityId: referral.id,
+          metadata: {
+            source: values.source || "circle_card_referrals",
+            referrerCardId: primaryCard.id,
+            visibility: values.visibility
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
     recipientCard
       ? createCircleCardNotification({
           userId: recipientCard.userId,
@@ -3288,6 +3570,40 @@ export async function updateCircleCardReferralStatusAction(formData: FormData) {
         hasActualValue: Boolean(values.actualValue)
       }
     }),
+    referralStatusNotificationType
+      ? createCircleCardActivity({
+          userId: user.id,
+          circleCardId: isRecipient && referral.recipientCardId ? referral.recipientCardId : referral.referrerCardId,
+          type: referralStatusNotificationType,
+          title: `Referral ${referralStatusLabel}`,
+          message: `You ${referralStatusLabel} this referral.`,
+          entityType: "REFERRAL",
+          entityId: referral.id,
+          metadata: {
+            source: "circle_card_referrals",
+            status: nextStatus,
+            visibility: nextVisibility,
+            hasActualValue: Boolean(values.actualValue)
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
+    referralStatusNotificationType && referral.referrerUserId !== user.id
+      ? createCircleCardActivity({
+          userId: referral.referrerUserId,
+          circleCardId: referral.referrerCardId,
+          type: referralStatusNotificationType,
+          title: `Referral ${referralStatusLabel}`,
+          message: `${referral.recipientCard ? circleCardDisplayName(referral.recipientCard) : "A referral recipient"} ${referralStatusLabel} your referral.`,
+          entityType: "REFERRAL",
+          entityId: referral.id,
+          metadata: {
+            source: "circle_card_referrals",
+            status: nextStatus,
+            visibility: nextVisibility,
+            hasActualValue: Boolean(values.actualValue)
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
     referralStatusNotificationType && referral.referrerUserId !== user.id
       ? createCircleCardNotification({
           userId: referral.referrerUserId,
@@ -3380,6 +3696,22 @@ export async function createCircleCardOpportunityAction(formData: FormData) {
         sourceType: values.sourceType,
         hasPotentialValue: Boolean(values.potentialValue)
       }
+    }),
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: primaryCard.id,
+      type: "OPPORTUNITY_CREATED",
+      title: "Opportunity created",
+      message: `${values.title} was added to your opportunity pipeline.`,
+      entityType: "OPPORTUNITY",
+      entityId: opportunity.id,
+      metadata: {
+        source: "circle_card_opportunities",
+        walletContactId: walletContact?.id ?? null,
+        status: values.status,
+        sourceType: values.sourceType,
+        hasPotentialValue: Boolean(values.potentialValue)
+      }
     })
   ];
 
@@ -3464,6 +3796,13 @@ export async function updateCircleCardOpportunityAction(formData: FormData) {
     }
   });
 
+  const terminalOpportunityActivityType =
+    statusChanged && values.status === "WON"
+      ? "OPPORTUNITY_WON"
+      : statusChanged && values.status === "LOST"
+        ? "OPPORTUNITY_LOST"
+        : null;
+
   const analyticsEvents: Array<Promise<unknown>> = [
     trackCircleCardEvent({
       cardId: opportunity.circleCardId,
@@ -3478,6 +3817,24 @@ export async function updateCircleCardOpportunityAction(formData: FormData) {
       }
     })
   ];
+
+  if (!terminalOpportunityActivityType) {
+    analyticsEvents.push(createCircleCardActivity({
+      userId: user.id,
+      circleCardId: opportunity.circleCardId,
+      type: "OPPORTUNITY_UPDATED",
+      title: "Opportunity updated",
+      message: `${values.title} was updated in your opportunity pipeline.`,
+      entityType: "OPPORTUNITY",
+      entityId: opportunity.id,
+      metadata: {
+        source: "circle_card_opportunities",
+        status: values.status,
+        sourceType: values.sourceType,
+        hasPotentialValue: Boolean(values.potentialValue)
+      }
+    }));
+  }
 
   if (followUpChanged && nextFollowUpAt) {
     analyticsEvents.push(
@@ -3505,6 +3862,19 @@ export async function updateCircleCardOpportunityAction(formData: FormData) {
           opportunityId: opportunity.id,
           sourceType: values.sourceType
         }
+      }),
+      createCircleCardActivity({
+        userId: user.id,
+        circleCardId: opportunity.circleCardId,
+        type: "OPPORTUNITY_WON",
+        title: "Opportunity won",
+        message: `${values.title} was marked won.`,
+        entityType: "OPPORTUNITY",
+        entityId: opportunity.id,
+        metadata: {
+          source: "circle_card_opportunities",
+          sourceType: values.sourceType
+        }
       })
     );
   }
@@ -3518,6 +3888,19 @@ export async function updateCircleCardOpportunityAction(formData: FormData) {
         metadata: {
           source: "circle_card_opportunities",
           opportunityId: opportunity.id,
+          sourceType: values.sourceType
+        }
+      }),
+      createCircleCardActivity({
+        userId: user.id,
+        circleCardId: opportunity.circleCardId,
+        type: "OPPORTUNITY_LOST",
+        title: "Opportunity lost",
+        message: `${values.title} was marked lost.`,
+        entityType: "OPPORTUNITY",
+        entityId: opportunity.id,
+        metadata: {
+          source: "circle_card_opportunities",
           sourceType: values.sourceType
         }
       })
@@ -3553,6 +3936,7 @@ export async function updateCircleCardOpportunityStatusAction(formData: FormData
     select: {
       id: true,
       circleCardId: true,
+      title: true,
       status: true,
       closedAt: true,
       sourceType: true
@@ -3580,6 +3964,13 @@ export async function updateCircleCardOpportunityStatusAction(formData: FormData
     }
   });
 
+  const terminalOpportunityActivityType =
+    statusChanged && values.status === "WON"
+      ? "OPPORTUNITY_WON"
+      : statusChanged && values.status === "LOST"
+        ? "OPPORTUNITY_LOST"
+        : null;
+
   const analyticsEvents: Array<Promise<unknown>> = [
     trackCircleCardEvent({
       cardId: opportunity.circleCardId,
@@ -3594,6 +3985,23 @@ export async function updateCircleCardOpportunityStatusAction(formData: FormData
     })
   ];
 
+  if (!terminalOpportunityActivityType) {
+    analyticsEvents.push(createCircleCardActivity({
+      userId: user.id,
+      circleCardId: opportunity.circleCardId,
+      type: "OPPORTUNITY_UPDATED",
+      title: "Opportunity updated",
+      message: `${opportunity.title} moved to ${values.status.toLowerCase().replace(/_/g, " ")}.`,
+      entityType: "OPPORTUNITY",
+      entityId: opportunity.id,
+      metadata: {
+        source: "circle_card_opportunities",
+        status: values.status,
+        sourceType: opportunity.sourceType
+      }
+    }));
+  }
+
   if (statusChanged && values.status === "WON") {
     analyticsEvents.push(
       trackCircleCardEvent({
@@ -3603,6 +4011,19 @@ export async function updateCircleCardOpportunityStatusAction(formData: FormData
         metadata: {
           source: "circle_card_opportunities",
           opportunityId: opportunity.id,
+          sourceType: opportunity.sourceType
+        }
+      }),
+      createCircleCardActivity({
+        userId: user.id,
+        circleCardId: opportunity.circleCardId,
+        type: "OPPORTUNITY_WON",
+        title: "Opportunity won",
+        message: `${opportunity.title} was marked won.`,
+        entityType: "OPPORTUNITY",
+        entityId: opportunity.id,
+        metadata: {
+          source: "circle_card_opportunities",
           sourceType: opportunity.sourceType
         }
       })
@@ -3618,6 +4039,19 @@ export async function updateCircleCardOpportunityStatusAction(formData: FormData
         metadata: {
           source: "circle_card_opportunities",
           opportunityId: opportunity.id,
+          sourceType: opportunity.sourceType
+        }
+      }),
+      createCircleCardActivity({
+        userId: user.id,
+        circleCardId: opportunity.circleCardId,
+        type: "OPPORTUNITY_LOST",
+        title: "Opportunity lost",
+        message: `${opportunity.title} was marked lost.`,
+        entityType: "OPPORTUNITY",
+        entityId: opportunity.id,
+        metadata: {
+          source: "circle_card_opportunities",
           sourceType: opportunity.sourceType
         }
       })
@@ -3805,6 +4239,8 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
       },
       select: {
         id: true,
+        fullName: true,
+        businessName: true,
         notes: true,
         followUpDate: true,
         category: true,
@@ -3862,8 +4298,8 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
   );
 
   if (primaryCard && relationshipEvents.length) {
-    await Promise.all(
-      relationshipEvents.map((eventType) =>
+    await Promise.all([
+      ...relationshipEvents.map((eventType) =>
         trackCircleCardEvent({
           cardId: primaryCard.id,
           eventType,
@@ -3873,8 +4309,21 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
             walletContactId: savedContact.id
           }
         })
-      )
-    );
+      ),
+      createCircleCardActivity({
+        userId: user.id,
+        circleCardId: primaryCard.id,
+        type: "CONTACT_UPDATED",
+        title: "Contact updated",
+        message: `${savedContact.fullName || savedContact.businessName || "A Circle Wallet contact"} was updated.`,
+        entityType: "WALLET_CONTACT",
+        entityId: savedContact.id,
+        metadata: {
+          source: "circle_wallet_personal_crm",
+          changedFields: relationshipEvents
+        }
+      })
+    ]);
   }
 
   revalidatePath("/dashboard/circle-card");
@@ -3907,6 +4356,8 @@ export async function upsertCircleCardRecommendationAction(formData: FormData) {
         id: true,
         source: true,
         cardId: true,
+        fullName: true,
+        businessName: true,
         card: {
           select: {
             id: true,
@@ -4037,6 +4488,40 @@ export async function upsertCircleCardRecommendationAction(formData: FormData) {
         visibilityLabel: circleCardRecommendationVisibilityLabel(values.visibility)
       }
     }),
+    !recommendationId
+      ? createCircleCardActivity({
+          userId: user.id,
+          circleCardId: primaryCard.id,
+          type: "RECOMMENDATION_CREATED",
+          title: "Recommendation created",
+          message: `You recommended ${walletContact.card ? circleCardDisplayName(walletContact.card) : walletContact.fullName || walletContact.businessName || "a Circle Wallet contact"} for ${values.category}.`,
+          entityType: "RECOMMENDATION",
+          entityId: savedRecommendation.id,
+          metadata: {
+            source: "circle_wallet_recommendations",
+            walletContactId: walletContact.id,
+            recommendedCardId: walletContact.card?.id ?? null,
+            category: values.category,
+            visibility: values.visibility
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
+    shouldNotifyRecommendedUser && walletContact.card
+      ? createCircleCardActivity({
+          userId: walletContact.card.userId,
+          circleCardId: walletContact.card.id,
+          type: "RECOMMENDATION_RECEIVED",
+          title: "Recommendation received",
+          message: `${circleCardDisplayName(primaryCard)} publicly recommended you for ${values.category}.`,
+          entityType: "RECOMMENDATION",
+          entityId: savedRecommendation.id,
+          metadata: {
+            source: "circle_wallet_recommendations",
+            recommenderCardId: primaryCard.id,
+            category: values.category
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
     shouldNotifyRecommendedUser && walletContact.card
       ? createCircleCardNotification({
           userId: walletContact.card.userId,

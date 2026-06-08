@@ -120,6 +120,14 @@ import {
   isCircleCardOpportunityOpenStatus
 } from "@/lib/circle-card/opportunities";
 import {
+  CIRCLE_CARD_ACTIVITY_FILTER_OPTIONS,
+  CIRCLE_CARD_ACTIVITY_FILTER_TYPE_MAP,
+  type CircleCardActivityFilter,
+  circleCardActivityHref,
+  circleCardActivityTypeLabel,
+  resolveCircleCardActivityFilter
+} from "@/lib/circle-card/activity";
+import {
   circleCardNotificationHref,
   circleCardNotificationTypeLabel
 } from "@/lib/circle-card/notifications";
@@ -329,6 +337,9 @@ type IntroductionView = (typeof INTRODUCTION_VIEW_OPTIONS)[number]["value"];
 type ReferralView = (typeof REFERRAL_VIEW_OPTIONS)[number]["value"];
 type WalletFollowUpFilter = (typeof WALLET_FOLLOW_UP_FILTER_OPTIONS)[number]["value"];
 
+const ACTIVITY_FEED_PAGE_SIZE = 25;
+const ACTIVITY_FEED_MAX_ITEMS = 100;
+
 function resolveWalletView(value: string | undefined): WalletView {
   return value === "connected" ||
     value === "favourites" ||
@@ -349,6 +360,16 @@ function resolveIntroductionView(value: string | undefined): IntroductionView {
 
 function resolveReferralView(value: string | undefined): ReferralView {
   return value === "received" || value === "won" || value === "lost" ? value : "sent";
+}
+
+function resolveActivityLimit(value: string | undefined) {
+  const parsed = Number.parseInt(value ?? "", 10);
+
+  if (!Number.isFinite(parsed) || parsed <= ACTIVITY_FEED_PAGE_SIZE) {
+    return ACTIVITY_FEED_PAGE_SIZE;
+  }
+
+  return Math.min(ACTIVITY_FEED_MAX_ITEMS, parsed);
 }
 
 function buildIntroductionHref(input: { introductionView?: IntroductionView }) {
@@ -375,6 +396,24 @@ function buildReferralHref(input: { referralView?: ReferralView }) {
 
 function buildOpportunityHref() {
   return "/dashboard/circle-card#opportunities";
+}
+
+function buildActivityFeedHref(input: {
+  activityFilter?: CircleCardActivityFilter;
+  activityLimit?: number;
+}) {
+  const params = new URLSearchParams();
+
+  if (input.activityFilter && input.activityFilter !== "all") {
+    params.set("activityFilter", input.activityFilter);
+  }
+
+  if (input.activityLimit && input.activityLimit > ACTIVITY_FEED_PAGE_SIZE) {
+    params.set("activityLimit", String(Math.min(input.activityLimit, ACTIVITY_FEED_MAX_ITEMS)));
+  }
+
+  const query = params.toString();
+  return query ? `/dashboard/circle-card?${query}#activity` : "/dashboard/circle-card#activity";
 }
 
 function buildWalletHref(input: {
@@ -827,6 +866,48 @@ function CustomLinkIcon({ icon, type }: { icon: string | null | undefined; type?
   }
 }
 
+function circleCardActivityIcon(type: string) {
+  switch (type) {
+    case "CARD_CREATED":
+    case "CARD_UPDATED":
+      return ContactRound;
+    case "CONTACT_SAVED":
+    case "CONTACT_UPDATED":
+      return WalletCards;
+    case "CONNECTION_REQUEST_SENT":
+    case "CONNECTION_ACCEPTED":
+      return MessageSquare;
+    case "RECOMMENDATION_CREATED":
+    case "RECOMMENDATION_RECEIVED":
+      return Star;
+    case "INTRODUCTION_CREATED":
+    case "INTRODUCTION_ACCEPTED":
+    case "INTRODUCTION_DECLINED":
+    case "INTRODUCTION_COMPLETED":
+      return UserCheck;
+    case "REFERRAL_CREATED":
+    case "REFERRAL_RECEIVED":
+    case "REFERRAL_ACCEPTED":
+    case "REFERRAL_WON":
+    case "REFERRAL_LOST":
+      return Handshake;
+    case "OPPORTUNITY_CREATED":
+    case "OPPORTUNITY_UPDATED":
+    case "OPPORTUNITY_WON":
+    case "OPPORTUNITY_LOST":
+      return BarChart3;
+    case "BUSINESS_CARD_SCANNED":
+    case "BUSINESS_CARD_CONTACT_CREATED":
+      return Camera;
+    case "SMART_LINK_CLICKED":
+      return MousePointerClick;
+    case "PRIVATE_LINK_UNLOCKED":
+      return Lock;
+    default:
+      return Activity;
+  }
+}
+
 export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
   const session = await requireCircleCardUser();
   const params = await searchParams;
@@ -846,6 +927,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const discoverBcn = firstValue(params.discoverBcn) === "1";
   const introductionView = resolveIntroductionView(firstValue(params.introductionView));
   const referralView = resolveReferralView(firstValue(params.referralView));
+  const activityFilter = resolveCircleCardActivityFilter(firstValue(params.activityFilter));
+  const activityLimit = resolveActivityLimit(firstValue(params.activityLimit));
+  const activityTypes =
+    activityFilter === "all" ? null : CIRCLE_CARD_ACTIVITY_FILTER_TYPE_MAP[activityFilter];
   await createDueOpportunityNotificationsForUser(session.user.id);
   const [
     card,
@@ -859,7 +944,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     referrals,
     opportunities,
     notifications,
-    unreadNotificationCount
+    unreadNotificationCount,
+    activityItems
   ] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
@@ -1280,6 +1366,23 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         userId: session.user.id,
         isRead: false
       }
+    }),
+    prisma.circleCardActivity.findMany({
+      where: {
+        userId: session.user.id,
+        ...(activityTypes ? { type: { in: [...activityTypes] } } : {})
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: activityLimit + 1,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        message: true,
+        entityType: true,
+        entityId: true,
+        createdAt: true
+      }
     })
   ]);
   const normalizedWalletContacts = walletContacts.map((contact) => {
@@ -1696,6 +1799,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   );
   const followUpsDueCount = needsFollowUpWalletContacts.length + dueOpportunityFollowUps.length;
   const notificationReturnPath = "/dashboard/circle-card#notifications";
+  const visibleActivityItems = activityItems.slice(0, activityLimit);
+  const hasMoreActivityItems = activityItems.length > activityLimit;
+  const activeActivityFilterLabel =
+    CIRCLE_CARD_ACTIVITY_FILTER_OPTIONS.find((option) => option.value === activityFilter)?.label ?? "All";
+  const activityLoadMoreHref = buildActivityFeedHref({
+    activityFilter,
+    activityLimit: Math.min(activityLimit + ACTIVITY_FEED_PAGE_SIZE, ACTIVITY_FEED_MAX_ITEMS)
+  });
   const connectHubRecentlyConnected = [...acceptedConnectionRequests]
     .sort((a, b) => Number(b.respondedAt ?? b.createdAt) - Number(a.respondedAt ?? a.createdAt))
     .map((request) => otherConnectionCard(request))
@@ -2138,6 +2249,113 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 <h3 className="mt-4 font-display text-2xl text-foreground">No notifications yet</h3>
                 <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
                   New connection requests, introductions, referrals and due opportunity follow-ups will appear here.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </CircleCardDashboardSection>
+
+      <CircleCardDashboardSection
+        id="activity"
+        title="Activity Feed"
+        summary="A relationship timeline for your Circle Card, wallet, referrals and opportunities"
+        defaultOpen={visibleActivityItems.length > 0}
+        badge={
+          <Badge variant="outline" className="border-silver/18 text-silver">
+            {activeActivityFilterLabel}
+          </Badge>
+        }
+      >
+        <div className="space-y-5">
+          <Card className="border-silver/16 bg-card/62">
+            <CardContent className="space-y-4 pt-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Recent Activity</p>
+                  <p className="mt-1 text-sm text-muted">
+                    Showing the latest {Math.min(activityLimit, visibleActivityItems.length || activityLimit)} timeline
+                    item{Math.min(activityLimit, visibleActivityItems.length || activityLimit) === 1 ? "" : "s"}.
+                  </p>
+                </div>
+                <Badge variant="outline" className="w-fit border-gold/24 text-gold">
+                  {visibleActivityItems.length} shown
+                </Badge>
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {CIRCLE_CARD_ACTIVITY_FILTER_OPTIONS.map((option) => (
+                  <Link
+                    key={option.value}
+                    href={buildActivityFeedHref({ activityFilter: option.value })}
+                    className={cn(
+                      "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      activityFilter === option.value
+                        ? "border-gold/32 bg-gold/10 text-gold"
+                        : "border-silver/14 bg-background/20 text-muted hover:border-silver/28 hover:text-foreground"
+                    )}
+                  >
+                    {option.label}
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {visibleActivityItems.length ? (
+            <div className="space-y-3">
+              {visibleActivityItems.map((activityItem) => {
+                const ActivityIcon = circleCardActivityIcon(activityItem.type);
+
+                return (
+                  <Card key={activityItem.id} className="border-silver/16 bg-card/62">
+                    <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
+                      <div className="flex min-w-0 gap-3">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
+                          <ActivityIcon size={17} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="border-silver/18 text-silver">
+                              {circleCardActivityTypeLabel(activityItem.type)}
+                            </Badge>
+                            <span className="text-xs text-muted">{formatTimeAgo(activityItem.createdAt)}</span>
+                          </div>
+                          <h3 className="mt-2 text-base font-semibold text-foreground">{activityItem.title}</h3>
+                          <p className="mt-1 text-sm leading-relaxed text-muted">{activityItem.message}</p>
+                        </div>
+                      </div>
+                      <a
+                        href={circleCardActivityHref(activityItem)}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0 gap-2")}
+                      >
+                        Open related
+                        <ArrowUpRight size={14} />
+                      </a>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              {hasMoreActivityItems ? (
+                <div className="flex justify-center pt-2">
+                  <Link href={activityLoadMoreHref} className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+                    Load more
+                    <ArrowDown size={16} />
+                  </Link>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <Card className="border-dashed border-silver/18 bg-card/48">
+              <CardContent className="py-10 text-center">
+                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
+                  <Activity size={20} />
+                </div>
+                <h3 className="mt-4 font-display text-2xl text-foreground">No activity yet</h3>
+                <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                  Your Circle Card activity will appear here as you connect, save contacts, receive referrals and grow
+                  your network.
                 </p>
               </CardContent>
             </Card>
