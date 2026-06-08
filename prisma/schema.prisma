@@ -113,6 +113,8 @@ model User {
   circleCardIntroductionsMade          CircleCardIntroduction[] @relation("CircleCardIntroductionIntroducer")
   circleCardIntroductionsAsPersonA     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonA")
   circleCardIntroductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonB")
+  circleCardReferralsMade              CircleCardReferral[] @relation("CircleCardReferralReferrer")
+  circleCardReferralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipient")
 
   @@index([role])
   @@index([memberRoleTag])
@@ -429,6 +431,8 @@ model CircleCard {
   introductionsMade          CircleCardIntroduction[] @relation("CircleCardIntroductionIntroducerCard")
   introductionsAsPersonA     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonACard")
   introductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonBCard")
+  referralsMade              CircleCardReferral[] @relation("CircleCardReferralReferrerCard")
+  referralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipientCard")
 
   @@index([userId])
   @@index([isPublished])
@@ -593,6 +597,39 @@ model CircleCardIntroduction {
   @@index([personAUserId, status, createdAt])
   @@index([personBUserId, status, createdAt])
   @@index([introducerCardId, personACardId, personBCardId, status])
+}
+
+model CircleCardReferral {
+  id                      String                       @id @default(cuid())
+  referrerUserId          String
+  referrerCardId          String
+  recipientUserId         String?
+  recipientCardId         String?
+  referredContactName     String                       @db.VarChar(140)
+  referredContactBusiness String?                      @db.VarChar(140)
+  referredContactEmail    String?                      @db.VarChar(320)
+  referredContactPhone    String?                      @db.VarChar(48)
+  referredContactWebsite  String?                      @db.VarChar(2048)
+  reason                  String                       @db.VarChar(800)
+  status                  CircleCardReferralStatus     @default(SENT)
+  estimatedValue          Decimal?                     @db.Decimal(12, 2)
+  actualValue             Decimal?                     @db.Decimal(12, 2)
+  visibility              CircleCardReferralVisibility @default(PRIVATE)
+  createdAt               DateTime                     @default(now())
+  updatedAt               DateTime                     @updatedAt
+  respondedAt             DateTime?
+  completedAt             DateTime?
+  referrerUser            User                         @relation("CircleCardReferralReferrer", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referrerCard            CircleCard                   @relation("CircleCardReferralReferrerCard", fields: [referrerCardId], references: [id], onDelete: Cascade)
+  recipientUser           User?                        @relation("CircleCardReferralRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientCard           CircleCard?                  @relation("CircleCardReferralRecipientCard", fields: [recipientCardId], references: [id], onDelete: SetNull)
+
+  @@index([referrerUserId])
+  @@index([recipientUserId])
+  @@index([recipientCardId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([recipientCardId, visibility, status, createdAt])
 }
 
 model CircleCardConnectionRequest {
@@ -2321,6 +2358,12 @@ enum CircleCardEventType {
   INTRODUCTION_ACCEPTED
   INTRODUCTION_DECLINED
   INTRODUCTION_COMPLETED
+  REFERRAL_CREATED
+  REFERRAL_ACCEPTED
+  REFERRAL_DECLINED
+  REFERRAL_WON
+  REFERRAL_LOST
+  REFERRAL_CANCELLED
 }
 
 enum CircleWalletContactSource {
@@ -2354,6 +2397,20 @@ enum CircleCardIntroductionStatus {
   DECLINED
   COMPLETED
   CANCELLED
+}
+
+enum CircleCardReferralStatus {
+  SENT
+  ACCEPTED
+  DECLINED
+  WON
+  LOST
+  CANCELLED
+}
+
+enum CircleCardReferralVisibility {
+  PRIVATE
+  PUBLIC_SUCCESS
 }
 
 enum TestimonialSourceType {

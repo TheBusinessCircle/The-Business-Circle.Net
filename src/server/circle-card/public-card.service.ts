@@ -67,6 +67,7 @@ export type PublicCircleCard = {
   socialLinks: CircleCardSocialLinks;
   customLinks: PublicCircleCardLink[];
   recommendations: PublicCircleCardRecommendation[];
+  successfulReferralCount: number;
   viewCount: number;
   isDemo: boolean;
   user: {
@@ -145,6 +146,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     }
   ],
   recommendations: [],
+  successfulReferralCount: 0,
   viewCount: 0,
   isDemo: true,
   user: {
@@ -242,6 +244,16 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           }
         }
       },
+      _count: {
+        select: {
+          referralsReceived: {
+            where: {
+              visibility: "PUBLIC_SUCCESS",
+              status: "WON"
+            }
+          }
+        }
+      },
       viewCount: true,
       user: {
         select: {
@@ -275,6 +287,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     recommendations: card.recommendationsReceived,
+    successfulReferralCount: card._count.referralsReceived,
     customLinks: card.customLinks.map((link) => {
       const { accessCodeHash, ...publicLink } = link;
       const visibility = (link.visibility || "PUBLIC") as CircleCardLinkVisibility;

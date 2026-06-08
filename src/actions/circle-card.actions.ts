@@ -47,6 +47,12 @@ import {
   circleCardIntroductionIdSchema
 } from "@/lib/circle-card/introductions";
 import {
+  CIRCLE_CARD_REFERRAL_OPEN_STATUSES,
+  circleCardReferralEventTypeForStatus,
+  circleCardReferralFormSchema,
+  circleCardReferralStatusSchema
+} from "@/lib/circle-card/referrals";
+import {
   canCreateCircleCard,
   isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
@@ -163,6 +169,27 @@ const CIRCLE_CARD_RECOMMENDATION_FORM_FIELDS = [
 const CIRCLE_CARD_RECOMMENDATION_STATUS_FIELDS = [
   "recommendationId",
   "status",
+  "returnPath"
+] as const;
+const CIRCLE_CARD_REFERRAL_FORM_FIELDS = [
+  "recipientWalletContactId",
+  "recipientCardId",
+  "referredContactName",
+  "referredContactBusiness",
+  "referredContactEmail",
+  "referredContactPhone",
+  "referredContactWebsite",
+  "reason",
+  "estimatedValue",
+  "visibility",
+  "returnPath",
+  "source"
+] as const;
+const CIRCLE_CARD_REFERRAL_STATUS_FIELDS = [
+  "referralId",
+  "status",
+  "actualValue",
+  "visibility",
   "returnPath"
 ] as const;
 
@@ -291,6 +318,18 @@ function readCircleCardRecommendationFormData(formData: FormData) {
 function readCircleCardRecommendationStatusFormData(formData: FormData) {
   return Object.fromEntries(
     CIRCLE_CARD_RECOMMENDATION_STATUS_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardReferralFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_REFERRAL_FORM_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardReferralStatusFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_REFERRAL_STATUS_FIELDS.map((field) => [field, formData.get(field) ?? ""])
   );
 }
 
@@ -576,6 +615,28 @@ function circleCardLinkActionModeForType(
   actionMode: CircleCardLinkActionMode
 ) {
   return CIRCLE_CARD_PRIVATE_LINK_TYPES.has(type) ? actionMode : "AUTO";
+}
+
+function nullableMoney(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function circleCardReferralNoticeForStatus(status: string) {
+  switch (status) {
+    case "ACCEPTED":
+      return "referral-accepted";
+    case "DECLINED":
+      return "referral-declined";
+    case "WON":
+      return "referral-won";
+    case "LOST":
+      return "referral-lost";
+    case "CANCELLED":
+      return "referral-cancelled";
+    default:
+      return "referral-updated";
+  }
 }
 
 async function enforceCircleCardCustomLinkActivationLimit(input: {
@@ -2620,6 +2681,249 @@ export async function cancelCircleCardIntroductionAction(formData: FormData) {
     introduction.personBCard.slug
   ]);
   redirectWithNotice(returnPath, "introduction-cancelled");
+}
+
+export async function createCircleCardReferralAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardReferralFormSchema.safeParse(readCircleCardReferralFormData(formData));
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#referrals"
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "referral-invalid");
+  }
+
+  const values = parsed.data;
+  const primaryCard = await getPrimaryCircleCardForUser(user.id);
+
+  if (!primaryCard) {
+    redirectWithError(returnPath, "referral-primary-card-required");
+  }
+
+  let recipientCard: {
+    id: string;
+    slug: string;
+    userId: string;
+    isPublished: boolean;
+    user: {
+      suspended: boolean;
+    };
+  } | null = null;
+
+  if (values.recipientWalletContactId) {
+    const walletContact = await prisma.circleWalletContact.findFirst({
+      where: {
+        id: values.recipientWalletContactId,
+        userId: user.id
+      },
+      select: {
+        id: true,
+        card: {
+          select: {
+            id: true,
+            slug: true,
+            userId: true,
+            isPublished: true,
+            user: {
+              select: {
+                suspended: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!walletContact) {
+      redirectWithError(returnPath, "wallet-contact-not-found");
+    }
+
+    recipientCard = walletContact.card;
+  }
+
+  if (!recipientCard && values.recipientCardId) {
+    recipientCard = await prisma.circleCard.findFirst({
+      where: {
+        id: values.recipientCardId,
+        isPublished: true,
+        user: {
+          suspended: false
+        }
+      },
+      select: {
+        id: true,
+        slug: true,
+        userId: true,
+        isPublished: true,
+        user: {
+          select: {
+            suspended: true
+          }
+        }
+      }
+    });
+
+    if (!recipientCard) {
+      redirectWithError(returnPath, "referral-recipient-not-found");
+    }
+  }
+
+  if (recipientCard && (!recipientCard.isPublished || recipientCard.user.suspended)) {
+    redirectWithError(returnPath, "referral-recipient-not-found");
+  }
+
+  if (recipientCard && (recipientCard.userId === user.id || recipientCard.id === primaryCard.id)) {
+    redirectWithError(returnPath, "referral-self");
+  }
+
+  const referral = await prisma.circleCardReferral.create({
+    data: {
+      referrerUserId: user.id,
+      referrerCardId: primaryCard.id,
+      recipientUserId: recipientCard?.userId ?? null,
+      recipientCardId: recipientCard?.id ?? null,
+      referredContactName: values.referredContactName,
+      referredContactBusiness: nullableText(values.referredContactBusiness),
+      referredContactEmail: normalizeCircleCardEmail(values.referredContactEmail),
+      referredContactPhone: nullableText(values.referredContactPhone),
+      referredContactWebsite: nullableText(values.referredContactWebsite),
+      reason: values.reason,
+      estimatedValue: nullableMoney(values.estimatedValue),
+      visibility: values.visibility
+    },
+    select: {
+      id: true
+    }
+  });
+
+  await trackCircleCardEvent({
+    cardId: recipientCard?.id ?? primaryCard.id,
+    eventType: "REFERRAL_CREATED",
+    userId: user.id,
+    metadata: {
+      source: values.source || "circle_card_referrals",
+      referralId: referral.id,
+      referrerCardId: primaryCard.id,
+      recipientCardId: recipientCard?.id ?? null,
+      visibility: values.visibility,
+      hasEstimatedValue: Boolean(values.estimatedValue)
+    }
+  });
+
+  revalidateCircleCardConnectionPaths([primaryCard.slug, recipientCard?.slug]);
+  redirectWithNotice(returnPath, "referral-created");
+}
+
+export async function updateCircleCardReferralStatusAction(formData: FormData) {
+  const parsed = circleCardReferralStatusSchema.safeParse(
+    readCircleCardReferralStatusFormData(formData)
+  );
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#referrals"
+  );
+  const user = await requireCircleCardActionUser();
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "referral-invalid");
+  }
+
+  const values = parsed.data;
+  const referral = await prisma.circleCardReferral.findFirst({
+    where: {
+      id: values.referralId,
+      OR: [{ referrerUserId: user.id }, { recipientUserId: user.id }]
+    },
+    select: {
+      id: true,
+      referrerUserId: true,
+      referrerCardId: true,
+      recipientUserId: true,
+      recipientCardId: true,
+      status: true,
+      visibility: true,
+      referrerCard: {
+        select: {
+          slug: true
+        }
+      },
+      recipientCard: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!referral) {
+    redirectWithError(returnPath, "referral-not-found");
+  }
+
+  const isReferrer = referral.referrerUserId === user.id;
+  const isRecipient = referral.recipientUserId === user.id;
+  const isManualReferrer = isReferrer && !referral.recipientUserId;
+  const now = new Date();
+  const nextStatus = values.status;
+  const openStatuses = new Set<string>(CIRCLE_CARD_REFERRAL_OPEN_STATUSES);
+  const canCancel = isReferrer && referral.status === "SENT" && nextStatus === "CANCELLED";
+  const canRespond =
+    isRecipient &&
+    referral.status === "SENT" &&
+    (nextStatus === "ACCEPTED" || nextStatus === "DECLINED");
+  const canComplete =
+    (isRecipient || isManualReferrer) &&
+    openStatuses.has(referral.status) &&
+    (nextStatus === "WON" || nextStatus === "LOST");
+
+  if (!canCancel && !canRespond && !canComplete) {
+    redirectWithError(returnPath, "referral-status-not-allowed");
+  }
+
+  const nextVisibility = values.visibility || referral.visibility;
+  const updated = await prisma.circleCardReferral.updateMany({
+    where: {
+      id: referral.id,
+      status: referral.status
+    },
+    data: {
+      status: nextStatus,
+      ...(nextStatus === "ACCEPTED" || nextStatus === "DECLINED"
+        ? { respondedAt: now }
+        : {}),
+      ...(nextStatus === "WON" || nextStatus === "LOST"
+        ? {
+            respondedAt: now,
+            completedAt: now,
+            actualValue: nullableMoney(values.actualValue),
+            visibility: nextVisibility
+          }
+        : {})
+    }
+  });
+
+  if (updated.count !== 1) {
+    redirectWithError(returnPath, "referral-not-found");
+  }
+
+  await trackCircleCardEvent({
+    cardId: referral.recipientCardId ?? referral.referrerCardId,
+    eventType: circleCardReferralEventTypeForStatus(nextStatus),
+    userId: user.id,
+    metadata: {
+      source: "circle_card_referrals",
+      referralId: referral.id,
+      referrerCardId: referral.referrerCardId,
+      recipientCardId: referral.recipientCardId,
+      status: nextStatus,
+      visibility: nextVisibility,
+      hasActualValue: Boolean(values.actualValue)
+    }
+  });
+
+  revalidateCircleCardConnectionPaths([referral.referrerCard.slug, referral.recipientCard?.slug]);
+  redirectWithNotice(returnPath, circleCardReferralNoticeForStatus(nextStatus));
 }
 
 export async function removeCircleWalletContactAction(formData: FormData) {

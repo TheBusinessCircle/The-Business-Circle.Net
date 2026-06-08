@@ -37,7 +37,13 @@ export const CIRCLE_CARD_EVENT_TYPES = [
   "INTRODUCTION_CREATED",
   "INTRODUCTION_ACCEPTED",
   "INTRODUCTION_DECLINED",
-  "INTRODUCTION_COMPLETED"
+  "INTRODUCTION_COMPLETED",
+  "REFERRAL_CREATED",
+  "REFERRAL_ACCEPTED",
+  "REFERRAL_DECLINED",
+  "REFERRAL_WON",
+  "REFERRAL_LOST",
+  "REFERRAL_CANCELLED"
 ] as const;
 
 export type CircleCardEventTypeValue = (typeof CIRCLE_CARD_EVENT_TYPES)[number];
@@ -81,5 +87,11 @@ export const CIRCLE_CARD_EVENT_LABELS: Record<CircleCardEventTypeValue, string> 
   INTRODUCTION_CREATED: "Introduction created",
   INTRODUCTION_ACCEPTED: "Introduction accepted",
   INTRODUCTION_DECLINED: "Introduction declined",
-  INTRODUCTION_COMPLETED: "Introduction completed"
+  INTRODUCTION_COMPLETED: "Introduction completed",
+  REFERRAL_CREATED: "Referral created",
+  REFERRAL_ACCEPTED: "Referral accepted",
+  REFERRAL_DECLINED: "Referral declined",
+  REFERRAL_WON: "Referral won",
+  REFERRAL_LOST: "Referral lost",
+  REFERRAL_CANCELLED: "Referral cancelled"
 };

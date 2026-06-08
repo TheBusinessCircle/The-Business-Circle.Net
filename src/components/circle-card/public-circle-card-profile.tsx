@@ -718,6 +718,15 @@ function TrustArea({ card, ownerAccountLabel, ownerIsBcnMember }: TrustAreaProps
             muted
           />
         ) : null}
+        {card.successfulReferralCount ? (
+          <PremiumBadge
+            icon={<Handshake size={13} />}
+            label={`${card.successfulReferralCount} successful referral${
+              card.successfulReferralCount === 1 ? "" : "s"
+            }`}
+            muted
+          />
+        ) : null}
         <PremiumBadge icon={<BadgeCheck size={13} />} label="Founder Verification Ready" muted />
         <PremiumBadge icon={<Gem size={13} />} label="Future Verified Founder" muted />
       </div>
@@ -836,6 +845,7 @@ export function PublicCircleCardProfile({
   const viewLabel = card.isDemo ? "Demo identity" : `${card.viewCount + 1} public views`;
   const membershipLabel = membershipBadgeLabel(card, ownerIsBcnMember);
   const recommendationCount = card.recommendations.length;
+  const successfulReferralCount = card.successfulReferralCount;
   const contactRows: ContactRow[] = [];
 
   if (card.websiteUrl) {
@@ -1246,6 +1256,15 @@ export function PublicCircleCardProfile({
                     <PremiumBadge
                       icon={<UserCheck size={13} />}
                       label={`Recommended by ${recommendationCount} people`}
+                      muted
+                    />
+                  ) : null}
+                  {successfulReferralCount ? (
+                    <PremiumBadge
+                      icon={<Handshake size={13} />}
+                      label={`${successfulReferralCount} successful referral${
+                        successfulReferralCount === 1 ? "" : "s"
+                      }`}
                       muted
                     />
                   ) : null}

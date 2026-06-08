@@ -12,6 +12,7 @@ import {
   Compass,
   ContactRound,
   Camera,
+  Handshake,
   Crown,
   Download,
   Eye,
@@ -41,6 +42,7 @@ import {
   acceptCircleCardIntroductionAction,
   cancelCircleCardConnectionRequestAction,
   cancelCircleCardIntroductionAction,
+  createCircleCardReferralAction,
   createCircleCardIntroductionAction,
   deleteCircleCardLinkAction,
   declineCircleCardConnectionRequestAction,
@@ -54,6 +56,7 @@ import {
   toggleCircleWalletFavouriteAction,
   toggleCircleCardLinkAction,
   updateCircleCardRecommendationStatusAction,
+  updateCircleCardReferralStatusAction,
   updateCircleWalletContactDetailsAction,
   upsertCircleCardRecommendationAction,
   upsertCircleCardAction,
@@ -98,6 +101,11 @@ import {
 } from "@/lib/circle-card/recommendations";
 import { circleCardIntroductionStatusLabel } from "@/lib/circle-card/introductions";
 import {
+  CIRCLE_CARD_REFERRAL_OPEN_STATUSES,
+  circleCardReferralStatusLabel,
+  circleCardReferralVisibilityLabel
+} from "@/lib/circle-card/referrals";
+import {
   type CircleCardLinkType,
   CIRCLE_WALLET_CATEGORY_OPTIONS,
   CIRCLE_WALLET_MET_AT_OPTIONS,
@@ -109,7 +117,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireCircleCardUser } from "@/lib/session";
-import { absoluteUrl, cn, formatDate } from "@/lib/utils";
+import { absoluteUrl, cn, formatCurrency, formatDate } from "@/lib/utils";
 import { getCircleCardAnalyticsSummary, trackCircleCardEvent } from "@/server/circle-card";
 
 export const metadata: Metadata = createPageMetadata({
@@ -161,6 +169,12 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "introduction-completed": "Introduction completed.",
   "introduction-cancelled": "Introduction cancelled.",
   "introduction-already-accepted": "You have already accepted this introduction.",
+  "referral-created": "Referral sent.",
+  "referral-accepted": "Referral accepted.",
+  "referral-declined": "Referral declined.",
+  "referral-won": "Referral marked won.",
+  "referral-lost": "Referral marked lost.",
+  "referral-cancelled": "Referral cancelled.",
   "custom-link-created": "Custom link added.",
   "custom-link-updated": "Custom link updated.",
   "custom-link-deleted": "Custom link deleted.",
@@ -207,7 +221,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   "introduction-self": "You cannot introduce yourself.",
   "introduction-duplicate": "You already have an active introduction for that pair.",
   "introduction-not-found": "That introduction is no longer active.",
-  "introduction-already-accepted": "You have already accepted this introduction."
+  "introduction-already-accepted": "You have already accepted this introduction.",
+  "referral-invalid": "Check the referral fields and try again.",
+  "referral-primary-card-required": "Create your own Circle Card before sending referrals.",
+  "referral-recipient-not-found": "That referral recipient could not be found.",
+  "referral-self": "You cannot send a referral to yourself.",
+  "referral-not-found": "That referral could not be found.",
+  "referral-status-not-allowed": "That referral status change is not available."
 };
 
 const WALLET_VIEW_OPTIONS = [
@@ -223,6 +243,13 @@ const INTRODUCTION_VIEW_OPTIONS = [
   { value: "incoming", label: "Incoming" },
   { value: "outgoing", label: "Outgoing" },
   { value: "completed", label: "Completed" }
+] as const;
+
+const REFERRAL_VIEW_OPTIONS = [
+  { value: "sent", label: "Sent" },
+  { value: "received", label: "Received" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" }
 ] as const;
 
 const WALLET_FOLLOW_UP_FILTER_OPTIONS = [
@@ -266,6 +293,7 @@ const CUSTOM_LINK_EXAMPLES = [
 
 type WalletView = (typeof WALLET_VIEW_OPTIONS)[number]["value"];
 type IntroductionView = (typeof INTRODUCTION_VIEW_OPTIONS)[number]["value"];
+type ReferralView = (typeof REFERRAL_VIEW_OPTIONS)[number]["value"];
 type WalletFollowUpFilter = (typeof WALLET_FOLLOW_UP_FILTER_OPTIONS)[number]["value"];
 
 function resolveWalletView(value: string | undefined): WalletView {
@@ -286,6 +314,10 @@ function resolveIntroductionView(value: string | undefined): IntroductionView {
   return value === "outgoing" || value === "completed" ? value : "incoming";
 }
 
+function resolveReferralView(value: string | undefined): ReferralView {
+  return value === "received" || value === "won" || value === "lost" ? value : "sent";
+}
+
 function buildIntroductionHref(input: { introductionView?: IntroductionView }) {
   const params = new URLSearchParams();
 
@@ -295,6 +327,17 @@ function buildIntroductionHref(input: { introductionView?: IntroductionView }) {
 
   const query = params.toString();
   return query ? `/dashboard/circle-card?${query}#introductions` : "/dashboard/circle-card#introductions";
+}
+
+function buildReferralHref(input: { referralView?: ReferralView }) {
+  const params = new URLSearchParams();
+
+  if (input.referralView && input.referralView !== "sent") {
+    params.set("referralView", input.referralView);
+  }
+
+  const query = params.toString();
+  return query ? `/dashboard/circle-card?${query}#referrals` : "/dashboard/circle-card#referrals";
 }
 
 function buildWalletHref(input: {
@@ -527,6 +570,37 @@ function displayCustomLinkUrl(value: string | null | undefined) {
   }
 }
 
+function formatReferralValue(value: { toString(): string } | string | number | null | undefined) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const amount = Number(value.toString());
+  return Number.isFinite(amount) ? formatCurrency(amount) : null;
+}
+
+function referralContactLabel(referral: {
+  referredContactName: string;
+  referredContactBusiness: string | null;
+}) {
+  return [referral.referredContactName, referral.referredContactBusiness].filter(Boolean).join(" / ");
+}
+
+function referralRecipientLabel(referral: {
+  recipientCard: {
+    fullName: string;
+    businessName: string | null;
+  } | null;
+}) {
+  if (!referral.recipientCard) {
+    return "Manual/private recipient";
+  }
+
+  return [referral.recipientCard.fullName, referral.recipientCard.businessName]
+    .filter(Boolean)
+    .join(" / ");
+}
+
 function CustomLinkIcon({ icon, type }: { icon: string | null | undefined; type?: string | null }) {
   switch (resolveCustomLinkType(type)) {
     case "BOOK_CALL":
@@ -593,6 +667,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const discoverRecommended = firstValue(params.discoverRecommended) === "1";
   const discoverBcn = firstValue(params.discoverBcn) === "1";
   const introductionView = resolveIntroductionView(firstValue(params.introductionView));
+  const referralView = resolveReferralView(firstValue(params.referralView));
   const [
     card,
     cardCount,
@@ -601,7 +676,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     connectionRequests,
     connectHubCard,
     discoverCandidateCards,
-    introductions
+    introductions,
+    referrals
   ] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
@@ -902,6 +978,54 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           }
         },
         personBCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
+          }
+        }
+      }
+    }),
+    prisma.circleCardReferral.findMany({
+      where: {
+        OR: [{ referrerUserId: session.user.id }, { recipientUserId: session.user.id }]
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 120,
+      select: {
+        id: true,
+        referrerUserId: true,
+        referrerCardId: true,
+        recipientUserId: true,
+        recipientCardId: true,
+        referredContactName: true,
+        referredContactBusiness: true,
+        referredContactEmail: true,
+        referredContactPhone: true,
+        referredContactWebsite: true,
+        reason: true,
+        status: true,
+        estimatedValue: true,
+        actualValue: true,
+        visibility: true,
+        createdAt: true,
+        updatedAt: true,
+        respondedAt: true,
+        completedAt: true,
+        referrerCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
+          }
+        },
+        recipientCard: {
           select: {
             id: true,
             slug: true,
@@ -1264,6 +1388,38 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const canIntroduceSelectedContact = Boolean(
     card && selectedWalletContact?.card?.id && selectedWalletContact.card.userId !== session.user.id
   );
+  const referralReturnPath = buildReferralHref({ referralView });
+  const referralSentReturnPath = buildReferralHref({ referralView: "sent" });
+  const referralReceivedReturnPath = buildReferralHref({ referralView: "received" });
+  const referralOpenStatuses = new Set<string>(CIRCLE_CARD_REFERRAL_OPEN_STATUSES);
+  const sentReferrals = referrals.filter((referral) => referral.referrerUserId === session.user.id);
+  const receivedReferrals = referrals.filter(
+    (referral) =>
+      referral.recipientUserId === session.user.id && referralOpenStatuses.has(referral.status)
+  );
+  const wonReferrals = referrals.filter((referral) => referral.status === "WON");
+  const lostReferrals = referrals.filter((referral) => referral.status === "LOST");
+  const referralViewCounts: Record<ReferralView, number> = {
+    sent: sentReferrals.length,
+    received: receivedReferrals.length,
+    won: wonReferrals.length,
+    lost: lostReferrals.length
+  };
+  const visibleReferrals =
+    referralView === "received"
+      ? receivedReferrals
+      : referralView === "won"
+        ? wonReferrals
+        : referralView === "lost"
+          ? lostReferrals
+          : sentReferrals;
+  const referrableWalletContacts = normalizedWalletContacts.filter(
+    (contact) => contact.card?.id && contact.card.userId !== session.user.id
+  );
+  const referrableDiscoverCards = discoverCards.filter((candidate) => candidate.userId !== session.user.id);
+  const canSendReferralToSelectedContact = Boolean(
+    card && selectedWalletContact?.card?.id && selectedWalletContact.card.userId !== session.user.id
+  );
   const connectHubRecentlyConnected = [...acceptedConnectionRequests]
     .sort((a, b) => Number(b.respondedAt ?? b.createdAt) - Number(a.respondedAt ?? a.createdAt))
     .map((request) => otherConnectionCard(request))
@@ -1363,6 +1519,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Introductions accepted", value: analytics?.counts.INTRODUCTION_ACCEPTED ?? 0 },
     { label: "Introductions declined", value: analytics?.counts.INTRODUCTION_DECLINED ?? 0 },
     { label: "Introductions completed", value: analytics?.counts.INTRODUCTION_COMPLETED ?? 0 },
+    { label: "Referrals created", value: analytics?.counts.REFERRAL_CREATED ?? 0 },
+    { label: "Referrals accepted", value: analytics?.counts.REFERRAL_ACCEPTED ?? 0 },
+    { label: "Referrals declined", value: analytics?.counts.REFERRAL_DECLINED ?? 0 },
+    { label: "Referrals won", value: analytics?.counts.REFERRAL_WON ?? 0 },
+    { label: "Referrals lost", value: analytics?.counts.REFERRAL_LOST ?? 0 },
+    { label: "Referrals cancelled", value: analytics?.counts.REFERRAL_CANCELLED ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
 
@@ -1399,7 +1561,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Create a clean card, share it with a QR code, and give new contacts a direct route
               back to you and the Business Circle ecosystem.
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
               <a
                 href="#connect-hub"
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
@@ -1420,6 +1582,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               >
                 <UserCheck size={16} />
                 Introductions
+              </a>
+              <a
+                href="#referrals"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+              >
+                <Handshake size={16} />
+                Referrals
               </a>
               <a
                 href="#public-card"
@@ -2079,6 +2248,361 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   <WalletCards size={16} />
                   Open Wallet
                 </a>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </CircleCardDashboardSection>
+
+      <CircleCardDashboardSection
+        id="referrals"
+        title="Referrals"
+        summary="Send, receive, and track business referrals through Circle Card"
+        defaultOpen={receivedReferrals.length > 0}
+        badge={
+          <Badge variant="outline" className="border-gold/28 text-gold">
+            {receivedReferrals.length} received
+          </Badge>
+        }
+      >
+        <div className="space-y-5">
+          <Card className="border-silver/16 bg-card/62">
+            <CardContent className="space-y-5 pt-6 sm:pt-7">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {REFERRAL_VIEW_OPTIONS.map((option) => (
+                  <Link
+                    key={option.value}
+                    href={buildReferralHref({ referralView: option.value })}
+                    className={cn(
+                      "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      referralView === option.value
+                        ? "border-gold/32 bg-gold/10 text-gold"
+                        : "border-silver/14 bg-background/20 text-muted hover:border-silver/28 hover:text-foreground"
+                    )}
+                  >
+                    {option.label} ({referralViewCounts[option.value]})
+                  </Link>
+                ))}
+              </div>
+
+              <form action={createCircleCardReferralAction} className="grid gap-4 xl:grid-cols-2">
+                <input type="hidden" name="returnPath" value={referralSentReturnPath} />
+                <input type="hidden" name="source" value="referral_centre" />
+                <div className="space-y-2">
+                  <Label htmlFor="referral-wallet-recipient">Saved recipient</Label>
+                  <Select id="referral-wallet-recipient" name="recipientWalletContactId">
+                    <option value="">Manual/private recipient</option>
+                    {referrableWalletContacts.map((contact) => (
+                      <option key={contact.id} value={contact.id}>
+                        {contact.display.fullName}
+                        {contact.display.businessName ? `, ${contact.display.businessName}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referral-discover-recipient">Discovered Circle Card</Label>
+                  <Select id="referral-discover-recipient" name="recipientCardId">
+                    <option value="">No discovered card</option>
+                    {referrableDiscoverCards.map((candidate) => (
+                      <option key={candidate.id} value={candidate.id}>
+                        {candidate.fullName}
+                        {candidate.businessName ? `, ${candidate.businessName}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referral-contact-name">Referred contact name</Label>
+                  <Input
+                    id="referral-contact-name"
+                    name="referredContactName"
+                    maxLength={140}
+                    required
+                    placeholder="Sarah Mitchell"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referral-contact-business">Business</Label>
+                  <Input
+                    id="referral-contact-business"
+                    name="referredContactBusiness"
+                    maxLength={140}
+                    placeholder="Sarah's Studio"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referral-contact-email">Email</Label>
+                  <Input
+                    id="referral-contact-email"
+                    name="referredContactEmail"
+                    type="email"
+                    maxLength={320}
+                    placeholder="sarah@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referral-contact-phone">Phone</Label>
+                  <Input
+                    id="referral-contact-phone"
+                    name="referredContactPhone"
+                    maxLength={48}
+                    placeholder="07700 900000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referral-contact-website">Website</Label>
+                  <Input
+                    id="referral-contact-website"
+                    name="referredContactWebsite"
+                    maxLength={2048}
+                    placeholder="https://example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referral-estimated-value">Estimated value</Label>
+                  <Input
+                    id="referral-estimated-value"
+                    name="estimatedValue"
+                    inputMode="decimal"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="space-y-2 xl:col-span-2">
+                  <Label htmlFor="referral-reason">Reason</Label>
+                  <Textarea
+                    id="referral-reason"
+                    name="reason"
+                    rows={4}
+                    maxLength={800}
+                    required
+                    placeholder="Sarah needs help improving her website."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referral-visibility">Visibility</Label>
+                  <Select id="referral-visibility" name="visibility" defaultValue="PRIVATE">
+                    <option value="PRIVATE">Private</option>
+                    <option value="PUBLIC_SUCCESS">Public success if won</option>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button type="submit" className="w-full gap-2" disabled={!card}>
+                    <Handshake size={16} />
+                    Send Referral
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {visibleReferrals.length ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {visibleReferrals.map((referral) => {
+                const estimatedValue = formatReferralValue(referral.estimatedValue);
+                const actualValue = formatReferralValue(referral.actualValue);
+                const canCancel =
+                  referral.referrerUserId === session.user.id && referral.status === "SENT";
+                const canRespond =
+                  referral.recipientUserId === session.user.id && referral.status === "SENT";
+                const canComplete =
+                  (referral.recipientUserId === session.user.id ||
+                    (referral.referrerUserId === session.user.id && !referral.recipientUserId)) &&
+                  referralOpenStatuses.has(referral.status);
+
+                return (
+                  <Card key={referral.id} className="border-silver/16 bg-card/62">
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className={
+                                referral.status === "WON"
+                                  ? "border-gold/25 text-gold"
+                                  : "border-silver/18 text-silver"
+                              }
+                            >
+                              {circleCardReferralStatusLabel(referral.status)}
+                            </Badge>
+                            <Badge variant="outline" className="border-silver/18 text-silver">
+                              {circleCardReferralVisibilityLabel(referral.visibility)}
+                            </Badge>
+                          </div>
+                          <h3 className="mt-3 text-base font-semibold text-foreground">
+                            {referralView === "received"
+                              ? `Referred by ${referral.referrerCard.fullName}`
+                              : referralRecipientLabel(referral)}
+                          </h3>
+                          <p className="mt-1 text-sm text-silver">
+                            Contact: {referralContactLabel(referral)}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-xs text-muted">{formatDate(referral.createdAt)}</p>
+                      </div>
+
+                      <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-silver">Reason</p>
+                        <p className="mt-2 text-sm leading-relaxed text-muted">{referral.reason}</p>
+                      </div>
+
+                      <div className="grid gap-2 text-sm text-muted sm:grid-cols-2">
+                        <p>
+                          <span className="font-medium text-foreground">Recipient: </span>
+                          {referralRecipientLabel(referral)}
+                        </p>
+                        <p>
+                          <span className="font-medium text-foreground">Referrer: </span>
+                          {referral.referrerCard.fullName}
+                        </p>
+                        {estimatedValue ? (
+                          <p>
+                            <span className="font-medium text-foreground">Estimated: </span>
+                            {estimatedValue}
+                          </p>
+                        ) : null}
+                        {actualValue ? (
+                          <p>
+                            <span className="font-medium text-foreground">Actual: </span>
+                            {actualValue}
+                          </p>
+                        ) : null}
+                        {referral.referredContactEmail ? (
+                          <p className="break-all">
+                            <span className="font-medium text-foreground">Email: </span>
+                            {referral.referredContactEmail}
+                          </p>
+                        ) : null}
+                        {referral.referredContactPhone ? (
+                          <p>
+                            <span className="font-medium text-foreground">Phone: </span>
+                            {referral.referredContactPhone}
+                          </p>
+                        ) : null}
+                        {referral.referredContactWebsite ? (
+                          <p className="break-all">
+                            <span className="font-medium text-foreground">Website: </span>
+                            {referral.referredContactWebsite}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {referral.referrerCard.slug ? (
+                          <Link
+                            href={`/card/${referral.referrerCard.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+                          >
+                            Referrer card
+                            <ArrowUpRight size={14} />
+                          </Link>
+                        ) : null}
+                        {referral.recipientCard?.slug ? (
+                          <Link
+                            href={`/card/${referral.recipientCard.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+                          >
+                            Recipient card
+                            <ArrowUpRight size={14} />
+                          </Link>
+                        ) : null}
+                      </div>
+
+                      {canRespond ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <form action={updateCircleCardReferralStatusAction}>
+                            <input type="hidden" name="referralId" value={referral.id} />
+                            <input type="hidden" name="status" value="ACCEPTED" />
+                            <input type="hidden" name="returnPath" value={referralReceivedReturnPath} />
+                            <Button type="submit" className="w-full gap-2">
+                              <UserCheck size={16} />
+                              Accept
+                            </Button>
+                          </form>
+                          <form action={updateCircleCardReferralStatusAction}>
+                            <input type="hidden" name="referralId" value={referral.id} />
+                            <input type="hidden" name="status" value="DECLINED" />
+                            <input type="hidden" name="returnPath" value={referralReceivedReturnPath} />
+                            <Button type="submit" variant="outline" className="w-full gap-2">
+                              <UserX size={16} />
+                              Decline
+                            </Button>
+                          </form>
+                        </div>
+                      ) : null}
+
+                      {canComplete ? (
+                        <div className="grid gap-3">
+                          <form
+                            action={updateCircleCardReferralStatusAction}
+                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                          >
+                            <input type="hidden" name="referralId" value={referral.id} />
+                            <input type="hidden" name="status" value="WON" />
+                            <input
+                              type="hidden"
+                              name="returnPath"
+                              value={referralView === "received" ? referralReceivedReturnPath : referralReturnPath}
+                            />
+                            <Input name="actualValue" inputMode="decimal" placeholder="Actual value" />
+                            <Select name="visibility" defaultValue={referral.visibility}>
+                              <option value="PRIVATE">Private</option>
+                              <option value="PUBLIC_SUCCESS">Public success</option>
+                            </Select>
+                            <Button type="submit" className="gap-2">
+                              <CheckCircle2 size={16} />
+                              Mark Won
+                            </Button>
+                          </form>
+                          <form action={updateCircleCardReferralStatusAction}>
+                            <input type="hidden" name="referralId" value={referral.id} />
+                            <input type="hidden" name="status" value="LOST" />
+                            <input
+                              type="hidden"
+                              name="returnPath"
+                              value={referralView === "received" ? referralReceivedReturnPath : referralReturnPath}
+                            />
+                            <Button type="submit" variant="outline" className="w-full gap-2">
+                              <XCircle size={16} />
+                              Mark Lost
+                            </Button>
+                          </form>
+                        </div>
+                      ) : null}
+
+                      {canCancel ? (
+                        <form action={updateCircleCardReferralStatusAction}>
+                          <input type="hidden" name="referralId" value={referral.id} />
+                          <input type="hidden" name="status" value="CANCELLED" />
+                          <input type="hidden" name="returnPath" value={referralSentReturnPath} />
+                          <Button type="submit" variant="outline" className="w-full gap-2">
+                            <XCircle size={16} />
+                            Cancel Referral
+                          </Button>
+                        </form>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="border-dashed border-silver/18 bg-card/48">
+              <CardContent className="py-10 text-center">
+                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
+                  <Handshake size={20} />
+                </div>
+                <h3 className="mt-4 font-display text-2xl text-foreground">
+                  No referrals here yet
+                </h3>
+                <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                  Send a referral from this centre or use Send Referral inside a wallet contact.
+                </p>
               </CardContent>
             </Card>
           )}
@@ -4198,6 +4722,131 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       >
                         View Introduction Centre
                       </Link>
+                    </div>
+
+                    <div className="rounded-2xl border border-gold/18 bg-background/18 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Handshake size={16} className="text-gold" />
+                            <p className="text-sm font-semibold text-foreground">Send Referral</p>
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed text-muted">
+                            Send someone to this contact because they may need what this contact offers.
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="w-fit border-gold/20 text-gold">
+                          Referral
+                        </Badge>
+                      </div>
+
+                      {canSendReferralToSelectedContact ? (
+                        <form action={createCircleCardReferralAction} className="mt-4 space-y-3">
+                          <input
+                            type="hidden"
+                            name="recipientWalletContactId"
+                            value={selectedWalletContact.id}
+                          />
+                          <input type="hidden" name="returnPath" value={walletReturnPath} />
+                          <input type="hidden" name="source" value="circle_wallet_contact" />
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="wallet-referral-contact-name">Referred contact name</Label>
+                              <Input
+                                id="wallet-referral-contact-name"
+                                name="referredContactName"
+                                maxLength={140}
+                                required
+                                placeholder="Sarah Mitchell"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="wallet-referral-contact-business">Business</Label>
+                              <Input
+                                id="wallet-referral-contact-business"
+                                name="referredContactBusiness"
+                                maxLength={140}
+                                placeholder="Sarah's Business"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="wallet-referral-contact-email">Email</Label>
+                              <Input
+                                id="wallet-referral-contact-email"
+                                name="referredContactEmail"
+                                type="email"
+                                maxLength={320}
+                                placeholder="sarah@example.com"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="wallet-referral-contact-phone">Phone</Label>
+                              <Input
+                                id="wallet-referral-contact-phone"
+                                name="referredContactPhone"
+                                maxLength={48}
+                                placeholder="07700 900000"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="wallet-referral-contact-website">Website</Label>
+                              <Input
+                                id="wallet-referral-contact-website"
+                                name="referredContactWebsite"
+                                maxLength={2048}
+                                placeholder="https://example.com"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="wallet-referral-estimated-value">Estimated value</Label>
+                              <Input
+                                id="wallet-referral-estimated-value"
+                                name="estimatedValue"
+                                inputMode="decimal"
+                                placeholder="Optional"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="wallet-referral-reason">Reason</Label>
+                            <Textarea
+                              id="wallet-referral-reason"
+                              name="reason"
+                              rows={4}
+                              maxLength={800}
+                              required
+                              placeholder="Sarah needs help improving her website."
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="wallet-referral-visibility">Visibility</Label>
+                            <Select
+                              id="wallet-referral-visibility"
+                              name="visibility"
+                              defaultValue="PRIVATE"
+                            >
+                              <option value="PRIVATE">Private</option>
+                              <option value="PUBLIC_SUCCESS">Public success if won</option>
+                            </Select>
+                          </div>
+                          <Button type="submit" className="w-full gap-2">
+                            <Send size={16} />
+                            Send Referral
+                          </Button>
+                        </form>
+                      ) : (
+                        <div className="mt-4 rounded-xl border border-silver/14 bg-background/18 p-3">
+                          <p className="text-xs leading-relaxed text-muted">
+                            Wallet referrals can be sent when this contact is linked to a published Circle Card.
+                          </p>
+                          <Link
+                            href="/dashboard/circle-card#referrals"
+                            className="mt-2 inline-flex text-xs font-medium text-silver hover:text-foreground"
+                          >
+                            Open Referral Centre
+                          </Link>
+                        </div>
+                      )}
                     </div>
 
                     <div className="rounded-2xl border border-gold/18 bg-gold/8 p-4">
