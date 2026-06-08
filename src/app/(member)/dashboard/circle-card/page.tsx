@@ -42,6 +42,7 @@ import {
   acceptCircleCardIntroductionAction,
   cancelCircleCardConnectionRequestAction,
   cancelCircleCardIntroductionAction,
+  createCircleCardOpportunityAction,
   createCircleCardReferralAction,
   createCircleCardIntroductionAction,
   deleteCircleCardLinkAction,
@@ -55,6 +56,8 @@ import {
   sendCircleCardConnectionRequestAction,
   toggleCircleWalletFavouriteAction,
   toggleCircleCardLinkAction,
+  updateCircleCardOpportunityAction,
+  updateCircleCardOpportunityStatusAction,
   updateCircleCardRecommendationStatusAction,
   updateCircleCardReferralStatusAction,
   updateCircleWalletContactDetailsAction,
@@ -105,6 +108,14 @@ import {
   circleCardReferralStatusLabel,
   circleCardReferralVisibilityLabel
 } from "@/lib/circle-card/referrals";
+import {
+  CIRCLE_CARD_OPPORTUNITY_CURRENCY_OPTIONS,
+  CIRCLE_CARD_OPPORTUNITY_SOURCE_TYPES,
+  CIRCLE_CARD_OPPORTUNITY_STATUSES,
+  circleCardOpportunitySourceTypeLabel,
+  circleCardOpportunityStatusLabel,
+  isCircleCardOpportunityOpenStatus
+} from "@/lib/circle-card/opportunities";
 import {
   type CircleCardLinkType,
   CIRCLE_WALLET_CATEGORY_OPTIONS,
@@ -175,6 +186,10 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "referral-won": "Referral marked won.",
   "referral-lost": "Referral marked lost.",
   "referral-cancelled": "Referral cancelled.",
+  "opportunity-created": "Opportunity created.",
+  "opportunity-updated": "Opportunity updated.",
+  "opportunity-won": "Opportunity marked won.",
+  "opportunity-lost": "Opportunity marked lost.",
   "custom-link-created": "Custom link added.",
   "custom-link-updated": "Custom link updated.",
   "custom-link-deleted": "Custom link deleted.",
@@ -227,7 +242,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   "referral-recipient-not-found": "That referral recipient could not be found.",
   "referral-self": "You cannot send a referral to yourself.",
   "referral-not-found": "That referral could not be found.",
-  "referral-status-not-allowed": "That referral status change is not available."
+  "referral-status-not-allowed": "That referral status change is not available.",
+  "opportunity-invalid": "Check the opportunity fields and try again.",
+  "opportunity-primary-card-required": "Create your own Circle Card before tracking opportunities.",
+  "opportunity-not-found": "That opportunity could not be found."
 };
 
 const WALLET_VIEW_OPTIONS = [
@@ -338,6 +356,10 @@ function buildReferralHref(input: { referralView?: ReferralView }) {
 
   const query = params.toString();
   return query ? `/dashboard/circle-card?${query}#referrals` : "/dashboard/circle-card#referrals";
+}
+
+function buildOpportunityHref() {
+  return "/dashboard/circle-card#opportunities";
 }
 
 function buildWalletHref(input: {
@@ -579,6 +601,88 @@ function formatReferralValue(value: { toString(): string } | string | number | n
   return Number.isFinite(amount) ? formatCurrency(amount) : null;
 }
 
+function moneyToNumber(value: { toString(): string } | string | number | null | undefined) {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  const amount = Number(value.toString());
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatOpportunityValue(
+  value: { toString(): string } | string | number | null | undefined,
+  currency = "GBP"
+) {
+  if (value === null || value === undefined) {
+    return "Value not set";
+  }
+
+  const amount = moneyToNumber(value);
+
+  if (!Number.isFinite(amount)) {
+    return "Value not set";
+  }
+
+  try {
+    return formatCurrency(amount, currency);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
+}
+
+function formatOpportunityTotals(
+  opportunities: Array<{
+    potentialValue: { toString(): string } | string | number | null;
+    currency: string;
+  }>
+) {
+  const totals = new Map<string, number>();
+
+  opportunities.forEach((opportunity) => {
+    const amount = moneyToNumber(opportunity.potentialValue);
+
+    if (amount > 0) {
+      totals.set(opportunity.currency, (totals.get(opportunity.currency) ?? 0) + amount);
+    }
+  });
+
+  if (!totals.size) {
+    return formatCurrency(0);
+  }
+
+  return Array.from(totals.entries())
+    .map(([currency, amount]) => formatOpportunityValue(amount, currency))
+    .join(" + ");
+}
+
+function getOpportunityFollowUpStatus(
+  followUpDate: Date | string | null | undefined,
+  todayUtc: number
+) {
+  if (!followUpDate) {
+    return null;
+  }
+
+  const followUpUtc = utcDateNumber(followUpDate);
+
+  if (followUpUtc < todayUtc) {
+    return {
+      label: "Overdue",
+      className: "border-red-500/36 bg-red-500/12 text-red-200"
+    };
+  }
+
+  if (followUpUtc === todayUtc) {
+    return {
+      label: "Follow-Up Due",
+      className: "border-amber-500/40 bg-amber-500/12 text-amber-200"
+    };
+  }
+
+  return null;
+}
+
 function referralContactLabel(referral: {
   referredContactName: string;
   referredContactBusiness: string | null;
@@ -599,6 +703,36 @@ function referralRecipientLabel(referral: {
   return [referral.recipientCard.fullName, referral.recipientCard.businessName]
     .filter(Boolean)
     .join(" / ");
+}
+
+function opportunityContactLabel(opportunity: {
+  walletContact: {
+    fullName: string | null;
+    businessName: string | null;
+    role: string | null;
+    card: {
+      fullName: string;
+      businessName: string | null;
+      role: string | null;
+    } | null;
+  } | null;
+}) {
+  if (!opportunity.walletContact) {
+    return "No contact linked";
+  }
+
+  const contactName =
+    opportunity.walletContact.card?.fullName ??
+    opportunity.walletContact.fullName ??
+    opportunity.walletContact.businessName ??
+    "Wallet contact";
+  const contactBusiness =
+    opportunity.walletContact.card?.businessName ??
+    opportunity.walletContact.businessName ??
+    opportunity.walletContact.card?.role ??
+    opportunity.walletContact.role;
+
+  return [contactName, contactBusiness].filter(Boolean).join(" / ");
 }
 
 function CustomLinkIcon({ icon, type }: { icon: string | null | undefined; type?: string | null }) {
@@ -677,7 +811,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     connectHubCard,
     discoverCandidateCards,
     introductions,
-    referrals
+    referrals,
+    opportunities
   ] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
@@ -1033,6 +1168,46 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             businessName: true,
             role: true,
             profileImageUrl: true
+          }
+        }
+      }
+    }),
+    prisma.opportunity.findMany({
+      where: { userId: session.user.id },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      take: 200,
+      select: {
+        id: true,
+        userId: true,
+        circleCardId: true,
+        walletContactId: true,
+        title: true,
+        description: true,
+        status: true,
+        potentialValue: true,
+        currency: true,
+        sourceType: true,
+        createdAt: true,
+        updatedAt: true,
+        closedAt: true,
+        lastActivityAt: true,
+        nextFollowUpAt: true,
+        notes: true,
+        walletContact: {
+          select: {
+            id: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            card: {
+              select: {
+                id: true,
+                slug: true,
+                fullName: true,
+                businessName: true,
+                role: true
+              }
+            }
           }
         }
       }
@@ -1420,6 +1595,33 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const canSendReferralToSelectedContact = Boolean(
     card && selectedWalletContact?.card?.id && selectedWalletContact.card.userId !== session.user.id
   );
+  const opportunityReturnPath = buildOpportunityHref();
+  const openOpportunities = opportunities.filter((opportunity) =>
+    isCircleCardOpportunityOpenStatus(opportunity.status)
+  );
+  const wonOpportunities = opportunities.filter((opportunity) => opportunity.status === "WON");
+  const lostOpportunities = opportunities.filter((opportunity) => opportunity.status === "LOST");
+  const opportunitiesByStatus = CIRCLE_CARD_OPPORTUNITY_STATUSES.reduce(
+    (accumulator, status) => {
+      accumulator[status] = opportunities.filter((opportunity) => opportunity.status === status);
+      return accumulator;
+    },
+    {} as Record<(typeof CIRCLE_CARD_OPPORTUNITY_STATUSES)[number], typeof opportunities>
+  );
+  const walletOpportunitiesByContactId = new Map<string, typeof opportunities>();
+  opportunities.forEach((opportunity) => {
+    if (!opportunity.walletContactId) {
+      return;
+    }
+
+    walletOpportunitiesByContactId.set(opportunity.walletContactId, [
+      ...(walletOpportunitiesByContactId.get(opportunity.walletContactId) ?? []),
+      opportunity
+    ]);
+  });
+  const selectedWalletOpportunities = selectedWalletContact
+    ? walletOpportunitiesByContactId.get(selectedWalletContact.id) ?? []
+    : [];
   const connectHubRecentlyConnected = [...acceptedConnectionRequests]
     .sort((a, b) => Number(b.respondedAt ?? b.createdAt) - Number(a.respondedAt ?? a.createdAt))
     .map((request) => otherConnectionCard(request))
@@ -1525,6 +1727,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Referrals won", value: analytics?.counts.REFERRAL_WON ?? 0 },
     { label: "Referrals lost", value: analytics?.counts.REFERRAL_LOST ?? 0 },
     { label: "Referrals cancelled", value: analytics?.counts.REFERRAL_CANCELLED ?? 0 },
+    { label: "Opportunities created", value: analytics?.counts.OPPORTUNITY_CREATED ?? 0 },
+    { label: "Opportunities updated", value: analytics?.counts.OPPORTUNITY_UPDATED ?? 0 },
+    { label: "Opportunities won", value: analytics?.counts.OPPORTUNITY_WON ?? 0 },
+    { label: "Opportunities lost", value: analytics?.counts.OPPORTUNITY_LOST ?? 0 },
+    { label: "Opportunity follow-ups set", value: analytics?.counts.OPPORTUNITY_FOLLOWUP_SET ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
 
@@ -1561,7 +1768,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Create a clean card, share it with a QR code, and give new contacts a direct route
               back to you and the Business Circle ecosystem.
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
               <a
                 href="#connect-hub"
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
@@ -1589,6 +1796,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               >
                 <Handshake size={16} />
                 Referrals
+              </a>
+              <a
+                href="#opportunities"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+              >
+                <ShoppingBag size={16} />
+                Opportunities
               </a>
               <a
                 href="#public-card"
@@ -1696,6 +1910,642 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           {ERROR_MESSAGES[error]}
         </p>
       ) : null}
+
+      <CircleCardDashboardSection
+        id="introductions"
+        title="Introductions"
+        summary="Introduce two people from your Circle Wallet and track private responses"
+        defaultOpen={incomingIntroductions.length > 0}
+        badge={
+          <Badge variant="outline" className="border-gold/28 text-gold">
+            {incomingIntroductions.length} incoming
+          </Badge>
+        }
+      >
+        <div className="space-y-5">
+          <Card className="border-silver/16 bg-card/62">
+            <CardContent className="space-y-4 pt-6 sm:pt-7">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {INTRODUCTION_VIEW_OPTIONS.map((option) => (
+                  <Link
+                    key={option.value}
+                    href={buildIntroductionHref({ introductionView: option.value })}
+                    className={cn(
+                      "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      introductionView === option.value
+                        ? "border-gold/32 bg-gold/10 text-gold"
+                        : "border-silver/14 bg-background/20 text-muted hover:border-silver/28 hover:text-foreground"
+                    )}
+                  >
+                    {option.label} ({introductionViewCounts[option.value]})
+                  </Link>
+                ))}
+              </div>
+              <p className="text-sm leading-relaxed text-muted">
+                Introductions are private dashboard activity. They are not shown on public Circle Cards.
+              </p>
+            </CardContent>
+          </Card>
+
+          {visibleIntroductions.length ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {visibleIntroductions.map((introduction) => {
+                const viewerIsPersonA = introduction.personAUserId === session.user.id;
+                const viewerIsPersonB = introduction.personBUserId === session.user.id;
+                const viewerAccepted = viewerIsPersonA
+                  ? introduction.personAAcceptedAt
+                  : viewerIsPersonB
+                    ? introduction.personBAcceptedAt
+                    : null;
+                const otherCard = viewerIsPersonA ? introduction.personBCard : introduction.personACard;
+                const acceptedCount =
+                  Number(Boolean(introduction.personAAcceptedAt)) +
+                  Number(Boolean(introduction.personBAcceptedAt));
+                const statusLabel = circleCardIntroductionStatusLabel(introduction.status);
+                const canRespond =
+                  (viewerIsPersonA || viewerIsPersonB) &&
+                  introductionActiveStatuses.has(introduction.status) &&
+                  !viewerAccepted;
+                const canCancel =
+                  introduction.introducerUserId === session.user.id &&
+                  introductionActiveStatuses.has(introduction.status);
+
+                return (
+                  <Card key={introduction.id} className="border-silver/16 bg-card/62">
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className={
+                                introduction.status === "COMPLETED"
+                                  ? "border-gold/25 text-gold"
+                                  : "border-silver/18 text-silver"
+                              }
+                            >
+                              {statusLabel}
+                            </Badge>
+                            {acceptedCount ? (
+                              <Badge variant="outline" className="border-gold/20 text-gold">
+                                {acceptedCount}/2 accepted
+                              </Badge>
+                            ) : null}
+                          </div>
+                          {introductionView === "incoming" ? (
+                            <>
+                              <h3 className="mt-3 text-base font-semibold text-foreground">
+                                Introduced by {introduction.introducerCard.fullName}
+                              </h3>
+                              <p className="mt-1 text-sm text-silver">
+                                With {otherCard.fullName}
+                                {otherCard.businessName ? `, ${otherCard.businessName}` : ""}
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <h3 className="mt-3 text-base font-semibold text-foreground">
+                                {introduction.personACard.fullName} <span className="text-muted">{"<->"}</span>{" "}
+                                {introduction.personBCard.fullName}
+                              </h3>
+                              <p className="mt-1 text-sm text-silver">
+                                Introduced by {introduction.introducerCard.fullName}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex -space-x-2">
+                          {[introduction.personACard, introduction.personBCard].map((introCard) => (
+                            <div
+                              key={introCard.id}
+                              className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border border-background bg-card text-xs font-semibold text-foreground shadow-inner-surface"
+                              title={introCard.fullName}
+                            >
+                              {introCard.profileImageUrl ? (
+                                <img
+                                  src={introCard.profileImageUrl}
+                                  alt={introCard.fullName}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                introCard.fullName.slice(0, 2).toUpperCase()
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-silver">Reason</p>
+                        <p className="mt-2 text-sm leading-relaxed text-muted">
+                          &ldquo;{introduction.reason}&rdquo;
+                        </p>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Link
+                          href={`/card/${introduction.personACard.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
+                        >
+                          {introduction.personACard.fullName}
+                          <ArrowUpRight size={16} />
+                        </Link>
+                        <Link
+                          href={`/card/${introduction.personBCard.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
+                        >
+                          {introduction.personBCard.fullName}
+                          <ArrowUpRight size={16} />
+                        </Link>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {[introduction.personACard, introduction.personBCard].map((introCard) => {
+                          const introWalletContact = savedContactByCardId.get(introCard.id);
+
+                          return (
+                            <form key={introCard.id} action={createCircleCardOpportunityAction}>
+                              <input type="hidden" name="returnPath" value={opportunityReturnPath} />
+                              <input
+                                type="hidden"
+                                name="walletContactId"
+                                value={introWalletContact?.id ?? ""}
+                              />
+                              <input
+                                type="hidden"
+                                name="title"
+                                value={`Opportunity with ${introCard.fullName}`}
+                              />
+                              <input type="hidden" name="description" value={introduction.reason} />
+                              <input type="hidden" name="sourceType" value="INTRODUCTION" />
+                              <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                                <ShoppingBag size={14} />
+                                Create Opportunity
+                              </Button>
+                            </form>
+                          );
+                        })}
+                      </div>
+
+                      {canRespond ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <form action={acceptCircleCardIntroductionAction}>
+                            <input type="hidden" name="introductionId" value={introduction.id} />
+                            <input type="hidden" name="returnPath" value={introductionReturnPath} />
+                            <Button type="submit" className="w-full gap-2">
+                              <UserCheck size={16} />
+                              Accept
+                            </Button>
+                          </form>
+                          <form action={declineCircleCardIntroductionAction}>
+                            <input type="hidden" name="introductionId" value={introduction.id} />
+                            <input type="hidden" name="returnPath" value={introductionReturnPath} />
+                            <Button type="submit" variant="outline" className="w-full gap-2">
+                              <UserX size={16} />
+                              Decline
+                            </Button>
+                          </form>
+                        </div>
+                      ) : null}
+
+                      {canCancel ? (
+                        <form action={cancelCircleCardIntroductionAction}>
+                          <input type="hidden" name="introductionId" value={introduction.id} />
+                          <input type="hidden" name="returnPath" value={introductionOutgoingReturnPath} />
+                          <Button type="submit" variant="outline" className="w-full gap-2">
+                            <XCircle size={16} />
+                            Cancel Introduction
+                          </Button>
+                        </form>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="border-dashed border-silver/18 bg-card/48">
+              <CardContent className="py-10 text-center">
+                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
+                  <UserCheck size={20} />
+                </div>
+                <h3 className="mt-4 font-display text-2xl text-foreground">
+                  No introductions here yet
+                </h3>
+                <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
+                  Use the Introduce panel inside a wallet contact to connect two saved Circle Card contacts.
+                </p>
+                <a href="#wallet" className={cn(buttonVariants({ variant: "outline" }), "mt-5 gap-2")}>
+                  <WalletCards size={16} />
+                  Open Wallet
+                </a>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </CircleCardDashboardSection>
+
+      <CircleCardDashboardSection
+        id="opportunities"
+        title="Opportunity Pipeline"
+        summary="Track real business opportunities created through relationships and Circle Card activity"
+        defaultOpen={openOpportunities.length > 0}
+        badge={
+          <span className="inline-flex gap-2">
+            <Badge variant="outline" className="border-gold/28 text-gold">
+              {openOpportunities.length} open
+            </Badge>
+            <Badge variant="muted">{wonOpportunities.length} won</Badge>
+          </span>
+        }
+      >
+        <div className="space-y-5">
+          <div className="grid gap-4 lg:grid-cols-5">
+            <Card className="border-silver/16 bg-card/62">
+              <CardContent className="p-4">
+                <p className="text-xs uppercase tracking-[0.08em] text-silver">Open Opportunities</p>
+                <p className="mt-2 font-display text-3xl text-foreground">{openOpportunities.length}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-silver/16 bg-card/62">
+              <CardContent className="p-4">
+                <p className="text-xs uppercase tracking-[0.08em] text-silver">Won Opportunities</p>
+                <p className="mt-2 font-display text-3xl text-foreground">{wonOpportunities.length}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-silver/16 bg-card/62">
+              <CardContent className="p-4">
+                <p className="text-xs uppercase tracking-[0.08em] text-silver">Lost Opportunities</p>
+                <p className="mt-2 font-display text-3xl text-foreground">{lostOpportunities.length}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-gold/18 bg-gold/8 lg:col-span-1">
+              <CardContent className="p-4">
+                <p className="text-xs uppercase tracking-[0.08em] text-gold">Pipeline Value</p>
+                <p className="mt-2 text-lg font-semibold text-foreground">
+                  {formatOpportunityTotals(openOpportunities)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-gold/18 bg-gold/8 lg:col-span-1">
+              <CardContent className="p-4">
+                <p className="text-xs uppercase tracking-[0.08em] text-gold">Won Value</p>
+                <p className="mt-2 text-lg font-semibold text-foreground">
+                  {formatOpportunityTotals(wonOpportunities)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-silver/16 bg-card/62">
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2 text-lg">
+                <ShoppingBag size={18} className="text-gold" />
+                Create Opportunity
+              </CardTitle>
+              <CardDescription>Add a new opportunity manually or link it to a saved wallet contact.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={createCircleCardOpportunityAction} className="grid gap-4 xl:grid-cols-2">
+                <input type="hidden" name="returnPath" value={opportunityReturnPath} />
+                <div className="space-y-2">
+                  <Label htmlFor="opportunity-title">Title</Label>
+                  <Input
+                    id="opportunity-title"
+                    name="title"
+                    maxLength={160}
+                    required
+                    placeholder="Website redesign for Sarah's Studio"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="opportunity-wallet-contact">Wallet contact</Label>
+                  <Select id="opportunity-wallet-contact" name="walletContactId">
+                    <option value="">No linked contact</option>
+                    {normalizedWalletContacts.map((contact) => (
+                      <option key={contact.id} value={contact.id}>
+                        {contact.display.fullName}
+                        {contact.display.businessName ? `, ${contact.display.businessName}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2 xl:col-span-2">
+                  <Label htmlFor="opportunity-description">Description</Label>
+                  <Textarea
+                    id="opportunity-description"
+                    name="description"
+                    rows={3}
+                    maxLength={1400}
+                    placeholder="What the client needs, where it came from, and what should happen next."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="opportunity-value">Potential Value</Label>
+                  <Input
+                    id="opportunity-value"
+                    name="potentialValue"
+                    inputMode="decimal"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="opportunity-currency">Currency</Label>
+                  <Select id="opportunity-currency" name="currency" defaultValue="GBP">
+                    {CIRCLE_CARD_OPPORTUNITY_CURRENCY_OPTIONS.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="opportunity-source">Source Type</Label>
+                  <Select id="opportunity-source" name="sourceType" defaultValue="MANUAL">
+                    {CIRCLE_CARD_OPPORTUNITY_SOURCE_TYPES.map((sourceType) => (
+                      <option key={sourceType} value={sourceType}>
+                        {circleCardOpportunitySourceTypeLabel(sourceType)}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="opportunity-follow-up">Next Follow-Up Date</Label>
+                  <Input id="opportunity-follow-up" name="nextFollowUpAt" type="date" />
+                </div>
+                <div className="flex items-end xl:col-span-2">
+                  <Button type="submit" className="w-full gap-2" disabled={!card}>
+                    <ShoppingBag size={16} />
+                    Create Opportunity
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-6">
+            {CIRCLE_CARD_OPPORTUNITY_STATUSES.map((status) => {
+              const stageOpportunities = opportunitiesByStatus[status];
+
+              return (
+                <div key={status} className="space-y-3 rounded-2xl border border-silver/14 bg-background/14 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {circleCardOpportunityStatusLabel(status)}
+                      </h3>
+                      <p className="mt-1 text-xs text-muted">{formatOpportunityTotals(stageOpportunities)}</p>
+                    </div>
+                    <Badge variant="muted">{stageOpportunities.length}</Badge>
+                  </div>
+
+                  {stageOpportunities.length ? (
+                    stageOpportunities.map((opportunity) => {
+                      const followUpStatus = getOpportunityFollowUpStatus(
+                        opportunity.nextFollowUpAt,
+                        todayUtc
+                      );
+                      const quickActions = [
+                        { status: "QUALIFIED", label: "Mark Qualified", icon: UserCheck },
+                        { status: "PROPOSAL_SENT", label: "Send Proposal", icon: Send },
+                        { status: "NEGOTIATION", label: "Move To Negotiation", icon: Handshake },
+                        { status: "WON", label: "Mark Won", icon: CheckCircle2 },
+                        { status: "LOST", label: "Mark Lost", icon: XCircle }
+                      ].filter((action) => action.status !== opportunity.status);
+
+                      return (
+                        <Card key={opportunity.id} className="border-silver/16 bg-card/72">
+                          <CardContent className="space-y-4 p-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  opportunity.status === "WON"
+                                    ? "border-gold/25 text-gold"
+                                    : opportunity.status === "LOST"
+                                      ? "border-red-500/30 text-red-200"
+                                      : "border-silver/18 text-silver"
+                                }
+                              >
+                                {circleCardOpportunityStatusLabel(opportunity.status)}
+                              </Badge>
+                              <Badge variant="outline" className="border-silver/18 text-silver">
+                                {circleCardOpportunitySourceTypeLabel(opportunity.sourceType)}
+                              </Badge>
+                              {followUpStatus ? (
+                                <Badge variant="outline" className={followUpStatus.className}>
+                                  {followUpStatus.label}
+                                </Badge>
+                              ) : null}
+                            </div>
+
+                            <div>
+                              <h4 className="text-base font-semibold text-foreground">{opportunity.title}</h4>
+                              <p className="mt-1 text-xs text-muted">{opportunityContactLabel(opportunity)}</p>
+                            </div>
+
+                            {opportunity.description ? (
+                              <p className="text-sm leading-relaxed text-muted">{opportunity.description}</p>
+                            ) : null}
+
+                            <div className="grid gap-2 text-xs text-muted">
+                              <p>
+                                <span className="font-medium text-foreground">Potential Value: </span>
+                                {formatOpportunityValue(opportunity.potentialValue, opportunity.currency)}
+                              </p>
+                              <p>
+                                <span className="font-medium text-foreground">Last Activity: </span>
+                                {opportunity.lastActivityAt
+                                  ? formatRelationshipDate(opportunity.lastActivityAt)
+                                  : "Not set"}
+                              </p>
+                              <p>
+                                <span className="font-medium text-foreground">Next Follow-Up: </span>
+                                {opportunity.nextFollowUpAt
+                                  ? formatRelationshipDate(opportunity.nextFollowUpAt)
+                                  : "Not set"}
+                              </p>
+                              {opportunity.closedAt ? (
+                                <p>
+                                  <span className="font-medium text-foreground">Closed: </span>
+                                  {formatDate(opportunity.closedAt)}
+                                </p>
+                              ) : null}
+                            </div>
+
+                            <form action={updateCircleCardOpportunityStatusAction} className="grid gap-2">
+                              <input type="hidden" name="opportunityId" value={opportunity.id} />
+                              <input type="hidden" name="returnPath" value={opportunityReturnPath} />
+                              <Select name="status" defaultValue={opportunity.status} aria-label="Opportunity status">
+                                {CIRCLE_CARD_OPPORTUNITY_STATUSES.map((statusOption) => (
+                                  <option key={statusOption} value={statusOption}>
+                                    {circleCardOpportunityStatusLabel(statusOption)}
+                                  </option>
+                                ))}
+                              </Select>
+                              <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                                <ArrowUpRight size={14} />
+                                Move Stage
+                              </Button>
+                            </form>
+
+                            <div className="grid gap-2">
+                              {quickActions.map((action) => {
+                                const Icon = action.icon;
+
+                                return (
+                                  <form key={action.status} action={updateCircleCardOpportunityStatusAction}>
+                                    <input type="hidden" name="opportunityId" value={opportunity.id} />
+                                    <input type="hidden" name="status" value={action.status} />
+                                    <input type="hidden" name="returnPath" value={opportunityReturnPath} />
+                                    <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                                      <Icon size={14} />
+                                      {action.label}
+                                    </Button>
+                                  </form>
+                                );
+                              })}
+                            </div>
+
+                            <details className="rounded-xl border border-silver/14 bg-background/18 p-3">
+                              <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                                Opportunity Detail
+                              </summary>
+                              <form action={updateCircleCardOpportunityAction} className="mt-4 space-y-3">
+                                <input type="hidden" name="opportunityId" value={opportunity.id} />
+                                <input type="hidden" name="returnPath" value={opportunityReturnPath} />
+                                <div className="space-y-2">
+                                  <Label htmlFor={`opportunity-title-${opportunity.id}`}>Title</Label>
+                                  <Input
+                                    id={`opportunity-title-${opportunity.id}`}
+                                    name="title"
+                                    maxLength={160}
+                                    required
+                                    defaultValue={opportunity.title}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`opportunity-status-${opportunity.id}`}>Status</Label>
+                                  <Select
+                                    id={`opportunity-status-${opportunity.id}`}
+                                    name="status"
+                                    defaultValue={opportunity.status}
+                                  >
+                                    {CIRCLE_CARD_OPPORTUNITY_STATUSES.map((statusOption) => (
+                                      <option key={statusOption} value={statusOption}>
+                                        {circleCardOpportunityStatusLabel(statusOption)}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`opportunity-value-${opportunity.id}`}>Potential Value</Label>
+                                    <Input
+                                      id={`opportunity-value-${opportunity.id}`}
+                                      name="potentialValue"
+                                      inputMode="decimal"
+                                      defaultValue={opportunity.potentialValue?.toString() ?? ""}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`opportunity-currency-${opportunity.id}`}>Currency</Label>
+                                    <Select
+                                      id={`opportunity-currency-${opportunity.id}`}
+                                      name="currency"
+                                      defaultValue={opportunity.currency}
+                                    >
+                                      {CIRCLE_CARD_OPPORTUNITY_CURRENCY_OPTIONS.map((currency) => (
+                                        <option key={currency} value={currency}>
+                                          {currency}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`opportunity-source-${opportunity.id}`}>Source Type</Label>
+                                  <Select
+                                    id={`opportunity-source-${opportunity.id}`}
+                                    name="sourceType"
+                                    defaultValue={opportunity.sourceType}
+                                  >
+                                    {CIRCLE_CARD_OPPORTUNITY_SOURCE_TYPES.map((sourceType) => (
+                                      <option key={sourceType} value={sourceType}>
+                                        {circleCardOpportunitySourceTypeLabel(sourceType)}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`opportunity-last-activity-${opportunity.id}`}>
+                                      Last Activity
+                                    </Label>
+                                    <Input
+                                      id={`opportunity-last-activity-${opportunity.id}`}
+                                      name="lastActivityAt"
+                                      type="date"
+                                      defaultValue={toDateInputValue(opportunity.lastActivityAt)}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`opportunity-next-follow-up-${opportunity.id}`}>
+                                      Next Follow-Up
+                                    </Label>
+                                    <Input
+                                      id={`opportunity-next-follow-up-${opportunity.id}`}
+                                      name="nextFollowUpAt"
+                                      type="date"
+                                      defaultValue={toDateInputValue(opportunity.nextFollowUpAt)}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`opportunity-description-${opportunity.id}`}>Description</Label>
+                                  <Textarea
+                                    id={`opportunity-description-${opportunity.id}`}
+                                    name="description"
+                                    rows={3}
+                                    maxLength={1400}
+                                    defaultValue={opportunity.description ?? ""}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`opportunity-notes-${opportunity.id}`}>Notes</Label>
+                                  <Textarea
+                                    id={`opportunity-notes-${opportunity.id}`}
+                                    name="notes"
+                                    rows={4}
+                                    maxLength={2400}
+                                    defaultValue={opportunity.notes ?? ""}
+                                  />
+                                </div>
+                                <Button type="submit" className="w-full gap-2">
+                                  <Save size={16} />
+                                  Save Opportunity
+                                </Button>
+                              </form>
+                            </details>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                      No opportunities in this stage.
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CircleCardDashboardSection>
 
       <CircleCardDashboardSection
         id="discover"
@@ -2045,216 +2895,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       </CircleCardDashboardSection>
 
       <CircleCardDashboardSection
-        id="introductions"
-        title="Introductions"
-        summary="Introduce two people from your Circle Wallet and track private responses"
-        defaultOpen={incomingIntroductions.length > 0}
-        badge={
-          <Badge variant="outline" className="border-gold/28 text-gold">
-            {incomingIntroductions.length} incoming
-          </Badge>
-        }
-      >
-        <div className="space-y-5">
-          <Card className="border-silver/16 bg-card/62">
-            <CardContent className="space-y-4 pt-6 sm:pt-7">
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {INTRODUCTION_VIEW_OPTIONS.map((option) => (
-                  <Link
-                    key={option.value}
-                    href={buildIntroductionHref({ introductionView: option.value })}
-                    className={cn(
-                      "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                      introductionView === option.value
-                        ? "border-gold/32 bg-gold/10 text-gold"
-                        : "border-silver/14 bg-background/20 text-muted hover:border-silver/28 hover:text-foreground"
-                    )}
-                  >
-                    {option.label} ({introductionViewCounts[option.value]})
-                  </Link>
-                ))}
-              </div>
-              <p className="text-sm leading-relaxed text-muted">
-                Introductions are private dashboard activity. They are not shown on public Circle Cards.
-              </p>
-            </CardContent>
-          </Card>
-
-          {visibleIntroductions.length ? (
-            <div className="grid gap-4 xl:grid-cols-2">
-              {visibleIntroductions.map((introduction) => {
-                const viewerIsPersonA = introduction.personAUserId === session.user.id;
-                const viewerIsPersonB = introduction.personBUserId === session.user.id;
-                const viewerAccepted = viewerIsPersonA
-                  ? introduction.personAAcceptedAt
-                  : viewerIsPersonB
-                    ? introduction.personBAcceptedAt
-                    : null;
-                const otherCard = viewerIsPersonA ? introduction.personBCard : introduction.personACard;
-                const acceptedCount =
-                  Number(Boolean(introduction.personAAcceptedAt)) +
-                  Number(Boolean(introduction.personBAcceptedAt));
-                const statusLabel = circleCardIntroductionStatusLabel(introduction.status);
-                const canRespond =
-                  (viewerIsPersonA || viewerIsPersonB) &&
-                  introductionActiveStatuses.has(introduction.status) &&
-                  !viewerAccepted;
-                const canCancel =
-                  introduction.introducerUserId === session.user.id &&
-                  introductionActiveStatuses.has(introduction.status);
-
-                return (
-                  <Card key={introduction.id} className="border-silver/16 bg-card/62">
-                    <CardContent className="space-y-4 p-4 sm:p-5">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge
-                              variant="outline"
-                              className={
-                                introduction.status === "COMPLETED"
-                                  ? "border-gold/25 text-gold"
-                                  : "border-silver/18 text-silver"
-                              }
-                            >
-                              {statusLabel}
-                            </Badge>
-                            {acceptedCount ? (
-                              <Badge variant="outline" className="border-gold/20 text-gold">
-                                {acceptedCount}/2 accepted
-                              </Badge>
-                            ) : null}
-                          </div>
-                          {introductionView === "incoming" ? (
-                            <>
-                              <h3 className="mt-3 text-base font-semibold text-foreground">
-                                Introduced by {introduction.introducerCard.fullName}
-                              </h3>
-                              <p className="mt-1 text-sm text-silver">
-                                With {otherCard.fullName}
-                                {otherCard.businessName ? `, ${otherCard.businessName}` : ""}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <h3 className="mt-3 text-base font-semibold text-foreground">
-                                {introduction.personACard.fullName} <span className="text-muted">{"<->"}</span>{" "}
-                                {introduction.personBCard.fullName}
-                              </h3>
-                              <p className="mt-1 text-sm text-silver">
-                                Introduced by {introduction.introducerCard.fullName}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                        <div className="flex -space-x-2">
-                          {[introduction.personACard, introduction.personBCard].map((introCard) => (
-                            <div
-                              key={introCard.id}
-                              className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border border-background bg-card text-xs font-semibold text-foreground shadow-inner-surface"
-                              title={introCard.fullName}
-                            >
-                              {introCard.profileImageUrl ? (
-                                <img
-                                  src={introCard.profileImageUrl}
-                                  alt={introCard.fullName}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                introCard.fullName.slice(0, 2).toUpperCase()
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-silver">Reason</p>
-                        <p className="mt-2 text-sm leading-relaxed text-muted">
-                          &ldquo;{introduction.reason}&rdquo;
-                        </p>
-                      </div>
-
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <Link
-                          href={`/card/${introduction.personACard.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
-                        >
-                          {introduction.personACard.fullName}
-                          <ArrowUpRight size={16} />
-                        </Link>
-                        <Link
-                          href={`/card/${introduction.personBCard.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
-                        >
-                          {introduction.personBCard.fullName}
-                          <ArrowUpRight size={16} />
-                        </Link>
-                      </div>
-
-                      {canRespond ? (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <form action={acceptCircleCardIntroductionAction}>
-                            <input type="hidden" name="introductionId" value={introduction.id} />
-                            <input type="hidden" name="returnPath" value={introductionReturnPath} />
-                            <Button type="submit" className="w-full gap-2">
-                              <UserCheck size={16} />
-                              Accept
-                            </Button>
-                          </form>
-                          <form action={declineCircleCardIntroductionAction}>
-                            <input type="hidden" name="introductionId" value={introduction.id} />
-                            <input type="hidden" name="returnPath" value={introductionReturnPath} />
-                            <Button type="submit" variant="outline" className="w-full gap-2">
-                              <UserX size={16} />
-                              Decline
-                            </Button>
-                          </form>
-                        </div>
-                      ) : null}
-
-                      {canCancel ? (
-                        <form action={cancelCircleCardIntroductionAction}>
-                          <input type="hidden" name="introductionId" value={introduction.id} />
-                          <input type="hidden" name="returnPath" value={introductionOutgoingReturnPath} />
-                          <Button type="submit" variant="outline" className="w-full gap-2">
-                            <XCircle size={16} />
-                            Cancel Introduction
-                          </Button>
-                        </form>
-                      ) : null}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <Card className="border-dashed border-silver/18 bg-card/48">
-              <CardContent className="py-10 text-center">
-                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
-                  <UserCheck size={20} />
-                </div>
-                <h3 className="mt-4 font-display text-2xl text-foreground">
-                  No introductions here yet
-                </h3>
-                <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
-                  Use the Introduce panel inside a wallet contact to connect two saved Circle Card contacts.
-                </p>
-                <a href="#wallet" className={cn(buttonVariants({ variant: "outline" }), "mt-5 gap-2")}>
-                  <WalletCards size={16} />
-                  Open Wallet
-                </a>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </CircleCardDashboardSection>
-
-      <CircleCardDashboardSection
         id="referrals"
         title="Referrals"
         summary="Send, receive, and track business referrals through Circle Card"
@@ -2512,6 +3152,18 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           </Link>
                         ) : null}
                       </div>
+
+                      <form action={createCircleCardOpportunityAction}>
+                        <input type="hidden" name="returnPath" value={opportunityReturnPath} />
+                        <input type="hidden" name="title" value={referralContactLabel(referral)} />
+                        <input type="hidden" name="description" value={referral.reason} />
+                        <input type="hidden" name="potentialValue" value={referral.estimatedValue?.toString() ?? ""} />
+                        <input type="hidden" name="sourceType" value="REFERRAL" />
+                        <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                          <ShoppingBag size={14} />
+                          Create Opportunity
+                        </Button>
+                      </form>
 
                       {canRespond ? (
                         <div className="grid gap-2 sm:grid-cols-2">
@@ -4895,6 +5547,28 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         </div>
                       ) : null}
 
+                      {selectedWalletRecommendation ? (
+                        <form action={createCircleCardOpportunityAction} className="mt-3">
+                          <input type="hidden" name="walletContactId" value={selectedWalletContact.id} />
+                          <input type="hidden" name="returnPath" value={opportunityReturnPath} />
+                          <input
+                            type="hidden"
+                            name="title"
+                            value={`Opportunity with ${selectedWalletContact.display.fullName}`}
+                          />
+                          <input
+                            type="hidden"
+                            name="description"
+                            value={selectedWalletRecommendation.reason ?? selectedWalletRecommendation.category}
+                          />
+                          <input type="hidden" name="sourceType" value="RECOMMENDATION" />
+                          <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                            <ShoppingBag size={14} />
+                            Create Opportunity
+                          </Button>
+                        </form>
+                      ) : null}
+
                       {!selectedWalletContact.card?.id ? (
                         <p className="mt-4 rounded-xl border border-silver/14 bg-background/18 p-3 text-xs leading-relaxed text-muted">
                           This contact is not linked to a Circle Card yet. You can keep a private
@@ -4989,6 +5663,73 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           </form>
                         </div>
                       ) : null}
+                    </div>
+
+                    <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Associated Opportunities</p>
+                          <p className="mt-1 text-xs text-muted">
+                            Opportunities linked to this saved contact stay visible here.
+                          </p>
+                        </div>
+                        <Badge variant="muted" className="w-fit">
+                          {selectedWalletOpportunities.length}
+                        </Badge>
+                      </div>
+
+                      {selectedWalletOpportunities.length ? (
+                        <div className="mt-4 space-y-2">
+                          {selectedWalletOpportunities.slice(0, 4).map((opportunity) => {
+                            const followUpStatus = getOpportunityFollowUpStatus(
+                              opportunity.nextFollowUpAt,
+                              todayUtc
+                            );
+
+                            return (
+                              <a
+                                key={opportunity.id}
+                                href="#opportunities"
+                                className="block rounded-xl border border-silver/14 bg-card/54 p-3 hover:border-gold/24"
+                              >
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant="outline" className="border-silver/18 text-silver">
+                                    {circleCardOpportunityStatusLabel(opportunity.status)}
+                                  </Badge>
+                                  {followUpStatus ? (
+                                    <Badge variant="outline" className={followUpStatus.className}>
+                                      {followUpStatus.label}
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                                <p className="mt-2 text-sm font-semibold text-foreground">{opportunity.title}</p>
+                                <p className="mt-1 text-xs text-muted">
+                                  {formatOpportunityValue(opportunity.potentialValue, opportunity.currency)}
+                                </p>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="mt-4 rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
+                          No opportunities linked to this contact yet.
+                        </p>
+                      )}
+
+                      <form action={createCircleCardOpportunityAction} className="mt-4">
+                        <input type="hidden" name="walletContactId" value={selectedWalletContact.id} />
+                        <input type="hidden" name="returnPath" value={walletReturnPath} />
+                        <input
+                          type="hidden"
+                          name="title"
+                          value={`Opportunity with ${selectedWalletContact.display.fullName}`}
+                        />
+                        <input type="hidden" name="sourceType" value="CONNECTION" />
+                        <Button type="submit" variant="outline" className="w-full gap-2">
+                          <ShoppingBag size={16} />
+                          Create Opportunity
+                        </Button>
+                      </form>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">

@@ -53,6 +53,12 @@ import {
   circleCardReferralStatusSchema
 } from "@/lib/circle-card/referrals";
 import {
+  circleCardOpportunityCreateSchema,
+  circleCardOpportunityStatusSchema,
+  circleCardOpportunityUpdateSchema,
+  isCircleCardOpportunityOpenStatus
+} from "@/lib/circle-card/opportunities";
+import {
   canCreateCircleCard,
   isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
@@ -190,6 +196,36 @@ const CIRCLE_CARD_REFERRAL_STATUS_FIELDS = [
   "status",
   "actualValue",
   "visibility",
+  "returnPath"
+] as const;
+const CIRCLE_CARD_OPPORTUNITY_CREATE_FIELDS = [
+  "walletContactId",
+  "title",
+  "description",
+  "status",
+  "potentialValue",
+  "currency",
+  "sourceType",
+  "nextFollowUpAt",
+  "notes",
+  "returnPath"
+] as const;
+const CIRCLE_CARD_OPPORTUNITY_UPDATE_FIELDS = [
+  "opportunityId",
+  "title",
+  "description",
+  "status",
+  "potentialValue",
+  "currency",
+  "sourceType",
+  "lastActivityAt",
+  "nextFollowUpAt",
+  "notes",
+  "returnPath"
+] as const;
+const CIRCLE_CARD_OPPORTUNITY_STATUS_FIELDS = [
+  "opportunityId",
+  "status",
   "returnPath"
 ] as const;
 
@@ -330,6 +366,24 @@ function readCircleCardReferralFormData(formData: FormData) {
 function readCircleCardReferralStatusFormData(formData: FormData) {
   return Object.fromEntries(
     CIRCLE_CARD_REFERRAL_STATUS_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardOpportunityCreateFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_OPPORTUNITY_CREATE_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardOpportunityUpdateFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_OPPORTUNITY_UPDATE_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardOpportunityStatusFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_OPPORTUNITY_STATUS_FIELDS.map((field) => [field, formData.get(field) ?? ""])
   );
 }
 
@@ -637,6 +691,46 @@ function circleCardReferralNoticeForStatus(status: string) {
     default:
       return "referral-updated";
   }
+}
+
+function circleCardOpportunityNoticeForStatus(status: string) {
+  if (status === "WON") {
+    return "opportunity-won";
+  }
+
+  if (status === "LOST") {
+    return "opportunity-lost";
+  }
+
+  return "opportunity-updated";
+}
+
+function opportunityClosedAtData(input: {
+  previousStatus?: string | null;
+  nextStatus: string;
+  existingClosedAt?: Date | null;
+  now: Date;
+}) {
+  const wasOpen = isCircleCardOpportunityOpenStatus(input.previousStatus);
+  const isOpen = isCircleCardOpportunityOpenStatus(input.nextStatus);
+
+  if (wasOpen && !isOpen) {
+    return { closedAt: input.now };
+  }
+
+  if (!wasOpen && isOpen) {
+    return { closedAt: null };
+  }
+
+  if (!isOpen && input.existingClosedAt) {
+    return { closedAt: input.existingClosedAt };
+  }
+
+  return {};
+}
+
+function dateOnlyKey(value: Date | string | null | undefined) {
+  return value ? new Date(value).toISOString().slice(0, 10) : null;
 }
 
 async function enforceCircleCardCustomLinkActivationLimit(input: {
@@ -2924,6 +3018,331 @@ export async function updateCircleCardReferralStatusAction(formData: FormData) {
 
   revalidateCircleCardConnectionPaths([referral.referrerCard.slug, referral.recipientCard?.slug]);
   redirectWithNotice(returnPath, circleCardReferralNoticeForStatus(nextStatus));
+}
+
+export async function createCircleCardOpportunityAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardOpportunityCreateSchema.safeParse(
+    readCircleCardOpportunityCreateFormData(formData)
+  );
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#opportunities"
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "opportunity-invalid");
+  }
+
+  const values = parsed.data;
+  const primaryCard = await getPrimaryCircleCardForUser(user.id);
+
+  if (!primaryCard) {
+    redirectWithError(returnPath, "opportunity-primary-card-required");
+  }
+
+  const walletContact = values.walletContactId
+    ? await prisma.circleWalletContact.findFirst({
+        where: {
+          id: values.walletContactId,
+          userId: user.id
+        },
+        select: { id: true }
+      })
+    : null;
+
+  if (values.walletContactId && !walletContact) {
+    redirectWithError(returnPath, "wallet-contact-not-found");
+  }
+
+  const now = new Date();
+  const nextFollowUpAt = parseCircleWalletDateInput(values.nextFollowUpAt);
+  const opportunity = await prisma.opportunity.create({
+    data: {
+      userId: user.id,
+      circleCardId: primaryCard.id,
+      walletContactId: walletContact?.id ?? null,
+      title: values.title,
+      description: nullableText(values.description),
+      status: values.status,
+      potentialValue: nullableMoney(values.potentialValue),
+      currency: values.currency,
+      sourceType: values.sourceType,
+      lastActivityAt: now,
+      nextFollowUpAt,
+      notes: nullableText(values.notes),
+      ...opportunityClosedAtData({
+        previousStatus: "LEAD",
+        nextStatus: values.status,
+        now
+      })
+    },
+    select: {
+      id: true
+    }
+  });
+
+  const analyticsEvents: Array<Promise<unknown>> = [
+    trackCircleCardEvent({
+      cardId: primaryCard.id,
+      eventType: "OPPORTUNITY_CREATED",
+      userId: user.id,
+      metadata: {
+        source: "circle_card_opportunities",
+        opportunityId: opportunity.id,
+        walletContactId: walletContact?.id ?? null,
+        status: values.status,
+        sourceType: values.sourceType,
+        hasPotentialValue: Boolean(values.potentialValue)
+      }
+    })
+  ];
+
+  if (nextFollowUpAt) {
+    analyticsEvents.push(
+      trackCircleCardEvent({
+        cardId: primaryCard.id,
+        eventType: "OPPORTUNITY_FOLLOWUP_SET",
+        userId: user.id,
+        metadata: {
+          source: "circle_card_opportunities",
+          opportunityId: opportunity.id,
+          sourceType: values.sourceType
+        }
+      })
+    );
+  }
+
+  await Promise.all(analyticsEvents);
+
+  revalidatePath("/dashboard/circle-card");
+  redirectWithNotice(returnPath, "opportunity-created");
+}
+
+export async function updateCircleCardOpportunityAction(formData: FormData) {
+  const parsed = circleCardOpportunityUpdateSchema.safeParse(
+    readCircleCardOpportunityUpdateFormData(formData)
+  );
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#opportunities"
+  );
+  const user = await requireCircleCardActionUser();
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "opportunity-invalid");
+  }
+
+  const values = parsed.data;
+  const opportunity = await prisma.opportunity.findFirst({
+    where: {
+      id: values.opportunityId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      circleCardId: true,
+      status: true,
+      closedAt: true,
+      nextFollowUpAt: true
+    }
+  });
+
+  if (!opportunity) {
+    redirectWithError(returnPath, "opportunity-not-found");
+  }
+
+  const now = new Date();
+  const nextFollowUpAt = parseCircleWalletDateInput(values.nextFollowUpAt);
+  const lastActivityAt = parseCircleWalletDateInput(values.lastActivityAt);
+  const statusChanged = opportunity.status !== values.status;
+  const followUpChanged = dateOnlyKey(opportunity.nextFollowUpAt) !== dateOnlyKey(nextFollowUpAt);
+
+  await prisma.opportunity.update({
+    where: { id: opportunity.id },
+    data: {
+      title: values.title,
+      description: nullableText(values.description),
+      status: values.status,
+      potentialValue: nullableMoney(values.potentialValue),
+      currency: values.currency,
+      sourceType: values.sourceType,
+      lastActivityAt,
+      nextFollowUpAt,
+      notes: nullableText(values.notes),
+      ...opportunityClosedAtData({
+        previousStatus: opportunity.status,
+        nextStatus: values.status,
+        existingClosedAt: opportunity.closedAt,
+        now
+      })
+    }
+  });
+
+  const analyticsEvents: Array<Promise<unknown>> = [
+    trackCircleCardEvent({
+      cardId: opportunity.circleCardId,
+      eventType: "OPPORTUNITY_UPDATED",
+      userId: user.id,
+      metadata: {
+        source: "circle_card_opportunities",
+        opportunityId: opportunity.id,
+        status: values.status,
+        sourceType: values.sourceType,
+        hasPotentialValue: Boolean(values.potentialValue)
+      }
+    })
+  ];
+
+  if (followUpChanged && nextFollowUpAt) {
+    analyticsEvents.push(
+      trackCircleCardEvent({
+        cardId: opportunity.circleCardId,
+        eventType: "OPPORTUNITY_FOLLOWUP_SET",
+        userId: user.id,
+        metadata: {
+          source: "circle_card_opportunities",
+          opportunityId: opportunity.id,
+          sourceType: values.sourceType
+        }
+      })
+    );
+  }
+
+  if (statusChanged && values.status === "WON") {
+    analyticsEvents.push(
+      trackCircleCardEvent({
+        cardId: opportunity.circleCardId,
+        eventType: "OPPORTUNITY_WON",
+        userId: user.id,
+        metadata: {
+          source: "circle_card_opportunities",
+          opportunityId: opportunity.id,
+          sourceType: values.sourceType
+        }
+      })
+    );
+  }
+
+  if (statusChanged && values.status === "LOST") {
+    analyticsEvents.push(
+      trackCircleCardEvent({
+        cardId: opportunity.circleCardId,
+        eventType: "OPPORTUNITY_LOST",
+        userId: user.id,
+        metadata: {
+          source: "circle_card_opportunities",
+          opportunityId: opportunity.id,
+          sourceType: values.sourceType
+        }
+      })
+    );
+  }
+
+  await Promise.all(analyticsEvents);
+
+  revalidatePath("/dashboard/circle-card");
+  redirectWithNotice(returnPath, circleCardOpportunityNoticeForStatus(values.status));
+}
+
+export async function updateCircleCardOpportunityStatusAction(formData: FormData) {
+  const parsed = circleCardOpportunityStatusSchema.safeParse(
+    readCircleCardOpportunityStatusFormData(formData)
+  );
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card#opportunities"
+  );
+  const user = await requireCircleCardActionUser();
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "opportunity-invalid");
+  }
+
+  const values = parsed.data;
+  const opportunity = await prisma.opportunity.findFirst({
+    where: {
+      id: values.opportunityId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      circleCardId: true,
+      status: true,
+      closedAt: true,
+      sourceType: true
+    }
+  });
+
+  if (!opportunity) {
+    redirectWithError(returnPath, "opportunity-not-found");
+  }
+
+  const now = new Date();
+  const statusChanged = opportunity.status !== values.status;
+
+  await prisma.opportunity.update({
+    where: { id: opportunity.id },
+    data: {
+      status: values.status,
+      lastActivityAt: now,
+      ...opportunityClosedAtData({
+        previousStatus: opportunity.status,
+        nextStatus: values.status,
+        existingClosedAt: opportunity.closedAt,
+        now
+      })
+    }
+  });
+
+  const analyticsEvents: Array<Promise<unknown>> = [
+    trackCircleCardEvent({
+      cardId: opportunity.circleCardId,
+      eventType: "OPPORTUNITY_UPDATED",
+      userId: user.id,
+      metadata: {
+        source: "circle_card_opportunities",
+        opportunityId: opportunity.id,
+        status: values.status,
+        sourceType: opportunity.sourceType
+      }
+    })
+  ];
+
+  if (statusChanged && values.status === "WON") {
+    analyticsEvents.push(
+      trackCircleCardEvent({
+        cardId: opportunity.circleCardId,
+        eventType: "OPPORTUNITY_WON",
+        userId: user.id,
+        metadata: {
+          source: "circle_card_opportunities",
+          opportunityId: opportunity.id,
+          sourceType: opportunity.sourceType
+        }
+      })
+    );
+  }
+
+  if (statusChanged && values.status === "LOST") {
+    analyticsEvents.push(
+      trackCircleCardEvent({
+        cardId: opportunity.circleCardId,
+        eventType: "OPPORTUNITY_LOST",
+        userId: user.id,
+        metadata: {
+          source: "circle_card_opportunities",
+          opportunityId: opportunity.id,
+          sourceType: opportunity.sourceType
+        }
+      })
+    );
+  }
+
+  await Promise.all(analyticsEvents);
+
+  revalidatePath("/dashboard/circle-card");
+  redirectWithNotice(returnPath, circleCardOpportunityNoticeForStatus(values.status));
 }
 
 export async function removeCircleWalletContactAction(formData: FormData) {

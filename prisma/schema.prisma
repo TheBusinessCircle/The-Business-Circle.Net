@@ -115,6 +115,7 @@ model User {
   circleCardIntroductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonB")
   circleCardReferralsMade              CircleCardReferral[] @relation("CircleCardReferralReferrer")
   circleCardReferralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipient")
+  opportunities                        Opportunity[]
 
   @@index([role])
   @@index([memberRoleTag])
@@ -433,6 +434,7 @@ model CircleCard {
   introductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonBCard")
   referralsMade              CircleCardReferral[] @relation("CircleCardReferralReferrerCard")
   referralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipientCard")
+  opportunities              Opportunity[]
 
   @@index([userId])
   @@index([isPublished])
@@ -518,6 +520,7 @@ model CircleWalletContact {
   user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   card                CircleCard? @relation(fields: [cardId], references: [id], onDelete: Cascade)
   recommendations     CircleCardRecommendation[]
+  opportunities       Opportunity[]
 
   @@unique([userId, cardId])
   @@index([userId])
@@ -654,6 +657,36 @@ model CircleCardConnectionRequest {
   @@index([recipientCardId])
   @@index([status])
   @@index([createdAt])
+}
+
+model Opportunity {
+  id              String                @id @default(cuid())
+  userId          String
+  circleCardId    String
+  walletContactId String?
+  title           String                @db.VarChar(160)
+  description     String?               @db.Text
+  status          OpportunityStatus     @default(LEAD)
+  potentialValue  Decimal?              @db.Decimal(12, 2)
+  currency        String                @default("GBP") @db.VarChar(3)
+  sourceType      OpportunitySourceType @default(MANUAL)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  closedAt        DateTime?
+  lastActivityAt  DateTime?
+  nextFollowUpAt  DateTime?             @db.Date
+  notes           String?               @db.Text
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  circleCard      CircleCard            @relation(fields: [circleCardId], references: [id], onDelete: Cascade)
+  walletContact   CircleWalletContact?  @relation(fields: [walletContactId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([nextFollowUpAt])
+  @@index([lastActivityAt])
+  @@index([createdAt])
+  @@index([circleCardId])
+  @@index([walletContactId])
 }
 
 model Category {
@@ -2364,6 +2397,11 @@ enum CircleCardEventType {
   REFERRAL_WON
   REFERRAL_LOST
   REFERRAL_CANCELLED
+  OPPORTUNITY_CREATED
+  OPPORTUNITY_UPDATED
+  OPPORTUNITY_WON
+  OPPORTUNITY_LOST
+  OPPORTUNITY_FOLLOWUP_SET
 }
 
 enum CircleWalletContactSource {
@@ -2411,6 +2449,24 @@ enum CircleCardReferralStatus {
 enum CircleCardReferralVisibility {
   PRIVATE
   PUBLIC_SUCCESS
+}
+
+enum OpportunityStatus {
+  LEAD
+  QUALIFIED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum OpportunitySourceType {
+  MANUAL
+  REFERRAL
+  INTRODUCTION
+  RECOMMENDATION
+  DISCOVERY
+  CONNECTION
 }
 
 enum TestimonialSourceType {
