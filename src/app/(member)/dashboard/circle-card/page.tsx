@@ -77,6 +77,7 @@ import {
   CircleCardImageUploadField,
   CircleCardInstallPrompt,
   CircleCardQrPanel,
+  CircleCardSectionRouter,
   CircleCardShareAssetsPanel,
   CircleCardShareButton,
   CircleCardTrackedLink,
@@ -2042,6 +2043,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
   return (
     <div className="space-y-6">
+      <CircleCardSectionRouter />
       <section className="member-accent-panel rounded-2xl border p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
@@ -2155,12 +2157,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <Link
                 key={item.section}
                 href={circleCardSectionHref(item.section)}
+                data-circle-card-section-tab={item.section}
+                data-active={selected ? "true" : "false"}
                 aria-current={selected ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors",
-                  selected
-                    ? "border-gold/42 bg-gold/14 text-gold shadow-inner-surface"
-                    : "border-silver/14 bg-background/25 text-muted hover:border-silver/30 hover:text-foreground"
+                  "inline-flex h-11 items-center gap-2 rounded-xl border border-silver/14 bg-background/25 px-3 text-sm font-medium text-muted transition-colors hover:border-silver/30 hover:text-foreground",
+                  "data-[active=true]:border-gold/42 data-[active=true]:bg-gold/14 data-[active=true]:text-gold data-[active=true]:shadow-inner-surface"
                 )}
               >
                 <Icon size={16} />
@@ -2235,7 +2237,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </p>
       ) : null}
 
-      <section className={cn("space-y-4", activeSection !== "home" && "hidden")}>
+      <section
+        data-circle-card-section="home"
+        className={cn("space-y-4", activeSection !== "home" && "hidden")}
+      >
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
           <Card className="border-gold/22 bg-gold/8">
             <CardHeader>
@@ -2353,6 +2358,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="notifications"
         title="Notification Centre"
         summary="Recent Circle Card activity and relationship items that need attention"
+        appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen={unreadNotificationCount > 0}
         badge={
@@ -2459,6 +2465,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="activity"
         title="Activity Feed"
         summary="A relationship timeline for your Circle Card, wallet, referrals and opportunities"
+        appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen={visibleActivityItems.length > 0}
         badge={
@@ -2567,6 +2574,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="introductions"
         title="Introductions"
         summary="Introduce two people from your Circle Wallet and track private responses"
+        appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen={incomingIntroductions.length > 0}
         badge={
@@ -2806,6 +2814,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="opportunities"
         title="Opportunity Pipeline"
         summary="Track real business opportunities created through relationships and Circle Card activity"
+        appSection="business"
         className={activeSection === "business" ? undefined : "hidden"}
         defaultOpen={openOpportunities.length > 0}
         badge={
@@ -3205,6 +3214,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="discover"
         title="Discover"
         summary="Find published Circle Cards, save useful people, and start connection requests"
+        appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen
         badge={
@@ -3554,6 +3564,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="referrals"
         title="Referrals"
         summary="Send, receive, and track business referrals through Circle Card"
+        appSection="business"
         className={activeSection === "business" ? undefined : "hidden"}
         defaultOpen={receivedReferrals.length > 0}
         badge={
@@ -3922,6 +3933,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="connect-hub"
         title="Connect Hub"
         summary="Share your card, add someone by link, and move quickly into wallet connections"
+        appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen
         badge={
@@ -4295,6 +4307,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="share-assets"
         title="Share Assets"
         summary="Public link, QR code, NFC-ready URL and print asset placeholders"
+        appSection="share"
         className={activeSection === "share" ? undefined : "hidden"}
         defaultOpen={Boolean(card)}
       >
@@ -4315,7 +4328,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         )}
       </CircleCardDashboardSection>
 
-      <div className={cn("grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]", activeSection !== "my-card" && "hidden")}>
+      <div
+        data-circle-card-section="my-card"
+        className={cn("grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]", activeSection !== "my-card" && "hidden")}
+      >
         <Card id="circle-card-form" className="scroll-mt-24 border-silver/16 bg-card/62">
           <CardHeader>
             <CardTitle>{card ? "Edit your Circle Card" : "Create your first Circle Card"}</CardTitle>
@@ -4653,6 +4669,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="custom-links"
         title="Featured links"
         summary="Smart action blocks for bookings, offers, downloads, reviews, shops, menus and case studies"
+        appSection="my-card"
         className={activeSection === "my-card" ? undefined : "hidden"}
         badge={
           <span className="inline-flex gap-2">
@@ -4974,6 +4991,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="analytics"
         title="Analytics"
         summary="Views, wallet saves, shares, downloads and featured-link clicks"
+        appSection="my-card"
         className={activeSection === "my-card" ? undefined : "hidden"}
         badge={
           <Badge variant="outline" className="w-fit border-gold/25 text-gold">
@@ -5115,6 +5133,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="wallet"
         title="Circle Wallet"
         summary="Search saved contacts, follow-ups, categories and private relationship context"
+        appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
         badge={
           <span className="inline-flex gap-2">
@@ -6655,6 +6674,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="circle-card-settings"
         title="Settings"
         summary="Publishing, public link settings, standards and account controls"
+        appSection="settings"
         className={activeSection === "settings" ? undefined : "hidden"}
         defaultOpen
         badge={

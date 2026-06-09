@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,7 @@ type CircleCardDashboardSectionProps = {
   badge?: ReactNode;
   children: ReactNode;
   className?: string;
+  appSection?: string;
 };
 
 export function CircleCardDashboardSection({
@@ -21,9 +22,11 @@ export function CircleCardDashboardSection({
   defaultOpen = false,
   badge,
   children,
-  className
+  className,
+  appSection
 }: CircleCardDashboardSectionProps) {
   const storageKey = `circle-card-dashboard-section:${id}`;
+  const sectionRef = useRef<HTMLElement>(null);
   const [open, setOpen] = useState(defaultOpen);
 
   useEffect(() => {
@@ -36,6 +39,29 @@ export function CircleCardDashboardSection({
       // Local UI memory should never block the dashboard.
     }
   }, [storageKey]);
+
+  useEffect(() => {
+    function openForTarget(event: Event) {
+      const targetId = (event as CustomEvent<{ targetId?: string }>).detail?.targetId;
+
+      if (!targetId) {
+        return;
+      }
+
+      const target = document.getElementById(targetId);
+      if (targetId === id || (target && sectionRef.current?.contains(target))) {
+        setOpen(true);
+        try {
+          window.localStorage.setItem(storageKey, "open");
+        } catch {
+          // Ignore localStorage failures.
+        }
+      }
+    }
+
+    window.addEventListener("circle-card-open-section", openForTarget);
+    return () => window.removeEventListener("circle-card-open-section", openForTarget);
+  }, [id, storageKey]);
 
   function toggleOpen() {
     setOpen((current) => {
@@ -51,7 +77,9 @@ export function CircleCardDashboardSection({
 
   return (
     <section
+      ref={sectionRef}
       id={id}
+      data-circle-card-section={appSection}
       className={cn(
         "scroll-mt-24 overflow-hidden rounded-2xl border border-silver/16 bg-card/62 shadow-panel-soft",
         className

@@ -12,6 +12,7 @@ export * from "@/components/circle-card/circle-card-qr-panel";
 export * from "@/components/circle-card/circle-card-report-form";
 export * from "@/components/circle-card/circle-card-share-button";
 export * from "@/components/circle-card/circle-card-share-assets-panel";
+export * from "@/components/circle-card/circle-card-section-router";
 export * from "@/components/circle-card/circle-card-smart-link-fields";
 export * from "@/components/circle-card/circle-card-tracked-link";
 export * from "@/components/circle-card/public-circle-card-profile";
