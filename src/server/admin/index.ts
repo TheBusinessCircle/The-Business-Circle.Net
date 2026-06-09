@@ -7,3 +7,4 @@ export * from "@/server/admin/launch-command.service";
 export * from "@/server/admin/growth-intelligence.service";
 export * from "@/server/admin/growth-report.service";
 export * from "@/server/admin/launch-codes.service";
+export * from "@/server/admin/circle-card-command-centre.service";

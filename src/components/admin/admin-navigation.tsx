@@ -116,12 +116,15 @@ function isActive(pathname: string, href: string): boolean {
 export function AdminNavigation({ items, orientation = "vertical" }: AdminNavigationProps) {
   const pathname = usePathname();
   const isHorizontal = orientation === "horizontal";
+  const activeHref = items
+    .filter((item) => isActive(pathname, item.href))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <nav className={cn(isHorizontal ? "flex gap-2 overflow-x-auto pb-1" : "space-y-1.5")}>
       {items.map((item) => {
         const Icon = iconForHref(item.href);
-        const active = isActive(pathname, item.href);
+        const active = item.href === activeHref;
 
         return (
           <Link
