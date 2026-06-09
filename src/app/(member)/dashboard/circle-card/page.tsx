@@ -2056,79 +2056,81 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Create a clean card, share it with a QR code, and give new contacts a direct route
               back to you and the Business Circle ecosystem.
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
-              <a
-                href={circleCardSectionHref("network", "connect-hub")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
-              >
-                <Share2 size={16} />
-                Connect Hub
-              </a>
-              <a
-                href={circleCardSectionHref("network", "discover")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
-              >
-                <Compass size={16} />
-                Discover
-              </a>
-              <a
-                href={circleCardSectionHref("network", "introductions")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
-              >
-                <UserCheck size={16} />
-                Introductions
-              </a>
-              <a
-                href={circleCardSectionHref("business", "referrals")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
-              >
-                <Handshake size={16} />
-                Referrals
-              </a>
-              <a
-                href={circleCardSectionHref("business", "opportunities")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
-              >
-                <ShoppingBag size={16} />
-                Opportunities
-              </a>
-              <a
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link
                 href={circleCardSectionHref("share", "share-assets-qr")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+                className={cn(buttonVariants(), "h-11 min-w-[128px] justify-center gap-2")}
               >
                 <QrCode size={16} />
                 QR
-              </a>
-              <a
+              </Link>
+              <Link
+                href={circleCardSectionHref("my-card", "circle-card-form")}
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
+              >
+                <ContactRound size={16} />
+                {card ? "Edit Card" : "Create Card"}
+              </Link>
+              <Link
+                href={circleCardSectionHref("network", "connect-hub")}
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
+              >
+                <Share2 size={16} />
+                Connect Hub
+              </Link>
+              <Link
+                href={circleCardSectionHref("network", "discover")}
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
+              >
+                <Compass size={16} />
+                Discover
+              </Link>
+              <Link
+                href={circleCardSectionHref("network", "introductions")}
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
+              >
+                <UserCheck size={16} />
+                Introductions
+              </Link>
+              <Link
+                href={circleCardSectionHref("business", "referrals")}
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
+              >
+                <Handshake size={16} />
+                Referrals
+              </Link>
+              <Link
+                href={circleCardSectionHref("business", "opportunities")}
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
+              >
+                <ShoppingBag size={16} />
+                Opportunities
+              </Link>
+              <Link
                 href={circleCardSectionHref("network", "wallet")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
               >
                 <WalletCards size={16} />
                 Wallet
-              </a>
-              <a
+              </Link>
+              <Link
                 href={circleCardSectionHref("my-card", "analytics")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
               >
                 <BarChart3 size={16} />
                 Analytics
-              </a>
+              </Link>
               {card ? (
                 <Link
                   href={`/card/${card.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={cn(buttonVariants(), "h-11 gap-2")}
+                  className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
                 >
                   Public card
                   <ArrowUpRight size={16} />
                 </Link>
-              ) : (
-                <a href={circleCardSectionHref("my-card", "circle-card-form")} className={cn(buttonVariants(), "h-11 gap-2")}>
-                  Create card
-                  <ArrowUpRight size={16} />
-                </a>
-              )}
+              ) : null}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
