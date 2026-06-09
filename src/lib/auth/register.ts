@@ -73,6 +73,8 @@ export type CreatePendingRegistrationResult = {
     acceptedRulesAt: Date | null;
     acceptedTermsVersion: string;
     acceptedRulesVersion: string | null;
+    communityStandardsAcceptedAt: Date;
+    minimumAgeConfirmedAt: Date;
   };
 };
 
@@ -222,6 +224,8 @@ function buildExistingUserUpdateData(input: {
   acceptedRulesAt: Date | null;
   acceptedTermsVersion: string | null;
   acceptedRulesVersion: string | null;
+  communityStandardsAcceptedAt: Date | null;
+  minimumAgeConfirmedAt: Date | null;
 }) {
   const businessData = buildBusinessUpdateData({
     businessName: input.businessName,
@@ -240,6 +244,8 @@ function buildExistingUserUpdateData(input: {
     acceptedRulesAt: input.acceptedRulesAt,
     acceptedTermsVersion: input.acceptedTermsVersion,
     acceptedRulesVersion: input.acceptedRulesVersion,
+    communityStandardsAcceptedAt: input.communityStandardsAcceptedAt,
+    minimumAgeConfirmedAt: input.minimumAgeConfirmedAt,
     ...(shouldUpdateBusiness
       ? {
           profile: {
@@ -274,6 +280,8 @@ function toPendingRegistrationRecord(
     acceptedRulesAt: Date | null;
     acceptedTermsVersion: string;
     acceptedRulesVersion: string | null;
+    communityStandardsAcceptedAt: Date;
+    minimumAgeConfirmedAt: Date;
   }
 ) {
   return {
@@ -291,6 +299,8 @@ function toPendingRegistrationRecord(
     acceptedRulesAt: legalAcceptance.acceptedRulesAt,
     acceptedTermsVersion: legalAcceptance.acceptedTermsVersion,
     acceptedRulesVersion: legalAcceptance.acceptedRulesVersion,
+    communityStandardsAcceptedAt: legalAcceptance.communityStandardsAcceptedAt,
+    minimumAgeConfirmedAt: legalAcceptance.minimumAgeConfirmedAt,
     inviteCode: input.inviteCode?.trim().toUpperCase() || null
   };
 }
@@ -587,7 +597,9 @@ export async function createPendingRegistration(
     acceptedTermsAt: acceptedAt,
     acceptedRulesAt: input.acceptedRules ? acceptedAt : null,
     acceptedTermsVersion: TERMS_VERSION,
-    acceptedRulesVersion: input.acceptedRules ? BCN_RULES_VERSION : null
+    acceptedRulesVersion: input.acceptedRules ? BCN_RULES_VERSION : null,
+    communityStandardsAcceptedAt: acceptedAt,
+    minimumAgeConfirmedAt: acceptedAt
   };
   const normalizedRecord = toPendingRegistrationRecord(
     input,
@@ -618,7 +630,9 @@ export async function createPendingRegistration(
         acceptedTermsAt: true,
         acceptedRulesAt: true,
         acceptedTermsVersion: true,
-        acceptedRulesVersion: true
+        acceptedRulesVersion: true,
+        communityStandardsAcceptedAt: true,
+        minimumAgeConfirmedAt: true
       }
     });
 
@@ -637,7 +651,10 @@ export async function createPendingRegistration(
         acceptedRulesAt: pendingRegistration.acceptedRulesAt,
         acceptedTermsVersion:
           pendingRegistration.acceptedTermsVersion ?? TERMS_VERSION,
-        acceptedRulesVersion: pendingRegistration.acceptedRulesVersion
+        acceptedRulesVersion: pendingRegistration.acceptedRulesVersion,
+        communityStandardsAcceptedAt:
+          pendingRegistration.communityStandardsAcceptedAt ?? acceptedAt,
+        minimumAgeConfirmedAt: pendingRegistration.minimumAgeConfirmedAt ?? acceptedAt
       }
     };
   } catch (error) {
@@ -700,6 +717,8 @@ export async function createCircleCardFreeRegistration(
         membershipTier: MembershipTier.FOUNDATION,
         acceptedTermsAt: acceptedAt,
         acceptedTermsVersion: TERMS_VERSION,
+        communityStandardsAcceptedAt: acceptedAt,
+        minimumAgeConfirmedAt: acceptedAt,
         registrationSource: "circle-card",
         profile: {
           create: buildProfileCreateData({
@@ -766,6 +785,8 @@ export async function provisionUserFromPendingRegistration(input: {
         acceptedRulesAt: true,
         acceptedTermsVersion: true,
         acceptedRulesVersion: true,
+        communityStandardsAcceptedAt: true,
+        minimumAgeConfirmedAt: true,
         status: true,
         completedUserId: true
       }
@@ -822,7 +843,9 @@ export async function provisionUserFromPendingRegistration(input: {
               acceptedTermsAt: pendingRegistration.acceptedTermsAt,
               acceptedRulesAt: pendingRegistration.acceptedRulesAt,
               acceptedTermsVersion: pendingRegistration.acceptedTermsVersion,
-              acceptedRulesVersion: pendingRegistration.acceptedRulesVersion
+              acceptedRulesVersion: pendingRegistration.acceptedRulesVersion,
+              communityStandardsAcceptedAt: pendingRegistration.communityStandardsAcceptedAt,
+              minimumAgeConfirmedAt: pendingRegistration.minimumAgeConfirmedAt
             }),
             select: {
               id: true,
@@ -841,6 +864,8 @@ export async function provisionUserFromPendingRegistration(input: {
               acceptedRulesAt: pendingRegistration.acceptedRulesAt,
               acceptedTermsVersion: pendingRegistration.acceptedTermsVersion,
               acceptedRulesVersion: pendingRegistration.acceptedRulesVersion,
+              communityStandardsAcceptedAt: pendingRegistration.communityStandardsAcceptedAt,
+              minimumAgeConfirmedAt: pendingRegistration.minimumAgeConfirmedAt,
               profile: {
                 create: buildProfileCreateData({
                   businessName: pendingRegistration.businessName,

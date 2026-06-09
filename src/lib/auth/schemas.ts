@@ -13,6 +13,8 @@ export const membershipBillingIntervalSchema = z.enum(membershipBillingIntervalV
 const coreAccessConfirmationMessage =
   "Please confirm that you are actively running a business or generating revenue to continue to Core.";
 const acceptedTermsMessage = `You must accept the ${TERMS_LABEL} to continue.`;
+const minimumAgeConfirmationMessage =
+  "You must confirm you are at least 13 years old and agree to the Circle Card Community Standards.";
 
 export const emailSchema = z.string().trim().email().max(254);
 
@@ -36,6 +38,7 @@ const registerMemberBaseSchema = z.object({
   coreAccessConfirmed: z.boolean().optional().default(false),
   acceptedTerms: z.boolean().optional().default(false),
   acceptedRules: z.boolean().optional().default(false),
+  minimumAgeConfirmed: z.boolean().optional().default(false),
   businessName: z.string().trim().max(140).optional().or(z.literal("")),
   businessStatus: z.nativeEnum(BusinessStatus).optional().or(z.literal("")),
   companyNumber: z.string().trim().max(64).optional().or(z.literal("")),
@@ -60,6 +63,13 @@ export const registerMemberSchema = registerMemberBaseSchema.superRefine((input,
     });
   }
 
+  if (!input.minimumAgeConfirmed) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["minimumAgeConfirmed"],
+      message: minimumAgeConfirmationMessage
+    });
+  }
 });
 
 export const registerMemberFormSchema = registerMemberBaseSchema
@@ -83,6 +93,14 @@ export const registerMemberFormSchema = registerMemberBaseSchema
       });
     }
 
+    if (!input.minimumAgeConfirmed) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["minimumAgeConfirmed"],
+        message: minimumAgeConfirmationMessage
+      });
+    }
+
     if (input.password !== input.confirmPassword) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -98,6 +116,7 @@ const circleCardRegistrationBaseSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   acceptedTerms: z.boolean().optional().default(false),
+  minimumAgeConfirmed: z.boolean().optional().default(false),
   businessName: z.string().trim().max(140).optional().or(z.literal(""))
 });
 
@@ -108,6 +127,14 @@ export const circleCardRegistrationSchema = circleCardRegistrationBaseSchema.sup
         code: z.ZodIssueCode.custom,
         path: ["acceptedTerms"],
         message: acceptedTermsMessage
+      });
+    }
+
+    if (!input.minimumAgeConfirmed) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["minimumAgeConfirmed"],
+        message: minimumAgeConfirmationMessage
       });
     }
   }
@@ -123,6 +150,14 @@ export const circleCardRegistrationFormSchema = circleCardRegistrationBaseSchema
         code: z.ZodIssueCode.custom,
         path: ["acceptedTerms"],
         message: acceptedTermsMessage
+      });
+    }
+
+    if (!input.minimumAgeConfirmed) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["minimumAgeConfirmed"],
+        message: minimumAgeConfirmationMessage
       });
     }
 

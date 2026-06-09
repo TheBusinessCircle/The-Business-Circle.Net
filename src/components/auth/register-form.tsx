@@ -64,6 +64,7 @@ export type RegisterPayload = {
   coreAccessConfirmed: boolean;
   acceptedTerms: boolean;
   acceptedRules: boolean;
+  minimumAgeConfirmed: boolean;
   businessName?: string;
   businessStatus?: "IDEA_STARTUP" | "REGISTERED_BUSINESS" | "ESTABLISHED_COMPANY";
   companyNumber?: string;
@@ -139,7 +140,8 @@ export function buildRegisterPayload(values: RegisterMemberFormInput): RegisterP
     billingInterval: values.billingInterval,
     coreAccessConfirmed: values.coreAccessConfirmed,
     acceptedTerms: values.acceptedTerms,
-    acceptedRules: values.acceptedRules
+    acceptedRules: values.acceptedRules,
+    minimumAgeConfirmed: values.minimumAgeConfirmed
   };
 
   if (values.inviteCode?.trim()) {
@@ -207,6 +209,7 @@ export function RegisterForm({
       coreAccessConfirmed,
       acceptedTerms: false,
       acceptedRules: false,
+      minimumAgeConfirmed: false,
       businessName: "",
       businessStatus: "",
       companyNumber: "",
@@ -664,6 +667,29 @@ export function RegisterForm({
             {form.formState.errors.acceptedTerms ? (
               <p className="text-xs text-destructive">
                 {form.formState.errors.acceptedTerms.message}
+              </p>
+            ) : null}
+            <label
+              htmlFor="register-minimum-age"
+              className="flex items-start gap-3 text-sm leading-relaxed text-foreground"
+            >
+              <input
+                id="register-minimum-age"
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                {...form.register("minimumAgeConfirmed")}
+              />
+              <span className="min-w-0">
+                I confirm I am at least 13 years old and agree to the{" "}
+                <Link href="/circle-card/community-standards" className="text-primary hover:underline">
+                  Circle Card Community Standards
+                </Link>
+                .
+              </span>
+            </label>
+            {form.formState.errors.minimumAgeConfirmed ? (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.minimumAgeConfirmed.message}
               </p>
             ) : null}
             <p className="text-xs leading-relaxed text-muted">

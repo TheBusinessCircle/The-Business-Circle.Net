@@ -48,6 +48,7 @@ export function CircleCardRegisterForm({ defaults }: CircleCardRegisterFormProps
       password: "",
       confirmPassword: "",
       acceptedTerms: false,
+      minimumAgeConfirmed: false,
       businessName: defaults?.businessName ?? ""
     }
   });
@@ -67,6 +68,7 @@ export function CircleCardRegisterForm({ defaults }: CircleCardRegisterFormProps
           email: values.email,
           password: values.password,
           acceptedTerms: values.acceptedTerms,
+          minimumAgeConfirmed: values.minimumAgeConfirmed,
           businessName: values.businessName
         })
       });
@@ -220,6 +222,29 @@ export function CircleCardRegisterForm({ defaults }: CircleCardRegisterFormProps
             {form.formState.errors.acceptedTerms ? (
               <p className="text-xs text-destructive">
                 {form.formState.errors.acceptedTerms.message}
+              </p>
+            ) : null}
+            <label
+              htmlFor="circle-card-register-minimum-age"
+              className="flex items-start gap-3 text-sm leading-relaxed text-foreground"
+            >
+              <input
+                id="circle-card-register-minimum-age"
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                {...form.register("minimumAgeConfirmed")}
+              />
+              <span className="min-w-0">
+                I confirm I am at least 13 years old and agree to the{" "}
+                <Link href="/circle-card/community-standards" className="text-primary hover:underline">
+                  Circle Card Community Standards
+                </Link>
+                .
+              </span>
+            </label>
+            {form.formState.errors.minimumAgeConfirmed ? (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.minimumAgeConfirmed.message}
               </p>
             ) : null}
           </div>

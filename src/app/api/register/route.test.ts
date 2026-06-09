@@ -118,7 +118,8 @@ describe("register route", () => {
           password: "ValidPassword1!",
           tier: "INNER_CIRCLE",
           billingInterval: "annual",
-          acceptedTerms: true
+          acceptedTerms: true,
+          minimumAgeConfirmed: true
         })
       })
     );
@@ -154,7 +155,8 @@ describe("register route", () => {
           password: "ValidPassword1!",
           tier: "FOUNDATION",
           billingInterval: "monthly",
-          acceptedTerms: true
+          acceptedTerms: true,
+          minimumAgeConfirmed: true
         })
       })
     );

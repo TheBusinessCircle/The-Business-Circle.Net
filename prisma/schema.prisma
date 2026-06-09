@@ -24,6 +24,8 @@ model User {
   foundingClaimedAt              DateTime?
   acceptedTermsAt                DateTime?
   acceptedRulesAt                DateTime?
+  communityStandardsAcceptedAt   DateTime?
+  minimumAgeConfirmedAt          DateTime?
   acceptedTermsVersion           String?
   acceptedRulesVersion           String?
   registrationSource             String?
@@ -118,6 +120,9 @@ model User {
   opportunities                        Opportunity[]
   circleCardNotifications              CircleCardNotification[]
   circleCardActivities                 CircleCardActivity[]
+  circleCardReportsFiled               CircleCardReport[] @relation("CircleCardReportsFiled")
+  circleCardReportsTargetUser          CircleCardReport[] @relation("CircleCardReportsTargetUser")
+  circleCardReportsReviewedBy          CircleCardReport[] @relation("CircleCardReportsReviewedBy")
 
   @@index([role])
   @@index([memberRoleTag])
@@ -439,6 +444,7 @@ model CircleCard {
   opportunities              Opportunity[]
   notifications              CircleCardNotification[]
   activities                 CircleCardActivity[]
+  reports                    CircleCardReport[]
 
   @@index([userId])
   @@index([isPublished])
@@ -735,6 +741,31 @@ model CircleCardActivity {
   @@index([userId])
   @@index([circleCardId])
   @@index([type])
+  @@index([createdAt])
+}
+
+model CircleCardReport {
+  id             String                 @id @default(cuid())
+  cardId         String?
+  reportedUserId String?
+  reporterUserId String?
+  reason         CircleCardReportReason
+  details        String?                @db.Text
+  status         CircleCardReportStatus @default(OPEN)
+  adminNotes     String?                @db.Text
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  reviewedAt     DateTime?
+  reviewedById   String?
+  card           CircleCard?            @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  reportedUser   User?                  @relation("CircleCardReportsTargetUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reporterUser   User?                  @relation("CircleCardReportsFiled", fields: [reporterUserId], references: [id], onDelete: SetNull)
+  reviewedBy     User?                  @relation("CircleCardReportsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([cardId])
+  @@index([reportedUserId])
+  @@index([reporterUserId])
+  @@index([status])
   @@index([createdAt])
 }
 
@@ -1175,6 +1206,8 @@ model PendingRegistration {
   coreAccessConfirmed     Boolean                            @default(false)
   acceptedTermsAt         DateTime?
   acceptedRulesAt         DateTime?
+  communityStandardsAcceptedAt DateTime?
+  minimumAgeConfirmedAt   DateTime?
   acceptedTermsVersion    String?
   acceptedRulesVersion    String?
   inviteCode              String?
@@ -2565,6 +2598,27 @@ enum CircleCardActivityType {
   PRIVATE_LINK_UNLOCKED
 }
 
+enum CircleCardReportReason {
+  INAPPROPRIATE_CONTENT
+  NUDE_OR_SEXUAL_CONTENT
+  SCAM_OR_FRAUD
+  FAKE_BUSINESS
+  SPAM
+  HARASSMENT
+  IMPERSONATION
+  MALICIOUS_FILE
+  SUSPICIOUS_FILE
+  UNSAFE_FILE
+  OTHER
+}
+
+enum CircleCardReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
 enum TestimonialSourceType {
   MEMBER
   NON_MEMBER
@@ -3077,6 +3131,7 @@ enum ModerationEntityType {
   DIRECT_MESSAGE_THREAD
   DIRECT_MESSAGE_MESSAGE
   DIRECT_MESSAGE_ATTACHMENT
+  CIRCLE_CARD_REPORT
   WIN
   COMMUNITY_POST
   COMMUNITY_COMMENT
@@ -3084,6 +3139,8 @@ enum ModerationEntityType {
 }
 
 enum ModerationActionType {
+  SUBMIT_REPORT
+  REVIEW_REPORT
   RESOLVE_REPORT
   DISMISS_REPORT
   REMOVE_ATTACHMENT

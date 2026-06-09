@@ -69,6 +69,7 @@ import {
 } from "@/lib/circle-card/permissions";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 import {
   createCircleCardActivity,
   createCircleCardNotification,
@@ -240,6 +241,7 @@ const CIRCLE_CARD_NOTIFICATION_MARK_ALL_FIELDS = ["returnPath"] as const;
 const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
 const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = 24;
 const CIRCLE_CARD_PRIVATE_LINK_TYPES = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
+const CIRCLE_CARD_RELATIONSHIP_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
 type CircleCardActionUser = {
   id: string;
@@ -299,6 +301,24 @@ function redirectWithNotice(path: string, notice: string): never {
 
 function redirectWithError(path: string, error: string): never {
   redirect(appendQueryParam(path, "error", error));
+}
+
+async function enforceCircleCardRelationshipRateLimit(input: {
+  userId: string;
+  bucket: "connection" | "introduction" | "referral";
+  limit: number;
+  returnPath: string;
+  error: string;
+}) {
+  const rateLimit = await consumeRateLimit({
+    key: `circle-card:${input.bucket}:${input.userId}`,
+    limit: input.limit,
+    windowMs: CIRCLE_CARD_RELATIONSHIP_RATE_LIMIT_WINDOW_MS
+  });
+
+  if (!rateLimit.allowed) {
+    redirectWithError(input.returnPath, input.error);
+  }
 }
 
 function resolveReturnPath(value: FormDataEntryValue | null | undefined, fallback: string) {
@@ -2091,6 +2111,14 @@ export async function sendCircleCardConnectionRequestAction(formData: FormData) 
     redirectWithError(returnPath, "connection-invalid");
   }
 
+  await enforceCircleCardRelationshipRateLimit({
+    userId: user.id,
+    bucket: "connection",
+    limit: 30,
+    returnPath,
+    error: "connection-rate-limited"
+  });
+
   const [requesterCard, recipientCard] = await Promise.all([
     getPrimaryCircleCardForUser(user.id),
     prisma.circleCard.findFirst({
@@ -2575,6 +2603,14 @@ export async function createCircleCardIntroductionAction(formData: FormData) {
   if (!parsed.success) {
     redirectWithError(returnPath, "introduction-invalid");
   }
+
+  await enforceCircleCardRelationshipRateLimit({
+    userId: user.id,
+    bucket: "introduction",
+    limit: 20,
+    returnPath,
+    error: "introduction-rate-limited"
+  });
 
   const values = parsed.data;
 
@@ -3275,6 +3311,14 @@ export async function createCircleCardReferralAction(formData: FormData) {
   if (!parsed.success) {
     redirectWithError(returnPath, "referral-invalid");
   }
+
+  await enforceCircleCardRelationshipRateLimit({
+    userId: user.id,
+    bucket: "referral",
+    limit: 30,
+    returnPath,
+    error: "referral-rate-limited"
+  });
 
   const values = parsed.data;
   const primaryCard = await getPrimaryCircleCardForUser(user.id);

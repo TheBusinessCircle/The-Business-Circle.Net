@@ -40,6 +40,7 @@ const adminNavigation: NavigationItem[] = [
   { label: "Members", href: "/admin/members" },
   { label: "Growth Intelligence", href: "/admin/growth-intelligence" },
   { label: "BCN Intelligence", href: "/admin/intelligence" },
+  { label: "Circle Card Moderation", href: "/admin/circle-card/moderation" },
   { label: "Community Safety", href: "/admin/community" },
   { label: "Emails", href: "/admin/emails" },
   { label: "Messages", href: "/admin/messages" },

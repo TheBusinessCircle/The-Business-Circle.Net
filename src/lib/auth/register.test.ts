@@ -118,6 +118,7 @@ describe("createPendingRegistration", () => {
         tier: "FOUNDATION",
         billingInterval: "monthly",
         acceptedTerms: true,
+        minimumAgeConfirmed: true,
         acceptedRules: true
       })
     ).rejects.toMatchObject({
@@ -146,7 +147,9 @@ describe("createPendingRegistration", () => {
       acceptedTermsAt: new Date("2026-04-25T09:15:00.000Z"),
       acceptedRulesAt: new Date("2026-04-25T09:15:00.000Z"),
       acceptedTermsVersion: TERMS_VERSION,
-      acceptedRulesVersion: BCN_RULES_VERSION
+      acceptedRulesVersion: BCN_RULES_VERSION,
+      communityStandardsAcceptedAt: new Date("2026-04-25T09:15:00.000Z"),
+      minimumAgeConfirmedAt: new Date("2026-04-25T09:15:00.000Z")
     });
 
     const result = await createPendingRegistration({
@@ -156,6 +159,7 @@ describe("createPendingRegistration", () => {
       tier: "FOUNDATION",
       billingInterval: "monthly",
       acceptedTerms: true,
+      minimumAgeConfirmed: true,
       acceptedRules: true
     });
 
@@ -182,6 +186,7 @@ describe("createPendingRegistration", () => {
         tier: "FOUNDATION",
         billingInterval: "monthly",
         acceptedTerms: true,
+        minimumAgeConfirmed: true,
         acceptedRules: true
       })
     ).rejects.toMatchObject({
@@ -200,6 +205,7 @@ describe("createPendingRegistration", () => {
         tier: "FOUNDATION",
         billingInterval: "monthly",
         acceptedTerms: true,
+        minimumAgeConfirmed: true,
         acceptedRules: true
       })
     ).rejects.toMatchObject({
@@ -215,6 +221,7 @@ describe("createPendingRegistration", () => {
         password: "ValidPassword1!",
         tier: "FOUNDATION",
         billingInterval: "monthly",
+        minimumAgeConfirmed: true,
         acceptedRules: true
       })
     ).rejects.toMatchObject({
@@ -235,7 +242,9 @@ describe("createPendingRegistration", () => {
       acceptedTermsAt: new Date("2026-04-25T09:15:00.000Z"),
       acceptedRulesAt: null,
       acceptedTermsVersion: TERMS_VERSION,
-      acceptedRulesVersion: null
+      acceptedRulesVersion: null,
+      communityStandardsAcceptedAt: new Date("2026-04-25T09:15:00.000Z"),
+      minimumAgeConfirmedAt: new Date("2026-04-25T09:15:00.000Z")
     });
 
     const result = await createPendingRegistration({
@@ -244,7 +253,8 @@ describe("createPendingRegistration", () => {
       password: "ValidPassword1!",
       tier: "FOUNDATION",
       billingInterval: "monthly",
-      acceptedTerms: true
+      acceptedTerms: true,
+      minimumAgeConfirmed: true
     });
 
     expect(mocks.pendingRegistrationCreate).toHaveBeenCalledWith(
@@ -253,7 +263,9 @@ describe("createPendingRegistration", () => {
           acceptedTermsAt: expect.any(Date),
           acceptedRulesAt: null,
           acceptedTermsVersion: TERMS_VERSION,
-          acceptedRulesVersion: null
+          acceptedRulesVersion: null,
+          communityStandardsAcceptedAt: expect.any(Date),
+          minimumAgeConfirmedAt: expect.any(Date)
         })
       })
     );
@@ -273,7 +285,9 @@ describe("createPendingRegistration", () => {
       acceptedTermsAt: new Date("2026-04-25T09:15:00.000Z"),
       acceptedRulesAt: new Date("2026-04-25T09:15:00.000Z"),
       acceptedTermsVersion: TERMS_VERSION,
-      acceptedRulesVersion: BCN_RULES_VERSION
+      acceptedRulesVersion: BCN_RULES_VERSION,
+      communityStandardsAcceptedAt: new Date("2026-04-25T09:15:00.000Z"),
+      minimumAgeConfirmedAt: new Date("2026-04-25T09:15:00.000Z")
     });
 
     const result = await createPendingRegistration({
@@ -288,6 +302,7 @@ describe("createPendingRegistration", () => {
       companyNumber: " 12345678 ",
       inviteCode: "bc-trev-1234",
       acceptedTerms: true,
+      minimumAgeConfirmed: true,
       acceptedRules: true
     });
 
@@ -307,7 +322,9 @@ describe("createPendingRegistration", () => {
           acceptedTermsAt: expect.any(Date),
           acceptedRulesAt: expect.any(Date),
           acceptedTermsVersion: TERMS_VERSION,
-          acceptedRulesVersion: BCN_RULES_VERSION
+          acceptedRulesVersion: BCN_RULES_VERSION,
+          communityStandardsAcceptedAt: expect.any(Date),
+          minimumAgeConfirmedAt: expect.any(Date)
         })
       })
     );
@@ -322,7 +339,9 @@ describe("createPendingRegistration", () => {
       acceptedTermsAt: new Date("2026-04-25T09:15:00.000Z"),
       acceptedRulesAt: new Date("2026-04-25T09:15:00.000Z"),
       acceptedTermsVersion: TERMS_VERSION,
-      acceptedRulesVersion: BCN_RULES_VERSION
+      acceptedRulesVersion: BCN_RULES_VERSION,
+      communityStandardsAcceptedAt: new Date("2026-04-25T09:15:00.000Z"),
+      minimumAgeConfirmedAt: new Date("2026-04-25T09:15:00.000Z")
     });
   });
 });

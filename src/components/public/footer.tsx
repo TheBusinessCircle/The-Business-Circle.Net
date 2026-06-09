@@ -41,6 +41,7 @@ type TrustLinkItem =
 
 const TRUST_LINKS: TrustLinkItem[] = [
   ...LEGAL_FOOTER_LINKS.slice(0, 4).map((link) => ({ kind: "link" as const, ...link })),
+  { kind: "link", label: "Circle Card Community Standards", href: "/circle-card/community-standards" },
   { kind: "button", label: "Cookie settings" },
   ...LEGAL_FOOTER_LINKS.slice(4).map((link) => ({ kind: "link" as const, ...link }))
 ];

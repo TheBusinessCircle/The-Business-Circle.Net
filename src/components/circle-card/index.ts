@@ -9,6 +9,7 @@ export * from "@/components/circle-card/circle-card-image-upload-field";
 export * from "@/components/circle-card/circle-card-link-file-upload-field";
 export * from "@/components/circle-card/circle-card-private-link-action";
 export * from "@/components/circle-card/circle-card-qr-panel";
+export * from "@/components/circle-card/circle-card-report-form";
 export * from "@/components/circle-card/circle-card-share-button";
 export * from "@/components/circle-card/circle-card-share-assets-panel";
 export * from "@/components/circle-card/circle-card-smart-link-fields";

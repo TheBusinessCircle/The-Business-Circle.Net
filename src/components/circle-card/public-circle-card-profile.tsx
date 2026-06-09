@@ -13,6 +13,7 @@ import { CircleCardFramedImage } from "@/components/circle-card/circle-card-fram
 import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-install-prompt";
 import { CircleCardPrivateLinkAction } from "@/components/circle-card/circle-card-private-link-action";
 import { CircleCardQrPanel } from "@/components/circle-card/circle-card-qr-panel";
+import { CircleCardReportForm } from "@/components/circle-card/circle-card-report-form";
 import { CircleCardShareButton } from "@/components/circle-card/circle-card-share-button";
 import { CircleCardTrackedLink } from "@/components/circle-card/circle-card-tracked-link";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -130,7 +131,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   "connection-primary-card-required": "Create your own Circle Card before sending requests.",
   "connection-save-first": "Save this card to your Circle Wallet before sending a request.",
   "connection-request-not-found": "That connection request is no longer pending.",
-  "connection-request-failed": "The connection request could not be sent."
+  "connection-request-failed": "The connection request could not be sent.",
+  "connection-rate-limited": "You've sent several connection requests recently. Please try again later."
 };
 
 const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
@@ -730,6 +732,10 @@ function TrustArea({ card, ownerAccountLabel, ownerIsBcnMember }: TrustAreaProps
         <PremiumBadge icon={<BadgeCheck size={13} />} label="Founder Verification Ready" muted />
         <PremiumBadge icon={<Gem size={13} />} label="Future Verified Founder" muted />
       </div>
+
+      {!card.isDemo ? (
+        <CircleCardReportForm cardId={card.id} cardSlug={card.slug} className="mt-4" />
+      ) : null}
     </section>
   );
 }
