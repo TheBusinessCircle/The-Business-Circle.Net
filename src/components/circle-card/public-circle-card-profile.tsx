@@ -49,13 +49,11 @@ import {
   Instagram,
   LinkIcon,
   Linkedin,
-  Lock,
   LogIn,
   Mail,
   Menu as MenuIcon,
   MapPin,
   Music2,
-  Network,
   Phone,
   Send,
   ShoppingBag,
@@ -606,84 +604,6 @@ function ContactAction({
   );
 }
 
-type PreviewPersonProps = {
-  name: string;
-  detail: string;
-};
-
-function PreviewPerson({ name, detail }: PreviewPersonProps) {
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-silver/12 bg-white/[0.035] p-3">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-gold/18 bg-gold/10 text-xs font-semibold text-gold">
-        {initials(name)}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-medium text-foreground">{name}</span>
-        <span className="block truncate text-xs text-muted">{detail}</span>
-      </span>
-    </div>
-  );
-}
-
-function RelationshipPreview() {
-  return (
-    <aside className="rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.82),rgba(4,10,24,0.94))] p-5 shadow-panel-soft">
-      <div className="flex items-center gap-3">
-        <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[#2f6dff]/26 bg-[#1e5bff]/12 text-[#d8e6ff]">
-          <Network size={18} />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-foreground">Your Network</p>
-          <p className="text-xs text-muted">Relationship layer preview</p>
-        </div>
-      </div>
-      <div className="mt-4 grid gap-2">
-        <PreviewPerson name="Sarah Mitchell" detail="Founder, strategy" />
-        <PreviewPerson name="Daniel Wright" detail="Operations partner" />
-        <PreviewPerson name="Priya Shah" detail="Growth advisor" />
-      </div>
-      <div className="mt-4 rounded-2xl border border-gold/18 bg-gold/10 p-4">
-        <p className="text-2xl font-semibold text-foreground">+84</p>
-        <p className="mt-1 text-xs text-muted">Connections presented inside Circle Wallet</p>
-      </div>
-    </aside>
-  );
-}
-
-function TeamPreview() {
-  const items = ["Company Wallet", "Employee Cards", "Shared Contacts", "Team Analytics"];
-
-  return (
-    <aside className="rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.82),rgba(4,10,24,0.94))] p-5 shadow-panel-soft">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-silver/14 bg-white/[0.035] text-silver">
-            <Users size={18} />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-foreground">Company Wallet</p>
-            <p className="text-xs text-muted">Team preview</p>
-          </div>
-        </div>
-        <span className="rounded-full border border-gold/20 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold">
-          Coming Soon
-        </span>
-      </div>
-      <div className="mt-4 grid gap-2">
-        {items.map((item) => (
-          <div
-            key={item}
-            className="flex items-center justify-between gap-3 rounded-2xl border border-silver/12 bg-white/[0.035] px-3 py-2.5 text-sm text-foreground"
-          >
-            <span>{item}</span>
-            <Lock size={14} className="text-silver" />
-          </div>
-        ))}
-      </div>
-    </aside>
-  );
-}
-
 type TrustAreaProps = {
   card: PublicCircleCard;
   ownerAccountLabel: string;
@@ -1170,11 +1090,7 @@ export function PublicCircleCardProfile({
           />
         </header>
 
-        <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(250px,300px)_minmax(0,1fr)_minmax(300px,360px)] xl:items-start">
-          <div className="hidden space-y-5 xl:block">
-            <RelationshipPreview />
-          </div>
-
+        <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,820px)_minmax(300px,360px)] xl:justify-center xl:items-start">
           <main className="space-y-5">
             <article
               aria-labelledby="circle-card-profile-title"
@@ -1500,8 +1416,6 @@ export function PublicCircleCardProfile({
             ) : null}
 
             <div className="grid gap-5 xl:hidden">
-              <RelationshipPreview />
-              <TeamPreview />
               <TrustArea
                 card={card}
                 ownerAccountLabel={ownerAccountLabel}
@@ -1528,7 +1442,6 @@ export function PublicCircleCardProfile({
                   }
                 />
               </section>
-              <TeamPreview />
               <TrustArea
                 card={card}
                 ownerAccountLabel={ownerAccountLabel}
