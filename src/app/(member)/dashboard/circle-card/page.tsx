@@ -20,6 +20,7 @@ import {
   Filter,
   Link as LinkIcon,
   Lock,
+  LogOut,
   Menu as MenuIcon,
   MessageSquare,
   MousePointerClick,
@@ -101,6 +102,7 @@ import {
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
 import { buildCircleCardShareSourceUrl } from "@/lib/circle-card/share-sources";
+import { signOutAction } from "@/lib/actions/auth-actions";
 import {
   CIRCLE_CARD_RECOMMENDATION_CATEGORIES,
   circleCardRecommendationVisibilityLabel
@@ -163,8 +165,39 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+const CIRCLE_CARD_APP_SECTIONS = [
+  "home",
+  "my-card",
+  "network",
+  "business",
+  "share",
+  "settings"
+] as const;
+
+type CircleCardAppSection = (typeof CIRCLE_CARD_APP_SECTIONS)[number];
+
+const CIRCLE_CARD_APP_SECTION_LABELS: Record<CircleCardAppSection, string> = {
+  home: "Home",
+  "my-card": "My Card",
+  network: "Network",
+  business: "Business",
+  share: "Share",
+  settings: "Settings"
+};
+
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function resolveCircleCardAppSection(value: string | undefined): CircleCardAppSection {
+  return CIRCLE_CARD_APP_SECTIONS.includes(value as CircleCardAppSection)
+    ? (value as CircleCardAppSection)
+    : "home";
+}
+
+function circleCardSectionHref(section: CircleCardAppSection, hash?: string) {
+  const suffix = hash ? `#${hash.replace(/^#/, "")}` : "";
+  return `/dashboard/circle-card?section=${section}${suffix}`;
 }
 
 const NOTICE_MESSAGES: Record<string, string> = {
@@ -377,28 +410,30 @@ function resolveActivityLimit(value: string | undefined) {
 
 function buildIntroductionHref(input: { introductionView?: IntroductionView }) {
   const params = new URLSearchParams();
+  params.set("section", "network");
 
   if (input.introductionView && input.introductionView !== "incoming") {
     params.set("introductionView", input.introductionView);
   }
 
   const query = params.toString();
-  return query ? `/dashboard/circle-card?${query}#introductions` : "/dashboard/circle-card#introductions";
+  return `/dashboard/circle-card?${query}#introductions`;
 }
 
 function buildReferralHref(input: { referralView?: ReferralView }) {
   const params = new URLSearchParams();
+  params.set("section", "business");
 
   if (input.referralView && input.referralView !== "sent") {
     params.set("referralView", input.referralView);
   }
 
   const query = params.toString();
-  return query ? `/dashboard/circle-card?${query}#referrals` : "/dashboard/circle-card#referrals";
+  return `/dashboard/circle-card?${query}#referrals`;
 }
 
 function buildOpportunityHref() {
-  return "/dashboard/circle-card#opportunities";
+  return circleCardSectionHref("business", "opportunities");
 }
 
 function buildActivityFeedHref(input: {
@@ -406,6 +441,7 @@ function buildActivityFeedHref(input: {
   activityLimit?: number;
 }) {
   const params = new URLSearchParams();
+  params.set("section", "network");
 
   if (input.activityFilter && input.activityFilter !== "all") {
     params.set("activityFilter", input.activityFilter);
@@ -416,7 +452,7 @@ function buildActivityFeedHref(input: {
   }
 
   const query = params.toString();
-  return query ? `/dashboard/circle-card?${query}#activity` : "/dashboard/circle-card#activity";
+  return `/dashboard/circle-card?${query}#activity`;
 }
 
 function buildWalletHref(input: {
@@ -427,6 +463,7 @@ function buildWalletHref(input: {
   contactId?: string | null;
 }) {
   const params = new URLSearchParams();
+  params.set("section", "network");
 
   if (input.walletQuery) {
     params.set("walletQuery", input.walletQuery);
@@ -460,6 +497,7 @@ function buildDiscoverHref(input: {
   discoverBcn?: boolean;
 }) {
   const params = new URLSearchParams();
+  params.set("section", "network");
 
   if (input.discoverQuery) {
     params.set("discoverQuery", input.discoverQuery);
@@ -482,7 +520,7 @@ function buildDiscoverHref(input: {
   }
 
   const query = params.toString();
-  return query ? `/dashboard/circle-card?${query}#discover` : "/dashboard/circle-card#discover";
+  return `/dashboard/circle-card?${query}#discover`;
 }
 
 function walletContactMatchesQuery(input: {
@@ -914,6 +952,7 @@ function circleCardActivityIcon(type: string) {
 export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
   const session = await requireCircleCardUser();
   const params = await searchParams;
+  const activeSection = resolveCircleCardAppSection(firstValue(params.section));
   const notice = firstValue(params.notice);
   const created = firstValue(params.created) === "1";
   const error = firstValue(params.error);
@@ -1593,8 +1632,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const connectHubConnectionState = connectHubCard ? walletConnectionState(connectHubCard.id) : null;
   const connectHubOwnCard = Boolean(connectHubCard && connectHubCard.userId === session.user.id);
   const connectHubReturnPath = connectHubCard
-    ? `/dashboard/circle-card?connectCard=${encodeURIComponent(connectHubCard.slug)}#connect-hub`
-    : "/dashboard/circle-card#connect-hub";
+    ? `/dashboard/circle-card?section=network&connectCard=${encodeURIComponent(connectHubCard.slug)}#connect-hub`
+    : circleCardSectionHref("network", "connect-hub");
   const discoverReturnPath = buildDiscoverHref({
     discoverQuery,
     discoverCategory,
@@ -1801,7 +1840,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     Boolean(getOpportunityFollowUpStatus(opportunity.nextFollowUpAt, todayUtc))
   );
   const followUpsDueCount = needsFollowUpWalletContacts.length + dueOpportunityFollowUps.length;
-  const notificationReturnPath = "/dashboard/circle-card#notifications";
+  const notificationReturnPath = circleCardSectionHref("network", "notifications");
   const visibleActivityItems = activityItems.slice(0, activityLimit);
   const hasMoreActivityItems = activityItems.length > activityLimit;
   const activeActivityFilterLabel =
@@ -1924,6 +1963,65 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     { label: "Notification mark-all reads", value: analytics?.counts.NOTIFICATION_MARK_ALL_READ ?? 0 },
     { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
   ];
+  const appSectionItems: Array<{
+    section: CircleCardAppSection;
+    icon: typeof Activity;
+    badge?: number;
+  }> = [
+    {
+      section: "home",
+      icon: Activity,
+      badge: unreadNotificationCount + pendingIncomingRequests.length + followUpsDueCount
+    },
+    { section: "my-card", icon: ContactRound },
+    {
+      section: "network",
+      icon: WalletCards,
+      badge: pendingIncomingRequests.length + incomingIntroductions.length
+    },
+    {
+      section: "business",
+      icon: ShoppingBag,
+      badge: receivedReferrals.length + dueOpportunityFollowUps.length
+    },
+    { section: "share", icon: QrCode },
+    { section: "settings", icon: MenuIcon }
+  ];
+  const homeQuickStats = [
+    {
+      label: "Notifications",
+      value: unreadNotificationCount,
+      href: circleCardSectionHref("network", "notifications"),
+      icon: Bell
+    },
+    {
+      label: "Pending requests",
+      value: pendingIncomingRequests.length,
+      href: `${buildWalletHref({ walletView: "requests" })}#wallet`,
+      icon: MessageSquare
+    },
+    {
+      label: "Follow-ups due",
+      value: followUpsDueCount,
+      href: followUpsDueCount === dueOpportunityFollowUps.length
+        ? circleCardSectionHref("business", "opportunities")
+        : `${buildWalletHref({ walletFollowUp: "needs-follow-up" })}#wallet`,
+      icon: CalendarDays
+    },
+    {
+      label: "Public views",
+      value: analytics?.counts.CARD_VIEW ?? card?.viewCount ?? 0,
+      href: circleCardSectionHref("my-card", "analytics"),
+      icon: Eye
+    },
+    {
+      label: "Wallet contacts",
+      value: savedContactCount,
+      href: circleCardSectionHref("network", "wallet"),
+      icon: WalletCards
+    }
+  ];
+  const recentHomeActivity = visibleActivityItems.slice(0, 3);
 
   if (card && discoverHasFilters) {
     await trackCircleCardEvent({
@@ -1960,56 +2058,56 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </p>
             <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
               <a
-                href="#connect-hub"
+                href={circleCardSectionHref("network", "connect-hub")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
               >
                 <Share2 size={16} />
                 Connect Hub
               </a>
               <a
-                href="#discover"
+                href={circleCardSectionHref("network", "discover")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
               >
                 <Compass size={16} />
                 Discover
               </a>
               <a
-                href="#introductions"
+                href={circleCardSectionHref("network", "introductions")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
               >
                 <UserCheck size={16} />
                 Introductions
               </a>
               <a
-                href="#referrals"
+                href={circleCardSectionHref("business", "referrals")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
               >
                 <Handshake size={16} />
                 Referrals
               </a>
               <a
-                href="#opportunities"
+                href={circleCardSectionHref("business", "opportunities")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
               >
                 <ShoppingBag size={16} />
                 Opportunities
               </a>
               <a
-                href="#public-card"
+                href={circleCardSectionHref("share", "share-assets-qr")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
               >
                 <QrCode size={16} />
                 QR
               </a>
               <a
-                href="#wallet"
+                href={circleCardSectionHref("network", "wallet")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
               >
                 <WalletCards size={16} />
                 Wallet
               </a>
               <a
-                href="#analytics"
+                href={circleCardSectionHref("my-card", "analytics")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}
               >
                 <BarChart3 size={16} />
@@ -2026,7 +2124,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   <ArrowUpRight size={16} />
                 </Link>
               ) : (
-                <a href="#circle-card-form" className={cn(buttonVariants(), "h-11 gap-2")}>
+                <a href={circleCardSectionHref("my-card", "circle-card-form")} className={cn(buttonVariants(), "h-11 gap-2")}>
                   Create card
                   <ArrowUpRight size={16} />
                 </a>
@@ -2041,6 +2139,40 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
         </div>
       </section>
+
+      <nav
+        aria-label="Circle Card sections"
+        className="sticky top-0 z-20 -mx-2 overflow-x-auto border-y border-silver/12 bg-background/88 px-2 py-3 backdrop-blur-xl sm:rounded-2xl sm:border sm:bg-card/72"
+      >
+        <div className="flex min-w-max gap-2">
+          {appSectionItems.map((item) => {
+            const Icon = item.icon;
+            const selected = activeSection === item.section;
+
+            return (
+              <Link
+                key={item.section}
+                href={circleCardSectionHref(item.section)}
+                aria-current={selected ? "page" : undefined}
+                className={cn(
+                  "inline-flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors",
+                  selected
+                    ? "border-gold/42 bg-gold/14 text-gold shadow-inner-surface"
+                    : "border-silver/14 bg-background/25 text-muted hover:border-silver/30 hover:text-foreground"
+                )}
+              >
+                <Icon size={16} />
+                <span>{CIRCLE_CARD_APP_SECTION_LABELS[item.section]}</span>
+                {item.badge ? (
+                  <span className="rounded-full border border-gold/24 bg-gold/12 px-2 py-0.5 text-[11px] text-gold">
+                    {item.badge}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
 
       <CircleCardInstallPrompt />
 
@@ -2070,7 +2202,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               </Link>
               <CircleCardCopyLinkButton publicUrl={publicUrl} className="w-full" />
               <a
-                href="#public-card"
+                href={circleCardSectionHref("share", "share-assets-qr")}
                 className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
               >
                 <QrCode size={16} />
@@ -2101,63 +2233,125 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </p>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {[
-          {
-            label: "Unread Notifications",
-            value: unreadNotificationCount,
-            href: "#notifications",
-            icon: Bell
-          },
-          {
-            label: "Pending Connections",
-            value: pendingIncomingRequests.length,
-            href: "/dashboard/circle-card?walletView=requests#wallet",
-            icon: MessageSquare
-          },
-          {
-            label: "Incoming Introductions",
-            value: incomingIntroductions.length,
-            href: "#introductions",
-            icon: UserCheck
-          },
-          {
-            label: "Incoming Referrals",
-            value: receivedReferrals.length,
-            href: "#referrals",
-            icon: Handshake
-          },
-          {
-            label: "Follow-Ups Due",
-            value: followUpsDueCount,
-            href: followUpsDueCount === dueOpportunityFollowUps.length ? "#opportunities" : "#wallet",
-            icon: CalendarDays
-          }
-        ].map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <a
-              key={item.label}
-              href={item.href}
-              className="rounded-2xl border border-silver/14 bg-card/54 p-4 transition-colors hover:border-gold/28 hover:bg-card/72"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <Icon size={17} className="text-gold" />
-                <Badge variant={item.value ? "outline" : "muted"} className={item.value ? "border-gold/28 text-gold" : ""}>
-                  {item.value}
+      <section className={cn("space-y-4", activeSection !== "home" && "hidden")}>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+          <Card className="border-gold/22 bg-gold/8">
+            <CardHeader>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="inline-flex items-center gap-2">
+                    <ContactRound size={18} className="text-gold" />
+                    Circle Card Home
+                  </CardTitle>
+                  <CardDescription>
+                    Quick actions and the signals that need attention today.
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="w-fit border-gold/28 text-gold">
+                  {card?.isPublished ? "Published" : card ? "Unpublished" : "Setup needed"}
                 </Badge>
               </div>
-              <p className="mt-3 text-sm font-semibold text-foreground">{item.label}</p>
-            </a>
-          );
-        })}
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {card && publicUrl ? (
+                <>
+                  <Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">
+                    <Button type="button" className="h-12 w-full gap-2">
+                      <ArrowUpRight size={16} />
+                      Public Card
+                    </Button>
+                  </Link>
+                  <Link href={circleCardSectionHref("share", "share-assets-qr")}>
+                    <Button type="button" variant="outline" className="h-12 w-full gap-2">
+                      <QrCode size={16} />
+                      My QR
+                    </Button>
+                  </Link>
+                  <Link href={circleCardSectionHref("network", "business-card-scanner")}>
+                    <Button type="button" variant="outline" className="h-12 w-full gap-2">
+                      <Camera size={16} />
+                      Scan
+                    </Button>
+                  </Link>
+                  <CircleCardShareButton
+                    title={`${card.fullName} | Circle Card`}
+                    publicUrl={publicUrl}
+                    cardId={card.id}
+                    analyticsSource="dashboard_home"
+                    label="Share"
+                    hideStatus
+                    buttonClassName="h-12"
+                  />
+                </>
+              ) : (
+                <Link href={circleCardSectionHref("my-card", "circle-card-form")} className="sm:col-span-2 xl:col-span-4">
+                  <Button type="button" className="h-12 w-full gap-2">
+                    <ContactRound size={16} />
+                    Create your Circle Card
+                  </Button>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-silver/16 bg-card/62">
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2">
+                <Activity size={18} className="text-gold" />
+                Recent Activity
+              </CardTitle>
+              <CardDescription>Latest Circle Card movement.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentHomeActivity.length ? (
+                recentHomeActivity.map((activityItem) => (
+                  <Link
+                    key={activityItem.id}
+                    href={circleCardSectionHref("network", "activity")}
+                    className="block rounded-2xl border border-silver/14 bg-background/20 p-3 hover:border-gold/24"
+                  >
+                    <p className="text-sm font-medium text-foreground">{activityItem.title}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted">{activityItem.message}</p>
+                    <p className="mt-2 text-xs text-silver">{formatTimeAgo(activityItem.createdAt)}</p>
+                  </Link>
+                ))
+              ) : (
+                <p className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                  Recent activity will appear here.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {homeQuickStats.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="rounded-2xl border border-silver/14 bg-card/54 p-4 transition-colors hover:border-gold/28 hover:bg-card/72"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <Icon size={17} className="text-gold" />
+                  <Badge variant={item.value ? "outline" : "muted"} className={item.value ? "border-gold/28 text-gold" : ""}>
+                    {item.value}
+                  </Badge>
+                </div>
+                <p className="mt-3 text-sm font-semibold text-foreground">{item.label}</p>
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       <CircleCardDashboardSection
         id="notifications"
         title="Notification Centre"
         summary="Recent Circle Card activity and relationship items that need attention"
+        className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen={unreadNotificationCount > 0}
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
@@ -2263,6 +2457,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="activity"
         title="Activity Feed"
         summary="A relationship timeline for your Circle Card, wallet, referrals and opportunities"
+        className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen={visibleActivityItems.length > 0}
         badge={
           <Badge variant="outline" className="border-silver/18 text-silver">
@@ -2370,6 +2565,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="introductions"
         title="Introductions"
         summary="Introduce two people from your Circle Wallet and track private responses"
+        className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen={incomingIntroductions.length > 0}
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
@@ -2594,10 +2790,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
                   Use the Introduce panel inside a wallet contact to connect two saved Circle Card contacts.
                 </p>
-                <a href="#wallet" className={cn(buttonVariants({ variant: "outline" }), "mt-5 gap-2")}>
+                <Link href={circleCardSectionHref("network", "wallet")} className={cn(buttonVariants({ variant: "outline" }), "mt-5 gap-2")}>
                   <WalletCards size={16} />
                   Open Wallet
-                </a>
+                </Link>
               </CardContent>
             </Card>
           )}
@@ -2608,6 +2804,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="opportunities"
         title="Opportunity Pipeline"
         summary="Track real business opportunities created through relationships and Circle Card activity"
+        className={activeSection === "business" ? undefined : "hidden"}
         defaultOpen={openOpportunities.length > 0}
         badge={
           <span className="inline-flex gap-2">
@@ -3006,6 +3203,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="discover"
         title="Discover"
         summary="Find published Circle Cards, save useful people, and start connection requests"
+        className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
@@ -3021,6 +3219,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 method="get"
                 className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_220px_180px_160px_150px_auto]"
               >
+                <input type="hidden" name="section" value="network" />
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-3 text-muted" size={16} />
                   <Input
@@ -3093,7 +3292,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 </p>
                 {discoverHasFilters ? (
                   <Link
-                    href="/dashboard/circle-card#discover"
+                    href={circleCardSectionHref("network", "discover")}
                     className="text-xs font-medium text-silver hover:text-foreground"
                   >
                     Clear discover filters
@@ -3293,7 +3492,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
                         {isSaved && candidate.connectionState.kind === "pending_incoming" ? (
                           <Link
-                            href="/dashboard/circle-card?walletView=requests#wallet"
+                            href={`${buildWalletHref({ walletView: "requests" })}#wallet`}
                             className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
                           >
                             <MessageSquare size={16} />
@@ -3328,20 +3527,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   {discoverHasFilters ? (
-                    <Link href="/dashboard/circle-card#discover">
+                    <Link href={circleCardSectionHref("network", "discover")}>
                       <Button type="button" variant="outline">
                         Try a different search
                       </Button>
                     </Link>
                   ) : null}
-                  <a href="#connect-hub" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+                  <Link href={circleCardSectionHref("network", "connect-hub")} className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
                     <Share2 size={16} />
                     Add people through Connect Hub
-                  </a>
-                  <a href="#share-assets" className={cn(buttonVariants(), "gap-2")}>
+                  </Link>
+                  <Link href={circleCardSectionHref("share", "share-assets")} className={cn(buttonVariants(), "gap-2")}>
                     <QrCode size={16} />
                     Share your card
-                  </a>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -3353,6 +3552,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="referrals"
         title="Referrals"
         summary="Send, receive, and track business referrals through Circle Card"
+        className={activeSection === "business" ? undefined : "hidden"}
         defaultOpen={receivedReferrals.length > 0}
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
@@ -3720,6 +3920,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="connect-hub"
         title="Connect Hub"
         summary="Share your card, add someone by link, and move quickly into wallet connections"
+        className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
@@ -3779,12 +3980,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         hideStatus
                         buttonClassName="h-10"
                       />
-                      <a href="#public-card" className={cn(buttonVariants({ variant: "outline" }), "h-10 gap-2")}>
+                      <Link href={circleCardSectionHref("share", "share-assets-qr")} className={cn(buttonVariants({ variant: "outline" }), "h-10 gap-2")}>
                         <QrCode size={16} />
                         QR
-                      </a>
-                      <a
-                        href="#share-assets"
+                      </Link>
+                      <Link
+                        href={circleCardSectionHref("share", "share-assets")}
                         className={cn(
                           buttonVariants({ variant: "outline" }),
                           "h-auto min-h-10 gap-2 px-2 text-center text-xs leading-tight sm:text-sm"
@@ -3792,7 +3993,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       >
                         <QrCode size={16} />
                         <span>Need QR/NFC assets?</span>
-                      </a>
+                      </Link>
                       <Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">
                         <Button type="button" variant="outline" className="h-10 w-full gap-2">
                           Open
@@ -3841,14 +4042,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 </CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                   <a
-                    href="/dashboard/circle-card?walletView=requests#wallet"
+                    href={`${buildWalletHref({ walletView: "requests" })}#wallet`}
                     className="rounded-2xl border border-gold/18 bg-gold/8 p-4 hover:border-gold/32"
                   >
                     <span className="text-2xl font-semibold text-foreground">{pendingIncomingRequests.length}</span>
                     <span className="mt-1 block text-xs uppercase tracking-[0.08em] text-gold">Incoming</span>
                   </a>
                   <a
-                    href="/dashboard/circle-card?walletView=requests#wallet"
+                    href={`${buildWalletHref({ walletView: "requests" })}#wallet`}
                     className="rounded-2xl border border-silver/14 bg-background/18 p-4 hover:border-silver/28"
                   >
                     <span className="text-2xl font-semibold text-foreground">{pendingOutgoingRequests.length}</span>
@@ -4092,6 +4293,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="share-assets"
         title="Share Assets"
         summary="Public link, QR code, NFC-ready URL and print asset placeholders"
+        className={activeSection === "share" ? undefined : "hidden"}
         defaultOpen={Boolean(card)}
       >
         {card && publicUrl && qrUrl && nfcUrl && eventUrl ? (
@@ -4111,7 +4313,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         )}
       </CircleCardDashboardSection>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className={cn("grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]", activeSection !== "my-card" && "hidden")}>
         <Card id="circle-card-form" className="scroll-mt-24 border-silver/16 bg-card/62">
           <CardHeader>
             <CardTitle>{card ? "Edit your Circle Card" : "Create your first Circle Card"}</CardTitle>
@@ -4121,7 +4323,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </CardHeader>
           <CardContent>
             <form action={upsertCircleCardAction} className="space-y-5">
-              <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+              <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "circle-card-form")} />
               {card ? <input type="hidden" name="cardId" value={card.id} /> : null}
 
               <CircleCardDashboardSection
@@ -4449,6 +4651,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="custom-links"
         title="Featured links"
         summary="Smart action blocks for bookings, offers, downloads, reviews, shops, menus and case studies"
+        className={activeSection === "my-card" ? undefined : "hidden"}
         badge={
           <span className="inline-flex gap-2">
             <Badge variant="muted">{customLinks.length} saved</Badge>
@@ -4474,7 +4677,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               </CardHeader>
               <CardContent>
                 <form action={upsertCircleCardLinkAction} className="space-y-4">
-                  <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                  <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                   <input type="hidden" name="cardId" value={card.id} />
                   <input type="hidden" name="sortOrder" value={customLinks.length} />
 
@@ -4579,7 +4782,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
                             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap md:justify-end">
                               <form action={moveCircleCardLinkAction}>
-                                <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                                <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <input type="hidden" name="direction" value="up" />
@@ -4596,7 +4799,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 </Button>
                               </form>
                               <form action={moveCircleCardLinkAction}>
-                                <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                                <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <input type="hidden" name="direction" value="down" />
@@ -4613,7 +4816,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 </Button>
                               </form>
                               <form action={toggleCircleCardLinkAction}>
-                                <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                                <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <Button
@@ -4626,7 +4829,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 </Button>
                               </form>
                               <form action={deleteCircleCardLinkAction}>
-                                <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                                <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <Button
@@ -4647,7 +4850,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                               Edit link
                             </summary>
                             <form action={upsertCircleCardLinkAction} className="mt-4 space-y-4">
-                              <input type="hidden" name="returnPath" value="/dashboard/circle-card" />
+                              <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                               <input type="hidden" name="cardId" value={card.id} />
                               <input type="hidden" name="linkId" value={customLink.id} />
                               <input type="hidden" name="sortOrder" value={customLink.sortOrder} />
@@ -4769,6 +4972,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="analytics"
         title="Analytics"
         summary="Views, wallet saves, shares, downloads and featured-link clicks"
+        className={activeSection === "my-card" ? undefined : "hidden"}
         badge={
           <Badge variant="outline" className="w-fit border-gold/25 text-gold">
             Basic analytics included
@@ -4909,6 +5113,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="wallet"
         title="Circle Wallet"
         summary="Search saved contacts, follow-ups, categories and private relationship context"
+        className={activeSection === "network" ? undefined : "hidden"}
         badge={
           <span className="inline-flex gap-2">
             <Badge variant="muted">{savedContactCount} saved</Badge>
@@ -5013,7 +5218,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           <form action={acceptCircleCardConnectionRequestAction}>
                             <input type="hidden" name="requestId" value={request.id} />
-                            <input type="hidden" name="returnPath" value="/dashboard/circle-card?walletView=requests" />
+                            <input type="hidden" name="returnPath" value={`${buildWalletHref({ walletView: "requests" })}#wallet`} />
                             <Button type="submit" size="sm" className="w-full gap-2">
                               <UserCheck size={14} />
                               Accept
@@ -5021,7 +5226,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           </form>
                           <form action={declineCircleCardConnectionRequestAction}>
                             <input type="hidden" name="requestId" value={request.id} />
-                            <input type="hidden" name="returnPath" value="/dashboard/circle-card?walletView=requests" />
+                            <input type="hidden" name="returnPath" value={`${buildWalletHref({ walletView: "requests" })}#wallet`} />
                             <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
                               <UserX size={14} />
                               Decline
@@ -5079,7 +5284,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           </Badge>
                           <form action={cancelCircleCardConnectionRequestAction}>
                             <input type="hidden" name="requestId" value={request.id} />
-                            <input type="hidden" name="returnPath" value="/dashboard/circle-card?walletView=requests" />
+                            <input type="hidden" name="returnPath" value={`${buildWalletHref({ walletView: "requests" })}#wallet`} />
                             <Button type="submit" variant="outline" size="sm" className="gap-2">
                               <XCircle size={14} />
                               Cancel
@@ -5175,6 +5380,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             <Card className="border-silver/16 bg-card/62">
               <CardContent className="space-y-4 pt-6 sm:pt-7">
                 <form action="/dashboard/circle-card" method="get" className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_190px_auto]">
+                  <input type="hidden" name="section" value="network" />
                   {walletView !== "all" ? (
                     <input type="hidden" name="walletView" value={walletView} />
                   ) : null}
@@ -5824,7 +6030,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       )}
 
                       <Link
-                        href="/dashboard/circle-card#introductions"
+                        href={circleCardSectionHref("network", "introductions")}
                         className="mt-3 inline-flex text-xs font-medium text-silver hover:text-foreground"
                       >
                         View Introduction Centre
@@ -5947,7 +6153,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             Wallet referrals can be sent when this contact is linked to a published Circle Card.
                           </p>
                           <Link
-                            href="/dashboard/circle-card#referrals"
+                            href={circleCardSectionHref("business", "referrals")}
                             className="mt-2 inline-flex text-xs font-medium text-silver hover:text-foreground"
                           >
                             Open Referral Centre
@@ -6142,9 +6348,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             );
 
                             return (
-                              <a
+                              <Link
                                 key={opportunity.id}
-                                href="#opportunities"
+                                href={circleCardSectionHref("business", "opportunities")}
                                 className="block rounded-xl border border-silver/14 bg-card/54 p-3 hover:border-gold/24"
                               >
                                 <div className="flex flex-wrap items-center gap-2">
@@ -6161,7 +6367,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 <p className="mt-1 text-xs text-muted">
                                   {formatOpportunityValue(opportunity.potentialValue, opportunity.currency)}
                                 </p>
-                              </a>
+                              </Link>
                             );
                           })}
                         </div>
@@ -6440,6 +6646,192 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </aside>
         </div>
         ) : null}
+        </div>
+      </CircleCardDashboardSection>
+
+      <CircleCardDashboardSection
+        id="circle-card-settings"
+        title="Settings"
+        summary="Publishing, public link settings, standards and account controls"
+        className={activeSection === "settings" ? undefined : "hidden"}
+        defaultOpen
+        badge={
+          <Badge variant="outline" className="border-gold/28 text-gold">
+            {card?.isPublished ? "Published" : card ? "Unpublished" : "Setup needed"}
+          </Badge>
+        }
+      >
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-5">
+            <Card className="border-silver/16 bg-card/62">
+              <CardHeader>
+                <CardTitle className="inline-flex items-center gap-2 text-lg">
+                  <MenuIcon size={17} className="text-gold" />
+                  Card Settings
+                </CardTitle>
+                <CardDescription>Manage the public slug and publishing state for this Circle Card.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {card ? (
+                  <form action={upsertCircleCardAction} className="space-y-4">
+                    <input type="hidden" name="returnPath" value={circleCardSectionHref("settings", "circle-card-settings")} />
+                    <input type="hidden" name="cardId" value={card.id} />
+                    <input type="hidden" name="fullName" value={card.fullName} />
+                    <input type="hidden" name="businessName" value={card.businessName ?? ""} />
+                    <input type="hidden" name="role" value={card.role ?? ""} />
+                    <input type="hidden" name="tagline" value={card.tagline ?? ""} />
+                    <input type="hidden" name="about" value={card.about ?? ""} />
+                    <input type="hidden" name="profileImageUrl" value={card.profileImageUrl ?? ""} />
+                    <input type="hidden" name="businessLogoUrl" value={card.businessLogoUrl ?? ""} />
+                    <input type="hidden" name="profileImagePositionX" value={card.profileImagePositionX ?? ""} />
+                    <input type="hidden" name="profileImagePositionY" value={card.profileImagePositionY ?? ""} />
+                    <input type="hidden" name="profileImageScale" value={card.profileImageScale ?? ""} />
+                    <input type="hidden" name="businessLogoPositionX" value={card.businessLogoPositionX ?? ""} />
+                    <input type="hidden" name="businessLogoPositionY" value={card.businessLogoPositionY ?? ""} />
+                    <input type="hidden" name="businessLogoScale" value={card.businessLogoScale ?? ""} />
+                    <input type="hidden" name="websiteUrl" value={card.websiteUrl ?? ""} />
+                    <input type="hidden" name="email" value={card.email ?? ""} />
+                    <input type="hidden" name="phone" value={card.phone ?? ""} />
+                    <input type="hidden" name="location" value={card.location ?? ""} />
+                    <input type="hidden" name="linkedinUrl" value={socialLinks.linkedin ?? ""} />
+                    <input type="hidden" name="tiktokUrl" value={socialLinks.tiktok ?? ""} />
+                    <input type="hidden" name="instagramUrl" value={socialLinks.instagram ?? ""} />
+                    <input type="hidden" name="xUrl" value={socialLinks.x ?? ""} />
+                    <input type="hidden" name="facebookUrl" value={socialLinks.facebook ?? ""} />
+                    <input type="hidden" name="youtubeUrl" value={socialLinks.youtube ?? ""} />
+
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+                      <div className="space-y-2">
+                        <Label htmlFor="settings-slug">Public slug</Label>
+                        <Input id="settings-slug" name="slug" defaultValue={card.slug} placeholder="your-name" />
+                        <p className="break-all text-xs text-muted">
+                          {publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
+                        </p>
+                      </div>
+                      <label
+                        htmlFor="settings-isPublished"
+                        className="flex min-h-11 items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
+                      >
+                        <input
+                          id="settings-isPublished"
+                          name="isPublished"
+                          type="checkbox"
+                          value="on"
+                          defaultChecked={card.isPublished}
+                          className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                        />
+                        <span>
+                          Published
+                          <span className="mt-1 block text-xs text-muted">
+                            Unpublished cards are not available at their public /card link.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="submit" className="gap-2">
+                        <Save size={16} />
+                        Save Settings
+                      </Button>
+                      <Link href={circleCardSectionHref("my-card", "card-identity")} className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+                        Edit Full Card
+                        <ArrowUpRight size={16} />
+                      </Link>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-5 text-sm text-muted">
+                    Create your Circle Card before changing publishing settings.
+                    <Link href={circleCardSectionHref("my-card", "circle-card-form")} className="mt-4 flex w-fit">
+                      <Button type="button" className="gap-2">
+                        <ContactRound size={16} />
+                        Create Card
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-silver/16 bg-card/62">
+              <CardHeader>
+                <CardTitle className="inline-flex items-center gap-2 text-lg">
+                  <BookOpen size={17} className="text-silver" />
+                  Visibility Notes
+                </CardTitle>
+                <CardDescription>Keep public card details suitable for a professional business network.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2">
+                <Link href="/circle-card/community-standards" className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}>
+                  Community Standards
+                  <ArrowUpRight size={16} />
+                </Link>
+                <Link href={circleCardSectionHref("share", "share-assets")} className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}>
+                  Share Controls
+                  <Share2 size={16} />
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+
+          <aside className="space-y-5">
+            <Card className="border-gold/18 bg-gold/8">
+              <CardHeader>
+                <CardTitle className="inline-flex items-center gap-2 text-lg">
+                  <Activity size={17} className="text-gold" />
+                  Future Modes
+                </CardTitle>
+                <CardDescription>Mode controls are reserved for a later Circle Card phase.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-2">
+                {["Business Mode", "Networking Mode", "Smart Mode later"].map((mode) => (
+                  <Button key={mode} type="button" variant="outline" disabled className="justify-start gap-2">
+                    <CheckCircle2 size={15} />
+                    {mode}
+                  </Button>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="border-silver/16 bg-card/62">
+              <CardHeader>
+                <CardTitle className="inline-flex items-center gap-2 text-lg">
+                  <Lock size={17} className="text-silver" />
+                  Safety
+                </CardTitle>
+                <CardDescription>Public cards should stay useful, accurate and easy to trust.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted">
+                <p>
+                  Use the standards page for public-card expectations. If a card or interaction needs review,
+                  report it from the relevant public surface or contact BCN support.
+                </p>
+                <Link href="/circle-card/community-standards" className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}>
+                  Review Standards
+                  <ArrowUpRight size={16} />
+                </Link>
+              </CardContent>
+            </Card>
+
+            <Card className="border-silver/16 bg-card/62">
+              <CardHeader>
+                <CardTitle className="inline-flex items-center gap-2 text-lg">
+                  <LogOut size={17} className="text-silver" />
+                  Session
+                </CardTitle>
+                <CardDescription>Leave the Circle Card dashboard on this device.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form action={signOutAction}>
+                  <Button type="submit" variant="outline" className="w-full gap-2">
+                    <LogOut size={16} />
+                    Sign Out
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </aside>
         </div>
       </CircleCardDashboardSection>
     </div>

@@ -808,7 +808,7 @@ export async function markCircleCardNotificationReadAction(formData: FormData) {
   const parsed = circleCardNotificationIdSchema.safeParse(readCircleCardNotificationIdFormData(formData));
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#notifications"
+    "/dashboard/circle-card?section=network#notifications"
   );
   const user = await requireCircleCardActionUser();
 
@@ -874,7 +874,7 @@ export async function markAllCircleCardNotificationsReadAction(formData: FormDat
   );
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#notifications"
+    "/dashboard/circle-card?section=network#notifications"
   );
   const user = await requireCircleCardActionUser();
 
@@ -1588,12 +1588,12 @@ export async function saveCircleWalletContactAction(formData: FormData) {
 }
 
 function walletContactReturnPath(walletContactId: string) {
-  return `/dashboard/circle-card?contactId=${encodeURIComponent(walletContactId)}#wallet`;
+  return `/dashboard/circle-card?section=network&contactId=${encodeURIComponent(walletContactId)}#wallet`;
 }
 
 export async function saveBusinessCardScanWalletContactAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
-  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card#connect-hub");
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card?section=network#connect-hub");
   const parsed = circleWalletBusinessCardContactSchema.safeParse(
     readCircleWalletBusinessCardFormData(formData)
   );
@@ -1620,7 +1620,7 @@ export async function saveBusinessCardScanWalletContactAction(formData: FormData
 
   if (matches.length) {
     redirectWithNotice(
-      `/dashboard/circle-card?connectCard=${encodeURIComponent(matches[0].slug)}#connect-hub`,
+      `/dashboard/circle-card?section=network&connectCard=${encodeURIComponent(matches[0].slug)}#connect-hub`,
       "business-card-match-found"
     );
   }
@@ -1699,7 +1699,7 @@ export async function saveMatchedBusinessCardCircleCardAction(formData: FormData
   );
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#connect-hub"
+    "/dashboard/circle-card?section=network#connect-hub"
   );
 
   if (!parsed.success) {
@@ -1801,7 +1801,7 @@ export async function saveMatchedBusinessCardAndSendConnectionRequestAction(form
   );
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#connect-hub"
+    "/dashboard/circle-card?section=network#connect-hub"
   );
 
   if (!parsed.success) {
@@ -1986,7 +1986,7 @@ export async function generateBusinessCardClaimLinkAction(formData: FormData) {
   const parsed = circleWalletContactIdSchema.safeParse(readCircleWalletContactIdFormData(formData));
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#wallet"
+    "/dashboard/circle-card?section=network#wallet"
   );
 
   if (!parsed.success) {
@@ -2061,7 +2061,7 @@ export async function resolveCircleCardLinkAction(formData: FormData) {
 
   if (!slug) {
     await trackFailedResolve("invalid_input");
-    redirect("/dashboard/circle-card?error=card-link-invalid#connect-hub");
+    redirect("/dashboard/circle-card?section=network&error=card-link-invalid#connect-hub");
   }
 
   const resolvedCard = await prisma.circleCard.findFirst({
@@ -2081,7 +2081,7 @@ export async function resolveCircleCardLinkAction(formData: FormData) {
 
   if (!resolvedCard) {
     await trackFailedResolve("not_found");
-    redirect("/dashboard/circle-card?error=card-link-not-found#connect-hub");
+    redirect("/dashboard/circle-card?section=network&error=card-link-not-found#connect-hub");
   }
 
   await trackCircleCardEvent({
@@ -2095,7 +2095,7 @@ export async function resolveCircleCardLinkAction(formData: FormData) {
     }
   });
 
-  redirect(`/dashboard/circle-card?connectCard=${encodeURIComponent(resolvedCard.slug)}#connect-hub`);
+  redirect(`/dashboard/circle-card?section=network&connectCard=${encodeURIComponent(resolvedCard.slug)}#connect-hub`);
 }
 
 export async function sendCircleCardConnectionRequestAction(formData: FormData) {
@@ -2597,7 +2597,7 @@ export async function createCircleCardIntroductionAction(formData: FormData) {
   });
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#introductions"
+    "/dashboard/circle-card?section=network#introductions"
   );
 
   if (!parsed.success) {
@@ -2786,7 +2786,7 @@ export async function acceptCircleCardIntroductionAction(formData: FormData) {
   });
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#introductions"
+    "/dashboard/circle-card?section=network#introductions"
   );
   const user = await requireCircleCardActionUser();
 
@@ -3082,7 +3082,7 @@ export async function declineCircleCardIntroductionAction(formData: FormData) {
   });
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#introductions"
+    "/dashboard/circle-card?section=network#introductions"
   );
   const user = await requireCircleCardActionUser();
 
@@ -3234,7 +3234,7 @@ export async function cancelCircleCardIntroductionAction(formData: FormData) {
   });
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#introductions"
+    "/dashboard/circle-card?section=network#introductions"
   );
   const user = await requireCircleCardActionUser();
 
@@ -3305,7 +3305,7 @@ export async function createCircleCardReferralAction(formData: FormData) {
   const parsed = circleCardReferralFormSchema.safeParse(readCircleCardReferralFormData(formData));
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#referrals"
+    "/dashboard/circle-card?section=business#referrals"
   );
 
   if (!parsed.success) {
@@ -3499,7 +3499,7 @@ export async function updateCircleCardReferralStatusAction(formData: FormData) {
   );
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#referrals"
+    "/dashboard/circle-card?section=business#referrals"
   );
   const user = await requireCircleCardActionUser();
 
@@ -3672,7 +3672,7 @@ export async function createCircleCardOpportunityAction(formData: FormData) {
   );
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#opportunities"
+    "/dashboard/circle-card?section=business#opportunities"
   );
 
   if (!parsed.success) {
@@ -3786,7 +3786,7 @@ export async function updateCircleCardOpportunityAction(formData: FormData) {
   );
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#opportunities"
+    "/dashboard/circle-card?section=business#opportunities"
   );
   const user = await requireCircleCardActionUser();
 
@@ -3963,7 +3963,7 @@ export async function updateCircleCardOpportunityStatusAction(formData: FormData
   );
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#opportunities"
+    "/dashboard/circle-card?section=business#opportunities"
   );
   const user = await requireCircleCardActionUser();
 
@@ -4379,7 +4379,7 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
 
 export async function upsertCircleCardRecommendationAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
-  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card#wallet");
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card?section=network#wallet");
   const parsed = circleCardRecommendationFormSchema.safeParse(
     readCircleCardRecommendationFormData(formData)
   );
@@ -4592,7 +4592,7 @@ export async function updateCircleCardRecommendationStatusAction(formData: FormD
   );
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card#wallet"
+    "/dashboard/circle-card?section=network#wallet"
   );
   const user = await requireCircleCardActionUser();
 

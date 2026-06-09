@@ -100,9 +100,9 @@ export default async function MemberLayout({ children }: { children: ReactNode }
 
   const circleCardNavItems = [
     { label: "My Circle Card", href: "/dashboard/circle-card", badgeCount: circleCardUnreadCount },
-    { label: "Wallet", href: "/dashboard/circle-card#wallet" },
-    { label: "Analytics", href: "/dashboard/circle-card#analytics" },
-    { label: "Settings", href: "/dashboard/circle-card#circle-card-form" }
+    { label: "Wallet", href: "/dashboard/circle-card?section=network#wallet" },
+    { label: "Analytics", href: "/dashboard/circle-card?section=my-card#analytics" },
+    { label: "Settings", href: "/dashboard/circle-card?section=settings#circle-card-settings" }
   ];
   const circleCardDiscoveryNavItems = [
     {

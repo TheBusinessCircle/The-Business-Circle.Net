@@ -11,9 +11,9 @@ const MEMBER_LINKS = [
 ] as const;
 
 const CIRCLE_CARD_LINKS = [
-  { label: "Card", href: "/dashboard/circle-card#circle-card-form" },
-  { label: "Wallet", href: "/dashboard/circle-card#wallet" },
-  { label: "Analytics", href: "/dashboard/circle-card#analytics" },
+  { label: "Card", href: "/dashboard/circle-card?section=my-card#circle-card-form" },
+  { label: "Wallet", href: "/dashboard/circle-card?section=network#wallet" },
+  { label: "Analytics", href: "/dashboard/circle-card?section=my-card#analytics" },
   { label: "Explore BCN", href: "/membership" }
 ] as const;
 

@@ -594,8 +594,8 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
   const stageLabel = scannerStageLabel(stage);
   const firstMatch = scan?.matches[0] ?? null;
   const returnPath = firstMatch
-    ? `/dashboard/circle-card?connectCard=${encodeURIComponent(firstMatch.slug)}#connect-hub`
-    : "/dashboard/circle-card#connect-hub";
+    ? `/dashboard/circle-card?section=network&connectCard=${encodeURIComponent(firstMatch.slug)}#connect-hub`
+    : "/dashboard/circle-card?section=network#connect-hub";
   const fileInputs = (
     <>
       <input
@@ -762,7 +762,7 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
                   </div>
                 </div>
                 <Link
-                  href={`/dashboard/circle-card?contactId=${encodeURIComponent(scan.duplicateContact.id)}#wallet`}
+                  href={`/dashboard/circle-card?section=network&contactId=${encodeURIComponent(scan.duplicateContact.id)}#wallet`}
                   className="mt-4 inline-flex"
                 >
                   <Button type="button" variant="outline" size="sm" className="gap-2">
@@ -839,7 +839,7 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
                       </Button>
                     </form>
                   ) : (
-                    <Link href="/dashboard/circle-card#circle-card-form">
+                    <Link href="/dashboard/circle-card?section=my-card#circle-card-form">
                       <Button type="button" variant="outline" className="w-full gap-2">
                         Create your card
                         <ArrowUpRight size={16} />
@@ -852,7 +852,7 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
 
             {!firstMatch && !scan.duplicateContact ? (
               <form action={saveBusinessCardScanWalletContactAction} className="space-y-4">
-                <input type="hidden" name="returnPath" value="/dashboard/circle-card#connect-hub" />
+                <input type="hidden" name="returnPath" value="/dashboard/circle-card?section=network#connect-hub" />
                 <input type="hidden" name="originalCardImageUrl" value={scan.originalCardImageUrl} />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">

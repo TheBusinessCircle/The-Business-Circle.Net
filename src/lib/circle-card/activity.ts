@@ -130,45 +130,45 @@ export function circleCardActivityHref(activity: {
   entityId?: string | null;
 }) {
   if (activity.entityType === "WALLET_CONTACT" && activity.entityId) {
-    return `/dashboard/circle-card?contactId=${encodeURIComponent(activity.entityId)}#wallet`;
+    return `/dashboard/circle-card?section=network&contactId=${encodeURIComponent(activity.entityId)}#wallet`;
   }
 
   switch (activity.type) {
     case "CARD_CREATED":
     case "CARD_UPDATED":
-      return "/dashboard/circle-card#public-card";
+      return "/dashboard/circle-card?section=my-card#public-card";
     case "CONTACT_SAVED":
     case "CONTACT_UPDATED":
-      return "/dashboard/circle-card#wallet";
+      return "/dashboard/circle-card?section=network#wallet";
     case "CONNECTION_REQUEST_SENT":
     case "CONNECTION_ACCEPTED":
-      return "/dashboard/circle-card?walletView=requests#wallet";
+      return "/dashboard/circle-card?section=network&walletView=requests#wallet";
     case "RECOMMENDATION_CREATED":
     case "RECOMMENDATION_RECEIVED":
-      return "/dashboard/circle-card#wallet";
+      return "/dashboard/circle-card?section=network#wallet";
     case "INTRODUCTION_CREATED":
     case "INTRODUCTION_ACCEPTED":
     case "INTRODUCTION_DECLINED":
     case "INTRODUCTION_COMPLETED":
-      return "/dashboard/circle-card#introductions";
+      return "/dashboard/circle-card?section=network#introductions";
     case "REFERRAL_CREATED":
     case "REFERRAL_RECEIVED":
     case "REFERRAL_ACCEPTED":
     case "REFERRAL_WON":
     case "REFERRAL_LOST":
-      return "/dashboard/circle-card#referrals";
+      return "/dashboard/circle-card?section=business#referrals";
     case "OPPORTUNITY_CREATED":
     case "OPPORTUNITY_UPDATED":
     case "OPPORTUNITY_WON":
     case "OPPORTUNITY_LOST":
-      return "/dashboard/circle-card#opportunities";
+      return "/dashboard/circle-card?section=business#opportunities";
     case "BUSINESS_CARD_SCANNED":
     case "BUSINESS_CARD_CONTACT_CREATED":
-      return "/dashboard/circle-card#connect-hub";
+      return "/dashboard/circle-card?section=network#connect-hub";
     case "SMART_LINK_CLICKED":
     case "PRIVATE_LINK_UNLOCKED":
-      return "/dashboard/circle-card#custom-links";
+      return "/dashboard/circle-card?section=my-card#custom-links";
     default:
-      return "/dashboard/circle-card#activity";
+      return "/dashboard/circle-card?section=network#activity";
   }
 }
