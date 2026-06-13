@@ -1,28 +1,24 @@
 import Link from "next/link";
 import {
   CalendarDays,
-  CheckCircle2,
   Lock,
   MessageSquareText,
   MessagesSquare,
   Sparkles
 } from "lucide-react";
 import { MembershipTier } from "@prisma/client";
-import type { CommunityFeedPageModel, CommunityRecentPostModel, PlatformEventModel } from "@/types";
+import type { CommunityFeedPageModel, PlatformEventModel } from "@/types";
 import { ConversationComposer } from "@/components/community/conversation-composer";
 import { CommunityPostFeedList } from "@/components/community/community-post-feed-list";
 import { RoomGuidanceCard } from "@/components/community/room-guidance-card";
 import { EventCard } from "@/components/events/event-card";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
-import { authorName, buildCommunityPostPreview } from "@/lib/community-helpers";
 import {
   buildCommunityChannelPath,
-  buildCommunityFeedPostPath,
-  buildCommunityPostPath
+  buildCommunityFeedPostPath
 } from "@/lib/community-paths";
 import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
 import {
@@ -30,108 +26,38 @@ import {
   countUniqueContributors,
   getFreshnessSignal,
   getSuggestedConversationPrompts,
-  isActivityCurrent,
   rankPostsByMomentum
 } from "@/lib/community-rhythm";
-import { formatDate } from "@/lib/utils";
 
 type CommunityFeedProps = {
   feed: CommunityFeedPageModel;
   upcomingEvents: PlatformEventModel[];
   membershipTier: MembershipTier;
   currentUserName?: string | null;
+  currentUserImage?: string | null;
   currentUserId: string;
   viewerCanContinuePrivately: boolean;
   initialExpandedPostId?: string | null;
-  featuredConnectionWin?: CommunityRecentPostModel | null;
   viewerIsAdmin?: boolean;
 };
 
-function FeedActivitySnapshot({
-  channelSlug,
-  posts
-}: {
-  channelSlug: string;
-  posts: CommunityFeedPageModel["posts"];
-}) {
-  if (posts.length < 2) {
-    return null;
-  }
-
-  const rankedPosts = rankPostsByMomentum(posts);
-  const worthYourTime = rankedPosts[0] ?? null;
-  const recentMovement = posts.filter((post) => post.id !== worthYourTime?.id).slice(0, 2);
-  const activeNowCount = countActiveItems(posts.map((post) => ({ createdAt: post.createdAt })));
-
-  if (!worthYourTime) {
-    return null;
-  }
-
-  return (
-    <Card className="border-silver/16 bg-card/62">
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Worth your time</p>
-          {activeNowCount ? (
-            <Badge variant="outline" className="border-silver/18 bg-silver/10 text-silver">
-              {activeNowCount} active now
-            </Badge>
-          ) : null}
-        </div>
-        <CardTitle className="text-xl">Useful movement in this room</CardTitle>
-        <CardDescription>
-          A quick read on what looks worth your time without turning the feed into noise.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-        <Link
-          href={buildCommunityFeedPostPath(channelSlug, worthYourTime.id)}
-          className="rounded-2xl border border-silver/14 bg-background/20 px-4 py-4 transition-colors hover:border-silver/28 hover:bg-background/30"
-        >
-          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Worth your time</p>
-          <p className="mt-3 text-lg font-semibold text-foreground">{worthYourTime.title}</p>
-          <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted">
-            {buildCommunityPostPreview(worthYourTime.content, worthYourTime.tags) ||
-              "Open the discussion to read the full post."}
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted">
-            <span>{authorName(worthYourTime.user)}</span>
-            <span>{worthYourTime.commentCount} comment{worthYourTime.commentCount === 1 ? "" : "s"}</span>
-            <span>{worthYourTime.likeCount} like{worthYourTime.likeCount === 1 ? "" : "s"}</span>
-          </div>
-        </Link>
-
-        <div className="space-y-3">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Recent movement</p>
-          {recentMovement.map((post) => (
-            <Link
-              key={post.id}
-              href={buildCommunityFeedPostPath(channelSlug, post.id)}
-              className="block rounded-xl border border-silver/14 bg-background/18 px-4 py-3 transition-colors hover:border-silver/26 hover:bg-background/28"
-            >
-              <p className="text-sm font-medium text-foreground">{post.title}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted">
-                <span>{post.commentCount} comment{post.commentCount === 1 ? "" : "s"}</span>
-                <span>{post.likeCount} like{post.likeCount === 1 ? "" : "s"}</span>
-                <span className="text-silver">{formatDate(post.createdAt)}</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+const ADMIN_PROMPTS = [
+  "Ask members what they are working on this week",
+  "Invite members to share one thing they want feedback on",
+  "Start a weekly wins thread",
+  "Start a what are you building thread",
+  "Ask for one useful connection members would like"
+];
 
 export function CommunityFeed({
   feed,
   upcomingEvents,
   membershipTier,
   currentUserName,
+  currentUserImage,
   currentUserId,
   viewerCanContinuePrivately,
   initialExpandedPostId,
-  featuredConnectionWin,
   viewerIsAdmin = false
 }: CommunityFeedProps) {
   if (!feed.selectedChannel) {
@@ -155,253 +81,156 @@ export function CommunityFeed({
     limit: 3
   });
   const activeRoomCount = countActiveItems(feed.channels);
-  const isSelectedRoomActive = isActivityCurrent(selectedChannel.lastActivityAt);
   const rankedPosts = rankPostsByMomentum(feed.posts);
   const topThread = rankedPosts[0] ?? null;
   const recentlyHappening = rankedPosts.slice(0, 3);
   const contributingMemberCount = countUniqueContributors(feed.posts);
+  const helperLine =
+    roomGuidance?.shortIntro ??
+    `${selectedChannel.name} is for useful member conversations in this room.`;
   const emptyState = roomGuidance?.emptyState ?? {
     title: "This room is quiet so far",
-    description:
-      "Start with a clear question, lesson, or decision so the first replies have something useful to build on."
+    description: "Start with a clear question, lesson, or decision."
   };
-  const bestPlaceToStart = feed.posts.length
+  const bestPlaceToStart = topThread
     ? {
-        title: "Read the strongest thread first",
-        description:
-          "Start with the discussion marked worth your time, then reply where you can add something useful.",
-        href: buildCommunityFeedPostPath(selectedChannel.slug, topThread?.id ?? feed.posts[0].id),
-        label: "Open current thread"
+        title: topThread.title,
+        detail: `${topThread.commentCount} comment${topThread.commentCount === 1 ? "" : "s"} and ${topThread.likeCount} like${topThread.likeCount === 1 ? "" : "s"}`,
+        href: buildCommunityFeedPostPath(selectedChannel.slug, topThread.id),
+        label: "Open"
       }
     : roomPromptSuggestions[0]
       ? {
-          title: "Use a prompt to start the room cleanly",
-          description:
-            "If you have something useful to contribute, begin with a prompt that fits the conversation style here.",
+          title: roomPromptSuggestions[0].title,
+          detail: selectedChannel.name,
           href: buildCommunityChannelPath(selectedChannel.slug),
-          label: "Start a conversation"
+          label: "Start"
         }
       : {
-          title: "Settle into the room first",
-          description:
-            "Scan the room description, then add a clear post when you have a useful question, lesson, or decision to share.",
+          title: selectedChannel.name,
+          detail: "Pick up the first useful conversation here.",
           href: buildCommunityChannelPath(selectedChannel.slug),
-          label: "Stay in this room"
+          label: "Stay here"
         };
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="space-y-5">
-        <Card className="border-silver/22 bg-gradient-to-br from-silver/12 via-card/84 to-card/72">
-          <CardHeader>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Selected room</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <CardTitle className="text-3xl">{selectedChannel.name}</CardTitle>
-                  <MembershipTierBadge tier={selectedChannel.accessTier} />
-                  {selectedChannel.isPrivate ? (
-                    <Badge variant="outline" className="border-silver/18 bg-silver/10 text-silver">
-                      <Lock size={11} className="mr-1" />
-                      Private area
-                    </Badge>
-                  ) : null}
-                </div>
-                <CardDescription className="max-w-3xl text-base">
-                  {selectedChannel.description || selectedChannel.topic || "Business discussion room"}
-                </CardDescription>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="border-silver/18 text-silver">
-                  {selectedChannel.postCount} {selectedChannel.postCount === 1 ? "post" : "posts"}
-                </Badge>
-                {activeRoomCount ? (
-                  <Badge variant="outline" className="border-silver/18 bg-silver/10 text-silver">
-                    {activeRoomCount} room{activeRoomCount === 1 ? "" : "s"} active now
-                  </Badge>
-                ) : null}
-                {contributingMemberCount ? (
-                  <Badge variant="outline" className="border-silver/18 text-silver">
-                    {contributingMemberCount} member{contributingMemberCount === 1 ? "" : "s"} contributing
-                  </Badge>
-                ) : null}
-                {isSelectedRoomActive ? (
-                  <Badge variant="outline" className="border-gold/24 bg-gold/10 text-gold">
-                    Active right now
-                  </Badge>
-                ) : null}
-                {selectedChannel.lastActivityAt ? (
-                  <Badge variant="outline" className="border-silver/18 text-silver">
-                    Active {formatDate(selectedChannel.lastActivityAt)}
-                  </Badge>
-                ) : null}
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {roomGuidance ? (
-          <RoomGuidanceCard
-            guidance={roomGuidance}
-            roomSlug={selectedChannel.slug}
-            ctaHref={showComposer ? "#start-community-post" : roomGuidance.pinnedCtaAction?.href}
-            showCta={showComposer || Boolean(roomGuidance.pinnedCtaAction?.href)}
-          />
-        ) : null}
-
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <main className="min-w-0 space-y-4">
         {showComposer ? (
           <ConversationComposer
             id="start-community-post"
             channelName={selectedChannel.name}
             channelSlug={selectedChannel.slug}
+            channels={feed.channels}
             currentUserName={currentUserName}
+            currentUserImage={currentUserImage}
             prompts={roomPromptSuggestions}
           />
         ) : (
-          <Card className="border-silver/22 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
-            <CardHeader>
-              <CardTitle className="text-2xl">
-                {selectedChannel.isAutomatedFeed
-                  ? "Curated BCN updates"
-                  : "Posting is handled centrally here"}
-              </CardTitle>
-              <CardDescription className="max-w-3xl text-sm leading-relaxed">
-                {selectedChannel.isAutomatedFeed
-                  ? "This room publishes BCN-curated updates automatically. Members across every tier can still comment, reply, and build a real public discussion underneath each update."
-                  : "Top-level threads are managed centrally in this room, but comments and replies still work normally on the discussions already here."}
-              </CardDescription>
-            </CardHeader>
+          <Card className="rounded-xl border-silver/18 bg-card/66">
+            <CardContent className="flex items-start gap-3 p-4">
+              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-silver/18 bg-silver/10 text-silver">
+                <Lock size={14} />
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-foreground">{selectedChannel.name}</p>
+                  <MembershipTierBadge tier={selectedChannel.accessTier} />
+                </div>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  Top-level posts are managed here, but comments and replies stay open on existing discussions.
+                </p>
+              </div>
+            </CardContent>
           </Card>
         )}
 
-        {isEarlyRoom ? (
-          <Card className="border-gold/20 bg-gradient-to-br from-gold/10 via-card/72 to-card/62">
-            <CardContent className="py-4">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                Early room signal
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                This room is still early. That is not a weakness, it is the first layer of
-                the network being built. The first few posts shape the standard for everyone
-                who comes next.
-              </p>
-            </CardContent>
-          </Card>
-        ) : null}
+        <div className="space-y-2 px-1">
+          <p className="text-sm leading-relaxed text-muted">{helperLine}</p>
+          {roomGuidance ? (
+            <RoomGuidanceCard
+              guidance={roomGuidance}
+              roomSlug={`feed:${selectedChannel.slug}`}
+              defaultCollapsed
+              compact
+              showCta={false}
+            />
+          ) : null}
+        </div>
 
-        <FeedActivitySnapshot channelSlug={selectedChannel.slug} posts={feed.posts} />
+        {isEarlyRoom ? (
+          <p className="rounded-lg border border-gold/18 bg-gold/10 px-3 py-2 text-sm text-gold/90">
+            This room is early. The first few posts shape the standard for everyone who joins next.
+          </p>
+        ) : null}
 
         {feed.posts.length ? (
           <CommunityPostFeedList
             posts={feed.posts}
             channelSlug={selectedChannel.slug}
+            channelName={selectedChannel.name}
             currentUserId={currentUserId}
             viewerCanContinuePrivately={viewerCanContinuePrivately}
             initialExpandedPostId={initialExpandedPostId}
           />
         ) : (
-          <EmptyState
-            icon={MessagesSquare}
-            title={emptyState.title}
-            description={emptyState.description}
-            action={
-              showComposer ? (
-                <a href="#start-community-post">
-                  <Button variant="outline">
-                    {roomGuidance?.pinnedCtaLabel ?? "Start a conversation"}
-                  </Button>
-                </a>
-              ) : null
-            }
-          />
+          <div className="rounded-xl border border-dashed border-silver/18 bg-card/48 px-4 py-5">
+            <div className="flex items-start gap-3">
+              <MessagesSquare size={18} className="mt-0.5 shrink-0 text-silver" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">{emptyState.title}</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted">{emptyState.description}</p>
+                {showComposer ? (
+                  <a href="#start-community-post" className="mt-3 inline-flex">
+                    <Button size="sm" variant="outline">
+                      Post here
+                    </Button>
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          </div>
         )}
-      </div>
+      </main>
 
-      <div className="space-y-5">
-        <Card className="border-silver/16 bg-card/62">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Sparkles size={16} className="text-silver" />
+      <aside className="min-w-0 space-y-4 xl:sticky xl:top-24 xl:self-start">
+        <Card className="rounded-xl border-silver/16 bg-card/60">
+          <CardHeader className="px-4 py-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Sparkles size={15} className="text-silver" />
               Best place to start
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm leading-relaxed text-muted">
-            <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Recommended for you</p>
-              <p className="mt-3 text-base font-semibold text-foreground">{bestPlaceToStart.title}</p>
-              <p className="mt-2 text-sm text-muted">{bestPlaceToStart.description}</p>
-              <Link
-                href={bestPlaceToStart.href}
-                className="mt-4 inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
-              >
-                {bestPlaceToStart.label}
-              </Link>
-            </div>
-
-            <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Next step</p>
-              <p className="mt-3 text-sm text-muted">
-                Keep titles clear, reply where you can add real context, and let the strongest discussions stay easy to revisit later.
-              </p>
-            </div>
+          <CardContent className="px-4 pb-4 pt-0">
+            <Link
+              href={bestPlaceToStart.href}
+              className="block rounded-lg border border-silver/14 bg-background/18 px-3 py-3 transition-colors hover:border-silver/26 hover:bg-background/28"
+            >
+              <p className="text-sm font-medium text-foreground">{bestPlaceToStart.title}</p>
+              <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted">
+                <span>{bestPlaceToStart.detail}</span>
+                <span className="text-silver">{bestPlaceToStart.label}</span>
+              </div>
+            </Link>
           </CardContent>
         </Card>
 
-        {showAdminStarterSuggestions ? (
-          <Card className="border-gold/24 bg-gradient-to-br from-gold/10 via-card/70 to-card/62">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <MessageSquareText size={16} className="text-gold" />
-                Admin starter prompts
-              </CardTitle>
-              <CardDescription>
-                Private suggestions for starting a quiet room without making it feel forced.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                "Ask members what they are working on this week",
-                "Invite members to share one thing they want feedback on",
-                "Start a weekly wins thread",
-                "Start a what are you building thread",
-                "Ask for one useful connection members would like"
-              ].map((suggestion) => (
-                <p
-                  key={suggestion}
-                  className="rounded-xl border border-silver/14 bg-background/18 px-3 py-3 text-sm leading-relaxed text-muted"
-                >
-                  {suggestion}
-                </p>
-              ))}
-              <a href="#start-community-post">
-                <Button variant="outline" className="w-full border-gold/24 text-gold hover:border-gold/40">
-                  Start a room prompt
-                </Button>
-              </a>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        <Card className="border-silver/16 bg-card/62">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <ActivitySignal />
+        <Card className="rounded-xl border-silver/16 bg-card/60">
+          <CardHeader className="px-4 py-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Sparkles size={15} className="text-silver" />
               Recently happening
             </CardTitle>
-            <CardDescription>
-              A cleaner read on active now, members contributing, and the threads carrying the best signal.
-            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
+          <CardContent className="space-y-3 px-4 pb-4 pt-0">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-silver/14 bg-background/18 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Active now</p>
-                <p className="mt-2 text-xl font-semibold text-foreground">{activeRoomCount || 0}</p>
+                <p className="mt-1 text-lg font-semibold text-foreground">{activeRoomCount}</p>
               </div>
-              <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Members contributing</p>
-                <p className="mt-2 text-xl font-semibold text-foreground">{contributingMemberCount}</p>
+              <div className="rounded-lg border border-silver/14 bg-background/18 px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Members</p>
+                <p className="mt-1 text-lg font-semibold text-foreground">{contributingMemberCount}</p>
               </div>
             </div>
 
@@ -410,111 +239,95 @@ export function CommunityFeed({
                 <Link
                   key={post.id}
                   href={buildCommunityFeedPostPath(selectedChannel.slug, post.id)}
-                  className="block rounded-xl border border-silver/14 bg-background/18 px-4 py-3 transition-colors hover:border-silver/26 hover:bg-background/28"
+                  className="block rounded-lg border border-silver/14 bg-background/18 px-3 py-3 transition-colors hover:border-silver/26 hover:bg-background/28"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-foreground">{post.title}</p>
-                    <span className="text-xs text-muted">
-                      {getFreshnessSignal(post.createdAt, {
-                        withinDayLabel: "Active today",
-                        withinWeekLabel: "Updated this week",
-                        fallbackPrefix: "Updated"
-                      }).label}
+                  <p className="line-clamp-2 text-sm font-medium text-foreground">{post.title}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+                    <span>
+                      {
+                        getFreshnessSignal(post.createdAt, {
+                          withinDayLabel: "Active today",
+                          withinWeekLabel: "This week",
+                          fallbackPrefix: "Updated"
+                        }).label
+                      }
                     </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted">
-                    <span>{post.commentCount} comment{post.commentCount === 1 ? "" : "s"}</span>
-                    <span>{post.likeCount} like{post.likeCount === 1 ? "" : "s"}</span>
+                    <span>{post.commentCount} comments</span>
                   </div>
                 </Link>
               ))
             ) : (
-              <p className="rounded-xl border border-dashed border-silver/14 bg-background/14 px-3 py-3 text-xs text-muted">
-                New room activity will appear here as members start contributing.
+              <p className="rounded-lg border border-dashed border-silver/14 bg-background/14 px-3 py-3 text-sm text-muted">
+                New room activity will appear here.
               </p>
             )}
           </CardContent>
         </Card>
 
-        {featuredConnectionWin ? (
-          <Card className="border-silver/16 bg-card/62">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <CheckCircle2 size={16} className="text-silver" />
-                Recent win
-              </CardTitle>
-              <CardDescription>
-                A quiet example of something useful that moved because a good connection or conversation happened here.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-2xl border border-silver/14 bg-background/18 px-4 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-full border border-silver/15 bg-silver/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                    {featuredConnectionWin.channel.name}
-                  </span>
-                  <span className="text-xs text-muted">
-                    {
-                      getFreshnessSignal(featuredConnectionWin.createdAt, {
-                        withinDayLabel: "Shared today",
-                        withinWeekLabel: "Updated this week",
-                        fallbackPrefix: "Shared"
-                      }).label
-                    }
-                  </span>
-                </div>
-                <p className="mt-3 text-sm font-medium text-foreground">{featuredConnectionWin.title}</p>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
-                  {buildCommunityPostPreview(featuredConnectionWin.content, featuredConnectionWin.tags)}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted">
-                  <span>{authorName(featuredConnectionWin.user)}</span>
-                  <span>{formatDate(featuredConnectionWin.createdAt)}</span>
-                </div>
-                <Link
-                  href={buildCommunityPostPath(
-                    featuredConnectionWin.id,
-                    featuredConnectionWin.channel.slug
-                  )}
-                  className="mt-4 inline-flex items-center gap-2 text-sm text-silver transition-colors hover:text-foreground"
-                >
-                  Read the full win
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        <Card className="border-silver/16 bg-card/62">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <CalendarDays size={16} className="text-silver" />
+        <Card className="rounded-xl border-silver/16 bg-card/60">
+          <CardHeader className="px-4 py-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <CalendarDays size={15} className="text-silver" />
               Upcoming events
             </CardTitle>
-            <CardDescription>
-              Relevant member sessions and live conversations across the platform.
-            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 px-4 pb-4 pt-0">
             {upcomingEvents.length ? (
-              upcomingEvents.map((event) => (
+              upcomingEvents.slice(0, 3).map((event) => (
                 <EventCard key={event.id} event={event} variant="compact" />
               ))
             ) : (
               <p className="text-sm text-muted">No upcoming events are scheduled yet.</p>
             )}
             <Link href="/events">
-              <Button variant="outline" className="w-full border-silver/16 hover:border-silver/28">
-                View all events
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-silver/16 hover:border-silver/28"
+              >
+                View events
               </Button>
             </Link>
           </CardContent>
         </Card>
-      </div>
+
+        {showAdminStarterSuggestions ? (
+          <Card className="rounded-xl border-gold/18 bg-card/54">
+            <CardContent className="p-4">
+              <details>
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                    <MessageSquareText size={15} className="text-gold" />
+                    Admin prompts
+                  </span>
+                  <span className="rounded-lg border border-gold/24 bg-gold/10 px-3 py-1.5 text-xs text-gold">
+                    Open prompts
+                  </span>
+                </summary>
+                <div className="mt-3 space-y-2">
+                  {ADMIN_PROMPTS.map((suggestion) => (
+                    <p
+                      key={suggestion}
+                      className="rounded-lg border border-silver/14 bg-background/18 px-3 py-2 text-sm leading-relaxed text-muted"
+                    >
+                      {suggestion}
+                    </p>
+                  ))}
+                  <a href="#start-community-post" className="inline-flex w-full">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-gold/24 text-gold hover:border-gold/40"
+                    >
+                      Start a prompt
+                    </Button>
+                  </a>
+                </div>
+              </details>
+            </CardContent>
+          </Card>
+        ) : null}
+      </aside>
     </div>
   );
-}
-
-function ActivitySignal() {
-  return <Sparkles size={16} className="text-silver" />;
 }

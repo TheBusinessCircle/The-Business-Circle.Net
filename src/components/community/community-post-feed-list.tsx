@@ -18,7 +18,6 @@ import {
   CommunitySourcePreview,
   CommunityPostTags
 } from "@/components/community/community-post-discussion";
-import { CommunityUserSignals } from "@/components/community/community-user-signals";
 import {
   authorName,
   buildCommunityPostPreview,
@@ -41,6 +40,7 @@ import { BCN_UPDATES_CHANNEL_SLUG } from "@/config/community";
 type CommunityPostFeedListProps = {
   posts: CommunityPostSummaryModel[];
   channelSlug: string;
+  channelName?: string;
   currentUserId: string;
   viewerCanContinuePrivately: boolean;
   initialExpandedPostId?: string | null;
@@ -50,6 +50,7 @@ type CommunityPostFeedListProps = {
 export function CommunityPostFeedList({
   posts,
   channelSlug,
+  channelName,
   currentUserId,
   viewerCanContinuePrivately,
   initialExpandedPostId,
@@ -167,7 +168,7 @@ export function CommunityPostFeedList({
   const isBcnUpdatesFeed = channelSlug === BCN_UPDATES_CHANNEL_SLUG;
 
   return (
-    <div className="bcn-overflow-safe space-y-5">
+    <div className="bcn-overflow-safe space-y-4">
       {posts.map((post, index) => {
         const isExpanded = expandedPostId === post.id;
         const detail = detailsById[post.id];
@@ -187,7 +188,7 @@ export function CommunityPostFeedList({
           <Card
             key={post.id}
             className={cn(
-              "border-silver/14 bg-card/68 shadow-panel-soft transition-all duration-200",
+              "rounded-xl border-silver/14 bg-card/66 shadow-panel-soft transition-all duration-200",
               "hover:border-silver/24 hover:bg-card/74",
               isExpanded ? "border-silver/26" : "",
               isFeaturedSignal
@@ -195,7 +196,7 @@ export function CommunityPostFeedList({
                 : ""
             )}
           >
-            <CardHeader className="space-y-4 px-4 sm:px-7">
+            <CardHeader className="space-y-3 px-4 py-4 sm:px-5">
               {isBcnUpdatesFeed ? (
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                   <Badge variant="outline" className="whitespace-normal border-gold/24 bg-gold/10 text-gold">
@@ -210,17 +211,18 @@ export function CommunityPostFeedList({
                 <div className="flex items-start gap-3">
                   <Link
                     href={buildMemberProfilePath(post.user.id)}
-                    className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl transition-colors hover:text-foreground"
+                    className="flex min-w-0 flex-1 items-start gap-3 rounded-lg transition-colors hover:text-foreground"
                   >
-                    <Avatar name={displayName} image={post.user.image} className="h-11 w-11" />
+                    <Avatar name={displayName} image={post.user.image} className="h-10 w-10" />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-base font-medium text-foreground">{displayName}</p>
+                        <p className="min-w-0 break-words text-sm font-medium text-foreground">
+                          {displayName}
+                        </p>
                         <MembershipTierBadge tier={post.user.membershipTier} className="shrink-0" />
                         <FoundingBadge tier={post.user.foundingTier} />
                         {postKindBadge(post.kind, post.tags)}
                       </div>
-                      <CommunityUserSignals user={post.user} />
                       <p className="mt-1 text-xs text-muted">{formatDate(post.createdAt)}</p>
                     </div>
                   </Link>
@@ -280,7 +282,19 @@ export function CommunityPostFeedList({
                       ) : null}
                     </div>
                   ) : null}
-                  <CardTitle className="text-xl leading-tight sm:text-2xl">{post.title}</CardTitle>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {channelName ? (
+                      <Badge
+                        variant="outline"
+                        className="border-silver/16 bg-background/18 normal-case tracking-normal text-silver"
+                      >
+                        {channelName}
+                      </Badge>
+                    ) : null}
+                    <CardTitle className="min-w-0 flex-1 text-lg leading-tight sm:text-xl">
+                      {post.title}
+                    </CardTitle>
+                  </div>
                   {parsedBcn ? (
                     <div className="space-y-3">
                       <CommunitySourcePreview
@@ -332,10 +346,10 @@ export function CommunityPostFeedList({
                       </p>
                     </div>
                   ) : (
-                    <p className="line-clamp-3 text-sm leading-7 text-foreground/85">{preview}</p>
+                    <p className="line-clamp-3 text-sm leading-relaxed text-foreground/85">{preview}</p>
                   )}
                   <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
-                    <span>{isExpanded ? "Collapse inline view" : "Read inline"}</span>
+                    <span>{isExpanded ? "Collapse" : "Read"}</span>
                     {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
                 </div>
@@ -344,17 +358,17 @@ export function CommunityPostFeedList({
               {!isExpanded ? <CommunityPostTags tags={post.tags} /> : null}
             </CardHeader>
 
-            <CardContent className="space-y-5 px-4 sm:px-7">
+            <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:px-5">
               {!isExpanded ? (
                 <CommunityPostEngagementBar
                   post={post}
                   discussionHref={detailPath}
-                  discussionLabel="Open full discussion"
+                  discussionLabel="Open"
                   onReplyClick={() => {
                     setExpandedPostId(post.id);
                     syncExpandedStateToUrl(post.id);
                   }}
-                  replyLabel="Reply inline"
+                  replyLabel="Reply"
                 />
               ) : null}
 
@@ -369,28 +383,28 @@ export function CommunityPostFeedList({
                       <CommunityPostEngagementBar
                         post={engagementPost}
                         discussionHref={detailPath}
-                        discussionLabel="Open full discussion"
+                        discussionLabel="Open"
                         onReplyClick={() => {
                           document.getElementById("discussion-reply")?.scrollIntoView({
                             behavior: "smooth",
                             block: "start"
                           });
                         }}
-                        replyLabel="Reply below"
+                        replyLabel="Reply"
                       />
                     </>
                   ) : (
                     <CommunityPostEngagementBar
                       post={engagementPost}
                       discussionHref={detailPath}
-                      discussionLabel="Open full discussion"
+                      discussionLabel="Open"
                       onReplyClick={() => {
                         document.getElementById(`community-post-panel-${post.id}`)?.scrollIntoView({
                           behavior: "smooth",
                           block: "start"
                         });
                       }}
-                      replyLabel="Reply below"
+                      replyLabel="Reply"
                     />
                   )}
 

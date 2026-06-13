@@ -54,6 +54,30 @@ const toggleCommentLikeSchema = z.object({
   commentId: z.string().cuid()
 });
 
+function deriveCommunityPostTitle(input: { title: string; content: string }) {
+  const explicitTitle = input.title.trim();
+  if (explicitTitle) {
+    return explicitTitle;
+  }
+
+  const firstLine =
+    input.content
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean) ?? "";
+
+  const fallbackTitle = firstLine.length >= 4 ? firstLine : "Member update";
+
+  if (fallbackTitle.length <= 160) {
+    return fallbackTitle;
+  }
+
+  const truncated = fallbackTitle.slice(0, 157);
+  const lastSpace = truncated.lastIndexOf(" ");
+
+  return `${truncated.slice(0, lastSpace > 80 ? lastSpace : truncated.length).trim()}...`;
+}
+
 function appendQueryParam(path: string, key: string, value: string): string {
   const url = new URL(path, "http://localhost");
   url.searchParams.set(key, value);
@@ -94,12 +118,17 @@ function revalidateCommunitySurfaces(extraPaths: string[] = []) {
 
 export async function createCommunityPostAction(formData: FormData) {
   const session = await requireUser();
+  const rawTitle = String(formData.get("title") || "");
+  const rawContent = String(formData.get("content") || "");
 
   const parsed = createPostSchema.safeParse({
     returnPath: String(formData.get("returnPath") || ""),
     channelSlug: String(formData.get("channelSlug") || ""),
-    title: String(formData.get("title") || ""),
-    content: String(formData.get("content") || ""),
+    title: deriveCommunityPostTitle({
+      title: rawTitle,
+      content: rawContent
+    }),
+    content: rawContent,
     tags: String(formData.get("tags") || "")
   });
 

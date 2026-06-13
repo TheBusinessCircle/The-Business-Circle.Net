@@ -71,9 +71,11 @@ async function toggleCommentLike(commentId: string): Promise<LikeMutationResult>
 }
 
 export function CommunityPostTags({ tags }: { tags: string[] }) {
-  const visibleTags = getVisibleCommunityTags(
+  const allVisibleTags = getVisibleCommunityTags(
     tags.filter((tag) => !CONNECTION_WIN_INTERNAL_TAGS.has(tag))
   );
+  const visibleTags = allVisibleTags.slice(0, 2);
+  const hiddenTagCount = Math.max(0, allVisibleTags.length - visibleTags.length);
   const showConnectionWin = isConnectionWinTags(tags);
 
   if (!visibleTags.length && !showConnectionWin) {
@@ -99,6 +101,14 @@ export function CommunityPostTags({ tags }: { tags: string[] }) {
           {getBcnTagLabel(tag)}
         </Badge>
       ))}
+      {hiddenTagCount ? (
+        <Badge
+          variant="outline"
+          className="border-silver/14 bg-background/16 normal-case tracking-normal text-muted"
+        >
+          +{hiddenTagCount} more
+        </Badge>
+      ) : null}
     </div>
   );
 }
@@ -587,14 +597,14 @@ export function CommunityPostEngagementBar({
   }, [post.likeCount, post.viewerHasLiked]);
 
   return (
-    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
       <Button
         type="button"
         size="sm"
         variant={viewerHasLiked ? "default" : "outline"}
         disabled={isPending}
         aria-pressed={viewerHasLiked}
-        className="min-h-11 w-full gap-2 whitespace-normal sm:w-auto"
+        className="min-h-9 gap-2 whitespace-nowrap"
         onClick={() => {
           const nextLiked = !viewerHasLiked;
           const nextLikeCount = Math.max(0, likeCount + (nextLiked ? 1 : -1));
@@ -620,7 +630,7 @@ export function CommunityPostEngagementBar({
         </span>
       </Button>
 
-      <span className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-silver/16 bg-silver/10 px-3 py-1.5 text-sm text-silver sm:w-auto">
+      <span className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-silver/16 bg-silver/10 px-3 py-1.5 text-sm text-silver">
         <MessagesSquare size={14} />
         {post.commentCount} {post.commentCount === 1 ? "comment" : "comments"}
       </span>
@@ -630,19 +640,19 @@ export function CommunityPostEngagementBar({
           type="button"
           size="sm"
           variant="outline"
-          className="min-h-11 w-full gap-2 whitespace-normal border-silver/16 text-silver hover:border-silver/28 hover:text-foreground sm:w-auto"
+          className="min-h-9 gap-2 whitespace-nowrap border-silver/16 text-silver hover:border-silver/28 hover:text-foreground"
           onClick={onReplyClick}
         >
           <MessageSquareReply size={13} />
           {replyLabel}
         </Button>
       ) : replyHref ? (
-        <Link href={replyHref} className="inline-flex w-full sm:w-auto">
+        <Link href={replyHref} className="inline-flex">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="min-h-11 w-full gap-2 whitespace-normal border-silver/16 text-silver hover:border-silver/28 hover:text-foreground sm:w-auto"
+            className="min-h-9 gap-2 whitespace-nowrap border-silver/16 text-silver hover:border-silver/28 hover:text-foreground"
           >
             <MessageSquareReply size={13} />
             {replyLabel}
@@ -651,12 +661,12 @@ export function CommunityPostEngagementBar({
       ) : null}
 
       {discussionHref ? (
-        <Link href={discussionHref} className="inline-flex w-full sm:w-auto">
+        <Link href={discussionHref} className="inline-flex">
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            className="min-h-11 w-full gap-2 whitespace-normal px-3 text-silver hover:text-foreground sm:w-auto"
+            className="min-h-9 gap-2 whitespace-nowrap px-3 text-silver hover:text-foreground"
           >
             {discussionLabel}
             <ExternalLink size={13} />

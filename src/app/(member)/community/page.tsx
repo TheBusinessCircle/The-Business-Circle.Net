@@ -3,28 +3,24 @@ import { redirect } from "next/navigation";
 import { MessageSquareText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { VisualPlacementBackground } from "@/components/visual-media";
-import { FirstThreeMovesCard } from "@/components/member/first-three-moves-card";
 import {
   CommunityFeed,
   CommunityFeedNav
 } from "@/components/community";
 import { isStandaloneCommunityChannelSlug } from "@/config/community";
 import { buildCommunityChannelPath, buildCommunityFeedPostPath } from "@/lib/community-paths";
+import { countActiveItems, countUniqueContributors } from "@/lib/community-rhythm";
 import { roleToTier } from "@/lib/permissions";
-import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireUser } from "@/lib/session";
 import { allowedResourceTiers } from "@/lib/db/access";
 import {
   ensureCommunityChannels,
   getCommunityFeedPage,
-  listRecentConnectionWinsForTiers,
   listUpcomingEventsForTier,
   maybePublishBcnCuratedPosts,
   maybePublishQuietCommunityPrompt
 } from "@/server/community";
-import { getVisualMediaPlacement } from "@/server/visual-media";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -108,60 +104,14 @@ export default async function CommunityPage({ searchParams }: PageProps) {
 
   const [
     feed,
-    upcomingEvents,
-    recentConnectionWins,
-    communityHeroPlacement,
-    memberIntroductionPost,
-    memberUsefulPost,
-    latestMemberComment
+    upcomingEvents
   ] = await Promise.all([
     getCommunityFeedPage({
       tiers,
       selectedSlug: selectedSlugRaw,
       viewerUserId: session.user.id
     }),
-    listUpcomingEventsForTier(tiers, 4),
-    listRecentConnectionWinsForTiers({
-      tiers,
-      viewerUserId: session.user.id,
-      take: 1
-    }),
-    getVisualMediaPlacement("community.hero"),
-    prisma.communityPost.findFirst({
-      where: {
-        userId: session.user.id,
-        deletedAt: null,
-        channel: {
-          slug: "introductions"
-        }
-      },
-      select: {
-        id: true
-      }
-    }),
-    prisma.communityPost.findFirst({
-      where: {
-        userId: session.user.id,
-        deletedAt: null,
-        NOT: {
-          channel: {
-            slug: "introductions"
-          }
-        }
-      },
-      select: {
-        id: true
-      }
-    }),
-    prisma.communityComment.findFirst({
-      where: {
-        userId: session.user.id,
-        deletedAt: null
-      },
-      select: {
-        id: true
-      }
-    })
+    listUpcomingEventsForTier(tiers, 4)
   ]);
 
   if (!feed.selectedChannel) {
@@ -178,30 +128,39 @@ export default async function CommunityPage({ searchParams }: PageProps) {
     notice: firstValue(params.notice),
     error: firstValue(params.error)
   });
-  const hasIntroduced = Boolean(memberIntroductionPost);
-  const hasStartedUsefulPost = Boolean(memberUsefulPost);
-  const hasSupportedAnotherMember = Boolean(latestMemberComment);
-  const firstThreeMovesComplete =
-    hasIntroduced && hasStartedUsefulPost && hasSupportedAnotherMember;
-  const firstPostToExplore =
-    feed.posts.find((post) => post.user.id !== session.user.id) ?? feed.posts[0] ?? null;
-  const firstThreeMovesExploreHref = firstPostToExplore
-    ? buildCommunityFeedPostPath(feed.selectedChannel.slug, firstPostToExplore.id)
-    : buildCommunityChannelPath(feed.selectedChannel.slug);
+  const totalPostCount = feed.channels.reduce((total, channel) => total + channel.postCount, 0);
+  const activeNowCount = countActiveItems(feed.channels);
+  const contributingMemberCount = countUniqueContributors(feed.posts);
 
   return (
     <div className="member-page-stack">
-      <Card className="relative overflow-hidden border-silver/24 bg-gradient-to-br from-silver/12 via-card/82 to-card/72">
-        <VisualPlacementBackground placement={communityHeroPlacement} tone="structured" />
-        <CardHeader className="relative z-[1]">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Member discussions</p>
-          <CardTitle className="font-display text-3xl">Structured discussions</CardTitle>
-          <p className="max-w-4xl text-sm leading-relaxed text-muted">
-            A calmer discussion space for business owners who want stronger context, more useful replies,
-            and less noise than live chat. Choose a room, open the strongest thread, or start a discussion when you have something worth placing in front of the group.
-          </p>
+      <Card className="overflow-hidden rounded-xl border-silver/18 bg-card/62">
+        <CardHeader className="gap-4 px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0 space-y-2">
+              <CardTitle className="font-display text-2xl sm:text-3xl">Community</CardTitle>
+              <p className="max-w-3xl text-sm leading-relaxed text-muted">
+                Useful conversations, wins, questions and introductions from members.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-muted">
+              <span className="rounded-full border border-silver/14 bg-background/20 px-3 py-1.5">
+                {totalPostCount} {totalPostCount === 1 ? "post" : "posts"}
+              </span>
+              {contributingMemberCount ? (
+                <span className="rounded-full border border-silver/14 bg-background/20 px-3 py-1.5">
+                  {contributingMemberCount} contributing
+                </span>
+              ) : null}
+              {activeNowCount ? (
+                <span className="rounded-full border border-gold/24 bg-gold/10 px-3 py-1.5 text-gold">
+                  {activeNowCount} active now
+                </span>
+              ) : null}
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="relative z-[1] pt-0">
+        <CardContent className="px-4 pb-4 pt-0 sm:px-6">
           <CommunityFeedNav
             channels={feed.channels}
             selectedSlug={feed.selectedChannel.slug}
@@ -229,26 +188,17 @@ export default async function CommunityPage({ searchParams }: PageProps) {
         </Card>
       ) : null}
 
-      {!firstThreeMovesComplete ? (
-        <FirstThreeMovesCard
-          hasIntroduced={hasIntroduced}
-          hasStartedUsefulPost={hasStartedUsefulPost}
-          hasSupportedAnotherMember={hasSupportedAnotherMember}
-          exploreHref={firstThreeMovesExploreHref}
-        />
-      ) : null}
-
       <CommunityFeed
         feed={feed}
         upcomingEvents={upcomingEvents}
         membershipTier={effectiveTier}
         currentUserName={session.user.name}
+        currentUserImage={session.user.image}
         currentUserId={session.user.id}
         viewerCanContinuePrivately={
           Boolean(session.user.emailVerified) || session.user.role === "ADMIN"
         }
         initialExpandedPostId={expandedPostId}
-        featuredConnectionWin={recentConnectionWins[0] ?? null}
         viewerIsAdmin={session.user.role === "ADMIN"}
       />
     </div>

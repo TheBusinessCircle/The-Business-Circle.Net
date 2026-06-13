@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { Lock, Sparkles } from "lucide-react";
 import type { CommunityFeedChannelModel } from "@/types";
-import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { buildCommunityChannelPath } from "@/lib/community-paths";
-import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 type CommunityFeedNavProps = {
   channels: CommunityFeedChannelModel[];
@@ -16,61 +14,35 @@ export function CommunityFeedNav({
   selectedSlug
 }: CommunityFeedNavProps) {
   return (
-    <div className="overflow-x-auto pb-1">
-      <div className="flex min-w-max gap-3">
+    <nav className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:overflow-visible sm:px-0" aria-label="Community rooms">
+      <div className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
         {channels.map((channel) => {
           const isActive = channel.slug === selectedSlug;
-          const guidance = getCommunityRoomGuidance(channel.slug);
 
           return (
             <Link
               key={channel.id}
               href={buildCommunityChannelPath(channel.slug)}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "group min-w-[252px] rounded-2xl border px-4 py-3 transition-all duration-200",
+                "inline-flex min-h-10 items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors",
                 isActive
-                  ? "border-silver/28 bg-gradient-to-br from-silver/12 via-card/88 to-card/72 shadow-panel-soft"
-                  : "border-silver/14 bg-card/55 hover:border-silver/24 hover:bg-card/72"
+                  ? "border-gold/35 bg-gold/12 text-gold shadow-gold-soft"
+                  : "border-silver/14 bg-background/18 text-muted hover:border-silver/26 hover:text-foreground"
               )}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{channel.name}</p>
-                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
-                    {guidance?.shortIntro ||
-                      channel.description ||
-                      channel.topic ||
-                      "Structured member discussion room"}
-                  </p>
-                </div>
-                {channel.isPrivate ? (
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-silver/18 bg-silver/10 text-silver">
-                    <Lock size={13} />
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <MembershipTierBadge tier={channel.accessTier} className="shrink-0" />
-                {channel.isAutomatedFeed ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-gold/24 bg-gold/10 px-2 py-0.5 text-[11px] text-gold">
-                    <Sparkles size={11} />
-                    Curated
-                  </span>
-                ) : null}
-                <span className="text-[11px] text-muted">
-                  {channel.postCount} {channel.postCount === 1 ? "post" : "posts"}
+              <span className="whitespace-nowrap">{channel.name}</span>
+              {channel.isPrivate ? <Lock size={13} className="shrink-0" /> : null}
+              {channel.isAutomatedFeed ? <Sparkles size={13} className="shrink-0" /> : null}
+              {channel.postCount ? (
+                <span className="rounded-full bg-background/24 px-2 py-0.5 text-[11px] text-muted">
+                  {channel.postCount}
                 </span>
-                {channel.lastActivityAt ? (
-                  <span className="text-[11px] text-muted">
-                    Latest movement {formatDate(channel.lastActivityAt)}
-                  </span>
-                ) : null}
-              </div>
+              ) : null}
             </Link>
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 }

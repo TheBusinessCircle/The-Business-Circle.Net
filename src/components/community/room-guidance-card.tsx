@@ -22,6 +22,7 @@ type RoomGuidanceCardProps = {
   className?: string;
   defaultCollapsed?: boolean;
   showCta?: boolean;
+  compact?: boolean;
 };
 
 function GuidanceCta({
@@ -62,7 +63,8 @@ export function RoomGuidanceCard({
   ctaLabel,
   className,
   defaultCollapsed = false,
-  showCta = true
+  showCta = true,
+  compact = false
 }: RoomGuidanceCardProps) {
   const storageKey = `bcn:room-guidance:${roomSlug}:collapsed`;
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
@@ -93,6 +95,69 @@ export function RoomGuidanceCard({
       }
       return next;
     });
+  }
+
+  if (compact) {
+    return (
+      <section
+        className={cn(
+          "overflow-hidden rounded-lg border border-silver/14 bg-background/16",
+          className
+        )}
+        aria-label={`${guidance.title} room guidance`}
+      >
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className="flex min-h-10 w-full items-center justify-between gap-3 px-3 py-2 text-left"
+          aria-expanded={!isCollapsed}
+        >
+          <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+            <Pin size={13} className="shrink-0 text-silver" />
+            Room guide
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-silver">
+            {isCollapsed ? "Open" : "Close"}
+            {isCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+          </span>
+        </button>
+
+        {!isCollapsed ? (
+          <div className="space-y-3 border-t border-silver/12 px-3 py-3">
+            <p className="text-sm leading-relaxed text-muted">{guidance.whatThisRoomIsFor}</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                  Good posts
+                </p>
+                <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted">
+                  {guidance.howToPost.slice(0, 4).map((item) => (
+                    <li key={item}>- {item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                  Easy starts
+                </p>
+                <div className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted">
+                  {guidance.suggestedPrompts.slice(0, 2).map((prompt) => (
+                    <p key={prompt}>{prompt}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {showCta ? (
+              <GuidanceCta
+                href={resolvedCtaHref}
+                label={resolvedCtaLabel}
+                className={cn(buttonVariants({ size: "sm", variant: "outline" }), "min-h-9")}
+              />
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+    );
   }
 
   return (
