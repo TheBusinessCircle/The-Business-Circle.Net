@@ -20,7 +20,7 @@ export const BCN_UPDATES_MEMBER_ROUTE = "/member/bcn-updates";
 
 export const FOUNDATION_COMMUNITY_CHANNELS: CommunityChannelBlueprint[] = [
   {
-    name: "Start Here",
+    name: "Introduction",
     slug: "introductions",
     description: "Introduce yourself, your business, and what you are building.",
     topic: "Introductions",

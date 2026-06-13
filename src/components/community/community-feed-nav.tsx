@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Lock, Sparkles } from "lucide-react";
 import type { CommunityFeedChannelModel } from "@/types";
 import { buildCommunityChannelPath } from "@/lib/community-paths";
+import { getCommunityChannelDisplayName } from "@/lib/community/channel-display";
 import { cn } from "@/lib/utils";
 
 type CommunityFeedNavProps = {
@@ -18,6 +19,7 @@ export function CommunityFeedNav({
       <div className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
         {channels.map((channel) => {
           const isActive = channel.slug === selectedSlug;
+          const channelDisplayName = getCommunityChannelDisplayName(channel);
 
           return (
             <Link
@@ -31,7 +33,7 @@ export function CommunityFeedNav({
                   : "border-silver/14 bg-background/18 text-muted hover:border-silver/26 hover:text-foreground"
               )}
             >
-              <span className="whitespace-nowrap">{channel.name}</span>
+              <span className="whitespace-nowrap">{channelDisplayName}</span>
               {channel.isPrivate ? <Lock size={13} className="shrink-0" /> : null}
               {channel.isAutomatedFeed ? <Sparkles size={13} className="shrink-0" /> : null}
               {channel.postCount ? (

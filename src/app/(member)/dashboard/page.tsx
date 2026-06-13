@@ -45,6 +45,7 @@ import {
   getSuggestedConversationPrompts,
   rankPostsByMomentum
 } from "@/lib/community-rhythm";
+import { getCommunityChannelDisplayName } from "@/lib/community/channel-display";
 import { allowedEditorialResourceTiers, allowedResourceTiers } from "@/lib/db/access";
 import { buildMemberProfilePath } from "@/lib/member-paths";
 import { getMemberHomeNextAction, getTierHomeGuidance } from "@/lib/member-home";
@@ -491,13 +492,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         ? latestMemberPost.channel
         : latestMemberComment.post.channel
       : latestMemberPost?.channel ?? latestMemberComment?.post.channel ?? null;
+  const latestActivityChannelDisplayName = latestActivityChannel
+    ? getCommunityChannelDisplayName(latestActivityChannel)
+    : null;
   const personalisation = getDashboardPersonalisation({
     membershipTier: effectiveTier,
     profileCompletion: completion.percentage,
     hasPosted: Boolean(latestMemberPost),
     hasCommented: Boolean(latestMemberComment),
     hasUpcomingEvent: upcomingEvents.length > 0,
-    recentChannelName: latestActivityChannel?.name ?? null,
+    recentChannelName: latestActivityChannelDisplayName,
     recentChannelHref: latestActivityChannel
       ? buildCommunityChannelPath(latestActivityChannel.slug)
       : null,
@@ -1306,7 +1310,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full border border-silver/15 bg-silver/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                            {post.channel.name}
+                            {getCommunityChannelDisplayName(post.channel)}
                           </span>
                           {worthYourTimeDiscussion?.id === post.id ? (
                             <span className="rounded-full border border-gold/24 bg-gold/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
@@ -1505,7 +1509,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="rounded-full border border-silver/15 bg-silver/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                      {memberContribution.channel.name}
+                      {getCommunityChannelDisplayName(memberContribution.channel)}
                     </span>
                     {(() => {
                       const contributionSignal = getFreshnessSignal(memberContribution.createdAt, {
@@ -1609,7 +1613,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full border border-silver/15 bg-silver/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                            {win.channel.name}
+                            {getCommunityChannelDisplayName(win.channel)}
                           </span>
                           <span className="rounded-full border border-silver/20 bg-silver/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
                             Connection win
@@ -1729,7 +1733,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   className="block rounded-2xl border border-silver/14 bg-background/20 px-4 py-4 transition-colors hover:border-silver/28 hover:bg-background/32"
                 >
                   <span className="rounded-full border border-silver/15 bg-silver/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                    {latestActivityChannel?.name || featuredDiscussion.channel.name}
+                    {latestActivityChannelDisplayName ||
+                      getCommunityChannelDisplayName(featuredDiscussion.channel)}
                   </span>
                   <p className="mt-3 text-sm font-medium text-foreground">
                     {personalisation.basedOnActivity.label}

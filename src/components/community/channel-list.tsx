@@ -4,6 +4,7 @@ import { Crown, Hash, Lock, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { CommunityChannelModel } from "@/types";
+import { getCommunityChannelDisplayName } from "@/lib/community/channel-display";
 import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ function ChannelLink({
   isActive: boolean;
 }) {
   const guidance = getCommunityRoomGuidance(channel.slug);
+  const channelDisplayName = getCommunityChannelDisplayName(channel);
 
   return (
     <Link
@@ -33,7 +35,7 @@ function ChannelLink({
     >
       <p className="inline-flex items-center gap-1 text-sm font-medium text-foreground">
         <Hash size={13} className="text-muted" />
-        {channel.name}
+        {channelDisplayName}
         {channel.isPrivate ? <Lock size={12} className="text-gold" /> : null}
       </p>
       <p className="mt-1 text-xs text-muted">

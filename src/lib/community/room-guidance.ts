@@ -21,7 +21,7 @@ const FOUNDATION_TIER_CONTEXT =
 
 export const COMMUNITY_ROOM_GUIDANCE: Record<string, CommunityRoomGuidance> = {
   introductions: {
-    title: "Start Here: Introduce Yourself",
+    title: "Introduction: Introduce Yourself",
     shortIntro: "This is the first place to say hello inside The Business Circle.",
     whatThisRoomIsFor:
       "Use this room to introduce yourself so other members can quickly understand who you are, what you do and how they might connect with you.",

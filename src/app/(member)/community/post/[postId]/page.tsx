@@ -5,6 +5,7 @@ import { MoveLeft, NotebookText } from "lucide-react";
 import type { MembershipTier } from "@prisma/client";
 import { BCN_UPDATES_CHANNEL_SLUG } from "@/config/community";
 import { authorName, postKindBadge } from "@/lib/community-helpers";
+import { getCommunityChannelDisplayName } from "@/lib/community/channel-display";
 import { roleToTier } from "@/lib/permissions";
 import { buildCommunityChannelPath, buildCommunityPostPath } from "@/lib/community-paths";
 import { buildMemberProfilePath } from "@/lib/member-paths";
@@ -114,6 +115,7 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
   const returnPath = buildCommunityPostPath(post.id, post.channel.slug);
   const channelPath = buildCommunityChannelPath(post.channel.slug);
   const displayName = authorName(post.user);
+  const channelDisplayName = getCommunityChannelDisplayName(post.channel);
 
   return (
     <div className="member-page-stack">
@@ -167,7 +169,7 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
 
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="normal-case tracking-normal text-muted">
-                {post.channel.name}
+                {channelDisplayName}
               </Badge>
               <Badge variant="outline" className="normal-case tracking-normal text-muted">
                 {roomTierLabel(post.channel.accessTier)}
@@ -208,7 +210,7 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
             <CardContent className="space-y-3 text-sm text-muted">
               <div className="rounded-2xl border border-border/70 bg-background/20 p-4">
                 <p className="text-xs uppercase tracking-[0.08em] text-muted">Room</p>
-                <p className="mt-2 text-sm font-medium text-foreground">{post.channel.name}</p>
+                <p className="mt-2 text-sm font-medium text-foreground">{channelDisplayName}</p>
                 <p className="mt-2 leading-relaxed">
                   {post.channel.description || post.channel.topic || "Member discussion area."}
                 </p>
@@ -221,7 +223,7 @@ export default async function CommunityPostPage({ params, searchParams }: PagePr
                     href={channelPath}
                     className="block rounded-xl border border-border/70 bg-background/20 px-3 py-2 text-sm text-foreground transition-colors hover:border-gold/35"
                   >
-                    Return to {post.channel.name}
+                    Return to {channelDisplayName}
                   </Link>
                   <Link
                     href="/community"

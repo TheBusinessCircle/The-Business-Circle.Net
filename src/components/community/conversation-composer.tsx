@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { buildCommunityChannelPath } from "@/lib/community-paths";
+import { getCommunityChannelDisplayName } from "@/lib/community/channel-display";
 import type { ConversationPromptSuggestion } from "@/lib/community-rhythm";
 
 type ConversationComposerProps = {
@@ -45,6 +46,9 @@ export function ConversationComposer({
     postableChannels.find((channel) => channel.slug === channelSlug);
   const returnPath = buildCommunityChannelPath(selectedChannel?.slug ?? channelSlug);
   const displayName = currentUserName || "Member";
+  const selectedChannelDisplayName = getCommunityChannelDisplayName(
+    selectedChannel ?? { name: channelName, slug: channelSlug }
+  );
 
   function expandComposer() {
     setIsExpanded(true);
@@ -110,7 +114,7 @@ export function ConversationComposer({
               >
                 {postableChannels.map((channel) => (
                   <option key={channel.id} value={channel.slug} className="bg-background text-foreground">
-                    {channel.name}
+                    {getCommunityChannelDisplayName(channel)}
                   </option>
                 ))}
               </select>
@@ -166,7 +170,9 @@ export function ConversationComposer({
 
           {prompts.length ? (
             <details className="rounded-lg border border-silver/12 bg-background/12 px-3 py-2">
-              <summary className="cursor-pointer text-xs text-muted">Prompt ideas for {channelName}</summary>
+              <summary className="cursor-pointer text-xs text-muted">
+                Prompt ideas for {selectedChannelDisplayName}
+              </summary>
               <div className="mt-3 grid gap-2 md:grid-cols-3">
                 {prompts.map((prompt) => {
                   const selected = selectedPromptId === prompt.id;

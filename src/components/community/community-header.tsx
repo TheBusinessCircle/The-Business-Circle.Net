@@ -3,6 +3,7 @@
 import { Hash, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
+import { getCommunityChannelDisplayName } from "@/lib/community/channel-display";
 import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
 import type { CommunityChannelModel } from "@/types";
 
@@ -18,6 +19,7 @@ export function CommunityHeader({
   transportModeLabel
 }: CommunityHeaderProps) {
   const guidance = getCommunityRoomGuidance(channel.slug);
+  const channelDisplayName = getCommunityChannelDisplayName(channel);
 
   return (
     <header className="border-b border-border/70 bg-background/25 px-4 py-3">
@@ -25,7 +27,7 @@ export function CommunityHeader({
         <div>
           <p className="inline-flex items-center gap-1 text-sm font-semibold text-foreground">
             <Hash size={14} className="text-muted" />
-            {channel.name}
+            {channelDisplayName}
           </p>
           <p className="mt-1 text-xs text-muted">
             {guidance?.shortIntro ||

@@ -25,7 +25,7 @@ describe("community room guidance", () => {
   it("makes introductions the clear first member action", () => {
     const guidance = getCommunityRoomGuidance("introductions");
 
-    expect(guidance?.title).toBe("Start Here: Introduce Yourself");
+    expect(guidance?.title).toBe("Introduction: Introduce Yourself");
     expect(guidance?.pinnedCtaLabel).toBe("Introduce yourself");
     expect(guidance?.examplePost).toContain("Hi, I am [name]");
   });

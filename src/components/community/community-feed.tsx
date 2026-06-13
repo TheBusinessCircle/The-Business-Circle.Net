@@ -20,6 +20,7 @@ import {
   buildCommunityChannelPath,
   buildCommunityFeedPostPath
 } from "@/lib/community-paths";
+import { getCommunityChannelDisplayName } from "@/lib/community/channel-display";
 import { getCommunityRoomGuidance } from "@/lib/community/room-guidance";
 import {
   countActiveItems,
@@ -71,6 +72,7 @@ export function CommunityFeed({
   }
 
   const selectedChannel = feed.selectedChannel;
+  const selectedChannelDisplayName = getCommunityChannelDisplayName(selectedChannel);
   const showComposer = selectedChannel.allowMemberPosts;
   const isEarlyRoom = !selectedChannel.isAutomatedFeed && selectedChannel.postCount <= 2;
   const showAdminStarterSuggestions = viewerIsAdmin && showComposer && isEarlyRoom;
@@ -87,7 +89,7 @@ export function CommunityFeed({
   const contributingMemberCount = countUniqueContributors(feed.posts);
   const helperLine =
     roomGuidance?.shortIntro ??
-    `${selectedChannel.name} is for useful member conversations in this room.`;
+    `${selectedChannelDisplayName} is for useful member conversations in this room.`;
   const emptyState = roomGuidance?.emptyState ?? {
     title: "This room is quiet so far",
     description: "Start with a clear question, lesson, or decision."
@@ -102,12 +104,12 @@ export function CommunityFeed({
     : roomPromptSuggestions[0]
       ? {
           title: roomPromptSuggestions[0].title,
-          detail: selectedChannel.name,
+          detail: selectedChannelDisplayName,
           href: buildCommunityChannelPath(selectedChannel.slug),
           label: "Start"
         }
       : {
-          title: selectedChannel.name,
+          title: selectedChannelDisplayName,
           detail: "Pick up the first useful conversation here.",
           href: buildCommunityChannelPath(selectedChannel.slug),
           label: "Stay here"
@@ -119,7 +121,7 @@ export function CommunityFeed({
         {showComposer ? (
           <ConversationComposer
             id="start-community-post"
-            channelName={selectedChannel.name}
+            channelName={selectedChannelDisplayName}
             channelSlug={selectedChannel.slug}
             channels={feed.channels}
             currentUserName={currentUserName}
@@ -134,7 +136,7 @@ export function CommunityFeed({
               </span>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium text-foreground">{selectedChannel.name}</p>
+                  <p className="text-sm font-medium text-foreground">{selectedChannelDisplayName}</p>
                   <MembershipTierBadge tier={selectedChannel.accessTier} />
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-muted">
@@ -168,7 +170,7 @@ export function CommunityFeed({
           <CommunityPostFeedList
             posts={feed.posts}
             channelSlug={selectedChannel.slug}
-            channelName={selectedChannel.name}
+            channelName={selectedChannelDisplayName}
             currentUserId={currentUserId}
             viewerCanContinuePrivately={viewerCanContinuePrivately}
             initialExpandedPostId={initialExpandedPostId}
