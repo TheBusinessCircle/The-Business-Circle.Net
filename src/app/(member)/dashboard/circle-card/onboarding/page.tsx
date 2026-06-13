@@ -88,6 +88,8 @@ export default async function CircleCardOnboardingPage({ searchParams }: PagePro
 
       <CircleCardOnboardingFlow
         defaults={{
+          accountType: "",
+          identityTags: [],
           fullName: member?.name ?? "",
           businessName: member?.profile?.business?.companyName ?? "",
           role: member?.profile?.headline ?? "",

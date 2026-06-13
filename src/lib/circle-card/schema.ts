@@ -5,6 +5,10 @@ import {
   type CircleCardLinkActionMode,
   CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES
 } from "@/lib/circle-card/file-actions";
+import {
+  CIRCLE_CARD_ACCOUNT_TYPES,
+  normalizeCircleCardIdentityTags
+} from "@/lib/circle-card/identity";
 import { normalizeExternalHref } from "@/lib/links";
 import { slugify } from "@/lib/utils";
 
@@ -149,6 +153,24 @@ const checkboxBoolean = z.preprocess(
   (value) => value === true || value === "true" || value === "on",
   z.boolean()
 );
+const optionalCircleCardAccountType = z.preprocess(
+  (value) => {
+    if (typeof value !== "string" || !value.trim()) {
+      return undefined;
+    }
+
+    return value.trim().toUpperCase();
+  },
+  z.enum(CIRCLE_CARD_ACCOUNT_TYPES).optional()
+);
+const requiredCircleCardAccountType = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim().toUpperCase() : value),
+  z.enum(CIRCLE_CARD_ACCOUNT_TYPES)
+);
+const identityTagsInput = z.preprocess(
+  (value) => normalizeCircleCardIdentityTags(Array.isArray(value) ? value : [value ?? ""]),
+  z.array(z.string()).max(8)
+);
 
 function optionalHttpUrl(label: string) {
   return z
@@ -218,6 +240,8 @@ export const circleCardFormSchema = z.object({
   slug: optionalSlug,
   fullName: z.string().trim().min(2).max(120),
   businessName: optionalText(140),
+  accountType: optionalCircleCardAccountType,
+  identityTags: identityTagsInput,
   role: optionalText(120),
   tagline: optionalText(180),
   about: optionalText(1600),
@@ -255,6 +279,8 @@ export const circleCardOnboardingSchema = z.object({
   businessLogoScale: optionalImageScale,
   fullName: z.string().trim().min(2).max(120),
   businessName: optionalText(140),
+  accountType: requiredCircleCardAccountType,
+  identityTags: identityTagsInput,
   role: optionalText(120),
   tagline: optionalText(180),
   websiteUrl: optionalHttpUrl("Website"),
@@ -262,6 +288,15 @@ export const circleCardOnboardingSchema = z.object({
 });
 
 export type CircleCardOnboardingValues = z.infer<typeof circleCardOnboardingSchema>;
+
+export const circleCardIdentityFormSchema = z.object({
+  cardId: z.string().cuid(),
+  returnPath: optionalText(600),
+  accountType: requiredCircleCardAccountType,
+  identityTags: identityTagsInput
+});
+
+export type CircleCardIdentityFormValues = z.infer<typeof circleCardIdentityFormSchema>;
 
 export const circleWalletContactDetailsSchema = z.object({
   walletContactId: z.string().cuid(),

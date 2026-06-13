@@ -15,6 +15,7 @@ import {
   CIRCLE_CARD_FILE_LINK_TYPES,
   circleCardConnectionRequestFormSchema,
   circleCardConnectionRequestIdSchema,
+  circleCardIdentityFormSchema,
   type CircleCardLinkActionMode,
   type CircleCardLinkVisibility,
   type CircleCardLinkType,
@@ -84,6 +85,7 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "slug",
   "fullName",
   "businessName",
+  "accountType",
   "role",
   "tagline",
   "about",
@@ -119,6 +121,7 @@ const CIRCLE_CARD_ONBOARDING_FIELDS = [
   "businessLogoScale",
   "fullName",
   "businessName",
+  "accountType",
   "role",
   "tagline",
   "websiteUrl",
@@ -145,6 +148,8 @@ const CIRCLE_CARD_LINK_FORM_FIELDS = [
   "sortOrder",
   "isActive"
 ] as const;
+
+const CIRCLE_CARD_IDENTITY_FORM_FIELDS = ["cardId", "returnPath", "accountType"] as const;
 
 const CIRCLE_CARD_LINK_ID_FIELDS = ["cardId", "linkId"] as const;
 
@@ -326,15 +331,30 @@ function resolveReturnPath(value: FormDataEntryValue | null | undefined, fallbac
 }
 
 function readCircleCardFormData(formData: FormData) {
-  return Object.fromEntries(
-    CIRCLE_CARD_FORM_FIELDS.map((field) => [field, formData.get(field) ?? ""])
-  );
+  return {
+    ...Object.fromEntries(
+      CIRCLE_CARD_FORM_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+    ),
+    identityTags: formData.getAll("identityTags")
+  };
 }
 
 function readCircleCardOnboardingFormData(formData: FormData) {
-  return Object.fromEntries(
-    CIRCLE_CARD_ONBOARDING_FIELDS.map((field) => [field, formData.get(field) ?? ""])
-  );
+  return {
+    ...Object.fromEntries(
+      CIRCLE_CARD_ONBOARDING_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+    ),
+    identityTags: formData.getAll("identityTags")
+  };
+}
+
+function readCircleCardIdentityFormData(formData: FormData) {
+  return {
+    ...Object.fromEntries(
+      CIRCLE_CARD_IDENTITY_FORM_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+    ),
+    identityTags: formData.getAll("identityTags")
+  };
 }
 
 function readCircleCardLinkFormData(formData: FormData) {
@@ -925,7 +945,13 @@ export async function upsertCircleCardAction(formData: FormData) {
   }
 
   const values = parsed.data;
+  const shouldUpdateIdentity = formData.has("accountType") || formData.has("identityTags");
   const cardId = values.cardId || null;
+
+  if (!cardId && !values.accountType) {
+    redirectWithError(returnPath, "identity-invalid");
+  }
+
   const existingCard = cardId
     ? await prisma.circleCard.findFirst({
         where: {
@@ -975,6 +1001,12 @@ export async function upsertCircleCardAction(formData: FormData) {
     slug,
     fullName: values.fullName.trim(),
     businessName: nullableText(values.businessName),
+    ...(shouldUpdateIdentity
+      ? {
+          accountType: values.accountType ?? null,
+          identityTags: values.identityTags
+        }
+      : {}),
     role: nullableText(values.role),
     tagline: nullableText(values.tagline),
     about: nullableText(values.about),
@@ -1050,6 +1082,46 @@ export async function upsertCircleCardAction(formData: FormData) {
 
     redirectWithError(returnPath, "card-save-failed");
   }
+}
+
+export async function updateCircleCardIdentityAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardIdentityFormSchema.safeParse(readCircleCardIdentityFormData(formData));
+  const returnPath = resolveReturnPath(
+    parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
+    "/dashboard/circle-card"
+  );
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "identity-invalid");
+  }
+
+  const values = parsed.data;
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: values.cardId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      slug: true
+    }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: {
+      accountType: values.accountType,
+      identityTags: values.identityTags
+    }
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, "identity-updated");
 }
 
 export async function upsertCircleCardLinkAction(formData: FormData) {
@@ -1448,6 +1520,8 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           isPublished: values.isPublished,
           fullName: values.fullName.trim(),
           businessName,
+          accountType: values.accountType,
+          identityTags: values.identityTags,
           role,
           tagline: nullableText(values.tagline),
           profileImageUrl,

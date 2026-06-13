@@ -20,6 +20,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
 import {
+  getCircleCardAccountTypeLabel,
+  getCircleCardIdentityTagLabel
+} from "@/lib/circle-card/identity";
+import {
   buildCircleCardFileActionLabel,
   circleCardFileActionLabel,
   circleCardFileKindLabel,
@@ -32,7 +36,6 @@ import type { PublicCircleCard } from "@/server/circle-card";
 import type { LucideIcon } from "lucide-react";
 import {
   AtSign,
-  BadgeCheck,
   BarChart3,
   BookOpen,
   BriefcaseBusiness,
@@ -44,7 +47,6 @@ import {
   Download,
   Handshake,
   Facebook,
-  Gem,
   Globe2,
   Instagram,
   LinkIcon,
@@ -649,8 +651,6 @@ function TrustArea({ card, ownerAccountLabel, ownerIsBcnMember }: TrustAreaProps
             muted
           />
         ) : null}
-        <PremiumBadge icon={<BadgeCheck size={13} />} label="Founder Verification Ready" muted />
-        <PremiumBadge icon={<Gem size={13} />} label="Future Verified Founder" muted />
       </div>
 
       {!card.isDemo ? (
@@ -772,6 +772,8 @@ export function PublicCircleCardProfile({
   const membershipLabel = membershipBadgeLabel(card, ownerIsBcnMember);
   const recommendationCount = card.recommendations.length;
   const successfulReferralCount = card.successfulReferralCount;
+  const accountTypeLabel = getCircleCardAccountTypeLabel(card.accountType);
+  const identityTagLabels = card.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2);
   const contactRows: ContactRow[] = [];
 
   if (card.websiteUrl) {
@@ -1190,8 +1192,19 @@ export function PublicCircleCardProfile({
                       muted
                     />
                   ) : null}
-                  <PremiumBadge icon={<BadgeCheck size={13} />} label="Founder Verification Ready" muted />
-                  <PremiumBadge icon={<Gem size={13} />} label="Future Verified Founder" muted />
+                  {accountTypeLabel ? (
+                    <PremiumBadge icon={<UserRound size={13} />} label={accountTypeLabel} muted />
+                  ) : null}
+                  {identityTagLabels.map((tagLabel) => (
+                    <PremiumBadge key={tagLabel} icon={<Sparkles size={13} />} label={tagLabel} muted />
+                  ))}
+                  {card.identityTags.length > identityTagLabels.length ? (
+                    <PremiumBadge
+                      icon={<Sparkles size={13} />}
+                      label={`+${card.identityTags.length - identityTagLabels.length} more`}
+                      muted
+                    />
+                  ) : null}
                 </div>
 
                 {noticeMessage || errorMessage ? (

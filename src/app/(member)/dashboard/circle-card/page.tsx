@@ -74,6 +74,8 @@ import {
   CircleCardBcnDiscoveryPanel,
   CircleCardCopyLinkButton,
   CircleCardDashboardSection,
+  CircleCardIdentityBanner,
+  CircleCardIdentityFields,
   CircleCardImageUploadField,
   CircleCardInstallPrompt,
   CircleCardQrPanel,
@@ -143,6 +145,16 @@ import {
   readCircleWalletTags,
   resolveCircleCardLookupSlug
 } from "@/lib/circle-card/schema";
+import {
+  buildCircleCardIdentityFilterWhere,
+  CIRCLE_CARD_ACCOUNT_TYPES,
+  CIRCLE_CARD_ACCOUNT_TYPE_COPY,
+  CIRCLE_CARD_IDENTITY_TAGS,
+  getCircleCardAccountTypeLabel,
+  getCircleCardIdentityTagLabel,
+  normalizeCircleCardIdentityTags,
+  resolveCircleCardAccountType
+} from "@/lib/circle-card/identity";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireCircleCardUser } from "@/lib/session";
@@ -251,6 +263,7 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "custom-link-enabled": "Custom link enabled.",
   "custom-link-disabled": "Custom link paused.",
   "custom-link-reordered": "Custom links reordered.",
+  "identity-updated": "Circle Card identity updated.",
   "own-card": "This is already your Circle Card."
 };
 
@@ -304,6 +317,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   "opportunity-invalid": "Check the opportunity fields and try again.",
   "opportunity-primary-card-required": "Create your own Circle Card before tracking opportunities.",
   "opportunity-not-found": "That opportunity could not be found.",
+  "identity-invalid": "Choose an account type and try again.",
   "notification-invalid": "Check the notification action and try again.",
   "notification-not-found": "That notification could not be found."
 };
@@ -493,6 +507,8 @@ function buildWalletHref(input: {
 function buildDiscoverHref(input: {
   discoverQuery?: string;
   discoverCategory?: string;
+  discoverAccountType?: string | null;
+  discoverIdentityTag?: string;
   discoverLocation?: string;
   discoverRecommended?: boolean;
   discoverBcn?: boolean;
@@ -506,6 +522,14 @@ function buildDiscoverHref(input: {
 
   if (input.discoverCategory) {
     params.set("discoverCategory", input.discoverCategory);
+  }
+
+  if (input.discoverAccountType) {
+    params.set("discoverAccountType", input.discoverAccountType);
+  }
+
+  if (input.discoverIdentityTag) {
+    params.set("discoverIdentityTag", input.discoverIdentityTag);
   }
 
   if (input.discoverLocation) {
@@ -965,6 +989,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const connectCardSlug = resolveCircleCardLookupSlug(firstValue(params.connectCard));
   const discoverQuery = (firstValue(params.discoverQuery) ?? "").trim();
   const discoverCategory = (firstValue(params.discoverCategory) ?? "").trim();
+  const discoverAccountType = resolveCircleCardAccountType(firstValue(params.discoverAccountType));
+  const discoverIdentityTag =
+    normalizeCircleCardIdentityTags([firstValue(params.discoverIdentityTag) ?? ""])[0] ?? "";
   const discoverLocation = (firstValue(params.discoverLocation) ?? "").trim();
   const discoverRecommended = firstValue(params.discoverRecommended) === "1";
   const discoverBcn = firstValue(params.discoverBcn) === "1";
@@ -1165,6 +1192,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         userId: {
           not: session.user.id
         },
+        ...buildCircleCardIdentityFilterWhere({
+          accountType: discoverAccountType,
+          identityTag: discoverIdentityTag
+        }),
         user: {
           suspended: false,
           ...(discoverBcn
@@ -1193,6 +1224,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         slug: true,
         fullName: true,
         businessName: true,
+        accountType: true,
+        identityTags: true,
         role: true,
         tagline: true,
         location: true,
@@ -1638,12 +1671,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const discoverReturnPath = buildDiscoverHref({
     discoverQuery,
     discoverCategory,
+    discoverAccountType,
+    discoverIdentityTag,
     discoverLocation,
     discoverRecommended,
     discoverBcn
   });
   const discoverHasFilters = Boolean(
-    discoverQuery || discoverCategory || discoverLocation || discoverRecommended || discoverBcn
+    discoverQuery ||
+      discoverCategory ||
+      discoverAccountType ||
+      discoverIdentityTag ||
+      discoverLocation ||
+      discoverRecommended ||
+      discoverBcn
   );
   const discoverCategoryOptions = Array.from(
     new Set([...CIRCLE_CARD_RECOMMENDATION_CATEGORIES, ...CIRCLE_WALLET_CATEGORY_OPTIONS])
@@ -1664,6 +1705,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       );
       const recommendationCategories = recommendations.map((recommendation) => recommendation.category);
       const recommendationCategoryLabels = Array.from(new Set(recommendationCategories)).slice(0, 3);
+      const accountTypeLabel = getCircleCardAccountTypeLabel(candidate.accountType);
+      const identityTagLabels = candidate.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2);
       const knownRecommenderNames = Array.from(
         new Set(recommendedByKnown.map((recommendation) => recommendation.recommenderCard.fullName))
       ).slice(0, 3);
@@ -1679,6 +1722,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         candidate.role,
         candidate.tagline,
         candidate.location,
+        accountTypeLabel,
+        ...candidate.identityTags.map(getCircleCardIdentityTagLabel),
         ...Object.values(candidateSocialLinks),
         ...recommendationCategories,
         ...recommendations.map((recommendation) => recommendation.reason),
@@ -1695,6 +1740,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         recommendationCount: recommendations.length,
         recommendationCategories,
         recommendationCategoryLabels,
+        accountTypeLabel,
+        identityTagLabels,
         recommendedByKnown,
         knownRecommenderNames,
         isBcnMember,
@@ -1704,6 +1751,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         matchesLocation:
           !discoverLocationLower || Boolean(candidate.location?.toLowerCase().includes(discoverLocationLower)),
         matchesCategory: !discoverCategory || recommendationCategories.includes(discoverCategory),
+        matchesAccountType: !discoverAccountType || candidate.accountType === discoverAccountType,
+        matchesIdentityTag: !discoverIdentityTag || candidate.identityTags.includes(discoverIdentityTag),
         matchesRecommended: !discoverRecommended || recommendations.length > 0
       };
     })
@@ -1712,6 +1761,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         candidate.matchesSearch &&
         candidate.matchesLocation &&
         candidate.matchesCategory &&
+        candidate.matchesAccountType &&
+        candidate.matchesIdentityTag &&
         candidate.matchesRecommended
     )
     .slice(0, 24);
@@ -2033,6 +2084,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         source: "discover",
         query: discoverQuery || null,
         category: discoverCategory || null,
+        accountType: discoverAccountType || null,
+        identityTag: discoverIdentityTag || null,
         location: discoverLocation || null,
         recommendedOnly: discoverRecommended,
         bcnOnly: discoverBcn,
@@ -2235,6 +2288,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {ERROR_MESSAGES[error]}
         </p>
+      ) : null}
+
+      {card && !card.accountType ? (
+        <CircleCardIdentityBanner
+          cardId={card.id}
+          returnPath={circleCardSectionHref("my-card", "card-identity")}
+          accountType={card.accountType}
+          identityTags={card.identityTags}
+        />
       ) : null}
 
       <section
@@ -3229,10 +3291,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <form
                 action="/dashboard/circle-card#discover"
                 method="get"
-                className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_220px_180px_160px_150px_auto]"
+                className="grid gap-3 md:grid-cols-2 xl:grid-cols-6"
               >
                 <input type="hidden" name="section" value="network" />
-                <div className="relative">
+                <div className="relative md:col-span-2 xl:col-span-2">
                   <Search className="pointer-events-none absolute left-3 top-3 text-muted" size={16} />
                   <Input
                     name="discoverQuery"
@@ -3251,6 +3313,30 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   {discoverCategoryOptions.map((category) => (
                     <option key={category} value={category}>
                       {category}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  name="discoverAccountType"
+                  defaultValue={discoverAccountType ?? ""}
+                  aria-label="Discover account type filter"
+                >
+                  <option value="">All account types</option>
+                  {CIRCLE_CARD_ACCOUNT_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {CIRCLE_CARD_ACCOUNT_TYPE_COPY[type].shortLabel}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  name="discoverIdentityTag"
+                  defaultValue={discoverIdentityTag}
+                  aria-label="Discover identity tag filter"
+                >
+                  <option value="">All identity tags</option>
+                  {CIRCLE_CARD_IDENTITY_TAGS.map((tag) => (
+                    <option key={tag.value} value={tag.value}>
+                      {tag.label}
                     </option>
                   ))}
                 </Select>
@@ -3384,6 +3470,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             <p className="mt-2 text-sm leading-relaxed text-muted">{candidate.tagline}</p>
                           ) : null}
                           <div className="mt-3 flex flex-wrap gap-2">
+                            {candidate.accountTypeLabel ? (
+                              <Badge variant="outline" className="border-gold/25 text-gold">
+                                {candidate.accountTypeLabel}
+                              </Badge>
+                            ) : null}
+                            {candidate.identityTagLabels.map((tagLabel) => (
+                              <Badge key={tagLabel} variant="outline" className="border-silver/18 text-silver">
+                                {tagLabel}
+                              </Badge>
+                            ))}
+                            {candidate.identityTags.length > candidate.identityTagLabels.length ? (
+                              <Badge variant="outline" className="border-silver/18 text-silver">
+                                +{candidate.identityTags.length - candidate.identityTagLabels.length} more
+                              </Badge>
+                            ) : null}
                             {candidate.location ? <Badge variant="muted">{candidate.location}</Badge> : null}
                             <Badge variant="outline" className="border-silver/18 text-silver">
                               {candidate.recommendationCount} recommendation
@@ -3441,6 +3542,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             source: "discover",
                             query: discoverQuery || null,
                             category: discoverCategory || null,
+                            accountType: discoverAccountType || null,
+                            identityTag: discoverIdentityTag || null,
                             location: discoverLocation || null
                           }}
                           className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
@@ -4366,6 +4469,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       id="businessName"
                       name="businessName"
                       defaultValue={card?.businessName ?? member?.profile?.business?.companyName ?? ""}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <CircleCardIdentityFields
+                      accountType={card?.accountType ?? null}
+                      identityTags={card?.identityTags ?? []}
+                      idPrefix="circle-card-edit-identity"
+                      compact
+                      required={!card}
                     />
                   </div>
                   <div className="space-y-2">
@@ -6700,6 +6812,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     <input type="hidden" name="cardId" value={card.id} />
                     <input type="hidden" name="fullName" value={card.fullName} />
                     <input type="hidden" name="businessName" value={card.businessName ?? ""} />
+                    <input type="hidden" name="accountType" value={card.accountType ?? ""} />
+                    {card.identityTags.map((identityTag) => (
+                      <input key={identityTag} type="hidden" name="identityTags" value={identityTag} />
+                    ))}
                     <input type="hidden" name="role" value={card.role ?? ""} />
                     <input type="hidden" name="tagline" value={card.tagline ?? ""} />
                     <input type="hidden" name="about" value={card.about ?? ""} />

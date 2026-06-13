@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import type { CircleCardAccountType } from "@prisma/client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,7 +12,10 @@ import {
   Camera,
   ContactRound,
   Globe2,
+  Rocket,
   Sparkles,
+  Tags,
+  UsersRound,
   UserRound
 } from "lucide-react";
 import { completeCircleCardOnboardingAction } from "@/actions/circle-card.actions";
@@ -22,9 +26,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  CIRCLE_CARD_ACCOUNT_TYPE_COPY,
+  CIRCLE_CARD_ACCOUNT_TYPES,
+  CIRCLE_CARD_IDENTITY_TAGS,
+  getCircleCardIdentityTagLabel
+} from "@/lib/circle-card/identity";
 import { cn } from "@/lib/utils";
 
 type CircleCardOnboardingDefaults = {
+  accountType: CircleCardAccountType | "";
+  identityTags: string[];
   fullName: string;
   businessName: string;
   role: string;
@@ -45,6 +57,24 @@ type CircleCardOnboardingFlowProps = {
 };
 
 const STEPS = [
+  {
+    id: "accountType",
+    title: "What best describes you?",
+    label: "Account type",
+    description: "Choose the foundation that fits how you will use Circle Card.",
+    icon: UserRound,
+    optional: false,
+    placeholder: ""
+  },
+  {
+    id: "identityTags",
+    title: "Identity tags",
+    label: "Identity tags",
+    description: "Pick a few tags that help people understand what you do.",
+    icon: Tags,
+    optional: true,
+    placeholder: ""
+  },
   {
     id: "profileImageUrl",
     title: "Profile photo",
@@ -122,6 +152,8 @@ const STEPS = [
 type FieldKey = keyof CircleCardOnboardingDefaults;
 type TextFieldKey = Exclude<
   FieldKey,
+  | "accountType"
+  | "identityTags"
   | "profileImagePositionX"
   | "profileImagePositionY"
   | "profileImageScale"
@@ -131,6 +163,11 @@ type TextFieldKey = Exclude<
 >;
 
 const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
+const ACCOUNT_TYPE_ICONS = {
+  INDIVIDUAL: UserRound,
+  FOUNDER: Rocket,
+  TEAM: UsersRound
+} as const;
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -146,16 +183,28 @@ function SubmitButton() {
 export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<CircleCardOnboardingDefaults>(defaults);
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [stepError, setStepError] = useState<string | null>(null);
   const currentStep = STEPS[stepIndex];
   const StepIcon = currentStep.icon;
   const progress = Math.round(((stepIndex + 1) / STEPS.length) * 100);
-  const currentValue = currentStep.id !== "publish" ? String(values[currentStep.id as TextFieldKey] ?? "") : "";
+  const currentValue =
+    currentStep.id !== "publish" &&
+    currentStep.id !== "accountType" &&
+    currentStep.id !== "identityTags"
+      ? String(values[currentStep.id as TextFieldKey] ?? "")
+      : "";
 
   const previewName = values.fullName.trim() || "Your name";
   const previewMeta = useMemo(
     () => [values.role, values.businessName].filter(Boolean).join(" at "),
     [values.businessName, values.role]
+  );
+  const accountTypeLabel = values.accountType
+    ? CIRCLE_CARD_ACCOUNT_TYPE_COPY[values.accountType].shortLabel
+    : null;
+  const identityTagLabels = useMemo(
+    () => values.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2),
+    [values.identityTags]
   );
 
   function updateValue(key: TextFieldKey, value: string) {
@@ -165,8 +214,33 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
     }));
 
     if (key === "fullName" && value.trim().length >= 2) {
-      setNameError(null);
+      setStepError(null);
     }
+  }
+
+  function updateAccountType(accountType: CircleCardAccountType) {
+    setValues((previous) => ({
+      ...previous,
+      accountType
+    }));
+    setStepError(null);
+  }
+
+  function toggleIdentityTag(tag: string) {
+    setValues((previous) => {
+      const selectedTags = new Set(previous.identityTags);
+
+      if (selectedTags.has(tag)) {
+        selectedTags.delete(tag);
+      } else if (selectedTags.size < 8) {
+        selectedTags.add(tag);
+      }
+
+      return {
+        ...previous,
+        identityTags: Array.from(selectedTags)
+      };
+    });
   }
 
   function updateImageAdjustments(
@@ -196,12 +270,17 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
   }
 
   function canLeaveCurrentStep() {
+    if (currentStep.id === "accountType" && !values.accountType) {
+      setStepError("Choose the option that best describes you.");
+      return false;
+    }
+
     if (currentStep.id !== "fullName") {
       return true;
     }
 
     if (values.fullName.trim().length < 2) {
-      setNameError("Add your full name before continuing.");
+      setStepError("Add your full name before continuing.");
       return false;
     }
 
@@ -217,11 +296,20 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
   }
 
   function goBack() {
-    setNameError(null);
+    setStepError(null);
     setStepIndex((previous) => Math.max(previous - 1, 0));
   }
 
   function skipStep() {
+    if (currentStep.id === "identityTags") {
+      setValues((previous) => ({
+        ...previous,
+        identityTags: []
+      }));
+      goNext();
+      return;
+    }
+
     if (currentStep.id !== "publish" && currentStep.optional) {
       updateValue(currentStep.id as TextFieldKey, "");
     }
@@ -264,9 +352,13 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
           </div>
 
           <form action={completeCircleCardOnboardingAction} className="space-y-5">
-            {Object.entries(values).map(([key, value]) => (
-              <input key={key} type="hidden" name={key} value={String(value)} />
-            ))}
+            {Object.entries(values).flatMap(([key, value]) =>
+              Array.isArray(value)
+                ? value.map((item) => (
+                    <input key={`${key}-${item}`} type="hidden" name={key} value={String(item)} />
+                  ))
+                : [<input key={key} type="hidden" name={key} value={String(value)} />]
+            )}
             <input type="hidden" name="isPublished" value="true" />
 
             {currentStep.id === "publish" ? (
@@ -276,6 +368,73 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
                   Your card will be live straight away. You can edit every field from the Circle
                   Card dashboard after setup.
                 </p>
+              </div>
+            ) : currentStep.id === "accountType" ? (
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-3">
+                  {CIRCLE_CARD_ACCOUNT_TYPES.map((type) => {
+                    const copy = CIRCLE_CARD_ACCOUNT_TYPE_COPY[type];
+                    const Icon = ACCOUNT_TYPE_ICONS[type];
+                    const selected = values.accountType === type;
+
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => updateAccountType(type)}
+                        className={cn(
+                          "flex min-h-44 flex-col gap-3 rounded-2xl border bg-background/22 p-4 text-left text-sm transition",
+                          selected
+                            ? "border-gold/45 bg-gold/10 text-foreground shadow-gold-soft"
+                            : "border-silver/14 text-muted hover:border-silver/28 hover:text-foreground"
+                        )}
+                      >
+                        <span className="inline-flex items-center gap-2 font-medium text-foreground">
+                          <Icon size={17} className="text-gold" />
+                          {copy.label}
+                        </span>
+                        <span className="text-xs leading-relaxed text-muted">{copy.description}</span>
+                        <span className="mt-auto flex flex-wrap gap-1.5">
+                          {copy.points.slice(0, 3).map((point) => (
+                            <span
+                              key={point}
+                              className="rounded-full border border-silver/14 bg-card/50 px-2 py-1 text-[11px] text-silver"
+                            >
+                              {point}
+                            </span>
+                          ))}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {stepError ? <p className="text-xs text-destructive">{stepError}</p> : null}
+              </div>
+            ) : currentStep.id === "identityTags" ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {CIRCLE_CARD_IDENTITY_TAGS.map((tag) => {
+                    const selected = values.identityTags.includes(tag.value);
+
+                    return (
+                      <button
+                        key={tag.value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => toggleIdentityTag(tag.value)}
+                        className={cn(
+                          "inline-flex min-h-10 items-center rounded-full border px-3 text-xs font-medium transition",
+                          selected
+                            ? "border-gold/40 bg-gold/10 text-gold"
+                            : "border-silver/14 bg-background/22 text-silver hover:border-silver/28 hover:text-foreground"
+                        )}
+                      >
+                        {tag.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted">Optional. Choose up to eight.</p>
               </div>
             ) : currentStep.id === "profileImageUrl" || currentStep.id === "businessLogoUrl" ? (
               <CircleCardImageUploadField
@@ -320,8 +479,8 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
                   autoComplete={currentStep.id === "fullName" ? "name" : undefined}
                   onChange={(event) => updateValue(currentStep.id as TextFieldKey, event.target.value)}
                 />
-                {currentStep.id === "fullName" && nameError ? (
-                  <p className="text-xs text-destructive">{nameError}</p>
+                {currentStep.id === "fullName" && stepError ? (
+                  <p className="text-xs text-destructive">{stepError}</p>
                 ) : currentStep.optional ? (
                   <p className="text-xs text-muted">Optional. You can skip this for now.</p>
                 ) : null}
@@ -415,6 +574,16 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
             <Badge variant="outline" className="border-gold/25 text-gold">
               Circle Card Free
             </Badge>
+            {accountTypeLabel ? (
+              <Badge variant="outline" className="border-silver/18 text-silver">
+                {accountTypeLabel}
+              </Badge>
+            ) : null}
+            {identityTagLabels.map((tagLabel) => (
+              <Badge key={tagLabel} variant="outline" className="border-silver/18 text-silver">
+                {tagLabel}
+              </Badge>
+            ))}
             <Badge variant="outline" className="border-silver/18 text-silver">
               Wallet ready
             </Badge>

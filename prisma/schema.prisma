@@ -406,6 +406,8 @@ model CircleCard {
   slug            String                @unique
   fullName        String
   businessName    String?
+  accountType     CircleCardAccountType?
+  identityTags    String[]              @default([])
   role            String?
   tagline         String?
   about           String?               @db.Text
@@ -448,6 +450,7 @@ model CircleCard {
 
   @@index([userId])
   @@index([isPublished])
+  @@index([accountType])
 }
 
 model CircleCardLink {
@@ -2431,6 +2434,12 @@ enum Role {
   MEMBER
   INNER_CIRCLE
   ADMIN
+}
+
+enum CircleCardAccountType {
+  INDIVIDUAL
+  FOUNDER
+  TEAM
 }
 
 enum CircleCardEventType {
