@@ -608,6 +608,143 @@ function ContactAction({
   );
 }
 
+const CREATOR_PRIMARY_CTA_PRIORITY: Partial<Record<PublicCircleCard["customLinks"][number]["type"], number>> = {
+  LATEST_OFFER: 0,
+  COMMUNITY: 1,
+  BOOK_CALL: 2,
+  DOWNLOAD: 3,
+  SHOP: 4,
+  PORTFOLIO: 5,
+  CASE_STUDY: 6,
+  GENERAL: 7
+};
+
+function creatorLinkPriority(link: PublicCircleCard["customLinks"][number]) {
+  return CREATOR_PRIMARY_CTA_PRIORITY[link.type] ?? 20;
+}
+
+function creatorLinkAccentLabel(link: PublicCircleCard["customLinks"][number]) {
+  switch (link.type) {
+    case "LATEST_OFFER":
+      return "Latest offer";
+    case "COMMUNITY":
+      return "Community";
+    case "BOOK_CALL":
+      return "Book a call";
+    case "DOWNLOAD":
+      return link.fileUrl ? "Download" : "Resource";
+    case "SHOP":
+      return "Shop";
+    case "PORTFOLIO":
+      return "Portfolio";
+    case "CASE_STUDY":
+      return "Proof";
+    default:
+      return "Featured";
+  }
+}
+
+function creatorFeaturedLinks(card: PublicCircleCard, primaryLinkId?: string | null) {
+  return [...card.customLinks]
+    .filter((link) => link.id !== primaryLinkId)
+    .sort((a, b) => creatorLinkPriority(a) - creatorLinkPriority(b) || a.sortOrder - b.sortOrder)
+    .slice(0, 6);
+}
+
+function selectCreatorPrimaryLink(card: PublicCircleCard) {
+  return [...card.customLinks]
+    .filter((link) => link.visibility !== "PRIVATE_CODE" && Boolean(customLinkHref(link)))
+    .sort((a, b) => creatorLinkPriority(a) - creatorLinkPriority(b) || a.sortOrder - b.sortOrder)[0] ?? null;
+}
+
+function CreatorSmartLinkCard({
+  link,
+  analyticsCardId,
+  layout
+}: {
+  link: PublicCircleCard["customLinks"][number];
+  analyticsCardId?: string;
+  layout: PublicCircleCard["profileLayout"];
+}) {
+  const accentLabel = creatorLinkAccentLabel(link);
+  const description = offerEndDescription(link);
+
+  if (link.visibility === "PRIVATE_CODE") {
+    return (
+      <div className="rounded-[1.35rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(15,35,78,0.74),rgba(4,10,24,0.94))] p-4 shadow-inner-surface">
+        <div className="mb-3 flex items-center gap-3">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/24 bg-gold/12 text-gold">
+            {customLinkIcon(link)}
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">{accentLabel}</p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {customLinkDisplayLabel(link)}
+            </p>
+          </div>
+        </div>
+        <CircleCardPrivateLinkAction
+          linkId={link.id}
+          type={link.type}
+          value={customLinkDisplayLabel(link)}
+          description={description}
+          accessCodeHint={link.accessCodeHint}
+          hasAccessCode={link.hasAccessCode}
+        />
+      </div>
+    );
+  }
+
+  const href = customLinkHref(link);
+
+  if (!href) {
+    return null;
+  }
+
+  return (
+    <CircleCardTrackedLink
+      {...customLinkAnchorProps(link, href)}
+      href={href}
+      cardId={analyticsCardId ?? ""}
+      eventType="CUSTOM_LINK_CLICK"
+      metadata={{
+        source: "creator_featured_card",
+        layout,
+        linkId: link.id,
+        label: link.label,
+        type: link.type,
+        url: analyticsUrlValue(href)
+      }}
+      className="group relative flex min-h-40 flex-col justify-between overflow-hidden rounded-[1.35rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(12,31,72,0.82),rgba(4,10,24,0.96))] p-4 shadow-inner-surface transition-all hover:-translate-y-0.5 hover:border-gold/35 hover:shadow-[0_24px_64px_rgba(47,109,255,0.16)]"
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.56),transparent)]"
+      />
+      <span className="relative z-10 flex items-start justify-between gap-3">
+        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/22 bg-gold/12 text-gold">
+          {customLinkIcon(link)}
+        </span>
+        <span className="rounded-full border border-silver/14 bg-white/[0.04] px-2.5 py-1 text-[11px] text-silver">
+          {accentLabel}
+        </span>
+      </span>
+      <span className="relative z-10 mt-5 block">
+        <span className="line-clamp-2 text-lg font-semibold leading-tight text-foreground">
+          {customLinkDisplayLabel(link)}
+        </span>
+        {description ? (
+          <span className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted">{description}</span>
+        ) : null}
+        <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-gold">
+          Open
+          <ChevronRight size={15} className="transition-transform group-hover:translate-x-0.5" />
+        </span>
+      </span>
+    </CircleCardTrackedLink>
+  );
+}
+
 type TrustAreaProps = {
   card: PublicCircleCard;
   ownerAccountLabel: string;
@@ -847,7 +984,6 @@ export function PublicCircleCardProfile({
 
   const socialContactRows = contactRows.filter((row) => SOCIAL_CONTACT_KEYS.has(row.key));
   const directContactRows = contactRows.filter((row) => !SOCIAL_CONTACT_KEYS.has(row.key));
-  const featuredLinks = card.customLinks.slice(0, 4);
 
   function renderWalletAction({ mobileBar = false }: { mobileBar?: boolean } = {}) {
     const iconSize = mobileBar ? 15 : 16;
@@ -1287,14 +1423,46 @@ export function PublicCircleCardProfile({
   }
 
   if (card.profileLayout === "CREATOR") {
+    const creatorPrimaryLink = selectCreatorPrimaryLink(card);
+    const creatorPrimaryWebsite = creatorPrimaryLink
+      ? null
+      : directContactRows.find((row) => row.key === "website") ?? null;
+    const creatorLinks = creatorFeaturedLinks(card, creatorPrimaryLink?.id);
+    const creatorSocialGrid = [
+      ...socialContactRows,
+      ...(creatorPrimaryWebsite ? [] : directContactRows.filter((row) => row.key === "website"))
+    ];
+    const creatorFutureSections = [
+      {
+        title: "Featured Content",
+        icon: BookOpen,
+        text: "Media kits, lead magnets, courses and flagship creator assets can live here next."
+      },
+      {
+        title: "Latest Content",
+        icon: BarChart3,
+        text: "A polished stream for recent videos, posts, newsletters and launches."
+      },
+      {
+        title: "Partnerships",
+        icon: Handshake,
+        text: "A future space for collaborations, sponsors and brand-ready signals."
+      },
+      {
+        title: "Recommended Creators",
+        icon: Users,
+        text: "Creator discovery can connect complementary people and audiences."
+      }
+    ];
+
     return (
       <div className="relative overflow-hidden pb-16">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(47,109,255,0.28),transparent_35%),radial-gradient(circle_at_82%_8%,rgba(212,175,95,0.16),transparent_28%),linear-gradient(180deg,#030813_0%,#071126_48%,#030712_100%)]"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(47,109,255,0.32),transparent_34%),radial-gradient(circle_at_82%_8%,rgba(212,175,95,0.18),transparent_28%),linear-gradient(180deg,#030813_0%,#071126_48%,#030712_100%)]"
         />
 
-        <div className="public-page-stack relative max-w-6xl pt-4 sm:pt-6 lg:pt-8">
+        <div className="public-page-stack relative max-w-5xl pt-4 sm:pt-6 lg:pt-8">
           <header className="flex items-center justify-between gap-3">
             <Link
               href="/circle-card"
@@ -1318,100 +1486,192 @@ export function PublicCircleCardProfile({
             />
           </header>
 
-          <main className="mt-5 space-y-5">
-            <section className="relative overflow-hidden rounded-[2rem] border border-gold/24 bg-[linear-gradient(145deg,rgba(10,25,58,0.94),rgba(4,10,24,0.97))] shadow-[0_28px_90px_rgba(0,0,0,0.46),0_0_70px_rgba(47,109,255,0.12)]">
-              <div className="relative min-h-56 border-b border-gold/14 bg-[radial-gradient(circle_at_22%_20%,rgba(212,175,95,0.24),transparent_24%),radial-gradient(circle_at_76%_18%,rgba(47,109,255,0.32),transparent_30%),linear-gradient(135deg,rgba(9,34,80,0.96),rgba(3,7,16,0.98))] p-5 sm:min-h-72 sm:p-7">
+          <main className="mt-5 space-y-4 sm:space-y-5">
+            <section className="relative overflow-hidden rounded-[2rem] border border-gold/24 bg-[linear-gradient(145deg,rgba(10,25,58,0.92),rgba(4,10,24,0.97))] shadow-[0_28px_90px_rgba(0,0,0,0.46),0_0_70px_rgba(47,109,255,0.14)]">
+              <div className="relative min-h-[310px] overflow-hidden border-b border-gold/14 bg-[radial-gradient(circle_at_18%_18%,rgba(212,175,95,0.26),transparent_24%),radial-gradient(circle_at_78%_16%,rgba(47,109,255,0.38),transparent_31%),linear-gradient(135deg,rgba(9,34,80,0.98),rgba(3,7,16,0.98))] p-5 sm:min-h-[390px] sm:p-8">
                 <div className="absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.72),rgba(75,126,255,0.45),transparent)]" />
-                <div className="relative z-10 flex h-full flex-col justify-between gap-8">
-                  <div className="flex justify-end">
+                <div
+                  aria-hidden="true"
+                  className="absolute -bottom-20 right-[-8%] h-64 w-64 rounded-full border border-gold/12 bg-[radial-gradient(circle,rgba(212,175,95,0.18),transparent_64%)] blur-sm"
+                />
+                <div className="relative z-10 flex min-h-[270px] flex-col justify-between gap-8 sm:min-h-[330px]">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="rounded-full border border-gold/24 bg-gold/12 px-3 py-1.5 text-xs font-medium text-gold">
+                      Creator Circle Card
+                    </span>
                     <span className="rounded-full border border-silver/16 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">
-                      Visual header
+                      {viewLabel}
                     </span>
                   </div>
-                  <div className="max-w-2xl">
-                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
-                      Creator Circle Card
-                    </p>
-                    <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-foreground sm:text-6xl">
-                      {card.fullName}
-                    </h1>
-                    <p className="mt-3 text-lg leading-relaxed text-silver">
-                      {card.tagline || displayRole || "Creator profile"}
-                    </p>
+
+                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-end">
+                    <div className="max-w-2xl">
+                      <div className="relative mb-5 h-28 w-28 sm:h-32 sm:w-32">
+                        <div className="grid h-full w-full place-items-center rounded-full border border-gold/60 bg-gold/12 p-1.5 shadow-[0_0_0_10px_rgba(212,175,95,0.05),0_0_64px_rgba(47,109,255,0.34)]">
+                          <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-3xl font-semibold text-foreground">
+                            {card.profileImageUrl ? (
+                              <CircleCardFramedImage
+                                src={card.profileImageUrl}
+                                alt={card.fullName}
+                                positionX={card.profileImagePositionX}
+                                positionY={card.profileImagePositionY}
+                                scale={card.profileImageScale}
+                              >
+                                <span>{initials(card.fullName)}</span>
+                              </CircleCardFramedImage>
+                            ) : (
+                              <span>{initials(card.fullName)}</span>
+                            )}
+                          </div>
+                        </div>
+                        <CircleCardBadgeMark
+                          imageUrl={card.businessLogoUrl}
+                          label={card.businessName ? `${card.businessName} logo` : "Circle Card badge"}
+                          positionX={card.businessLogoPositionX}
+                          positionY={card.businessLogoPositionY}
+                          scale={card.businessLogoScale}
+                        />
+                      </div>
+
+                      <h1 className="font-display text-4xl font-semibold leading-tight text-foreground sm:text-6xl">
+                        {card.fullName}
+                      </h1>
+                      {displayRole ? <p className="mt-2 text-base text-silver">{displayRole}</p> : null}
+                      <p className="mt-4 max-w-xl text-lg leading-relaxed text-foreground sm:text-2xl">
+                        {card.tagline || "Creator profile built for action, trust and useful connection."}
+                      </p>
+
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {accountTypeLabel ? (
+                          <PremiumBadge icon={<UserRound size={13} />} label={accountTypeLabel} muted />
+                        ) : null}
+                        {identityTagLabels.map((tagLabel) => (
+                          <PremiumBadge key={tagLabel} icon={<Sparkles size={13} />} label={tagLabel} muted />
+                        ))}
+                        {card.location ? (
+                          <PremiumBadge icon={<MapPin size={13} />} label={card.location} muted />
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {socialContactRows.length ? (
+                      <div className="rounded-[1.5rem] border border-silver/14 bg-[#061126]/64 p-4 shadow-inner-surface backdrop-blur">
+                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-silver">
+                          Main socials
+                        </p>
+                        <div className="mt-3 grid gap-2">
+                          {socialContactRows.slice(0, 3).map((row) => (
+                            <a
+                              key={row.key}
+                              href={row.href}
+                              {...row.anchorProps}
+                              className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-silver/12 bg-white/[0.04] px-3 text-sm text-foreground transition-colors hover:border-gold/32"
+                            >
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className="text-gold">{row.icon}</span>
+                                <span className="truncate">{row.value}</span>
+                              </span>
+                              <ChevronRight size={15} className="shrink-0 text-silver" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[260px_minmax(0,1fr)]">
-                <div className="-mt-20 lg:-mt-24">
-                  <div className="relative h-36 w-36 rounded-full border border-gold/60 bg-[#071126] p-1.5 shadow-[0_0_58px_rgba(47,109,255,0.32)]">
-                    <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-3xl font-semibold text-foreground">
-                      {card.profileImageUrl ? (
-                        <CircleCardFramedImage
-                          src={card.profileImageUrl}
-                          alt={card.fullName}
-                          positionX={card.profileImagePositionX}
-                          positionY={card.profileImagePositionY}
-                          scale={card.profileImageScale}
-                        >
-                          <span>{initials(card.fullName)}</span>
-                        </CircleCardFramedImage>
-                      ) : (
-                        <span>{initials(card.fullName)}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {accountTypeLabel ? (
-                      <PremiumBadge icon={<UserRound size={13} />} label={accountTypeLabel} muted />
-                    ) : null}
-                    {identityTagLabels.map((tagLabel) => (
-                      <PremiumBadge key={tagLabel} icon={<Sparkles size={13} />} label={tagLabel} muted />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-5">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {renderWalletAction()}
-                    <a
-                      href={`/card/${card.slug}/vcard`}
-                      className={cn(buttonVariants({ variant: "outline" }), secondaryActionClassName, "gap-2")}
-                    >
-                      <Download size={16} />
-                      Save Contact
-                    </a>
-                    <CircleCardShareButton
-                      title={`${card.fullName} | Circle Card`}
-                      publicUrl={publicUrl}
-                      cardId={analyticsCardId}
-                      label="Share"
-                      hideStatus
-                      buttonClassName={cn(secondaryActionClassName, "gap-2")}
-                    />
-                  </div>
-
-                  {socialContactRows.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {socialContactRows.map((row) => (
-                        <a
-                          key={row.key}
-                          href={row.href}
-                          {...row.anchorProps}
-                          className="inline-flex min-h-10 items-center gap-2 rounded-full border border-silver/14 bg-white/[0.04] px-3 text-sm text-silver hover:border-gold/35 hover:text-foreground"
-                        >
-                          {row.icon}
-                          {row.value}
-                        </a>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {renderConnectionAction()}
-                </div>
+              <div className="grid gap-3 p-4 sm:grid-cols-3 sm:p-5">
+                {renderWalletAction()}
+                <a
+                  href={`/card/${card.slug}/vcard`}
+                  className={cn(buttonVariants({ variant: "outline" }), secondaryActionClassName, "gap-2")}
+                >
+                  <Download size={16} />
+                  Save Contact
+                </a>
+                <CircleCardShareButton
+                  title={`${card.fullName} | Circle Card`}
+                  publicUrl={publicUrl}
+                  cardId={analyticsCardId}
+                  label="Share"
+                  hideStatus
+                  buttonClassName={cn(secondaryActionClassName, "gap-2")}
+                />
               </div>
             </section>
+
+            {creatorPrimaryLink || creatorPrimaryWebsite ? (
+              <section className="rounded-[1.75rem] border border-gold/24 bg-[linear-gradient(135deg,rgba(212,175,95,0.15),rgba(11,28,63,0.86)_48%,rgba(4,10,24,0.96))] p-4 shadow-panel-soft sm:p-5">
+                {creatorPrimaryLink ? (
+                  <CircleCardTrackedLink
+                    {...customLinkAnchorProps(creatorPrimaryLink, customLinkHref(creatorPrimaryLink))}
+                    href={customLinkHref(creatorPrimaryLink)}
+                    cardId={analyticsCardId ?? ""}
+                    eventType="CUSTOM_LINK_CLICK"
+                    metadata={{
+                      source: "creator_primary_cta",
+                      layout: card.profileLayout,
+                      linkId: creatorPrimaryLink.id,
+                      label: creatorPrimaryLink.label,
+                      type: creatorPrimaryLink.type,
+                      url: analyticsUrlValue(customLinkHref(creatorPrimaryLink))
+                    }}
+                    className="group flex flex-col gap-4 rounded-[1.35rem] border border-gold/24 bg-[#061126]/54 p-4 transition-colors hover:border-gold/45 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <span className="flex min-w-0 gap-4">
+                      <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-gold/28 bg-gold/12 text-gold">
+                        {customLinkIcon(creatorPrimaryLink)}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                          {creatorLinkAccentLabel(creatorPrimaryLink)}
+                        </span>
+                        <span className="mt-1 block text-xl font-semibold leading-tight text-foreground">
+                          {customLinkDisplayLabel(creatorPrimaryLink)}
+                        </span>
+                        {offerEndDescription(creatorPrimaryLink) ? (
+                          <span className="mt-2 block line-clamp-2 text-sm leading-relaxed text-muted">
+                            {offerEndDescription(creatorPrimaryLink)}
+                          </span>
+                        ) : null}
+                      </span>
+                    </span>
+                    <span className={cn(buttonVariants(), primaryActionClassName, "w-full gap-2 sm:w-auto")}>
+                      Open
+                      <ChevronRight size={16} />
+                    </span>
+                  </CircleCardTrackedLink>
+                ) : creatorPrimaryWebsite ? (
+                  <a
+                    href={creatorPrimaryWebsite.href}
+                    {...creatorPrimaryWebsite.anchorProps}
+                    className="group flex flex-col gap-4 rounded-[1.35rem] border border-gold/24 bg-[#061126]/54 p-4 transition-colors hover:border-gold/45 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <span className="flex min-w-0 gap-4">
+                      <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-gold/28 bg-gold/12 text-gold">
+                        {creatorPrimaryWebsite.icon}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                          Website
+                        </span>
+                        <span className="mt-1 block text-xl font-semibold leading-tight text-foreground">
+                          {creatorPrimaryWebsite.value}
+                        </span>
+                        <span className="mt-2 block text-sm leading-relaxed text-muted">
+                          Explore the main home for this creator.
+                        </span>
+                      </span>
+                    </span>
+                    <span className={cn(buttonVariants(), primaryActionClassName, "w-full gap-2 sm:w-auto")}>
+                      Visit
+                      <ChevronRight size={16} />
+                    </span>
+                  </a>
+                ) : null}
+              </section>
+            ) : null}
 
             {noticeMessage || errorMessage ? (
               <div className="space-y-2">
@@ -1435,93 +1695,114 @@ export function PublicCircleCardProfile({
                     <LinkIcon size={18} className="text-gold" />
                     Featured links
                   </h2>
-                  <span className="text-xs text-muted">{featuredLinks.length} live</span>
+                  <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1 text-xs text-muted">
+                    {creatorLinks.length} live
+                  </span>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {featuredLinks.length ? (
-                    featuredLinks.map(renderCustomLinkAction)
-                  ) : (
-                    <p className="rounded-2xl border border-dashed border-silver/16 bg-white/[0.03] p-4 text-sm text-muted sm:col-span-2">
-                      Featured creator links can be added from custom links.
-                    </p>
-                  )}
-                </div>
+                {creatorLinks.length ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {creatorLinks.map((link) => (
+                      <CreatorSmartLinkCard
+                        key={link.id}
+                        link={link}
+                        analyticsCardId={analyticsCardId}
+                        layout={card.profileLayout}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 rounded-2xl border border-dashed border-silver/16 bg-white/[0.03] p-4 text-sm text-muted">
+                    Featured creator links appear here when offers, communities, resources or shops are added.
+                  </p>
+                )}
               </section>
 
               <aside className="space-y-5">
+                <TrustArea
+                  card={card}
+                  ownerAccountLabel={ownerAccountLabel}
+                  ownerIsBcnMember={ownerIsBcnMember}
+                />
+
                 <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft">
                   <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
                     <Mail size={16} className="text-gold" />
                     Contact hub
                   </h2>
                   <div className="mt-4 space-y-2">
-                    {directContactRows.length ? (
-                      directContactRows.map((row) => (
-                        <ContactAction
-                          key={row.key}
-                          icon={row.icon}
-                          label={row.label}
-                          value={row.value}
-                          description={row.description}
-                          href={row.href}
-                          anchorProps={row.anchorProps}
-                          analyticsCardId={analyticsCardId}
-                          eventType={row.eventType}
-                          metadata={row.metadata}
-                        />
-                      ))
+                    {directContactRows.filter((row) => row.key !== "website").length ? (
+                      directContactRows
+                        .filter((row) => row.key !== "website")
+                        .map((row) => (
+                          <ContactAction
+                            key={row.key}
+                            icon={row.icon}
+                            label={row.label}
+                            value={row.value}
+                            description={row.description}
+                            href={row.href}
+                            anchorProps={row.anchorProps}
+                            analyticsCardId={analyticsCardId}
+                            eventType={row.eventType}
+                            metadata={row.metadata}
+                          />
+                        ))
                     ) : (
-                      <p className="text-sm text-muted">Direct contact details can be added later.</p>
+                      <p className="rounded-2xl border border-dashed border-silver/14 bg-background/16 p-4 text-sm text-muted">
+                        Direct contact details can be added later.
+                      </p>
                     )}
                   </div>
                 </section>
-
-                {!card.isDemo ? (
-                  <CircleCardReportForm cardId={card.id} cardSlug={card.slug} />
-                ) : null}
               </aside>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
-              {[
-                {
-                  title: "Featured content",
-                  icon: BookOpen,
-                  text: "A future home for media kits, lead magnets, courses and creator highlights."
-                },
-                {
-                  title: "Latest content",
-                  icon: BarChart3,
-                  text: "A future stream for videos, posts, newsletters and launches."
-                },
-                {
-                  title: "Recommended creators",
-                  icon: Users,
-                  text: "Future creator discovery can connect complementary people and audiences."
-                },
-                {
-                  title: "Partnerships",
-                  icon: Handshake,
-                  text: "A future space for collaborations, sponsors and brand-ready signals."
-                }
-              ].map((item) => {
+            {creatorSocialGrid.length ? (
+              <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft">
+                <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <AtSign size={16} className="text-gold" />
+                  Social grid
+                </h2>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {creatorSocialGrid.map((row) => (
+                    <a
+                      key={row.key}
+                      href={row.href}
+                      {...row.anchorProps}
+                      className="group flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-silver/14 bg-background/18 px-3 text-sm text-foreground transition-colors hover:border-gold/35 hover:bg-[#102958]/45"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="text-gold">{row.icon}</span>
+                        <span className="truncate">{row.label}</span>
+                      </span>
+                      <span className="truncate text-xs text-muted group-hover:text-silver">
+                        {row.value}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {creatorFutureSections.map((item) => {
                 const Icon = item.icon;
 
                 return (
-                  <section
+                  <div
                     key={item.title}
-                    className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft"
+                    className="rounded-[1.5rem] border border-silver/14 bg-white/[0.032] p-4 shadow-inner-surface"
                   >
                     <div className="flex items-start gap-3">
                       <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
-                        <Icon size={18} />
+                        <Icon size={17} />
                       </span>
                       <div>
                         <h2 className="text-sm font-semibold text-foreground">{item.title}</h2>
                         <p className="mt-2 text-sm leading-relaxed text-muted">{item.text}</p>
                       </div>
                     </div>
-                  </section>
+                  </div>
                 );
               })}
             </div>

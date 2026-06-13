@@ -13,6 +13,8 @@ import {
   buildCircleCardSocialLinks,
   buildCircleWalletBusinessCardSocialLinks,
   CIRCLE_CARD_FILE_LINK_TYPES,
+  CIRCLE_CARD_LINK_TYPES,
+  CIRCLE_CARD_SOCIAL_FIELDS,
   circleCardConnectionRequestFormSchema,
   circleCardConnectionRequestIdSchema,
   circleCardIdentityFormSchema,
@@ -31,9 +33,11 @@ import {
   nullableNumber,
   nullableText,
   normalizeCircleCardEmail,
+  normalizeCircleCardUrl,
   normalizeWebsiteDomain,
   parseCircleWalletDateInput,
   parseCircleWalletTagsInput,
+  readCircleCardSocialLinks,
   resolveCircleCardLookupSlug,
   resolveCircleWalletLastInteractionDate
 } from "@/lib/circle-card/schema";
@@ -80,6 +84,7 @@ import {
   trackCircleCardEvent
 } from "@/server/circle-card";
 import { hashCircleCardAccessCode } from "@/server/circle-card/link-access.service";
+import { scanCircleCardSmartImportUrls } from "@/server/circle-card/smart-profile-import.service";
 
 const CIRCLE_CARD_FORM_FIELDS = [
   "cardId",
@@ -249,6 +254,9 @@ const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
 const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = 24;
 const CIRCLE_CARD_PRIVATE_LINK_TYPES = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
 const CIRCLE_CARD_RELATIONSHIP_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const CIRCLE_CARD_SMART_IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const CIRCLE_CARD_SMART_IMPORT_LINK_LIMIT = 8;
+const CIRCLE_CARD_SMART_IMPORT_APPLY_LINK_LIMIT = 3;
 
 type CircleCardActionUser = {
   id: string;
@@ -935,6 +943,239 @@ export async function markAllCircleCardNotificationsReadAction(formData: FormDat
 
   revalidatePath("/dashboard/circle-card");
   redirectWithNotice(returnPath, "notifications-read");
+}
+
+function readSmartImportTextField(formData: FormData, key: string, maxLength: number) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function readSmartImportHttpUrl(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+
+  const normalized = normalizeCircleCardUrl(value);
+
+  try {
+    const url = new URL(normalized);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+export async function scanCircleCardSmartImportLinksAction(input: { links: string }) {
+  const user = await requireCircleCardActionUser();
+  const rateLimit = await consumeRateLimit({
+    key: `circle-card:smart-import:${user.id}`,
+    limit: 12,
+    windowMs: CIRCLE_CARD_SMART_IMPORT_RATE_LIMIT_WINDOW_MS
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      ok: false as const,
+      error: "You have scanned several links recently. Please try again shortly.",
+      results: []
+    };
+  }
+
+  const links = input.links
+    .split(/[\n,\s]+/)
+    .map((link) => link.trim())
+    .filter(Boolean)
+    .slice(0, CIRCLE_CARD_SMART_IMPORT_LINK_LIMIT);
+
+  if (!links.length) {
+    return {
+      ok: false as const,
+      error: "Paste at least one public link to scan.",
+      results: []
+    };
+  }
+
+  const results = await scanCircleCardSmartImportUrls(links);
+
+  return {
+    ok: true as const,
+    error: null,
+    results
+  };
+}
+
+export async function applyCircleCardSmartImportAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(
+    formData.get("returnPath"),
+    "/dashboard/circle-card?section=my-card#smart-profile-import"
+  );
+  const cardId = readSmartImportTextField(formData, "cardId", 140);
+
+  if (!cardId) {
+    redirectWithError(returnPath, "smart-import-invalid");
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: cardId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      slug: true,
+      socialLinks: true,
+      _count: {
+        select: {
+          customLinks: true
+        }
+      },
+      customLinks: {
+        where: {
+          isActive: true
+        },
+        select: {
+          id: true
+        }
+      }
+    }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  const data: Prisma.CircleCardUpdateInput = {};
+  const tagline = readSmartImportTextField(formData, "taglineValue", 180);
+  const profileImageUrl = readSmartImportHttpUrl(formData, "profileImageUrl");
+  const websiteUrl = readSmartImportHttpUrl(formData, "websiteUrl");
+
+  if (formData.has("useTagline") && tagline) {
+    data.tagline = tagline;
+  }
+
+  if (formData.has("useProfileImage") && profileImageUrl) {
+    data.profileImageUrl = profileImageUrl;
+  }
+
+  if (formData.has("useWebsite") && websiteUrl) {
+    data.websiteUrl = websiteUrl;
+  }
+
+  const socialLinks = readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue);
+  let hasSocialUpdates = false;
+
+  for (const platform of formData.getAll("socialPlatform")) {
+    if (
+      typeof platform !== "string" ||
+      !CIRCLE_CARD_SOCIAL_FIELDS.includes(platform as (typeof CIRCLE_CARD_SOCIAL_FIELDS)[number])
+    ) {
+      continue;
+    }
+
+    const socialUrl = readSmartImportHttpUrl(formData, `socialUrl-${platform}`);
+
+    if (socialUrl) {
+      socialLinks[platform as (typeof CIRCLE_CARD_SOCIAL_FIELDS)[number]] = socialUrl;
+      hasSocialUpdates = true;
+    }
+  }
+
+  if (hasSocialUpdates) {
+    data.socialLinks = socialLinks;
+  }
+
+  const selectedLinkIndexes = formData
+    .getAll("smartLinkIndex")
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean)
+    .slice(0, CIRCLE_CARD_SMART_IMPORT_APPLY_LINK_LIMIT);
+  const selectedLinks = selectedLinkIndexes
+    .map((index) => {
+      const rawType = readSmartImportTextField(formData, `linkType-${index}`, 40);
+      const type = CIRCLE_CARD_LINK_TYPES.includes(rawType as CircleCardLinkType)
+        ? (rawType as CircleCardLinkType)
+        : "GENERAL";
+      const url = readSmartImportHttpUrl(formData, `linkUrl-${index}`);
+      const label = readSmartImportTextField(formData, `linkLabel-${index}`, 90);
+
+      return {
+        type,
+        url,
+        label,
+        description: readSmartImportTextField(formData, `linkDescription-${index}`, 220)
+      };
+    })
+    .filter((link) => link.url && link.label);
+
+  const hasCardUpdates = Object.keys(data).length > 0;
+
+  if (!hasCardUpdates && !selectedLinks.length) {
+    redirectWithError(returnPath, "smart-import-empty");
+  }
+
+  if (
+    selectedLinks.length &&
+    card._count.customLinks + selectedLinks.length > CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT
+  ) {
+    redirectWithError(returnPath, "custom-link-total-limit");
+  }
+
+  const activeLinkCount = card.customLinks.length;
+  let remainingFreeActiveSlots = isFreeCircleCardActionUser(user)
+    ? Math.max(0, FREE_ACTIVE_CUSTOM_LINK_LIMIT - activeLinkCount)
+    : Number.POSITIVE_INFINITY;
+
+  if (hasCardUpdates) {
+    await prisma.circleCard.update({
+      where: {
+        id: card.id
+      },
+      data
+    });
+  }
+
+  if (selectedLinks.length) {
+    let nextSortOrder = card._count.customLinks;
+
+    for (const link of selectedLinks) {
+      const isActive = remainingFreeActiveSlots > 0;
+
+      if (Number.isFinite(remainingFreeActiveSlots)) {
+        remainingFreeActiveSlots -= 1;
+      }
+
+      await prisma.circleCardLink.create({
+        data: {
+          cardId: card.id,
+          type: link.type,
+          label: link.label,
+          url: link.url,
+          description: nullableText(link.description),
+          icon: circleCardLinkIconForType(link.type),
+          sortOrder: nextSortOrder,
+          isActive
+        }
+      });
+
+      nextSortOrder += 1;
+    }
+  }
+
+  await createCircleCardActivity({
+    userId: user.id,
+    circleCardId: card.id,
+    type: "CARD_UPDATED",
+    title: "Smart Profile Import applied",
+    message: "Reviewed Smart Import suggestions were applied to this Circle Card.",
+    entityType: "CIRCLE_CARD",
+    entityId: card.id
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, "smart-import-applied");
 }
 
 export async function upsertCircleCardAction(formData: FormData) {

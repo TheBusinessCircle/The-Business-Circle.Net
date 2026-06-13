@@ -82,6 +82,7 @@ import {
   CircleCardSectionRouter,
   CircleCardShareAssetsPanel,
   CircleCardShareButton,
+  CircleCardSmartProfileImportPanel,
   CircleCardTrackedLink,
   CircleCardSmartLinkFields
 } from "@/components/circle-card";
@@ -271,6 +272,7 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "custom-link-disabled": "Custom link paused.",
   "custom-link-reordered": "Custom links reordered.",
   "identity-updated": "Circle Card identity updated.",
+  "smart-import-applied": "Smart Profile Import suggestions applied.",
   "own-card": "This is already your Circle Card."
 };
 
@@ -325,6 +327,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   "opportunity-primary-card-required": "Create your own Circle Card before tracking opportunities.",
   "opportunity-not-found": "That opportunity could not be found.",
   "identity-invalid": "Choose an account type and try again.",
+  "smart-import-invalid": "Check the Smart Profile Import suggestions and try again.",
+  "smart-import-empty": "Choose at least one Smart Profile Import suggestion before saving.",
   "notification-invalid": "Check the notification action and try again.",
   "notification-not-found": "That notification could not be found."
 };
@@ -4822,6 +4826,27 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
         </aside>
       </div>
+
+      {card ? (
+        <CircleCardDashboardSection
+          id="smart-profile-import"
+          title="Smart Profile Import"
+          summary="Scan public links, review suggestions, then apply only what you choose"
+          appSection="my-card"
+          className={activeSection === "my-card" ? undefined : "hidden"}
+        >
+          <CircleCardSmartProfileImportPanel
+            cardId={card.id}
+            returnPath={circleCardSectionHref("my-card", "smart-profile-import")}
+            isCreatorLayout={card.profileLayout === "CREATOR"}
+            existingTagline={card.tagline}
+            existingProfileImageUrl={card.profileImageUrl}
+            existingWebsiteUrl={card.websiteUrl}
+            existingSocialLinks={socialLinks}
+            customLinkLimitLabel={customLinkLimitLabel}
+          />
+        </CircleCardDashboardSection>
+      ) : null}
 
       <CircleCardDashboardSection
         id="custom-links"
