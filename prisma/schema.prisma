@@ -408,6 +408,7 @@ model CircleCard {
   businessName    String?
   accountType     CircleCardAccountType?
   identityTags    String[]              @default([])
+  profileLayout   CircleCardProfileLayout @default(BUSINESS)
   role            String?
   tagline         String?
   about           String?               @db.Text
@@ -451,6 +452,7 @@ model CircleCard {
   @@index([userId])
   @@index([isPublished])
   @@index([accountType])
+  @@index([profileLayout])
 }
 
 model CircleCardLink {
@@ -2440,6 +2442,12 @@ enum CircleCardAccountType {
   INDIVIDUAL
   FOUNDER
   TEAM
+}
+
+enum CircleCardProfileLayout {
+  CLASSIC
+  BUSINESS
+  CREATOR
 }
 
 enum CircleCardEventType {

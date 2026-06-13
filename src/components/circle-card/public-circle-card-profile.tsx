@@ -144,6 +144,8 @@ const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
   { key: "youtube", label: "YouTube", icon: Youtube }
 ] as const;
 
+const SOCIAL_CONTACT_KEYS = new Set<string>(SOCIAL_CONTACT_PLATFORMS.map((platform) => platform.key));
+
 const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
 
 const primaryActionClassName =
@@ -843,6 +845,10 @@ export function PublicCircleCardProfile({
     });
   }
 
+  const socialContactRows = contactRows.filter((row) => SOCIAL_CONTACT_KEYS.has(row.key));
+  const directContactRows = contactRows.filter((row) => !SOCIAL_CONTACT_KEYS.has(row.key));
+  const featuredLinks = card.customLinks.slice(0, 4);
+
   function renderWalletAction({ mobileBar = false }: { mobileBar?: boolean } = {}) {
     const iconSize = mobileBar ? 15 : 16;
     const actionClassName = mobileBar
@@ -1057,6 +1063,478 @@ export function PublicCircleCardProfile({
           </Button>
         </div>
       </form>
+    );
+  }
+
+  function renderCustomLinkAction(link: PublicCircleCard["customLinks"][number]) {
+    if (link.visibility === "PRIVATE_CODE") {
+      return (
+        <CircleCardPrivateLinkAction
+          key={link.id}
+          linkId={link.id}
+          type={link.type}
+          value={customLinkDisplayLabel(link)}
+          description={offerEndDescription(link)}
+          accessCodeHint={link.accessCodeHint}
+          hasAccessCode={link.hasAccessCode}
+        />
+      );
+    }
+
+    const href = customLinkHref(link);
+
+    if (!href) {
+      return null;
+    }
+
+    return (
+      <ContactAction
+        key={link.id}
+        icon={customLinkIcon(link)}
+        label={customLinkActionType(link)}
+        value={customLinkDisplayLabel(link)}
+        description={offerEndDescription(link)}
+        href={href}
+        anchorProps={customLinkAnchorProps(link, href)}
+        analyticsCardId={analyticsCardId}
+        eventType="CUSTOM_LINK_CLICK"
+        metadata={{
+          source: "public_card",
+          layout: card.profileLayout,
+          linkId: link.id,
+          label: link.label,
+          type: link.type,
+          actionMode: link.actionMode,
+          resolvedAction: link.fileUrl || link.fileMimeType || link.fileName
+            ? resolveCircleCardFileAction(link)
+            : undefined,
+          url: analyticsUrlValue(href)
+        }}
+      />
+    );
+  }
+
+  if (card.profileLayout === "CLASSIC") {
+    return (
+      <div className="relative overflow-hidden pb-12">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(47,109,255,0.18),transparent_34%),linear-gradient(180deg,#030813_0%,#071126_48%,#030712_100%)]"
+        />
+
+        <div className="public-page-stack relative max-w-5xl pt-4 sm:pt-6 lg:pt-8">
+          <header className="flex items-center justify-between gap-3">
+            <Link
+              href="/circle-card"
+              className="inline-flex min-w-0 items-center gap-3 rounded-full border border-silver/12 bg-white/[0.035] px-3 py-2 shadow-inner-surface backdrop-blur"
+            >
+              <CircleCardLogoMark className="h-9 w-9" alt="" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">Circle Card</span>
+                <span className="block text-xs text-muted">Classic profile</span>
+              </span>
+            </Link>
+            <CircleCardShareButton
+              title={`${card.fullName} | Circle Card`}
+              publicUrl={publicUrl}
+              cardId={analyticsCardId}
+              label="Share"
+              hideStatus
+              size="sm"
+              className="hidden sm:block"
+              buttonClassName="rounded-full border-silver/18 bg-white/[0.035] px-4 text-silver hover:border-gold/35 hover:text-foreground"
+            />
+          </header>
+
+          <main className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <section className="rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-7">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+                <div className="relative h-28 w-28 shrink-0">
+                  <div className="grid h-28 w-28 place-items-center overflow-hidden rounded-full border border-gold/45 bg-[#071126] text-2xl font-semibold text-foreground shadow-[0_0_42px_rgba(47,109,255,0.22)]">
+                    {card.profileImageUrl ? (
+                      <CircleCardFramedImage
+                        src={card.profileImageUrl}
+                        alt={card.fullName}
+                        positionX={card.profileImagePositionX}
+                        positionY={card.profileImagePositionY}
+                        scale={card.profileImageScale}
+                      >
+                        <span>{initials(card.fullName)}</span>
+                      </CircleCardFramedImage>
+                    ) : (
+                      <span>{initials(card.fullName)}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <h1 className="font-display text-4xl font-semibold leading-tight text-foreground sm:text-5xl">
+                    {card.fullName}
+                  </h1>
+                  {displayRole ? <p className="mt-2 text-base text-silver">{displayRole}</p> : null}
+                  {card.tagline ? (
+                    <p className="mt-4 text-lg leading-relaxed text-foreground">{card.tagline}</p>
+                  ) : card.about ? (
+                    <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-muted">{card.about}</p>
+                  ) : null}
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {accountTypeLabel ? (
+                      <PremiumBadge icon={<UserRound size={13} />} label={accountTypeLabel} muted />
+                    ) : null}
+                    {identityTagLabels.map((tagLabel) => (
+                      <PremiumBadge key={tagLabel} icon={<Sparkles size={13} />} label={tagLabel} muted />
+                    ))}
+                    {card.location ? (
+                      <PremiumBadge icon={<MapPin size={13} />} label={card.location} muted />
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <a
+                  href={`/card/${card.slug}/vcard`}
+                  className={cn(buttonVariants({ variant: "outline" }), secondaryActionClassName, "gap-2")}
+                >
+                  <Download size={16} />
+                  Save Contact
+                </a>
+                {renderWalletAction()}
+                <CircleCardShareButton
+                  title={`${card.fullName} | Circle Card`}
+                  publicUrl={publicUrl}
+                  cardId={analyticsCardId}
+                  label="Share"
+                  hideStatus
+                  buttonClassName={cn(secondaryActionClassName, "gap-2")}
+                />
+              </div>
+
+              {renderConnectionAction()}
+
+              {noticeMessage || errorMessage ? (
+                <div className="mt-5 space-y-2">
+                  {noticeMessage ? (
+                    <p className="rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-gold">
+                      {noticeMessage}
+                    </p>
+                  ) : null}
+                  {errorMessage ? (
+                    <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                      {errorMessage}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+
+            <aside id="classic-contact" className="space-y-5">
+              <section className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(9,20,45,0.9),rgba(4,10,24,0.96))] p-5 shadow-panel-soft">
+                <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Mail size={16} className="text-gold" />
+                  Contact
+                </h2>
+                <div className="mt-4 space-y-2">
+                  {contactRows.length ? (
+                    contactRows.map((row) => (
+                      <ContactAction
+                        key={row.key}
+                        icon={row.icon}
+                        label={row.label}
+                        value={row.value}
+                        description={row.description}
+                        href={row.href}
+                        anchorProps={row.anchorProps}
+                        analyticsCardId={analyticsCardId}
+                        eventType={row.eventType}
+                        metadata={row.metadata}
+                      />
+                    ))
+                  ) : (
+                    <p className="rounded-2xl border border-dashed border-silver/16 bg-white/[0.03] p-4 text-sm text-muted">
+                      Contact details can be added from the Circle Card dashboard.
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              {card.customLinks.length ? (
+                <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft">
+                  <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <LinkIcon size={16} className="text-gold" />
+                    Links
+                  </h2>
+                  <div className="mt-4 space-y-2">{card.customLinks.map(renderCustomLinkAction)}</div>
+                </section>
+              ) : null}
+
+              {card.about ? (
+                <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft">
+                  <h2 className="text-sm font-semibold text-foreground">About</h2>
+                  <CircleCardAboutExpander text={card.about} className="mt-3" />
+                </section>
+              ) : null}
+
+              {!card.isDemo ? (
+                <CircleCardReportForm cardId={card.id} cardSlug={card.slug} />
+              ) : null}
+            </aside>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (card.profileLayout === "CREATOR") {
+    return (
+      <div className="relative overflow-hidden pb-16">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(47,109,255,0.28),transparent_35%),radial-gradient(circle_at_82%_8%,rgba(212,175,95,0.16),transparent_28%),linear-gradient(180deg,#030813_0%,#071126_48%,#030712_100%)]"
+        />
+
+        <div className="public-page-stack relative max-w-6xl pt-4 sm:pt-6 lg:pt-8">
+          <header className="flex items-center justify-between gap-3">
+            <Link
+              href="/circle-card"
+              className="inline-flex min-w-0 items-center gap-3 rounded-full border border-silver/12 bg-white/[0.035] px-3 py-2 shadow-inner-surface backdrop-blur"
+            >
+              <CircleCardLogoMark className="h-9 w-9" alt="" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">Circle Card</span>
+                <span className="block text-xs text-muted">Creator profile</span>
+              </span>
+            </Link>
+            <CircleCardShareButton
+              title={`${card.fullName} | Circle Card`}
+              publicUrl={publicUrl}
+              cardId={analyticsCardId}
+              label="Share"
+              hideStatus
+              size="sm"
+              className="hidden sm:block"
+              buttonClassName="rounded-full border-silver/18 bg-white/[0.035] px-4 text-silver hover:border-gold/35 hover:text-foreground"
+            />
+          </header>
+
+          <main className="mt-5 space-y-5">
+            <section className="relative overflow-hidden rounded-[2rem] border border-gold/24 bg-[linear-gradient(145deg,rgba(10,25,58,0.94),rgba(4,10,24,0.97))] shadow-[0_28px_90px_rgba(0,0,0,0.46),0_0_70px_rgba(47,109,255,0.12)]">
+              <div className="relative min-h-56 border-b border-gold/14 bg-[radial-gradient(circle_at_22%_20%,rgba(212,175,95,0.24),transparent_24%),radial-gradient(circle_at_76%_18%,rgba(47,109,255,0.32),transparent_30%),linear-gradient(135deg,rgba(9,34,80,0.96),rgba(3,7,16,0.98))] p-5 sm:min-h-72 sm:p-7">
+                <div className="absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.72),rgba(75,126,255,0.45),transparent)]" />
+                <div className="relative z-10 flex h-full flex-col justify-between gap-8">
+                  <div className="flex justify-end">
+                    <span className="rounded-full border border-silver/16 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">
+                      Visual header
+                    </span>
+                  </div>
+                  <div className="max-w-2xl">
+                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                      Creator Circle Card
+                    </p>
+                    <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-foreground sm:text-6xl">
+                      {card.fullName}
+                    </h1>
+                    <p className="mt-3 text-lg leading-relaxed text-silver">
+                      {card.tagline || displayRole || "Creator profile"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[260px_minmax(0,1fr)]">
+                <div className="-mt-20 lg:-mt-24">
+                  <div className="relative h-36 w-36 rounded-full border border-gold/60 bg-[#071126] p-1.5 shadow-[0_0_58px_rgba(47,109,255,0.32)]">
+                    <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-3xl font-semibold text-foreground">
+                      {card.profileImageUrl ? (
+                        <CircleCardFramedImage
+                          src={card.profileImageUrl}
+                          alt={card.fullName}
+                          positionX={card.profileImagePositionX}
+                          positionY={card.profileImagePositionY}
+                          scale={card.profileImageScale}
+                        >
+                          <span>{initials(card.fullName)}</span>
+                        </CircleCardFramedImage>
+                      ) : (
+                        <span>{initials(card.fullName)}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {accountTypeLabel ? (
+                      <PremiumBadge icon={<UserRound size={13} />} label={accountTypeLabel} muted />
+                    ) : null}
+                    {identityTagLabels.map((tagLabel) => (
+                      <PremiumBadge key={tagLabel} icon={<Sparkles size={13} />} label={tagLabel} muted />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-5">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {renderWalletAction()}
+                    <a
+                      href={`/card/${card.slug}/vcard`}
+                      className={cn(buttonVariants({ variant: "outline" }), secondaryActionClassName, "gap-2")}
+                    >
+                      <Download size={16} />
+                      Save Contact
+                    </a>
+                    <CircleCardShareButton
+                      title={`${card.fullName} | Circle Card`}
+                      publicUrl={publicUrl}
+                      cardId={analyticsCardId}
+                      label="Share"
+                      hideStatus
+                      buttonClassName={cn(secondaryActionClassName, "gap-2")}
+                    />
+                  </div>
+
+                  {socialContactRows.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {socialContactRows.map((row) => (
+                        <a
+                          key={row.key}
+                          href={row.href}
+                          {...row.anchorProps}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-full border border-silver/14 bg-white/[0.04] px-3 text-sm text-silver hover:border-gold/35 hover:text-foreground"
+                        >
+                          {row.icon}
+                          {row.value}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {renderConnectionAction()}
+                </div>
+              </div>
+            </section>
+
+            {noticeMessage || errorMessage ? (
+              <div className="space-y-2">
+                {noticeMessage ? (
+                  <p className="rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-gold">
+                    {noticeMessage}
+                  </p>
+                ) : null}
+                {errorMessage ? (
+                  <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {errorMessage}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <section className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(9,20,45,0.9),rgba(4,10,24,0.96))] p-5 shadow-panel-soft">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <LinkIcon size={18} className="text-gold" />
+                    Featured links
+                  </h2>
+                  <span className="text-xs text-muted">{featuredLinks.length} live</span>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {featuredLinks.length ? (
+                    featuredLinks.map(renderCustomLinkAction)
+                  ) : (
+                    <p className="rounded-2xl border border-dashed border-silver/16 bg-white/[0.03] p-4 text-sm text-muted sm:col-span-2">
+                      Featured creator links can be added from custom links.
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              <aside className="space-y-5">
+                <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft">
+                  <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Mail size={16} className="text-gold" />
+                    Contact hub
+                  </h2>
+                  <div className="mt-4 space-y-2">
+                    {directContactRows.length ? (
+                      directContactRows.map((row) => (
+                        <ContactAction
+                          key={row.key}
+                          icon={row.icon}
+                          label={row.label}
+                          value={row.value}
+                          description={row.description}
+                          href={row.href}
+                          anchorProps={row.anchorProps}
+                          analyticsCardId={analyticsCardId}
+                          eventType={row.eventType}
+                          metadata={row.metadata}
+                        />
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted">Direct contact details can be added later.</p>
+                    )}
+                  </div>
+                </section>
+
+                {!card.isDemo ? (
+                  <CircleCardReportForm cardId={card.id} cardSlug={card.slug} />
+                ) : null}
+              </aside>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              {[
+                {
+                  title: "Featured content",
+                  icon: BookOpen,
+                  text: "A future home for media kits, lead magnets, courses and creator highlights."
+                },
+                {
+                  title: "Latest content",
+                  icon: BarChart3,
+                  text: "A future stream for videos, posts, newsletters and launches."
+                },
+                {
+                  title: "Recommended creators",
+                  icon: Users,
+                  text: "Future creator discovery can connect complementary people and audiences."
+                },
+                {
+                  title: "Partnerships",
+                  icon: Handshake,
+                  text: "A future space for collaborations, sponsors and brand-ready signals."
+                }
+              ].map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <section
+                    key={item.title}
+                    className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+                        <Icon size={18} />
+                      </span>
+                      <div>
+                        <h2 className="text-sm font-semibold text-foreground">{item.title}</h2>
+                        <p className="mt-2 text-sm leading-relaxed text-muted">{item.text}</p>
+                      </div>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+
+            {card.about ? (
+              <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft">
+                <h2 className="text-sm font-semibold text-foreground">About</h2>
+                <CircleCardAboutExpander text={card.about} className="mt-3" />
+              </section>
+            ) : null}
+          </main>
+        </div>
+      </div>
     );
   }
 

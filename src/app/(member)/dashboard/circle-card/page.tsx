@@ -155,6 +155,13 @@ import {
   normalizeCircleCardIdentityTags,
   resolveCircleCardAccountType
 } from "@/lib/circle-card/identity";
+import {
+  buildCircleCardProfileLayoutFilterWhere,
+  CIRCLE_CARD_PROFILE_LAYOUTS,
+  CIRCLE_CARD_PROFILE_LAYOUT_COPY,
+  getCircleCardProfileLayoutLabel,
+  resolveCircleCardProfileLayoutFilter
+} from "@/lib/circle-card/profile-layout";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireCircleCardUser } from "@/lib/session";
@@ -509,6 +516,7 @@ function buildDiscoverHref(input: {
   discoverCategory?: string;
   discoverAccountType?: string | null;
   discoverIdentityTag?: string;
+  discoverProfileLayout?: string | null;
   discoverLocation?: string;
   discoverRecommended?: boolean;
   discoverBcn?: boolean;
@@ -530,6 +538,10 @@ function buildDiscoverHref(input: {
 
   if (input.discoverIdentityTag) {
     params.set("discoverIdentityTag", input.discoverIdentityTag);
+  }
+
+  if (input.discoverProfileLayout) {
+    params.set("discoverProfileLayout", input.discoverProfileLayout);
   }
 
   if (input.discoverLocation) {
@@ -992,6 +1004,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const discoverAccountType = resolveCircleCardAccountType(firstValue(params.discoverAccountType));
   const discoverIdentityTag =
     normalizeCircleCardIdentityTags([firstValue(params.discoverIdentityTag) ?? ""])[0] ?? "";
+  const discoverProfileLayout = resolveCircleCardProfileLayoutFilter(
+    firstValue(params.discoverProfileLayout)
+  );
   const discoverLocation = (firstValue(params.discoverLocation) ?? "").trim();
   const discoverRecommended = firstValue(params.discoverRecommended) === "1";
   const discoverBcn = firstValue(params.discoverBcn) === "1";
@@ -1196,6 +1211,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           accountType: discoverAccountType,
           identityTag: discoverIdentityTag
         }),
+        ...buildCircleCardProfileLayoutFilterWhere({
+          profileLayout: discoverProfileLayout
+        }),
         user: {
           suspended: false,
           ...(discoverBcn
@@ -1226,6 +1244,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         businessName: true,
         accountType: true,
         identityTags: true,
+        profileLayout: true,
         role: true,
         tagline: true,
         location: true,
@@ -1673,6 +1692,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     discoverCategory,
     discoverAccountType,
     discoverIdentityTag,
+    discoverProfileLayout,
     discoverLocation,
     discoverRecommended,
     discoverBcn
@@ -1682,6 +1702,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       discoverCategory ||
       discoverAccountType ||
       discoverIdentityTag ||
+      discoverProfileLayout ||
       discoverLocation ||
       discoverRecommended ||
       discoverBcn
@@ -1707,6 +1728,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       const recommendationCategoryLabels = Array.from(new Set(recommendationCategories)).slice(0, 3);
       const accountTypeLabel = getCircleCardAccountTypeLabel(candidate.accountType);
       const identityTagLabels = candidate.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2);
+      const profileLayoutLabel = getCircleCardProfileLayoutLabel(candidate.profileLayout);
       const knownRecommenderNames = Array.from(
         new Set(recommendedByKnown.map((recommendation) => recommendation.recommenderCard.fullName))
       ).slice(0, 3);
@@ -1723,6 +1745,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         candidate.tagline,
         candidate.location,
         accountTypeLabel,
+        profileLayoutLabel,
         ...candidate.identityTags.map(getCircleCardIdentityTagLabel),
         ...Object.values(candidateSocialLinks),
         ...recommendationCategories,
@@ -1742,6 +1765,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         recommendationCategoryLabels,
         accountTypeLabel,
         identityTagLabels,
+        profileLayoutLabel,
         recommendedByKnown,
         knownRecommenderNames,
         isBcnMember,
@@ -1753,6 +1777,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         matchesCategory: !discoverCategory || recommendationCategories.includes(discoverCategory),
         matchesAccountType: !discoverAccountType || candidate.accountType === discoverAccountType,
         matchesIdentityTag: !discoverIdentityTag || candidate.identityTags.includes(discoverIdentityTag),
+        matchesProfileLayout:
+          !discoverProfileLayout || candidate.profileLayout === discoverProfileLayout,
         matchesRecommended: !discoverRecommended || recommendations.length > 0
       };
     })
@@ -1763,6 +1789,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         candidate.matchesCategory &&
         candidate.matchesAccountType &&
         candidate.matchesIdentityTag &&
+        candidate.matchesProfileLayout &&
         candidate.matchesRecommended
     )
     .slice(0, 24);
@@ -2086,6 +2113,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         category: discoverCategory || null,
         accountType: discoverAccountType || null,
         identityTag: discoverIdentityTag || null,
+        profileLayout: discoverProfileLayout || null,
         location: discoverLocation || null,
         recommendedOnly: discoverRecommended,
         bcnOnly: discoverBcn,
@@ -3340,6 +3368,18 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     </option>
                   ))}
                 </Select>
+                <Select
+                  name="discoverProfileLayout"
+                  defaultValue={discoverProfileLayout ?? ""}
+                  aria-label="Discover profile layout filter"
+                >
+                  <option value="">All layouts</option>
+                  {CIRCLE_CARD_PROFILE_LAYOUTS.map((layout) => (
+                    <option key={layout} value={layout}>
+                      {CIRCLE_CARD_PROFILE_LAYOUT_COPY[layout].shortLabel}
+                    </option>
+                  ))}
+                </Select>
                 <div className="relative">
                   <Compass className="pointer-events-none absolute left-3 top-3 text-muted" size={16} />
                   <Input
@@ -3475,6 +3515,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 {candidate.accountTypeLabel}
                               </Badge>
                             ) : null}
+                            {candidate.profileLayoutLabel ? (
+                              <Badge variant="outline" className="border-silver/18 text-silver">
+                                {candidate.profileLayoutLabel}
+                              </Badge>
+                            ) : null}
                             {candidate.identityTagLabels.map((tagLabel) => (
                               <Badge key={tagLabel} variant="outline" className="border-silver/18 text-silver">
                                 {tagLabel}
@@ -3544,6 +3589,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             category: discoverCategory || null,
                             accountType: discoverAccountType || null,
                             identityTag: discoverIdentityTag || null,
+                            profileLayout: discoverProfileLayout || null,
                             location: discoverLocation || null
                           }}
                           className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
@@ -6803,7 +6849,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   <MenuIcon size={17} className="text-gold" />
                   Card Settings
                 </CardTitle>
-                <CardDescription>Manage the public slug and publishing state for this Circle Card.</CardDescription>
+                <CardDescription>Manage the public slug, layout and publishing state for this Circle Card.</CardDescription>
               </CardHeader>
               <CardContent>
                 {card ? (
@@ -6838,12 +6884,29 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     <input type="hidden" name="facebookUrl" value={socialLinks.facebook ?? ""} />
                     <input type="hidden" name="youtubeUrl" value={socialLinks.youtube ?? ""} />
 
-                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_220px]">
                       <div className="space-y-2">
                         <Label htmlFor="settings-slug">Public slug</Label>
                         <Input id="settings-slug" name="slug" defaultValue={card.slug} placeholder="your-name" />
                         <p className="break-all text-xs text-muted">
                           {publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="settings-profileLayout">Profile layout</Label>
+                        <Select
+                          id="settings-profileLayout"
+                          name="profileLayout"
+                          defaultValue={card.profileLayout}
+                        >
+                          {CIRCLE_CARD_PROFILE_LAYOUTS.map((layout) => (
+                            <option key={layout} value={layout}>
+                              {CIRCLE_CARD_PROFILE_LAYOUT_COPY[layout].label}
+                            </option>
+                          ))}
+                        </Select>
+                        <p className="text-xs text-muted">
+                          Presentation only. Your wallet and relationship tools stay the same.
                         </p>
                       </div>
                       <label

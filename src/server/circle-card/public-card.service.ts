@@ -1,5 +1,11 @@
 import "server-only";
-import type { CircleCardAccountType, MembershipTier, Prisma, Role } from "@prisma/client";
+import type {
+  CircleCardAccountType,
+  CircleCardProfileLayout,
+  MembershipTier,
+  Prisma,
+  Role
+} from "@prisma/client";
 import { SITE_CONFIG } from "@/config/site";
 import {
   readCircleCardSocialLinks,
@@ -51,6 +57,7 @@ export type PublicCircleCard = {
   businessName: string | null;
   accountType: CircleCardAccountType | null;
   identityTags: string[];
+  profileLayout: CircleCardProfileLayout;
   role: string | null;
   tagline: string | null;
   about: string | null;
@@ -88,6 +95,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   businessName: "The Business Circle",
   accountType: "FOUNDER",
   identityTags: ["community-builder"],
+  profileLayout: "BUSINESS",
   role: "Founder",
   tagline: "Founder-led rooms for better business relationships.",
   about:
@@ -182,6 +190,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       businessName: true,
       accountType: true,
       identityTags: true,
+      profileLayout: true,
       role: true,
       tagline: true,
       about: true,

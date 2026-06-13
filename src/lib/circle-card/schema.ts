@@ -9,6 +9,10 @@ import {
   CIRCLE_CARD_ACCOUNT_TYPES,
   normalizeCircleCardIdentityTags
 } from "@/lib/circle-card/identity";
+import {
+  CIRCLE_CARD_PROFILE_LAYOUTS,
+  DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT
+} from "@/lib/circle-card/profile-layout";
 import { normalizeExternalHref } from "@/lib/links";
 import { slugify } from "@/lib/utils";
 
@@ -171,6 +175,13 @@ const identityTagsInput = z.preprocess(
   (value) => normalizeCircleCardIdentityTags(Array.isArray(value) ? value : [value ?? ""]),
   z.array(z.string()).max(8)
 );
+const circleCardProfileLayoutInput = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim()
+      ? value.trim().toUpperCase()
+      : DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT,
+  z.enum(CIRCLE_CARD_PROFILE_LAYOUTS)
+);
 
 function optionalHttpUrl(label: string) {
   return z
@@ -242,6 +253,7 @@ export const circleCardFormSchema = z.object({
   businessName: optionalText(140),
   accountType: optionalCircleCardAccountType,
   identityTags: identityTagsInput,
+  profileLayout: circleCardProfileLayoutInput,
   role: optionalText(120),
   tagline: optionalText(180),
   about: optionalText(1600),

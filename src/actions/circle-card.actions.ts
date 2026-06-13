@@ -37,6 +37,7 @@ import {
   resolveCircleCardLookupSlug,
   resolveCircleWalletLastInteractionDate
 } from "@/lib/circle-card/schema";
+import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
 import {
   circleCardRecommendationFormSchema,
   circleCardRecommendationStatusSchema,
@@ -86,6 +87,7 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "fullName",
   "businessName",
   "accountType",
+  "profileLayout",
   "role",
   "tagline",
   "about",
@@ -946,6 +948,7 @@ export async function upsertCircleCardAction(formData: FormData) {
 
   const values = parsed.data;
   const shouldUpdateIdentity = formData.has("accountType") || formData.has("identityTags");
+  const shouldUpdateProfileLayout = formData.has("profileLayout");
   const cardId = values.cardId || null;
 
   if (!cardId && !values.accountType) {
@@ -1007,6 +1010,7 @@ export async function upsertCircleCardAction(formData: FormData) {
           identityTags: values.identityTags
         }
       : {}),
+    ...(!cardId || shouldUpdateProfileLayout ? { profileLayout: values.profileLayout } : {}),
     role: nullableText(values.role),
     tagline: nullableText(values.tagline),
     about: nullableText(values.about),
@@ -1522,6 +1526,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           businessName,
           accountType: values.accountType,
           identityTags: values.identityTags,
+          profileLayout: DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT,
           role,
           tagline: nullableText(values.tagline),
           profileImageUrl,
