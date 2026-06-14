@@ -68,7 +68,7 @@ export function circleCardNotificationHref(value: string | null | undefined) {
   switch (value) {
     case "CONNECTION_REQUEST":
     case "CONNECTION_ACCEPTED":
-      return "/dashboard/circle-card?section=network&walletView=requests#wallet";
+      return "/dashboard/circle-card?section=network#connect-hub";
     case "INTRODUCTION_RECEIVED":
     case "INTRODUCTION_ACCEPTED":
     case "INTRODUCTION_DECLINED":
@@ -82,7 +82,7 @@ export function circleCardNotificationHref(value: string | null | undefined) {
     case "OPPORTUNITY_UPDATED":
       return "/dashboard/circle-card?section=business#opportunities";
     case "RECOMMENDATION_RECEIVED":
-      return "/dashboard/circle-card?section=network#wallet";
+      return "/dashboard/circle-card/wallet?view=recommended";
     default:
       return "/dashboard/circle-card";
   }

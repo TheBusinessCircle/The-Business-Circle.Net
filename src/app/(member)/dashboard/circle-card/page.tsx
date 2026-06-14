@@ -490,22 +490,34 @@ function buildWalletHref(input: {
   contactId?: string | null;
 }) {
   const params = new URLSearchParams();
-  params.set("section", "network");
 
   if (input.walletQuery) {
-    params.set("walletQuery", input.walletQuery);
+    params.set("q", input.walletQuery);
   }
 
   if (input.walletView && input.walletView !== "all") {
-    params.set("walletView", input.walletView);
+    const view =
+      input.walletView === "favourites"
+        ? "favourites"
+        : input.walletView === "recommended"
+          ? "recommended"
+          : input.walletView === "recent"
+            ? "recent"
+            : input.walletView === "connected"
+              ? "connected"
+              : "all";
+
+    if (view !== "all") {
+      params.set("view", view);
+    }
   }
 
   if (input.walletCategory) {
-    params.set("walletCategory", input.walletCategory);
+    params.set("category", input.walletCategory);
   }
 
   if (input.walletFollowUp) {
-    params.set("walletFollowUp", input.walletFollowUp);
+    params.set("view", "follow-ups");
   }
 
   if (input.contactId) {
@@ -513,7 +525,7 @@ function buildWalletHref(input: {
   }
 
   const query = params.toString();
-  return query ? `/dashboard/circle-card?${query}` : "/dashboard/circle-card";
+  return query ? `/dashboard/circle-card/wallet?${query}` : "/dashboard/circle-card/wallet";
 }
 
 function buildDiscoverHref(input: {
@@ -2089,7 +2101,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     {
       label: "Pending requests",
       value: pendingIncomingRequests.length,
-      href: `${buildWalletHref({ walletView: "requests" })}#wallet`,
+      href: circleCardSectionHref("network", "connect-hub"),
       icon: MessageSquare
     },
     {
@@ -2097,7 +2109,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       value: followUpsDueCount,
       href: followUpsDueCount === dueOpportunityFollowUps.length
         ? circleCardSectionHref("business", "opportunities")
-        : `${buildWalletHref({ walletFollowUp: "needs-follow-up" })}#wallet`,
+        : buildWalletHref({ walletFollowUp: "needs-follow-up" }),
       icon: CalendarDays
     },
     {
@@ -2109,7 +2121,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     {
       label: "Wallet contacts",
       value: savedContactCount,
-      href: circleCardSectionHref("network", "wallet"),
+      href: "/dashboard/circle-card/wallet",
       icon: WalletCards
     }
   ];
@@ -2903,7 +2915,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
                   Use the Introduce panel inside a wallet contact to connect two saved Circle Card contacts.
                 </p>
-                <Link href={circleCardSectionHref("network", "wallet")} className={cn(buttonVariants({ variant: "outline" }), "mt-5 gap-2")}>
+                <Link href="/dashboard/circle-card/wallet" className={cn(buttonVariants({ variant: "outline" }), "mt-5 gap-2")}>
                   <WalletCards size={16} />
                   Open Wallet
                 </Link>
@@ -3666,7 +3678,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
                         {isSaved && candidate.connectionState.kind === "pending_incoming" ? (
                           <Link
-                            href={`${buildWalletHref({ walletView: "requests" })}#wallet`}
+                            href={circleCardSectionHref("network", "connect-hub")}
                             className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
                           >
                             <MessageSquare size={16} />
@@ -4218,14 +4230,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 </CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                   <a
-                    href={`${buildWalletHref({ walletView: "requests" })}#wallet`}
+                    href={circleCardSectionHref("network", "connect-hub")}
                     className="rounded-2xl border border-gold/18 bg-gold/8 p-4 hover:border-gold/32"
                   >
                     <span className="text-2xl font-semibold text-foreground">{pendingIncomingRequests.length}</span>
                     <span className="mt-1 block text-xs uppercase tracking-[0.08em] text-gold">Incoming</span>
                   </a>
                   <a
-                    href={`${buildWalletHref({ walletView: "requests" })}#wallet`}
+                    href={circleCardSectionHref("network", "connect-hub")}
                     className="rounded-2xl border border-silver/14 bg-background/18 p-4 hover:border-silver/28"
                   >
                     <span className="text-2xl font-semibold text-foreground">{pendingOutgoingRequests.length}</span>
@@ -4415,7 +4427,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     recentWalletContacts.slice(0, 5).map((contact) => (
                       <Link
                         key={contact.id}
-                        href={`${buildWalletHref({ contactId: contact.id })}#wallet`}
+                        href={buildWalletHref({ contactId: contact.id })}
                         className="block rounded-2xl border border-silver/14 bg-background/20 px-4 py-3 text-sm text-foreground hover:border-silver/28"
                       >
                         {contact.display.fullName}
@@ -4797,9 +4809,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted">
-                  Search, favourites, private notes and tags are available in the wallet section
-                  below.
+                  Search, favourites, private notes and tags are now available in the dedicated
+                  Wallet OS.
                 </p>
+                <Link href="/dashboard/circle-card/wallet" className={cn(buttonVariants({ variant: "outline" }), "mt-4 gap-2")}>
+                  <WalletCards size={16} />
+                  Open Wallet
+                </Link>
               </CardContent>
             </Card>
 
@@ -5448,7 +5464,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           <form action={acceptCircleCardConnectionRequestAction}>
                             <input type="hidden" name="requestId" value={request.id} />
-                            <input type="hidden" name="returnPath" value={`${buildWalletHref({ walletView: "requests" })}#wallet`} />
+                            <input type="hidden" name="returnPath" value={circleCardSectionHref("network", "connect-hub")} />
                             <Button type="submit" size="sm" className="w-full gap-2">
                               <UserCheck size={14} />
                               Accept
@@ -5456,7 +5472,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           </form>
                           <form action={declineCircleCardConnectionRequestAction}>
                             <input type="hidden" name="requestId" value={request.id} />
-                            <input type="hidden" name="returnPath" value={`${buildWalletHref({ walletView: "requests" })}#wallet`} />
+                            <input type="hidden" name="returnPath" value={circleCardSectionHref("network", "connect-hub")} />
                             <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
                               <UserX size={14} />
                               Decline
@@ -5514,7 +5530,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           </Badge>
                           <form action={cancelCircleCardConnectionRequestAction}>
                             <input type="hidden" name="requestId" value={request.id} />
-                            <input type="hidden" name="returnPath" value={`${buildWalletHref({ walletView: "requests" })}#wallet`} />
+                            <input type="hidden" name="returnPath" value={circleCardSectionHref("network", "connect-hub")} />
                             <Button type="submit" variant="outline" size="sm" className="gap-2">
                               <XCircle size={14} />
                               Cancel

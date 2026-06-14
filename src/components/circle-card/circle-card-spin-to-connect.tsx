@@ -502,7 +502,7 @@ export function CircleCardSpinToConnect({
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Link
-                href="/dashboard/circle-card?section=network#wallet"
+                href="/dashboard/circle-card/wallet"
                 className={cn(buttonVariants(), "gap-2 rounded-2xl")}
               >
                 <WalletCards size={16} />

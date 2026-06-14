@@ -130,7 +130,7 @@ export function circleCardActivityHref(activity: {
   entityId?: string | null;
 }) {
   if (activity.entityType === "WALLET_CONTACT" && activity.entityId) {
-    return `/dashboard/circle-card?section=network&contactId=${encodeURIComponent(activity.entityId)}#wallet`;
+    return `/dashboard/circle-card/wallet?contactId=${encodeURIComponent(activity.entityId)}`;
   }
 
   switch (activity.type) {
@@ -139,13 +139,13 @@ export function circleCardActivityHref(activity: {
       return "/dashboard/circle-card?section=my-card#public-card";
     case "CONTACT_SAVED":
     case "CONTACT_UPDATED":
-      return "/dashboard/circle-card?section=network#wallet";
+      return "/dashboard/circle-card/wallet";
     case "CONNECTION_REQUEST_SENT":
     case "CONNECTION_ACCEPTED":
-      return "/dashboard/circle-card?section=network&walletView=requests#wallet";
+      return "/dashboard/circle-card?section=network#connect-hub";
     case "RECOMMENDATION_CREATED":
     case "RECOMMENDATION_RECEIVED":
-      return "/dashboard/circle-card?section=network#wallet";
+      return "/dashboard/circle-card/wallet?view=recommended";
     case "INTRODUCTION_CREATED":
     case "INTRODUCTION_ACCEPTED":
     case "INTRODUCTION_DECLINED":

@@ -2138,7 +2138,7 @@ export async function spinToConnectCircleCardAction(formData: FormData) {
 }
 
 function walletContactReturnPath(walletContactId: string) {
-  return `/dashboard/circle-card?section=network&contactId=${encodeURIComponent(walletContactId)}#wallet`;
+  return `/dashboard/circle-card/wallet?contactId=${encodeURIComponent(walletContactId)}`;
 }
 
 export async function saveBusinessCardScanWalletContactAction(formData: FormData) {
@@ -2536,7 +2536,7 @@ export async function generateBusinessCardClaimLinkAction(formData: FormData) {
   const parsed = circleWalletContactIdSchema.safeParse(readCircleWalletContactIdFormData(formData));
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card?section=network#wallet"
+    "/dashboard/circle-card/wallet"
   );
 
   if (!parsed.success) {
@@ -4929,7 +4929,7 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
 
 export async function upsertCircleCardRecommendationAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
-  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card?section=network#wallet");
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card/wallet");
   const parsed = circleCardRecommendationFormSchema.safeParse(
     readCircleCardRecommendationFormData(formData)
   );
@@ -5142,7 +5142,7 @@ export async function updateCircleCardRecommendationStatusAction(formData: FormD
   );
   const returnPath = resolveReturnPath(
     parsed.success ? parsed.data.returnPath : formData.get("returnPath"),
-    "/dashboard/circle-card?section=network#wallet"
+    "/dashboard/circle-card/wallet"
   );
   const user = await requireCircleCardActionUser();
 

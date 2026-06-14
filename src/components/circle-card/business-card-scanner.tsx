@@ -762,7 +762,7 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
                   </div>
                 </div>
                 <Link
-                  href={`/dashboard/circle-card?section=network&contactId=${encodeURIComponent(scan.duplicateContact.id)}#wallet`}
+                  href={`/dashboard/circle-card/wallet?contactId=${encodeURIComponent(scan.duplicateContact.id)}`}
                   className="mt-4 inline-flex"
                 >
                   <Button type="button" variant="outline" size="sm" className="gap-2">
