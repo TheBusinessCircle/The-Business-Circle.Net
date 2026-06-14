@@ -43,6 +43,10 @@ import {
 } from "@/lib/circle-card/schema";
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
 import {
+  buildCircleCardThemeMetadata,
+  resolveCircleCardTheme
+} from "@/lib/circle-card/theme";
+import {
   circleCardRecommendationFormSchema,
   circleCardRecommendationStatusSchema,
   circleCardRecommendationVisibilityLabel
@@ -104,6 +108,11 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "businessLogoPositionX",
   "businessLogoPositionY",
   "businessLogoScale",
+  "themePreset",
+  "themePrimaryColor",
+  "themeAccentColor",
+  "themeButtonColor",
+  "themeSurfaceStyle",
   "websiteUrl",
   "email",
   "phone",
@@ -1190,6 +1199,12 @@ export async function upsertCircleCardAction(formData: FormData) {
   const values = parsed.data;
   const shouldUpdateIdentity = formData.has("accountType") || formData.has("identityTags");
   const shouldUpdateProfileLayout = formData.has("profileLayout");
+  const shouldUpdateTheme =
+    formData.has("themePrimaryColor") ||
+    formData.has("themeAccentColor") ||
+    formData.has("themeButtonColor") ||
+    formData.has("themeSurfaceStyle") ||
+    formData.has("themePreset");
   const cardId = values.cardId || null;
 
   if (!cardId && !values.accountType) {
@@ -1241,6 +1256,13 @@ export async function upsertCircleCardAction(formData: FormData) {
   }
 
   const socialLinks = buildCircleCardSocialLinks(values);
+  const resolvedTheme = resolveCircleCardTheme({
+    themePrimaryColor: values.themePrimaryColor,
+    themeAccentColor: values.themeAccentColor,
+    themeButtonColor: values.themeButtonColor,
+    themeSurfaceStyle: values.themeSurfaceStyle,
+    themePreset: values.themePreset
+  });
   const data = {
     slug,
     fullName: values.fullName.trim(),
@@ -1263,6 +1285,16 @@ export async function upsertCircleCardAction(formData: FormData) {
     businessLogoPositionX: nullableNumber(values.businessLogoPositionX),
     businessLogoPositionY: nullableNumber(values.businessLogoPositionY),
     businessLogoScale: nullableNumber(values.businessLogoScale),
+    ...(!cardId || shouldUpdateTheme
+      ? {
+          themePrimaryColor: resolvedTheme.primaryColor,
+          themeAccentColor: resolvedTheme.accentColor,
+          themeButtonColor: resolvedTheme.buttonColor,
+          themeSurfaceStyle: resolvedTheme.surfaceStyle,
+          themePreset: resolvedTheme.presetKey,
+          themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue
+        }
+      : {}),
     websiteUrl: nullableText(values.websiteUrl),
     email: nullableText(values.email),
     phone: nullableText(values.phone),
@@ -1709,6 +1741,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
   const businessLogoPositionX = nullableNumber(values.businessLogoPositionX);
   const businessLogoPositionY = nullableNumber(values.businessLogoPositionY);
   const businessLogoScale = nullableNumber(values.businessLogoScale);
+  const resolvedTheme = resolveCircleCardTheme();
   const shouldUpsertBusiness = Boolean(businessName || websiteUrl);
   const businessData = {
     ...(businessName ? { companyName: businessName } : {}),
@@ -1778,6 +1811,12 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           businessLogoPositionX,
           businessLogoPositionY,
           businessLogoScale,
+          themePrimaryColor: resolvedTheme.primaryColor,
+          themeAccentColor: resolvedTheme.accentColor,
+          themeButtonColor: resolvedTheme.buttonColor,
+          themeSurfaceStyle: resolvedTheme.surfaceStyle,
+          themePreset: resolvedTheme.presetKey,
+          themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue,
           websiteUrl,
           socialLinks: {}
         },

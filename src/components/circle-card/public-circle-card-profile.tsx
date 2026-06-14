@@ -1,4 +1,4 @@
-import type { AnchorHTMLAttributes, ReactNode } from "react";
+import type { AnchorHTMLAttributes, CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import {
   acceptCircleCardConnectionRequestAction,
@@ -31,6 +31,10 @@ import {
   resolveCircleCardFileAction
 } from "@/lib/circle-card/file-actions";
 import { getExternalLinkProps } from "@/lib/links";
+import {
+  buildCircleCardThemeStyle,
+  resolveCircleCardTheme
+} from "@/lib/circle-card/theme";
 import { cn } from "@/lib/utils";
 import type { PublicCircleCard } from "@/server/circle-card";
 import type { LucideIcon } from "lucide-react";
@@ -149,13 +153,13 @@ const SOCIAL_CONTACT_KEYS = new Set<string>(SOCIAL_CONTACT_PLATFORMS.map((platfo
 const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
 
 const primaryActionClassName =
-  "h-12 w-full rounded-2xl border border-gold/45 bg-[linear-gradient(135deg,#f0cf88_0%,#d3aa58_48%,#a9782e_100%)] text-[#061126] shadow-[0_18px_44px_rgba(211,170,88,0.2)] hover:border-gold/70 hover:bg-gold hover:text-[#061126]";
+  "h-12 w-full rounded-2xl border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-button-bg)] text-[var(--cc-theme-button-text)] shadow-[var(--cc-theme-button-shadow)] hover:border-gold/70 hover:brightness-110";
 
 const secondaryActionClassName =
-  "h-12 w-full rounded-2xl border border-[#2f6dff]/30 bg-[#0b1c3f]/72 text-foreground shadow-[0_16px_38px_rgba(16,68,180,0.16)] hover:border-gold/35 hover:bg-[#102958] hover:text-foreground";
+  "h-12 w-full rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] text-foreground shadow-[var(--cc-theme-secondary-shadow)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)] hover:text-foreground";
 
 const mobileActionClassName =
-  "h-12 w-full min-w-0 flex-col gap-0.5 rounded-2xl border border-[#2f6dff]/28 bg-[#0b1c3f]/86 px-1 text-[11px] leading-none text-foreground shadow-[0_10px_26px_rgba(2,8,23,0.34)] hover:border-gold/35 hover:bg-[#102958]";
+  "h-12 w-full min-w-0 flex-col gap-0.5 rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] px-1 text-[11px] leading-none text-foreground shadow-[0_10px_26px_rgba(2,8,23,0.34)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]";
 
 function initials(name: string) {
   return name
@@ -750,7 +754,7 @@ function CreatorSmartLinkCard({
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.62),rgba(68,211,188,0.38),transparent)]"
         />
-        <div className="relative mb-4 aspect-[1.7] overflow-hidden rounded-[1.15rem] border border-silver/14 bg-[radial-gradient(circle_at_20%_18%,rgba(255,107,107,0.22),transparent_30%),radial-gradient(circle_at_86%_20%,rgba(68,211,188,0.24),transparent_28%),linear-gradient(135deg,rgba(20,42,70,0.92),rgba(5,12,26,0.98))]">
+        <div className="relative mb-4 aspect-[1.7] overflow-hidden rounded-[1.15rem] border border-silver/14 bg-[image:var(--cc-theme-media-bg)]">
           <span className="absolute left-4 top-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/28 bg-[#061126]/72 text-gold shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur">
             {customLinkIcon(link)}
           </span>
@@ -809,7 +813,7 @@ function CreatorSmartLinkCard({
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.62),rgba(68,211,188,0.38),transparent)]"
       />
-      <span className="relative z-10 mb-4 block aspect-[1.7] overflow-hidden rounded-[1.15rem] border border-silver/14 bg-[radial-gradient(circle_at_20%_18%,rgba(255,107,107,0.2),transparent_30%),radial-gradient(circle_at_86%_20%,rgba(68,211,188,0.24),transparent_28%),linear-gradient(135deg,rgba(20,42,70,0.92),rgba(5,12,26,0.98))]">
+      <span className="relative z-10 mb-4 block aspect-[1.7] overflow-hidden rounded-[1.15rem] border border-silver/14 bg-[image:var(--cc-theme-media-bg)]">
         <span className="absolute left-4 top-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/28 bg-[#061126]/72 text-gold shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur transition-transform group-hover:scale-105">
           {customLinkIcon(link)}
         </span>
@@ -1006,6 +1010,9 @@ export function PublicCircleCardProfile({
   const successfulReferralCount = card.successfulReferralCount;
   const accountTypeLabel = getCircleCardAccountTypeLabel(card.accountType);
   const identityTagLabels = card.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2);
+  const circleCardTheme = resolveCircleCardTheme(card);
+  const circleCardThemeStyle = buildCircleCardThemeStyle(circleCardTheme) as CSSProperties;
+  const circleCardThemeSurface = circleCardTheme.surfaceStyle.toLowerCase();
   const contactRows: ContactRow[] = [];
 
   if (card.websiteUrl) {
@@ -1345,10 +1352,14 @@ export function PublicCircleCardProfile({
 
   if (card.profileLayout === "CLASSIC") {
     return (
-      <div className="relative overflow-hidden pb-12">
+      <div
+        className="circle-card-public-theme relative overflow-hidden pb-12"
+        style={circleCardThemeStyle}
+        data-circle-card-surface={circleCardThemeSurface}
+      >
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(47,109,255,0.18),transparent_34%),linear-gradient(180deg,#030813_0%,#071126_48%,#030712_100%)]"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[image:var(--cc-theme-page-bg)]"
         />
 
         <div className="public-page-stack relative max-w-5xl pt-4 sm:pt-6 lg:pt-8">
@@ -1531,10 +1542,14 @@ export function PublicCircleCardProfile({
     const creatorFirstName = card.fullName.split(" ").filter(Boolean)[0] ?? "Creator";
 
     return (
-      <div className="relative overflow-hidden pb-16 lg:pb-20">
+      <div
+        className="circle-card-public-theme relative overflow-hidden pb-16 lg:pb-20"
+        style={circleCardThemeStyle}
+        data-circle-card-surface={circleCardThemeSurface}
+      >
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_16%_0%,rgba(68,211,188,0.28),transparent_30%),radial-gradient(circle_at_82%_8%,rgba(255,107,107,0.18),transparent_28%),radial-gradient(circle_at_52%_30%,rgba(212,175,95,0.16),transparent_34%),linear-gradient(180deg,#030813_0%,#08101f_48%,#030712_100%)]"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[image:var(--cc-theme-page-bg)]"
         />
 
         <div className="public-page-stack relative max-w-6xl pt-4 sm:pt-6 lg:pt-8">
@@ -1562,7 +1577,7 @@ export function PublicCircleCardProfile({
           </header>
 
           <main className="mt-5 space-y-4 sm:space-y-5">
-            <section className="relative isolate overflow-hidden rounded-[2rem] border border-gold/22 bg-[linear-gradient(145deg,rgba(17,34,42,0.92),rgba(8,16,32,0.97)_52%,rgba(4,10,24,0.99))] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.48),0_0_72px_rgba(68,211,188,0.12)] sm:p-7 lg:p-8">
+            <section className="relative isolate overflow-hidden rounded-[2rem] border border-gold/22 bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7 lg:p-8">
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.72),rgba(68,211,188,0.5),transparent)]"
@@ -1924,10 +1939,14 @@ export function PublicCircleCardProfile({
   }
 
   return (
-    <div className="relative overflow-hidden pb-32 lg:pb-16">
+    <div
+      className="circle-card-public-theme relative overflow-hidden pb-32 lg:pb-16"
+      style={circleCardThemeStyle}
+      data-circle-card-surface={circleCardThemeSurface}
+    >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(47,109,255,0.22),transparent_34%),radial-gradient(circle_at_12%_28%,rgba(212,175,95,0.1),transparent_25%),linear-gradient(180deg,#030813_0%,#071126_46%,#030712_100%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[image:var(--cc-theme-page-bg)]"
       />
 
       <div className="public-page-stack relative max-w-7xl pt-4 sm:pt-6 lg:pt-8">

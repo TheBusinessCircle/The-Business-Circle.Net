@@ -84,7 +84,8 @@ import {
   CircleCardShareButton,
   CircleCardSmartProfileImportPanel,
   CircleCardTrackedLink,
-  CircleCardSmartLinkFields
+  CircleCardSmartLinkFields,
+  CircleCardThemeFields
 } from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -1254,6 +1255,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         location: true,
         profileImageUrl: true,
         businessLogoUrl: true,
+        themePrimaryColor: true,
+        themeAccentColor: true,
+        themeButtonColor: true,
+        themeSurfaceStyle: true,
+        themePreset: true,
+        themeMetadata: true,
         socialLinks: true,
         createdAt: true,
         updatedAt: true,
@@ -1748,6 +1755,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         candidate.role,
         candidate.tagline,
         candidate.location,
+        candidate.themeSurfaceStyle,
+        candidate.themePreset,
         accountTypeLabel,
         profileLayoutLabel,
         ...candidate.identityTags.map(getCircleCardIdentityTagLabel),
@@ -4606,6 +4615,23 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               </CircleCardDashboardSection>
 
               <CircleCardDashboardSection
+                id="card-theme"
+                title="Theme Preview"
+                summary="Colours, surface style, starter presets and identity preview"
+              >
+                <CircleCardThemeFields
+                  themePrimaryColor={card?.themePrimaryColor}
+                  themeAccentColor={card?.themeAccentColor}
+                  themeButtonColor={card?.themeButtonColor}
+                  themeSurfaceStyle={card?.themeSurfaceStyle}
+                  themePreset={card?.themePreset}
+                  fullName={card?.fullName ?? member?.name}
+                  tagline={card?.tagline}
+                  profileLayout={card?.profileLayout}
+                />
+              </CircleCardDashboardSection>
+
+              <CircleCardDashboardSection
                 id="card-contact-details"
                 title="Contact details"
                 summary={[card?.websiteUrl, card?.email, card?.phone, card?.location].filter(Boolean).length ? "Website, email, phone and location" : "Add direct ways for people to reach you"}
@@ -6953,6 +6979,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           </span>
                         </span>
                       </label>
+                    </div>
+
+                    <div className="rounded-[1.5rem] border border-silver/14 bg-background/18 p-4">
+                      <CircleCardThemeFields
+                        themePrimaryColor={card.themePrimaryColor}
+                        themeAccentColor={card.themeAccentColor}
+                        themeButtonColor={card.themeButtonColor}
+                        themeSurfaceStyle={card.themeSurfaceStyle}
+                        themePreset={card.themePreset}
+                        fullName={card.fullName}
+                        tagline={card.tagline}
+                        profileLayout={card.profileLayout}
+                        compact
+                      />
                     </div>
 
                     <div className="flex flex-wrap gap-2">

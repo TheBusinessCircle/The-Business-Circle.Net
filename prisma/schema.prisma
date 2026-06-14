@@ -420,6 +420,12 @@ model CircleCard {
   businessLogoPositionX Float?
   businessLogoPositionY Float?
   businessLogoScale     Float?
+  themePrimaryColor String @default("#D4AF5F")
+  themeAccentColor  String @default("#F0CF88")
+  themeButtonColor  String @default("#D4AF5F")
+  themeSurfaceStyle String @default("PREMIUM")
+  themePreset       String? @default("black-gold")
+  themeMetadata     Json   @default("{}")
   websiteUrl      String?
   email           String?
   phone           String?
@@ -453,6 +459,8 @@ model CircleCard {
   @@index([isPublished])
   @@index([accountType])
   @@index([profileLayout])
+  @@index([themeSurfaceStyle])
+  @@index([themePreset])
 }
 
 model CircleCardLink {

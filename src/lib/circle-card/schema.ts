@@ -13,6 +13,12 @@ import {
   CIRCLE_CARD_PROFILE_LAYOUTS,
   DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT
 } from "@/lib/circle-card/profile-layout";
+import {
+  CIRCLE_CARD_THEME_PRESET_KEYS,
+  CIRCLE_CARD_THEME_SURFACE_STYLES,
+  DEFAULT_CIRCLE_CARD_THEME_PRESET,
+  resolveCircleCardThemeSurfaceStyle
+} from "@/lib/circle-card/theme";
 import { normalizeExternalHref } from "@/lib/links";
 import { slugify } from "@/lib/utils";
 
@@ -143,6 +149,33 @@ const optionalImageScale = z.preprocess(
   },
   z.number().min(1).max(3).optional()
 );
+const optionalThemeColor = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => value || fallback)
+    .refine((value) => /^#[0-9a-f]{6}$/i.test(value), {
+      message: "Use a 6-digit hex colour."
+    })
+    .transform((value) => value.toUpperCase());
+const optionalThemePreset = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""))
+  .refine((value) => !value || CIRCLE_CARD_THEME_PRESET_KEYS.includes(value), {
+    message: "Choose a valid Circle Card theme preset."
+  });
+const circleCardThemeSurfaceStyleInput = z.preprocess(
+  (value) =>
+    resolveCircleCardThemeSurfaceStyle(
+      typeof value === "string" ? value : null,
+      DEFAULT_CIRCLE_CARD_THEME_PRESET.surfaceStyle
+    ),
+  z.enum(CIRCLE_CARD_THEME_SURFACE_STYLES)
+);
 const optionalSlug = z
   .string()
   .trim()
@@ -265,6 +298,11 @@ export const circleCardFormSchema = z.object({
   businessLogoPositionX: optionalImagePosition,
   businessLogoPositionY: optionalImagePosition,
   businessLogoScale: optionalImageScale,
+  themePreset: optionalThemePreset,
+  themePrimaryColor: optionalThemeColor(DEFAULT_CIRCLE_CARD_THEME_PRESET.primaryColor),
+  themeAccentColor: optionalThemeColor(DEFAULT_CIRCLE_CARD_THEME_PRESET.accentColor),
+  themeButtonColor: optionalThemeColor(DEFAULT_CIRCLE_CARD_THEME_PRESET.buttonColor),
+  themeSurfaceStyle: circleCardThemeSurfaceStyleInput,
   websiteUrl: optionalHttpUrl("Website"),
   email: optionalEmail,
   phone: optionalText(48),
