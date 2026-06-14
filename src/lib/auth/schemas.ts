@@ -117,7 +117,9 @@ const circleCardRegistrationBaseSchema = z.object({
   password: passwordSchema,
   acceptedTerms: z.boolean().optional().default(false),
   minimumAgeConfirmed: z.boolean().optional().default(false),
-  businessName: z.string().trim().max(140).optional().or(z.literal(""))
+  businessName: z.string().trim().max(140).optional().or(z.literal("")),
+  returnTo: z.string().trim().max(600).optional().or(z.literal("")),
+  sourceCardSlug: z.string().trim().max(120).regex(/^[a-z0-9-]+$/i).optional().or(z.literal(""))
 });
 
 export const circleCardRegistrationSchema = circleCardRegistrationBaseSchema.superRefine(

@@ -327,6 +327,10 @@ function redirectWithError(path: string, error: string): never {
   redirect(appendQueryParam(path, "error", error));
 }
 
+function redirectWithSpinStatus(path: string, status: "already" | "connected" | "first"): never {
+  redirect(appendQueryParam(path, "spin", status));
+}
+
 async function enforceCircleCardRelationshipRateLimit(input: {
   userId: string;
   bucket: "connection" | "introduction" | "referral";
@@ -1944,6 +1948,193 @@ export async function saveCircleWalletContactAction(formData: FormData) {
   revalidatePath("/dashboard/circle-card");
   revalidatePath(`/card/${card.slug}`);
   redirectWithNotice(returnPath, "card-saved");
+}
+
+export async function spinToConnectCircleCardAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/circle-card");
+  const cardId = String(formData.get("cardId") || "");
+
+  if (!cardId) {
+    redirectWithError(returnPath, "missing-card");
+  }
+
+  const [card, viewerPrimaryCard, existingConnectionCount] = await Promise.all([
+    prisma.circleCard.findFirst({
+      where: {
+        id: cardId,
+        isPublished: true,
+        user: {
+          suspended: false
+        }
+      },
+      select: {
+        id: true,
+        slug: true,
+        userId: true,
+        fullName: true,
+        businessName: true,
+        profileLayout: true
+      }
+    }),
+    getPrimaryCircleCardForUser(user.id),
+    prisma.circleWalletContact.count({
+      where: {
+        userId: user.id,
+        cardId: {
+          not: null
+        }
+      }
+    })
+  ]);
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  if (card.userId === user.id || viewerPrimaryCard?.id === card.id) {
+    redirectWithNotice(returnPath, "own-card");
+  }
+
+  if (!viewerPrimaryCard) {
+    await trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "SPIN_REQUIRES_ACCOUNT",
+      userId: user.id,
+      metadata: {
+        source: "spin_to_connect",
+        reason: "missing_primary_card"
+      }
+    });
+    redirectWithError(returnPath, "connection-primary-card-required");
+  }
+
+  const existingSave = await prisma.circleWalletContact.findUnique({
+    where: {
+      userId_cardId: {
+        userId: user.id,
+        cardId: card.id
+      }
+    },
+    select: { id: true }
+  });
+
+  if (existingSave) {
+    await trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "SPIN_ALREADY_CONNECTED",
+      userId: user.id,
+      metadata: {
+        source: "spin_to_connect",
+        viewerCardId: viewerPrimaryCard.id
+      }
+    });
+    revalidateCircleCardConnectionPaths([viewerPrimaryCard.slug, card.slug]);
+    redirectWithSpinStatus(returnPath, "already");
+  }
+
+  const connectedAt = new Date();
+  let contactId = "";
+
+  try {
+    const contact = await prisma.circleWalletContact.create({
+      data: {
+        userId: user.id,
+        cardId: card.id,
+        source: "CIRCLE_CARD",
+        lastInteractionDate: connectedAt,
+        relationshipContext: {
+          acquisitionSource: "spin_to_connect",
+          sourceCardSlug: card.slug,
+          viewerCardId: viewerPrimaryCard.id,
+          viewerCardSlug: viewerPrimaryCard.slug,
+          connectedAt: connectedAt.toISOString(),
+          trustedConnection: false,
+          recommendedConnection: false,
+          verifiedFounder: false,
+          verifiedBusiness: false,
+          bcnMember: false,
+          relationshipScore: null,
+          circleStrength: null
+        } as Prisma.InputJsonObject
+      },
+      select: { id: true }
+    });
+    contactId = contact.id;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      await trackCircleCardEvent({
+        cardId: card.id,
+        eventType: "SPIN_ALREADY_CONNECTED",
+        userId: user.id,
+        metadata: {
+          source: "spin_to_connect",
+          viewerCardId: viewerPrimaryCard.id,
+          reason: "duplicate"
+        }
+      });
+      revalidateCircleCardConnectionPaths([viewerPrimaryCard.slug, card.slug]);
+      redirectWithSpinStatus(returnPath, "already");
+    }
+
+    redirectWithError(returnPath, "card-save-failed");
+  }
+
+  const isFirstConnection = existingConnectionCount === 0;
+
+  await Promise.all([
+    trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "WALLET_SAVE",
+      userId: user.id,
+      metadata: {
+        source: "spin_to_connect",
+        walletContactId: contactId,
+        viewerCardId: viewerPrimaryCard.id
+      }
+    }),
+    trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "SPIN_CONNECTION_CREATED",
+      userId: user.id,
+      metadata: {
+        source: "spin_to_connect",
+        walletContactId: contactId,
+        viewerCardId: viewerPrimaryCard.id,
+        profileLayout: card.profileLayout
+      }
+    }),
+    isFirstConnection
+      ? trackCircleCardEvent({
+          cardId: card.id,
+          eventType: "FIRST_CONNECTION_CREATED",
+          userId: user.id,
+          metadata: {
+            source: "spin_to_connect",
+            walletContactId: contactId,
+            viewerCardId: viewerPrimaryCard.id
+          }
+        })
+      : Promise.resolve({ stored: false as const }),
+    createCircleCardActivity({
+      userId: user.id,
+      circleCardId: card.id,
+      type: "CONTACT_SAVED",
+      title: isFirstConnection ? "Your Circle has begun" : "Circle joined",
+      message: `You joined ${circleCardDisplayName(card)}'s Circle.`,
+      entityType: "WALLET_CONTACT",
+      entityId: contactId,
+      metadata: {
+        source: "spin_to_connect",
+        savedCardId: card.id,
+        viewerCardId: viewerPrimaryCard.id,
+        firstConnection: isFirstConnection
+      }
+    })
+  ]);
+
+  revalidateCircleCardConnectionPaths([viewerPrimaryCard.slug, card.slug]);
+  redirectWithSpinStatus(returnPath, isFirstConnection ? "first" : "connected");
 }
 
 function walletContactReturnPath(walletContactId: string) {

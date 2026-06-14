@@ -33,6 +33,11 @@ function withFrom(pathname: string, from?: string) {
   return `${pathname}?${params.toString()}`;
 }
 
+function cardSlugFromPath(pathname: string) {
+  const match = /^\/card\/([^/?#]+)/.exec(pathname);
+  return match?.[1] && /^[a-z0-9-]+$/i.test(match[1]) ? match[1] : "";
+}
+
 export function LoginForm({
   from,
   errorCode,
@@ -48,7 +53,22 @@ export function LoginForm({
   const targetPath = useMemo(() => safeRedirectPath(from), [from]);
   const circleCardRegistrationHref = useMemo(() => {
     const safeFrom = safeRedirectPath(from, "");
-    return safeFrom.startsWith("/card/") || safeFrom.startsWith("/dashboard/circle-card")
+
+    if (safeFrom.startsWith("/card/")) {
+      const params = new URLSearchParams({
+        source: "circle-card",
+        returnTo: safeFrom
+      });
+      const sourceCardSlug = cardSlugFromPath(safeFrom);
+
+      if (sourceCardSlug) {
+        params.set("sourceCardSlug", sourceCardSlug);
+      }
+
+      return `/register?${params.toString()}`;
+    }
+
+    return safeFrom.startsWith("/dashboard/circle-card")
       ? "/register?source=circle-card"
       : withFrom("/membership", from);
   }, [from]);

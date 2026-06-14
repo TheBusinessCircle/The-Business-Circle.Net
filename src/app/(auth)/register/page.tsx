@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CircleCardRegisterForm } from "@/components/auth/circle-card-register-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { safeRedirectPath } from "@/lib/auth/utils";
 import { buildJoinConfirmationRedirect, firstValue } from "@/lib/join/routing";
 import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +24,12 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
 
   if (isCircleCardRegistrationSource(firstValue(params.source))) {
     const claimToken = firstValue(params.claim);
+    const returnTo = safeRedirectPath(firstValue(params.returnTo), "");
+    const sourceCardSlugCandidate = firstValue(params.sourceCardSlug);
+    const sourceCardSlug =
+      sourceCardSlugCandidate && /^[a-z0-9-]+$/i.test(sourceCardSlugCandidate)
+        ? sourceCardSlugCandidate
+        : "";
     const claimContact =
       claimToken && /^[a-f0-9]{64}$/i.test(claimToken)
         ? await prisma.circleWalletContact.findUnique({
@@ -56,6 +63,8 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
         </Card>
 
         <CircleCardRegisterForm
+          returnTo={returnTo}
+          sourceCardSlug={sourceCardSlug}
           defaults={{
             name: claimContact?.fullName ?? "",
             email: claimContact?.email ?? "",

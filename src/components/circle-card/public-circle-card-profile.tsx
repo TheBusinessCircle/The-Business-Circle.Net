@@ -6,7 +6,8 @@ import {
   declineCircleCardConnectionRequestAction,
   removeCircleWalletContactAction,
   saveCircleWalletContactAction,
-  sendCircleCardConnectionRequestAction
+  sendCircleCardConnectionRequestAction,
+  spinToConnectCircleCardAction
 } from "@/actions/circle-card.actions";
 import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-about-expander";
 import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
@@ -15,6 +16,10 @@ import { CircleCardPrivateLinkAction } from "@/components/circle-card/circle-car
 import { CircleCardQrPanel } from "@/components/circle-card/circle-card-qr-panel";
 import { CircleCardReportForm } from "@/components/circle-card/circle-card-report-form";
 import { CircleCardShareButton } from "@/components/circle-card/circle-card-share-button";
+import {
+  CircleCardSpinToConnect,
+  type CircleCardSpinState
+} from "@/components/circle-card/circle-card-spin-to-connect";
 import { CircleCardTrackedLink } from "@/components/circle-card/circle-card-tracked-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -102,6 +107,8 @@ type PublicCircleCardProfileProps = {
   connectionState: PublicCircleCardConnectionState;
   ownerAccountLabel: string;
   ownerIsBcnMember: boolean;
+  spinState?: CircleCardSpinState | null;
+  viewerCircleConnectionCount?: number | null;
   notice?: string;
   error?: string;
 };
@@ -136,7 +143,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   "connection-save-first": "Save this card to your Circle Wallet before sending a request.",
   "connection-request-not-found": "That connection request is no longer pending.",
   "connection-request-failed": "The connection request could not be sent.",
-  "connection-rate-limited": "You've sent several connection requests recently. Please try again later."
+  "connection-rate-limited": "You've sent several connection requests recently. Please try again later.",
+  "card-save-failed": "That Circle connection could not be created."
 };
 
 const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
@@ -997,6 +1005,8 @@ export function PublicCircleCardProfile({
   connectionState,
   ownerAccountLabel,
   ownerIsBcnMember,
+  spinState,
+  viewerCircleConnectionCount,
   notice,
   error
 }: PublicCircleCardProfileProps) {
@@ -1013,6 +1023,21 @@ export function PublicCircleCardProfile({
   const circleCardTheme = resolveCircleCardTheme(card);
   const circleCardThemeStyle = buildCircleCardThemeStyle(circleCardTheme) as CSSProperties;
   const circleCardThemeSurface = circleCardTheme.surfaceStyle.toLowerCase();
+  const spinToConnectProps = {
+    cardId: card.id,
+    analyticsCardId,
+    cardSlug: card.slug,
+    cardName: card.fullName,
+    publicPath: `/card/${card.slug}`,
+    isDemo: card.isDemo,
+    isAuthenticated,
+    viewerIsOwner,
+    viewerHasCircleCard: Boolean(connectionState.viewerPrimaryCardId),
+    isConnected: Boolean(savedContact || connectionState.request?.status === "ACCEPTED"),
+    connectionCount: viewerCircleConnectionCount,
+    initialState: spinState ?? null,
+    connectAction: spinToConnectCircleCardAction
+  };
   const contactRows: ContactRow[] = [];
 
   if (card.websiteUrl) {
@@ -1389,8 +1414,8 @@ export function PublicCircleCardProfile({
           <main className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
             <section className="rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-7">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                <div className="relative h-28 w-28 shrink-0">
-                  <div className="grid h-28 w-28 place-items-center overflow-hidden rounded-full border border-gold/45 bg-[#071126] text-2xl font-semibold text-foreground shadow-[0_0_42px_rgba(47,109,255,0.22)]">
+                <CircleCardSpinToConnect {...spinToConnectProps} className="h-28 w-28 shrink-0">
+                  <div className="grid h-full w-full place-items-center overflow-hidden rounded-full border border-gold/45 bg-[#071126] text-2xl font-semibold text-foreground shadow-[0_0_42px_rgba(47,109,255,0.22)]">
                     {card.profileImageUrl ? (
                       <CircleCardFramedImage
                         src={card.profileImageUrl}
@@ -1405,7 +1430,7 @@ export function PublicCircleCardProfile({
                       <span>{initials(card.fullName)}</span>
                     )}
                   </div>
-                </div>
+                </CircleCardSpinToConnect>
 
                 <div className="min-w-0 flex-1">
                   <h1 className="font-display text-4xl font-semibold leading-tight text-foreground sm:text-5xl">
@@ -1608,29 +1633,34 @@ export function PublicCircleCardProfile({
 
               <div className="relative z-10 grid gap-7 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
                 <div className="order-first mx-auto lg:order-last">
-                  <div className="relative h-36 w-36 sm:h-44 sm:w-44 lg:h-56 lg:w-56">
-                    <div
-                      aria-hidden="true"
-                      className="absolute -inset-3 rounded-full bg-[conic-gradient(from_140deg,rgba(212,175,95,0.8),rgba(68,211,188,0.5),rgba(255,107,107,0.42),rgba(212,175,95,0.8))] opacity-70 blur-md"
-                    />
-                    <div className="relative grid h-full w-full place-items-center rounded-full border border-gold/55 bg-gold/12 p-1.5 shadow-[0_0_0_10px_rgba(212,175,95,0.05),0_24px_70px_rgba(0,0,0,0.36)]">
-                      <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground sm:text-5xl">
-                        {card.profileImageUrl ? (
-                          <CircleCardFramedImage
-                            src={card.profileImageUrl}
-                            alt={card.fullName}
-                            positionX={card.profileImagePositionX}
-                            positionY={card.profileImagePositionY}
-                            scale={card.profileImageScale}
-                          >
+                  <CircleCardSpinToConnect
+                    {...spinToConnectProps}
+                    className="h-36 w-36 sm:h-44 sm:w-44 lg:h-56 lg:w-56"
+                  >
+                    <div className="relative h-full w-full">
+                      <div
+                        aria-hidden="true"
+                        className="absolute -inset-3 rounded-full bg-[conic-gradient(from_140deg,rgba(212,175,95,0.8),rgba(68,211,188,0.5),rgba(255,107,107,0.42),rgba(212,175,95,0.8))] opacity-70 blur-md"
+                      />
+                      <div className="relative grid h-full w-full place-items-center rounded-full border border-gold/55 bg-gold/12 p-1.5 shadow-[0_0_0_10px_rgba(212,175,95,0.05),0_24px_70px_rgba(0,0,0,0.36)]">
+                        <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground sm:text-5xl">
+                          {card.profileImageUrl ? (
+                            <CircleCardFramedImage
+                              src={card.profileImageUrl}
+                              alt={card.fullName}
+                              positionX={card.profileImagePositionX}
+                              positionY={card.profileImagePositionY}
+                              scale={card.profileImageScale}
+                            >
+                              <span>{initials(card.fullName)}</span>
+                            </CircleCardFramedImage>
+                          ) : (
                             <span>{initials(card.fullName)}</span>
-                          </CircleCardFramedImage>
-                        ) : (
-                          <span>{initials(card.fullName)}</span>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </CircleCardSpinToConnect>
                 </div>
 
                 <div className="min-w-0 text-center lg:text-left">
@@ -1988,23 +2018,25 @@ export function PublicCircleCardProfile({
               <div className="relative z-10">
                 <div className="flex justify-center">
                   <div className="relative">
-                    <div className="grid h-40 w-40 place-items-center rounded-full border border-gold/60 bg-gold/12 p-1.5 shadow-[0_0_0_10px_rgba(212,175,95,0.05),0_0_64px_rgba(47,109,255,0.3)] sm:h-48 sm:w-48">
-                      <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground">
-                        {card.profileImageUrl ? (
-                          <CircleCardFramedImage
-                            src={card.profileImageUrl}
-                            alt={card.fullName}
-                            positionX={card.profileImagePositionX}
-                            positionY={card.profileImagePositionY}
-                            scale={card.profileImageScale}
-                          >
+                    <CircleCardSpinToConnect {...spinToConnectProps} className="h-40 w-40 sm:h-48 sm:w-48">
+                      <div className="grid h-full w-full place-items-center rounded-full border border-gold/60 bg-gold/12 p-1.5 shadow-[0_0_0_10px_rgba(212,175,95,0.05),0_0_64px_rgba(47,109,255,0.3)]">
+                        <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground">
+                          {card.profileImageUrl ? (
+                            <CircleCardFramedImage
+                              src={card.profileImageUrl}
+                              alt={card.fullName}
+                              positionX={card.profileImagePositionX}
+                              positionY={card.profileImagePositionY}
+                              scale={card.profileImageScale}
+                            >
+                              <span>{initials(card.fullName)}</span>
+                            </CircleCardFramedImage>
+                          ) : (
                             <span>{initials(card.fullName)}</span>
-                          </CircleCardFramedImage>
-                        ) : (
-                          <span>{initials(card.fullName)}</span>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    </CircleCardSpinToConnect>
                     <CircleCardBadgeMark
                       imageUrl={card.businessLogoUrl}
                       label={card.businessName ? `${card.businessName} logo` : "Circle Card badge"}

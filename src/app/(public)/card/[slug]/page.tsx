@@ -19,6 +19,13 @@ function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function resolveSpinState(value: string | string[] | undefined) {
+  const state = firstValue(value);
+  return state === "return" || state === "connected" || state === "first" || state === "already"
+    ? state
+    : null;
+}
+
 async function incrementViewCount(
   card: Awaited<ReturnType<typeof getPublicCircleCard>>,
   input: {
@@ -126,6 +133,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
   const notice = firstValue(paramsValue.notice);
   const error = firstValue(paramsValue.error);
   const source = resolveCircleCardShareSource(firstValue(paramsValue.source));
+  const spinState = resolveSpinState(paramsValue.spin);
   const card = await getPublicCircleCard(slug);
 
   if (!card) {
@@ -143,6 +151,19 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
     source
   });
 
+  if (spinState === "return" && !card.isDemo) {
+    await trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "SPIN_RETURNED_AFTER_SIGNUP",
+      visitorId,
+      userId: viewerUserId,
+      metadata: {
+        source: "registration_return",
+        slug: card.slug
+      }
+    });
+  }
+
   let savedContact: {
     id: string;
     favourite: boolean;
@@ -150,9 +171,10 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
   let viewerPrimaryCard: {
     id: string;
   } | null = null;
+  let viewerCircleConnectionCount: number | null = null;
 
   if (viewerUserId && !viewerIsOwner && !card.isDemo) {
-    [savedContact, viewerPrimaryCard] = await Promise.all([
+    [savedContact, viewerPrimaryCard, viewerCircleConnectionCount] = await Promise.all([
       prisma.circleWalletContact.findUnique({
           where: {
             userId_cardId: {
@@ -173,6 +195,14 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
         orderBy: [{ updatedAt: "desc" }],
         select: {
           id: true
+        }
+      }),
+      prisma.circleWalletContact.count({
+        where: {
+          userId: viewerUserId,
+          cardId: {
+            not: null
+          }
         }
       })
     ]);
@@ -234,6 +264,8 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
       }}
       ownerAccountLabel={ownerAccountLabel}
       ownerIsBcnMember={ownerIsBcnMember}
+      spinState={spinState}
+      viewerCircleConnectionCount={viewerCircleConnectionCount}
       notice={notice}
       error={error}
     />

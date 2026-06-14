@@ -25,7 +25,13 @@ import {
   type RegisterMemberInput,
   registerMemberSchema
 } from "@/lib/auth/schemas";
-import { normalizeEmail } from "@/lib/auth/utils";
+import { normalizeEmail, safeRedirectPath } from "@/lib/auth/utils";
+import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
+import { buildCircleCardSlugBase } from "@/lib/circle-card/schema";
+import {
+  buildCircleCardThemeMetadata,
+  resolveCircleCardTheme
+} from "@/lib/circle-card/theme";
 import { renderEmailHtml } from "@/emails/render";
 import { buildBrandedEmailText } from "@/emails/text";
 import { sendTransactionalEmail } from "@/lib/email/resend";
@@ -141,6 +147,34 @@ function normalizeBusinessStage(value: RegisterMemberInput["businessStage"]) {
 
 function normalizeCircleCardBusinessName(value: CircleCardRegistrationInput["businessName"]) {
   return value?.trim() || null;
+}
+
+function sourceCardSlugFromReturnPath(returnPath: string) {
+  const match = /^\/card\/([^/?#]+)/.exec(returnPath);
+  return match?.[1] && /^[a-z0-9-]+$/i.test(match[1]) ? match[1] : "";
+}
+
+function shouldProvisionCircleCardForReturnPath(returnPath: string) {
+  return /^\/card\/[^/?#]+/.test(returnPath);
+}
+
+async function resolveAvailableCircleCardSlug(
+  tx: Prisma.TransactionClient,
+  slugBase: string
+) {
+  for (let suffix = 0; suffix < 25; suffix += 1) {
+    const candidate = suffix === 0 ? slugBase : `${slugBase}-${suffix + 1}`;
+    const existing = await tx.circleCard.findUnique({
+      where: { slug: candidate },
+      select: { id: true }
+    });
+
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  return `${slugBase}-${Date.now().toString(36)}`;
 }
 
 function hasEntitledSubscription(status: SubscriptionStatus | null | undefined) {
@@ -706,39 +740,97 @@ export async function createCircleCardFreeRegistration(
   const passwordHash = await hashPassword(input.password);
   const acceptedAt = new Date();
   const businessName = normalizeCircleCardBusinessName(input.businessName);
+  const returnTo = safeRedirectPath(input.returnTo, "");
+  const shouldProvisionReturnCard = shouldProvisionCircleCardForReturnPath(returnTo);
+  const sourceCardSlug =
+    input.sourceCardSlug?.trim() || sourceCardSlugFromReturnPath(returnTo);
 
   try {
-    const user = await prisma.user.create({
-      data: {
-        name: input.name,
-        email,
-        passwordHash,
-        role: Role.MEMBER,
-        membershipTier: MembershipTier.FOUNDATION,
-        acceptedTermsAt: acceptedAt,
-        acceptedTermsVersion: TERMS_VERSION,
-        communityStandardsAcceptedAt: acceptedAt,
-        minimumAgeConfirmedAt: acceptedAt,
-        registrationSource: "circle-card",
-        profile: {
-          create: buildProfileCreateData({
-            businessName,
-            businessStatus: null,
-            companyNumber: null,
-            businessStage: null
-          })
+    const resolvedTheme = resolveCircleCardTheme();
+    const user = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          name: input.name,
+          email,
+          passwordHash,
+          role: Role.MEMBER,
+          membershipTier: MembershipTier.FOUNDATION,
+          acceptedTermsAt: acceptedAt,
+          acceptedTermsVersion: TERMS_VERSION,
+          communityStandardsAcceptedAt: acceptedAt,
+          minimumAgeConfirmedAt: acceptedAt,
+          registrationSource: shouldProvisionReturnCard ? "circle-card-spin" : "circle-card",
+          profile: {
+            create: buildProfileCreateData({
+              businessName,
+              businessStatus: null,
+              companyNumber: null,
+              businessStage: null
+            })
+          }
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true
         }
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true
+      });
+
+      if (shouldProvisionReturnCard) {
+        const slugBase = buildCircleCardSlugBase({
+          slug: "",
+          fullName: input.name,
+          businessName: businessName ?? ""
+        });
+        const slug = await resolveAvailableCircleCardSlug(tx, slugBase);
+        const card = await tx.circleCard.create({
+          data: {
+            slug,
+            userId: createdUser.id,
+            isPrimary: true,
+            isPublished: true,
+            fullName: input.name.trim(),
+            businessName,
+            accountType: "INDIVIDUAL",
+            identityTags: [],
+            profileLayout: DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT,
+            themePrimaryColor: resolvedTheme.primaryColor,
+            themeAccentColor: resolvedTheme.accentColor,
+            themeButtonColor: resolvedTheme.buttonColor,
+            themeSurfaceStyle: resolvedTheme.surfaceStyle,
+            themePreset: resolvedTheme.presetKey,
+            themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue,
+            socialLinks: {}
+          },
+          select: {
+            id: true
+          }
+        });
+
+        await tx.circleCardActivity.create({
+          data: {
+            userId: createdUser.id,
+            circleCardId: card.id,
+            type: "CARD_CREATED",
+            title: "Circle Card created",
+            message: `${input.name.trim()}'s Circle Card was created from Spin To Connect.`,
+            entityType: "CIRCLE_CARD",
+            entityId: card.id,
+            metadata: {
+              source: "spin_to_connect_registration",
+              sourceCardSlug,
+              returnTo
+            } as Prisma.InputJsonObject
+          }
+        });
       }
+
+      return createdUser;
     });
 
     return {
       user,
-      redirectTo: "/dashboard/circle-card/onboarding"
+      redirectTo: returnTo || "/dashboard/circle-card/onboarding"
     };
   } catch (error) {
     if (isUniqueEmailError(error)) {

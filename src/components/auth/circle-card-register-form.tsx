@@ -30,9 +30,15 @@ type CircleCardRegisterFormProps = {
     email?: string;
     businessName?: string;
   };
+  returnTo?: string;
+  sourceCardSlug?: string;
 };
 
-export function CircleCardRegisterForm({ defaults }: CircleCardRegisterFormProps = {}) {
+export function CircleCardRegisterForm({
+  defaults,
+  returnTo,
+  sourceCardSlug
+}: CircleCardRegisterFormProps = {}) {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -49,7 +55,9 @@ export function CircleCardRegisterForm({ defaults }: CircleCardRegisterFormProps
       confirmPassword: "",
       acceptedTerms: false,
       minimumAgeConfirmed: false,
-      businessName: defaults?.businessName ?? ""
+      businessName: defaults?.businessName ?? "",
+      returnTo: returnTo ?? "",
+      sourceCardSlug: sourceCardSlug ?? ""
     }
   });
 
@@ -69,7 +77,9 @@ export function CircleCardRegisterForm({ defaults }: CircleCardRegisterFormProps
           password: values.password,
           acceptedTerms: values.acceptedTerms,
           minimumAgeConfirmed: values.minimumAgeConfirmed,
-          businessName: values.businessName
+          businessName: values.businessName,
+          returnTo: values.returnTo,
+          sourceCardSlug: values.sourceCardSlug
         })
       });
       const data = (await response.json().catch(() => ({}))) as CircleCardRegisterResponse;
@@ -133,6 +143,8 @@ export function CircleCardRegisterForm({ defaults }: CircleCardRegisterFormProps
 
         <form className="space-y-5" onSubmit={onSubmit}>
           <input type="hidden" {...form.register("source")} />
+          <input type="hidden" {...form.register("returnTo")} />
+          <input type="hidden" {...form.register("sourceCardSlug")} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -263,7 +275,7 @@ export function CircleCardRegisterForm({ defaults }: CircleCardRegisterFormProps
             <span>
               Already have a BCN account?{" "}
               <Link
-                href="/login?from=/dashboard/circle-card"
+                href={`/login?from=${encodeURIComponent(returnTo || "/dashboard/circle-card")}`}
                 className="text-primary hover:underline"
               >
                 Sign in
