@@ -2215,7 +2215,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 Opportunities
               </Link>
               <Link
-                href={circleCardSectionHref("network", "wallet")}
+                href="/dashboard/circle-card/wallet"
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
               >
                 <WalletCards size={16} />
