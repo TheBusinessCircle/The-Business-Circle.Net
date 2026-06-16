@@ -84,6 +84,8 @@ import {
   CircleCardShareButton,
   CircleCardSmartProfileImportPanel,
   CircleCardSubmitButton,
+  CircleCardSmartLinkCreateForm,
+  CircleCardSmartLinkManager,
   CircleCardTrackedLink,
   CircleCardSmartLinkFields,
   CircleCardThemeFields
@@ -140,7 +142,9 @@ import {
   circleCardNotificationTypeLabel
 } from "@/lib/circle-card/notifications";
 import {
+  type CircleCardLinkActionMode,
   type CircleCardLinkType,
+  type CircleCardLinkVisibility,
   CIRCLE_WALLET_CATEGORY_OPTIONS,
   CIRCLE_WALLET_MET_AT_OPTIONS,
   readCircleCardSocialLinks,
@@ -207,6 +211,7 @@ const CIRCLE_CARD_APP_SECTION_LABELS: Record<CircleCardAppSection, string> = {
   share: "Share",
   settings: "Settings"
 };
+const USE_OPTIMISTIC_SMART_LINK_MANAGER = true;
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -4930,60 +4935,42 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
         {card ? (
           <>
-            <Card className="border-gold/18 bg-gold/8">
-              <CardHeader>
-                <CardTitle className="inline-flex items-center gap-2">
-                  <LinkIcon size={17} className="text-gold" />
-                  Add link
-                </CardTitle>
-                <CardDescription>
-                  Add booking pages, offers, downloads, reviews, shops, menus or portfolio links.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form action={upsertCircleCardLinkAction} className="space-y-4" noValidate>
-                  <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
-                  <input type="hidden" name="cardId" value={card.id} />
-                  <input type="hidden" name="sortOrder" value={customLinks.length} />
-
-                  <CircleCardSmartLinkFields idPrefix="customLinkNew" />
-
-                  <label
-                    htmlFor="customLinkIsActive"
-                    className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
-                  >
-                    <input
-                      id="customLinkIsActive"
-                      name="isActive"
-                      type="checkbox"
-                      defaultChecked={!freeActiveCustomLinkLimitReached}
-                      className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-                    />
-                    <span>
-                      Active on public card
-                      <span className="mt-1 block text-xs text-muted">
-                        Free cards can keep up to {FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links.
-                      </span>
-                    </span>
-                  </label>
-
-                  <div className="flex flex-wrap gap-2">
-                    {CUSTOM_LINK_EXAMPLES.map((example) => (
-                      <Badge key={example} variant="outline" className="border-silver/18 text-silver">
-                        {example}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <CircleCardSubmitButton className="w-full gap-2 sm:w-auto" pendingLabel="Adding...">
-                    <Save size={16} />
-                    Add link
-                  </CircleCardSubmitButton>
-                </form>
-              </CardContent>
-            </Card>
+            <CircleCardSmartLinkCreateForm
+              cardId={card.id}
+              sortOrder={customLinks.length}
+              defaultActive={!freeActiveCustomLinkLimitReached}
+              examples={CUSTOM_LINK_EXAMPLES}
+              activeLimitLabel={`Free cards can keep up to ${FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links.`}
+            />
 
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              {USE_OPTIMISTIC_SMART_LINK_MANAGER ? (
+                <CircleCardSmartLinkManager
+                  cardId={card.id}
+                  cardSlug={card.slug}
+                  initialLinks={customLinks.map((customLink) => ({
+                    id: customLink.id,
+                    type: resolveCustomLinkType(customLink.type),
+                    actionMode: (customLink.actionMode || "AUTO") as CircleCardLinkActionMode,
+                    visibility: (customLink.visibility || "PUBLIC") as CircleCardLinkVisibility,
+                    label: customLink.label,
+                    url: customLink.url,
+                    description: customLink.description,
+                    icon: customLink.icon,
+                    imageUrl: customLink.imageUrl,
+                    fileUrl: customLink.fileUrl,
+                    fileName: customLink.fileName,
+                    fileMimeType: customLink.fileMimeType,
+                    buttonText: customLink.buttonText,
+                    expiresAt: customLink.expiresAt?.toISOString() ?? null,
+                    accessCodeHint: customLink.accessCodeHint,
+                    hasAccessCode: Boolean(customLink.accessCodeHash),
+                    sortOrder: customLink.sortOrder,
+                    isActive: customLink.isActive
+                  }))}
+                  focusedLinkId={focusedCustomLinkId}
+                />
+              ) : (
               <div className="space-y-3">
                 {customLinks.length ? (
                   customLinks.map((customLink, index) => {
@@ -5211,6 +5198,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   </Card>
                 )}
               </div>
+              )}
 
               <aside className="space-y-5">
                 <Card className="border-silver/16 bg-card/62">

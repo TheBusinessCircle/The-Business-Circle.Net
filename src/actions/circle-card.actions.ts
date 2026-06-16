@@ -517,6 +517,12 @@ function revalidateCircleCardPaths(slug?: string | null) {
   }
 }
 
+function revalidateCircleCardPublicPaths(slug?: string | null) {
+  if (slug) {
+    revalidatePath(`/card/${slug}`);
+  }
+}
+
 function revalidateCircleCardConnectionPaths(slugs: Array<string | null | undefined>) {
   revalidatePath("/dashboard/circle-card");
 
@@ -832,8 +838,22 @@ async function enforceCircleCardCustomLinkActivationLimit(input: {
   wantsActive: boolean;
   returnPath: string;
 }) {
+  const limitExceeded = await circleCardCustomLinkActivationLimitExceeded(input);
+
+  if (limitExceeded) {
+    redirectWithError(input.returnPath, "custom-link-active-limit");
+  }
+}
+
+async function circleCardCustomLinkActivationLimitExceeded(input: {
+  user: CircleCardActionUser;
+  cardId: string;
+  linkId?: string | null;
+  existingIsActive?: boolean;
+  wantsActive: boolean;
+}) {
   if (!input.wantsActive || input.existingIsActive || !isFreeCircleCardActionUser(input.user)) {
-    return;
+    return false;
   }
 
   const activeLinkCount = await prisma.circleCardLink.count({
@@ -844,9 +864,112 @@ async function enforceCircleCardCustomLinkActivationLimit(input: {
     }
   });
 
-  if (activeLinkCount >= FREE_ACTIVE_CUSTOM_LINK_LIMIT) {
-    redirectWithError(input.returnPath, "custom-link-active-limit");
-  }
+  return activeLinkCount >= FREE_ACTIVE_CUSTOM_LINK_LIMIT;
+}
+
+const CIRCLE_CARD_LINK_DASHBOARD_SELECT = {
+  id: true,
+  type: true,
+  actionMode: true,
+  visibility: true,
+  label: true,
+  url: true,
+  description: true,
+  icon: true,
+  imageUrl: true,
+  fileUrl: true,
+  fileName: true,
+  fileMimeType: true,
+  buttonText: true,
+  expiresAt: true,
+  accessCodeHint: true,
+  accessCodeHash: true,
+  sortOrder: true,
+  isActive: true
+} as const satisfies Prisma.CircleCardLinkSelect;
+
+type CircleCardDashboardLinkRecord = Prisma.CircleCardLinkGetPayload<{
+  select: typeof CIRCLE_CARD_LINK_DASHBOARD_SELECT;
+}>;
+
+export type CircleCardDashboardLinkPayload = {
+  id: string;
+  type: CircleCardLinkType;
+  actionMode: CircleCardLinkActionMode;
+  visibility: CircleCardLinkVisibility;
+  label: string;
+  url: string | null;
+  description: string | null;
+  icon: string | null;
+  imageUrl: string | null;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileMimeType: string | null;
+  buttonText: string | null;
+  expiresAt: string | null;
+  accessCodeHint: string | null;
+  hasAccessCode: boolean;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+export type CircleCardInlineActionResult =
+  | {
+      ok: true;
+      notice: string;
+      link?: CircleCardDashboardLinkPayload;
+      links?: CircleCardDashboardLinkPayload[];
+    }
+  | {
+      ok: false;
+      error: string;
+      message: string;
+    };
+
+function serializeCircleCardDashboardLink(
+  link: CircleCardDashboardLinkRecord
+): CircleCardDashboardLinkPayload {
+  return {
+    id: link.id,
+    type: (link.type || "GENERAL") as CircleCardLinkType,
+    actionMode: circleCardLinkActionModeForType(
+      (link.type || "GENERAL") as CircleCardLinkType,
+      (link.actionMode || "AUTO") as CircleCardLinkActionMode
+    ),
+    visibility: (link.visibility || "PUBLIC") as CircleCardLinkVisibility,
+    label: link.label,
+    url: link.url,
+    description: link.description,
+    icon: link.icon,
+    imageUrl: link.imageUrl,
+    fileUrl: link.fileUrl,
+    fileName: link.fileName,
+    fileMimeType: link.fileMimeType,
+    buttonText: link.buttonText,
+    expiresAt: link.expiresAt?.toISOString() ?? null,
+    accessCodeHint: link.accessCodeHint,
+    hasAccessCode: Boolean(link.accessCodeHash),
+    sortOrder: link.sortOrder,
+    isActive: link.isActive
+  };
+}
+
+async function readCircleCardDashboardLinks(cardId: string) {
+  const links = await prisma.circleCardLink.findMany({
+    where: { cardId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: CIRCLE_CARD_LINK_DASHBOARD_SELECT
+  });
+
+  return links.map(serializeCircleCardDashboardLink);
+}
+
+function inlineCircleCardError(error: string, message: string): CircleCardInlineActionResult {
+  return {
+    ok: false,
+    error,
+    message
+  };
 }
 
 export async function markCircleCardNotificationReadAction(formData: FormData) {
@@ -1698,6 +1821,340 @@ export async function moveCircleCardLinkAction(formData: FormData) {
 
   revalidateCircleCardPaths(card.slug);
   redirectWithNotice(returnPath, "custom-link-reordered");
+}
+
+export async function upsertCircleCardLinkInlineAction(
+  formData: FormData
+): Promise<CircleCardInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardLinkFormSchema.safeParse(readCircleCardLinkFormData(formData));
+
+  if (!parsed.success) {
+    return inlineCircleCardError("custom-link-invalid", "Check the link fields and try again.");
+  }
+
+  const values = parsed.data;
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: values.cardId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      slug: true
+    }
+  });
+
+  if (!card) {
+    return inlineCircleCardError("card-not-found", "That Circle Card could not be found.");
+  }
+
+  const linkId = values.linkId || null;
+  const existingLink = linkId
+    ? await prisma.circleCardLink.findFirst({
+        where: {
+          id: linkId,
+          cardId: card.id
+        },
+        select: {
+          id: true,
+          isActive: true,
+          sortOrder: true,
+          icon: true,
+          accessCodeHash: true
+        }
+      })
+    : null;
+
+  if (linkId && !existingLink) {
+    return inlineCircleCardError("custom-link-not-found", "That custom link could not be found.");
+  }
+
+  if (!linkId) {
+    const linkCount = await prisma.circleCardLink.count({
+      where: { cardId: card.id }
+    });
+
+    if (linkCount >= CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT) {
+      return inlineCircleCardError(
+        "custom-link-total-limit",
+        "This Circle Card already has the maximum number of saved custom links."
+      );
+    }
+  }
+
+  const activeLimitExceeded = await circleCardCustomLinkActivationLimitExceeded({
+    user,
+    cardId: card.id,
+    linkId,
+    existingIsActive: existingLink?.isActive,
+    wantsActive: values.isActive
+  });
+
+  if (activeLimitExceeded) {
+    return inlineCircleCardError(
+      "custom-link-active-limit",
+      "Free Circle Cards can keep up to 5 active custom links in this phase."
+    );
+  }
+
+  const sortOrder =
+    values.sortOrder ??
+    existingLink?.sortOrder ??
+    (await prisma.circleCardLink.count({
+      where: { cardId: card.id }
+    }));
+  const visibility = circleCardLinkVisibilityForType(values.type, values.visibility);
+  const accessCodeHash =
+    visibility === "PRIVATE_CODE"
+      ? values.accessCodePlain
+        ? await hashCircleCardAccessCode(values.accessCodePlain)
+        : existingLink?.accessCodeHash ?? null
+      : null;
+
+  if (visibility === "PRIVATE_CODE" && !accessCodeHash) {
+    return inlineCircleCardError(
+      "custom-link-access-code-required",
+      "Generate a 4-digit access code before saving this private link."
+    );
+  }
+
+  const data = {
+    type: values.type,
+    label: values.label.trim(),
+    url: nullableText(values.url),
+    description: nullableText(values.description),
+    icon: nullableText(values.icon) || existingLink?.icon || circleCardLinkIconForType(values.type),
+    imageUrl: nullableText(values.imageUrl),
+    fileUrl: nullableText(values.fileUrl),
+    fileName: nullableText(values.fileName),
+    fileMimeType: nullableText(values.fileMimeType),
+    buttonText: nullableText(values.buttonText),
+    expiresAt: values.expiresAt ?? null,
+    actionMode: circleCardLinkActionModeForType(values.type, values.actionMode),
+    visibility,
+    accessCodeHash,
+    accessCodeLastGeneratedAt:
+      visibility === "PRIVATE_CODE" && values.accessCodePlain
+        ? new Date()
+        : visibility === "PRIVATE_CODE"
+          ? undefined
+          : null,
+    accessCodeHint:
+      visibility === "PRIVATE_CODE" ? nullableText(values.accessCodeHint) : null,
+    sortOrder,
+    isActive: values.isActive
+  };
+
+  try {
+    const link = linkId
+      ? await prisma.circleCardLink.update({
+          where: { id: linkId },
+          data,
+          select: CIRCLE_CARD_LINK_DASHBOARD_SELECT
+        })
+      : await prisma.circleCardLink.create({
+          data: {
+            ...data,
+            cardId: card.id
+          },
+          select: CIRCLE_CARD_LINK_DASHBOARD_SELECT
+        });
+
+    revalidateCircleCardPublicPaths(card.slug);
+
+    return {
+      ok: true,
+      notice: linkId ? "Link saved." : "Link added.",
+      link: serializeCircleCardDashboardLink(link)
+    };
+  } catch {
+    return inlineCircleCardError("custom-link-save-failed", "The custom link could not be saved.");
+  }
+}
+
+export async function toggleCircleCardLinkInlineAction(input: {
+  cardId: string;
+  linkId: string;
+}): Promise<CircleCardInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardLinkIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardError("custom-link-invalid", "Check the custom link and try again.");
+  }
+
+  const link = await prisma.circleCardLink.findFirst({
+    where: {
+      id: parsed.data.linkId,
+      cardId: parsed.data.cardId,
+      card: {
+        userId: user.id
+      }
+    },
+    select: {
+      id: true,
+      isActive: true,
+      cardId: true,
+      card: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!link) {
+    return inlineCircleCardError("custom-link-not-found", "That custom link could not be found.");
+  }
+
+  const wantsActive = !link.isActive;
+  const activeLimitExceeded = await circleCardCustomLinkActivationLimitExceeded({
+    user,
+    cardId: link.cardId,
+    linkId: link.id,
+    existingIsActive: link.isActive,
+    wantsActive
+  });
+
+  if (activeLimitExceeded) {
+    return inlineCircleCardError(
+      "custom-link-active-limit",
+      "Free Circle Cards can keep up to 5 active custom links in this phase."
+    );
+  }
+
+  const updatedLink = await prisma.circleCardLink.update({
+    where: { id: link.id },
+    data: {
+      isActive: wantsActive
+    },
+    select: CIRCLE_CARD_LINK_DASHBOARD_SELECT
+  });
+
+  revalidateCircleCardPublicPaths(link.card.slug);
+
+  return {
+    ok: true,
+    notice: wantsActive ? "Link activated." : "Link paused.",
+    link: serializeCircleCardDashboardLink(updatedLink)
+  };
+}
+
+export async function deleteCircleCardLinkInlineAction(input: {
+  cardId: string;
+  linkId: string;
+}): Promise<CircleCardInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardLinkIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardError("custom-link-invalid", "Check the custom link and try again.");
+  }
+
+  const link = await prisma.circleCardLink.findFirst({
+    where: {
+      id: parsed.data.linkId,
+      cardId: parsed.data.cardId,
+      card: {
+        userId: user.id
+      }
+    },
+    select: {
+      id: true,
+      card: {
+        select: {
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!link) {
+    return inlineCircleCardError("custom-link-not-found", "That custom link could not be found.");
+  }
+
+  await prisma.circleCardLink.delete({
+    where: { id: link.id }
+  });
+
+  revalidateCircleCardPublicPaths(link.card.slug);
+
+  return {
+    ok: true,
+    notice: "Link deleted."
+  };
+}
+
+export async function moveCircleCardLinkInlineAction(input: {
+  cardId: string;
+  linkId: string;
+  direction: "up" | "down";
+}): Promise<CircleCardInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardLinkMoveSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardError("custom-link-invalid", "Check the custom link and try again.");
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: parsed.data.cardId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      slug: true,
+      customLinks: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true
+        }
+      }
+    }
+  });
+
+  if (!card) {
+    return inlineCircleCardError("card-not-found", "That Circle Card could not be found.");
+  }
+
+  const currentIndex = card.customLinks.findIndex((link) => link.id === parsed.data.linkId);
+
+  if (currentIndex < 0) {
+    return inlineCircleCardError("custom-link-not-found", "That custom link could not be found.");
+  }
+
+  const targetIndex = parsed.data.direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+  if (targetIndex < 0 || targetIndex >= card.customLinks.length) {
+    return {
+      ok: true,
+      notice: "Links already in that order.",
+      links: await readCircleCardDashboardLinks(card.id)
+    };
+  }
+
+  const reorderedLinks = [...card.customLinks];
+  const [movedLink] = reorderedLinks.splice(currentIndex, 1);
+  reorderedLinks.splice(targetIndex, 0, movedLink);
+
+  await prisma.$transaction(
+    reorderedLinks.map((link, index) =>
+      prisma.circleCardLink.update({
+        where: { id: link.id },
+        data: { sortOrder: index }
+      })
+    )
+  );
+
+  revalidateCircleCardPublicPaths(card.slug);
+
+  return {
+    ok: true,
+    notice: "Links reordered.",
+    links: await readCircleCardDashboardLinks(card.id)
+  };
 }
 
 export async function completeCircleCardOnboardingAction(formData: FormData) {

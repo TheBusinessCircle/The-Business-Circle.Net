@@ -657,23 +657,6 @@ const CREATOR_PRIMARY_CTA_PRIORITY: Partial<Record<PublicCircleCard["customLinks
   BOOK_CALL: 3
 };
 
-const CREATOR_LINK_CARD_PRIORITY: Partial<Record<PublicCircleCard["customLinks"][number]["type"], number>> = {
-  LATEST_OFFER: 0,
-  COMMUNITY: 1,
-  DOWNLOAD: 2,
-  BOOK_CALL: 3,
-  SHOP: 4,
-  PORTFOLIO: 5,
-  CASE_STUDY: 6,
-  REVIEW: 7,
-  MENU: 8,
-  GENERAL: 9
-};
-
-function creatorLinkPriority(link: PublicCircleCard["customLinks"][number]) {
-  return CREATOR_LINK_CARD_PRIORITY[link.type] ?? 20;
-}
-
 function creatorLinkAccentLabel(link: PublicCircleCard["customLinks"][number]) {
   switch (link.type) {
     case "LATEST_OFFER":
@@ -695,12 +678,10 @@ function creatorLinkAccentLabel(link: PublicCircleCard["customLinks"][number]) {
   }
 }
 
-function creatorFeaturedLinks(card: PublicCircleCard, primaryLinkId?: string | null) {
+function creatorFeaturedLinks(card: PublicCircleCard) {
   return [...card.customLinks]
-    .filter((link) => link.id !== primaryLinkId)
     .filter((link) => link.visibility === "PRIVATE_CODE" || Boolean(customLinkHref(link)))
-    .sort((a, b) => creatorLinkPriority(a) - creatorLinkPriority(b) || a.sortOrder - b.sortOrder)
-    .slice(0, 6);
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 function creatorPublicActionLinks(card: PublicCircleCard) {
@@ -1605,7 +1586,7 @@ export function PublicCircleCardProfile({
     const creatorWebsiteRow = directContactRows.find((row) => row.key === "website") ?? null;
     const creatorPrimaryLink = selectCreatorPrimaryLink(card, Boolean(creatorWebsiteRow));
     const creatorPrimaryWebsite = creatorPrimaryLink ? null : creatorWebsiteRow;
-    const creatorLinks = creatorFeaturedLinks(card, creatorPrimaryLink?.id);
+    const creatorLinks = creatorFeaturedLinks(card);
     const creatorSocialRows = [
       ...socialContactRows,
       ...(creatorWebsiteRow ? [creatorWebsiteRow] : [])
