@@ -83,6 +83,7 @@ import {
   CircleCardShareAssetsPanel,
   CircleCardShareButton,
   CircleCardSmartProfileImportPanel,
+  CircleCardSubmitButton,
   CircleCardTrackedLink,
   CircleCardSmartLinkFields,
   CircleCardThemeFields
@@ -220,6 +221,15 @@ function resolveCircleCardAppSection(value: string | undefined): CircleCardAppSe
 function circleCardSectionHref(section: CircleCardAppSection, hash?: string) {
   const suffix = hash ? `#${hash.replace(/^#/, "")}` : "";
   return `/dashboard/circle-card?section=${section}${suffix}`;
+}
+
+function circleCardCustomLinkEditHref(linkId: string) {
+  const params = new URLSearchParams({
+    section: "my-card",
+    editLink: linkId
+  });
+
+  return `/dashboard/circle-card?${params.toString()}#custom-link-${linkId}`;
 }
 
 const NOTICE_MESSAGES: Record<string, string> = {
@@ -1010,6 +1020,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const notice = firstValue(params.notice);
   const created = firstValue(params.created) === "1";
   const error = firstValue(params.error);
+  const focusedCustomLinkId = firstValue(params.editLink) ?? "";
   const walletQuery = (firstValue(params.walletQuery) ?? "").trim();
   const walletView = resolveWalletView(firstValue(params.walletView));
   const walletCategory = (firstValue(params.walletCategory) ?? "").trim();
@@ -4514,7 +4525,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={upsertCircleCardAction} className="space-y-5">
+            <form action={upsertCircleCardAction} className="space-y-5" noValidate>
               <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "circle-card-form")} />
               {card ? <input type="hidden" name="cardId" value={card.id} /> : null}
 
@@ -4763,10 +4774,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 </span>
               </label>
 
-              <Button type="submit" className="w-full gap-2 sm:w-auto">
+              <CircleCardSubmitButton
+                className="w-full gap-2 sm:w-auto"
+                pendingLabel={card ? "Saving..." : "Creating..."}
+              >
                 <Save size={16} />
                 {card ? "Save Circle Card" : "Create Circle Card"}
-              </Button>
+              </CircleCardSubmitButton>
             </form>
           </CardContent>
         </Card>
@@ -4927,7 +4941,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={upsertCircleCardLinkAction} className="space-y-4">
+                <form action={upsertCircleCardLinkAction} className="space-y-4" noValidate>
                   <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                   <input type="hidden" name="cardId" value={card.id} />
                   <input type="hidden" name="sortOrder" value={customLinks.length} />
@@ -4961,10 +4975,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     ))}
                   </div>
 
-                  <Button type="submit" className="w-full gap-2 sm:w-auto">
+                  <CircleCardSubmitButton className="w-full gap-2 sm:w-auto" pendingLabel="Adding...">
                     <Save size={16} />
                     Add link
-                  </Button>
+                  </CircleCardSubmitButton>
                 </form>
               </CardContent>
             </Card>
@@ -4978,9 +4992,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
                     return (
                       <Card
+                        id={`custom-link-${customLink.id}`}
                         key={customLink.id}
                         className={cn(
-                          "border-silver/16 bg-card/62",
+                          "scroll-mt-24 border-silver/16 bg-card/62",
                           customLink.isActive ? "border-gold/20" : "opacity-78"
                         )}
                       >
@@ -5047,71 +5062,89 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <input type="hidden" name="direction" value="up" />
-                                <Button
-                                  type="submit"
+                                <CircleCardSubmitButton
                                   variant="outline"
                                   size="sm"
                                   className="h-10 w-full gap-2 sm:w-10 sm:px-0"
                                   disabled={isFirst}
                                   title="Move link up"
+                                  pendingChildren={
+                                    <>
+                                      <ArrowUp size={14} className="animate-pulse" />
+                                      <span className="sm:sr-only">Moving up</span>
+                                    </>
+                                  }
                                 >
                                   <ArrowUp size={14} />
                                   <span className="sm:sr-only">Move up</span>
-                                </Button>
+                                </CircleCardSubmitButton>
                               </form>
                               <form action={moveCircleCardLinkAction}>
                                 <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <input type="hidden" name="direction" value="down" />
-                                <Button
-                                  type="submit"
+                                <CircleCardSubmitButton
                                   variant="outline"
                                   size="sm"
                                   className="h-10 w-full gap-2 sm:w-10 sm:px-0"
                                   disabled={isLast}
                                   title="Move link down"
+                                  pendingChildren={
+                                    <>
+                                      <ArrowDown size={14} className="animate-pulse" />
+                                      <span className="sm:sr-only">Moving down</span>
+                                    </>
+                                  }
                                 >
                                   <ArrowDown size={14} />
                                   <span className="sm:sr-only">Move down</span>
-                                </Button>
+                                </CircleCardSubmitButton>
                               </form>
                               <form action={toggleCircleCardLinkAction}>
                                 <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
-                                <Button
-                                  type="submit"
+                                <CircleCardSubmitButton
                                   variant="outline"
                                   size="sm"
                                   className="h-10 w-full gap-2 sm:w-auto"
+                                  pendingLabel={customLink.isActive ? "Pausing..." : "Activating..."}
                                 >
                                   {customLink.isActive ? "Pause" : "Activate"}
-                                </Button>
+                                </CircleCardSubmitButton>
                               </form>
                               <form action={deleteCircleCardLinkAction}>
                                 <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
-                                <Button
-                                  type="submit"
+                                <CircleCardSubmitButton
                                   variant="outline"
                                   size="sm"
                                   className="h-10 w-full gap-2 sm:w-auto"
+                                  pendingChildren={
+                                    <>
+                                      <Trash2 size={14} className="animate-pulse" />
+                                      Deleting...
+                                    </>
+                                  }
                                 >
                                   <Trash2 size={14} />
                                   Delete
-                                </Button>
+                                </CircleCardSubmitButton>
                               </form>
                             </div>
                           </div>
 
-                          <details className="rounded-2xl border border-silver/14 bg-background/18 p-3">
+                          <details
+                            open={focusedCustomLinkId === customLink.id}
+                            className="rounded-2xl border border-silver/14 bg-background/18 p-3"
+                          >
                             <summary className="cursor-pointer list-none text-sm font-medium text-silver">
                               Edit link
                             </summary>
-                            <form action={upsertCircleCardLinkAction} className="mt-4 space-y-4">
-                              <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
+                            <form action={upsertCircleCardLinkAction} className="mt-4 space-y-4" noValidate>
+                              <input type="hidden" name="returnPath" value={circleCardCustomLinkEditHref(customLink.id)} />
                               <input type="hidden" name="cardId" value={card.id} />
                               <input type="hidden" name="linkId" value={customLink.id} />
                               <input type="hidden" name="sortOrder" value={customLink.sortOrder} />
@@ -5153,10 +5186,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 </span>
                               </label>
 
-                              <Button type="submit" className="w-full gap-2 sm:w-auto">
+                              <CircleCardSubmitButton className="w-full gap-2 sm:w-auto" pendingLabel="Saving...">
                                 <Save size={16} />
                                 Save link
-                              </Button>
+                              </CircleCardSubmitButton>
                             </form>
                           </details>
                         </CardContent>
@@ -5703,7 +5736,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     notes, tags and favourite status.
                   </p>
                   <Link href="/circle-card" className="mt-5 inline-flex">
-                    <Button variant="outline">Explore Circle Card</Button>
+                    <Button type="button" variant="outline">Explore Circle Card</Button>
                   </Link>
                 </CardContent>
               </Card>
@@ -6938,7 +6971,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               </CardHeader>
               <CardContent>
                 {card ? (
-                  <form action={upsertCircleCardAction} className="space-y-4">
+                  <form action={upsertCircleCardAction} className="space-y-4" noValidate>
                     <input type="hidden" name="returnPath" value={circleCardSectionHref("settings", "circle-card-settings")} />
                     <input type="hidden" name="cardId" value={card.id} />
                     <input type="hidden" name="fullName" value={card.fullName} />
@@ -7017,10 +7050,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      <Button type="submit" className="gap-2">
+                      <CircleCardSubmitButton className="gap-2" pendingLabel="Saving...">
                         <Save size={16} />
                         Save Settings
-                      </Button>
+                      </CircleCardSubmitButton>
                       <Link href={circleCardSectionHref("my-card", "card-identity")} className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
                         Edit Full Card
                         <ArrowUpRight size={16} />

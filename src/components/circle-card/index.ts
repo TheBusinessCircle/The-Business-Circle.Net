@@ -17,6 +17,7 @@ export * from "@/components/circle-card/circle-card-section-router";
 export * from "@/components/circle-card/circle-card-smart-link-fields";
 export * from "@/components/circle-card/circle-card-smart-profile-import-panel";
 export * from "@/components/circle-card/circle-card-spin-to-connect";
+export * from "@/components/circle-card/circle-card-submit-button";
 export * from "@/components/circle-card/circle-card-theme-fields";
 export * from "@/components/circle-card/circle-card-tracked-link";
 export * from "@/components/circle-card/public-circle-card-profile";

@@ -15,6 +15,7 @@ import {
   applyCircleCardSmartImportAction,
   scanCircleCardSmartImportLinksAction
 } from "@/actions/circle-card.actions";
+import { CircleCardSubmitButton } from "@/components/circle-card/circle-card-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -221,7 +222,7 @@ export function CircleCardSmartProfileImportPanel({
         ) : null}
 
         {results.length ? (
-          <form action={applyCircleCardSmartImportAction} className="space-y-4">
+          <form action={applyCircleCardSmartImportAction} className="space-y-4" noValidate>
             <input type="hidden" name="cardId" value={cardId} />
             <input type="hidden" name="returnPath" value={returnPath} />
 
@@ -517,10 +518,14 @@ export function CircleCardSmartProfileImportPanel({
                   </p>
                   <p className="mt-1 text-xs text-muted">Smart links: {customLinkLimitLabel}</p>
                 </div>
-                <Button type="submit" disabled={!hasSelections} className="w-full gap-2 sm:w-auto">
+                <CircleCardSubmitButton
+                  disabled={!hasSelections}
+                  className="w-full gap-2 sm:w-auto"
+                  pendingLabel="Applying..."
+                >
                   <Sparkles size={15} />
                   Apply selected
-                </Button>
+                </CircleCardSubmitButton>
               </div>
             ) : null}
           </form>

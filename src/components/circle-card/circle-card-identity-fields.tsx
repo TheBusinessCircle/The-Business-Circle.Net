@@ -1,7 +1,7 @@
 import type { CircleCardAccountType } from "@prisma/client";
 import { Rocket, UserRound, UsersRound } from "lucide-react";
 import { updateCircleCardIdentityAction } from "@/actions/circle-card.actions";
-import { Button } from "@/components/ui/button";
+import { CircleCardSubmitButton } from "@/components/circle-card/circle-card-submit-button";
 import {
   CIRCLE_CARD_ACCOUNT_TYPE_COPY,
   CIRCLE_CARD_ACCOUNT_TYPES,
@@ -125,7 +125,7 @@ export function CircleCardIdentityBanner({
         Help personalise your Circle Card.
         <span className="ml-2 text-xs font-normal text-gold">Choose account type</span>
       </summary>
-      <form action={updateCircleCardIdentityAction} className="mt-4 space-y-4">
+      <form action={updateCircleCardIdentityAction} className="mt-4 space-y-4" noValidate>
         <input type="hidden" name="cardId" value={cardId} />
         <input type="hidden" name="returnPath" value={returnPath} />
         <CircleCardIdentityFields
@@ -135,9 +135,9 @@ export function CircleCardIdentityBanner({
           compact
           required
         />
-        <Button type="submit" size="sm" className="gap-2">
+        <CircleCardSubmitButton size="sm" className="gap-2" pendingLabel="Saving...">
           Save identity
-        </Button>
+        </CircleCardSubmitButton>
       </form>
     </details>
   );

@@ -137,6 +137,7 @@ export function CircleCardImageUploadField({
   showAdjustments = true
 }: CircleCardImageUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const defaultValueRef = useRef(defaultValue);
   const [imageUrl, setImageUrl] = useState(value ?? defaultValue);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPreviewUrl, setSelectedPreviewUrl] = useState<string | null>(null);
@@ -159,6 +160,22 @@ export function CircleCardImageUploadField({
       setImageUrl(value);
     }
   }, [value]);
+
+  useEffect(() => {
+    if (value !== undefined || defaultValueRef.current === defaultValue) {
+      return;
+    }
+
+    if (selectedFile || uploading || lastUploadedUrl) {
+      defaultValueRef.current = defaultValue;
+      return;
+    }
+
+    defaultValueRef.current = defaultValue;
+    setImageUrl(defaultValue);
+    setSelectedPreviewUrl(null);
+    setLastUploadedUrl(null);
+  }, [defaultValue, lastUploadedUrl, selectedFile, uploading, value]);
 
   useEffect(() => {
     if (positionX === undefined && positionY === undefined && scale === undefined) {
