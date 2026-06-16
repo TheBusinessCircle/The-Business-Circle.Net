@@ -28,6 +28,7 @@ export type CircleCardSocialLinks = {
   x?: string;
   facebook?: string;
   youtube?: string;
+  discord?: string;
 };
 
 export const CIRCLE_CARD_SOCIAL_FIELDS = [
@@ -36,7 +37,8 @@ export const CIRCLE_CARD_SOCIAL_FIELDS = [
   "instagram",
   "x",
   "facebook",
-  "youtube"
+  "youtube",
+  "discord"
 ] as const satisfies readonly (keyof CircleCardSocialLinks)[];
 
 export const CIRCLE_CARD_CUSTOM_LINK_ICONS = [
@@ -277,6 +279,78 @@ const optionalImageUrl = z
     }
   );
 
+function normalizeDiscordSocialUrl(value?: string | null) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  const normalized = normalizeCircleCardUrl(trimmed);
+
+  try {
+    const url = new URL(normalized);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+
+    if (
+      host === "discord.gg" ||
+      host === "discord.com" ||
+      host.endsWith(".discord.com") ||
+      host === "discordapp.com" ||
+      host.endsWith(".discordapp.com")
+    ) {
+      return url.toString();
+    }
+  } catch {
+    // Fall through and treat plain values as handles below.
+  }
+
+  const handle = trimmed
+    .replace(/^@+/, "")
+    .replace(/^discord(?:\s+|:)+/i, "")
+    .trim();
+
+  if (!handle || handle.length > 80 || /\s/.test(handle)) {
+    return normalized;
+  }
+
+  return `https://discord.com/users/${encodeURIComponent(handle)}`;
+}
+
+const optionalDiscordSocialUrl = z
+  .string()
+  .trim()
+  .max(2048)
+  .optional()
+  .or(z.literal(""))
+  .transform((value) => normalizeDiscordSocialUrl(value))
+  .refine(
+    (value) => {
+      if (!value) {
+        return true;
+      }
+
+      try {
+        const url = new URL(value);
+        const host = url.hostname.toLowerCase().replace(/^www\./, "");
+
+        return (
+          (url.protocol === "http:" || url.protocol === "https:") &&
+          (host === "discord.gg" ||
+            host === "discord.com" ||
+            host.endsWith(".discord.com") ||
+            host === "discordapp.com" ||
+            host.endsWith(".discordapp.com"))
+        );
+      } catch {
+        return false;
+      }
+    },
+    {
+      message: "Discord must be a Discord invite, server URL, user URL, or handle."
+    }
+  );
+
 export const circleCardFormSchema = z.object({
   cardId: z.string().cuid().optional().or(z.literal("")),
   slug: optionalSlug,
@@ -311,6 +385,7 @@ export const circleCardFormSchema = z.object({
   xUrl: optionalHttpUrl("X"),
   facebookUrl: optionalHttpUrl("Facebook"),
   youtubeUrl: optionalHttpUrl("YouTube"),
+  discordUrl: optionalDiscordSocialUrl,
   isPublished: checkboxBoolean.default(false)
 });
 
@@ -437,6 +512,7 @@ export const circleCardLinkFormSchema = z.object({
   url: optionalHttpUrl("URL"),
   description: optionalText(220),
   icon: z.enum(CIRCLE_CARD_CUSTOM_LINK_ICONS).optional().or(z.literal("")),
+  imageUrl: optionalImageUrl,
   fileUrl: optionalLinkFileUrl,
   fileName: optionalText(180),
   fileMimeType: optionalText(120).refine((value) => {
@@ -715,7 +791,13 @@ export function buildCircleCardSlugBase(values: Pick<CircleCardFormValues, "slug
 export function buildCircleCardSocialLinks(
   values: Pick<
     CircleCardFormValues,
-    "linkedinUrl" | "tiktokUrl" | "instagramUrl" | "xUrl" | "facebookUrl" | "youtubeUrl"
+    | "linkedinUrl"
+    | "tiktokUrl"
+    | "instagramUrl"
+    | "xUrl"
+    | "facebookUrl"
+    | "youtubeUrl"
+    | "discordUrl"
   >
 ): Prisma.InputJsonObject {
   return Object.fromEntries(
@@ -725,7 +807,8 @@ export function buildCircleCardSocialLinks(
       ["instagram", values.instagramUrl],
       ["x", values.xUrl],
       ["facebook", values.facebookUrl],
-      ["youtube", values.youtubeUrl]
+      ["youtube", values.youtubeUrl],
+      ["discord", values.discordUrl]
     ].filter((entry): entry is [keyof CircleCardSocialLinks, string] => Boolean(entry[1]))
   );
 }

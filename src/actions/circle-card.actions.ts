@@ -123,6 +123,7 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "xUrl",
   "facebookUrl",
   "youtubeUrl",
+  "discordUrl",
   "isPublished"
 ] as const;
 
@@ -152,6 +153,7 @@ const CIRCLE_CARD_LINK_FORM_FIELDS = [
   "url",
   "description",
   "icon",
+  "imageUrl",
   "fileUrl",
   "fileName",
   "fileMimeType",
@@ -1113,12 +1115,14 @@ export async function applyCircleCardSmartImportAction(formData: FormData) {
         : "GENERAL";
       const url = readSmartImportHttpUrl(formData, `linkUrl-${index}`);
       const label = readSmartImportTextField(formData, `linkLabel-${index}`, 90);
+      const imageUrl = readSmartImportHttpUrl(formData, `linkImageUrl-${index}`);
 
       return {
         type,
         url,
         label,
-        description: readSmartImportTextField(formData, `linkDescription-${index}`, 220)
+        description: readSmartImportTextField(formData, `linkDescription-${index}`, 220),
+        imageUrl
       };
     })
     .filter((link) => link.url && link.label);
@@ -1167,6 +1171,7 @@ export async function applyCircleCardSmartImportAction(formData: FormData) {
           label: link.label,
           url: link.url,
           description: nullableText(link.description),
+          imageUrl: nullableText(link.imageUrl),
           icon: circleCardLinkIconForType(link.type),
           sortOrder: nextSortOrder,
           isActive
@@ -1501,6 +1506,7 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
     url: nullableText(values.url),
     description: nullableText(values.description),
     icon: nullableText(values.icon) || existingLink?.icon || circleCardLinkIconForType(values.type),
+    imageUrl: nullableText(values.imageUrl),
     fileUrl: nullableText(values.fileUrl),
     fileName: nullableText(values.fileName),
     fileMimeType: nullableText(values.fileMimeType),

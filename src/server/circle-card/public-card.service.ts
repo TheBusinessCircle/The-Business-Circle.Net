@@ -26,6 +26,7 @@ export type PublicCircleCardLink = {
   url: string | null;
   description: string | null;
   icon: CircleCardCustomLinkIcon | null;
+  imageUrl: string | null;
   fileUrl: string | null;
   fileName: string | null;
   fileMimeType: string | null;
@@ -141,6 +142,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
       url: "https://thebusinesscircle.net/contact",
       description: "Start a founder-led conversation",
       icon: "calendar",
+      imageUrl: null,
       fileUrl: null,
       fileName: null,
       fileMimeType: null,
@@ -159,6 +161,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
       url: "https://thebusinesscircle.net/membership",
       description: "Explore current BCN membership access",
       icon: "offer",
+      imageUrl: null,
       fileUrl: null,
       fileName: null,
       fileMimeType: null,
@@ -239,6 +242,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           url: true,
           description: true,
           icon: true,
+          imageUrl: true,
           fileUrl: true,
           fileName: true,
           fileMimeType: true,
@@ -331,6 +335,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
         type: (link.type || "GENERAL") as CircleCardLinkType,
         visibility,
         url: isPrivate ? null : link.url,
+        imageUrl: isPrivate ? null : link.imageUrl,
         fileUrl: isPrivate ? null : link.fileUrl,
         accessCodeHint: isPrivate ? link.accessCodeHint : null,
         hasAccessCode: Boolean(accessCodeHash),

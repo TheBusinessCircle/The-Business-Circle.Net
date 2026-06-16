@@ -64,6 +64,7 @@ import {
   Mail,
   Menu as MenuIcon,
   MapPin,
+  MessageCircle,
   Music2,
   Phone,
   Send,
@@ -153,7 +154,8 @@ const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
   { key: "youtube", label: "YouTube", icon: Youtube },
   { key: "linkedin", label: "LinkedIn", icon: Linkedin },
   { key: "x", label: "X", icon: AtSign, handlePrefix: true },
-  { key: "facebook", label: "Facebook", icon: Facebook }
+  { key: "facebook", label: "Facebook", icon: Facebook },
+  { key: "discord", label: "Discord", icon: MessageCircle }
 ] as const;
 
 const SOCIAL_CONTACT_KEYS = new Set<string>(SOCIAL_CONTACT_PLATFORMS.map((platform) => platform.key));
@@ -279,6 +281,28 @@ function socialDisplayValue(platform: SocialPlatformConfig, href: string) {
     }
 
     return cleanUrlSegment(segments[0]) || displayHost(href);
+  }
+
+  if (platform.key === "discord") {
+    const host = url?.hostname.replace(/^www\./, "").toLowerCase() ?? "";
+
+    if (host === "discord.gg") {
+      return segments[0] ? `Invite: ${cleanUrlSegment(segments[0])}` : "Discord invite";
+    }
+
+    if (firstSegment === "invite" && segments[1]) {
+      return `Invite: ${cleanUrlSegment(segments[1])}`;
+    }
+
+    if (firstSegment === "users" && segments[1]) {
+      return handleValue(segments[1]);
+    }
+
+    if (firstSegment === "channels" || firstSegment === "servers") {
+      return "Discord server";
+    }
+
+    return cleanUrlSegment(segments[0]) || "Discord";
   }
 
   const ignoredSegments = new Set(["i", "intent", "share", "status", "video", "reel", "p"]);
@@ -555,6 +579,7 @@ type ContactActionProps = {
   analyticsCardId?: string;
   eventType?: CircleCardEventTypeValue;
   metadata?: Record<string, unknown>;
+  thumbnailUrl?: string | null;
 };
 
 type ContactRow = ContactActionProps & {
@@ -570,15 +595,20 @@ function ContactAction({
   anchorProps,
   analyticsCardId,
   eventType,
-  metadata
+  metadata,
+  thumbnailUrl
 }: ContactActionProps) {
   const className =
     "group flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-silver/14 bg-white/[0.035] px-3.5 py-3 text-left shadow-inner-surface transition-all hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)] sm:px-4";
   const content = (
     <>
       <span className="flex min-w-0 items-center gap-3">
-        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gold/18 bg-gold/10 text-gold">
-          {icon}
+        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gold/18 bg-gold/10 text-gold">
+          {thumbnailUrl ? (
+            <CircleCardFramedImage src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            icon
+          )}
         </span>
         <span className="min-w-0">
           <span className="block text-xs text-muted">{label}</span>
@@ -763,6 +793,16 @@ function CreatorSmartLinkCard({
           className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.62),rgba(68,211,188,0.38),transparent)]"
         />
         <div className="relative mb-4 aspect-[1.7] overflow-hidden rounded-[1.15rem] border border-silver/14 bg-[image:var(--cc-theme-media-bg)]">
+          {link.imageUrl ? (
+            <>
+              <CircleCardFramedImage
+                src={link.imageUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,19,0.1),rgba(3,8,19,0.78))]" />
+            </>
+          ) : null}
           <span className="absolute left-4 top-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/28 bg-[#061126]/72 text-gold shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur">
             {customLinkIcon(link)}
           </span>
@@ -822,6 +862,16 @@ function CreatorSmartLinkCard({
         className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.62),rgba(68,211,188,0.38),transparent)]"
       />
       <span className="relative z-10 mb-4 block aspect-[1.7] overflow-hidden rounded-[1.15rem] border border-silver/14 bg-[image:var(--cc-theme-media-bg)]">
+        {link.imageUrl ? (
+          <>
+            <CircleCardFramedImage
+              src={link.imageUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            />
+            <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,19,0.08),rgba(3,8,19,0.76))]" />
+          </>
+        ) : null}
         <span className="absolute left-4 top-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/28 bg-[#061126]/72 text-gold shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur transition-transform group-hover:scale-105">
           {customLinkIcon(link)}
         </span>
@@ -2286,6 +2336,7 @@ export function PublicCircleCardProfile({
                           label={customLinkActionType(link)}
                           value={customLinkDisplayLabel(link)}
                           description={offerEndDescription(link)}
+                          thumbnailUrl={link.imageUrl}
                           href={href}
                           anchorProps={customLinkAnchorProps(link, href)}
                           analyticsCardId={analyticsCardId}

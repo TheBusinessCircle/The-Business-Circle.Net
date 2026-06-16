@@ -78,6 +78,7 @@ export function buildContentSecurityPolicy() {
     "'self'",
     "data:",
     "blob:",
+    "https:",
     "https://images.unsplash.com",
     "https://res.cloudinary.com",
     posthogConnectSource,

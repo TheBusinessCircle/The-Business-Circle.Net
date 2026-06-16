@@ -6,7 +6,8 @@ export const CIRCLE_CARD_SMART_IMPORT_SOCIAL_PLATFORMS = [
   "tiktok",
   "facebook",
   "x",
-  "youtube"
+  "youtube",
+  "discord"
 ] as const satisfies readonly (keyof CircleCardSocialLinks)[];
 
 export type CircleCardSmartImportSocialPlatform =
@@ -39,7 +40,8 @@ const SOCIAL_PLATFORM_LABELS: Record<CircleCardSmartImportSocialPlatform, string
   tiktok: "TikTok",
   facebook: "Facebook",
   x: "X",
-  youtube: "YouTube"
+  youtube: "YouTube",
+  discord: "Discord"
 };
 
 export function getCircleCardSmartImportPlatformLabel(
@@ -89,6 +91,16 @@ export function detectCircleCardSmartImportPlatform(
 
     if (host.includes("facebook.com") || host === "fb.com") {
       return "facebook";
+    }
+
+    if (
+      host === "discord.gg" ||
+      host === "discord.com" ||
+      host.endsWith(".discord.com") ||
+      host === "discordapp.com" ||
+      host.endsWith(".discordapp.com")
+    ) {
+      return "discord";
     }
 
     if (host.includes("medium.com") || host.includes("substack.com")) {
@@ -161,6 +173,22 @@ export function guessCircleCardSmartImportHandle(value: string) {
       return cleanPathSegment(handle) || null;
     }
 
+    if (platform === "discord") {
+      if (url.hostname.toLowerCase().replace(/^www\./, "") === "discord.gg") {
+        return segments[0] ? `Invite: ${cleanPathSegment(segments[0])}` : null;
+      }
+
+      if (first === "invite" && segments[1]) {
+        return `Invite: ${cleanPathSegment(segments[1])}`;
+      }
+
+      if (first === "users" && segments[1]) {
+        return `@${cleanPathSegment(segments[1])}`;
+      }
+
+      return null;
+    }
+
     if (CIRCLE_CARD_SMART_IMPORT_SOCIAL_PLATFORMS.includes(platform as CircleCardSmartImportSocialPlatform)) {
       const ignoredSegments = new Set(["i", "intent", "share", "status", "video", "reel", "p"]);
       const handle = segments.find((segment) => !ignoredSegments.has(segment.toLowerCase()));
@@ -197,7 +225,12 @@ export function suggestCircleCardSmartImportLinkType(
     return "LATEST_OFFER";
   }
 
-  if (title.includes("community") || title.includes("newsletter") || title.includes("discord")) {
+  if (
+    item.detectedPlatform === "discord" ||
+    title.includes("community") ||
+    title.includes("newsletter") ||
+    title.includes("discord")
+  ) {
     return "COMMUNITY";
   }
 

@@ -90,6 +90,7 @@ export function CircleCardSmartProfileImportPanel({
   const [selectedWebsiteIndex, setSelectedWebsiteIndex] = useState<number | null>(null);
   const [selectedSocials, setSelectedSocials] = useState<Record<string, number>>({});
   const [selectedLinks, setSelectedLinks] = useState<Record<number, boolean>>({});
+  const [selectedLinkImages, setSelectedLinkImages] = useState<Record<number, boolean>>({});
   const [isPending, startTransition] = useTransition();
 
   const successfulResults = results.filter((result) => result.ok);
@@ -121,6 +122,7 @@ export function CircleCardSmartProfileImportPanel({
       setSelectedWebsiteIndex(null);
       setSelectedSocials({});
       setSelectedLinks({});
+      setSelectedLinkImages({});
 
       if (!response.results.some((result) => result.ok)) {
         setScanError("We couldn't read those links automatically, but you can still add them manually.");
@@ -143,7 +145,26 @@ export function CircleCardSmartProfileImportPanel({
   }
 
   function toggleSmartLink(index: number) {
-    setSelectedLinks((current) => ({
+    setSelectedLinks((current) => {
+      const selected = !current[index];
+
+      if (!selected) {
+        setSelectedLinkImages((currentImages) => {
+          const nextImages = { ...currentImages };
+          delete nextImages[index];
+          return nextImages;
+        });
+      }
+
+      return {
+        ...current,
+        [index]: selected
+      };
+    });
+  }
+
+  function toggleSmartLinkImage(index: number) {
+    setSelectedLinkImages((current) => ({
       ...current,
       [index]: !current[index]
     }));
@@ -175,7 +196,7 @@ export function CircleCardSmartProfileImportPanel({
             rows={4}
             value={links}
             onChange={(event) => setLinks(event.target.value)}
-            placeholder="Paste TikTok, Instagram, YouTube, LinkedIn, Facebook, X, website, portfolio or blog links."
+            placeholder="Paste TikTok, Instagram, YouTube, LinkedIn, Facebook, X, Discord, website, portfolio or blog links."
           />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs leading-relaxed text-muted">
@@ -250,6 +271,8 @@ export function CircleCardSmartProfileImportPanel({
                 const isSmartLinkSelected = Boolean(selectedLinks[index]);
                 const linkLabel = buildCircleCardSmartImportLinkLabel(result);
                 const linkDescription = buildCircleCardSmartImportDescription(result);
+                const linkImageUrl = result.image ?? result.favicon ?? "";
+                const isSmartLinkImageSelected = Boolean(selectedLinkImages[index]);
 
                 return (
                   <article
@@ -405,6 +428,9 @@ export function CircleCardSmartProfileImportPanel({
                       <div className="mt-4 grid gap-3 border-t border-silver/12 pt-4 md:grid-cols-[180px_minmax(0,1fr)]">
                         <input type="hidden" name="smartLinkIndex" value={String(index)} />
                         <input type="hidden" name={`linkUrl-${index}`} value={result.url} />
+                        {isSmartLinkImageSelected && linkImageUrl ? (
+                          <input type="hidden" name={`linkImageUrl-${index}`} value={linkImageUrl} />
+                        ) : null}
                         <div className="space-y-2">
                           <Label htmlFor={`smart-import-link-type-${index}`}>Link type</Label>
                           <Select
@@ -441,6 +467,36 @@ export function CircleCardSmartProfileImportPanel({
                             />
                           </div>
                         </div>
+                        {linkImageUrl ? (
+                          <div className="space-y-2 md:col-span-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleSmartLinkImage(index)}
+                              className={cn(
+                                "flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 text-left text-xs transition-colors",
+                                isSmartLinkImageSelected
+                                  ? "border-gold/35 bg-gold/12 text-gold"
+                                  : "border-silver/14 bg-background/18 text-muted hover:text-foreground"
+                              )}
+                            >
+                              <span className="grid h-10 w-14 shrink-0 overflow-hidden rounded-lg border border-silver/14 bg-background/30">
+                                <img
+                                  src={linkImageUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              </span>
+                              <span>
+                                <span className="block font-medium">
+                                  {isSmartLinkImageSelected ? "Link image selected" : "Use as link image"}
+                                </span>
+                                <span className="mt-0.5 block text-[11px] leading-relaxed text-muted">
+                                  Uses {result.image ? "the page preview image" : "the site favicon"} on Creator cards.
+                                </span>
+                              </span>
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </article>

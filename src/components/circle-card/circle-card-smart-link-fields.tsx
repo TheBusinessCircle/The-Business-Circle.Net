@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CircleCardImageUploadField } from "@/components/circle-card/circle-card-image-upload-field";
 import { CircleCardLinkFileUploadField } from "@/components/circle-card/circle-card-link-file-upload-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ type CircleCardSmartLinkFieldsProps = {
   defaultLabel?: string | null;
   defaultUrl?: string | null;
   defaultDescription?: string | null;
+  defaultImageUrl?: string | null;
   defaultFileUrl?: string | null;
   defaultFileName?: string | null;
   defaultFileMimeType?: string | null;
@@ -146,6 +148,7 @@ export function CircleCardSmartLinkFields({
   defaultLabel = "",
   defaultUrl = "",
   defaultDescription = "",
+  defaultImageUrl = "",
   defaultFileUrl = "",
   defaultFileName = "",
   defaultFileMimeType = "",
@@ -398,6 +401,22 @@ export function CircleCardSmartLinkFields({
             <input type="hidden" name="accessCodeHint" value="" />
           </>
         )}
+
+        <div className="space-y-2 md:col-span-2">
+          <CircleCardImageUploadField
+            id={`${idPrefix}-imageUrl`}
+            name="imageUrl"
+            label="Link image / thumbnail"
+            uploadKind="link-image"
+            defaultValue={defaultImageUrl ?? ""}
+            previewAlt="Smart link image preview"
+            helperText="Optional. Upload a JPG, PNG or WebP thumbnail for Creator profile visual cards."
+            saveReminder="Save this smart link to keep the thumbnail."
+            uploadSuccessMessage="Image uploaded. Save this smart link to keep the thumbnail."
+            previewClassName="rounded-xl"
+            showAdjustments={false}
+          />
+        </div>
 
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor={`${idPrefix}-description`}>Description</Label>

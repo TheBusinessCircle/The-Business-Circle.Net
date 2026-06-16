@@ -35,6 +35,9 @@ describe("circle card smart import helpers", () => {
     expect(detectCircleCardSmartImportPlatform("https://youtube.com/@circlecard")).toBe(
       "youtube"
     );
+    expect(detectCircleCardSmartImportPlatform("https://discord.gg/circlecard")).toBe(
+      "discord"
+    );
     expect(detectCircleCardSmartImportPlatform("https://example.com")).toBe("website");
   });
 
@@ -48,6 +51,9 @@ describe("circle card smart import helpers", () => {
     expect(guessCircleCardSmartImportHandle("https://www.youtube.com/@circlecard")).toBe(
       "@circlecard"
     );
+    expect(guessCircleCardSmartImportHandle("https://discord.com/invite/circlecard")).toBe(
+      "Invite: circlecard"
+    );
   });
 
   it("suggests smart link labels and types from metadata", () => {
@@ -60,5 +66,15 @@ describe("circle card smart import helpers", () => {
 
     expect(buildCircleCardSmartImportLinkLabel(item)).toBe("Creator Course Offer");
     expect(suggestCircleCardSmartImportLinkType(item)).toBe("LATEST_OFFER");
+
+    expect(
+      suggestCircleCardSmartImportLinkType(
+        metadata({
+          url: "https://discord.gg/circlecard",
+          detectedPlatform: "discord",
+          title: "Circle Card Discord"
+        })
+      )
+    ).toBe("COMMUNITY");
   });
 });

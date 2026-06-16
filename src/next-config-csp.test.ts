@@ -21,7 +21,7 @@ describe("content security policy", () => {
     expect(csp).toContain("frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://billing.stripe.com");
     expect(csp).toContain("https://eu.i.posthog.com");
     expect(csp).toContain("https://eu-assets.i.posthog.com");
-    expect(csp).toContain("img-src 'self' data: blob: https://images.unsplash.com https://res.cloudinary.com https://eu.i.posthog.com https://eu-assets.i.posthog.com");
+    expect(csp).toContain("img-src 'self' data: blob: https: https://images.unsplash.com https://res.cloudinary.com https://eu.i.posthog.com https://eu-assets.i.posthog.com");
     expect(csp).toContain("media-src 'self' blob: https://res.cloudinary.com");
     expect(csp).toContain("https://*.ably.io");
     expect(csp).toContain("wss://*.ably.io");

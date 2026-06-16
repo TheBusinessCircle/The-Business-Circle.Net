@@ -471,6 +471,7 @@ model CircleCardLink {
   url         String?
   description String?
   icon        String?
+  imageUrl    String?
   fileUrl     String?
   fileName    String?
   fileMimeType String?

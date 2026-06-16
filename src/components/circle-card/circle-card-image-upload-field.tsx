@@ -25,7 +25,7 @@ type ImageAdjustmentValues = {
 type CircleCardImageUploadFieldProps = {
   id: string;
   label: string;
-  uploadKind: "profile-photo" | "business-logo";
+  uploadKind: "profile-photo" | "business-logo" | "link-image";
   name?: string;
   defaultValue?: string;
   value?: string;
@@ -43,6 +43,7 @@ type CircleCardImageUploadFieldProps = {
   previewAlt: string;
   helperText?: string;
   saveReminder?: string;
+  uploadSuccessMessage?: string;
   className?: string;
   previewClassName?: string;
   fallbackSrc?: string;
@@ -129,6 +130,7 @@ export function CircleCardImageUploadField({
   previewAlt,
   helperText,
   saveReminder = "After uploading or adjusting images, save your Circle Card below.",
+  uploadSuccessMessage = "Image uploaded. Save your Circle Card below.",
   className,
   previewClassName,
   fallbackSrc,
@@ -262,7 +264,7 @@ export function CircleCardImageUploadField({
       setLastUploadedUrl(uploadedImageUrl);
       setSelectedFile(null);
       setSelectedPreviewUrl(null);
-      setNotice({ tone: "success", message: "Image uploaded. Save your Circle Card below." });
+      setNotice({ tone: "success", message: uploadSuccessMessage });
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";

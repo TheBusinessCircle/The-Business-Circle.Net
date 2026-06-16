@@ -4732,6 +4732,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       defaultValue={socialLinks.youtube ?? member?.profile?.youtube ?? ""}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="discordUrl">Discord</Label>
+                    <Input
+                      id="discordUrl"
+                      name="discordUrl"
+                      defaultValue={socialLinks.discord ?? ""}
+                      placeholder="https://discord.gg/... or @username"
+                    />
+                  </div>
                 </div>
               </CircleCardDashboardSection>
 
@@ -4978,9 +4987,19 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         <CardContent className="space-y-4 p-4 sm:p-5">
                           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <div className="flex min-w-0 gap-3">
-                              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gold/18 bg-gold/10 text-gold">
-                                <CustomLinkIcon icon={customLink.icon} type={customLink.type} />
-                              </span>
+                              {customLink.imageUrl ? (
+                                <span className="inline-flex h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-gold/18 bg-background/30">
+                                  <img
+                                    src={customLink.imageUrl}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
+                                </span>
+                              ) : (
+                                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gold/18 bg-gold/10 text-gold">
+                                  <CustomLinkIcon icon={customLink.icon} type={customLink.type} />
+                                </span>
+                              )}
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <h3 className="text-base font-semibold text-foreground">
@@ -5106,6 +5125,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 defaultFileUrl={customLink.fileUrl}
                                 defaultFileName={customLink.fileName}
                                 defaultFileMimeType={customLink.fileMimeType}
+                                defaultImageUrl={customLink.imageUrl}
                                 defaultButtonText={customLink.buttonText}
                                 defaultExpiresAt={customLink.expiresAt}
                                 defaultActionMode={customLink.actionMode}
@@ -6948,6 +6968,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     <input type="hidden" name="xUrl" value={socialLinks.x ?? ""} />
                     <input type="hidden" name="facebookUrl" value={socialLinks.facebook ?? ""} />
                     <input type="hidden" name="youtubeUrl" value={socialLinks.youtube ?? ""} />
+                    <input type="hidden" name="discordUrl" value={socialLinks.discord ?? ""} />
 
                     <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_220px]">
                       <div className="space-y-2">
