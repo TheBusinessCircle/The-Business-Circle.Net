@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  AlertCircle,
   CheckCircle2,
   ImagePlus,
   Loader2,
@@ -51,7 +52,14 @@ type CircleCardImageUploadFieldProps = {
 type UploadResponse = {
   ok?: boolean;
   imageUrl?: string;
+  url?: string;
+  secureUrl?: string;
   error?: string;
+};
+
+type UploadNotice = {
+  tone: "success" | "error" | "info";
+  message: string;
 };
 
 const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
@@ -87,6 +95,19 @@ function isSupportedImage(file: File) {
   return /\.(jpe?g|png|webp)$/i.test(file.name);
 }
 
+function readUploadedImageUrl(data: UploadResponse) {
+  const candidate = data.imageUrl ?? data.url ?? data.secureUrl ?? "";
+  return typeof candidate === "string" ? candidate.trim() : "";
+}
+
+function uploadFailedNotice(error?: string) {
+  const detail = error?.trim();
+
+  return detail
+    ? `Upload failed. ${detail} Your existing image has not changed.`
+    : "Upload failed. Your existing image has not changed.";
+}
+
 export function CircleCardImageUploadField({
   id,
   label,
@@ -117,7 +138,8 @@ export function CircleCardImageUploadField({
   const [imageUrl, setImageUrl] = useState(value ?? defaultValue);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPreviewUrl, setSelectedPreviewUrl] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<UploadNotice | null>(null);
+  const [lastUploadedUrl, setLastUploadedUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustments, setAdjustments] = useState<ImageAdjustmentValues>(() => ({
@@ -128,6 +150,7 @@ export function CircleCardImageUploadField({
   const previewUrl = selectedPreviewUrl ?? imageUrl;
   const hasImageToAdjust = Boolean(previewUrl);
   const fallbackImageSrc = fallbackSrc ?? (uploadKind === "business-logo" ? CIRCLE_CARD_LOGO_SRC : undefined);
+  const currentImageValueLabel = name ? `${name} value` : "Image URL";
 
   useEffect(() => {
     if (value !== undefined) {
@@ -179,43 +202,44 @@ export function CircleCardImageUploadField({
 
   function selectFile(file: File | null) {
     setNotice(null);
-
-    if (selectedPreviewUrl) {
-      URL.revokeObjectURL(selectedPreviewUrl);
-      setSelectedPreviewUrl(null);
-    }
+    setLastUploadedUrl(null);
 
     if (!file) {
       setSelectedFile(null);
+      setSelectedPreviewUrl(null);
       return;
     }
 
     if (file.size > MAX_IMAGE_BYTES) {
       setSelectedFile(null);
-      setNotice("Image must be 5MB or smaller.");
+      setSelectedPreviewUrl(null);
+      setNotice({ tone: "error", message: "Image must be 5MB or smaller." });
       return;
     }
 
     if (!isSupportedImage(file)) {
       setSelectedFile(null);
-      setNotice("Upload a JPG, PNG or WebP image.");
+      setSelectedPreviewUrl(null);
+      setNotice({ tone: "error", message: "Upload a JPG, PNG or WebP image." });
       return;
     }
 
     setSelectedFile(file);
     setSelectedPreviewUrl(URL.createObjectURL(file));
     commitAdjustments(DEFAULT_ADJUSTMENTS);
+    setNotice({ tone: "info", message: "Preview ready. Upload this image before saving to use it." });
     setAdjustOpen(true);
   }
 
   async function uploadSelectedFile() {
     if (!selectedFile) {
-      setNotice("Choose an image first.");
+      setNotice({ tone: "error", message: "Choose an image first." });
       return;
     }
 
     setUploading(true);
     setNotice(null);
+    setLastUploadedUrl(null);
 
     try {
       const payload = new FormData();
@@ -227,26 +251,24 @@ export function CircleCardImageUploadField({
         body: payload
       });
       const data = (await response.json().catch(() => ({}))) as UploadResponse;
+      const uploadedImageUrl = readUploadedImageUrl(data);
 
-      if (!response.ok || !data.imageUrl) {
-        setNotice(data.error ?? "Unable to upload image.");
+      if (!response.ok || !uploadedImageUrl) {
+        setNotice({ tone: "error", message: uploadFailedNotice(data.error) });
         return;
       }
 
-      commitImageUrl(data.imageUrl);
+      commitImageUrl(uploadedImageUrl);
+      setLastUploadedUrl(uploadedImageUrl);
       setSelectedFile(null);
-      setNotice("Image uploaded. Save your Circle Card below.");
-
-      if (selectedPreviewUrl) {
-        URL.revokeObjectURL(selectedPreviewUrl);
-        setSelectedPreviewUrl(null);
-      }
+      setSelectedPreviewUrl(null);
+      setNotice({ tone: "success", message: "Image uploaded. Save your Circle Card below." });
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     } catch {
-      setNotice("Unable to upload image.");
+      setNotice({ tone: "error", message: uploadFailedNotice() });
     } finally {
       setUploading(false);
     }
@@ -255,14 +277,11 @@ export function CircleCardImageUploadField({
   function clearImage() {
     commitImageUrl("");
     setSelectedFile(null);
+    setSelectedPreviewUrl(null);
     setNotice(null);
+    setLastUploadedUrl(null);
     commitAdjustments(DEFAULT_ADJUSTMENTS);
     setAdjustOpen(false);
-
-    if (selectedPreviewUrl) {
-      URL.revokeObjectURL(selectedPreviewUrl);
-      setSelectedPreviewUrl(null);
-    }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -308,6 +327,7 @@ export function CircleCardImageUploadField({
               placeholder="https://..."
               onChange={(event) => {
                 setNotice(null);
+                setLastUploadedUrl(null);
                 commitImageUrl(event.target.value);
               }}
             />
@@ -324,6 +344,7 @@ export function CircleCardImageUploadField({
                 variant="outline"
                 size="sm"
                 className="gap-2"
+                disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <ImagePlus size={14} />
@@ -335,6 +356,7 @@ export function CircleCardImageUploadField({
                   variant="outline"
                   size="sm"
                   className="gap-2"
+                  disabled={uploading}
                   onClick={() => setAdjustOpen((open) => !open)}
                 >
                   <SlidersHorizontal size={14} />
@@ -350,7 +372,7 @@ export function CircleCardImageUploadField({
                 onClick={uploadSelectedFile}
               >
                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                Upload
+                {uploading ? "Uploading" : "Upload"}
               </Button>
               {imageUrl || selectedFile ? (
                 <Button
@@ -358,6 +380,7 @@ export function CircleCardImageUploadField({
                   variant="ghost"
                   size="sm"
                   className="gap-2"
+                  disabled={uploading}
                   onClick={clearImage}
                 >
                   <X size={14} />
@@ -424,13 +447,28 @@ export function CircleCardImageUploadField({
         <p className="text-xs text-silver">{saveReminder}</p>
         {notice ? (
           <p
+            aria-live="polite"
             className={cn(
               "inline-flex items-center gap-1.5 text-xs",
-              notice.startsWith("Image uploaded") ? "text-gold" : "text-muted"
+              notice.tone === "success"
+                ? "text-gold"
+                : notice.tone === "error"
+                  ? "text-destructive"
+                  : "text-muted"
             )}
           >
-            {notice.startsWith("Image uploaded") ? <CheckCircle2 size={13} /> : null}
-            {notice}
+            {notice.tone === "success" ? <CheckCircle2 size={13} /> : null}
+            {notice.tone === "error" ? <AlertCircle size={13} /> : null}
+            {notice.message}
+          </p>
+        ) : null}
+        {lastUploadedUrl ? (
+          <p className="break-all text-xs text-silver">
+            Uploaded URL: <span className="font-medium text-foreground">{lastUploadedUrl}</span>
+          </p>
+        ) : imageUrl ? (
+          <p className="break-all text-xs text-muted">
+            {currentImageValueLabel}: <span className="text-silver">{imageUrl}</span>
           </p>
         ) : null}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, type SyntheticEvent } from "react";
 import { cn } from "@/lib/utils";
 
 type CircleCardFramedImageProps = {
@@ -35,6 +35,23 @@ function resolveSrc(src?: string | null, fallbackSrc?: string) {
   return trimmed || fallbackSrc || "";
 }
 
+function srcMatchesDisplaySrc(candidate: string, displaySrc: string) {
+  if (candidate === displaySrc) {
+    return true;
+  }
+
+  if (displaySrc.startsWith("/") && !displaySrc.startsWith("//")) {
+    try {
+      const url = new URL(candidate);
+      return `${url.pathname}${url.search}${url.hash}` === displaySrc;
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+}
+
 export function CircleCardFramedImage({
   src,
   fallbackSrc,
@@ -49,23 +66,46 @@ export function CircleCardFramedImage({
   imageClassName,
   children
 }: CircleCardFramedImageProps) {
-  const [displaySrc, setDisplaySrc] = useState(() => resolveSrc(src, fallbackSrc));
-  const usingFallback = Boolean(fallbackSrc && displaySrc === fallbackSrc);
+  const preferredSrc = resolveSrc(src, fallbackSrc);
+  const [failedPreferredSrc, setFailedPreferredSrc] = useState<string | null>(null);
+  const [failedFallbackSrc, setFailedFallbackSrc] = useState<string | null>(null);
+  const preferredFailed = Boolean(preferredSrc && failedPreferredSrc === preferredSrc);
+  const fallbackAvailable = Boolean(
+    fallbackSrc && fallbackSrc !== preferredSrc && failedFallbackSrc !== fallbackSrc
+  );
+  const displaySrc = preferredFailed ? (fallbackAvailable ? fallbackSrc ?? "" : "") : preferredSrc;
+  const usingFallback = Boolean(fallbackSrc && displaySrc === fallbackSrc && preferredFailed);
   const x = normalizePosition(usingFallback ? fallbackPositionX : positionX);
   const y = normalizePosition(usingFallback ? fallbackPositionY : positionY);
   const zoom = normalizeScale(usingFallback ? fallbackScale : scale);
 
   useEffect(() => {
-    setDisplaySrc(resolveSrc(src, fallbackSrc));
-  }, [fallbackSrc, src]);
+    if (failedPreferredSrc && failedPreferredSrc !== preferredSrc) {
+      setFailedPreferredSrc(null);
+    }
 
-  function handleImageError() {
-    if (fallbackSrc && displaySrc !== fallbackSrc) {
-      setDisplaySrc(fallbackSrc);
+    if (failedFallbackSrc && failedFallbackSrc !== fallbackSrc) {
+      setFailedFallbackSrc(null);
+    }
+  }, [failedFallbackSrc, failedPreferredSrc, fallbackSrc, preferredSrc]);
+
+  function handleImageError(event: SyntheticEvent<HTMLImageElement>) {
+    const failedSrc =
+      event.currentTarget.currentSrc ||
+      event.currentTarget.getAttribute("src") ||
+      event.currentTarget.src ||
+      displaySrc;
+
+    if (!displaySrc || !srcMatchesDisplaySrc(failedSrc, displaySrc)) {
       return;
     }
 
-    setDisplaySrc("");
+    if (usingFallback) {
+      setFailedFallbackSrc(displaySrc);
+      return;
+    }
+
+    setFailedPreferredSrc(displaySrc);
   }
 
   if (!displaySrc) {
