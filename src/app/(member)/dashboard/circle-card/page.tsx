@@ -4628,15 +4628,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
               <CircleCardDashboardSection
                 id="card-theme"
-                title="Theme Preview"
-                summary="Colours, surface style, starter presets and identity preview"
+                title="Profile Colours"
+                summary="Primary, accent and button colours for your public profile"
               >
                 <CircleCardThemeFields
                   themePrimaryColor={card?.themePrimaryColor}
                   themeAccentColor={card?.themeAccentColor}
                   themeButtonColor={card?.themeButtonColor}
-                  themeSurfaceStyle={card?.themeSurfaceStyle}
-                  themePreset={card?.themePreset}
                   fullName={card?.fullName ?? member?.name}
                   tagline={card?.tagline}
                   profileLayout={card?.profileLayout}
@@ -6995,20 +6993,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           </span>
                         </span>
                       </label>
-                    </div>
-
-                    <div className="rounded-[1.5rem] border border-silver/14 bg-background/18 p-4">
-                      <CircleCardThemeFields
-                        themePrimaryColor={card.themePrimaryColor}
-                        themeAccentColor={card.themeAccentColor}
-                        themeButtonColor={card.themeButtonColor}
-                        themeSurfaceStyle={card.themeSurfaceStyle}
-                        themePreset={card.themePreset}
-                        fullName={card.fullName}
-                        tagline={card.tagline}
-                        profileLayout={card.profileLayout}
-                        compact
-                      />
                     </div>
 
                     <div className="flex flex-wrap gap-2">

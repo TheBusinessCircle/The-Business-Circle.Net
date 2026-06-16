@@ -69,9 +69,9 @@ export type PublicCircleCard = {
   businessLogoPositionX: number | null;
   businessLogoPositionY: number | null;
   businessLogoScale: number | null;
-  themePrimaryColor: string;
-  themeAccentColor: string;
-  themeButtonColor: string;
+  themePrimaryColor: string | null;
+  themeAccentColor: string | null;
+  themeButtonColor: string | null;
   themeSurfaceStyle: string;
   themePreset: string | null;
   themeMetadata: Prisma.JsonValue;
@@ -114,11 +114,11 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   businessLogoPositionX: 50,
   businessLogoPositionY: 50,
   businessLogoScale: 1,
-  themePrimaryColor: "#D4AF5F",
-  themeAccentColor: "#F0CF88",
-  themeButtonColor: "#D4AF5F",
+  themePrimaryColor: null,
+  themeAccentColor: null,
+  themeButtonColor: null,
   themeSurfaceStyle: "PREMIUM",
-  themePreset: "black-gold",
+  themePreset: null,
   themeMetadata: {},
   websiteUrl: "https://thebusinesscircle.net",
   email: SITE_CONFIG.supportEmail,

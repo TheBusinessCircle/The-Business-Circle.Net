@@ -1,11 +1,4 @@
-export const CIRCLE_CARD_THEME_SURFACE_STYLES = [
-  "GLASS",
-  "MODERN",
-  "PREMIUM",
-  "CREATOR",
-  "MINIMAL",
-  "BOLD"
-] as const;
+export const CIRCLE_CARD_THEME_SURFACE_STYLES = ["PREMIUM"] as const;
 
 export type CircleCardThemeSurfaceStyle = (typeof CIRCLE_CARD_THEME_SURFACE_STYLES)[number];
 
@@ -16,42 +9,26 @@ export const CIRCLE_CARD_THEME_SURFACE_STYLE_COPY: Record<
     description: string;
   }
 > = {
-  GLASS: {
-    label: "Glass",
-    description: "Soft translucent panels with light depth."
-  },
-  MODERN: {
-    label: "Modern",
-    description: "Clean contrast and a sharper digital feel."
-  },
   PREMIUM: {
     label: "Premium",
-    description: "Rich surfaces, controlled glow and polished borders."
-  },
-  CREATOR: {
-    label: "Creator",
-    description: "Bolder highlights for social-first profiles."
-  },
-  MINIMAL: {
-    label: "Minimal",
-    description: "Quiet surfaces with restrained accents."
-  },
-  BOLD: {
-    label: "Bold",
-    description: "High-contrast identity with stronger buttons."
+    description: "The default dark Circle Card surface with controlled glow and polished borders."
   }
 };
 
-export const CIRCLE_CARD_THEME_FUTURE_FAMILIES = [
-  "football",
-  "country",
-  "brand",
-  "community",
-  "seasonal",
-  "shared"
+export const CIRCLE_CARD_THEME_PRESET_FAMILIES = [
+  "CUSTOM",
+  "BRAND",
+  "FOOTBALL",
+  "COUNTRY",
+  "SECTOR",
+  "PERSONALITY"
 ] as const;
 
-export type CircleCardThemeFutureFamily = (typeof CIRCLE_CARD_THEME_FUTURE_FAMILIES)[number];
+export type CircleCardThemePresetFamily = (typeof CIRCLE_CARD_THEME_PRESET_FAMILIES)[number];
+
+export const CIRCLE_CARD_THEME_FUTURE_FAMILIES = CIRCLE_CARD_THEME_PRESET_FAMILIES;
+
+export type CircleCardThemeFutureFamily = CircleCardThemePresetFamily;
 
 export type CircleCardThemeValues = {
   primaryColor: string;
@@ -63,133 +40,37 @@ export type CircleCardThemeValues = {
 export type CircleCardThemePreset = CircleCardThemeValues & {
   key: string;
   label: string;
-  family: "Business" | "Creator" | "Minimal";
+  family: CircleCardThemePresetFamily;
 };
 
-export const CIRCLE_CARD_THEME_PRESETS = [
-  {
-    key: "professional-blue",
-    label: "Professional Blue",
-    family: "Business",
-    primaryColor: "#2563EB",
-    accentColor: "#38BDF8",
-    buttonColor: "#2563EB",
-    surfaceStyle: "MODERN"
-  },
-  {
-    key: "corporate-navy",
-    label: "Corporate Navy",
-    family: "Business",
-    primaryColor: "#1D4ED8",
-    accentColor: "#93C5FD",
-    buttonColor: "#1E40AF",
-    surfaceStyle: "PREMIUM"
-  },
-  {
-    key: "executive-black",
-    label: "Executive Black",
-    family: "Business",
-    primaryColor: "#111827",
-    accentColor: "#CBD5E1",
-    buttonColor: "#F8FAFC",
-    surfaceStyle: "MINIMAL"
-  },
-  {
-    key: "black-gold",
-    label: "Black & Gold",
-    family: "Business",
-    primaryColor: "#D4AF5F",
-    accentColor: "#F0CF88",
-    buttonColor: "#D4AF5F",
-    surfaceStyle: "PREMIUM"
-  },
-  {
-    key: "creator-purple",
-    label: "Creator Purple",
-    family: "Creator",
-    primaryColor: "#7C3AED",
-    accentColor: "#C084FC",
-    buttonColor: "#A855F7",
-    surfaceStyle: "CREATOR"
-  },
-  {
-    key: "creator-pink",
-    label: "Creator Pink",
-    family: "Creator",
-    primaryColor: "#DB2777",
-    accentColor: "#F9A8D4",
-    buttonColor: "#EC4899",
-    surfaceStyle: "CREATOR"
-  },
-  {
-    key: "cyber-blue",
-    label: "Cyber Blue",
-    family: "Creator",
-    primaryColor: "#0891B2",
-    accentColor: "#67E8F9",
-    buttonColor: "#06B6D4",
-    surfaceStyle: "BOLD"
-  },
-  {
-    key: "sunset-orange",
-    label: "Sunset Orange",
-    family: "Creator",
-    primaryColor: "#EA580C",
-    accentColor: "#FDBA74",
-    buttonColor: "#F97316",
-    surfaceStyle: "BOLD"
-  },
-  {
-    key: "graphite",
-    label: "Graphite",
-    family: "Minimal",
-    primaryColor: "#64748B",
-    accentColor: "#CBD5E1",
-    buttonColor: "#E2E8F0",
-    surfaceStyle: "MINIMAL"
-  },
-  {
-    key: "arctic",
-    label: "Arctic",
-    family: "Minimal",
-    primaryColor: "#0EA5E9",
-    accentColor: "#BAE6FD",
-    buttonColor: "#38BDF8",
-    surfaceStyle: "GLASS"
-  },
-  {
-    key: "forest",
-    label: "Forest",
-    family: "Minimal",
-    primaryColor: "#15803D",
-    accentColor: "#86EFAC",
-    buttonColor: "#22C55E",
-    surfaceStyle: "MODERN"
-  },
-  {
-    key: "midnight",
-    label: "Midnight",
-    family: "Minimal",
-    primaryColor: "#4F46E5",
-    accentColor: "#A5B4FC",
-    buttonColor: "#6366F1",
-    surfaceStyle: "PREMIUM"
-  }
-] as const satisfies readonly CircleCardThemePreset[];
+export const DEFAULT_CIRCLE_CARD_THEME_PRESET_KEY = "CUSTOM";
 
-export const DEFAULT_CIRCLE_CARD_THEME_PRESET_KEY = "black-gold";
-export const DEFAULT_CIRCLE_CARD_THEME_PRESET =
-  CIRCLE_CARD_THEME_PRESETS.find((preset) => preset.key === DEFAULT_CIRCLE_CARD_THEME_PRESET_KEY) ??
-  CIRCLE_CARD_THEME_PRESETS[0];
-export const CIRCLE_CARD_THEME_PRESET_KEYS = CIRCLE_CARD_THEME_PRESETS.map(
-  (preset) => preset.key
-) as [string, ...string[]];
+export const DEFAULT_CIRCLE_CARD_THEME_PRESET = {
+  key: DEFAULT_CIRCLE_CARD_THEME_PRESET_KEY,
+  label: "Custom",
+  family: "CUSTOM",
+  primaryColor: "#D4AF5F",
+  accentColor: "#F0CF88",
+  buttonColor: "#D4AF5F",
+  surfaceStyle: "PREMIUM"
+} as const satisfies CircleCardThemePreset;
+
+export const CIRCLE_CARD_DEFAULT_THEME_COLORS = {
+  primaryColor: DEFAULT_CIRCLE_CARD_THEME_PRESET.primaryColor,
+  accentColor: DEFAULT_CIRCLE_CARD_THEME_PRESET.accentColor,
+  buttonColor: DEFAULT_CIRCLE_CARD_THEME_PRESET.buttonColor
+} as const;
+
+export const CIRCLE_CARD_THEME_PRESETS = [] as const satisfies readonly CircleCardThemePreset[];
+
+export const CIRCLE_CARD_THEME_PRESET_KEYS = CIRCLE_CARD_THEME_PRESET_FAMILIES;
 
 export type CircleCardResolvedTheme = CircleCardThemeValues & {
   presetKey: string | null;
   presetLabel: string | null;
-  presetFamily: CircleCardThemePreset["family"] | null;
-  source: "preset" | "custom";
+  presetFamily: CircleCardThemePresetFamily | null;
+  source: "default" | "custom";
+  hasCustomColors: boolean;
   primaryHsl: string;
   accentHsl: string;
   buttonHsl: string;
@@ -206,9 +87,9 @@ export type CircleCardThemeInput = {
 
 export type CircleCardThemeMetadata = {
   version: 1;
-  source: "preset" | "custom";
+  source: "default" | "custom";
   presetKey: string | null;
-  presetFamily: CircleCardThemePreset["family"] | null;
+  presetFamily: CircleCardThemePresetFamily | null;
   surfaceStyle: CircleCardThemeSurfaceStyle;
   discover: {
     primaryColor: string;
@@ -218,8 +99,7 @@ export type CircleCardThemeMetadata = {
     presetKey: string | null;
   };
   future: {
-    imageGenerationHookReady: boolean;
-    families: CircleCardThemeFutureFamily[];
+    presetFamilies: CircleCardThemePresetFamily[];
   };
 };
 
@@ -234,41 +114,11 @@ const SURFACE_TOKENS: Record<
     silver: string;
   }
 > = {
-  GLASS: {
-    background: "222 58% 8%",
-    card: "216 42% 13%",
-    border: "212 32% 30%",
-    silver: "210 24% 84%"
-  },
-  MODERN: {
-    background: "224 48% 8%",
-    card: "223 38% 12%",
-    border: "220 30% 26%",
-    silver: "214 20% 82%"
-  },
   PREMIUM: {
     background: "222 58% 8%",
     card: "223 45% 12%",
     border: "222 34% 24%",
     silver: "214 18% 82%"
-  },
-  CREATOR: {
-    background: "224 62% 7%",
-    card: "225 48% 11%",
-    border: "226 34% 27%",
-    silver: "215 22% 84%"
-  },
-  MINIMAL: {
-    background: "220 28% 9%",
-    card: "220 22% 13%",
-    border: "220 16% 28%",
-    silver: "215 16% 80%"
-  },
-  BOLD: {
-    background: "228 58% 7%",
-    card: "229 48% 11%",
-    border: "230 36% 30%",
-    silver: "215 22% 86%"
   }
 };
 
@@ -287,11 +137,26 @@ export function isCircleCardThemeColor(value: string | null | undefined) {
 }
 
 export function isCircleCardThemePresetKey(value: string | null | undefined) {
-  return CIRCLE_CARD_THEME_PRESETS.some((preset) => preset.key === value);
+  const normalized = value?.trim().toUpperCase();
+
+  return Boolean(
+    normalized && CIRCLE_CARD_THEME_PRESET_KEYS.includes(normalized as CircleCardThemePresetFamily)
+  );
 }
 
 export function resolveCircleCardThemePreset(value: string | null | undefined) {
-  return CIRCLE_CARD_THEME_PRESETS.find((preset) => preset.key === value) ?? null;
+  const normalized = value?.trim().toUpperCase();
+
+  if (!normalized || !isCircleCardThemePresetKey(normalized)) {
+    return null;
+  }
+
+  return {
+    ...DEFAULT_CIRCLE_CARD_THEME_PRESET,
+    key: normalized,
+    label: normalized[0] + normalized.slice(1).toLowerCase(),
+    family: normalized as CircleCardThemePresetFamily
+  } satisfies CircleCardThemePreset;
 }
 
 export function resolveCircleCardThemeSurfaceStyle(
@@ -306,7 +171,10 @@ export function resolveCircleCardThemeSurfaceStyle(
 }
 
 function hexToRgb(value: string) {
-  const normalized = normalizeHexColor(value, DEFAULT_CIRCLE_CARD_THEME_PRESET.primaryColor).slice(1);
+  const normalized = normalizeHexColor(
+    value,
+    DEFAULT_CIRCLE_CARD_THEME_PRESET.primaryColor
+  ).slice(1);
 
   return {
     r: Number.parseInt(normalized.slice(0, 2), 16),
@@ -359,33 +227,64 @@ function buttonForegroundHsl(buttonColor: string) {
   return relativeLuminance(buttonColor) > 0.54 ? "222 58% 8%" : "210 43% 97%";
 }
 
+function isDefaultThemeColor(slot: keyof typeof CIRCLE_CARD_DEFAULT_THEME_COLORS, value: string) {
+  return value === CIRCLE_CARD_DEFAULT_THEME_COLORS[slot];
+}
+
 export function resolveCircleCardTheme(input: CircleCardThemeInput = {}): CircleCardResolvedTheme {
-  const preset = resolveCircleCardThemePreset(input.themePreset);
-  const base = preset ?? DEFAULT_CIRCLE_CARD_THEME_PRESET;
-  const primaryColor = normalizeHexColor(input.themePrimaryColor, base.primaryColor);
-  const accentColor = normalizeHexColor(input.themeAccentColor, base.accentColor);
-  const buttonColor = normalizeHexColor(input.themeButtonColor, base.buttonColor);
-  const surfaceStyle = resolveCircleCardThemeSurfaceStyle(input.themeSurfaceStyle, base.surfaceStyle);
-  const hasCustomValues =
-    !preset ||
-    primaryColor !== preset.primaryColor ||
-    accentColor !== preset.accentColor ||
-    buttonColor !== preset.buttonColor ||
-    surfaceStyle !== preset.surfaceStyle;
+  const primaryColor = normalizeHexColor(
+    input.themePrimaryColor,
+    DEFAULT_CIRCLE_CARD_THEME_PRESET.primaryColor
+  );
+  const accentColor = normalizeHexColor(
+    input.themeAccentColor,
+    DEFAULT_CIRCLE_CARD_THEME_PRESET.accentColor
+  );
+  const buttonColor = normalizeHexColor(
+    input.themeButtonColor,
+    DEFAULT_CIRCLE_CARD_THEME_PRESET.buttonColor
+  );
+  const surfaceStyle = resolveCircleCardThemeSurfaceStyle(input.themeSurfaceStyle);
+  const hasCustomColors =
+    !isDefaultThemeColor("primaryColor", primaryColor) ||
+    !isDefaultThemeColor("accentColor", accentColor) ||
+    !isDefaultThemeColor("buttonColor", buttonColor);
 
   return {
     primaryColor,
     accentColor,
     buttonColor,
     surfaceStyle,
-    presetKey: hasCustomValues ? null : preset?.key ?? DEFAULT_CIRCLE_CARD_THEME_PRESET.key,
-    presetLabel: hasCustomValues ? null : preset?.label ?? DEFAULT_CIRCLE_CARD_THEME_PRESET.label,
-    presetFamily: hasCustomValues ? null : preset?.family ?? DEFAULT_CIRCLE_CARD_THEME_PRESET.family,
-    source: hasCustomValues ? "custom" : "preset",
+    presetKey: null,
+    presetLabel: null,
+    presetFamily: null,
+    source: hasCustomColors ? "custom" : "default",
+    hasCustomColors,
     primaryHsl: hexToHsl(primaryColor),
     accentHsl: hexToHsl(accentColor),
     buttonHsl: hexToHsl(buttonColor),
     buttonForegroundHsl: buttonForegroundHsl(buttonColor)
+  };
+}
+
+export function buildCircleCardThemeStorage(input: CircleCardThemeInput = {}) {
+  const theme = resolveCircleCardTheme(input);
+
+  return {
+    theme,
+    values: {
+      themePrimaryColor: isDefaultThemeColor("primaryColor", theme.primaryColor)
+        ? null
+        : theme.primaryColor,
+      themeAccentColor: isDefaultThemeColor("accentColor", theme.accentColor)
+        ? null
+        : theme.accentColor,
+      themeButtonColor: isDefaultThemeColor("buttonColor", theme.buttonColor)
+        ? null
+        : theme.buttonColor,
+      themeSurfaceStyle: theme.surfaceStyle,
+      themePreset: null
+    }
   };
 }
 
@@ -395,19 +294,18 @@ export function buildCircleCardThemeMetadata(
   return {
     version: 1,
     source: theme.source,
-    presetKey: theme.presetKey,
-    presetFamily: theme.presetFamily,
+    presetKey: null,
+    presetFamily: null,
     surfaceStyle: theme.surfaceStyle,
     discover: {
       primaryColor: theme.primaryColor,
       accentColor: theme.accentColor,
       buttonColor: theme.buttonColor,
       surfaceStyle: theme.surfaceStyle,
-      presetKey: theme.presetKey
+      presetKey: null
     },
     future: {
-      imageGenerationHookReady: true,
-      families: [...CIRCLE_CARD_THEME_FUTURE_FAMILIES]
+      presetFamilies: [...CIRCLE_CARD_THEME_PRESET_FAMILIES]
     }
   };
 }
@@ -426,12 +324,15 @@ export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
     "--cc-theme-button-shadow": `0 18px 44px hsl(${theme.buttonHsl} / 0.22)`,
     "--cc-theme-secondary-bg": `hsl(${surface.card} / 0.72)`,
     "--cc-theme-secondary-hover-bg": `hsl(${surface.card} / 0.9)`,
-    "--cc-theme-secondary-border": `hsl(${theme.primaryHsl} / 0.3)`,
+    "--cc-theme-secondary-border": `hsl(${theme.primaryHsl} / 0.32)`,
     "--cc-theme-secondary-shadow": `0 16px 38px hsl(${theme.primaryHsl} / 0.16)`,
     "--cc-theme-hero-shadow": `0 30px 90px rgba(0,0,0,0.48), 0 0 72px hsl(${theme.primaryHsl} / 0.12)`,
     "--cc-theme-page-bg": `radial-gradient(circle at 16% 0%, hsl(${theme.primaryHsl} / 0.24), transparent 30%), radial-gradient(circle at 82% 8%, hsl(${theme.accentHsl} / 0.2), transparent 28%), linear-gradient(180deg, hsl(${surface.background}) 0%, #08101f 48%, #030712 100%)`,
     "--cc-theme-hero-bg": `radial-gradient(circle at 18% 18%, hsl(${theme.accentHsl} / 0.24), transparent 26%), radial-gradient(circle at 78% 14%, hsl(${theme.primaryHsl} / 0.32), transparent 32%), linear-gradient(145deg, hsl(${surface.card} / 0.95), rgba(4,10,24,0.98))`,
     "--cc-theme-media-bg": `radial-gradient(circle at 20% 18%, hsl(${theme.primaryHsl} / 0.24), transparent 30%), radial-gradient(circle at 86% 20%, hsl(${theme.accentHsl} / 0.26), transparent 28%), linear-gradient(135deg, hsl(${surface.card} / 0.94), rgba(5,12,26,0.98))`,
+    "--cc-theme-hero-line": `linear-gradient(90deg, transparent, hsl(${theme.accentHsl} / 0.74), hsl(${theme.primaryHsl} / 0.5), transparent)`,
+    "--cc-theme-accent-badge-bg": `hsl(${theme.accentHsl} / 0.12)`,
+    "--cc-theme-accent-badge-border": `hsl(${theme.accentHsl} / 0.28)`,
     "--background": surface.background,
     "--card": surface.card,
     "--border": surface.border,

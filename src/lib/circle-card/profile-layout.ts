@@ -43,9 +43,11 @@ export const CIRCLE_CARD_PROFILE_LAYOUT_COPY: Record<
 
 export const CIRCLE_CARD_COLOUR_PRESET_TYPES = [
   "CUSTOM",
+  "BRAND",
   "FOOTBALL",
   "COUNTRY",
-  "BRAND"
+  "SECTOR",
+  "PERSONALITY"
 ] as const;
 
 export type CircleCardColourPresetType = (typeof CIRCLE_CARD_COLOUR_PRESET_TYPES)[number];

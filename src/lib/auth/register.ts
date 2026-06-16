@@ -30,7 +30,7 @@ import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-la
 import { buildCircleCardSlugBase } from "@/lib/circle-card/schema";
 import {
   buildCircleCardThemeMetadata,
-  resolveCircleCardTheme
+  buildCircleCardThemeStorage
 } from "@/lib/circle-card/theme";
 import { renderEmailHtml } from "@/emails/render";
 import { buildBrandedEmailText } from "@/emails/text";
@@ -746,7 +746,8 @@ export async function createCircleCardFreeRegistration(
     input.sourceCardSlug?.trim() || sourceCardSlugFromReturnPath(returnTo);
 
   try {
-    const resolvedTheme = resolveCircleCardTheme();
+    const themeStorage = buildCircleCardThemeStorage();
+    const resolvedTheme = themeStorage.theme;
     const user = await prisma.$transaction(async (tx) => {
       const createdUser = await tx.user.create({
         data: {
@@ -794,11 +795,11 @@ export async function createCircleCardFreeRegistration(
             accountType: "INDIVIDUAL",
             identityTags: [],
             profileLayout: DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT,
-            themePrimaryColor: resolvedTheme.primaryColor,
-            themeAccentColor: resolvedTheme.accentColor,
-            themeButtonColor: resolvedTheme.buttonColor,
-            themeSurfaceStyle: resolvedTheme.surfaceStyle,
-            themePreset: resolvedTheme.presetKey,
+            themePrimaryColor: themeStorage.values.themePrimaryColor,
+            themeAccentColor: themeStorage.values.themeAccentColor,
+            themeButtonColor: themeStorage.values.themeButtonColor,
+            themeSurfaceStyle: themeStorage.values.themeSurfaceStyle,
+            themePreset: themeStorage.values.themePreset,
             themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue,
             socialLinks: {}
           },

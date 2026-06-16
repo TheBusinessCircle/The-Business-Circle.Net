@@ -482,7 +482,7 @@ function CircleCardLogoMark({ className, alt = "" }: { className?: string; alt?:
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/45 bg-[#061126] shadow-[0_0_30px_rgba(47,109,255,0.24)]",
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/45 bg-[#061126] shadow-[0_0_30px_hsl(var(--cc-theme-primary-hsl)/0.24)]",
         className
       )}
     >
@@ -505,7 +505,7 @@ function CircleCardBadgeMark({
   scale?: number | null;
 }) {
   return (
-    <span className="absolute bottom-2 right-2 inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-gold/70 bg-[#061126] p-1 shadow-[0_0_34px_rgba(64,112,255,0.3)]">
+    <span className="absolute bottom-2 right-2 inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-gold/70 bg-[#061126] p-1 shadow-[0_0_34px_hsl(var(--cc-theme-primary-hsl)/0.3)]">
       <CircleCardFramedImage
         src={imageUrl || CIRCLE_CARD_LOGO_SRC}
         fallbackSrc={CIRCLE_CARD_LOGO_SRC}
@@ -573,7 +573,7 @@ function ContactAction({
   metadata
 }: ContactActionProps) {
   const className =
-    "group flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-silver/14 bg-white/[0.035] px-3.5 py-3 text-left shadow-inner-surface transition-all hover:border-[#3f7cff]/36 hover:bg-[#102958]/45 sm:px-4";
+    "group flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-silver/14 bg-white/[0.035] px-3.5 py-3 text-left shadow-inner-surface transition-all hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)] sm:px-4";
   const content = (
     <>
       <span className="flex min-w-0 items-center gap-3">
@@ -1412,10 +1412,10 @@ export function PublicCircleCardProfile({
           </header>
 
           <main className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <section className="rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-7">
+            <section className="rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                 <CircleCardSpinToConnect {...spinToConnectProps} className="h-28 w-28 shrink-0">
-                  <div className="grid h-full w-full place-items-center overflow-hidden rounded-full border border-gold/45 bg-[#071126] text-2xl font-semibold text-foreground shadow-[0_0_42px_rgba(47,109,255,0.22)]">
+                  <div className="grid h-full w-full place-items-center overflow-hidden rounded-full border border-gold/45 bg-[#071126] text-2xl font-semibold text-foreground shadow-[0_0_42px_hsl(var(--cc-theme-primary-hsl)/0.22)]">
                     {card.profileImageUrl ? (
                       <CircleCardFramedImage
                         src={card.profileImageUrl}
@@ -1605,15 +1605,15 @@ export function PublicCircleCardProfile({
             <section className="relative isolate overflow-hidden rounded-[2rem] border border-gold/22 bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7 lg:p-8">
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.72),rgba(68,211,188,0.5),transparent)]"
+                className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[image:var(--cc-theme-hero-line)]"
               />
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -left-20 top-12 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(255,107,107,0.18),transparent_68%)] blur-2xl"
+                className="pointer-events-none absolute -left-20 top-12 h-56 w-56 rounded-full bg-[radial-gradient(circle,hsl(var(--cc-theme-primary-hsl)/0.18),transparent_68%)] blur-2xl"
               />
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -bottom-24 right-[-8%] h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(68,211,188,0.18),transparent_68%)] blur-2xl"
+                className="pointer-events-none absolute -bottom-24 right-[-8%] h-72 w-72 rounded-full bg-[radial-gradient(circle,hsl(var(--cc-theme-accent-hsl)/0.18),transparent_68%)] blur-2xl"
               />
               {card.profileImageUrl ? (
                 <div
@@ -1640,7 +1640,7 @@ export function PublicCircleCardProfile({
                     <div className="relative h-full w-full">
                       <div
                         aria-hidden="true"
-                        className="absolute -inset-3 rounded-full bg-[conic-gradient(from_140deg,rgba(212,175,95,0.8),rgba(68,211,188,0.5),rgba(255,107,107,0.42),rgba(212,175,95,0.8))] opacity-70 blur-md"
+                        className="absolute -inset-3 rounded-full bg-[conic-gradient(from_140deg,hsl(var(--cc-theme-accent-hsl)/0.8),hsl(var(--cc-theme-primary-hsl)/0.5),hsl(var(--cc-theme-button-hsl)/0.42),hsl(var(--cc-theme-accent-hsl)/0.8))] opacity-70 blur-md"
                       />
                       <div className="relative grid h-full w-full place-items-center rounded-full border border-gold/55 bg-gold/12 p-1.5 shadow-[0_0_0_10px_rgba(212,175,95,0.05),0_24px_70px_rgba(0,0,0,0.36)]">
                         <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground sm:text-5xl">
@@ -2008,18 +2008,18 @@ export function PublicCircleCardProfile({
           <main className="space-y-5">
             <article
               aria-labelledby="circle-card-profile-title"
-              className="relative overflow-hidden rounded-[2rem] border border-gold/24 bg-[radial-gradient(circle_at_50%_0%,rgba(47,109,255,0.22),transparent_36%),linear-gradient(160deg,rgba(10,25,58,0.94),rgba(4,10,24,0.97)_54%,rgba(3,7,16,0.99))] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.46),0_0_70px_rgba(47,109,255,0.12)] sm:p-7"
+              className="relative overflow-hidden rounded-[2rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7"
             >
               <div
                 aria-hidden="true"
-                className="absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.72),rgba(75,126,255,0.45),transparent)]"
+                className="absolute inset-x-8 top-0 h-px bg-[image:var(--cc-theme-hero-line)]"
               />
 
               <div className="relative z-10">
                 <div className="flex justify-center">
                   <div className="relative">
                     <CircleCardSpinToConnect {...spinToConnectProps} className="h-40 w-40 sm:h-48 sm:w-48">
-                      <div className="grid h-full w-full place-items-center rounded-full border border-gold/60 bg-gold/12 p-1.5 shadow-[0_0_0_10px_rgba(212,175,95,0.05),0_0_64px_rgba(47,109,255,0.3)]">
+                      <div className="grid h-full w-full place-items-center rounded-full border border-gold/60 bg-gold/12 p-1.5 shadow-[0_0_0_10px_hsl(var(--cc-theme-accent-hsl)/0.05),0_0_64px_hsl(var(--cc-theme-primary-hsl)/0.3)]">
                         <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground">
                           {card.profileImageUrl ? (
                             <CircleCardFramedImage

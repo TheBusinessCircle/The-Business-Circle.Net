@@ -14,7 +14,6 @@ import {
   DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT
 } from "@/lib/circle-card/profile-layout";
 import {
-  CIRCLE_CARD_THEME_PRESET_KEYS,
   CIRCLE_CARD_THEME_SURFACE_STYLES,
   DEFAULT_CIRCLE_CARD_THEME_PRESET,
   resolveCircleCardThemeSurfaceStyle
@@ -163,11 +162,10 @@ const optionalThemeColor = (fallback: string) =>
 const optionalThemePreset = z
   .string()
   .trim()
+  .max(80)
   .optional()
   .or(z.literal(""))
-  .refine((value) => !value || CIRCLE_CARD_THEME_PRESET_KEYS.includes(value), {
-    message: "Choose a valid Circle Card theme preset."
-  });
+  .transform((value) => value || "");
 const circleCardThemeSurfaceStyleInput = z.preprocess(
   (value) =>
     resolveCircleCardThemeSurfaceStyle(

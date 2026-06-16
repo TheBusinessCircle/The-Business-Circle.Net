@@ -44,7 +44,7 @@ import {
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
 import {
   buildCircleCardThemeMetadata,
-  resolveCircleCardTheme
+  buildCircleCardThemeStorage
 } from "@/lib/circle-card/theme";
 import {
   circleCardRecommendationFormSchema,
@@ -1203,7 +1203,9 @@ export async function upsertCircleCardAction(formData: FormData) {
   const values = parsed.data;
   const shouldUpdateIdentity = formData.has("accountType") || formData.has("identityTags");
   const shouldUpdateProfileLayout = formData.has("profileLayout");
+  const shouldResetTheme = formData.get("resetThemeColours") === "true";
   const shouldUpdateTheme =
+    shouldResetTheme ||
     formData.has("themePrimaryColor") ||
     formData.has("themeAccentColor") ||
     formData.has("themeButtonColor") ||
@@ -1260,13 +1262,18 @@ export async function upsertCircleCardAction(formData: FormData) {
   }
 
   const socialLinks = buildCircleCardSocialLinks(values);
-  const resolvedTheme = resolveCircleCardTheme({
-    themePrimaryColor: values.themePrimaryColor,
-    themeAccentColor: values.themeAccentColor,
-    themeButtonColor: values.themeButtonColor,
-    themeSurfaceStyle: values.themeSurfaceStyle,
-    themePreset: values.themePreset
-  });
+  const themeStorage = buildCircleCardThemeStorage(
+    shouldResetTheme
+      ? {}
+      : {
+          themePrimaryColor: values.themePrimaryColor,
+          themeAccentColor: values.themeAccentColor,
+          themeButtonColor: values.themeButtonColor,
+          themeSurfaceStyle: values.themeSurfaceStyle,
+          themePreset: values.themePreset
+        }
+  );
+  const resolvedTheme = themeStorage.theme;
   const data = {
     slug,
     fullName: values.fullName.trim(),
@@ -1291,11 +1298,11 @@ export async function upsertCircleCardAction(formData: FormData) {
     businessLogoScale: nullableNumber(values.businessLogoScale),
     ...(!cardId || shouldUpdateTheme
       ? {
-          themePrimaryColor: resolvedTheme.primaryColor,
-          themeAccentColor: resolvedTheme.accentColor,
-          themeButtonColor: resolvedTheme.buttonColor,
-          themeSurfaceStyle: resolvedTheme.surfaceStyle,
-          themePreset: resolvedTheme.presetKey,
+          themePrimaryColor: themeStorage.values.themePrimaryColor,
+          themeAccentColor: themeStorage.values.themeAccentColor,
+          themeButtonColor: themeStorage.values.themeButtonColor,
+          themeSurfaceStyle: themeStorage.values.themeSurfaceStyle,
+          themePreset: themeStorage.values.themePreset,
           themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue
         }
       : {}),
@@ -1745,7 +1752,8 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
   const businessLogoPositionX = nullableNumber(values.businessLogoPositionX);
   const businessLogoPositionY = nullableNumber(values.businessLogoPositionY);
   const businessLogoScale = nullableNumber(values.businessLogoScale);
-  const resolvedTheme = resolveCircleCardTheme();
+  const themeStorage = buildCircleCardThemeStorage();
+  const resolvedTheme = themeStorage.theme;
   const shouldUpsertBusiness = Boolean(businessName || websiteUrl);
   const businessData = {
     ...(businessName ? { companyName: businessName } : {}),
@@ -1815,11 +1823,11 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           businessLogoPositionX,
           businessLogoPositionY,
           businessLogoScale,
-          themePrimaryColor: resolvedTheme.primaryColor,
-          themeAccentColor: resolvedTheme.accentColor,
-          themeButtonColor: resolvedTheme.buttonColor,
-          themeSurfaceStyle: resolvedTheme.surfaceStyle,
-          themePreset: resolvedTheme.presetKey,
+          themePrimaryColor: themeStorage.values.themePrimaryColor,
+          themeAccentColor: themeStorage.values.themeAccentColor,
+          themeButtonColor: themeStorage.values.themeButtonColor,
+          themeSurfaceStyle: themeStorage.values.themeSurfaceStyle,
+          themePreset: themeStorage.values.themePreset,
           themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue,
           websiteUrl,
           socialLinks: {}
