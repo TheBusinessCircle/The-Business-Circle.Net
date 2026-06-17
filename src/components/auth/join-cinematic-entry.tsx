@@ -11,7 +11,6 @@ import {
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
-import { safeRedirectPath } from "@/lib/auth/utils";
 import { cn } from "@/lib/utils";
 import styles from "./join-cinematic-entry.module.css";
 
@@ -22,7 +21,6 @@ type JoinCinematicEntryProps = {
   initialSelectedTier: MembershipTier;
   billingInterval: MembershipBillingInterval;
   from?: string;
-  inviteCode?: string;
   error?: string;
   billing?: string;
 };
@@ -32,68 +30,9 @@ type JoinNotice = {
   text: string;
 };
 
-type JoinHandoff = {
-  from?: string;
-  inviteCode?: string;
-};
-
 const portalEase = [0.2, 0.72, 0.18, 1] as const;
-const joinHandoffStorageKey = "business-circle:join-handoff";
-
-function normalizeInviteCode(inviteCode?: string) {
-  const normalized = inviteCode?.trim().toUpperCase();
-  return normalized || undefined;
-}
-
-function isMembershipPath(pathname?: string) {
-  const safePath = pathname ? safeRedirectPath(pathname, "") : "";
-  return safePath.startsWith("/membership");
-}
-
-function readJoinHandoff(): JoinHandoff {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  try {
-    const raw = window.sessionStorage.getItem(joinHandoffStorageKey);
-
-    if (!raw) {
-      return {};
-    }
-
-    const parsed = JSON.parse(raw) as JoinHandoff;
-    const safeFrom = parsed.from ? safeRedirectPath(parsed.from, "") : "";
-
-    return {
-      from: safeFrom || undefined,
-      inviteCode: normalizeInviteCode(parsed.inviteCode)
-    };
-  } catch {
-    return {};
-  }
-}
-
-function writeJoinHandoff(value: JoinHandoff) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    if (!value.from && !value.inviteCode) {
-      window.sessionStorage.removeItem(joinHandoffStorageKey);
-      return;
-    }
-
-    window.sessionStorage.setItem(joinHandoffStorageKey, JSON.stringify(value));
-  } catch {
-    // Ignore storage failures and keep the join path functional.
-  }
-}
 
 export function JoinCinematicEntry({
-  from,
-  inviteCode,
   error,
   billing
 }: JoinCinematicEntryProps) {
@@ -110,17 +49,6 @@ export function JoinCinematicEntry({
   const copySpringY = useSpring(copyY, { stiffness: 70, damping: 20, mass: 0.9 });
   const [portalOpened, setPortalOpened] = useState(false);
   const [guideDimmed, setGuideDimmed] = useState(false);
-  const [resolvedContext, setResolvedContext] = useState<JoinHandoff>({
-    from: from ? safeRedirectPath(from, "") || undefined : undefined,
-    inviteCode: normalizeInviteCode(inviteCode)
-  });
-
-  const initialFrom = useMemo(() => {
-    const safeFrom = from ? safeRedirectPath(from, "") : "";
-    return safeFrom || undefined;
-  }, [from]);
-
-  const initialInvite = useMemo(() => normalizeInviteCode(inviteCode), [inviteCode]);
 
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -153,23 +81,6 @@ export function JoinCinematicEntry({
       });
     };
   }, []);
-
-  useEffect(() => {
-    const storedContext = readJoinHandoff();
-    const shouldRestoreStoredContext = billing === "cancelled" || isMembershipPath(initialFrom);
-    const nextContext = shouldRestoreStoredContext
-      ? {
-          from: storedContext.from ?? initialFrom,
-          inviteCode: initialInvite ?? storedContext.inviteCode
-        }
-      : {
-          from: initialFrom,
-          inviteCode: initialInvite
-        };
-
-    setResolvedContext(nextContext);
-    writeJoinHandoff(nextContext);
-  }, [billing, initialFrom, initialInvite]);
 
   useEffect(() => {
     const route = routeRef.current;
@@ -223,15 +134,8 @@ export function JoinCinematicEntry({
       });
     }
 
-    if (resolvedContext.inviteCode) {
-      nextNotices.push({
-        tone: "gold",
-        text: `Member invite ${resolvedContext.inviteCode} is attached to this path.`
-      });
-    }
-
     return nextNotices;
-  }, [billing, error, resolvedContext.inviteCode]);
+  }, [billing, error]);
 
   const handlePortalMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (reduceMotion || portalOpened) {
@@ -271,9 +175,7 @@ export function JoinCinematicEntry({
 
   const handlePortalOpen = () => {
     resetPortalPosition();
-    trackAnalyticsEvent(ANALYTICS_EVENTS.joinDesktopStepInside, {
-      hasInvite: Boolean(resolvedContext.inviteCode)
-    });
+    trackAnalyticsEvent(ANALYTICS_EVENTS.joinDesktopStepInside);
     setPortalOpened(true);
   };
 

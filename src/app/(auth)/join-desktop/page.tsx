@@ -45,7 +45,6 @@ export default async function JoinDesktopPage({ searchParams }: JoinDesktopPageP
       initialSelectedTier={resolveTier(firstValue(params.tier))}
       billingInterval={resolveBillingInterval(firstValue(params.period) ?? firstValue(params.interval))}
       from={from}
-      inviteCode={firstValue(params.invite)}
       error={error}
       billing={firstValue(params.billing)}
     />

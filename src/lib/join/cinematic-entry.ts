@@ -6,12 +6,6 @@ export type Join2BillingInterval = "monthly" | "annual";
 export type Join2SceneStage = "intro" | "entering" | "choices";
 
 export const JOIN2_FALLBACK_TIMEOUT_MS = 4700;
-export const JOIN2_HANDOFF_STORAGE_KEY = "business-circle:join-handoff";
-
-export function normalizeJoin2InviteCode(inviteCode?: string) {
-  const normalized = inviteCode?.trim().toUpperCase();
-  return normalized || undefined;
-}
 
 export function sanitizeJoin2From(from?: string) {
   const safeFrom = from ? safeRedirectPath(from, "") : "";
@@ -39,14 +33,12 @@ export function buildJoin2ActionHrefs({
   tier,
   billingInterval,
   billing,
-  from,
-  inviteCode
+  from
 }: {
   tier: Join2MembershipTier;
   billingInterval: Join2BillingInterval;
   billing?: string;
   from?: string;
-  inviteCode?: string;
 }) {
   return {
     publicSiteHref: "/home",
@@ -56,8 +48,7 @@ export function buildJoin2ActionHrefs({
       tier,
       period: billingInterval,
       billing,
-      from: sanitizeJoin2From(from),
-      invite: normalizeJoin2InviteCode(inviteCode)
+      from: sanitizeJoin2From(from)
     }),
     loginHref: "/login"
   };

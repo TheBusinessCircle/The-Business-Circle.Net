@@ -17,13 +17,12 @@ const removedInitialScreenText = [
 ];
 
 describe("join-mobile cinematic entry", () => {
-  it("preserves selected tier, billing period, invite, and from in the join href", () => {
+  it("preserves selected tier, billing period, and from in the join href", () => {
     const hrefs = buildJoin2ActionHrefs({
       tier: "INNER_CIRCLE",
       billingInterval: "annual",
       billing: "cancelled",
-      from: "/membership?tier=core&period=monthly",
-      inviteCode: " bcn-test "
+      from: "/membership?tier=core&period=monthly"
     });
 
     expect(hrefs.publicSiteHref).toBe("/home");
@@ -31,7 +30,7 @@ describe("join-mobile cinematic entry", () => {
     expect(hrefs.auditHref).toBe("/audit?source=join&topic=join-mobile");
     expect(hrefs.loginHref).toBe("/login");
     expect(hrefs.joinHref).toBe(
-      "/join?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly&tier=inner-circle&period=annual&billing=cancelled&invite=BCN-TEST&auth=register"
+      "/join?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly&tier=inner-circle&period=annual&billing=cancelled"
     );
   });
 

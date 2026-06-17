@@ -119,7 +119,8 @@ describe("register route", () => {
           tier: "INNER_CIRCLE",
           billingInterval: "annual",
           acceptedTerms: true,
-          minimumAgeConfirmed: true
+          minimumAgeConfirmed: true,
+          inviteCode: "STALE-FOUNDER-CODE"
         })
       })
     );
@@ -129,9 +130,14 @@ describe("register route", () => {
     expect(payload).toEqual({
       checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
     });
+    const createPayload = createPendingRegistrationMock.mock.calls[0]?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    expect(createPayload).not.toHaveProperty("inviteCode");
     expect(createStripeCheckoutSessionForPendingRegistrationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         pendingRegistrationId: "pending_123",
+        inviteCode: null,
         acceptedTermsVersion: TERMS_VERSION,
         acceptedRulesAt: null,
         acceptedRulesVersion: null,

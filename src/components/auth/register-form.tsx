@@ -39,7 +39,6 @@ type RegisterFormProps = {
   defaultTier?: MembershipTier;
   selectedTier?: MembershipTier;
   onTierChange?: (tier: MembershipTier) => void;
-  inviteCode?: string;
   billingInterval?: MembershipBillingIntervalValue;
   coreAccessConfirmed?: boolean;
   showTierSelector?: boolean;
@@ -69,7 +68,6 @@ export type RegisterPayload = {
   businessStatus?: "IDEA_STARTUP" | "REGISTERED_BUSINESS" | "ESTABLISHED_COMPANY";
   companyNumber?: string;
   businessStage?: "IDEA" | "STARTUP" | "GROWTH" | "SCALE" | "ESTABLISHED";
-  inviteCode?: string;
 };
 
 type RegisterResponse = {
@@ -144,10 +142,6 @@ export function buildRegisterPayload(values: RegisterMemberFormInput): RegisterP
     minimumAgeConfirmed: values.minimumAgeConfirmed
   };
 
-  if (values.inviteCode?.trim()) {
-    payload.inviteCode = values.inviteCode.trim();
-  }
-
   if (values.businessName?.trim()) {
     payload.businessName = values.businessName.trim();
   }
@@ -173,7 +167,6 @@ export function RegisterForm({
   defaultTier = "FOUNDATION",
   selectedTier,
   onTierChange,
-  inviteCode,
   billingInterval = "monthly",
   coreAccessConfirmed = false,
   showTierSelector = true,
@@ -186,8 +179,6 @@ export function RegisterForm({
   tierOptions = DEFAULT_TIER_OPTIONS
 }: RegisterFormProps) {
   const [notice, setNotice] = useState<string | null>(null);
-  const [codeNotice, setCodeNotice] = useState<string | null>(null);
-  const [codeValid, setCodeValid] = useState(false);
   const [isPending, startTransition] = useTransition();
   const loginTargetPath = useMemo(
     () => safeRedirectPath(loginFrom ?? from),
@@ -213,13 +204,11 @@ export function RegisterForm({
       businessName: "",
       businessStatus: "",
       companyNumber: "",
-      businessStage: "",
-      inviteCode: inviteCode ?? ""
+      businessStage: ""
     }
   });
   const tierField = form.register("tier");
   const activeTier = form.watch("tier") as MembershipTier;
-  const activeInviteCode = form.watch("inviteCode") ?? "";
   const activeTierContent = tierHeroCopy[activeTier];
 
   useEffect(() => {
@@ -258,8 +247,7 @@ export function RegisterForm({
 
       trackAnalyticsEvent(ANALYTICS_EVENTS.registrationStarted, {
         tier: payload.tier,
-        billingInterval: payload.billingInterval,
-        hasInvite: Boolean(payload.inviteCode)
+        billingInterval: payload.billingInterval
       });
 
       const response = await fetch("/api/register", {
@@ -290,65 +278,6 @@ export function RegisterForm({
     });
   });
   const canSubmitRegistration = form.formState.isValid && !submitDisabled;
-
-  const validateFounderAccessCode = async () => {
-    const code = activeInviteCode.trim().toUpperCase();
-    if (!code) {
-      setCodeNotice("If you have been given a Founder Access code, enter it here before checkout.");
-      setCodeValid(false);
-      return;
-    }
-
-    trackAnalyticsEvent(ANALYTICS_EVENTS.launchCodeEntered, {
-      code,
-      selectedTier: activeTier
-    });
-
-    const response = await fetch("/api/launch-codes/validate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        code,
-        selectedTier: activeTier,
-        email: form.getValues("email") || undefined
-      })
-    });
-    const data = (await response.json().catch(() => ({}))) as {
-      valid?: boolean;
-      message?: string;
-      reason?: string;
-      launchCode?: { platform?: string; trialDays?: number; id?: string };
-    };
-
-    form.setValue("inviteCode", code, {
-      shouldDirty: true,
-      shouldTouch: true,
-      shouldValidate: false
-    });
-    setCodeValid(Boolean(data.valid));
-    setCodeNotice(
-      data.message ??
-        (data.valid
-          ? "Founder Access applied. Your first 3 months are included, then your selected membership continues as normal."
-          : "That Founder Access code is not valid. Please check it and try again.")
-    );
-    trackAnalyticsEvent(
-      data.valid
-        ? ANALYTICS_EVENTS.launchCodeValidated
-        : data.reason === "full"
-          ? ANALYTICS_EVENTS.launchCodeFull
-          : ANALYTICS_EVENTS.launchCodeInvalid,
-      {
-        code,
-        platform: data.launchCode?.platform,
-        selectedTier: activeTier,
-        trialDays: data.launchCode?.trialDays,
-        launchCodeId: data.launchCode?.id
-      }
-    );
-  };
 
   return (
     <Card className="overflow-hidden border-gold/25 bg-gradient-to-b from-card/95 via-card/84 to-background/76 shadow-[0_24px_70px_rgba(2,6,23,0.32)] backdrop-blur-xl">
@@ -402,16 +331,6 @@ export function RegisterForm({
           ) : null}
         </div>
 
-        {inviteCode ? (
-          <div className="rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3">
-            <p className="text-xs uppercase tracking-[0.08em] text-gold">Member invite attached</p>
-            <p className="mt-2 text-sm text-muted">
-              Invite code{" "}
-              <span className="font-medium tracking-[0.08em] text-foreground">{inviteCode}</span>{" "}
-              will stay attached when payment completes.
-            </p>
-          </div>
-        ) : null}
       </CardHeader>
 
       <CardContent className="space-y-6 pt-6">
@@ -605,45 +524,6 @@ export function RegisterForm({
             <p className="text-xs text-muted">
               Leave this blank if the business is still at idea or startup stage.
             </p>
-          </div>
-
-          <div className="space-y-2 rounded-2xl border border-gold/20 bg-gold/8 p-4">
-            <Label htmlFor="register-invite-code">Founding Access Code</Label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                id="register-invite-code"
-                placeholder="FACEBOOK25"
-                autoComplete="off"
-                {...form.register("inviteCode")}
-                onChange={(event) => {
-                  form.setValue("inviteCode", event.target.value.toUpperCase(), {
-                    shouldDirty: true,
-                    shouldTouch: true,
-                    shouldValidate: false
-                  });
-                  setCodeValid(false);
-                  setCodeNotice(null);
-                }}
-              />
-              <Button type="button" variant="outline" onClick={validateFounderAccessCode}>
-                Apply
-              </Button>
-            </div>
-            <p className="text-xs leading-relaxed text-muted">
-              If you have been given a Founder Access code, enter it here before checkout.
-            </p>
-            {codeNotice ? (
-              <p
-                className={cn(
-                  "rounded-xl border px-3 py-2 text-xs leading-relaxed",
-                  codeValid
-                    ? "border-gold/30 bg-gold/10 text-gold"
-                    : "border-border/80 bg-background/24 text-muted"
-                )}
-              >
-                {codeNotice}
-              </p>
-            ) : null}
           </div>
 
           <div className="space-y-3 rounded-2xl border border-border/70 bg-background/20 p-4">

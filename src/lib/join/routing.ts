@@ -58,8 +58,7 @@ function buildSelectionHref(
   const from = input.from ? safeRedirectPath(input.from, "") : "";
   const tier = input.tier ? resolveTier(input.tier) : undefined;
   const interval = resolveBillingInterval(input.period ?? input.interval);
-  const invite = input.invite?.trim().toUpperCase();
-  const auth = input.auth === "register" || invite ? "register" : undefined;
+  const auth = input.auth === "register" ? "register" : undefined;
 
   if (from) {
     search.set("from", from);
@@ -79,10 +78,6 @@ function buildSelectionHref(
 
   if (input.source === "audit") {
     search.set("source", "audit");
-  }
-
-  if (invite) {
-    search.set("invite", invite);
   }
 
   if (auth) {

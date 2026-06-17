@@ -19,6 +19,16 @@ import {
 
 export const runtime = "nodejs";
 
+function omitPublicInviteCode(payload: unknown) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return payload;
+  }
+
+  const sanitized = { ...(payload as Record<string, unknown>) };
+  delete sanitized.inviteCode;
+  return sanitized;
+}
+
 export async function POST(request: Request) {
   if (!isTrustedOrigin(request)) {
     return NextResponse.json(
@@ -74,7 +84,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { pendingRegistration } = await createPendingRegistration(payload);
+    const { pendingRegistration } = await createPendingRegistration(omitPublicInviteCode(payload));
     const checkoutSession = await createStripeCheckoutSessionForPendingRegistration({
       pendingRegistrationId: pendingRegistration.id,
       email: pendingRegistration.email,
@@ -82,7 +92,7 @@ export async function POST(request: Request) {
       targetTier: pendingRegistration.selectedTier,
       billingInterval: pendingRegistration.billingInterval,
       coreAccessConfirmed: pendingRegistration.coreAccessConfirmed,
-      inviteCode: pendingRegistration.inviteCode,
+      inviteCode: null,
       acceptedTermsVersion: pendingRegistration.acceptedTermsVersion,
       acceptedRulesAt: pendingRegistration.acceptedRulesAt,
       acceptedRulesVersion: pendingRegistration.acceptedRulesVersion,
@@ -100,25 +110,6 @@ export async function POST(request: Request) {
             ? 409
             : 500;
       return NextResponse.json({ error: error.message }, { status, headers });
-    }
-
-    if (error instanceof Error && error.message.startsWith("invite-code-")) {
-      return NextResponse.json(
-        { error: "This founding access code is no longer available for checkout." },
-        { status: 409, headers }
-      );
-    }
-
-    if (error instanceof Error && error.message.startsWith("launch-code-")) {
-      const errorMessage =
-        error.message === "launch-code-already-used"
-          ? "This Founder Access code has already been used for this account."
-          : error.message === "launch-code-full"
-            ? "This Founder Access code has now reached its limit. You can still join on the standard membership price."
-            : error.message === "launch-code-invalid"
-              ? "That Founder Access code is not valid. Please check it and try again."
-              : "This Founder Access code is no longer active. You can still join on the standard membership price.";
-      return NextResponse.json({ error: errorMessage }, { status: 409, headers });
     }
 
     logServerError("register-route-failed", error);

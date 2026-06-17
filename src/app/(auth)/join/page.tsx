@@ -55,7 +55,6 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
   const mode = firstValue(params.mode);
   const authMode = firstValue(params.auth);
   const billing = firstValue(params.billing);
-  const inviteCode = (firstValue(params.invite) ?? "").trim().toUpperCase() || undefined;
   const coreAccessConfirmed = firstValue(params.coreAccessConfirmed) === "1";
 
   if (mode === "signin") {
@@ -198,10 +197,9 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         initialSelectedTier={selectedTier}
         initialBillingInterval={billingInterval}
         initialCoreAccessConfirmed={coreAccessConfirmed}
-        initialShowAccountSetup={authMode === "register" || Boolean(inviteCode)}
+        initialShowAccountSetup={authMode === "register"}
         billing={billing}
         from={from}
-        inviteCode={inviteCode}
         isAuthenticated={Boolean(session?.user)}
         hasActiveSubscription={session?.user?.hasActiveSubscription ?? false}
         currentTier={currentTier}

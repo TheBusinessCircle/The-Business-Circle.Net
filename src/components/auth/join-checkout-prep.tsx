@@ -42,7 +42,6 @@ type JoinCheckoutPrepProps = {
   initialShowAccountSetup?: boolean;
   billing?: string;
   from?: string;
-  inviteCode?: string;
   isAuthenticated: boolean;
   hasActiveSubscription: boolean;
   currentTier: MembershipTier;
@@ -269,7 +268,6 @@ function renderTierDetailPanel(input: {
             hasActiveSubscription={input.hasActiveSubscription}
             currentBillingInterval={input.currentBillingInterval}
             buttonVariant={getTierButtonVariant(input.selectedTier)}
-            inviteCode={new URL(input.currentJoinHref, "http://localhost").searchParams.get("invite") ?? undefined}
             authenticatedLabel={getAuthenticatedLabel({
               currentTier: input.currentTier,
               currentBillingInterval: input.currentBillingInterval,
@@ -325,7 +323,6 @@ export function JoinCheckoutPrep({
   initialShowAccountSetup = false,
   billing,
   from,
-  inviteCode,
   isAuthenticated,
   hasActiveSubscription,
   currentTier,
@@ -366,10 +363,9 @@ export function JoinCheckoutPrep({
         period: billingInterval,
         billing,
         from,
-        invite: inviteCode,
         coreAccessConfirmed: selectedTier === "CORE" ? coreAccessConfirmed : undefined
       }),
-    [billing, billingInterval, coreAccessConfirmed, from, inviteCode, selectedTier]
+    [billing, billingInterval, coreAccessConfirmed, from, selectedTier]
   );
   const loginHref = useMemo(
     () => `/login?from=${encodeURIComponent(currentJoinHref)}`,
@@ -504,7 +500,6 @@ export function JoinCheckoutPrep({
             loginFrom={currentJoinHref}
             defaultTier={selectedTier}
             selectedTier={selectedTier}
-            inviteCode={inviteCode}
             billingInterval={billingInterval}
             coreAccessConfirmed={coreAccessConfirmed}
             showTierSelector={false}

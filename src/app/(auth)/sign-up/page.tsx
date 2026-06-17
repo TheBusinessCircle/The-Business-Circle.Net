@@ -27,7 +27,6 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
       interval: firstValue(params.interval),
       period: firstValue(params.period),
       billing: firstValue(params.billing),
-      invite: firstValue(params.invite),
       auth: "register",
       coreAccessConfirmed: firstValue(params.coreAccessConfirmed)
     })

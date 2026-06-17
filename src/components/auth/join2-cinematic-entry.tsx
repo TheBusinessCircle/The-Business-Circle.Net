@@ -17,11 +17,8 @@ import { ArrowRight } from "lucide-react";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import {
   JOIN2_FALLBACK_TIMEOUT_MS,
-  JOIN2_HANDOFF_STORAGE_KEY,
   buildJoin2ActionHrefs,
   isJoin2ActivationKey,
-  isJoin2MembershipPath,
-  normalizeJoin2InviteCode,
   sanitizeJoin2From,
   type Join2BillingInterval,
   type Join2MembershipTier,
@@ -33,14 +30,8 @@ type Join2CinematicEntryProps = {
   initialSelectedTier: Join2MembershipTier;
   billingInterval: Join2BillingInterval;
   from?: string;
-  inviteCode?: string;
   error?: string;
   billing?: string;
-};
-
-type JoinHandoff = {
-  from?: string;
-  inviteCode?: string;
 };
 
 type PortalStyleVars = CSSProperties & {
@@ -56,52 +47,10 @@ const portalTarget = {
   diameter: 0.734
 } as const;
 
-function readJoinHandoff(): JoinHandoff {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  try {
-    const raw = window.sessionStorage.getItem(JOIN2_HANDOFF_STORAGE_KEY);
-
-    if (!raw) {
-      return {};
-    }
-
-    const parsed = JSON.parse(raw) as JoinHandoff;
-    const safeFrom = sanitizeJoin2From(parsed.from);
-
-    return {
-      from: safeFrom,
-      inviteCode: normalizeJoin2InviteCode(parsed.inviteCode)
-    };
-  } catch {
-    return {};
-  }
-}
-
-function writeJoinHandoff(value: JoinHandoff) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    if (!value.from && !value.inviteCode) {
-      window.sessionStorage.removeItem(JOIN2_HANDOFF_STORAGE_KEY);
-      return;
-    }
-
-    window.sessionStorage.setItem(JOIN2_HANDOFF_STORAGE_KEY, JSON.stringify(value));
-  } catch {
-    // Ignore storage failures and keep the membership path working.
-  }
-}
-
 export function Join2CinematicEntry({
   initialSelectedTier,
   billingInterval,
   from,
-  inviteCode,
   error,
   billing
 }: Join2CinematicEntryProps) {
@@ -123,14 +72,8 @@ export function Join2CinematicEntry({
     "--join2-portal-top": "44.5%",
     "--join2-portal-size": "73.4%"
   }));
-  const [resolvedContext, setResolvedContext] = useState<JoinHandoff>({
-    from: sanitizeJoin2From(from),
-    inviteCode: normalizeJoin2InviteCode(inviteCode)
-  });
 
-  const initialFrom = useMemo(() => sanitizeJoin2From(from), [from]);
-
-  const initialInvite = useMemo(() => normalizeJoin2InviteCode(inviteCode), [inviteCode]);
+  const safeFrom = useMemo(() => sanitizeJoin2From(from), [from]);
 
   const resetSceneScroll = useCallback(() => {
     const route = routeRef.current;
@@ -177,23 +120,6 @@ export function Join2CinematicEntry({
       });
     };
   }, []);
-
-  useEffect(() => {
-    const storedContext = readJoinHandoff();
-    const shouldRestoreStoredContext = billing === "cancelled" || isJoin2MembershipPath(initialFrom);
-    const nextContext = shouldRestoreStoredContext
-      ? {
-          from: storedContext.from ?? initialFrom,
-          inviteCode: initialInvite ?? storedContext.inviteCode
-        }
-      : {
-          from: initialFrom,
-          inviteCode: initialInvite
-        };
-
-    setResolvedContext(nextContext);
-    writeJoinHandoff(nextContext);
-  }, [billing, initialFrom, initialInvite]);
 
   useEffect(() => {
     if (error) {
@@ -451,10 +377,9 @@ export function Join2CinematicEntry({
         tier: initialSelectedTier,
         billingInterval,
         billing,
-        from: resolvedContext.from,
-        inviteCode: resolvedContext.inviteCode
+        from: safeFrom
       }),
-    [billing, billingInterval, initialSelectedTier, resolvedContext.from, resolvedContext.inviteCode]
+    [billing, billingInterval, initialSelectedTier, safeFrom]
   );
 
   const handlePortalMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -481,12 +406,10 @@ export function Join2CinematicEntry({
     }
 
     resetPortalPosition();
-    writeJoinHandoff(resolvedContext);
     resetSceneScroll();
     trackAnalyticsEvent(ANALYTICS_EVENTS.joinMobileStepInside, {
       tier: initialSelectedTier,
-      billingInterval,
-      hasInvite: Boolean(resolvedContext.inviteCode)
+      billingInterval
     });
     setSceneStage("entering");
 
