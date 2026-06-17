@@ -106,6 +106,12 @@ function trackSpinEvent(
   });
 }
 
+function withSpinReturn(path: string) {
+  const url = new URL(path, "http://localhost");
+  url.searchParams.set("spin", "return");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 export function CircleCardSpinToConnect({
   cardId,
   analyticsCardId,
@@ -157,7 +163,7 @@ export function CircleCardSpinToConnect({
   const pendingReturn = initialState === "return" && !localConnected && !viewerIsOwner && !isDemo;
   const canCreateConnection =
     !viewerIsOwner && !isDemo && isAuthenticated && viewerHasCircleCard && !localConnected;
-  const returnTarget = `${publicPath}?spin=return`;
+  const returnTarget = withSpinReturn(publicPath);
   const registerParams = new URLSearchParams({
     source: "circle-card",
     returnTo: returnTarget,

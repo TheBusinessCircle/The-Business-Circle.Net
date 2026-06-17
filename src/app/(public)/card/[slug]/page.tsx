@@ -264,6 +264,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
       }}
       ownerAccountLabel={ownerAccountLabel}
       ownerIsBcnMember={ownerIsBcnMember}
+      source={source}
       spinState={spinState}
       viewerCircleConnectionCount={viewerCircleConnectionCount}
       notice={notice}

@@ -24,6 +24,7 @@ import { CircleCardTrackedLink } from "@/components/circle-card/circle-card-trac
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
+import type { CircleCardShareSource } from "@/lib/circle-card/share-sources";
 import {
   getCircleCardAccountTypeLabel,
   getCircleCardIdentityTagLabel
@@ -111,6 +112,7 @@ type PublicCircleCardProfileProps = {
   connectionState: PublicCircleCardConnectionState;
   ownerAccountLabel: string;
   ownerIsBcnMember: boolean;
+  source?: CircleCardShareSource;
   spinState?: CircleCardSpinState | null;
   viewerCircleConnectionCount?: number | null;
   notice?: string;
@@ -333,6 +335,21 @@ function analyticsUrlValue(value: string) {
   } catch {
     return value;
   }
+}
+
+function publicCardPath(slug: string, source?: CircleCardShareSource, spin?: CircleCardSpinState) {
+  const params = new URLSearchParams();
+
+  if (source && source !== "direct") {
+    params.set("source", source);
+  }
+
+  if (spin) {
+    params.set("spin", spin);
+  }
+
+  const query = params.toString();
+  return query ? `/card/${slug}?${query}` : `/card/${slug}`;
 }
 
 function customLinkIcon(link: PublicCircleCard["customLinks"][number]) {
@@ -1044,6 +1061,7 @@ export function PublicCircleCardProfile({
   connectionState,
   ownerAccountLabel,
   ownerIsBcnMember,
+  source = "direct",
   spinState,
   viewerCircleConnectionCount,
   notice,
@@ -1062,12 +1080,21 @@ export function PublicCircleCardProfile({
   const circleCardTheme = resolveCircleCardTheme(card);
   const circleCardThemeStyle = buildCircleCardThemeStyle(circleCardTheme) as CSSProperties;
   const circleCardThemeSurface = circleCardTheme.surfaceStyle.toLowerCase();
+  const currentPublicCardPath = publicCardPath(card.slug, source);
+  const spinReturnPath = publicCardPath(card.slug, source, "return");
+  const circleCardRegistrationParams = new URLSearchParams({
+    source: "circle-card",
+    returnTo: spinReturnPath,
+    sourceCardSlug: card.slug
+  });
+  const circleCardRegistrationHref = `/register?${circleCardRegistrationParams.toString()}`;
+  const publicCardLoginHref = `/login?from=${encodeURIComponent(currentPublicCardPath)}`;
   const spinToConnectProps = {
     cardId: card.id,
     analyticsCardId,
     cardSlug: card.slug,
     cardName: card.fullName,
-    publicPath: `/card/${card.slug}`,
+    publicPath: currentPublicCardPath,
     isDemo: card.isDemo,
     isAuthenticated,
     viewerIsOwner,
@@ -1205,7 +1232,7 @@ export function PublicCircleCardProfile({
 
     return (
       <Link
-        href={`/login?from=${encodeURIComponent(`/card/${card.slug}`)}`}
+        href={publicCardLoginHref}
         className={cn(buttonVariants({ variant: "outline" }), actionClassName)}
       >
         <WalletCards size={iconSize} />
@@ -2256,14 +2283,14 @@ export function PublicCircleCardProfile({
                   </p>
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                     <Link
-                      href={`/login?from=${encodeURIComponent(`/card/${card.slug}`)}`}
+                      href={publicCardLoginHref}
                       className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
                     >
                       <LogIn size={14} />
                       Sign in
                     </Link>
                     <Link
-                      href="/register?source=circle-card"
+                      href={circleCardRegistrationHref}
                       className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
                     >
                       <UserPlus size={14} />

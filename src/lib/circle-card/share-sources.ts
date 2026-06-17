@@ -1,4 +1,4 @@
-export const CIRCLE_CARD_SHARE_SOURCES = ["direct", "qr", "nfc", "event"] as const;
+export const CIRCLE_CARD_SHARE_SOURCES = ["direct", "qr", "nfc", "event", "sales26"] as const;
 
 export type CircleCardShareSource = (typeof CIRCLE_CARD_SHARE_SOURCES)[number];
 
