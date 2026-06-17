@@ -21,25 +21,36 @@ import {
 import { normalizeExternalHref } from "@/lib/links";
 import { slugify } from "@/lib/utils";
 
-export type CircleCardSocialLinks = {
-  linkedin?: string;
-  tiktok?: string;
-  instagram?: string;
-  x?: string;
-  facebook?: string;
-  youtube?: string;
-  discord?: string;
-};
-
-export const CIRCLE_CARD_SOCIAL_FIELDS = [
-  "linkedin",
+export const CIRCLE_CARD_SOCIAL_PLATFORMS = [
   "tiktok",
   "instagram",
+  "youtube",
+  "linkedin",
   "x",
   "facebook",
-  "youtube",
-  "discord"
-] as const satisfies readonly (keyof CircleCardSocialLinks)[];
+  "discord",
+  "website",
+  "twitch",
+  "podcast",
+  "other"
+] as const;
+
+export type CircleCardSocialPlatform = (typeof CIRCLE_CARD_SOCIAL_PLATFORMS)[number];
+
+export type CircleCardSocialLink = {
+  id: string;
+  platform: CircleCardSocialPlatform;
+  label: string | null;
+  url: string;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+export type CircleCardSocialLinks = Partial<Record<CircleCardSocialPlatform, string>> & {
+  links: CircleCardSocialLink[];
+};
+
+export const CIRCLE_CARD_SOCIAL_FIELDS = CIRCLE_CARD_SOCIAL_PLATFORMS;
 
 export const CIRCLE_CARD_CUSTOM_LINK_ICONS = [
   "link",
@@ -128,6 +139,7 @@ const optionalDateInput = z
   });
 const optionalEmail = z.string().trim().email().max(320).optional().or(z.literal(""));
 const optionalSocialHandle = z.string().trim().max(2048).optional().or(z.literal(""));
+const optionalJsonText = z.string().trim().max(30000).optional().or(z.literal(""));
 const optionalImagePosition = z.preprocess(
   (value) => {
     if (value === "" || value === null || value === undefined) {
@@ -386,6 +398,7 @@ export const circleCardFormSchema = z.object({
   facebookUrl: optionalHttpUrl("Facebook"),
   youtubeUrl: optionalHttpUrl("YouTube"),
   discordUrl: optionalDiscordSocialUrl,
+  socialLinksJson: optionalJsonText,
   isPublished: checkboxBoolean.default(false)
 });
 
@@ -604,6 +617,196 @@ export function normalizeCircleCardUrl(value?: string | null) {
   return normalizeExternalHref(trimmed);
 }
 
+function normalizeCircleCardHandle(value?: string | null) {
+  const handle = value
+    ?.trim()
+    .replace(/^@+/, "")
+    .replace(/^\/+|\/+$/g, "")
+    .split(/[/?#]/)[0]
+    ?.trim();
+
+  if (!handle || handle.length > 120 || /\s/.test(handle)) {
+    return "";
+  }
+
+  return encodeURIComponent(handle);
+}
+
+function normalizeCircleCardSocialUrl(platform: CircleCardSocialPlatform, value?: string | null) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (platform === "discord") {
+    return normalizeDiscordSocialUrl(trimmed);
+  }
+
+  const normalized = normalizeCircleCardUrl(trimmed);
+
+  if (isHttpUrl(normalized)) {
+    return normalized;
+  }
+
+  const handle = normalizeCircleCardHandle(trimmed);
+
+  if (!handle) {
+    return "";
+  }
+
+  switch (platform) {
+    case "tiktok":
+      return `https://www.tiktok.com/@${handle}`;
+    case "instagram":
+      return `https://www.instagram.com/${handle}`;
+    case "youtube":
+      return `https://www.youtube.com/@${handle}`;
+    case "linkedin":
+      return `https://www.linkedin.com/in/${handle}`;
+    case "x":
+      return `https://x.com/${handle}`;
+    case "facebook":
+      return `https://www.facebook.com/${handle}`;
+    case "twitch":
+      return `https://www.twitch.tv/${handle}`;
+    default:
+      return "";
+  }
+}
+
+function resolveCircleCardSocialPlatform(value: unknown): CircleCardSocialPlatform | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "twitter") {
+    return "x";
+  }
+
+  return CIRCLE_CARD_SOCIAL_PLATFORMS.includes(normalized as CircleCardSocialPlatform)
+    ? (normalized as CircleCardSocialPlatform)
+    : null;
+}
+
+function normalizeCircleCardSocialLink(input: {
+  id?: unknown;
+  platform?: unknown;
+  label?: unknown;
+  url?: unknown;
+  handle?: unknown;
+  isActive?: unknown;
+  sortOrder?: unknown;
+}): CircleCardSocialLink | null {
+  const platform = resolveCircleCardSocialPlatform(input.platform);
+
+  if (!platform) {
+    return null;
+  }
+
+  const rawUrl =
+    typeof input.url === "string" && input.url.trim()
+      ? input.url
+      : typeof input.handle === "string"
+        ? input.handle
+        : "";
+  const url = normalizeCircleCardSocialUrl(platform, rawUrl);
+
+  if (!url || !isHttpUrl(url)) {
+    return null;
+  }
+
+  const id =
+    typeof input.id === "string" && input.id.trim()
+      ? input.id.trim().slice(0, 80)
+      : `social-${platform}-${Math.random().toString(36).slice(2, 10)}`;
+  const label = typeof input.label === "string" ? input.label.trim().slice(0, 80) : "";
+  const sortOrder =
+    typeof input.sortOrder === "number" && Number.isFinite(input.sortOrder)
+      ? Math.max(0, Math.min(999, Math.trunc(input.sortOrder)))
+      : 0;
+  const isActive =
+    input.isActive === false || input.isActive === "false" || input.isActive === "off"
+      ? false
+      : true;
+
+  return {
+    id,
+    platform,
+    label: label || null,
+    url,
+    isActive,
+    sortOrder
+  };
+}
+
+function socialLinksWithItems(items: CircleCardSocialLink[]): CircleCardSocialLinks {
+  const links = {} as CircleCardSocialLinks;
+  const sortedItems = [...items].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  for (const item of sortedItems) {
+    if (!item.isActive || links[item.platform]) {
+      continue;
+    }
+
+    links[item.platform] = item.url;
+  }
+
+  Object.defineProperty(links, "links", {
+    value: sortedItems,
+    enumerable: false
+  });
+
+  return links;
+}
+
+export function buildCircleCardSocialLinksJson(
+  items: Array<Partial<CircleCardSocialLink> & { handle?: string | null }>
+): Prisma.InputJsonObject {
+  const normalizedItems = items
+    .map((item, index) =>
+      normalizeCircleCardSocialLink({
+        ...item,
+        sortOrder: item.sortOrder ?? index
+      })
+    )
+    .filter((item): item is CircleCardSocialLink => Boolean(item))
+    .map((item, index) => ({
+      ...item,
+      sortOrder: index
+    }));
+
+  const firstActiveByPlatform = new Map<CircleCardSocialPlatform, string>();
+
+  for (const item of normalizedItems) {
+    if (item.isActive && !firstActiveByPlatform.has(item.platform)) {
+      firstActiveByPlatform.set(item.platform, item.url);
+    }
+  }
+
+  return {
+    ...Object.fromEntries(firstActiveByPlatform),
+    links: normalizedItems
+  } as Prisma.InputJsonObject;
+}
+
+function parseCircleCardSocialLinksJson(value?: string | null) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function normalizeCircleCardEmail(value?: string | null) {
   const trimmed = value?.trim().toLowerCase();
   return trimmed || null;
@@ -798,40 +1001,45 @@ export function buildCircleCardSocialLinks(
     | "facebookUrl"
     | "youtubeUrl"
     | "discordUrl"
+    | "socialLinksJson"
   >
 ): Prisma.InputJsonObject {
-  return Object.fromEntries(
-    [
-      ["linkedin", values.linkedinUrl],
-      ["tiktok", values.tiktokUrl],
-      ["instagram", values.instagramUrl],
-      ["x", values.xUrl],
-      ["facebook", values.facebookUrl],
-      ["youtube", values.youtubeUrl],
-      ["discord", values.discordUrl]
-    ].filter((entry): entry is [keyof CircleCardSocialLinks, string] => Boolean(entry[1]))
-  );
+  const socialLinksJsonItems = parseCircleCardSocialLinksJson(values.socialLinksJson);
+
+  if (socialLinksJsonItems.length) {
+    return buildCircleCardSocialLinksJson(socialLinksJsonItems);
+  }
+
+  return buildCircleCardSocialLinksJson([
+    { platform: "linkedin", url: values.linkedinUrl },
+    { platform: "tiktok", url: values.tiktokUrl },
+    { platform: "instagram", url: values.instagramUrl },
+    { platform: "x", url: values.xUrl },
+    { platform: "facebook", url: values.facebookUrl },
+    { platform: "youtube", url: values.youtubeUrl },
+    { platform: "discord", url: values.discordUrl }
+  ]);
 }
 
 export function buildCircleWalletBusinessCardSocialLinks(
-  values: Partial<Record<keyof CircleCardSocialLinks, string>>
+  values: Partial<Record<CircleCardSocialPlatform, string>>
 ): Prisma.InputJsonObject {
   return Object.fromEntries(
     CIRCLE_CARD_SOCIAL_FIELDS.map((field) => {
       const value = values[field]?.trim();
       return value ? [field, value.slice(0, 2048)] : null;
-    }).filter((entry): entry is [keyof CircleCardSocialLinks, string] => Boolean(entry))
+    }).filter((entry): entry is [CircleCardSocialPlatform, string] => Boolean(entry))
   );
 }
 
 export function readCircleWalletBusinessCardSocialLinks(
   value: Prisma.JsonValue | null | undefined
-): CircleCardSocialLinks {
+): Partial<Record<CircleCardSocialPlatform, string>> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }
 
-  const links: CircleCardSocialLinks = {};
+  const links: Partial<Record<CircleCardSocialPlatform, string>> = {};
 
   for (const key of CIRCLE_CARD_SOCIAL_FIELDS) {
     const candidate = value[key];
@@ -845,19 +1053,68 @@ export function readCircleWalletBusinessCardSocialLinks(
 }
 
 export function readCircleCardSocialLinks(value: Prisma.JsonValue | null | undefined): CircleCardSocialLinks {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
+  const socialItems: CircleCardSocialLink[] = [];
+
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        return;
+      }
+
+      const normalized = normalizeCircleCardSocialLink({
+        ...item,
+        sortOrder: typeof item.sortOrder === "number" ? item.sortOrder : index
+      });
+
+      if (normalized) {
+        socialItems.push(normalized);
+      }
+    });
+
+    return socialLinksWithItems(socialItems);
   }
 
-  const links: CircleCardSocialLinks = {};
+  if (!value || typeof value !== "object") {
+    return socialLinksWithItems([]);
+  }
 
-  for (const key of CIRCLE_CARD_SOCIAL_FIELDS) {
+  if (Array.isArray(value.links)) {
+    value.links.forEach((item, index) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        return;
+      }
+
+      const normalized = normalizeCircleCardSocialLink({
+        ...item,
+        sortOrder: typeof item.sortOrder === "number" ? item.sortOrder : index
+      });
+
+      if (normalized) {
+        socialItems.push(normalized);
+      }
+    });
+  }
+
+  const existingKeys = new Set(socialItems.map((item) => `${item.platform}:${item.url}`));
+
+  for (const [index, key] of CIRCLE_CARD_SOCIAL_FIELDS.entries()) {
     const candidate = value[key];
 
     if (typeof candidate === "string" && isHttpUrl(candidate)) {
-      links[key] = candidate;
+      const normalized = normalizeCircleCardSocialLink({
+        id: `legacy-${key}`,
+        platform: key,
+        url: candidate,
+        isActive: true,
+        sortOrder: socialItems.length + index
+      });
+
+      if (normalized && !existingKeys.has(`${normalized.platform}:${normalized.url}`)) {
+        socialItems.push(normalized);
+        existingKeys.add(`${normalized.platform}:${normalized.url}`);
+      }
     }
   }
 
-  return links;
+  return socialLinksWithItems(socialItems);
 }

@@ -11,10 +11,13 @@ import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-event
 import {
   buildCircleCardSlugBase,
   buildCircleCardSocialLinks,
+  buildCircleCardSocialLinksJson,
   buildCircleWalletBusinessCardSocialLinks,
   CIRCLE_CARD_FILE_LINK_TYPES,
   CIRCLE_CARD_LINK_TYPES,
   CIRCLE_CARD_SOCIAL_FIELDS,
+  type CircleCardSocialLink,
+  type CircleCardSocialPlatform,
   circleCardConnectionRequestFormSchema,
   circleCardConnectionRequestIdSchema,
   circleCardIdentityFormSchema,
@@ -124,6 +127,7 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "facebookUrl",
   "youtubeUrl",
   "discordUrl",
+  "socialLinksJson",
   "isPublished"
 ] as const;
 
@@ -1203,12 +1207,13 @@ export async function applyCircleCardSmartImportAction(formData: FormData) {
   }
 
   const socialLinks = readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue);
+  const socialLinkItems: CircleCardSocialLink[] = [...socialLinks.links];
   let hasSocialUpdates = false;
 
   for (const platform of formData.getAll("socialPlatform")) {
     if (
       typeof platform !== "string" ||
-      !CIRCLE_CARD_SOCIAL_FIELDS.includes(platform as (typeof CIRCLE_CARD_SOCIAL_FIELDS)[number])
+      !CIRCLE_CARD_SOCIAL_FIELDS.includes(platform as CircleCardSocialPlatform)
     ) {
       continue;
     }
@@ -1216,13 +1221,28 @@ export async function applyCircleCardSmartImportAction(formData: FormData) {
     const socialUrl = readSmartImportHttpUrl(formData, `socialUrl-${platform}`);
 
     if (socialUrl) {
-      socialLinks[platform as (typeof CIRCLE_CARD_SOCIAL_FIELDS)[number]] = socialUrl;
+      const socialPlatform = platform as CircleCardSocialPlatform;
+      const alreadyStored = socialLinkItems.some(
+        (item) => item.platform === socialPlatform && item.url === socialUrl
+      );
+
+      if (!alreadyStored) {
+        socialLinkItems.push({
+          id: `smart-${socialPlatform}-${Date.now()}-${socialLinkItems.length}`,
+          platform: socialPlatform,
+          label: null,
+          url: socialUrl,
+          isActive: true,
+          sortOrder: socialLinkItems.length
+        });
+      }
+
       hasSocialUpdates = true;
     }
   }
 
   if (hasSocialUpdates) {
-    data.socialLinks = socialLinks;
+    data.socialLinks = buildCircleCardSocialLinksJson(socialLinkItems);
   }
 
   const selectedLinkIndexes = formData
@@ -1498,6 +1518,91 @@ export async function upsertCircleCardAction(formData: FormData) {
 
     redirectWithError(returnPath, "card-save-failed");
   }
+}
+
+export type CircleCardSocialLinksInlineActionResult =
+  | {
+      ok: true;
+      notice: string;
+      links: CircleCardSocialLink[];
+    }
+  | {
+      ok: false;
+      error: string;
+      message: string;
+    };
+
+export async function updateCircleCardSocialLinksInlineAction(input: {
+  cardId: string;
+  socialLinksJson: string;
+}): Promise<CircleCardSocialLinksInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const cardId = typeof input.cardId === "string" ? input.cardId.trim() : "";
+  const socialLinksJson =
+    typeof input.socialLinksJson === "string" ? input.socialLinksJson.trim().slice(0, 30000) : "";
+
+  if (!cardId) {
+    return {
+      ok: false,
+      error: "card-not-found",
+      message: "That Circle Card could not be found."
+    };
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: cardId,
+      userId: user.id
+    },
+    select: {
+      id: true,
+      slug: true
+    }
+  });
+
+  if (!card) {
+    return {
+      ok: false,
+      error: "card-not-found",
+      message: "That Circle Card could not be found."
+    };
+  }
+
+  const socialLinks = buildCircleCardSocialLinks({
+    linkedinUrl: "",
+    tiktokUrl: "",
+    instagramUrl: "",
+    xUrl: "",
+    facebookUrl: "",
+    youtubeUrl: "",
+    discordUrl: "",
+    socialLinksJson
+  });
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: {
+      socialLinks
+    }
+  });
+
+  await createCircleCardActivity({
+    userId: user.id,
+    circleCardId: card.id,
+    type: "CARD_UPDATED",
+    title: "Social links updated",
+    message: "Circle Card social links were updated.",
+    entityType: "CIRCLE_CARD",
+    entityId: card.id
+  });
+
+  revalidateCircleCardPublicPaths(card.slug);
+
+  return {
+    ok: true,
+    notice: "Saved",
+    links: readCircleCardSocialLinks(socialLinks as Prisma.JsonValue).links
+  };
 }
 
 export async function updateCircleCardIdentityAction(formData: FormData) {

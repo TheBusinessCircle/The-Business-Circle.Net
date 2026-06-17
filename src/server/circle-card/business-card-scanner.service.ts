@@ -5,8 +5,7 @@ import { RESOURCE_CONTENT_MODEL } from "@/config/resources";
 import {
   normalizeCircleCardEmail,
   normalizeCircleCardUrl,
-  normalizeWebsiteDomain,
-  type CircleCardSocialLinks
+  normalizeWebsiteDomain
 } from "@/lib/circle-card/schema";
 import { prisma } from "@/lib/prisma";
 import {
@@ -23,6 +22,15 @@ const BUSINESS_CARD_OCR_TIMEOUT_MS = Number.parseInt(
   10
 );
 const INSENSITIVE_QUERY_MODE = "insensitive" as const;
+
+type BusinessCardSocialHandles = {
+  linkedin?: string;
+  instagram?: string;
+  x?: string;
+  facebook?: string;
+  tiktok?: string;
+  youtube?: string;
+};
 
 const socialHandlesSchema = z
   .object({
@@ -59,7 +67,7 @@ export type BusinessCardExtractedFields = {
   website: string;
   websiteDomain: string | null;
   address: string;
-  socialHandles: CircleCardSocialLinks;
+  socialHandles: BusinessCardSocialHandles;
   rawText: string;
 };
 
@@ -130,8 +138,8 @@ function clean(value: string | null | undefined, max = 2048) {
   return value?.replace(/\s+/g, " ").trim().slice(0, max) ?? "";
 }
 
-function normalizeSocialHandles(value: Partial<Record<keyof CircleCardSocialLinks, string>>) {
-  const socialHandles: CircleCardSocialLinks = {};
+function normalizeSocialHandles(value: Partial<Record<keyof BusinessCardSocialHandles, string>>) {
+  const socialHandles: BusinessCardSocialHandles = {};
 
   for (const key of ["linkedin", "instagram", "x", "facebook", "tiktok", "youtube"] as const) {
     const handle = value[key]?.trim();
@@ -380,7 +388,7 @@ function chooseAddress(lines: string[]) {
 }
 
 function extractSocialHandles(lines: string[]) {
-  const socialHandles: CircleCardSocialLinks = {};
+  const socialHandles: BusinessCardSocialHandles = {};
 
   for (const line of lines) {
     const lower = line.toLowerCase();

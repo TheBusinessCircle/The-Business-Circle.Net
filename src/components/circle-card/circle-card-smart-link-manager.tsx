@@ -227,14 +227,14 @@ export function CircleCardSmartLinkCreateForm({
 
   async function saveNewLink(formData: FormData) {
     setSaving(true);
-    setNotice("Adding link...");
+    setNotice("Saving...");
     setError("");
 
     const result = await upsertCircleCardLinkInlineAction(formData);
 
     if (result.ok && result.link) {
       const createdLink = result.link;
-      setNotice(result.notice);
+      setNotice("Saved");
       formRef.current?.reset();
       setFormKey((current) => current + 1);
       setNextSortOrder((current) => Math.max(current + 1, createdLink.sortOrder + 1));
@@ -317,7 +317,7 @@ export function CircleCardSmartLinkCreateForm({
 
           <Button type="submit" className="w-full gap-2 sm:w-auto" disabled={saving}>
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "Adding..." : "Add link"}
+            {saving ? "Saving..." : "Add link"}
           </Button>
         </form>
       </CardContent>
@@ -357,7 +357,7 @@ export function CircleCardSmartLinkManager({
 
       setLinks((current) => sortLinks([...current.filter((item) => item.id !== link.id), link]));
       setOpenLinkId(link.id);
-      showNotice("Link added.");
+      showNotice("Saved");
     }
 
     window.addEventListener(CIRCLE_CARD_LINK_CREATED_EVENT, handleCreatedLink);
@@ -399,7 +399,7 @@ export function CircleCardSmartLinkManager({
     setLinks((current) =>
       current.map((item) => (item.id === link.id ? { ...item, isActive: !item.isActive } : item))
     );
-    showNotice(link.isActive ? "Pausing link..." : "Activating link...");
+    showNotice(link.isActive ? "Pausing..." : "Activating...");
 
     const result = await toggleCircleCardLinkInlineAction({ cardId, linkId: link.id });
 
@@ -407,7 +407,7 @@ export function CircleCardSmartLinkManager({
       setLinks((current) =>
         sortLinks(current.map((item) => (item.id === result.link!.id ? result.link! : item)))
       );
-      showNotice(result.notice);
+      showNotice(result.link.isActive ? "Activated" : "Paused");
     } else if (!result.ok) {
       setLinks(previousLinks);
       showError(result.message);
@@ -420,12 +420,12 @@ export function CircleCardSmartLinkManager({
     const previousLinks = links;
     setPending(link.id, "delete", true);
     setLinks((current) => current.filter((item) => item.id !== link.id));
-    showNotice("Deleting link...");
+    showNotice("Deleting...");
 
     const result = await deleteCircleCardLinkInlineAction({ cardId, linkId: link.id });
 
     if (result.ok) {
-      showNotice(result.notice);
+      showNotice("Deleted");
     } else {
       setLinks(previousLinks);
       showError(result.message);
@@ -438,7 +438,7 @@ export function CircleCardSmartLinkManager({
     const previousLinks = links;
     setPending(link.id, direction, true);
     setLinks((current) => reorderLinks(current, link.id, direction));
-    showNotice(direction === "up" ? "Moving link up..." : "Moving link down...");
+    showNotice(direction === "up" ? "Moving up..." : "Moving down...");
 
     const result = await moveCircleCardLinkInlineAction({ cardId, linkId: link.id, direction });
 
@@ -462,7 +462,7 @@ export function CircleCardSmartLinkManager({
     setLinks((current) =>
       sortLinks(current.map((item) => (item.id === link.id ? optimisticLink : item)))
     );
-    showNotice("Saving link...");
+    showNotice("Saving...");
 
     const result = await upsertCircleCardLinkInlineAction(formData);
 
@@ -470,7 +470,7 @@ export function CircleCardSmartLinkManager({
       setLinks((current) =>
         sortLinks(current.map((item) => (item.id === result.link!.id ? result.link! : item)))
       );
-      showNotice(result.notice);
+      showNotice("Saved");
     } else if (!result.ok) {
       setLinks(previousLinks);
       showError(result.message);

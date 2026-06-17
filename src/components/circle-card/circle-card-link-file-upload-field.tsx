@@ -78,7 +78,7 @@ export function CircleCardLinkFileUploadField({
     }
 
     setUploading(true);
-    setNotice(null);
+    setNotice("Uploading...");
 
     try {
       const payload = new FormData();
@@ -92,7 +92,7 @@ export function CircleCardLinkFileUploadField({
       const data = (await response.json().catch(() => ({}))) as UploadResponse;
 
       if (!response.ok || !data.fileUrl) {
-        setNotice(data.error ?? "Unable to upload file.");
+        setNotice(data.error ? `Failed. ${data.error}` : "Failed. Unable to upload file.");
         return;
       }
 
@@ -105,13 +105,13 @@ export function CircleCardLinkFileUploadField({
         fileMimeType: data.fileMimeType ?? selectedFile.type
       });
       setSelectedFile(null);
-      setNotice("File uploaded. Save the link below.");
+      setNotice("Uploaded. Save the link below.");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     } catch {
-      setNotice("Unable to upload file.");
+      setNotice("Failed. Unable to upload file.");
     } finally {
       setUploading(false);
     }
@@ -127,7 +127,7 @@ export function CircleCardLinkFileUploadField({
       fileMimeType: ""
     });
     setSelectedFile(null);
-    setNotice(null);
+    setNotice("Cleared. Save to keep this change.");
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -192,7 +192,16 @@ export function CircleCardLinkFileUploadField({
         </p>
       ) : null}
       {notice ? (
-        <p className={cn("text-xs", notice.startsWith("File uploaded") ? "text-gold" : "text-muted")}>
+        <p
+          className={cn(
+            "text-xs",
+            notice.startsWith("Uploaded") || notice.startsWith("Cleared")
+              ? "text-gold"
+              : notice.startsWith("Failed")
+                ? "text-destructive"
+                : "text-muted"
+          )}
+        >
           {notice}
         </p>
       ) : null}

@@ -40,6 +40,7 @@ import {
   buildCircleCardThemeStyle,
   resolveCircleCardTheme
 } from "@/lib/circle-card/theme";
+import type { CircleCardSocialPlatform } from "@/lib/circle-card/schema";
 import { cn } from "@/lib/utils";
 import type { PublicCircleCard } from "@/server/circle-card";
 import type { LucideIcon } from "lucide-react";
@@ -67,12 +68,14 @@ import {
   MessageCircle,
   Music2,
   Phone,
+  Podcast,
   Send,
   ShoppingBag,
   ShieldCheck,
   Sparkles,
   Star,
   Trash2,
+  Twitch,
   UserCheck,
   UserPlus,
   UserRound,
@@ -115,7 +118,7 @@ type PublicCircleCardProfileProps = {
 };
 
 type SocialPlatformConfig = {
-  key: keyof PublicCircleCard["socialLinks"];
+  key: CircleCardSocialPlatform;
   label: string;
   icon: LucideIcon;
   handlePrefix?: boolean;
@@ -155,10 +158,12 @@ const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
   { key: "linkedin", label: "LinkedIn", icon: Linkedin },
   { key: "x", label: "X", icon: AtSign, handlePrefix: true },
   { key: "facebook", label: "Facebook", icon: Facebook },
-  { key: "discord", label: "Discord", icon: MessageCircle }
+  { key: "discord", label: "Discord", icon: MessageCircle },
+  { key: "website", label: "Website", icon: Globe2 },
+  { key: "twitch", label: "Twitch", icon: Twitch, handlePrefix: true },
+  { key: "podcast", label: "Podcast", icon: Podcast },
+  { key: "other", label: "Other", icon: LinkIcon }
 ] as const;
-
-const SOCIAL_CONTACT_KEYS = new Set<string>(SOCIAL_CONTACT_PLATFORMS.map((platform) => platform.key));
 
 const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
 
@@ -584,6 +589,7 @@ type ContactActionProps = {
 
 type ContactRow = ContactActionProps & {
   key: string;
+  isSocial?: boolean;
 };
 
 function ContactAction({
@@ -1120,26 +1126,30 @@ export function PublicCircleCardProfile({
     });
   }
 
-  for (const platform of SOCIAL_CONTACT_PLATFORMS) {
-    const href = card.socialLinks[platform.key];
+  for (const socialLink of card.socialLinks.links.filter((item) => item.isActive)) {
+    const platform =
+      SOCIAL_CONTACT_PLATFORMS.find((item) => item.key === socialLink.platform) ??
+      SOCIAL_CONTACT_PLATFORMS.find((item) => item.key === "other");
+    const href = socialLink.url;
 
-    if (!href) {
+    if (!platform || !href) {
       continue;
     }
 
     const Icon = platform.icon;
     contactRows.push({
-      key: platform.key,
+      key: `social:${socialLink.id}`,
+      isSocial: true,
       icon: <Icon size={18} />,
       label: platform.label,
-      value: socialDisplayValue(platform, href),
+      value: socialLink.label || socialDisplayValue(platform, href),
       href,
       anchorProps: getExternalLinkProps(href)
     });
   }
 
-  const socialContactRows = contactRows.filter((row) => SOCIAL_CONTACT_KEYS.has(row.key));
-  const directContactRows = contactRows.filter((row) => !SOCIAL_CONTACT_KEYS.has(row.key));
+  const socialContactRows = contactRows.filter((row) => row.isSocial);
+  const directContactRows = contactRows.filter((row) => !row.isSocial);
 
   function renderWalletAction({ mobileBar = false }: { mobileBar?: boolean } = {}) {
     const iconSize = mobileBar ? 15 : 16;
@@ -1301,6 +1311,33 @@ export function PublicCircleCardProfile({
                 </Button>
               </form>
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (savedContact) {
+      return (
+        <div className="mt-4 rounded-2xl border border-gold/24 bg-gold/10 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-gold">
+                <UserCheck size={16} />
+                Already in your Circle
+              </p>
+              <p className="mt-1 text-sm text-gold/80">
+                Connected in your Circle Wallet.
+              </p>
+            </div>
+            <Link
+              href={`/dashboard/circle-card/wallet?contactId=${encodeURIComponent(savedContact.id)}`}
+              className="shrink-0"
+            >
+              <Button type="button" variant="outline" className="w-full gap-2 sm:w-auto">
+                <WalletCards size={15} />
+                Open in Wallet
+              </Button>
+            </Link>
           </div>
         </div>
       );
@@ -1840,33 +1877,6 @@ export function PublicCircleCardProfile({
               </div>
             ) : null}
 
-            {!viewerIsOwner ? (
-              <section className="rounded-[1.5rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(8,20,28,0.78),rgba(4,10,24,0.92))] p-4 shadow-inner-surface sm:p-5">
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] sm:items-center">
-                  <div className="min-w-0">
-                    <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <WalletCards size={16} className="text-gold" />
-                      Circle Wallet
-                    </p>
-                    <p className="mt-1 text-sm leading-relaxed text-muted">
-                      Save this creator privately and keep the relationship layer close.
-                    </p>
-                  </div>
-                  <div className="min-w-0">{renderWalletAction()}</div>
-                </div>
-                {savedContact ? (
-                  <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm text-gold">
-                    <CheckCircle2 size={16} />
-                    Saved in your Circle Wallet
-                    {savedContact.favourite ? (
-                      <span className="text-xs text-gold/80">Favourite</span>
-                    ) : null}
-                  </div>
-                ) : null}
-                {renderConnectionAction()}
-              </section>
-            ) : null}
-
             {creatorLinks.length ? (
               <section
                 aria-labelledby="creator-links-title"
@@ -1894,13 +1904,6 @@ export function PublicCircleCardProfile({
                     />
                   ))}
                 </div>
-              </section>
-            ) : null}
-
-            {card.about ? (
-              <section className="rounded-[1.5rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6">
-                <h2 className="text-sm font-semibold text-foreground">About</h2>
-                <CircleCardAboutExpander text={card.about} className="mt-3" />
               </section>
             ) : null}
 
@@ -1953,6 +1956,40 @@ export function PublicCircleCardProfile({
                 />
               </section>
             </div>
+
+            {!viewerIsOwner ? (
+              <section className="rounded-[1.5rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(8,20,28,0.78),rgba(4,10,24,0.92))] p-4 shadow-inner-surface sm:p-5">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <WalletCards size={16} className="text-gold" />
+                      Circle Wallet
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted">
+                      Save this creator privately and keep the relationship layer close.
+                    </p>
+                  </div>
+                  <div className="min-w-0">{renderWalletAction()}</div>
+                </div>
+                {savedContact ? (
+                  <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm text-gold">
+                    <CheckCircle2 size={16} />
+                    Saved in your Circle Wallet
+                    {savedContact.favourite ? (
+                      <span className="text-xs text-gold/80">Favourite</span>
+                    ) : null}
+                  </div>
+                ) : null}
+                {renderConnectionAction()}
+              </section>
+            ) : null}
+
+            {card.about ? (
+              <section className="rounded-[1.5rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6">
+                <h2 className="text-sm font-semibold text-foreground">About</h2>
+                <CircleCardAboutExpander text={card.about} className="mt-3" />
+              </section>
+            ) : null}
 
             <section
               aria-label="Circle Card trust"

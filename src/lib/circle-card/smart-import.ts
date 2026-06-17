@@ -1,4 +1,7 @@
-import type { CircleCardLinkType, CircleCardSocialLinks } from "@/lib/circle-card/schema";
+import type {
+  CircleCardLinkType,
+  CircleCardSocialPlatform
+} from "@/lib/circle-card/schema";
 
 export const CIRCLE_CARD_SMART_IMPORT_SOCIAL_PLATFORMS = [
   "linkedin",
@@ -8,7 +11,7 @@ export const CIRCLE_CARD_SMART_IMPORT_SOCIAL_PLATFORMS = [
   "x",
   "youtube",
   "discord"
-] as const satisfies readonly (keyof CircleCardSocialLinks)[];
+] as const satisfies readonly CircleCardSocialPlatform[];
 
 export type CircleCardSmartImportSocialPlatform =
   (typeof CIRCLE_CARD_SMART_IMPORT_SOCIAL_PLATFORMS)[number];

@@ -412,7 +412,7 @@ export function CircleCardSmartLinkFields({
             previewAlt="Smart link image preview"
             helperText="Optional. Upload a JPG, PNG or WebP thumbnail for Creator profile visual cards."
             saveReminder="Save this smart link to keep the thumbnail."
-            uploadSuccessMessage="Image uploaded. Save this smart link to keep the thumbnail."
+            uploadSuccessMessage="Uploaded. Save this smart link to keep the thumbnail."
             previewClassName="rounded-xl"
             showAdjustments={false}
           />

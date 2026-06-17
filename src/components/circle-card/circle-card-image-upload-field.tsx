@@ -105,8 +105,8 @@ function uploadFailedNotice(error?: string) {
   const detail = error?.trim();
 
   return detail
-    ? `Upload failed. ${detail} Your existing image has not changed.`
-    : "Upload failed. Your existing image has not changed.";
+    ? `Failed. ${detail} Your existing image has not changed.`
+    : "Failed. Your existing image has not changed.";
 }
 
 export function CircleCardImageUploadField({
@@ -130,7 +130,7 @@ export function CircleCardImageUploadField({
   previewAlt,
   helperText,
   saveReminder = "After uploading or adjusting images, save your Circle Card below.",
-  uploadSuccessMessage = "Image uploaded. Save your Circle Card below.",
+  uploadSuccessMessage = "Uploaded. Save your Circle Card below.",
   className,
   previewClassName,
   fallbackSrc,
@@ -257,7 +257,7 @@ export function CircleCardImageUploadField({
     }
 
     setUploading(true);
-    setNotice(null);
+    setNotice({ tone: "info", message: "Uploading..." });
     setLastUploadedUrl(null);
 
     try {
@@ -301,6 +301,7 @@ export function CircleCardImageUploadField({
     setLastUploadedUrl(null);
     commitAdjustments(DEFAULT_ADJUSTMENTS);
     setAdjustOpen(false);
+    setNotice({ tone: "success", message: "Cleared. Save to keep this change." });
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";

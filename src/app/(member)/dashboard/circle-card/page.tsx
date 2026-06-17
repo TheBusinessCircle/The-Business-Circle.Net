@@ -82,6 +82,7 @@ import {
   CircleCardSectionRouter,
   CircleCardShareAssetsPanel,
   CircleCardShareButton,
+  CircleCardSocialLinkEditor,
   CircleCardSmartProfileImportPanel,
   CircleCardSubmitButton,
   CircleCardSmartLinkCreateForm,
@@ -145,6 +146,8 @@ import {
   type CircleCardLinkActionMode,
   type CircleCardLinkType,
   type CircleCardLinkVisibility,
+  type CircleCardSocialLink,
+  type CircleCardSocialPlatform,
   CIRCLE_WALLET_CATEGORY_OPTIONS,
   CIRCLE_WALLET_MET_AT_OPTIONS,
   readCircleCardSocialLinks,
@@ -974,6 +977,37 @@ function CustomLinkIcon({ icon, type }: { icon: string | null | undefined; type?
     default:
       return <LinkIcon size={16} />;
   }
+}
+
+function mergeInitialCircleCardSocialLinks(
+  savedLinks: CircleCardSocialLink[],
+  fallbackLinks: Array<{ platform: CircleCardSocialPlatform; url?: string | null }>
+) {
+  const links = [...savedLinks].sort((a, b) => a.sortOrder - b.sortOrder);
+  const platformsWithSavedLinks = new Set(links.map((link) => link.platform));
+
+  for (const fallback of fallbackLinks) {
+    const url = fallback.url?.trim();
+
+    if (!url || platformsWithSavedLinks.has(fallback.platform)) {
+      continue;
+    }
+
+    links.push({
+      id: `fallback-${fallback.platform}`,
+      platform: fallback.platform,
+      label: null,
+      url,
+      isActive: true,
+      sortOrder: links.length
+    });
+    platformsWithSavedLinks.add(fallback.platform);
+  }
+
+  return links.map((link, index) => ({
+    ...link,
+    sortOrder: index
+  }));
 }
 
 function circleCardActivityIcon(type: string) {
@@ -1999,6 +2033,24 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const freeActiveCustomLinkLimitReached =
     isCircleCardFree && activeCustomLinkCount >= FREE_ACTIVE_CUSTOM_LINK_LIMIT;
   const socialLinks = readCircleCardSocialLinks(card?.socialLinks ?? null);
+  const socialLinkItems = mergeInitialCircleCardSocialLinks(socialLinks.links, [
+    { platform: "linkedin", url: member?.profile?.linkedin },
+    { platform: "instagram", url: member?.profile?.instagram },
+    { platform: "tiktok", url: member?.profile?.tiktok },
+    { platform: "facebook", url: member?.profile?.facebook },
+    { platform: "youtube", url: member?.profile?.youtube }
+  ]);
+  const activeSocialLinkCount = socialLinkItems.filter((link) => link.isActive && link.url.trim()).length;
+  const activeSocialLinkMap = socialLinkItems.reduce<Record<string, string | undefined>>(
+    (map, link) => {
+      if (link.isActive && link.url.trim() && !map[link.platform]) {
+        map[link.platform] = link.url;
+      }
+
+      return map;
+    },
+    {}
+  );
   const publicUrl = card ? absoluteUrl(`/card/${card.slug}`) : null;
   const qrUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "qr") : null;
   const nfcUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "nfc") : null;
@@ -4695,69 +4747,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <CircleCardDashboardSection
                 id="card-social-profiles"
                 title="Social profiles"
-                summary={`${Object.values(socialLinks).filter(Boolean).length} social profile${Object.values(socialLinks).filter(Boolean).length === 1 ? "" : "s"} connected`}
+                summary={`${activeSocialLinkCount} active social link${activeSocialLinkCount === 1 ? "" : "s"} connected`}
               >
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="linkedinUrl">LinkedIn</Label>
-                    <Input
-                      id="linkedinUrl"
-                      name="linkedinUrl"
-                      type="url"
-                      defaultValue={socialLinks.linkedin ?? member?.profile?.linkedin ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="instagramUrl">Instagram</Label>
-                    <Input
-                      id="instagramUrl"
-                      name="instagramUrl"
-                      type="url"
-                      defaultValue={socialLinks.instagram ?? member?.profile?.instagram ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tiktokUrl">TikTok</Label>
-                    <Input
-                      id="tiktokUrl"
-                      name="tiktokUrl"
-                      type="url"
-                      defaultValue={socialLinks.tiktok ?? member?.profile?.tiktok ?? ""}
-                      placeholder="https://www.tiktok.com/@..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="facebookUrl">Facebook</Label>
-                    <Input
-                      id="facebookUrl"
-                      name="facebookUrl"
-                      type="url"
-                      defaultValue={socialLinks.facebook ?? member?.profile?.facebook ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="xUrl">X</Label>
-                    <Input id="xUrl" name="xUrl" type="url" defaultValue={socialLinks.x ?? ""} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="youtubeUrl">YouTube</Label>
-                    <Input
-                      id="youtubeUrl"
-                      name="youtubeUrl"
-                      type="url"
-                      defaultValue={socialLinks.youtube ?? member?.profile?.youtube ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discordUrl">Discord</Label>
-                    <Input
-                      id="discordUrl"
-                      name="discordUrl"
-                      defaultValue={socialLinks.discord ?? ""}
-                      placeholder="https://discord.gg/... or @username"
-                    />
-                  </div>
-                </div>
+                <CircleCardSocialLinkEditor cardId={card?.id} initialLinks={socialLinkItems} />
               </CircleCardDashboardSection>
 
               <label
@@ -4910,7 +4902,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             existingTagline={card.tagline}
             existingProfileImageUrl={card.profileImageUrl}
             existingWebsiteUrl={card.websiteUrl}
-            existingSocialLinks={socialLinks}
+            existingSocialLinks={activeSocialLinkMap}
             customLinkLimitLabel={customLinkLimitLabel}
           />
         </CircleCardDashboardSection>
@@ -6145,13 +6137,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             </p>
                           ) : null}
                         </div>
-                        {Object.entries(selectedWalletContact.socialLinks).length ? (
+                        {Object.entries(selectedWalletContact.socialLinks).filter(
+                          (entry): entry is [string, string] => typeof entry[1] === "string"
+                        ).length ? (
                           <div className="mt-3 flex flex-wrap gap-2">
-                            {Object.entries(selectedWalletContact.socialLinks).map(([key, value]) => (
-                              <Badge key={key} variant="outline" className="border-gold/18 text-gold">
-                                {key}: {value}
-                              </Badge>
-                            ))}
+                            {Object.entries(selectedWalletContact.socialLinks)
+                              .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+                              .map(([key, value]) => (
+                                <Badge key={key} variant="outline" className="border-gold/18 text-gold">
+                                  {key}: {value}
+                                </Badge>
+                              ))}
                           </div>
                         ) : null}
                       </div>
@@ -6983,13 +6979,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     <input type="hidden" name="email" value={card.email ?? ""} />
                     <input type="hidden" name="phone" value={card.phone ?? ""} />
                     <input type="hidden" name="location" value={card.location ?? ""} />
-                    <input type="hidden" name="linkedinUrl" value={socialLinks.linkedin ?? ""} />
-                    <input type="hidden" name="tiktokUrl" value={socialLinks.tiktok ?? ""} />
-                    <input type="hidden" name="instagramUrl" value={socialLinks.instagram ?? ""} />
-                    <input type="hidden" name="xUrl" value={socialLinks.x ?? ""} />
-                    <input type="hidden" name="facebookUrl" value={socialLinks.facebook ?? ""} />
-                    <input type="hidden" name="youtubeUrl" value={socialLinks.youtube ?? ""} />
-                    <input type="hidden" name="discordUrl" value={socialLinks.discord ?? ""} />
+                    <input type="hidden" name="socialLinksJson" value={JSON.stringify(socialLinkItems)} />
 
                     <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_220px]">
                       <div className="space-y-2">
