@@ -611,7 +611,9 @@ function ContactAction({
       <span className="flex min-w-0 items-center gap-3">
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gold/18 bg-gold/10 text-gold">
           {thumbnailUrl ? (
-            <CircleCardFramedImage src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
+            <CircleCardFramedImage src={thumbnailUrl} alt="" className="h-full w-full object-cover">
+              {icon}
+            </CircleCardFramedImage>
           ) : (
             icon
           )}

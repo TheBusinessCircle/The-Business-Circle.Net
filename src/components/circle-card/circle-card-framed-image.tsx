@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode, type SyntheticEvent } from "react";
+import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from "react";
 import { cn } from "@/lib/utils";
 
 type CircleCardFramedImageProps = {
@@ -66,14 +66,17 @@ export function CircleCardFramedImage({
   imageClassName,
   children
 }: CircleCardFramedImageProps) {
+  const imageRef = useRef<HTMLImageElement>(null);
   const preferredSrc = resolveSrc(src, fallbackSrc);
   const [failedPreferredSrc, setFailedPreferredSrc] = useState<string | null>(null);
   const [failedFallbackSrc, setFailedFallbackSrc] = useState<string | null>(null);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const preferredFailed = Boolean(preferredSrc && failedPreferredSrc === preferredSrc);
   const fallbackAvailable = Boolean(
     fallbackSrc && fallbackSrc !== preferredSrc && failedFallbackSrc !== fallbackSrc
   );
   const displaySrc = preferredFailed ? (fallbackAvailable ? fallbackSrc ?? "" : "") : preferredSrc;
+  const imageLoaded = Boolean(displaySrc && loadedSrc === displaySrc);
   const usingFallback = Boolean(fallbackSrc && displaySrc === fallbackSrc && preferredFailed);
   const x = normalizePosition(usingFallback ? fallbackPositionX : positionX);
   const y = normalizePosition(usingFallback ? fallbackPositionY : positionY);
@@ -87,7 +90,29 @@ export function CircleCardFramedImage({
     if (failedFallbackSrc && failedFallbackSrc !== fallbackSrc) {
       setFailedFallbackSrc(null);
     }
-  }, [failedFallbackSrc, failedPreferredSrc, fallbackSrc, preferredSrc]);
+
+    if (loadedSrc && loadedSrc !== displaySrc) {
+      setLoadedSrc(null);
+    }
+
+    const image = imageRef.current;
+
+    if (displaySrc && image?.complete && image.naturalWidth > 0) {
+      setLoadedSrc(displaySrc);
+    }
+  }, [displaySrc, failedFallbackSrc, failedPreferredSrc, fallbackSrc, loadedSrc, preferredSrc]);
+
+  function handleImageLoad(event: SyntheticEvent<HTMLImageElement>) {
+    const loaded =
+      event.currentTarget.currentSrc ||
+      event.currentTarget.getAttribute("src") ||
+      event.currentTarget.src ||
+      displaySrc;
+
+    if (displaySrc && srcMatchesDisplaySrc(loaded, displaySrc)) {
+      setLoadedSrc(displaySrc);
+    }
+  }
 
   function handleImageError(event: SyntheticEvent<HTMLImageElement>) {
     const failedSrc =
@@ -114,14 +139,21 @@ export function CircleCardFramedImage({
 
   return (
     <img
+      ref={imageRef}
       src={displaySrc}
       alt={alt}
-      className={cn("h-full w-full object-cover", className, imageClassName)}
+      className={cn(
+        "h-full w-full object-cover transition-opacity duration-200",
+        imageLoaded ? "opacity-100" : "opacity-0",
+        className,
+        imageClassName
+      )}
       style={{
         objectPosition: `${x}% ${y}%`,
         transform: `scale(${zoom})`,
         transformOrigin: `${x}% ${y}%`
       }}
+      onLoad={handleImageLoad}
       onError={handleImageError}
     />
   );

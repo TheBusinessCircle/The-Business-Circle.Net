@@ -16,6 +16,7 @@ import {
 } from "@/lib/circle-card/schema";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
+import { resolvePublicUploadImageUrl } from "@/server/circle-card/public-upload-image-url";
 
 export type PublicCircleCardLink = {
   id: string;
@@ -311,6 +312,29 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     return null;
   }
 
+  const customLinks = await Promise.all(
+    card.customLinks.map(async (link) => {
+      const { accessCodeHash, ...publicLink } = link;
+      const visibility = (link.visibility || "PUBLIC") as CircleCardLinkVisibility;
+      const isPrivate = visibility === "PRIVATE_CODE";
+      const imageUrl = isPrivate
+        ? null
+        : await resolvePublicUploadImageUrl(link.imageUrl, SITE_CONFIG.url);
+
+      return {
+        ...publicLink,
+        type: (link.type || "GENERAL") as CircleCardLinkType,
+        visibility,
+        url: isPrivate ? null : link.url,
+        imageUrl,
+        fileUrl: isPrivate ? null : link.fileUrl,
+        accessCodeHint: isPrivate ? link.accessCodeHint : null,
+        hasAccessCode: Boolean(accessCodeHash),
+        icon: link.icon as CircleCardCustomLinkIcon | null
+      };
+    })
+  );
+
   return {
     ...card,
     user: {
@@ -325,23 +349,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     recommendations: card.recommendationsReceived,
     successfulReferralCount: card._count.referralsReceived,
-    customLinks: card.customLinks.map((link) => {
-      const { accessCodeHash, ...publicLink } = link;
-      const visibility = (link.visibility || "PUBLIC") as CircleCardLinkVisibility;
-      const isPrivate = visibility === "PRIVATE_CODE";
-
-      return {
-        ...publicLink,
-        type: (link.type || "GENERAL") as CircleCardLinkType,
-        visibility,
-        url: isPrivate ? null : link.url,
-        imageUrl: isPrivate ? null : link.imageUrl,
-        fileUrl: isPrivate ? null : link.fileUrl,
-        accessCodeHint: isPrivate ? link.accessCodeHint : null,
-        hasAccessCode: Boolean(accessCodeHash),
-        icon: link.icon as CircleCardCustomLinkIcon | null
-      };
-    }),
+    customLinks,
     isDemo: false
   };
 }
