@@ -19,6 +19,10 @@ import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import {
+  getAdminCircleCardPlanLabel,
+  getAdminBcnMembershipLabel
+} from "@/lib/admin/member-access";
 import { buildMemberProfilePath } from "@/lib/member-paths";
 import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
@@ -75,6 +79,56 @@ function formatBillingInterval(value: "MONTH" | "YEAR" | null) {
   }
 
   return value === "YEAR" ? "Annual" : "Monthly";
+}
+
+function renderCircleCardPlan(member: {
+  circleCardPlan: "FREE" | "INCLUDED" | "ADMIN";
+}) {
+  const variant = member.circleCardPlan === "FREE" ? "muted" : "outline";
+
+  return (
+    <Badge variant={variant} className="normal-case tracking-normal">
+      {getAdminCircleCardPlanLabel(member.circleCardPlan)}
+    </Badge>
+  );
+}
+
+function renderBcnMembership(member: {
+  bcnMembershipTier: MembershipTier | null;
+  hasBcnMembershipAccess: boolean;
+  foundingTier: MembershipTier | null;
+}) {
+  if (!member.bcnMembershipTier) {
+    return (
+      <Badge variant="outline" className="text-muted normal-case tracking-normal">
+        {getAdminBcnMembershipLabel(null)}
+      </Badge>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <MembershipTierBadge tier={member.bcnMembershipTier} />
+      <FoundingBadge tier={member.foundingTier} />
+      {member.hasBcnMembershipAccess ? null : (
+        <Badge variant="outline" className="text-muted normal-case tracking-normal">
+          No active access
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+function renderAdminStatus(member: { isAdmin: boolean }) {
+  return member.isAdmin ? (
+    <Badge variant="outline" className="border-gold/35 bg-gold/10 text-gold normal-case tracking-normal">
+      Admin
+    </Badge>
+  ) : (
+    <Badge variant="outline" className="text-muted normal-case tracking-normal">
+      Not admin
+    </Badge>
+  );
 }
 
 function renderVerificationStatus(member: {
@@ -324,7 +378,7 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
             <Filter size={16} />
             Search & Filters
           </CardTitle>
-          <CardDescription>Filter members by role, tier, subscription state, and suspension status.</CardDescription>
+          <CardDescription>Filter accounts by role, active BCN membership, Stripe state, and suspension status.</CardDescription>
         </CardHeader>
         <CardContent>
           <form method="GET" className="space-y-4">
@@ -356,9 +410,9 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tier">Membership Tier</Label>
+                <Label htmlFor="tier">BCN Membership</Label>
                 <Select id="tier" name="tier" defaultValue={membershipTier}>
-                  <option value="">Any tier</option>
+                  <option value="">Any BCN membership</option>
                   {TIER_OPTIONS.map((option) => (
                     <option key={option} value={option}>
                       {formatEnumLabel(option)}
@@ -503,7 +557,7 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
         <CardHeader>
           <CardTitle>Members</CardTitle>
           <CardDescription>
-            Use row actions to open profile context, edit basics, update tier access, and control suspension.
+            Circle Card access, BCN membership, Stripe status, and admin permissions are shown separately.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -513,9 +567,10 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                 <tr className="border-b border-border bg-background/25 text-xs uppercase tracking-[0.06em] text-muted">
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Email</th>
-                  <th className="px-3 py-2 font-medium">Role</th>
-                  <th className="px-3 py-2 font-medium">Membership</th>
-                  <th className="px-3 py-2 font-medium">Subscription</th>
+                  <th className="px-3 py-2 font-medium">Circle Card Plan</th>
+                  <th className="px-3 py-2 font-medium">BCN Membership</th>
+                  <th className="px-3 py-2 font-medium">Stripe Subscription</th>
+                  <th className="px-3 py-2 font-medium">Admin Status</th>
                   <th className="px-3 py-2 font-medium">Verification</th>
                   <th className="px-3 py-2 font-medium">Created</th>
                   <th className="px-3 py-2 font-medium">Suspended</th>
@@ -534,17 +589,8 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                           <p className="mt-1 text-xs text-muted">{member.companyName || "No business profile yet"}</p>
                         </td>
                         <td className="px-3 py-3 text-muted">{member.email}</td>
-                        <td className="px-3 py-3">
-                          <Badge variant="outline" className="text-muted normal-case tracking-normal">
-                            {formatEnumLabel(member.role)}
-                          </Badge>
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <MembershipTierBadge tier={member.membershipTier} />
-                            <FoundingBadge tier={member.foundingTier} />
-                          </div>
-                        </td>
+                        <td className="px-3 py-3">{renderCircleCardPlan(member)}</td>
+                        <td className="px-3 py-3">{renderBcnMembership(member)}</td>
                         <td className="px-3 py-3">
                           <Badge variant="outline" className="text-muted normal-case tracking-normal">
                             {formatEnumLabel(member.subscriptionStatus)}
@@ -560,6 +606,7 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                             </p>
                           ) : null}
                         </td>
+                        <td className="px-3 py-3">{renderAdminStatus(member)}</td>
                         <td className="px-3 py-3">{renderVerificationStatus(member)}</td>
                         <td className="px-3 py-3 text-muted">{formatDate(member.createdAt)}</td>
                         <td className="px-3 py-3">
@@ -650,7 +697,7 @@ export default async function AdminMembersPage({ searchParams }: PageProps) {
                   })
                 ) : (
                   <tr>
-                      <td colSpan={9} className="px-3 py-10 text-center text-muted">
+                      <td colSpan={10} className="px-3 py-10 text-center text-muted">
                         No members match your current search and filter criteria.
                       </td>
                   </tr>

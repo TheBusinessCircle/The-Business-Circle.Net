@@ -5,6 +5,11 @@ import {
 } from "@/config/membership";
 import { CACHE_TAGS } from "@/lib/cache";
 import { CONNECTION_WIN_TAG } from "@/lib/connection-wins";
+import {
+  getAdminBcnMembershipLabel,
+  getAdminCircleCardPlanLabel,
+  resolveAdminMemberAccess
+} from "@/lib/admin/member-access";
 import { isCloudinaryConfigured } from "@/lib/media/cloudinary";
 import { buildCommunityPostPath } from "@/lib/community-paths";
 import { db } from "@/lib/db";
@@ -430,8 +435,15 @@ async function loadAdminLiveSnapshot(): Promise<AdminLiveSnapshot> {
         id: true,
         name: true,
         email: true,
+        role: true,
         membershipTier: true,
-        createdAt: true
+        createdAt: true,
+        subscription: {
+          select: {
+            status: true,
+            tier: true
+          }
+        }
       }
     }),
     db.communityPost.findMany({
@@ -573,14 +585,24 @@ async function loadAdminLiveSnapshot(): Promise<AdminLiveSnapshot> {
   ]);
 
   const activity: AdminLiveActivityItem[] = sortActivity([
-    ...recentMembers.map((member) => ({
-      id: `member-${member.id}-${member.createdAt.toISOString()}`,
-      type: "member-signup" as const,
-      title: "New member signup",
-      detail: `${member.name || member.email} joined on ${getMembershipTierLabel(member.membershipTier)}.`,
-      href: `/admin/members/${member.id}`,
-      createdAt: member.createdAt
-    })),
+    ...recentMembers.map((member) => {
+      const subscriptionStatus = member.subscription?.status ?? "NONE";
+      const access = resolveAdminMemberAccess({
+        role: member.role,
+        membershipTier: member.membershipTier,
+        subscriptionStatus,
+        subscriptionTier: member.subscription?.tier ?? null
+      });
+
+      return {
+        id: `member-${member.id}-${member.createdAt.toISOString()}`,
+        type: "member-signup" as const,
+        title: "New account signup",
+        detail: `${member.name || member.email}: Circle Card ${getAdminCircleCardPlanLabel(access.circleCardPlan)}, BCN Membership ${getAdminBcnMembershipLabel(access.bcnMembershipTier)}.`,
+        href: `/admin/members/${member.id}`,
+        createdAt: member.createdAt
+      };
+    }),
     ...recentPosts.map((post) => ({
       id: `post-${post.id}`,
       type: (post.tags.includes(CONNECTION_WIN_TAG)

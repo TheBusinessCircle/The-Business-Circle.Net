@@ -24,11 +24,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { TERMS_LABEL } from "@/config/legal";
+import {
+  getAdminBcnMembershipLabel,
+  getAdminCircleCardPlanLabel
+} from "@/lib/admin/member-access";
 import { buildMemberProfilePath } from "@/lib/member-paths";
 import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
 import { formatDate, toTitleCase } from "@/lib/utils";
-import { getMembershipTierLabel } from "@/config/membership";
 import { getAdminMemberDetails } from "@/server/admin";
 import { listBadgeCatalog } from "@/server/community-recognition";
 
@@ -65,6 +68,24 @@ function formatBillingInterval(value: "MONTH" | "YEAR" | null) {
   }
 
   return value === "YEAR" ? "Annual" : "Monthly";
+}
+
+function renderBcnMembershipBadge(member: {
+  bcnMembershipTier: MembershipTier | null;
+}) {
+  if (!member.bcnMembershipTier) {
+    return (
+      <Badge variant="outline" className="border-border text-muted">
+        BCN Membership: {getAdminBcnMembershipLabel(null)}
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="outline" className="border-border text-muted">
+      BCN Membership: {getAdminBcnMembershipLabel(member.bcnMembershipTier)}
+    </Badge>
+  );
 }
 
 function renderVerificationSummary(member: {
@@ -231,18 +252,19 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Badge variant="outline" className="border-border text-muted">
-            Role: {formatEnumLabel(member.role)}
+            Circle Card: {getAdminCircleCardPlanLabel(member.circleCardPlan)}
           </Badge>
+          {renderBcnMembershipBadge(member)}
           <Badge
             variant="outline"
             className="border-border text-muted"
           >
-            Tier: {getMembershipTierLabel(member.membershipTier)}
+            Stripe Subscription: {formatEnumLabel(member.subscriptionStatus)}
+          </Badge>
+          <Badge variant="outline" className="border-border text-muted">
+            Admin Status: {member.isAdmin ? "Admin" : "Not admin"}
           </Badge>
           <FoundingBadge tier={member.foundingTier} />
-          <Badge variant="outline" className="border-border text-muted">
-            Subscription: {formatEnumLabel(member.subscriptionStatus)}
-          </Badge>
           {member.subscriptionBillingVariant ? (
             <Badge variant="outline" className="border-border text-muted">
               Pricing: {formatEnumLabel(member.subscriptionBillingVariant)}
@@ -333,15 +355,39 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
         <Card>
           <CardHeader>
             <CardTitle>Membership & Access</CardTitle>
-            <CardDescription>Adjust tier entitlements and account suspension.</CardDescription>
+            <CardDescription>Adjust the stored BCN tier field and account suspension. Stripe active/trialing status controls member access.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-xl border border-border p-3">
+              <p className="text-sm font-medium text-foreground">Current access summary</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Circle Card</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {getAdminCircleCardPlanLabel(member.circleCardPlan)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">BCN Membership</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {getAdminBcnMembershipLabel(member.bcnMembershipTier)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/80 bg-background/25 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Admin Status</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {member.isAdmin ? "Admin" : "Not admin"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <form action={updateMemberTierAction} className="space-y-3">
               <input type="hidden" name="memberId" value={member.id} />
               <input type="hidden" name="returnPath" value={returnPath} />
 
               <div className="space-y-2">
-                <Label htmlFor="membershipTier">Membership Tier</Label>
+                <Label htmlFor="membershipTier">Stored BCN Tier</Label>
                 <Select
                   id="membershipTier"
                   name="membershipTier"
@@ -356,7 +402,11 @@ export default async function AdminMemberDetailsPage({ params, searchParams }: P
                   <p className="text-xs text-muted">
                     Tier is automatically locked to Core for admin accounts.
                   </p>
-                ) : null}
+                ) : (
+                  <p className="text-xs text-muted">
+                    This does not grant BCN access without an active or trialing Stripe subscription.
+                  </p>
+                )}
               </div>
 
               <Button type="submit" variant="outline" disabled={tierLocked}>

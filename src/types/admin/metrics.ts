@@ -1,4 +1,11 @@
-import type { MembershipTier, ResourceStatus, ResourceTier, Role } from "@prisma/client";
+import type {
+  MembershipTier,
+  ResourceStatus,
+  ResourceTier,
+  Role,
+  SubscriptionStatus
+} from "@prisma/client";
+import type { AdminMemberCircleCardPlan } from "@/lib/admin/member-access";
 
 export interface AdminMetrics {
   totalUsers: number;
@@ -34,6 +41,11 @@ export interface AdminRecentMember {
   email: string;
   role: Role;
   membershipTier: MembershipTier;
+  circleCardPlan: AdminMemberCircleCardPlan;
+  bcnMembershipTier: MembershipTier | null;
+  hasBcnMembershipAccess: boolean;
+  isAdmin: boolean;
+  subscriptionStatus: SubscriptionStatus | "NONE";
   foundingTier: MembershipTier | null;
   suspended: boolean;
   createdAt: Date;

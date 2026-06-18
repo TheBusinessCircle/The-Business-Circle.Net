@@ -11,7 +11,7 @@ type RouteProps = {
 };
 
 export async function GET(_request: Request, { params }: RouteProps) {
-  const authResult = await requireApiUser({ allowUnentitled: true });
+  const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
   if ("response" in authResult) {
     return authResult.response;
   }

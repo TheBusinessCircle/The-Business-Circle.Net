@@ -6,6 +6,7 @@ import type {
   SubscriptionBillingVariant,
   SubscriptionStatus
 } from "@prisma/client";
+import type { AdminMemberCircleCardPlan } from "@/lib/admin/member-access";
 import type {
   CommunityRecognitionSummary,
   InviteDashboardModel
@@ -30,6 +31,10 @@ export interface AdminMemberListItem {
   email: string;
   role: Role;
   membershipTier: MembershipTier;
+  circleCardPlan: AdminMemberCircleCardPlan;
+  bcnMembershipTier: MembershipTier | null;
+  hasBcnMembershipAccess: boolean;
+  isAdmin: boolean;
   foundingTier: MembershipTier | null;
   subscriptionStatus: SubscriptionStatus | "NONE";
   subscriptionBillingInterval: BillingInterval | null;
@@ -59,6 +64,10 @@ export interface AdminMemberDetails {
   image: string | null;
   role: Role;
   membershipTier: MembershipTier;
+  circleCardPlan: AdminMemberCircleCardPlan;
+  bcnMembershipTier: MembershipTier | null;
+  hasBcnMembershipAccess: boolean;
+  isAdmin: boolean;
   foundingTier: MembershipTier | null;
   suspended: boolean;
   suspendedAt: Date | null;

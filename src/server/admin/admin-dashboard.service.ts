@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { resolveAdminMemberAccess } from "@/lib/admin/member-access";
 import type { AdminDashboardData } from "@/types";
 import { getAdminMetrics } from "@/server/admin/admin-metrics.service";
 import { getAdminCommunityGrowthSnapshot } from "@/server/community-recognition";
@@ -31,7 +32,13 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         membershipTier: true,
         foundingTier: true,
         suspended: true,
-        createdAt: true
+        createdAt: true,
+        subscription: {
+          select: {
+            status: true,
+            tier: true
+          }
+        }
       }
     }),
     db.resource.findMany({
@@ -100,7 +107,27 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
 
   return {
     metrics,
-    recentMembers,
+    recentMembers: recentMembers.map((member) => {
+      const subscriptionStatus = member.subscription?.status ?? "NONE";
+
+      return {
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        role: member.role,
+        membershipTier: member.membershipTier,
+        ...resolveAdminMemberAccess({
+          role: member.role,
+          membershipTier: member.membershipTier,
+          subscriptionStatus,
+          subscriptionTier: member.subscription?.tier ?? null
+        }),
+        subscriptionStatus,
+        foundingTier: member.foundingTier,
+        suspended: member.suspended,
+        createdAt: member.createdAt
+      };
+    }),
     recentResources,
     recentCommunityActivity,
     upcomingEventItems,

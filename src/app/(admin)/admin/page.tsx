@@ -7,6 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EmptyState } from "@/components/ui/empty-state";
 import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
+import {
+  getAdminBcnMembershipLabel,
+  getAdminCircleCardPlanLabel
+} from "@/lib/admin/member-access";
 import { createPageMetadata } from "@/lib/seo";
 import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/utils";
@@ -191,9 +195,18 @@ export default async function AdminOverviewPage() {
                   <p className="text-xs text-muted">{member.email}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Badge variant="outline" className="text-muted normal-case tracking-normal">
-                      {member.role}
+                      Circle Card: {getAdminCircleCardPlanLabel(member.circleCardPlan)}
                     </Badge>
-                    <MembershipTierBadge tier={member.membershipTier} />
+                    {member.bcnMembershipTier ? (
+                      <MembershipTierBadge tier={member.bcnMembershipTier} />
+                    ) : (
+                      <Badge variant="outline" className="text-muted normal-case tracking-normal">
+                        BCN: {getAdminBcnMembershipLabel(null)}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="text-muted normal-case tracking-normal">
+                      Admin: {member.isAdmin ? "Yes" : "No"}
+                    </Badge>
                     <FoundingBadge tier={member.foundingTier} />
                     {member.suspended ? <Badge variant="danger">Suspended</Badge> : null}
                   </div>

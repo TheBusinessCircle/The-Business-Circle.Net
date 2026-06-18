@@ -2,6 +2,10 @@ import {
   PendingRegistrationStatus,
   type Prisma
 } from "@prisma/client";
+import {
+  BCN_ENTITLED_SUBSCRIPTION_STATUSES,
+  resolveAdminMemberAccess
+} from "@/lib/admin/member-access";
 import { fromPendingRegistrationBillingInterval } from "@/lib/auth/register";
 import { db } from "@/lib/db";
 import type {
@@ -33,6 +37,7 @@ function normalizePageSize(input: number): number {
 
 function buildWhereClause(filters: AdminMembersQueryInput): Prisma.UserWhereInput {
   const where: Prisma.UserWhereInput = {};
+  const and: Prisma.UserWhereInput[] = [];
 
   const query = filters.query.trim();
   if (query.length) {
@@ -71,25 +76,42 @@ function buildWhereClause(filters: AdminMembersQueryInput): Prisma.UserWhereInpu
   }
 
   if (filters.membershipTier) {
-    where.membershipTier = filters.membershipTier;
+    and.push({
+      subscription: {
+        is: {
+          tier: filters.membershipTier,
+          status: {
+            in: BCN_ENTITLED_SUBSCRIPTION_STATUSES
+          }
+        }
+      }
+    });
   }
 
   if (filters.subscriptionStatus === "NONE") {
-    where.subscription = {
-      is: null
-    };
-  } else if (filters.subscriptionStatus !== "ANY") {
-    where.subscription = {
-      is: {
-        status: filters.subscriptionStatus
+    and.push({
+      subscription: {
+        is: null
       }
-    };
+    });
+  } else if (filters.subscriptionStatus !== "ANY") {
+    and.push({
+      subscription: {
+        is: {
+          status: filters.subscriptionStatus
+        }
+      }
+    });
   }
 
   if (filters.suspension === "ACTIVE") {
     where.suspended = false;
   } else if (filters.suspension === "SUSPENDED") {
     where.suspended = true;
+  }
+
+  if (and.length) {
+    where.AND = and;
   }
 
   return where;
@@ -123,6 +145,7 @@ export async function listAdminMembers(filters: AdminMembersQueryInput): Promise
       subscription: {
         select: {
           status: true,
+          tier: true,
           billingInterval: true,
           billingVariant: true
         }
@@ -140,23 +163,34 @@ export async function listAdminMembers(filters: AdminMembersQueryInput): Promise
   });
 
   return {
-    items: users.map((user) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      membershipTier: user.membershipTier,
-      foundingTier: user.foundingTier,
-      subscriptionStatus: user.subscription?.status ?? "NONE",
-      subscriptionBillingInterval: user.subscription?.billingInterval ?? null,
-      subscriptionBillingVariant: user.subscription?.billingVariant ?? null,
-      createdAt: user.createdAt,
-      suspended: user.suspended,
-      companyName: user.profile?.business?.companyName ?? null,
-      verificationEmailLastSentAt: user.verificationEmailLastSentAt,
-      verificationEmailSendCount: user.verificationEmailSendCount,
-      emailVerifiedAt: user.emailVerified
-    })),
+    items: users.map((user) => {
+      const subscriptionStatus = user.subscription?.status ?? "NONE";
+      const access = resolveAdminMemberAccess({
+        role: user.role,
+        membershipTier: user.membershipTier,
+        subscriptionStatus,
+        subscriptionTier: user.subscription?.tier ?? null
+      });
+
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        membershipTier: user.membershipTier,
+        ...access,
+        foundingTier: user.foundingTier,
+        subscriptionStatus,
+        subscriptionBillingInterval: user.subscription?.billingInterval ?? null,
+        subscriptionBillingVariant: user.subscription?.billingVariant ?? null,
+        createdAt: user.createdAt,
+        suspended: user.suspended,
+        companyName: user.profile?.business?.companyName ?? null,
+        verificationEmailLastSentAt: user.verificationEmailLastSentAt,
+        verificationEmailSendCount: user.verificationEmailSendCount,
+        emailVerifiedAt: user.emailVerified
+      };
+    }),
     total,
     page: normalizedPage,
     pageSize,
@@ -194,6 +228,7 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
         subscription: {
           select: {
             status: true,
+            tier: true,
             billingInterval: true,
             billingVariant: true,
             currentPeriodEnd: true,
@@ -239,6 +274,14 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
     return null;
   }
 
+  const subscriptionStatus = user.subscription?.status ?? "NONE";
+  const access = resolveAdminMemberAccess({
+    role: user.role,
+    membershipTier: user.membershipTier,
+    subscriptionStatus,
+    subscriptionTier: user.subscription?.tier ?? null
+  });
+
   return {
     id: user.id,
     name: user.name,
@@ -246,6 +289,7 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
     image: user.image,
     role: user.role,
     membershipTier: user.membershipTier,
+    ...access,
     foundingTier: user.foundingTier,
     suspended: user.suspended,
     suspendedAt: user.suspendedAt,
@@ -258,7 +302,7 @@ export async function getAdminMemberDetails(memberId: string): Promise<AdminMemb
     acceptedRulesAt: user.acceptedRulesAt,
     acceptedTermsVersion: user.acceptedTermsVersion,
     acceptedRulesVersion: user.acceptedRulesVersion,
-    subscriptionStatus: user.subscription?.status ?? "NONE",
+    subscriptionStatus,
     subscriptionBillingInterval: user.subscription?.billingInterval ?? null,
     subscriptionBillingVariant: user.subscription?.billingVariant ?? null,
     subscriptionCurrentPeriodEnd: user.subscription?.currentPeriodEnd ?? null,
