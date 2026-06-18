@@ -7,26 +7,27 @@ function readSource(path: string) {
 }
 
 describe("launch CRO placement", () => {
-  it("renders the first 7 days block on home, membership, and audit result surfaces", () => {
+  it("renders the first 7 days block on home and audit result surfaces", () => {
     const home = readSource("src/app/(public)/home/page.tsx");
-    const membership = readSource("src/app/(public)/membership/page.tsx");
     const audit = readSource("src/app/(public)/audit/founder-audit-client.tsx");
     const component = readSource("src/components/public/launch-cro-blocks.tsx");
 
     expect(component).toContain("Your first 7 days inside The Business Circle");
     expect(home).toContain("<FirstSevenDaysBlock");
-    expect(membership).toContain("<FirstSevenDaysBlock");
     expect(audit).toContain("<FirstSevenDaysBlock");
   });
 
-  it("renders the membership outcome comparison", () => {
+  it("renders the membership decision stages and tier guidance", () => {
     const membership = readSource("src/app/(public)/membership/page.tsx");
-    const component = readSource("src/components/public/launch-cro-blocks.tsx");
+    const selector = readSource("src/components/public/membership-guided-selector.tsx");
 
-    expect(membership).toContain("<TierOutcomeComparison");
-    expect(component).toContain("Best for entering the environment and building from a clearer base.");
-    expect(component).toContain("Best for stronger conversations, visibility, and momentum.");
-    expect(component).toContain("Best for highest-signal access");
+    expect(membership).toContain("WHO_ITEMS");
+    expect(membership).toContain("HOW_ITEMS");
+    expect(membership).toContain("WHEN_ITEMS");
+    expect(membership).toContain("TIER_DECISION_ITEMS");
+    expect(membership).toContain('id="choose-membership"');
+    expect(selector).toContain("Pricing Begins Here");
+    expect(selector).toContain("buildJoinConfirmationHref");
   });
 
   it("renders the FAQ and contact audit CTA", () => {

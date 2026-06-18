@@ -20,8 +20,10 @@ describe("testimonial display placement", () => {
     expect(home).not.toContain("location: TestimonialDisplayLocation.BCN_HOME");
     expect(home).not.toContain("PublicTrustProofSection");
     expect(home).not.toContain("<TestimonialSection");
-    expect(membership).toContain("PublicTrustProofSection");
-    expect(membership).toContain('source="membership"');
+    expect(membership).toContain("TestimonialSection");
+    expect(membership).toContain("TestimonialProofType.BCN_MEMBER");
+    expect(membership).toContain("TestimonialDisplayLocation.MEMBERSHIP_PAGE");
+    expect(membership).toContain("Approved proof from the buying context");
     expect(join).toContain("PublicTrustProofSection");
     expect(join).toContain('source="join"');
     expect(publicTrustProof).toContain("TestimonialSection");

@@ -10,10 +10,7 @@ import {
   CheckCircle2,
   Compass,
   Crown,
-  Shield,
-  Sparkles,
   TrendingUp,
-  Users
 } from "lucide-react";
 import type { FoundingOfferTierSnapshot } from "@/types";
 import { FAQSection } from "@/components/public/faq-section";
@@ -24,7 +21,6 @@ import {
 } from "@/components/public/launch-readiness";
 import { TierBadge } from "@/components/public/tier-badge";
 import { SectionFeatureImage } from "@/components/visual-media";
-import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import {
   formatMembershipPrice,
@@ -71,8 +67,6 @@ type MembershipGuidedSelectorProps = {
     answer: string;
   }>;
   roomsPlacement?: VisualMediaRenderablePlacement | null;
-  tierComparisonPlacement?: VisualMediaRenderablePlacement | null;
-  foundersPlacement?: VisualMediaRenderablePlacement | null;
 };
 
 type TierGuide = {
@@ -156,30 +150,6 @@ const TIER_GUIDES: TierGuide[] = [
     ],
     ctaLabel: "Enter Core",
     icon: Crown
-  }
-] as const;
-
-const FOUNDER_PERSPECTIVE_LINES = [
-  "Different stages of business need different environments.",
-  "The goal is not to push everyone into the highest tier. The goal is to help owners enter the right room and keep the environment useful.",
-  "That is what keeps the environment calmer and the ecosystem more commercially useful over time."
-] as const;
-
-const REASSURANCE_ITEMS = [
-  {
-    title: "Stage, not status",
-    description:
-      "This is not a ladder where higher automatically means better. The right room is the one that matches the current stage of the business."
-  },
-  {
-    title: "Protected by design",
-    description:
-      "A private founder-led business environment stays useful when each room keeps the right level of context, pace, and conversation quality."
-  },
-  {
-    title: "Move when it makes sense",
-    description:
-      "You can start where the fit is obvious, then move deeper only when the business genuinely needs more."
   }
 ] as const;
 
@@ -537,9 +507,7 @@ export function MembershipGuidedSelector({
   faqTitle,
   faqDescription,
   faqItems,
-  roomsPlacement,
-  tierComparisonPlacement,
-  foundersPlacement
+  roomsPlacement
 }: MembershipGuidedSelectorProps) {
   const [selectedTier, setSelectedTier] = useState<MembershipTier>(initialSelectedTier);
   const [billingInterval, setBillingInterval] =
@@ -611,19 +579,16 @@ export function MembershipGuidedSelector({
         <div className="relative grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.36fr)] xl:items-end">
           <div className="space-y-5">
             <div className="space-y-4">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Membership</p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Which</p>
               <h1 className="max-w-5xl font-display text-[clamp(2.65rem,7.6vw,5rem)] leading-[0.96] tracking-tight text-foreground">
-                Choose the environment that matches the business now.
+                Choose the membership that matches the business now.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-white/80">
-                Different businesses need different environments. This page is here to help owners
-                place themselves clearly, understand the room that fits now, and move toward join
-                with confidence.
+                The cards below turn the decision into one clear choice: the room that fits the
+                business stage, the level of context needed and the support required next.
               </p>
               <p className="max-w-3xl text-sm leading-relaxed text-silver">
-                Better placement keeps the environment useful and lets the wider ecosystem grow
-                properly. That is why the cards stay light, the depth only appears after selection,
-                and the decision path stays calm.
+                Pricing appears after selection so the comparison starts with fit, not pressure.
               </p>
             </div>
 
@@ -694,13 +659,13 @@ export function MembershipGuidedSelector({
           )}
         >
           <div className="max-w-3xl space-y-5">
-            <p className="premium-kicker">Position Selection</p>
+            <p className="premium-kicker">Pricing Begins Here</p>
             <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
-              Select the room first. Read the depth second.
+              Select the room first. Confirm price and checkout next.
             </h2>
             <p className="text-lg leading-relaxed text-white/80">
-              This is structured to reduce overload. Cards stay light and scannable. Depth appears
-              after you choose where the business fits now.
+              The tier cards stay scannable. The selected room opens the detail, founder allocation,
+              billing choice and secure join path.
             </p>
           </div>
           {roomsPlacement?.isActive && roomsPlacement.imageUrl ? (
@@ -803,131 +768,6 @@ export function MembershipGuidedSelector({
 
       <MemberPreviewLayer />
 
-      <section className="public-section">
-        <div
-          className={cn(
-            "gap-6 xl:items-center",
-            tierComparisonPlacement?.isActive && tierComparisonPlacement.imageUrl
-              ? "grid xl:grid-cols-[minmax(0,0.96fr)_minmax(320px,0.62fr)]"
-              : "space-y-6"
-          )}
-        >
-          <div className="space-y-4">
-            <p className="premium-kicker">Tier Guidance</p>
-            <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
-              Choose by stage, not status.
-            </h2>
-            <p className="max-w-3xl text-lg leading-relaxed text-white/80">
-              Foundation is not the weak option. Core is not the default. Each room is designed to
-              suit a different level of access, pace, and business responsibility.
-            </p>
-
-            <div className="grid gap-4 lg:grid-cols-3">
-              {TIER_GUIDES.map((guide) => {
-                const selected = guide.tier === selectedTier;
-
-                return (
-                  <article
-                    key={guide.tier}
-                    className={cn(
-                      "rounded-[1.7rem] border p-5 shadow-panel-soft transition-colors",
-                      selected
-                        ? cn(getTierSelectionRingClassName(guide.tier), "bg-card/90")
-                        : "border-border/80 bg-card/66"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <TierBadge tier={guide.tier} />
-                      {selected ? (
-                        <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
-                          Selected
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-4 text-sm leading-relaxed text-foreground">
-                      {TIER_GUIDANCE[guide.tier]}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-
-          {tierComparisonPlacement?.isActive && tierComparisonPlacement.imageUrl ? (
-            <SectionFeatureImage
-              placement={tierComparisonPlacement}
-              tone="platform"
-              aspectClassName="aspect-[16/11] xl:aspect-[4/5]"
-              className="min-h-[14rem]"
-            />
-          ) : null}
-        </div>
-      </section>
-
-      <section className="public-hero-spacing-tight rounded-[1.9rem] border border-border/80 bg-card/56 shadow-panel">
-        <div
-          className={cn(
-            "gap-6 xl:items-start",
-            foundersPlacement?.isActive && foundersPlacement.imageUrl
-              ? "grid xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.56fr)]"
-              : ""
-          )}
-        >
-          <div className="max-w-3xl space-y-4">
-            <p className="premium-kicker">Founder Perspective</p>
-            <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
-              Why this is structured this way
-            </h2>
-            <div className="space-y-4 text-lg leading-relaxed text-white/80">
-              {FOUNDER_PERSPECTIVE_LINES.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </div>
-          </div>
-          {foundersPlacement?.isActive && foundersPlacement.imageUrl ? (
-            <SectionFeatureImage
-              placement={foundersPlacement}
-              tone="founders"
-            className="min-h-[14rem]"
-            />
-          ) : null}
-        </div>
-      </section>
-
-      <section className="public-section">
-        <div className="max-w-3xl space-y-5">
-          <p className="premium-kicker">Reassurance</p>
-          <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
-            This is based on stage, not status.
-          </h2>
-          <p className="text-lg leading-relaxed text-white/80">
-            The point is structured progression, not hierarchy. A room stays useful when placement
-            is clear, and the ecosystem grows properly when each business moves deeper only when it
-            genuinely needs to.
-          </p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-3">
-          {REASSURANCE_ITEMS.map((item, index) => {
-            const Icon = index === 0 ? Sparkles : index === 1 ? Shield : Users;
-
-            return (
-              <Card key={item.title} className="border-border/80 bg-card/66 shadow-panel-soft">
-                <CardContent className="space-y-4 p-5 sm:p-6">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-background/24 text-silver">
-                    <Icon size={18} />
-                  </span>
-                  <div className="space-y-3">
-                    <h3 className="font-display text-2xl text-foreground">{item.title}</h3>
-                    <p className="text-sm leading-relaxed text-muted">{item.description}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
-
       <FAQSection
         label="Questions"
         title={faqTitle}
@@ -940,13 +780,13 @@ export function MembershipGuidedSelector({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.42)_100%),linear-gradient(180deg,rgba(0,0,0,0.24)_0%,rgba(0,0,0,0.52)_100%)]" />
 
         <div className="relative max-w-3xl space-y-5">
-          <p className="premium-kicker">Final Step</p>
+          <p className="premium-kicker">Where</p>
           <h2 className="font-display text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
-            When the fit feels clear, continue to join.
+            Choose, checkout, access your account and start connecting.
           </h2>
           <p className="text-lg leading-relaxed text-white/80">
-            Your selected room and billing interval carry straight into join. The next page keeps
-            account setup, pricing confirmation, and secure Stripe checkout in one clear flow.
+            Your selected room and billing interval carry straight into join. The next page keeps account
+            setup, pricing confirmation and secure Stripe checkout in one clear flow.
           </p>
           <div className="space-y-4">
             <Link
