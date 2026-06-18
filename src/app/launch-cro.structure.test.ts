@@ -17,16 +17,17 @@ describe("launch CRO placement", () => {
     expect(audit).toContain("<FirstSevenDaysBlock");
   });
 
-  it("renders the membership decision stages and tier guidance", () => {
+  it("renders the membership fast path and compact decision support", () => {
     const membership = readSource("src/app/(public)/membership/page.tsx");
     const selector = readSource("src/components/public/membership-guided-selector.tsx");
 
-    expect(membership).toContain("WHO_ITEMS");
-    expect(membership).toContain("HOW_ITEMS");
-    expect(membership).toContain("WHEN_ITEMS");
-    expect(membership).toContain("TIER_DECISION_ITEMS");
+    expect(membership).toContain("AUDIT_FAST_PATH_POINTS");
+    expect(membership).toContain("COMPACT_DECISION_ITEMS");
+    expect(membership).toContain("fastPath={isAuditSource}");
     expect(membership).toContain('id="choose-membership"');
     expect(selector).toContain("Pricing Begins Here");
+    expect(selector).toContain("Audit pricing");
+    expect(selector).toContain("onBillingIntervalChange={setBillingInterval}");
     expect(selector).toContain("buildJoinConfirmationHref");
   });
 

@@ -49,8 +49,11 @@ describe("public marketing spacing system", () => {
     for (const source of pagesWithJsonLdBeforeVisual) {
       const firstVisualIndex = source.includes("<PublicTopVisual")
         ? source.indexOf("<PublicTopVisual")
-        : source.indexOf("<FounderVisual");
+        : source.includes("<FounderVisual")
+          ? source.indexOf("<FounderVisual")
+          : source.indexOf("<MembershipGuidedSelector");
 
+      expect(firstVisualIndex).toBeGreaterThan(-1);
       expect(source.indexOf("<JsonLd")).toBeLessThan(firstVisualIndex);
     }
 
