@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -13,6 +13,8 @@ import {
   RotateCcw
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { FirstSevenDaysBlock } from "@/components/public/launch-cro-blocks";
 import {
   ANALYTICS_EVENTS,
@@ -31,7 +33,16 @@ import {
   getFounderAuditRecommendation
 } from "./audit-data";
 
-type AuditStage = "intro" | "questions" | "result";
+type AuditStage = "intro" | "questions" | "lead-capture" | "result";
+
+type AuditLeadFormState = {
+  name: string;
+  email: string;
+  businessName: string;
+  website: string;
+  essentialConsent: boolean;
+  marketingEmailOptIn: boolean;
+};
 
 const totalQuestions = FOUNDER_AUDIT_QUESTIONS.length;
 type AuditEntrySource =
@@ -103,12 +114,24 @@ export function FounderAuditClient() {
   const [answers, setAnswers] = useState<Array<number | undefined>>(
     () => Array.from({ length: totalQuestions }) as Array<number | undefined>
   );
+  const [leadForm, setLeadForm] = useState<AuditLeadFormState>({
+    name: "",
+    email: "",
+    businessName: "",
+    website: "",
+    essentialConsent: false,
+    marketingEmailOptIn: false
+  });
+  const [leadSubmitError, setLeadSubmitError] = useState<string | null>(null);
+  const [leadSubmitting, setLeadSubmitting] = useState(false);
 
   const currentQuestion = FOUNDER_AUDIT_QUESTIONS[currentIndex];
   const selectedScore = answers[currentIndex];
   const completedCount = answers.filter((score) => typeof score === "number").length;
   const progressPercent =
-    stage === "result" ? 100 : Math.round(((currentIndex + 1) / totalQuestions) * 100);
+    stage === "result" || stage === "lead-capture"
+      ? 100
+      : Math.round(((currentIndex + 1) / totalQuestions) * 100);
 
   const totalScore = useMemo(
     () => calculateFounderAuditScore(answers.filter((score): score is number => typeof score === "number")),
@@ -116,6 +139,7 @@ export function FounderAuditClient() {
   );
   const recommendation = getFounderAuditRecommendation(totalScore || totalQuestions);
   const bottleneck = useMemo(() => getFounderAuditBottleneck(answers), [answers]);
+  const areaSummary = useMemo(() => auditAreaSummary(answers), [answers]);
   const auditEntryContext = useMemo(() => readAuditEntryContext(), []);
 
   const selectAnswer = (score: number) => {
@@ -132,7 +156,6 @@ export function FounderAuditClient() {
     }
 
     if (currentIndex === totalQuestions - 1) {
-      const areaSummary = auditAreaSummary(answers);
       trackAnalyticsEvent(ANALYTICS_EVENTS.auditComplete, {
         score: totalScore,
         tier: recommendation.tierName
@@ -160,7 +183,8 @@ export function FounderAuditClient() {
           topic: auditEntryContext.topic ?? null
         }
       });
-      setStage("result");
+      setLeadSubmitError(null);
+      setStage("lead-capture");
       return;
     }
 
@@ -168,7 +192,7 @@ export function FounderAuditClient() {
   };
 
   const goBack = () => {
-    if (stage === "result") {
+    if (stage === "result" || stage === "lead-capture") {
       setStage("questions");
       setCurrentIndex(totalQuestions - 1);
       return;
@@ -185,7 +209,87 @@ export function FounderAuditClient() {
   const restartAudit = () => {
     setAnswers(Array.from({ length: totalQuestions }) as Array<number | undefined>);
     setCurrentIndex(0);
+    setLeadForm({
+      name: "",
+      email: "",
+      businessName: "",
+      website: "",
+      essentialConsent: false,
+      marketingEmailOptIn: false
+    });
+    setLeadSubmitError(null);
     setStage("intro");
+  };
+
+  const updateLeadField = <Key extends keyof AuditLeadFormState>(
+    key: Key,
+    value: AuditLeadFormState[Key]
+  ) => {
+    setLeadForm((current) => ({
+      ...current,
+      [key]: value
+    }));
+  };
+
+  const submitAuditLead = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLeadSubmitError(null);
+
+    if (!leadForm.essentialConsent) {
+      setLeadSubmitError(
+        "Please agree to receive your audit result on this website and essential follow-up about this submission."
+      );
+      return;
+    }
+
+    setLeadSubmitting(true);
+
+    try {
+      const response = await fetch("/api/audit/lead", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: leadForm.name,
+          email: leadForm.email,
+          businessName: leadForm.businessName,
+          website: leadForm.website,
+          essentialConsent: leadForm.essentialConsent,
+          marketingEmailOptIn: leadForm.marketingEmailOptIn,
+          score: totalScore,
+          resultType: recommendation.phase,
+          recommendedTier: recommendation.tierName,
+          answers: FOUNDER_AUDIT_QUESTIONS.map((question, index) => ({
+            questionId: question.id,
+            score: answers[index] ?? null
+          })),
+          strengths: areaSummary.strengths,
+          weaknesses: areaSummary.weaknesses,
+          sourcePath: window.location.pathname + window.location.search,
+          source: auditEntryContext.source,
+          topic: auditEntryContext.topic ?? ""
+        })
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        fieldErrors?: Record<string, string[] | undefined>;
+      };
+
+      if (!response.ok) {
+        const firstFieldError = data.fieldErrors
+          ? Object.values(data.fieldErrors).flat().filter(Boolean)[0]
+          : null;
+        setLeadSubmitError(firstFieldError ?? data.error ?? "Unable to save your audit details.");
+        return;
+      }
+
+      setStage("result");
+    } catch {
+      setLeadSubmitError("Unable to save your audit details. Please try again.");
+    } finally {
+      setLeadSubmitting(false);
+    }
   };
 
   if (stage === "intro") {
@@ -246,6 +350,154 @@ export function FounderAuditClient() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (stage === "lead-capture") {
+    return (
+      <section className="public-hero-spacing-tight relative overflow-hidden rounded-[2.05rem] border border-gold/22 bg-gradient-to-br from-gold/10 via-card/72 to-card/60 shadow-gold-soft">
+        <div className="pointer-events-none absolute inset-0 public-grid-overlay opacity-10" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(32,74,138,0.22),transparent_24rem),linear-gradient(180deg,rgba(0,0,0,0.12),rgba(0,0,0,0.58))]" />
+        <div className="relative mx-auto max-w-3xl space-y-6">
+          <div className="space-y-3">
+            <p className="premium-kicker">Audit Result</p>
+            <h1 className="font-display text-3xl leading-[1.04] tracking-tight text-foreground sm:text-5xl">
+              Your recommendation is ready.
+            </h1>
+            <p className="text-base leading-relaxed text-white/80 sm:text-lg">
+              Add your details to unlock the full on-site result now.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
+                Score {totalScore} of 30
+              </span>
+              <span className="rounded-full border border-gold/22 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
+                Recommended room: {recommendation.tierName}
+              </span>
+            </div>
+          </div>
+
+          {leadSubmitError ? (
+            <p
+              aria-live="polite"
+              className="rounded-[1.1rem] border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+            >
+              {leadSubmitError}
+            </p>
+          ) : null}
+
+          <form
+            onSubmit={submitAuditLead}
+            className="rounded-[1.7rem] border border-white/10 bg-background/24 p-5 shadow-panel-soft backdrop-blur sm:p-6"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="audit-lead-name">Name</Label>
+                <Input
+                  id="audit-lead-name"
+                  autoComplete="name"
+                  required
+                  value={leadForm.name}
+                  onChange={(event) => updateLeadField("name", event.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="audit-lead-email">Email</Label>
+                <Input
+                  id="audit-lead-email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={leadForm.email}
+                  onChange={(event) => updateLeadField("email", event.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="audit-lead-business">Business name</Label>
+                <Input
+                  id="audit-lead-business"
+                  autoComplete="organization"
+                  required
+                  value={leadForm.businessName}
+                  onChange={(event) => updateLeadField("businessName", event.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="audit-lead-website">Website</Label>
+                <Input
+                  id="audit-lead-website"
+                  type="text"
+                  inputMode="url"
+                  autoComplete="url"
+                  placeholder="https://"
+                  value={leadForm.website}
+                  onChange={(event) => updateLeadField("website", event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3 rounded-[1.2rem] border border-white/10 bg-card/36 p-4">
+              <label
+                htmlFor="audit-lead-essential-consent"
+                className="flex items-start gap-3 text-sm leading-relaxed text-foreground"
+              >
+                <input
+                  id="audit-lead-essential-consent"
+                  type="checkbox"
+                  required
+                  className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                  checked={leadForm.essentialConsent}
+                  onChange={(event) => updateLeadField("essentialConsent", event.target.checked)}
+                />
+                <span className="min-w-0">
+                  I agree to receive my audit result on this website and essential follow-up about
+                  this submission.
+                </span>
+              </label>
+
+              <label
+                htmlFor="audit-lead-marketing-consent"
+                className="flex items-start gap-3 text-sm leading-relaxed text-foreground"
+              >
+                <input
+                  id="audit-lead-marketing-consent"
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                  checked={leadForm.marketingEmailOptIn}
+                  onChange={(event) => updateLeadField("marketingEmailOptIn", event.target.checked)}
+                />
+                <span className="min-w-0">
+                  Send me BCN updates, audit offers and business growth tips by email.
+                </span>
+              </label>
+            </div>
+
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={goBack}
+                className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "group")}
+              >
+                <ArrowLeft size={16} className="mr-2 transition-transform group-hover:-translate-x-1" />
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={leadSubmitting}
+                className={cn(buttonVariants({ variant: "default", size: "lg" }), "group")}
+              >
+                {leadSubmitting ? "Saving..." : "Show my audit result"}
+                {leadSubmitting ? null : (
+                  <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       </section>
     );

@@ -10,7 +10,11 @@ import {
   Role,
   SubscriptionStatus
 } from "@prisma/client";
-import { FoundingAccessWelcomeEmail, WelcomeMemberEmail } from "@/emails";
+import {
+  CircleCardWelcomeEmail,
+  FoundingAccessWelcomeEmail,
+  WelcomeMemberEmail
+} from "@/emails";
 import {
   BCN_RULES_VERSION,
   TERMS_VERSION
@@ -36,11 +40,17 @@ import { renderEmailHtml } from "@/emails/render";
 import { buildBrandedEmailText } from "@/emails/text";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 import { prisma } from "@/lib/prisma";
-import { logServerWarning } from "@/lib/security/logging";
+import { logServerError, logServerWarning } from "@/lib/security/logging";
 import { getBaseUrl } from "@/lib/utils";
 import { recordInviteReferral } from "@/server/community-recognition";
 import { validateLaunchCode } from "@/server/admin/launch-codes.service";
 import { validateInviteCodeForCheckout } from "@/server/invite-codes";
+import {
+  markLatestBcnJoinLeadEmailed,
+  markLeadEmailed,
+  recordBcnJoinLead,
+  recordCircleCardSignupLead
+} from "@/server/lead-generation";
 import { requireStripeClient } from "@/server/stripe/client";
 
 type RegistrationErrorCode =
@@ -430,6 +440,77 @@ async function sendWelcomeMemberEmail(input: {
   if (!sendResult.sent && !sendResult.skipped) {
     logServerWarning("welcome-email-delivery-failed");
   }
+
+  return sendResult;
+}
+
+async function sendCircleCardWelcomeEmail(input: {
+  email: string;
+  firstName: string;
+}) {
+  const dashboardUrl = new URL("/dashboard/circle-card/onboarding", getBaseUrl()).toString();
+  const emailTemplate = createElement(CircleCardWelcomeEmail, {
+    firstName: input.firstName,
+    dashboardUrl
+  });
+  const html = await renderEmailHtml(emailTemplate);
+
+  const sendResult = await sendTransactionalEmail({
+    to: input.email,
+    subject: "Your free Circle Card is ready",
+    text: buildBrandedEmailText({
+      greeting: `Hi ${input.firstName},`,
+      eyebrow: "Circle Card",
+      heading: "Your Circle Card is ready",
+      bodyLines: [
+        "Your free Circle Card account has been created.",
+        "You can now set up your public card, QR sharing, Circle Wallet and basic activity tracking.",
+        "Circle Card Free is separate from BCN membership. Member rooms and paid BCN features open only when a valid BCN entitlement exists."
+      ],
+      ctaLabel: "Open Circle Card",
+      ctaUrl: dashboardUrl,
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
+    }),
+    html,
+    react: emailTemplate,
+    tags: [
+      { name: "type", value: "circle-card-welcome" },
+      { name: "source", value: "auth" }
+    ]
+  });
+
+  if (!sendResult.sent && !sendResult.skipped) {
+    logServerWarning("circle-card-welcome-email-delivery-failed");
+  }
+
+  return sendResult;
+}
+
+async function dispatchCircleCardLeadAndWelcomeEmail(input: {
+  userId: string;
+  name: string;
+  email: string;
+  businessName: string | null;
+  marketingEmailOptIn: boolean;
+  acceptedAt: Date;
+  registrationSource: "circle-card" | "circle-card-spin";
+  sourceCardSlug: string | null;
+  returnTo: string | null;
+}) {
+  try {
+    const lead = await recordCircleCardSignupLead(input);
+    const firstName = input.name.trim().split(/\s+/)[0] || "there";
+    const sendResult = await sendCircleCardWelcomeEmail({
+      email: input.email,
+      firstName
+    });
+
+    if (sendResult.sent) {
+      await markLeadEmailed(lead.id);
+    }
+  } catch (error) {
+    logServerError("circle-card-lead-or-welcome-dispatch-failed", error);
+  }
 }
 
 async function cleanupExpiredPendingRegistrations() {
@@ -670,6 +751,18 @@ export async function createPendingRegistration(
       }
     });
 
+    void recordBcnJoinLead({
+      name: pendingRegistration.fullName,
+      email: pendingRegistration.email,
+      businessName: input.businessName?.trim() || null,
+      marketingEmailOptIn: input.marketingEmailOptIn,
+      acceptedAt: pendingRegistration.acceptedTermsAt ?? acceptedAt,
+      tier: pendingRegistration.selectedTier,
+      billingInterval: fromPendingRegistrationBillingInterval(pendingRegistration.billingInterval)
+    }).catch((error) => {
+      logServerError("bcn-join-lead-record-failed", error);
+    });
+
     return {
       pendingRegistration: {
         id: pendingRegistration.id,
@@ -827,6 +920,18 @@ export async function createCircleCardFreeRegistration(
       }
 
       return createdUser;
+    });
+
+    void dispatchCircleCardLeadAndWelcomeEmail({
+      userId: user.id,
+      name: input.name,
+      email,
+      businessName,
+      marketingEmailOptIn: input.marketingEmailOptIn,
+      acceptedAt,
+      registrationSource: shouldProvisionReturnCard ? "circle-card-spin" : "circle-card",
+      sourceCardSlug: sourceCardSlug || null,
+      returnTo: returnTo || null
     });
 
     return {
@@ -1108,6 +1213,10 @@ export async function finalizePendingRegistrationAccess(input: {
         welcomeResult.reason instanceof Error
           ? welcomeResult.reason.message
           : "Unknown welcome email error."
+    });
+  } else if (welcomeResult.value.sent) {
+    await markLatestBcnJoinLeadEmailed(input.email).catch((error) => {
+      logServerError("bcn-join-lead-last-emailed-update-failed", error);
     });
   }
 

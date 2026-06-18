@@ -8,6 +8,7 @@ import { sendTransactionalEmail } from "@/lib/email/resend";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
 import type { ContactFormInput } from "@/lib/validators";
 import { storeContactSubmissionInInboundInbox } from "@/server/inbound-email";
+import { recordContactFormLead } from "@/server/lead-generation";
 
 export type CreateContactSubmissionInput = ContactFormInput & {
   userId?: string | null;
@@ -166,6 +167,20 @@ export async function createContactSubmission(
     createdAt: saved.createdAt,
     memberContextLines: memberContextLinesFor(input)
   });
+
+  try {
+    await recordContactFormLead({
+      contactSubmissionId: saved.id,
+      userId: input.userId ?? null,
+      name: input.name.trim(),
+      email: normalizeEmail(input.email),
+      company: toNullableText(input.company),
+      sourcePath: toNullableText(input.sourcePath),
+      source: toNullableText(input.source)
+    });
+  } catch (error) {
+    logServerError("contact-lead-record-failed", error);
+  }
 
   void sendContactSubmissionEmails(input).catch((error) => {
     logServerError("contact-email-dispatch-failed", error);

@@ -38,6 +38,7 @@ const adminNavigation: NavigationItem[] = [
   { label: "Launch Codes", href: "/admin/launch-codes" },
   { label: "Blueprint Manager", href: "/admin/blueprint" },
   { label: "Members", href: "/admin/members" },
+  { label: "Lead Generation", href: "/admin/lead-generation" },
   { label: "Growth Intelligence", href: "/admin/growth-intelligence" },
   { label: "BCN Intelligence", href: "/admin/intelligence" },
   { label: "Circle Card", href: "/admin/circle-card" },

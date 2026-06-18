@@ -12,7 +12,7 @@ export const membershipBillingIntervalSchema = z.enum(membershipBillingIntervalV
 
 const coreAccessConfirmationMessage =
   "Please confirm that you are actively running a business or generating revenue to continue to Core.";
-const acceptedTermsMessage = `You must accept the ${TERMS_LABEL} to continue.`;
+const acceptedTermsMessage = `You must accept the ${TERMS_LABEL}, Privacy Policy, and essential account emails to continue.`;
 const minimumAgeConfirmationMessage =
   "You must confirm you are at least 13 years old and agree to the Circle Card Community Standards.";
 
@@ -39,6 +39,7 @@ const registerMemberBaseSchema = z.object({
   acceptedTerms: z.boolean().optional().default(false),
   acceptedRules: z.boolean().optional().default(false),
   minimumAgeConfirmed: z.boolean().optional().default(false),
+  marketingEmailOptIn: z.boolean().optional().default(false),
   businessName: z.string().trim().max(140).optional().or(z.literal("")),
   businessStatus: z.nativeEnum(BusinessStatus).optional().or(z.literal("")),
   companyNumber: z.string().trim().max(64).optional().or(z.literal("")),
@@ -117,6 +118,7 @@ const circleCardRegistrationBaseSchema = z.object({
   password: passwordSchema,
   acceptedTerms: z.boolean().optional().default(false),
   minimumAgeConfirmed: z.boolean().optional().default(false),
+  marketingEmailOptIn: z.boolean().optional().default(false),
   businessName: z.string().trim().max(140).optional().or(z.literal("")),
   returnTo: z.string().trim().max(600).optional().or(z.literal("")),
   sourceCardSlug: z.string().trim().max(120).regex(/^[a-z0-9-]+$/i).optional().or(z.literal(""))

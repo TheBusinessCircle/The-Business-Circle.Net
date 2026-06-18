@@ -37,6 +37,7 @@ model User {
   createdChannels                Channel[]                    @relation("ChannelCreator")
   handledContacts                ContactSubmission[]          @relation("SubmissionHandler")
   submittedContacts              ContactSubmission[]          @relation("SubmissionAuthor")
+  leads                           Lead[]
   hostedEvents                   Event[]                      @relation("EventHost")
   communityComments              CommunityComment[]
   communityCommentLikes          CommunityCommentLike[]
@@ -1511,12 +1512,50 @@ model ContactSubmission {
   updatedAt   DateTime  @updatedAt
   handledBy   User?     @relation("SubmissionHandler", fields: [handledById], references: [id])
   user        User?     @relation("SubmissionAuthor", fields: [userId], references: [id])
+  lead        Lead?
 
   @@index([email])
   @@index([createdAt])
   @@index([isResolved])
   @@index([userId])
   @@index([handledById])
+}
+
+model Lead {
+  id                   String             @id @default(cuid())
+  userId               String?
+  contactSubmissionId  String?            @unique
+  name                 String
+  email                String
+  businessName         String?
+  website              String?
+  source               LeadSource
+  sourceLabel          String?
+  consentSource        String?
+  essentialConsent     Boolean            @default(false)
+  marketingEmailOptIn  Boolean            @default(false)
+  consentedAt          DateTime?
+  marketingConsentAt   DateTime?
+  termsAcceptedAt      DateTime?
+  privacyAcceptedAt    DateTime?
+  tags                 String[]           @default([])
+  score                Int?
+  status               LeadStatus         @default(NEW)
+  lastEmailedAt        DateTime?
+  notes                String?            @db.Text
+  metadata             Json?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  contactSubmission    ContactSubmission? @relation(fields: [contactSubmissionId], references: [id], onDelete: SetNull)
+  user                 User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([source])
+  @@index([status])
+  @@index([marketingEmailOptIn])
+  @@index([createdAt])
+  @@index([lastEmailedAt])
+  @@index([userId])
 }
 
 model InboundEmail {
@@ -2704,6 +2743,25 @@ enum InboundEmailStatus {
   UNREAD
   READ
   ARCHIVED
+}
+
+enum LeadSource {
+  CIRCLE_CARD_SIGNUP
+  BCN_JOIN
+  AUDIT_QUIZ
+  CONTACT_FORM
+  FOUNDER_AUDIT
+  EVENT_SIGNUP
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  NOT_READY
+  DO_NOT_CONTACT
 }
 
 enum MembershipTier {

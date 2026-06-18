@@ -10,6 +10,7 @@ import {
 import { normalizeEmail } from "@/lib/auth/utils";
 import { db } from "@/lib/db";
 import { getFounderServicePricingForAccount } from "@/lib/founder";
+import { logServerError } from "@/lib/security/logging";
 import type {
   FounderServiceModel,
   FounderServiceRequestDetailModel,
@@ -17,6 +18,7 @@ import type {
   FounderServiceRequestListItem
 } from "@/types";
 import type { FounderServiceRequestFormValues } from "@/lib/validators";
+import { LeadSource, recordLead } from "@/server/lead-generation";
 import { sendTestimonialRequestEmail } from "@/server/testimonials";
 
 type FounderUploadInput = {
@@ -257,7 +259,7 @@ export async function createFounderServiceRequest(
   const sourcePage = toNullableText(input.sourcePage) ?? "Founder Service Page";
   const sourceSection = toNullableText(input.sourceSection) ?? "Founder Service Request Form";
 
-  return db.founderServiceRequest.create({
+  const createdRequest = await db.founderServiceRequest.create({
     data: {
       userId: input.userId ?? undefined,
       serviceId: service.id,
@@ -361,6 +363,35 @@ export async function createFounderServiceRequest(
       }
     }
   });
+
+  try {
+    await recordLead({
+      userId: input.userId ?? null,
+      name: createdRequest.fullName,
+      email: createdRequest.email,
+      businessName: createdRequest.businessName,
+      website: input.website,
+      source: LeadSource.FOUNDER_AUDIT,
+      sourceLabel: createdRequest.service.title,
+      consentSource: "Founder Service Request",
+      essentialConsent: true,
+      marketingEmailOptIn: false,
+      tags: ["founder-service", createdRequest.service.slug, sourcePage, sourceSection],
+      metadata: {
+        founderServiceRequestId: createdRequest.id,
+        serviceSlug: createdRequest.service.slug,
+        serviceTitle: createdRequest.service.title,
+        sourcePage,
+        sourceSection,
+        intakeMode: createdRequest.service.intakeMode,
+        paymentStatus: createdRequest.paymentStatus
+      } satisfies Prisma.InputJsonObject
+    });
+  } catch (error) {
+    logServerError("founder-service-lead-record-failed", error);
+  }
+
+  return createdRequest;
 }
 
 export async function getFounderServiceRequestSummary(requestId: string) {

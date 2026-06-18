@@ -55,6 +55,7 @@ export function CircleCardRegisterForm({
       confirmPassword: "",
       acceptedTerms: false,
       minimumAgeConfirmed: false,
+      marketingEmailOptIn: false,
       businessName: defaults?.businessName ?? "",
       returnTo: returnTo ?? "",
       sourceCardSlug: sourceCardSlug ?? ""
@@ -77,6 +78,7 @@ export function CircleCardRegisterForm({
           password: values.password,
           acceptedTerms: values.acceptedTerms,
           minimumAgeConfirmed: values.minimumAgeConfirmed,
+          marketingEmailOptIn: values.marketingEmailOptIn,
           businessName: values.businessName,
           returnTo: values.returnTo,
           sourceCardSlug: values.sourceCardSlug
@@ -228,7 +230,12 @@ export function CircleCardRegisterForm({
                 I agree to the{" "}
                 <Link href="/terms-of-service" className="text-primary hover:underline">
                   {TERMS_LABEL}
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy-policy" className="text-primary hover:underline">
+                  Privacy Policy
                 </Link>
+                , and understand I will receive essential account emails.
               </span>
             </label>
             {form.formState.errors.acceptedTerms ? (
@@ -259,6 +266,23 @@ export function CircleCardRegisterForm({
                 {form.formState.errors.minimumAgeConfirmed.message}
               </p>
             ) : null}
+            <label
+              htmlFor="circle-card-register-marketing-opt-in"
+              className="flex items-start gap-3 text-sm leading-relaxed text-foreground"
+            >
+              <input
+                id="circle-card-register-marketing-opt-in"
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                {...form.register("marketingEmailOptIn")}
+              />
+              <span className="min-w-0">
+                Send me BCN updates, business growth tips and opportunities by email.
+              </span>
+            </label>
+            <p className="text-xs leading-relaxed text-muted">
+              Optional updates are separate from service emails and can be left unticked.
+            </p>
           </div>
 
           <Button disabled={!canSubmit} type="submit" className="w-full" size="lg">

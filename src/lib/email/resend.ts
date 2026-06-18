@@ -109,7 +109,7 @@ export async function sendTransactionalEmailOrThrow(
     from: fromAddress.value,
     to: input.to,
     subject: input.subject,
-    replyTo: input.replyTo,
+    replyTo: input.replyTo ?? (process.env.RESEND_REPLY_TO_EMAIL?.trim() || undefined),
     tags: input.tags
   };
 

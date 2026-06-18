@@ -1,5 +1,6 @@
 export * from "@/emails/bcn-email-layout";
 export * from "@/emails/welcome-member";
+export * from "@/emails/circle-card-welcome";
 export * from "@/emails/founding-access-welcome";
 export * from "@/emails/billing-receipt";
 export * from "@/emails/inner-circle-upgrade";
@@ -8,6 +9,9 @@ export * from "@/emails/password-reset";
 export * from "@/emails/password-changed";
 export * from "@/emails/contact-notification";
 export * from "@/emails/contact-receipt";
+export * from "@/emails/lead-admin-notification";
+export * from "@/emails/audit-submission-admin-notification";
+export * from "@/emails/future-follow-up-placeholder";
 export * from "@/emails/admin-inbound-email-reply";
 export * from "@/emails/testimonial-request";
 export * from "@/emails/founder-service-checkout";

@@ -64,6 +64,7 @@ export type RegisterPayload = {
   acceptedTerms: boolean;
   acceptedRules: boolean;
   minimumAgeConfirmed: boolean;
+  marketingEmailOptIn: boolean;
   businessName?: string;
   businessStatus?: "IDEA_STARTUP" | "REGISTERED_BUSINESS" | "ESTABLISHED_COMPANY";
   companyNumber?: string;
@@ -139,7 +140,8 @@ export function buildRegisterPayload(values: RegisterMemberFormInput): RegisterP
     coreAccessConfirmed: values.coreAccessConfirmed,
     acceptedTerms: values.acceptedTerms,
     acceptedRules: values.acceptedRules,
-    minimumAgeConfirmed: values.minimumAgeConfirmed
+    minimumAgeConfirmed: values.minimumAgeConfirmed,
+    marketingEmailOptIn: values.marketingEmailOptIn
   };
 
   if (values.businessName?.trim()) {
@@ -201,6 +203,7 @@ export function RegisterForm({
       acceptedTerms: false,
       acceptedRules: false,
       minimumAgeConfirmed: false,
+      marketingEmailOptIn: false,
       businessName: "",
       businessStatus: "",
       companyNumber: "",
@@ -541,7 +544,12 @@ export function RegisterForm({
                 I agree to the{" "}
                 <Link href="/terms-of-service" className="text-primary hover:underline">
                   {TERMS_LABEL}
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy-policy" className="text-primary hover:underline">
+                  Privacy Policy
                 </Link>
+                , and understand I will receive essential membership/account emails.
               </span>
             </label>
             {form.formState.errors.acceptedTerms ? (
@@ -572,12 +580,26 @@ export function RegisterForm({
                 {form.formState.errors.minimumAgeConfirmed.message}
               </p>
             ) : null}
+            <label
+              htmlFor="register-marketing-opt-in"
+              className="flex items-start gap-3 text-sm leading-relaxed text-foreground"
+            >
+              <input
+                id="register-marketing-opt-in"
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                {...form.register("marketingEmailOptIn")}
+              />
+              <span className="min-w-0">
+                Send me BCN updates, business growth tips and opportunities by email.
+              </span>
+            </label>
             <p className="text-xs leading-relaxed text-muted">
               By continuing, you agree to the{" "}
               <Link href="/terms-of-service" className="text-primary hover:underline">
                 {TERMS_LABEL}
               </Link>{" "}
-              and will be required to accept the{" "}
+              and Privacy Policy. Optional updates are separate from service emails and can be left unticked. You will be required to accept the{" "}
               <Link href="/rules" className="text-primary hover:underline">
                 BCN Rules
               </Link>{" "}

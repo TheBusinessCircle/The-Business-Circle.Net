@@ -95,6 +95,9 @@ function iconForHref(href: string) {
   if (href.startsWith("/admin/members")) {
     return UsersRound;
   }
+  if (href.startsWith("/admin/lead-generation")) {
+    return UsersRound;
+  }
   if (href.startsWith("/admin/growth-intelligence")) {
     return Activity;
   }
