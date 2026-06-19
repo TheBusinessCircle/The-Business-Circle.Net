@@ -10,6 +10,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { getCircleCardActivationSnapshot } from "@/server/circle-card/activation.service";
 
 const ACTIVE_SUBSCRIPTION_STATUSES: SubscriptionStatus[] = [
   SubscriptionStatus.ACTIVE,
@@ -590,6 +591,7 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
     reportsByStatus,
     reportsByReason,
     latestReports,
+    activationSnapshot,
     search
   ] = await Promise.all([
     db.user.count({
@@ -941,6 +943,9 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
         }
       }
     }),
+    getCircleCardActivationSnapshot({
+      limit: RECENT_LIMIT
+    }),
     loadSearch(input.query ?? "")
   ]);
 
@@ -1010,6 +1015,13 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
       newCardsThisMonth,
       recentlyActiveUsers,
       recentlyUpdatedCards
+    },
+    activation: {
+      newUsers: newUsersThisMonth,
+      activatedUsers: activationSnapshot.activatedUsers,
+      activationRate: activationSnapshot.activationRate,
+      averageCompletion: activationSnapshot.averageCompletion,
+      topIncompleteUsers: activationSnapshot.topIncompleteUsers
     },
     topCards: {
       mostViewed: topViewedCards,

@@ -393,6 +393,7 @@ export async function recordCircleCardSignupLead(input: {
     consentedAt: input.acceptedAt,
     termsAcceptedAt: input.acceptedAt,
     privacyAcceptedAt: input.acceptedAt,
+    score: input.businessName?.trim() ? 25 : 0,
     tags: [
       "circle-card",
       "free",
@@ -402,7 +403,12 @@ export async function recordCircleCardSignupLead(input: {
     metadata: {
       registrationSource: input.registrationSource,
       sourceCardSlug: input.sourceCardSlug ?? null,
-      returnTo: input.returnTo ?? null
+      returnTo: input.returnTo ?? null,
+      circleCardActivation: {
+        activationLeadScore: input.businessName?.trim() ? 25 : 0,
+        activationComplete: false,
+        initialBusinessNameCaptured: Boolean(input.businessName?.trim())
+      }
     } satisfies Prisma.InputJsonObject
   });
 }

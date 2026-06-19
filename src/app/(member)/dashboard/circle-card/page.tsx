@@ -172,13 +172,16 @@ import {
   getCircleCardProfileLayoutLabel,
   resolveCircleCardProfileLayoutFilter
 } from "@/lib/circle-card/profile-layout";
+import type { CircleCardCompletionItemId } from "@/lib/circle-card/completion";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { requireCircleCardUser } from "@/lib/session";
 import { absoluteUrl, cn, formatCurrency, formatDate } from "@/lib/utils";
 import {
+  calculateCircleCardCompletionForCard,
   createDueOpportunityNotificationsForUser,
   getCircleCardAnalyticsSummary,
+  syncCircleCardActivationLeadScore,
   trackCircleCardEvent
 } from "@/server/circle-card";
 
@@ -229,6 +232,21 @@ function resolveCircleCardAppSection(value: string | undefined): CircleCardAppSe
 function circleCardSectionHref(section: CircleCardAppSection, hash?: string) {
   const suffix = hash ? `#${hash.replace(/^#/, "")}` : "";
   return `/dashboard/circle-card?section=${section}${suffix}`;
+}
+
+function circleCardCompletionItemHref(itemId: CircleCardCompletionItemId) {
+  const hrefs: Record<CircleCardCompletionItemId, string> = {
+    "profile-photo": circleCardSectionHref("my-card", "circle-card-form"),
+    bio: circleCardSectionHref("my-card", "circle-card-form"),
+    location: circleCardSectionHref("my-card", "circle-card-form"),
+    "business-name": circleCardSectionHref("my-card", "circle-card-form"),
+    "featured-link": circleCardSectionHref("my-card", "custom-links"),
+    "contact-details": circleCardSectionHref("my-card", "circle-card-form"),
+    "social-profile": circleCardSectionHref("my-card", "card-social-profiles"),
+    "card-share": circleCardSectionHref("share", "share-assets")
+  };
+
+  return hrefs[itemId];
 }
 
 function circleCardCustomLinkEditHref(linkId: string) {
@@ -2063,6 +2081,30 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         fallbackViewCount: card.viewCount
       })
     : null;
+  const shareCount =
+    (analytics?.counts.SHARE ?? 0) +
+    (analytics?.counts.CONNECT_HUB_SHARE ?? 0) +
+    (analytics?.counts.CONNECT_HUB_COPY_LINK ?? 0);
+  const circleCardCompletion = calculateCircleCardCompletionForCard(
+    card
+      ? {
+          ...card,
+          user: {
+            image: member?.image,
+            profile: member?.profile
+          }
+        }
+      : null,
+    shareCount
+  );
+
+  if (card) {
+    await syncCircleCardActivationLeadScore({
+      userId: session.user.id,
+      completion: circleCardCompletion
+    });
+  }
+
   const analyticsOverview = [
     {
       label: "Total Views",
@@ -2353,6 +2395,58 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       </nav>
 
       <CircleCardInstallPrompt />
+
+      <section className="rounded-2xl border border-gold/24 bg-card/70 p-4 shadow-panel-soft sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+              {circleCardCompletion.score}% complete
+            </p>
+            <h2 className="mt-1 font-display text-2xl text-foreground">
+              Complete your Circle Card
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              A complete card is easier to trust, save and share.
+            </p>
+          </div>
+          <Badge
+            variant={circleCardCompletion.activationComplete ? "premium" : "outline"}
+            className={cn(
+              "w-fit",
+              !circleCardCompletion.activationComplete && "border-gold/28 text-gold"
+            )}
+          >
+            {circleCardCompletion.completedCount}/{circleCardCompletion.totalCount} steps
+          </Badge>
+        </div>
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-background/60">
+          <div
+            className="h-full rounded-full bg-gold transition-[width] duration-300"
+            style={{ width: `${circleCardCompletion.score}%` }}
+          />
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {circleCardCompletion.items.map((item) => (
+            <Link
+              key={item.id}
+              href={circleCardCompletionItemHref(item.id)}
+              className={cn(
+                "flex min-h-12 items-center gap-3 rounded-xl border px-3 py-2 text-sm transition-colors",
+                item.complete
+                  ? "border-gold/24 bg-gold/10 text-foreground"
+                  : "border-silver/14 bg-background/22 text-muted hover:border-gold/24 hover:text-foreground"
+              )}
+            >
+              {item.complete ? (
+                <CheckCircle2 size={16} className="shrink-0 text-gold" />
+              ) : (
+                <XCircle size={16} className="shrink-0 text-muted" />
+              )}
+              <span className="min-w-0">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {isCircleCardFree ? <CircleCardBcnDiscoveryPanel /> : null}
 

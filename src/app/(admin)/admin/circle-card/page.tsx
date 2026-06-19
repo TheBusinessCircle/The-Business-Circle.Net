@@ -40,6 +40,7 @@ type PageProps = {
 type MetricItem = {
   label: string;
   value: number;
+  valueLabel?: string;
   hint: string;
 };
 
@@ -199,6 +200,31 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
     }
   ];
 
+  const activationMetrics: MetricItem[] = [
+    {
+      label: "New users",
+      value: dashboard.activation.newUsers,
+      hint: "Circle Card users created in the last 30 days."
+    },
+    {
+      label: "Activated users",
+      value: dashboard.activation.activatedUsers,
+      hint: "Users with photo, business, featured link and share complete."
+    },
+    {
+      label: "Activation %",
+      value: dashboard.activation.activationRate,
+      valueLabel: `${dashboard.activation.activationRate}%`,
+      hint: "Activated users divided by total Circle Card users."
+    },
+    {
+      label: "Completion %",
+      value: dashboard.activation.averageCompletion,
+      valueLabel: `${dashboard.activation.averageCompletion}%`,
+      hint: "Average Circle Card completion score."
+    }
+  ];
+
   const relationshipMetrics: MetricItem[] = [
     {
       label: "Connection requests",
@@ -349,6 +375,62 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           description="New accounts, new cards and the freshest user/card movement."
         />
         <MetricGrid metrics={growthMetrics} />
+
+        <div className="space-y-4">
+          <SectionHeading
+            icon={BadgeCheck}
+            eyebrow="Activation"
+            title="Activation Snapshot"
+            description="Completion and activation health for Circle Card users."
+          />
+          <MetricGrid metrics={activationMetrics} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2">
+                <UserRound size={18} className="text-gold" />
+                Top Incomplete Users
+              </CardTitle>
+              <CardDescription>Lowest completion scores that need setup attention.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {dashboard.activation.topIncompleteUsers.length ? (
+                dashboard.activation.topIncompleteUsers.map((item) => (
+                  <div
+                    key={item.cardId}
+                    className="rounded-2xl border border-border/80 bg-background/25 p-4"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">
+                          {item.fullName}
+                          {item.businessName ? ` / ${item.businessName}` : ""}
+                        </p>
+                        <p className="mt-1 text-xs text-muted">{item.ownerEmail}</p>
+                        <p className="mt-2 text-xs leading-relaxed text-muted">
+                          Missing: {item.missingItems.slice(0, 4).join(", ") || "None"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="border-gold/28 text-gold">
+                          {item.completionScore}%
+                        </Badge>
+                        <AdminLinkButton href={`/admin/members/${item.userId}`} label="Member" />
+                        <AdminLinkButton href={`/card/${item.slug}`} label="Card" external />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <EmptyState
+                  icon={BadgeCheck}
+                  title="No incomplete users"
+                  description="Circle Card completion issues will appear here."
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid gap-4 xl:grid-cols-2">
           <Card>
@@ -615,7 +697,9 @@ function MetricGrid({ metrics }: { metrics: MetricItem[] }) {
       {metrics.map((metric) => (
         <div key={metric.label} className="rounded-2xl border border-border/80 bg-background/25 p-4 shadow-inner-surface">
           <p className="text-xs text-muted">{metric.label}</p>
-          <p className="mt-2 text-2xl font-semibold text-foreground">{numberLabel(metric.value)}</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">
+            {metric.valueLabel ?? numberLabel(metric.value)}
+          </p>
           <p className="mt-2 text-xs leading-relaxed text-muted">{metric.hint}</p>
         </div>
       ))}

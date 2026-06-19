@@ -457,17 +457,17 @@ async function sendCircleCardWelcomeEmail(input: {
 
   const sendResult = await sendTransactionalEmail({
     to: input.email,
-    subject: "Your free Circle Card is ready",
+    subject: "Welcome to Circle Card",
     text: buildBrandedEmailText({
       greeting: `Hi ${input.firstName},`,
       eyebrow: "Circle Card",
-      heading: "Your Circle Card is ready",
+      heading: "Welcome to Circle Card",
       bodyLines: [
-        "Your free Circle Card account has been created.",
-        "You can now set up your public card, QR sharing, Circle Wallet and basic activity tracking.",
-        "Circle Card Free is separate from BCN membership. Member rooms and paid BCN features open only when a valid BCN entitlement exists."
+        "Circle Card is your public relationship card: a clean profile, contact route, QR link and featured links in one place.",
+        "It helps new contacts understand who you are, what you do and where they should go next.",
+        "Start with a profile image, business details, one featured link and a share action."
       ],
-      ctaLabel: "Open Circle Card",
+      ctaLabel: "Complete Your Circle Card",
       ctaUrl: dashboardUrl,
       fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
     }),
