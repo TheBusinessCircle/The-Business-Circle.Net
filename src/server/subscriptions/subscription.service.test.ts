@@ -32,6 +32,7 @@ const completeLaunchCodeRedemptionFromStripeMock = vi.hoisted(() => vi.fn(async 
 const updateLaunchCodeSubscriptionFromStripeMock = vi.hoisted(() => vi.fn(async () => null));
 
 vi.hoisted(() => {
+  process.env.STRIPE_SECRET_KEY = "sk_test_subscriptions";
   process.env.STRIPE_STANDARD_PRICE_ID = "price_standard_test";
   process.env.STRIPE_FOUNDATION_PRICE_ID = "price_foundation_test";
   process.env.STRIPE_FOUNDATION_MONTHLY_PRICE_ID = "price_foundation_test";

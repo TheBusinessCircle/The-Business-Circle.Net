@@ -11,6 +11,11 @@ import {
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
+import {
+  buildJoinConfirmationHref,
+  buildMembershipDecisionHref,
+  normalizeInviteCode
+} from "@/lib/join/routing";
 import { cn } from "@/lib/utils";
 import styles from "./join-cinematic-entry.module.css";
 
@@ -23,6 +28,7 @@ type JoinCinematicEntryProps = {
   from?: string;
   error?: string;
   billing?: string;
+  inviteCode?: string;
 };
 
 type JoinNotice = {
@@ -33,8 +39,12 @@ type JoinNotice = {
 const portalEase = [0.2, 0.72, 0.18, 1] as const;
 
 export function JoinCinematicEntry({
+  initialSelectedTier,
+  billingInterval,
+  from,
   error,
-  billing
+  billing,
+  inviteCode
 }: JoinCinematicEntryProps) {
   const reduceMotion = useReducedMotion();
   const routeRef = useRef<HTMLDivElement | null>(null);
@@ -113,9 +123,34 @@ export function JoinCinematicEntry({
   }, [portalOpened]);
 
   const publicSiteHref = "/home";
-  const membershipHref = "/membership";
+  const normalizedInvite = normalizeInviteCode(inviteCode);
+  const joinHref = useMemo(
+    () =>
+      buildJoinConfirmationHref({
+        tier: initialSelectedTier,
+        period: billingInterval,
+        billing,
+        from,
+        invite: normalizedInvite
+      }),
+    [billing, billingInterval, from, initialSelectedTier, normalizedInvite]
+  );
+  const membershipHref = useMemo(
+    () =>
+      buildMembershipDecisionHref({
+        tier: initialSelectedTier,
+        period: billingInterval,
+        billing,
+        from,
+        invite: normalizedInvite
+      }),
+    [billing, billingInterval, from, initialSelectedTier, normalizedInvite]
+  );
   const auditHref = "/audit?source=join&topic=join-desktop";
-  const loginHref = "/login";
+  const loginHref = useMemo(
+    () => `/login?from=${encodeURIComponent(joinHref)}`,
+    [joinHref]
+  );
 
   const notices = useMemo(() => {
     const nextNotices: JoinNotice[] = [];

@@ -21,6 +21,7 @@ import {
   getMembershipPriceDifference,
   getMembershipStripePriceId,
   getMembershipTierRank,
+  listMissingMembershipStripePriceIds,
   resolveTierFromPriceId,
   type MembershipBillingInterval,
   type MembershipBillingVariant
@@ -1293,7 +1294,29 @@ const defaultWebhookProcessors: StripeWebhookProcessors = {
 };
 
 export function isBillingEnabled(): boolean {
-  return Boolean(process.env.STRIPE_SECRET_KEY);
+  return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+}
+
+export function getBillingConfigurationErrorMessage(): string | null {
+  if (!process.env.STRIPE_SECRET_KEY?.trim()) {
+    return "Stripe billing is not configured. Set STRIPE_SECRET_KEY.";
+  }
+
+  const missingPriceIds = listMissingMembershipStripePriceIds();
+
+  if (missingPriceIds.length) {
+    return `Stripe membership price IDs are missing: ${missingPriceIds.join(", ")}.`;
+  }
+
+  return null;
+}
+
+function assertBillingConfigured() {
+  const message = getBillingConfigurationErrorMessage();
+
+  if (message) {
+    throw new Error(message);
+  }
 }
 
 export function getStripePriceIdForTier(
@@ -1351,6 +1374,7 @@ export function isSubscriptionEntitled(
 export async function createStripeCheckoutSessionForUser(
   input: CheckoutSessionInput
 ): Promise<CheckoutSessionResult> {
+  assertBillingConfigured();
   assertCoreAccessConfirmed(input);
 
   const stripe = requireStripeClient();
@@ -1564,6 +1588,7 @@ export async function createStripeCheckoutSessionForUser(
 export async function createStripeCheckoutSessionForPendingRegistration(
   input: PendingRegistrationCheckoutInput
 ): Promise<CheckoutSessionResult> {
+  assertBillingConfigured();
   assertCoreAccessConfirmed(input);
 
   const stripe = requireStripeClient();
@@ -1759,6 +1784,7 @@ export async function updateStripeSubscriptionPlanForUser(input: {
   billingInterval: MembershipBillingInterval;
   coreAccessConfirmed?: boolean;
 }): Promise<PlanChangeResult> {
+  assertBillingConfigured();
   assertCoreAccessConfirmed(input);
 
   const currentSubscription = await db.subscription.findUnique({

@@ -23,8 +23,11 @@ const auditLeadSchema = z.object({
   }),
   marketingEmailOptIn: z.boolean().optional().default(false),
   score: z.number().int().min(0).max(30),
+  scorePercent: z.number().int().min(0).max(100).optional(),
   resultType: z.string().trim().min(2).max(120),
   recommendedTier: z.string().trim().min(2).max(80),
+  recommendedPath: z.string().trim().min(2).max(160).optional().or(z.literal("")),
+  recommendedNextStep: z.string().trim().max(240).optional().or(z.literal("")),
   answers: z
     .array(
       z.object({

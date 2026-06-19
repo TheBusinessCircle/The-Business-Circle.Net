@@ -373,7 +373,7 @@ export async function createFounderServiceRequest(
       website: input.website,
       source: LeadSource.FOUNDER_AUDIT,
       sourceLabel: createdRequest.service.title,
-      consentSource: "Founder Service Request",
+      consentSource: "Founder service request reply",
       essentialConsent: true,
       marketingEmailOptIn: false,
       tags: ["founder-service", createdRequest.service.slug, sourcePage, sourceSection],
@@ -384,7 +384,8 @@ export async function createFounderServiceRequest(
         sourcePage,
         sourceSection,
         intakeMode: createdRequest.service.intakeMode,
-        paymentStatus: createdRequest.paymentStatus
+        paymentStatus: createdRequest.paymentStatus,
+        consentBasis: "Submitted founder service request for fit review and service response"
       } satisfies Prisma.InputJsonObject
     });
   } catch (error) {

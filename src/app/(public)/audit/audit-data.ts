@@ -44,6 +44,18 @@ export type FounderAuditResult = {
   membershipHref: string;
 };
 
+export type FounderAuditConversionRecommendation = {
+  band: "clarity-foundation" | "visible-incomplete" | "strong-foundations";
+  scorePercent: number;
+  scoreLabel: string;
+  recommendedPath: string;
+  biggestOpportunity: string;
+  recommendedNextStep: string;
+  membershipHref: string;
+  circleCardHref: string;
+  growthArchitectHref: string;
+};
+
 export const FOUNDER_AUDIT_QUESTIONS = [
   {
     id: "direction",
@@ -227,7 +239,7 @@ export const FOUNDER_AUDIT_RESULTS = {
       "Join one discussion and vote on the Blueprint so your first action is visible."
     ],
     primaryCta: "Continue with Foundation",
-    membershipHref: "/membership?tier=foundation&source=audit"
+    membershipHref: "/membership?tier=foundation&period=monthly&source=audit"
   },
   innerCircle: {
     tierSlug: "inner-circle",
@@ -248,7 +260,7 @@ export const FOUNDER_AUDIT_RESULTS = {
       "Use resources and discussion feedback to decide the next focused move."
     ],
     primaryCta: "Continue with Inner Circle",
-    membershipHref: "/membership?tier=inner-circle&source=audit"
+    membershipHref: "/membership?tier=inner-circle&period=monthly&source=audit"
   },
   core: {
     tierSlug: "core",
@@ -269,24 +281,89 @@ export const FOUNDER_AUDIT_RESULTS = {
       "Join a deeper room, contribute to the Blueprint, and surface one strategic opportunity."
     ],
     primaryCta: "Continue with Core",
-    membershipHref: "/membership?tier=core&source=audit"
+    membershipHref: "/membership?tier=core&period=monthly&source=audit"
   }
 } as const satisfies Record<string, FounderAuditResult>;
+
+const FOUNDER_AUDIT_MIN_SCORE = FOUNDER_AUDIT_QUESTIONS.length;
+const FOUNDER_AUDIT_MAX_SCORE = FOUNDER_AUDIT_QUESTIONS.length * 3;
+const FOUNDER_AUDIT_SCORE_RANGE = FOUNDER_AUDIT_MAX_SCORE - FOUNDER_AUDIT_MIN_SCORE;
+const AUDIT_CIRCLE_CARD_HREF = "/circle-card?source=audit";
+const AUDIT_GROWTH_ARCHITECT_HREF =
+  "/founder/services/growth-architect-clarity-audit?source=audit";
 
 export function calculateFounderAuditScore(scores: readonly number[]) {
   return scores.reduce((total, score) => total + score, 0);
 }
 
+export function normalizeFounderAuditScore(score: number) {
+  const normalised = Math.round(
+    ((score - FOUNDER_AUDIT_MIN_SCORE) / FOUNDER_AUDIT_SCORE_RANGE) * 100
+  );
+
+  return Math.max(0, Math.min(100, normalised));
+}
+
 export function getFounderAuditRecommendation(score: number): FounderAuditResult {
-  if (score <= 15) {
+  const scorePercent = normalizeFounderAuditScore(score);
+
+  if (scorePercent <= 39) {
     return FOUNDER_AUDIT_RESULTS.foundation;
   }
 
-  if (score <= 23) {
+  if (scorePercent <= 69) {
     return FOUNDER_AUDIT_RESULTS.innerCircle;
   }
 
   return FOUNDER_AUDIT_RESULTS.core;
+}
+
+export function getFounderAuditConversionRecommendation(
+  score: number
+): FounderAuditConversionRecommendation {
+  const scorePercent = normalizeFounderAuditScore(score);
+
+  if (scorePercent <= 39) {
+    return {
+      band: "clarity-foundation",
+      scorePercent,
+      scoreLabel: "Needs clarity and foundation.",
+      recommendedPath: "Foundation + Growth Architect support",
+      biggestOpportunity: "Create clearer structure before chasing more visibility.",
+      recommendedNextStep:
+        "Start with Foundation, then use Growth Architect support to name the constraint.",
+      membershipHref: FOUNDER_AUDIT_RESULTS.foundation.membershipHref,
+      circleCardHref: AUDIT_CIRCLE_CARD_HREF,
+      growthArchitectHref: AUDIT_GROWTH_ARCHITECT_HREF
+    };
+  }
+
+  if (scorePercent <= 69) {
+    return {
+      band: "visible-incomplete",
+      scorePercent,
+      scoreLabel: "Visible but incomplete.",
+      recommendedPath: "Inner Circle or Founder Audit follow-up",
+      biggestOpportunity: "Turn existing movement into a sharper operating rhythm.",
+      recommendedNextStep:
+        "Review Inner Circle and consider a Founder Audit follow-up for the gaps.",
+      membershipHref: FOUNDER_AUDIT_RESULTS.innerCircle.membershipHref,
+      circleCardHref: AUDIT_CIRCLE_CARD_HREF,
+      growthArchitectHref: AUDIT_GROWTH_ARCHITECT_HREF
+    };
+  }
+
+  return {
+    band: "strong-foundations",
+    scorePercent,
+    scoreLabel: "Strong foundations.",
+    recommendedPath: "Core, visibility, partnerships and Circle Card usage",
+    biggestOpportunity: "Use stronger visibility and partnerships to compound the foundation.",
+    recommendedNextStep: "Review Core and use Circle Card to make the right relationships visible.",
+    membershipHref: FOUNDER_AUDIT_RESULTS.core.membershipHref,
+    circleCardHref: AUDIT_CIRCLE_CARD_HREF,
+    growthArchitectHref: AUDIT_GROWTH_ARCHITECT_HREF
+  };
 }
 
 export function getFounderAuditBottleneck(

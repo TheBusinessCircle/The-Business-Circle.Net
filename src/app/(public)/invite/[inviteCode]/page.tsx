@@ -1,5 +1,17 @@
 import { redirect } from "next/navigation";
+import { buildJoinConfirmationRedirect } from "@/lib/join/routing";
 
-export default async function InvitePage() {
-  redirect("/join?auth=register");
+type InvitePageProps = {
+  params: Promise<{ inviteCode: string }>;
+};
+
+export default async function InvitePage({ params }: InvitePageProps) {
+  const { inviteCode } = await params;
+
+  redirect(
+    buildJoinConfirmationRedirect({
+      auth: "register",
+      invite: inviteCode
+    })
+  );
 }

@@ -1,5 +1,9 @@
 import { safeRedirectPath } from "@/lib/auth/utils";
-import { buildJoinConfirmationHref } from "@/lib/join/routing";
+import {
+  buildJoinConfirmationHref,
+  buildMembershipDecisionHref,
+  normalizeInviteCode
+} from "@/lib/join/routing";
 
 export type Join2MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
 export type Join2BillingInterval = "monthly" | "annual";
@@ -33,24 +37,37 @@ export function buildJoin2ActionHrefs({
   tier,
   billingInterval,
   billing,
-  from
+  from,
+  invite
 }: {
   tier: Join2MembershipTier;
   billingInterval: Join2BillingInterval;
   billing?: string;
   from?: string;
+  invite?: string;
 }) {
+  const safeFrom = sanitizeJoin2From(from);
+  const normalizedInvite = normalizeInviteCode(invite);
+  const joinHref = buildJoinConfirmationHref({
+    tier,
+    period: billingInterval,
+    billing,
+    from: safeFrom,
+    invite: normalizedInvite
+  });
+
   return {
     publicSiteHref: "/home",
-    membershipHref: "/membership",
-    auditHref: "/audit?source=join&topic=join-mobile",
-    joinHref: buildJoinConfirmationHref({
+    membershipHref: buildMembershipDecisionHref({
       tier,
       period: billingInterval,
       billing,
-      from: sanitizeJoin2From(from)
+      from: safeFrom,
+      invite: normalizedInvite
     }),
-    loginHref: "/login"
+    auditHref: "/audit?source=join&topic=join-mobile",
+    joinHref,
+    loginHref: `/login?from=${encodeURIComponent(joinHref)}`
   };
 }
 

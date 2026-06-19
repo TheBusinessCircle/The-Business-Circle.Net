@@ -55,6 +55,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
   const mode = firstValue(params.mode);
   const authMode = firstValue(params.auth);
   const billing = firstValue(params.billing);
+  const invite = firstValue(params.invite);
   const coreAccessConfirmed = firstValue(params.coreAccessConfirmed) === "1";
 
   if (mode === "signin") {
@@ -204,6 +205,7 @@ export default async function JoinPage({ searchParams }: JoinPageProps) {
         hasActiveSubscription={session?.user?.hasActiveSubscription ?? false}
         currentTier={currentTier}
         currentBillingInterval={currentBillingInterval}
+        inviteCode={invite}
         foundingOfferByTier={foundingOfferByTier}
       />
 

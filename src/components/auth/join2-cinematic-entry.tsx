@@ -32,6 +32,7 @@ type Join2CinematicEntryProps = {
   from?: string;
   error?: string;
   billing?: string;
+  inviteCode?: string;
 };
 
 type PortalStyleVars = CSSProperties & {
@@ -52,7 +53,8 @@ export function Join2CinematicEntry({
   billingInterval,
   from,
   error,
-  billing
+  billing,
+  inviteCode
 }: Join2CinematicEntryProps) {
   const reduceMotion = useReducedMotion();
   const routeRef = useRef<HTMLDivElement | null>(null);
@@ -377,9 +379,10 @@ export function Join2CinematicEntry({
         tier: initialSelectedTier,
         billingInterval,
         billing,
-        from: safeFrom
+        from: safeFrom,
+        invite: inviteCode
       }),
-    [billing, billingInterval, initialSelectedTier, safeFrom]
+    [billing, billingInterval, initialSelectedTier, inviteCode, safeFrom]
   );
 
   const handlePortalMove = (event: ReactPointerEvent<HTMLButtonElement>) => {

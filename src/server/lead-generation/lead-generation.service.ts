@@ -56,8 +56,11 @@ export type RecordAuditQuizLeadInput = {
   essentialConsent: boolean;
   marketingEmailOptIn?: boolean;
   score: number;
+  scorePercent?: number | null;
   resultType: string;
   recommendedTier: string;
+  recommendedPath?: string | null;
+  recommendedNextStep?: string | null;
   answers: Array<{ questionId: string; score: number | null }>;
   strengths: string[];
   weaknesses: string[];
@@ -284,9 +287,12 @@ async function sendAuditSubmissionAdminNotification(input: RecordAuditQuizLeadIn
         `Email: ${normalizeEmail(input.email)}`,
         `Business: ${toNullableText(input.businessName) || "N/A"}`,
         `Website: ${normalizeWebsite(input.website) || "N/A"}`,
-        `Score: ${input.score} of 30`,
+        `Score: ${input.score} of 30${
+          typeof input.scorePercent === "number" ? ` (${input.scorePercent}/100)` : ""
+        }`,
         `Result: ${input.resultType}`,
         `Recommended tier: ${input.recommendedTier}`,
+        `Recommended path: ${toNullableText(input.recommendedPath) || "N/A"}`,
         `Marketing opt-in: ${input.marketingEmailOptIn ? "Yes" : "No"}`,
         "The audit result was shown on-site immediately after capture."
       ]
@@ -447,19 +453,25 @@ export async function recordContactFormLead(input: {
     businessName: input.company,
     source: LeadSource.CONTACT_FORM,
     sourceLabel: "Contact Form",
-    consentSource: "Contact Form",
+    consentSource: "Contact form service reply",
     essentialConsent: true,
     marketingEmailOptIn: false,
     tags: ["contact-form", input.source ?? "website"],
     metadata: {
       sourcePath: input.sourcePath ?? "/contact",
-      source: input.source ?? "website"
+      source: input.source ?? "website",
+      consentBasis: "Submitted contact form for service response"
     } satisfies Prisma.InputJsonObject
   });
 }
 
 export async function recordAuditQuizLead(input: RecordAuditQuizLeadInput) {
   const now = new Date();
+  const recommendedPath = toNullableText(input.recommendedPath);
+  const recommendedNextStep = toNullableText(input.recommendedNextStep);
+  const scoreSummary = `Audit score ${input.score} of 30${
+    typeof input.scorePercent === "number" ? ` (${input.scorePercent}/100)` : ""
+  }.`;
   const lead = await recordLead({
     name: input.name,
     email: input.email,
@@ -472,11 +484,28 @@ export async function recordAuditQuizLead(input: RecordAuditQuizLeadInput) {
     marketingEmailOptIn: input.marketingEmailOptIn,
     consentedAt: input.essentialConsent ? now : null,
     marketingConsentAt: input.marketingEmailOptIn ? now : null,
-    tags: ["audit", "founder-audit", input.recommendedTier, input.resultType],
+    tags: [
+      "audit",
+      "founder-audit",
+      input.recommendedTier,
+      input.resultType,
+      recommendedPath ?? ""
+    ],
     score: input.score,
+    notes: [
+      scoreSummary,
+      recommendedPath ? `Recommended path: ${recommendedPath}.` : "",
+      recommendedNextStep ? `Next step: ${recommendedNextStep}` : ""
+    ]
+      .filter(Boolean)
+      .join(" "),
     metadata: {
       resultType: input.resultType,
       recommendedTier: input.recommendedTier,
+      recommendedPath,
+      recommendedNextStep,
+      rawScore: input.score,
+      scorePercent: input.scorePercent ?? null,
       answers: input.answers,
       strengths: input.strengths,
       weaknesses: input.weaknesses,

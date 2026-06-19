@@ -9,9 +9,11 @@ import { requireApiUser } from "@/lib/auth/api";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { logServerError } from "@/lib/security/logging";
 import { isTrustedOrigin } from "@/lib/security/origin";
+import { buildJoinConfirmationHref } from "@/lib/join/routing";
 import {
   createStripeBillingPortalSessionForUser,
   createStripeCheckoutSessionForUser,
+  getBillingConfigurationErrorMessage,
   isBillingEnabled,
   updateStripeSubscriptionPlanForUser
 } from "@/server/subscriptions";
@@ -23,8 +25,41 @@ const checkoutPayloadSchema = z.object({
   tier: z.nativeEnum(MembershipTier).optional(),
   billingInterval: z.enum(["monthly", "annual"]).optional(),
   coreAccessConfirmed: z.boolean().optional(),
-  source: z.enum(["membership", "join", "dashboard"]).optional()
+  source: z.enum(["membership", "join", "dashboard"]).optional(),
+  inviteCode: z.string().trim().max(64).optional().or(z.literal(""))
 });
+
+function checkoutCodeErrorMessage(code: string) {
+  if (code === "invite-code-limit-reached") {
+    return "This founding access code has already been fully claimed.";
+  }
+
+  if (code === "invite-code-tier-ineligible") {
+    return "This founding access code is not valid for the selected membership tier.";
+  }
+
+  if (code.startsWith("invite-code-")) {
+    return "This founding access code is not active.";
+  }
+
+  if (code === "launch-code-full") {
+    return "This Founder Access code has now reached its limit. You can still join on the standard membership price.";
+  }
+
+  if (code === "launch-code-invalid") {
+    return "That Founder Access code is not valid. Please check it and try again.";
+  }
+
+  if (code === "launch-code-already-used") {
+    return "This Founder Access code has already been used for this account.";
+  }
+
+  if (code.startsWith("launch-code-")) {
+    return "This Founder Access code is no longer active. You can still join on the standard membership price.";
+  }
+
+  return null;
+}
 
 export async function POST(request: Request) {
   let headers: HeadersInit | undefined;
@@ -62,9 +97,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!isBillingEnabled()) {
+    const billingConfigurationError = getBillingConfigurationErrorMessage();
+
+    if (billingConfigurationError || !isBillingEnabled()) {
       return NextResponse.json(
-        { error: "Stripe billing is not configured." },
+        { error: billingConfigurationError ?? "Stripe billing is not configured." },
         { status: 500, headers }
       );
     }
@@ -81,6 +118,7 @@ export async function POST(request: Request) {
       (parsedPayload.data.billingInterval ?? "monthly") as MembershipBillingInterval;
     const coreAccessConfirmed = parsedPayload.data.coreAccessConfirmed ?? false;
     const source = parsedPayload.data.source ?? "dashboard";
+    const inviteCode = parsedPayload.data.inviteCode?.trim() || null;
     const currentTier = roleToTier(authResult.user.role, authResult.user.membershipTier);
     const currentTierRank = getMembershipTierRank(currentTier);
     const targetTierRank = getMembershipTierRank(targetTier);
@@ -103,10 +141,20 @@ export async function POST(request: Request) {
           : `/dashboard?billing=success&interval=${billingInterval}`;
     const cancelPath =
       source === "join"
-        ? `/join?billing=cancelled&tier=${targetTier}&period=${billingInterval}`
+        ? buildJoinConfirmationHref({
+            billing: "cancelled",
+            tier: targetTier,
+            period: billingInterval,
+            invite: inviteCode ?? undefined
+          })
         : source === "dashboard"
           ? `/dashboard?billing=cancelled&tier=${targetTier}&interval=${billingInterval}`
-          : `/join?billing=cancelled&tier=${targetTier}&period=${billingInterval}`;
+          : buildJoinConfirmationHref({
+              billing: "cancelled",
+              tier: targetTier,
+              period: billingInterval,
+              invite: inviteCode ?? undefined
+            });
 
     if (!authResult.user.email) {
       return NextResponse.json(
@@ -168,7 +216,7 @@ export async function POST(request: Request) {
       targetTier,
       billingInterval,
       coreAccessConfirmed,
-      inviteCode: null,
+      inviteCode,
       successPath,
       cancelPath,
       allowFoundingOffer: !authResult.user.hasActiveSubscription
@@ -184,6 +232,14 @@ export async function POST(request: Request) {
         },
         { status: 400, headers }
       );
+    }
+
+    if (error instanceof Error) {
+      const codeError = checkoutCodeErrorMessage(error.message);
+
+      if (codeError) {
+        return NextResponse.json({ error: codeError }, { status: 400, headers });
+      }
     }
 
     logServerError("stripe-checkout-route-failed", error);

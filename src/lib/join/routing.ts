@@ -21,6 +21,11 @@ export function resolveBillingInterval(value: string | undefined): MembershipBil
   return value === "annual" ? "annual" : "monthly";
 }
 
+export function normalizeInviteCode(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, 64) : undefined;
+}
+
 export function buildAuthModeRedirect({
   from,
   error
@@ -59,6 +64,7 @@ function buildSelectionHref(
   const tier = input.tier ? resolveTier(input.tier) : undefined;
   const interval = resolveBillingInterval(input.period ?? input.interval);
   const auth = input.auth === "register" ? "register" : undefined;
+  const invite = normalizeInviteCode(input.invite);
 
   if (from) {
     search.set("from", from);
@@ -78,6 +84,10 @@ function buildSelectionHref(
 
   if (input.source === "audit") {
     search.set("source", "audit");
+  }
+
+  if (invite) {
+    search.set("invite", invite);
   }
 
   if (auth) {

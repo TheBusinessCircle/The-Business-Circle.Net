@@ -41,6 +41,7 @@ type RegisterFormProps = {
   onTierChange?: (tier: MembershipTier) => void;
   billingInterval?: MembershipBillingIntervalValue;
   coreAccessConfirmed?: boolean;
+  inviteCode?: string;
   showTierSelector?: boolean;
   showCoreConfirmation?: boolean;
   submitDisabled?: boolean;
@@ -65,6 +66,7 @@ export type RegisterPayload = {
   acceptedRules: boolean;
   minimumAgeConfirmed: boolean;
   marketingEmailOptIn: boolean;
+  inviteCode?: string;
   businessName?: string;
   businessStatus?: "IDEA_STARTUP" | "REGISTERED_BUSINESS" | "ESTABLISHED_COMPANY";
   companyNumber?: string;
@@ -144,6 +146,10 @@ export function buildRegisterPayload(values: RegisterMemberFormInput): RegisterP
     marketingEmailOptIn: values.marketingEmailOptIn
   };
 
+  if (values.inviteCode?.trim()) {
+    payload.inviteCode = values.inviteCode.trim();
+  }
+
   if (values.businessName?.trim()) {
     payload.businessName = values.businessName.trim();
   }
@@ -171,6 +177,7 @@ export function RegisterForm({
   onTierChange,
   billingInterval = "monthly",
   coreAccessConfirmed = false,
+  inviteCode,
   showTierSelector = true,
   showCoreConfirmation = true,
   submitDisabled = false,
@@ -204,6 +211,7 @@ export function RegisterForm({
       acceptedRules: false,
       minimumAgeConfirmed: false,
       marketingEmailOptIn: false,
+      inviteCode: inviteCode ?? "",
       businessName: "",
       businessStatus: "",
       companyNumber: "",
@@ -241,6 +249,14 @@ export function RegisterForm({
       shouldValidate: false
     });
   }, [coreAccessConfirmed, form]);
+
+  useEffect(() => {
+    form.setValue("inviteCode", inviteCode ?? "", {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: false
+    });
+  }, [form, inviteCode]);
 
   const onSubmit = form.handleSubmit((values) => {
     setNotice(null);
@@ -368,6 +384,7 @@ export function RegisterForm({
 
         <form className="space-y-5" onSubmit={onSubmit}>
           <input type="hidden" {...form.register("billingInterval")} />
+          <input type="hidden" {...form.register("inviteCode")} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

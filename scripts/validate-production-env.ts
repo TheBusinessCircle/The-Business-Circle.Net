@@ -101,6 +101,74 @@ function parseCsv(value: string) {
     .filter(Boolean);
 }
 
+const MEMBERSHIP_STRIPE_PRICE_REQUIREMENTS = [
+  {
+    label: "Foundation standard monthly",
+    envNames: [
+      "STRIPE_FOUNDATION_MONTHLY_PRICE_ID",
+      "STRIPE_FOUNDATION_PRICE_ID",
+      "STRIPE_STANDARD_PRICE_ID"
+    ]
+  },
+  {
+    label: "Foundation standard annual",
+    envNames: ["STRIPE_FOUNDATION_ANNUAL_PRICE_ID"]
+  },
+  {
+    label: "Foundation founding monthly",
+    envNames: [
+      "STRIPE_FOUNDING_FOUNDATION_MONTHLY_PRICE_ID",
+      "STRIPE_FOUNDING_FOUNDATION_PRICE_ID",
+      "STRIPE_FOUNDING_STANDARD_PRICE_ID"
+    ]
+  },
+  {
+    label: "Foundation founding annual",
+    envNames: ["STRIPE_FOUNDING_FOUNDATION_ANNUAL_PRICE_ID"]
+  },
+  {
+    label: "Inner Circle standard monthly",
+    envNames: ["STRIPE_INNER_CIRCLE_MONTHLY_PRICE_ID", "STRIPE_INNER_CIRCLE_PRICE_ID"]
+  },
+  {
+    label: "Inner Circle standard annual",
+    envNames: ["STRIPE_INNER_CIRCLE_ANNUAL_PRICE_ID"]
+  },
+  {
+    label: "Inner Circle founding monthly",
+    envNames: [
+      "STRIPE_FOUNDING_INNER_CIRCLE_MONTHLY_PRICE_ID",
+      "STRIPE_FOUNDING_INNER_CIRCLE_PRICE_ID"
+    ]
+  },
+  {
+    label: "Inner Circle founding annual",
+    envNames: ["STRIPE_FOUNDING_INNER_CIRCLE_ANNUAL_PRICE_ID"]
+  },
+  {
+    label: "Core standard monthly",
+    envNames: ["STRIPE_CORE_MONTHLY_PRICE_ID", "STRIPE_CORE_PRICE_ID"]
+  },
+  {
+    label: "Core standard annual",
+    envNames: ["STRIPE_CORE_ANNUAL_PRICE_ID"]
+  },
+  {
+    label: "Core founding monthly",
+    envNames: ["STRIPE_FOUNDING_CORE_MONTHLY_PRICE_ID", "STRIPE_FOUNDING_CORE_PRICE_ID"]
+  },
+  {
+    label: "Core founding annual",
+    envNames: ["STRIPE_FOUNDING_CORE_ANNUAL_PRICE_ID"]
+  }
+] as const;
+
+function listMissingMembershipStripePriceIds() {
+  return MEMBERSHIP_STRIPE_PRICE_REQUIREMENTS.filter(
+    (requirement) => !requirement.envNames.some((name) => env(name))
+  );
+}
+
 function validateProductionEnv() {
   const issues: Issue[] = [];
 
@@ -197,6 +265,14 @@ function validateProductionEnv() {
 
   if (!stripeWebhookSecret.startsWith("whsec_")) {
     addIssue(issues, "error", "STRIPE_WEBHOOK_SECRET is missing or invalid.");
+  }
+
+  for (const missingPriceId of listMissingMembershipStripePriceIds()) {
+    addIssue(
+      issues,
+      "error",
+      `Missing Stripe membership price ID for ${missingPriceId.label}. Set one of: ${missingPriceId.envNames.join(", ")}.`
+    );
   }
 
   if (!posthogKey || !posthogKey.startsWith("phc_")) {

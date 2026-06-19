@@ -30,9 +30,8 @@ export async function GET(_request: Request, { params }: RouteProps) {
     return NextResponse.json({ error: "Upload not found." }, { status: 404 });
   }
 
-  const absolutePath = resolveFounderUploadAbsolutePath(upload.fileUrl);
-
   try {
+    const absolutePath = resolveFounderUploadAbsolutePath(upload.fileUrl);
     const buffer = await readFile(absolutePath);
     const encodedName = encodeURIComponent(upload.fileName);
 

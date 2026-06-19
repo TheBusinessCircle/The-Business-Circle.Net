@@ -82,6 +82,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
       interval: firstValue(params.interval),
       period: firstValue(params.period),
       billing: firstValue(params.billing),
+      invite: firstValue(params.invite),
       auth: "register",
       coreAccessConfirmed: firstValue(params.coreAccessConfirmed)
     })

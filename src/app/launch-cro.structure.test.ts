@@ -7,14 +7,17 @@ function readSource(path: string) {
 }
 
 describe("launch CRO placement", () => {
-  it("renders the first 7 days block on home and audit result surfaces", () => {
+  it("renders the first 7 days block on home and the audit conversion surface", () => {
     const home = readSource("src/app/(public)/home/page.tsx");
     const audit = readSource("src/app/(public)/audit/founder-audit-client.tsx");
     const component = readSource("src/components/public/launch-cro-blocks.tsx");
 
     expect(component).toContain("Your first 7 days inside The Business Circle");
     expect(home).toContain("<FirstSevenDaysBlock");
-    expect(audit).toContain("<FirstSevenDaysBlock");
+    expect(audit).toContain("getFounderAuditConversionRecommendation");
+    expect(audit).toContain("Join The Business Circle");
+    expect(audit).toContain("Create or improve Circle Card");
+    expect(audit).toContain("Book Growth Architect support");
   });
 
   it("renders the membership fast path and compact decision support", () => {
@@ -53,9 +56,9 @@ describe("launch CRO placement", () => {
       "src/app/(member)/member/growth-architect/page.tsx"
     );
 
-    expect(founder).toContain("<GrowthArchitectSupportCta");
+    expect(founder).toContain('growthReviewHref("Hero")');
+    expect(founder).toContain("Book A Growth Review");
     expect(memberGrowthArchitect).toContain("<GrowthArchitectSupportCta");
-    expect(founder).toContain("Launch%20Review%20CTA");
     expect(memberGrowthArchitect).toContain("Launch%20Review%20CTA");
   });
 });

@@ -20,7 +20,7 @@ describe("public to paid join routing", () => {
         from: "/",
         invite: " bcn-test "
       })
-    ).toBe(`/membership?from=%2F&tier=${slug}&period=monthly`);
+    ).toBe(`/membership?from=%2F&tier=${slug}&period=monthly&invite=bcn-test`);
 
     expect(
       buildJoinConfirmationHref({
@@ -29,7 +29,7 @@ describe("public to paid join routing", () => {
         from: "/membership",
         invite: " bcn-test "
       })
-    ).toBe(`/join?from=%2Fmembership&tier=${slug}&period=annual`);
+    ).toBe(`/join?from=%2Fmembership&tier=${slug}&period=annual&invite=bcn-test`);
   });
 
   it("keeps direct join confirmation pointed at /join with tier, billing, and safe from", () => {
@@ -41,7 +41,7 @@ describe("public to paid join routing", () => {
         invite: "core-123",
         from: "https://evil.example/steal"
       })
-    ).toBe("/join?tier=core&period=monthly&billing=cancelled");
+    ).toBe("/join?tier=core&period=monthly&billing=cancelled&invite=core-123");
   });
 
   it("preserves the audit source marker on membership selection links only when expected", () => {

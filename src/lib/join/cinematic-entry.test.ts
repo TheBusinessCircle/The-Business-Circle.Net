@@ -22,15 +22,20 @@ describe("join-mobile cinematic entry", () => {
       tier: "INNER_CIRCLE",
       billingInterval: "annual",
       billing: "cancelled",
-      from: "/membership?tier=core&period=monthly"
+      from: "/membership?tier=core&period=monthly",
+      invite: "BCN-TEST"
     });
 
     expect(hrefs.publicSiteHref).toBe("/home");
-    expect(hrefs.membershipHref).toBe("/membership");
+    expect(hrefs.membershipHref).toBe(
+      "/membership?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly&tier=inner-circle&period=annual&billing=cancelled&invite=BCN-TEST"
+    );
     expect(hrefs.auditHref).toBe("/audit?source=join&topic=join-mobile");
-    expect(hrefs.loginHref).toBe("/login");
+    expect(hrefs.loginHref).toBe(
+      "/login?from=%2Fjoin%3Ffrom%3D%252Fmembership%253Ftier%253Dcore%2526period%253Dmonthly%26tier%3Dinner-circle%26period%3Dannual%26billing%3Dcancelled%26invite%3DBCN-TEST"
+    );
     expect(hrefs.joinHref).toBe(
-      "/join?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly&tier=inner-circle&period=annual&billing=cancelled"
+      "/join?from=%2Fmembership%3Ftier%3Dcore%26period%3Dmonthly&tier=inner-circle&period=annual&billing=cancelled&invite=BCN-TEST"
     );
   });
 
@@ -111,15 +116,15 @@ describe("join-mobile cinematic entry", () => {
     );
 
     expect(source).toContain('const publicSiteHref = "/home";');
-    expect(source).toContain('const membershipHref = "/membership";');
+    expect(source).toContain("buildMembershipDecisionHref");
     expect(source).toContain('const auditHref = "/audit?source=join&topic=join-desktop";');
-    expect(source).toContain('const loginHref = "/login";');
+    expect(source).toContain("encodeURIComponent(joinHref)");
     expect(source).toContain("Explore The Business Circle");
     expect(source).toContain("Go straight to join");
     expect(source).toContain("Run the Founder Audit");
     expect(source).toContain("Already a member?");
     expect(source).not.toContain("window.location.assign");
-    expect(source).not.toContain("buildJoinConfirmationHref");
+    expect(source).toContain("buildJoinConfirmationHref");
   });
 
   it("uses the lower portal alignment for the Step Inside overlay", () => {

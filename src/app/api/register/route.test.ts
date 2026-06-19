@@ -7,6 +7,7 @@ const consumeRateLimitMock = vi.hoisted(() => vi.fn());
 const rateLimitHeadersMock = vi.hoisted(() => vi.fn());
 const isTrustedOriginMock = vi.hoisted(() => vi.fn());
 const isBillingEnabledMock = vi.hoisted(() => vi.fn());
+const getBillingConfigurationErrorMessageMock = vi.hoisted(() => vi.fn());
 const MockRegistrationServiceError = vi.hoisted(
   () =>
     class MockRegistrationServiceError extends Error {
@@ -41,6 +42,7 @@ vi.mock("@/lib/security/logging", () => ({
 vi.mock("@/server/subscriptions", () => ({
   createStripeCheckoutSessionForPendingRegistration:
     createStripeCheckoutSessionForPendingRegistrationMock,
+  getBillingConfigurationErrorMessage: getBillingConfigurationErrorMessageMock,
   isBillingEnabled: isBillingEnabledMock
 }));
 
@@ -56,6 +58,7 @@ describe("register route", () => {
     });
     rateLimitHeadersMock.mockReturnValue({});
     isBillingEnabledMock.mockReturnValue(true);
+    getBillingConfigurationErrorMessageMock.mockReturnValue(null);
   });
 
   it("returns a clear validation error when Terms are not accepted", async () => {
@@ -133,11 +136,11 @@ describe("register route", () => {
     const createPayload = createPendingRegistrationMock.mock.calls[0]?.[0] as
       | Record<string, unknown>
       | undefined;
-    expect(createPayload).not.toHaveProperty("inviteCode");
+    expect(createPayload).toHaveProperty("inviteCode", "STALE-FOUNDER-CODE");
     expect(createStripeCheckoutSessionForPendingRegistrationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         pendingRegistrationId: "pending_123",
-        inviteCode: null,
+        inviteCode: "BC-TREV-1234",
         acceptedTermsVersion: TERMS_VERSION,
         acceptedRulesAt: null,
         acceptedRulesVersion: null,

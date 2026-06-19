@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, isAbsolute, join, relative, resolve } from "node:path";
 
 export const FOUNDER_UPLOAD_STORAGE_DIR = join(
   process.cwd(),
@@ -81,6 +81,13 @@ export async function persistFounderUpload(
 }
 
 export function resolveFounderUploadAbsolutePath(fileUrl: string): string {
-  const normalized = normalize(fileUrl).replace(/^(\.\.(\/|\\|$))+/, "");
-  return join(FOUNDER_UPLOAD_STORAGE_DIR, normalized);
+  const storageRoot = resolve(FOUNDER_UPLOAD_STORAGE_DIR);
+  const absolutePath = resolve(storageRoot, fileUrl);
+  const relativePath = relative(storageRoot, absolutePath);
+
+  if (!relativePath || relativePath.startsWith("..") || isAbsolute(relativePath)) {
+    throw new Error("invalid-founder-upload-path");
+  }
+
+  return absolutePath;
 }

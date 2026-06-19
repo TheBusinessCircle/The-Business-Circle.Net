@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildRegisterPayload } from "@/components/auth/register-form";
 
 describe("buildRegisterPayload", () => {
-  it("keeps legal acceptance flags and omits public founder codes from the register API payload", () => {
+  it("keeps legal acceptance flags and carries invite codes into the register API payload", () => {
     const payload = buildRegisterPayload({
       name: "Trevor Newton",
       email: "trev@example.com",
@@ -31,6 +31,7 @@ describe("buildRegisterPayload", () => {
       acceptedTerms: true,
       acceptedRules: true,
       minimumAgeConfirmed: true,
+      inviteCode: "BCN-TEST",
       businessName: "The Business Circle",
       businessStatus: "REGISTERED_BUSINESS",
       companyNumber: "12345678",

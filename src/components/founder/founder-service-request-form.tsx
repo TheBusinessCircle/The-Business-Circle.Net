@@ -313,6 +313,12 @@ export function FounderServiceRequestForm({
               </div>
             ) : null}
 
+            <p className="text-xs leading-relaxed text-muted">
+              By submitting this request, you agree that The Business Circle Network may use your
+              details to review the fit, reply about this service request, and send essential
+              service emails about the next step.
+            </p>
+
             <div className="flex flex-wrap items-center gap-3">
               <Button type="submit" size="lg" disabled={isPending} className="group">
                 {isPending ? (

@@ -236,6 +236,11 @@ export function ContactForm({
             </p>
           ) : null}
 
+          <p className="text-xs leading-relaxed text-muted">
+            By submitting this form, you agree that The Business Circle Network may use your
+            details to reply to this enquiry and send essential service emails about this message.
+          </p>
+
           <Button disabled={isPending} type="submit" className="w-full sm:min-w-[140px] sm:w-auto">
             {isPending ? (
               <span className="inline-flex items-center gap-2">

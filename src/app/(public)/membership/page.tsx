@@ -172,6 +172,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
   const params = await searchParams;
   const billing = firstValue(params.billing);
   const from = firstValue(params.from);
+  const invite = firstValue(params.invite);
   const source = firstValue(params.source) === "audit" ? "audit" : undefined;
   const isAuditSource = source === "audit";
   const selectedTier = resolveMembershipTierInput(firstValue(params.tier));
@@ -354,6 +355,7 @@ export default async function MembershipPage({ searchParams }: MembershipPagePro
           billing={billing}
           source={source}
           from={from}
+          inviteCode={invite}
           foundingOfferByTier={foundingOfferByTier}
           faqTitle={membershipContent.faqTitle}
           faqDescription={membershipContent.faqDescription}

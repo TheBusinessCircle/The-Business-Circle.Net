@@ -46,6 +46,7 @@ type JoinCheckoutPrepProps = {
   hasActiveSubscription: boolean;
   currentTier: MembershipTier;
   currentBillingInterval: MembershipBillingInterval | null;
+  inviteCode?: string;
   foundingOfferByTier: Record<MembershipTier, FoundingOfferTierSnapshot>;
 };
 
@@ -149,6 +150,7 @@ function renderTierDetailPanel(input: {
   currentTier: MembershipTier;
   currentBillingInterval: MembershipBillingInterval | null;
   hasActiveSubscription: boolean;
+  inviteCode?: string;
   currentJoinHref: string;
   loginHref: string;
   canContinueToCore: boolean;
@@ -267,6 +269,7 @@ function renderTierDetailPanel(input: {
             isCurrentPlan={input.currentTier === input.selectedTier}
             hasActiveSubscription={input.hasActiveSubscription}
             currentBillingInterval={input.currentBillingInterval}
+            inviteCode={input.inviteCode}
             buttonVariant={getTierButtonVariant(input.selectedTier)}
             authenticatedLabel={getAuthenticatedLabel({
               currentTier: input.currentTier,
@@ -327,6 +330,7 @@ export function JoinCheckoutPrep({
   hasActiveSubscription,
   currentTier,
   currentBillingInterval,
+  inviteCode,
   foundingOfferByTier
 }: JoinCheckoutPrepProps) {
   const [selectedTier, setSelectedTier] = useState<MembershipTier>(initialSelectedTier);
@@ -363,9 +367,10 @@ export function JoinCheckoutPrep({
         period: billingInterval,
         billing,
         from,
+        invite: inviteCode,
         coreAccessConfirmed: selectedTier === "CORE" ? coreAccessConfirmed : undefined
       }),
-    [billing, billingInterval, coreAccessConfirmed, from, selectedTier]
+    [billing, billingInterval, coreAccessConfirmed, from, inviteCode, selectedTier]
   );
   const loginHref = useMemo(
     () => `/login?from=${encodeURIComponent(currentJoinHref)}`,
@@ -502,6 +507,7 @@ export function JoinCheckoutPrep({
             selectedTier={selectedTier}
             billingInterval={billingInterval}
             coreAccessConfirmed={coreAccessConfirmed}
+            inviteCode={inviteCode}
             showTierSelector={false}
             showCoreConfirmation={false}
             submitDisabled={!canContinueToCore}
@@ -536,6 +542,7 @@ export function JoinCheckoutPrep({
             currentTier,
             currentBillingInterval,
             hasActiveSubscription,
+            inviteCode,
             currentJoinHref,
             loginHref,
             canContinueToCore,

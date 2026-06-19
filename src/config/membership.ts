@@ -556,6 +556,24 @@ export function isMembershipVariantStripeConfigured(
   return Boolean(MEMBERSHIP_STRIPE_PRICE_IDS[tier][variant][interval]);
 }
 
+export function listMissingMembershipStripePriceIds(): string[] {
+  const missing: string[] = [];
+  const variants: MembershipBillingVariant[] = ["standard", "founding"];
+  const intervals: MembershipBillingInterval[] = ["monthly", "annual"];
+
+  for (const tier of MEMBERSHIP_TIER_ORDER) {
+    for (const variant of variants) {
+      for (const interval of intervals) {
+        if (!MEMBERSHIP_STRIPE_PRICE_IDS[tier][variant][interval]) {
+          missing.push(`${getMembershipTierLabel(tier)} ${variant} ${interval}`);
+        }
+      }
+    }
+  }
+
+  return missing;
+}
+
 export function getMembershipStripePriceId(
   tier: MembershipTier,
   billingVariant: MembershipBillingVariant,

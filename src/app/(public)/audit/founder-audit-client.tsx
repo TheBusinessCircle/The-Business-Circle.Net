@@ -7,15 +7,15 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  Clock3,
   Compass,
-  DoorOpen,
+  CreditCard,
+  FileDown,
+  LifeBuoy,
   RotateCcw
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FirstSevenDaysBlock } from "@/components/public/launch-cro-blocks";
 import {
   ANALYTICS_EVENTS,
   trackAnalyticsEvent,
@@ -30,6 +30,7 @@ import {
   FOUNDER_AUDIT_CATEGORY_MAP,
   calculateFounderAuditScore,
   getFounderAuditBottleneck,
+  getFounderAuditConversionRecommendation,
   getFounderAuditRecommendation
 } from "./audit-data";
 
@@ -108,6 +109,10 @@ function auditAreaSummary(answers: readonly (number | undefined)[]) {
   };
 }
 
+function firstUniqueValue(values: readonly string[]) {
+  return Array.from(new Set(values))[0] ?? null;
+}
+
 export function FounderAuditClient() {
   const [stage, setStage] = useState<AuditStage>("intro");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -123,6 +128,7 @@ export function FounderAuditClient() {
     marketingEmailOptIn: false
   });
   const [leadSubmitError, setLeadSubmitError] = useState<string | null>(null);
+  const [resultWarning, setResultWarning] = useState<string | null>(null);
   const [leadSubmitting, setLeadSubmitting] = useState(false);
 
   const currentQuestion = FOUNDER_AUDIT_QUESTIONS[currentIndex];
@@ -138,8 +144,38 @@ export function FounderAuditClient() {
     [answers]
   );
   const recommendation = getFounderAuditRecommendation(totalScore || totalQuestions);
+  const conversionRecommendation = getFounderAuditConversionRecommendation(totalScore || totalQuestions);
   const bottleneck = useMemo(() => getFounderAuditBottleneck(answers), [answers]);
   const areaSummary = useMemo(() => auditAreaSummary(answers), [answers]);
+  const mainStrength = firstUniqueValue(areaSummary.strengths);
+  const resultHighlights = [
+    {
+      label: "Main strength",
+      title: mainStrength ?? "Clarity can become the first win",
+      copy: mainStrength
+        ? "This is the strongest place to build from now."
+        : "No single area stood out strongly yet, so start by making the next move clearer.",
+      icon: CheckCircle2
+    },
+    {
+      label: "Main risk",
+      title: bottleneck.category,
+      copy: bottleneck.signal,
+      icon: AlertTriangle
+    },
+    {
+      label: "Biggest opportunity",
+      title: conversionRecommendation.biggestOpportunity,
+      copy: "Use the next step below to turn the audit into a practical move.",
+      icon: Compass
+    },
+    {
+      label: "Recommended next step",
+      title: conversionRecommendation.recommendedPath,
+      copy: conversionRecommendation.recommendedNextStep,
+      icon: ArrowRight
+    }
+  ];
   const auditEntryContext = useMemo(() => readAuditEntryContext(), []);
 
   const selectAnswer = (score: number) => {
@@ -158,6 +194,7 @@ export function FounderAuditClient() {
     if (currentIndex === totalQuestions - 1) {
       trackAnalyticsEvent(ANALYTICS_EVENTS.auditComplete, {
         score: totalScore,
+        scorePercent: conversionRecommendation.scorePercent,
         tier: recommendation.tierName
       });
       trackFounderAuditCompleted({
@@ -171,8 +208,10 @@ export function FounderAuditClient() {
         path: window.location.pathname + window.location.search,
         metadata: {
           score: totalScore,
+          scorePercent: conversionRecommendation.scorePercent,
           resultType: recommendation.phase,
           recommendedTier: recommendation.tierName,
+          recommendedPath: conversionRecommendation.recommendedPath,
           answers: FOUNDER_AUDIT_QUESTIONS.map((question, index) => ({
             questionId: question.id,
             score: answers[index] ?? null
@@ -184,6 +223,7 @@ export function FounderAuditClient() {
         }
       });
       setLeadSubmitError(null);
+      setResultWarning(null);
       setStage("lead-capture");
       return;
     }
@@ -218,6 +258,7 @@ export function FounderAuditClient() {
       marketingEmailOptIn: false
     });
     setLeadSubmitError(null);
+    setResultWarning(null);
     setStage("intro");
   };
 
@@ -234,6 +275,7 @@ export function FounderAuditClient() {
   const submitAuditLead = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLeadSubmitError(null);
+    setResultWarning(null);
 
     if (!leadForm.essentialConsent) {
       setLeadSubmitError(
@@ -258,8 +300,11 @@ export function FounderAuditClient() {
           essentialConsent: leadForm.essentialConsent,
           marketingEmailOptIn: leadForm.marketingEmailOptIn,
           score: totalScore,
+          scorePercent: conversionRecommendation.scorePercent,
           resultType: recommendation.phase,
           recommendedTier: recommendation.tierName,
+          recommendedPath: conversionRecommendation.recommendedPath,
+          recommendedNextStep: conversionRecommendation.recommendedNextStep,
           answers: FOUNDER_AUDIT_QUESTIONS.map((question, index) => ({
             questionId: question.id,
             score: answers[index] ?? null
@@ -280,13 +325,30 @@ export function FounderAuditClient() {
         const firstFieldError = data.fieldErrors
           ? Object.values(data.fieldErrors).flat().filter(Boolean)[0]
           : null;
+
+        if (!firstFieldError) {
+          const warning =
+            "We could not save your audit details right now, but your result is shown below.";
+          console.warn("audit-lead-save-failed", {
+            status: response.status,
+            error: data.error
+          });
+          setResultWarning(warning);
+          setStage("result");
+          return;
+        }
+
         setLeadSubmitError(firstFieldError ?? data.error ?? "Unable to save your audit details.");
         return;
       }
 
       setStage("result");
-    } catch {
-      setLeadSubmitError("Unable to save your audit details. Please try again.");
+    } catch (error) {
+      console.warn("audit-lead-save-failed", error);
+      setResultWarning(
+        "We could not save your audit details right now, but your result is shown below."
+      );
+      setStage("result");
     } finally {
       setLeadSubmitting(false);
     }
@@ -371,7 +433,7 @@ export function FounderAuditClient() {
             </p>
             <div className="flex flex-wrap gap-2">
               <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                Score {totalScore} of 30
+                Score {conversionRecommendation.scorePercent}/100
               </span>
               <span className="rounded-full border border-gold/22 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
                 Recommended room: {recommendation.tierName}
@@ -511,9 +573,12 @@ export function FounderAuditClient() {
         <div className="relative space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
-                <p className="premium-kicker">Audit Result</p>
+              <p className="premium-kicker">Audit Result</p>
               <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                Score {totalScore} of 30
+                {conversionRecommendation.scorePercent}/100
+              </span>
+              <span className="rounded-full border border-gold/22 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
+                {recommendation.tierName}
               </span>
             </div>
             <button
@@ -526,168 +591,170 @@ export function FounderAuditClient() {
             </button>
           </div>
 
-          <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.43fr)] lg:items-start">
-            <div className="min-w-0 space-y-5">
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full border border-gold/22 bg-gold/10 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-gold">
-                    Current phase
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-background/24 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-silver">
-                    Your next best room: {recommendation.tierName}
-                  </span>
-                </div>
-                <h1 className="max-w-4xl font-display text-3xl leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                  Based on your answers, your next best room is likely {recommendation.tierName}.
-                </h1>
-                <p className="max-w-3xl text-base leading-relaxed text-white/82 sm:text-lg">
-                  {recommendation.summary} You can review the membership options before joining.
+          {resultWarning ? (
+            <p
+              aria-live="polite"
+              className="rounded-[1.1rem] border border-gold/35 bg-gold/10 px-4 py-3 text-sm text-gold"
+            >
+              {resultWarning}
+            </p>
+          ) : null}
+
+          <div
+            id="audit-result-summary"
+            className="grid gap-4 rounded-[1.55rem] border border-gold/22 bg-background/30 p-4 shadow-panel-soft sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.38fr)]"
+          >
+            <div className="min-w-0 space-y-3">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Score summary</p>
+              <div className="flex flex-wrap items-end gap-3">
+                <p className="font-display text-5xl leading-none text-foreground sm:text-6xl">
+                  {conversionRecommendation.scorePercent}
                 </p>
+                <p className="pb-1 text-sm uppercase tracking-[0.08em] text-silver">out of 100</p>
               </div>
-
-              <div className="rounded-[1.45rem] border border-gold/22 bg-background/30 p-4 shadow-panel-soft sm:p-5">
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/24 bg-gold/10 text-gold">
-                    <AlertTriangle size={17} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                      Likely bottleneck
-                    </p>
-                    <h2 className="mt-2 font-display text-2xl text-foreground">
-                      {bottleneck.category}
-                    </h2>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">
-                      {bottleneck.signal}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link
-                  href={recommendation.membershipHref}
-                  onClick={() => {
-                    trackFounderAuditMembershipClicked({
-                      score: totalScore,
-                      tier: recommendation.tierName,
-                      href: recommendation.membershipHref
-                    });
-                    trackMembershipSelectedFromAudit({
-                      score: totalScore,
-                      tier: recommendation.tierName,
-                      href: recommendation.membershipHref,
-                      topic: auditEntryContext.topic
-                    });
-                    trackAnalyticsEvent(ANALYTICS_EVENTS.recommendedTierClicked, {
-                      source: "audit",
-                      score: totalScore,
-                      tier: recommendation.tierName
-                    });
-                  }}
-                  className={cn(
-                    buttonVariants({ variant: "default", size: "lg" }),
-                    "group w-full whitespace-normal text-center sm:w-auto"
-                  )}
-                >
-                  Review {recommendation.tierName} membership
-                  <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-                </Link>
-                <Link
-                  href="/membership?source=audit"
-                  onClick={() => {
-                    trackMembershipSelectedFromAudit({
-                      score: totalScore,
-                      tier: "all",
-                      href: "/membership?source=audit",
-                      topic: auditEntryContext.topic
-                    });
-                  }}
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    "w-full whitespace-normal text-center sm:w-auto"
-                  )}
-                >
-                  Compare all tiers
-                </Link>
-                <Link
-                  href="/home#how-it-works"
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "lg" }),
-                    "w-full whitespace-normal text-center sm:w-auto"
-                  )}
-                >
-                  See how The Business Circle works
-                </Link>
-              </div>
-
-              <p className="rounded-[1.1rem] border border-white/10 bg-background/22 px-4 py-3 text-sm leading-relaxed text-silver">
-                If you are cautious, that is sensible. The audit is here to give direction, not
-                pressure. Review the rooms, compare the tiers and only join when the fit is clear.
+              <h1 className="font-display text-3xl leading-tight text-foreground sm:text-4xl">
+                {conversionRecommendation.scoreLabel}
+              </h1>
+              <p className="max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
+                Raw audit score: {totalScore} of 30. Best membership path: {recommendation.tierName}.
               </p>
-
-              <div className="rounded-[1.45rem] border border-white/10 bg-background/24 p-4 sm:p-5">
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-card/54 text-silver">
-                    <Compass size={17} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                      What this means
-                    </p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
-                      {recommendation.phaseRisk}
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
 
-            <aside className="min-w-0 rounded-[1.7rem] border border-white/10 bg-background/24 p-5 shadow-panel-soft backdrop-blur">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Recommended room</p>
-              <div className="mt-4 space-y-4">
-                <div>
-                  <p className="font-display text-3xl text-foreground">{recommendation.tierName}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">{recommendation.tierFit}</p>
-                </div>
+            <div className="min-w-0 rounded-[1.2rem] border border-white/10 bg-card/42 p-4">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
+                Recommended path
+              </p>
+              <p className="mt-2 font-display text-2xl leading-tight text-foreground">
+                {conversionRecommendation.recommendedPath}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                {conversionRecommendation.recommendedNextStep}
+              </p>
+            </div>
+          </div>
 
-                <div className="rounded-[1.2rem] border border-white/10 bg-card/42 p-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            {resultHighlights.map((highlight) => {
+              const Icon = highlight.icon;
+
+              return (
+                <div
+                  key={highlight.label}
+                  className="min-w-0 rounded-[1.25rem] border border-white/10 bg-background/24 p-4 shadow-panel-soft"
+                >
                   <div className="flex items-start gap-3">
-                    <DoorOpen size={17} className="mt-0.5 shrink-0 text-gold" />
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/10 text-gold">
+                      <Icon size={16} />
+                    </span>
                     <div className="min-w-0">
                       <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                        What changes
+                        {highlight.label}
                       </p>
-                      <p className="mt-2 text-sm leading-relaxed text-muted">
-                        {recommendation.roomChange}
-                      </p>
+                      <h2 className="mt-2 font-display text-xl leading-tight text-foreground">
+                        {highlight.title}
+                      </h2>
+                      <p className="mt-2 text-sm leading-relaxed text-muted">{highlight.copy}</p>
                     </div>
                   </div>
                 </div>
-
-                <div className="rounded-[1.2rem] border border-white/10 bg-card/42 p-4">
-                  <div className="flex items-center gap-2">
-                    <Clock3 size={16} className="text-gold" />
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                      First 7 days
-                    </p>
-                  </div>
-                  <ol className="mt-3 space-y-2">
-                    {recommendation.firstSevenDays.map((step, index) => (
-                      <li key={step} className="flex gap-3 text-sm leading-relaxed text-muted">
-                        <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gold/20 bg-gold/10 text-[11px] text-gold">
-                          {index + 1}
-                        </span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </div>
-            </aside>
+              );
+            })}
           </div>
 
-          <FirstSevenDaysBlock frame="panel" variant="audit" />
+          <div className="rounded-[1.45rem] border border-white/10 bg-background/24 p-4 shadow-panel-soft sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link
+                href={conversionRecommendation.membershipHref}
+                onClick={() => {
+                  trackFounderAuditMembershipClicked({
+                    score: totalScore,
+                    tier: recommendation.tierName,
+                    href: conversionRecommendation.membershipHref
+                  });
+                  trackMembershipSelectedFromAudit({
+                    score: totalScore,
+                    tier: recommendation.tierName,
+                    href: conversionRecommendation.membershipHref,
+                    topic: auditEntryContext.topic
+                  });
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.recommendedTierClicked, {
+                    source: "audit",
+                    score: totalScore,
+                    scorePercent: conversionRecommendation.scorePercent,
+                    tier: recommendation.tierName
+                  });
+                }}
+                className={cn(
+                  buttonVariants({ variant: "default", size: "lg" }),
+                  "group w-full whitespace-normal text-center sm:w-auto"
+                )}
+              >
+                Join The Business Circle
+                <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+              </Link>
+
+              <Link
+                href={conversionRecommendation.circleCardHref}
+                onClick={() => {
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.auditCtaClicked, {
+                    source: "audit",
+                    cta: "circle-card",
+                    href: conversionRecommendation.circleCardHref,
+                    score: totalScore,
+                    scorePercent: conversionRecommendation.scorePercent
+                  });
+                }}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "lg" }),
+                  "w-full whitespace-normal text-center sm:w-auto"
+                )}
+              >
+                <CreditCard size={16} className="mr-2" />
+                Create or improve Circle Card
+              </Link>
+
+              <Link
+                href={conversionRecommendation.growthArchitectHref}
+                onClick={() => {
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.auditCtaClicked, {
+                    source: "audit",
+                    cta: "growth-architect",
+                    href: conversionRecommendation.growthArchitectHref,
+                    score: totalScore,
+                    scorePercent: conversionRecommendation.scorePercent
+                  });
+                }}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "lg" }),
+                  "w-full whitespace-normal text-center sm:w-auto"
+                )}
+              >
+                <LifeBuoy size={16} className="mr-2" />
+                Book Growth Architect support
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => {
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.auditCtaClicked, {
+                    source: "audit",
+                    cta: "save-result",
+                    href: "print",
+                    score: totalScore,
+                    scorePercent: conversionRecommendation.scorePercent
+                  });
+                  window.print();
+                }}
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "lg" }),
+                  "w-full whitespace-normal text-center sm:w-auto"
+                )}
+              >
+                <FileDown size={16} className="mr-2" />
+                Save result
+              </button>
+            </div>
+          </div>
         </div>
       </section>
     );

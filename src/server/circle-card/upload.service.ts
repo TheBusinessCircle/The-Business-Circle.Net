@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import {
   CIRCLE_CARD_LINK_FILE_MIME_BY_EXTENSION,
   CIRCLE_CARD_SUPPORTED_LINK_FILE_EXTENSIONS,
@@ -18,6 +18,7 @@ export type CircleCardUploadKind = CircleCardImageUploadKind | CircleCardLinkFil
 
 const CIRCLE_CARD_UPLOAD_DIR = join(process.cwd(), "public", "uploads", "circle-card");
 const CIRCLE_CARD_LINK_FILE_UPLOAD_DIR = join(process.cwd(), ".uploads", "circle-card-link-files");
+const CIRCLE_CARD_LINK_FILE_NAME_PATTERN = /^[0-9]+-[a-f0-9]{16}\.(pdf|html?|jpg|png|webp|zip)$/i;
 export const MAX_CIRCLE_CARD_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_CIRCLE_CARD_LINK_FILE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const CLOUDINARY_CIRCLE_CARD_FOLDER =
@@ -171,12 +172,34 @@ export async function persistCircleCardLinkFileUpload(input: {
   return persistUploadedLinkFileLocally(input);
 }
 
-export async function readCircleCardLinkFile(filename: string) {
-  if (!/^[0-9]+-[a-f0-9]{16}\.(pdf|html?|jpg|png|webp|zip)$/i.test(filename)) {
+export function isCircleCardLinkFileName(filename: string) {
+  return CIRCLE_CARD_LINK_FILE_NAME_PATTERN.test(filename);
+}
+
+function resolveCircleCardLinkFilePath(filename: string) {
+  if (!isCircleCardLinkFileName(filename)) {
     return null;
   }
 
-  const bytes = await readFile(join(CIRCLE_CARD_LINK_FILE_UPLOAD_DIR, filename)).catch(() => null);
+  const storageRoot = resolve(CIRCLE_CARD_LINK_FILE_UPLOAD_DIR);
+  const absolutePath = resolve(storageRoot, filename);
+  const relativePath = relative(storageRoot, absolutePath);
+
+  if (!relativePath || relativePath.startsWith("..") || isAbsolute(relativePath)) {
+    return null;
+  }
+
+  return absolutePath;
+}
+
+export async function readCircleCardLinkFile(filename: string) {
+  const absolutePath = resolveCircleCardLinkFilePath(filename);
+
+  if (!absolutePath) {
+    return null;
+  }
+
+  const bytes = await readFile(absolutePath).catch(() => null);
 
   if (!bytes) {
     return null;

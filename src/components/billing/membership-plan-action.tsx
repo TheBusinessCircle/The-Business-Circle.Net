@@ -17,6 +17,7 @@ type CheckoutApiPayload = {
   billingInterval: MembershipBillingInterval;
   coreAccessConfirmed: boolean;
   source: CheckoutSource;
+  inviteCode?: string;
 };
 
 type CheckoutApiResponse = {
@@ -39,6 +40,7 @@ type MembershipPlanActionProps = {
   isCurrentPlan?: boolean;
   hasActiveSubscription?: boolean;
   currentBillingInterval?: MembershipBillingInterval | null;
+  inviteCode?: string;
   buttonVariant?: "foundation" | "innerCircle" | "core" | "outline";
   authenticatedLabel: string;
   unauthenticatedLabel: string;
@@ -105,6 +107,7 @@ export function MembershipPlanAction({
   isCurrentPlan = false,
   hasActiveSubscription = false,
   currentBillingInterval,
+  inviteCode,
   buttonVariant,
   authenticatedLabel,
   unauthenticatedLabel,
@@ -139,10 +142,11 @@ export function MembershipPlanAction({
     () =>
       withSelectionParams(joinHref, {
         interval: billingInterval,
+        invite: inviteCode,
         coreAccessConfirmed:
           requiresCoreConfirmation ? resolvedCoreAccessConfirmed : undefined
       }),
-    [billingInterval, joinHref, requiresCoreConfirmation, resolvedCoreAccessConfirmed]
+    [billingInterval, inviteCode, joinHref, requiresCoreConfirmation, resolvedCoreAccessConfirmed]
   );
   const resolvedLoginHref = useMemo(
     () =>
@@ -178,7 +182,8 @@ export function MembershipPlanAction({
         tier,
         billingInterval,
         coreAccessConfirmed: resolvedCoreAccessConfirmed,
-        source
+        source,
+        inviteCode
       };
 
       const response = await fetch("/api/stripe/checkout", {

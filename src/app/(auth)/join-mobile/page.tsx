@@ -47,6 +47,7 @@ export default async function JoinMobilePage({ searchParams }: JoinMobilePagePro
       from={from}
       error={error}
       billing={firstValue(params.billing)}
+      inviteCode={firstValue(params.invite)}
     />
   );
 }

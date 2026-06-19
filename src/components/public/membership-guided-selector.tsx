@@ -57,6 +57,7 @@ type MembershipGuidedSelectorProps = {
   billing?: string;
   source?: "audit";
   from?: string;
+  inviteCode?: string;
   foundingOfferByTier: Record<MembershipTier, FoundingOfferTierSnapshot>;
   faqTitle: string;
   faqDescription: string;
@@ -501,6 +502,7 @@ export function MembershipGuidedSelector({
   billing,
   source,
   from,
+  inviteCode,
   foundingOfferByTier,
   faqTitle,
   faqDescription,
@@ -528,9 +530,10 @@ export function MembershipGuidedSelector({
         period: billingInterval,
         billing,
         source,
-        from
+        from,
+        invite: inviteCode
       }),
-    [billing, billingInterval, from, selectedTier, source]
+    [billing, billingInterval, from, inviteCode, selectedTier, source]
   );
 
   useEffect(() => {
@@ -553,9 +556,10 @@ export function MembershipGuidedSelector({
         tier: getMembershipTierSlug(selectedTier),
         period: billingInterval,
         billing,
-        from
+        from,
+        invite: inviteCode
       }),
-    [billing, billingInterval, from, selectedTier]
+    [billing, billingInterval, from, inviteCode, selectedTier]
   );
 
   return (
