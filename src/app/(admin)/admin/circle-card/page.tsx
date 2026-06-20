@@ -4,6 +4,7 @@ import {
   Activity,
   BadgeCheck,
   BarChart3,
+  ChevronDown,
   ContactRound,
   Crown,
   ExternalLink,
@@ -213,9 +214,19 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
 
   const planSignalMetrics: MetricItem[] = [
     {
+      label: "Free users",
+      value: dashboard.plans.counts.FREE,
+      hint: "Circle Card users currently treated as Free."
+    },
+    {
       label: "Pro interest leads",
       value: dashboard.plans.proInterestCount,
       hint: "Leads tagged from the Circle Card Pro interest form."
+    },
+    {
+      label: "Teams interest leads",
+      value: dashboard.plans.teamsInterestCount,
+      hint: "Leads tagged from the Circle Card Teams interest form."
     },
     {
       label: "Likely Pro candidates",
@@ -434,18 +445,39 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           title="Circle Card Plan Boundary"
           description="Free, Pro and Teams visibility without changing BCN membership or Stripe."
         />
-        <MetricGrid metrics={planMetrics} />
-        <MetricGrid metrics={accountTypeMetrics} />
         <MetricGrid metrics={planSignalMetrics} />
-        <Link href="/admin/lead-generation?segment=CIRCLE_CARD_PRO_INTEREST" className="inline-flex w-fit">
-          <Button type="button" variant="outline" size="sm" className="gap-2">
-            <Crown size={14} />
-            View Pro interest leads
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/lead-generation?segment=CIRCLE_CARD_PRO_INTEREST" className="inline-flex w-fit">
+            <Button type="button" variant="outline" size="sm" className="gap-2">
+              <Crown size={14} />
+              View Pro interest leads
+            </Button>
+          </Link>
+          <Link href="/admin/lead-generation?segment=CIRCLE_CARD_TEAMS_INTEREST" className="inline-flex w-fit">
+            <Button type="button" variant="outline" size="sm" className="gap-2">
+              <UsersRound size={14} />
+              View Teams interest leads
+            </Button>
+          </Link>
+        </div>
         <p className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-sm leading-relaxed text-muted">
           {dashboard.plans.note}
         </p>
+        <details className="group rounded-2xl border border-border/80 bg-background/20 shadow-inner-surface">
+          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Plan and account breakdown</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Paid Circle Card assignment and captured account-type signals.
+              </p>
+            </div>
+            <ChevronDown size={17} className="mt-1 shrink-0 text-silver transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-3 border-t border-border/70 p-4">
+            <MetricGrid metrics={planMetrics} />
+            <MetricGrid metrics={accountTypeMetrics} />
+          </div>
+        </details>
         <div className="grid gap-4 xl:grid-cols-2">
           <PlanCandidatePanel
             title="Likely Pro candidates"
@@ -944,53 +976,63 @@ function PlanCandidatePanel({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="inline-flex items-center gap-2">
-          <Crown size={18} className="text-gold" />
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {items.length ? (
-          items.map((item) => (
-            <article key={`${item.userId}-${item.cardId}`} className="rounded-xl border border-border/80 bg-background/25 p-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {displayCard({ fullName: item.fullName, businessName: item.businessName })}
-                  </p>
-                  <p className="mt-1 break-all text-xs text-muted">
-                    {item.ownerName ? `${item.ownerName} / ` : ""}
-                    {item.ownerEmail}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {item.accountType ? (
-                      <Badge variant="outline" className="normal-case tracking-normal text-muted">
-                        {getCircleCardAccountTypeLabel(item.accountType)}
-                      </Badge>
-                    ) : null}
-                    {item.reasons.slice(0, 4).map((reason) => (
-                      <Badge key={reason} variant="outline" className="normal-case tracking-normal text-muted">
-                        {reason}
-                      </Badge>
-                    ))}
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-6 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0">
+            <CardTitle className="inline-flex items-center gap-2">
+              <Crown size={18} className="text-gold" />
+              {title}
+            </CardTitle>
+            <CardDescription className="mt-2">{description}</CardDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="outline" className="normal-case tracking-normal">
+              {items.length}
+            </Badge>
+            <ChevronDown size={17} className="text-silver transition-transform group-open:rotate-180" />
+          </div>
+        </summary>
+        <CardContent className="space-y-2 pt-0">
+          {items.length ? (
+            items.map((item) => (
+              <article key={`${item.userId}-${item.cardId}`} className="rounded-xl border border-border/80 bg-background/25 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {displayCard({ fullName: item.fullName, businessName: item.businessName })}
+                    </p>
+                    <p className="mt-1 break-all text-xs text-muted">
+                      {item.ownerName ? `${item.ownerName} / ` : ""}
+                      {item.ownerEmail}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {item.accountType ? (
+                        <Badge variant="outline" className="normal-case tracking-normal text-muted">
+                          {getCircleCardAccountTypeLabel(item.accountType)}
+                        </Badge>
+                      ) : null}
+                      {item.reasons.slice(0, 4).map((reason) => (
+                        <Badge key={reason} variant="outline" className="normal-case tracking-normal text-muted">
+                          {reason}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
+                  <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
+                    {item.score} signal{item.score === 1 ? "" : "s"}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
-                  {item.score} signal{item.score === 1 ? "" : "s"}
-                </Badge>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <AdminLinkButton href={`/card/${item.slug}`} label="Public card" external />
-                <AdminLinkButton href={`/admin/members/${item.userId}`} label="Owner" />
-              </div>
-            </article>
-          ))
-        ) : (
-          <EmptyState icon={Crown} title={emptyTitle} description="Matching users will appear here as Circle Card usage grows." />
-        )}
-      </CardContent>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <AdminLinkButton href={`/card/${item.slug}`} label="Public card" external />
+                  <AdminLinkButton href={`/admin/members/${item.userId}`} label="Owner" />
+                </div>
+              </article>
+            ))
+          ) : (
+            <EmptyState icon={Crown} title={emptyTitle} description="Matching users will appear here as Circle Card usage grows." />
+          )}
+        </CardContent>
+      </details>
     </Card>
   );
 }

@@ -20,6 +20,7 @@ export type LeadSegmentFilter =
   | "EVENT"
   | "CIRCLE_CARD"
   | "CIRCLE_CARD_PRO_INTEREST"
+  | "CIRCLE_CARD_TEAMS_INTEREST"
   | "SALES26";
 export type LeadFollowUpDraftType =
   | "EVENT_FOLLOW_UP"
@@ -327,6 +328,10 @@ function recommendedNextStepForLead(lead: {
 
   if (lead.sourceLabel?.toLowerCase().includes("circle card pro interest")) {
     return "Qualify Pro fit around visibility, analytics, lead capture and timing.";
+  }
+
+  if (lead.sourceLabel?.toLowerCase().includes("circle card teams interest")) {
+    return "Qualify Teams fit around staff cards, shared contacts, owner control and rollout timing.";
   }
 
   if (lead.source === LeadSource.AUDIT_QUIZ || lead.source === LeadSource.FOUNDER_AUDIT) {
@@ -805,7 +810,18 @@ function leadSegmentWhere(segment?: LeadSegmentFilter): Prisma.LeadWhereInput | 
     return {
       OR: [
         { source: LeadSource.CIRCLE_CARD_SIGNUP },
-        { tags: { hasSome: ["circle-card", "circle_card", "circle-card-pro", "pro-interest"] } }
+        {
+          tags: {
+            hasSome: [
+              "circle-card",
+              "circle_card",
+              "circle-card-pro",
+              "pro-interest",
+              "circle-card-teams",
+              "teams-interest"
+            ]
+          }
+        }
       ]
     };
   }
@@ -815,6 +831,15 @@ function leadSegmentWhere(segment?: LeadSegmentFilter): Prisma.LeadWhereInput | 
       OR: [
         { tags: { hasSome: ["pro-interest", "circle-card-pro"] } },
         { sourceLabel: { contains: "Circle Card Pro Interest", mode: "insensitive" } }
+      ]
+    };
+  }
+
+  if (selected === "CIRCLE_CARD_TEAMS_INTEREST") {
+    return {
+      OR: [
+        { tags: { hasSome: ["teams-interest", "circle-card-teams"] } },
+        { sourceLabel: { contains: "Circle Card Teams Interest", mode: "insensitive" } }
       ]
     };
   }
@@ -1273,6 +1298,7 @@ export function parseLeadSegmentFilter(value: string): LeadSegmentFilter {
     value === "EVENT" ||
     value === "CIRCLE_CARD" ||
     value === "CIRCLE_CARD_PRO_INTEREST" ||
+    value === "CIRCLE_CARD_TEAMS_INTEREST" ||
     value === "SALES26"
   ) {
     return value;
