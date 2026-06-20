@@ -9,6 +9,7 @@ export type CircleCardPricingConfig = {
   currency: CircleCardCurrency;
   priceMonthly: number;
   priceAnnual: number | null;
+  annualDiscountPercent?: number;
   pricePerExtraSeat: number | null;
   pricePrefix?: string;
   stripe: {
@@ -33,6 +34,14 @@ export type CircleCardFeatureLockGroup = {
 };
 
 export const CIRCLE_CARD_BILLING_FLAG_ENV = "CIRCLE_CARD_BILLING_ENABLED";
+export const CIRCLE_CARD_TEAMS_ANNUAL_DISCOUNT_PERCENT = 20;
+
+function discountedAnnualPrice(monthlyPrice: number, discountPercent: number) {
+  const annualTotal = monthlyPrice * 12;
+  const discountedTotal = annualTotal * ((100 - discountPercent) / 100);
+
+  return Math.round(discountedTotal * 100) / 100;
+}
 
 export const CIRCLE_CARD_PRICING_CONFIG: Record<CircleCardPlanKey, CircleCardPricingConfig> = {
   FREE: {
@@ -66,8 +75,9 @@ export const CIRCLE_CARD_PRICING_CONFIG: Record<CircleCardPlanKey, CircleCardPri
     label: "Teams",
     positioning: "companies, staff, shared contacts and team control",
     currency: "GBP",
-    priceMonthly: 24.99,
-    priceAnnual: null,
+    priceMonthly: 79.99,
+    priceAnnual: discountedAnnualPrice(79.99, CIRCLE_CARD_TEAMS_ANNUAL_DISCOUNT_PERCENT),
+    annualDiscountPercent: CIRCLE_CARD_TEAMS_ANNUAL_DISCOUNT_PERCENT,
     pricePerExtraSeat: null,
     pricePrefix: "from",
     stripe: {
