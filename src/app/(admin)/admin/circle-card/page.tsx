@@ -262,6 +262,11 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
       hint: "Cards from the last 30 days."
     },
     {
+      label: "Most active users",
+      value: dashboard.growth.mostActiveUsers.length,
+      hint: "Top Circle Card activity actors from the last 7 days."
+    },
+    {
       label: "Recently active users",
       value: dashboard.growth.recentlyActiveUsers.length,
       hint: `Latest ${dashboard.meta.recentLimit} activity actors.`
@@ -588,7 +593,45 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           </Card>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2">
+                <Activity size={18} className="text-gold" />
+                Most Active Users
+              </CardTitle>
+              <CardDescription>Highest Circle Card activity count from the last 7 days.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {dashboard.growth.mostActiveUsers.length ? (
+                dashboard.growth.mostActiveUsers.map((user) => (
+                  <Link
+                    key={user.userId}
+                    href={`/admin/members/${user.userId}`}
+                    className="block rounded-xl border border-border/80 bg-background/25 p-3 transition-colors hover:border-gold/35"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {displayPerson({ name: user.name, email: user.email })}
+                        </p>
+                        <p className="mt-1 break-all text-xs text-muted">{user.email}</p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
+                          {user.primaryCard ? displayCard(user.primaryCard) : "No primary card yet"}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
+                        {numberLabel(user.metricValue)} actions
+                      </Badge>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <EmptyState icon={Activity} title="No active users" description="Activity leaders will appear here." />
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="inline-flex items-center gap-2">
@@ -653,6 +696,11 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
             title="Most Successful Referral Cards"
             metricLabel="won referrals"
             items={dashboard.topCards.mostSuccessfulReferrals}
+          />
+          <TopCardsPanel
+            title="Fastest Growing Cards"
+            metricLabel="recent signals"
+            items={dashboard.topCards.fastestGrowing}
           />
         </div>
       </section>
@@ -1061,9 +1109,14 @@ function PlanCandidatePanel({
                       ))}
                     </div>
                   </div>
-                  <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
-                    {item.score} signal{item.score === 1 ? "" : "s"}
-                  </Badge>
+                  <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                    <Badge variant="outline" className="normal-case tracking-normal">
+                      Readiness {item.readinessScore}/100 / {item.readinessLabel}
+                    </Badge>
+                    <Badge variant="outline" className="normal-case tracking-normal text-muted">
+                      {item.score} signal{item.score === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <AdminLinkButton href={`/card/${item.slug}`} label="Public card" external />

@@ -14,6 +14,7 @@ import {
   ContactRound,
   Camera,
   Handshake,
+  ChevronDown,
   Crown,
   Download,
   Eye,
@@ -116,6 +117,10 @@ import {
   CIRCLE_CARD_PLAN_DEFINITIONS,
   type CircleCardPlanFeature
 } from "@/lib/circle-card/plans";
+import {
+  buildCircleCardUpgradeTriggers,
+  type CircleCardUpgradeTrigger
+} from "@/lib/circle-card/upgrade-triggers";
 import { buildCircleCardShareSourceUrl } from "@/lib/circle-card/share-sources";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import {
@@ -253,6 +258,132 @@ function circleCardCompletionItemHref(itemId: CircleCardCompletionItemId) {
   };
 
   return hrefs[itemId];
+}
+
+type CircleCardUsageMetric = {
+  label: string;
+  value: string;
+  hint: string;
+  icon: typeof Activity;
+};
+
+function UpgradeTriggerColumn({
+  title,
+  triggers,
+  href,
+  ctaLabel,
+  empty
+}: {
+  title: string;
+  triggers: CircleCardUpgradeTrigger[];
+  href: string;
+  ctaLabel: string;
+  empty: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/20 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <Link href={href} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-2")}>
+          {ctaLabel}
+          <ArrowUpRight size={14} />
+        </Link>
+      </div>
+      <div className="mt-3 space-y-2">
+        {triggers.length ? (
+          triggers.slice(0, 3).map((trigger) => (
+            <div key={trigger.id} className="rounded-lg border border-silver/12 bg-card/50 p-3">
+              <p className="text-sm font-medium text-foreground">{trigger.title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">{trigger.message}</p>
+            </div>
+          ))
+        ) : (
+          <p className="rounded-lg border border-silver/12 bg-card/40 p-3 text-xs leading-relaxed text-muted">
+            {empty}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CircleCardUpgradeSignalsPanel({
+  metrics,
+  proTriggers,
+  teamsTriggers
+}: {
+  metrics: CircleCardUsageMetric[];
+  proTriggers: CircleCardUpgradeTrigger[];
+  teamsTriggers: CircleCardUpgradeTrigger[];
+}) {
+  const allTriggers = [...proTriggers, ...teamsTriggers].sort((a, b) => b.priority - a.priority);
+  const primaryTrigger = allTriggers[0];
+
+  return (
+    <section className="rounded-2xl border border-silver/14 bg-card/66 p-3 shadow-panel-soft sm:p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Usage awareness</p>
+          <h2 className="mt-1 font-display text-xl text-foreground">Your Circle Card signals</h2>
+        </div>
+        <Badge variant="outline" className="w-fit border-gold/28 text-gold">
+          Early access
+        </Badge>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+
+          return (
+            <div key={metric.label} className="min-h-24 rounded-xl border border-border/70 bg-background/25 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted">{metric.label}</p>
+                <Icon size={15} className="shrink-0 text-gold" />
+              </div>
+              <p className="mt-2 text-xl font-semibold text-foreground">{metric.value}</p>
+              <p className="mt-1 text-[11px] leading-snug text-muted">{metric.hint}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <details className="group mt-3 rounded-xl border border-border/70 bg-background/20">
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">Upgrade triggers</p>
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
+              {primaryTrigger
+                ? `${primaryTrigger.title}. ${primaryTrigger.message}`
+                : "Keep building usage signals. Pro and Teams prompts appear as your card gets busier."}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="outline" className="normal-case tracking-normal">
+              {allTriggers.length} signal{allTriggers.length === 1 ? "" : "s"}
+            </Badge>
+            <ChevronDown size={16} className="text-silver transition-transform group-open:rotate-180" />
+          </div>
+        </summary>
+        <div className="grid gap-2 border-t border-border/70 p-3 lg:grid-cols-2">
+          <UpgradeTriggerColumn
+            title="Pro signals"
+            triggers={proTriggers}
+            href="/circle-card/pro"
+            ctaLabel="Explore Pro"
+            empty="Pro prompts appear when your card starts driving visibility, traffic and lead signals."
+          />
+          <UpgradeTriggerColumn
+            title="Teams signals"
+            triggers={teamsTriggers}
+            href="/circle-card/teams"
+            ctaLabel="Explore Teams"
+            empty="Teams prompts appear when company, staff or shared relationship signals grow."
+          />
+        </div>
+      </details>
+    </section>
+  );
 }
 
 function circleCardCustomLinkEditHref(linkId: string) {
@@ -2083,6 +2214,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         fallbackViewCount: card.viewCount
       })
     : null;
+  const cardViewCount = analytics?.counts.CARD_VIEW ?? card?.viewCount ?? 0;
   const shareCount =
     (analytics?.counts.SHARE ?? 0) +
     (analytics?.counts.CONNECT_HUB_SHARE ?? 0) +
@@ -2099,6 +2231,56 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       : null,
     shareCount
   );
+  const circleCardUpgradeTriggers = buildCircleCardUpgradeTriggers({
+    activeFeaturedLinks: activeCustomLinkCount,
+    featuredLinkLimit: CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
+    walletContacts: savedContactCount,
+    cardViews: cardViewCount,
+    shares: shareCount,
+    profileCompletion: circleCardCompletion.score,
+    socialProfiles: activeSocialLinkCount,
+    referrals: referrals.length,
+    introductions: introductions.length,
+    opportunities: opportunities.length,
+    accountType: card?.accountType,
+    businessName: card?.businessName,
+    role: card?.role,
+    tagline: card?.tagline,
+    about: card?.about,
+    identityTags: card?.identityTags ?? []
+  });
+  const circleCardUsageMetrics: CircleCardUsageMetric[] = [
+    {
+      label: "Featured links used",
+      value: `${activeCustomLinkCount}/${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT}`,
+      hint: "Active profile links",
+      icon: LinkIcon
+    },
+    {
+      label: "Wallet contacts",
+      value: savedContactCount.toLocaleString("en-GB"),
+      hint: "Saved contacts",
+      icon: WalletCards
+    },
+    {
+      label: "Card views",
+      value: cardViewCount.toLocaleString("en-GB"),
+      hint: "Public views",
+      icon: Eye
+    },
+    {
+      label: "Shares",
+      value: shareCount.toLocaleString("en-GB"),
+      hint: "Shares and copied links",
+      icon: Share2
+    },
+    {
+      label: "Profile completion",
+      value: `${circleCardCompletion.score}%`,
+      hint: "Trust-building setup",
+      icon: CheckCircle2
+    }
+  ];
 
   if (card) {
     await syncCircleCardActivationLeadScore({
@@ -2110,7 +2292,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const analyticsOverview = [
     {
       label: "Total Views",
-      value: analytics?.counts.CARD_VIEW ?? card?.viewCount ?? 0,
+      value: cardViewCount,
       description: "Public card views",
       icon: Eye
     },
@@ -2122,7 +2304,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     },
     {
       label: "Shares",
-      value: analytics?.counts.SHARE ?? 0,
+      value: shareCount,
       description: "Native shares and copied links",
       icon: Share2
     },
@@ -2402,6 +2584,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         currentPlanKey="FREE"
         cardCount={cardCount}
         activeFeaturedLinkCount={activeCustomLinkCount}
+      />
+
+      <CircleCardUpgradeSignalsPanel
+        metrics={circleCardUsageMetrics}
+        proTriggers={circleCardUpgradeTriggers.pro}
+        teamsTriggers={circleCardUpgradeTriggers.teams}
       />
 
       <section className="rounded-2xl border border-gold/24 bg-card/70 p-4 shadow-panel-soft sm:p-5">
