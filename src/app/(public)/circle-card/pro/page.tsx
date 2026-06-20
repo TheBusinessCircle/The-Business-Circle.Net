@@ -23,6 +23,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
+import {
+  formatCircleCardPrice,
+  getCircleCardBillingReadiness
+} from "@/lib/circle-card/pricing";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
@@ -167,6 +171,7 @@ function feedbackMessage(input: { registered: string; error: string }) {
 
 export default async function CircleCardProPage({ searchParams }: PageProps) {
   const [params, session] = await Promise.all([searchParams, auth()]);
+  const billingReadiness = getCircleCardBillingReadiness();
   const userContext = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
@@ -196,6 +201,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
   const defaultName = activeUser?.name || primaryCard?.fullName || "";
   const defaultEmail = activeUser?.email || "";
   const defaultBusinessName = primaryCard?.businessName || "";
+  const proPrice = formatCircleCardPrice("PRO");
 
   return (
     <div className="public-page-stack">
@@ -203,7 +209,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
         <div className="max-w-4xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-gold/24 bg-gold/10 px-3 py-1 text-xs uppercase tracking-[0.08em] text-gold">
             <Crown size={14} />
-            Circle Card Pro
+            Circle Card Pro / {proPrice}
           </div>
           <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-6xl">
             Turn your Circle Card into a stronger visibility tool.
@@ -211,14 +217,24 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-silver sm:text-lg">
             Pro improves the card: identity, visibility, analytics, lead capture and relationship tools.
           </p>
+          <Badge variant="outline" className="mt-4 w-fit border-gold/28 text-gold">
+            {billingReadiness.billingEnabled ? "Billing prepared" : "Early access"}
+          </Badge>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <a
-              href="#register-interest"
-              className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 sm:w-auto")}
-            >
-              Register Pro Interest
-              <ArrowRight size={16} />
-            </a>
+            {billingReadiness.billingEnabled ? (
+              <Button type="button" size="lg" disabled className="w-full gap-2 sm:w-auto">
+                Checkout CTA prepared
+                <ArrowRight size={16} />
+              </Button>
+            ) : (
+              <a
+                href="#register-interest"
+                className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 sm:w-auto")}
+              >
+                Register Pro Interest
+                <ArrowRight size={16} />
+              </a>
+            )}
             <Link
               href={CIRCLE_CARD_DASHBOARD_PATH}
               className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full gap-2 sm:w-auto")}
@@ -354,6 +370,11 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
             <p className="mt-3 text-sm leading-relaxed text-muted">
               Join the Pro early-access list. No payment, no Stripe checkout, no BCN membership change.
             </p>
+            {billingReadiness.billingEnabled ? (
+              <p className="mt-3 rounded-lg border border-gold/24 bg-gold/10 p-3 text-xs leading-relaxed text-gold">
+                Billing flag is enabled, but checkout is intentionally not active in this prep phase.
+              </p>
+            ) : null}
             <div className="mt-4 grid gap-2 text-sm text-muted">
               <p className="inline-flex items-center gap-2">
                 <ShieldCheck size={15} className="text-gold" />

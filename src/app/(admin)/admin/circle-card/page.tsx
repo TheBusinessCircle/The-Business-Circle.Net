@@ -32,6 +32,7 @@ import {
   CIRCLE_CARD_PLAN_DEFINITIONS,
   CIRCLE_CARD_PLANS
 } from "@/lib/circle-card/plans";
+import { getCircleCardBillingReadiness } from "@/lib/circle-card/pricing";
 import {
   circleCardReportReasonLabel,
   circleCardReportStatusLabel
@@ -101,6 +102,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const query = firstValue(params.q).trim();
   const dashboard = await getAdminCircleCardCommandCentre({ query });
+  const pricingReadiness = getCircleCardBillingReadiness();
 
   const overviewMetrics: MetricItem[] = [
     {
@@ -445,6 +447,33 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           title="Circle Card Plan Boundary"
           description="Free, Pro and Teams visibility without changing BCN membership or Stripe."
         />
+        <Card className="border-gold/24 bg-card/70">
+          <CardHeader>
+            <CardTitle className="inline-flex items-center gap-2 text-lg">
+              <Crown size={18} className="text-gold" />
+              Pricing Readiness
+            </CardTitle>
+            <CardDescription>
+              Circle Card billing preparation only. Stripe price IDs stay server-side and hidden.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <ReadinessTile label="Billing enabled" ready={pricingReadiness.billingEnabled} />
+            <ReadinessTile label="Pro price configured" ready={pricingReadiness.proPriceConfigured} />
+            <ReadinessTile label="Teams price configured" ready={pricingReadiness.teamsPriceConfigured} />
+            <div className="rounded-xl border border-border/80 bg-background/25 p-3">
+              <p className="text-xs text-muted">Interest / candidates</p>
+              <p className="mt-2 text-sm text-foreground">
+                Pro {numberLabel(dashboard.plans.proInterestCount)} / Teams{" "}
+                {numberLabel(dashboard.plans.teamsInterestCount)}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Likely: Pro {numberLabel(dashboard.plans.likelyProUsers.length)} / Teams{" "}
+                {numberLabel(dashboard.plans.likelyTeamsUsers.length)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
         <MetricGrid metrics={planSignalMetrics} />
         <div className="flex flex-wrap gap-2">
           <Link href="/admin/lead-generation?segment=CIRCLE_CARD_PRO_INTEREST" className="inline-flex w-fit">
@@ -830,6 +859,20 @@ function MetricGrid({ metrics }: { metrics: MetricItem[] }) {
           <p className="mt-2 text-xs leading-relaxed text-muted">{metric.hint}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ReadinessTile({ label, ready }: { label: string; ready: boolean }) {
+  return (
+    <div className="rounded-xl border border-border/80 bg-background/25 p-3">
+      <p className="text-xs text-muted">{label}</p>
+      <Badge
+        variant={ready ? "success" : "outline"}
+        className="mt-2 normal-case tracking-normal"
+      >
+        {ready ? "Yes" : "No"}
+      </Badge>
     </div>
   );
 }

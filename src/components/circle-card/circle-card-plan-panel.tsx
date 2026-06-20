@@ -19,6 +19,10 @@ import {
   type CircleCardPlanFeature,
   type CircleCardPlanKey
 } from "@/lib/circle-card/plans";
+import {
+  CIRCLE_CARD_PRICING_CONFIG,
+  formatCircleCardPrice
+} from "@/lib/circle-card/pricing";
 import { cn } from "@/lib/utils";
 
 type CircleCardPlanPanelProps = {
@@ -85,6 +89,8 @@ function PlanPreviewPanel({
   features,
   href,
   actionLabel,
+  priceLabel,
+  statusLabel,
   iconClassName = "border-gold/20 bg-gold/10 text-gold"
 }: {
   eyebrow: string;
@@ -94,6 +100,8 @@ function PlanPreviewPanel({
   features: CircleCardPlanFeature[];
   href: string;
   actionLabel: string;
+  priceLabel: string;
+  statusLabel: string;
   iconClassName?: string;
 }) {
   return (
@@ -103,8 +111,14 @@ function PlanPreviewPanel({
           <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-[0.08em] text-gold">{eyebrow}</p>
-              <h3 className="mt-1 text-lg font-semibold text-foreground">{title}</h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+                <Badge variant="outline" className="border-gold/25 text-gold">
+                  {priceLabel}
+                </Badge>
+              </div>
               <p className="mt-1 text-xs leading-relaxed text-muted">{description}</p>
+              <p className="mt-1 text-xs text-silver">{statusLabel}</p>
             </div>
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-silver/14 bg-background/30 text-silver">
               <ChevronDown size={16} className="transition-transform group-open:rotate-180" />
@@ -139,6 +153,9 @@ export function CircleCardPlanPanel({
   const currentPlan = CIRCLE_CARD_PLAN_DEFINITIONS[currentPlanKey];
   const proPlan = CIRCLE_CARD_PLAN_DEFINITIONS.PRO;
   const teamsPlan = CIRCLE_CARD_PLAN_DEFINITIONS.TEAMS;
+  const currentPricing = CIRCLE_CARD_PRICING_CONFIG[currentPlanKey];
+  const proPricing = CIRCLE_CARD_PRICING_CONFIG.PRO;
+  const teamsPricing = CIRCLE_CARD_PRICING_CONFIG.TEAMS;
 
   const limitItems = [
     {
@@ -179,7 +196,8 @@ export function CircleCardPlanPanel({
               </Badge>
               <h2 className="mt-3 font-display text-2xl text-foreground">Circle Card plan status</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                Good for: {currentPlan.goodFor}. Next unlock: {currentPlan.upgradeMessaging.nextUnlock}.
+                {currentPricing.label}: {formatCircleCardPrice(currentPlanKey)}. Good for: {currentPlan.goodFor}.
+                Next unlock: {currentPlan.upgradeMessaging.nextUnlock}.
               </p>
             </div>
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/10 text-gold">
@@ -228,6 +246,8 @@ export function CircleCardPlanPanel({
             features={CIRCLE_CARD_PRO_FEATURE_PREVIEWS}
             href="/circle-card/pro"
             actionLabel="Explore Pro"
+            priceLabel={formatCircleCardPrice("PRO")}
+            statusLabel={proPricing.billingStatusLabel}
           />
           <PlanPreviewPanel
             eyebrow="Teams preview"
@@ -237,6 +257,8 @@ export function CircleCardPlanPanel({
             features={CIRCLE_CARD_TEAMS_FEATURE_PREVIEWS}
             href="/circle-card/teams"
             actionLabel="Explore Teams"
+            priceLabel={formatCircleCardPrice("TEAMS")}
+            statusLabel={teamsPricing.billingStatusLabel}
             iconClassName="border-silver/18 bg-silver/10 text-silver"
           />
         </div>
