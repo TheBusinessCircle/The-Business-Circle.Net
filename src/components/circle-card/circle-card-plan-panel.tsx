@@ -1,4 +1,5 @@
 import {
+  ArrowUpRight,
   BarChart3,
   CheckCircle2,
   Crown,
@@ -7,6 +8,7 @@ import {
   UsersRound,
   WalletCards
 } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -175,10 +177,12 @@ export function CircleCardPlanPanel({
             <div className="mt-4">
               <FeaturePreviewList features={CIRCLE_CARD_PRO_FEATURE_PREVIEWS} />
             </div>
-            <Button type="button" variant="outline" disabled className="mt-4 w-full gap-2">
-              <Lock size={15} />
-              {proPlan.upgradeMessaging.actionLabel}
-            </Button>
+            <Link href="/circle-card/pro" className="mt-4 block">
+              <Button type="button" variant="outline" className="w-full gap-2">
+                Explore Pro
+                <ArrowUpRight size={15} />
+              </Button>
+            </Link>
           </div>
 
           <div className="rounded-2xl border border-silver/14 bg-background/20 p-4">

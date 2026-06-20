@@ -281,8 +281,8 @@ export const CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT =
 export const CIRCLE_CARD_FEATURE_STATUS_LABELS: Record<CircleCardPlanFeatureStatus, string> = {
   included: "Included",
   "early-access": "Available during early access",
-  "pro-later": "Pro feature later",
-  "coming-soon": "Coming soon"
+  "pro-later": "Coming soon / early access",
+  "coming-soon": "Coming soon / early access"
 };
 
 export const CIRCLE_CARD_ONBOARDING_PLAN_GUIDANCE: Record<

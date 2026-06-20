@@ -39,6 +39,7 @@ const SEGMENT_OPTIONS = [
   { value: "AUDIT", label: "Audit leads" },
   { value: "EVENT", label: "Event leads" },
   { value: "CIRCLE_CARD", label: "Circle Card leads" },
+  { value: "CIRCLE_CARD_PRO_INTEREST", label: "Circle Card Pro interest" },
   { value: "SALES26", label: "sales26" }
 ] as const;
 

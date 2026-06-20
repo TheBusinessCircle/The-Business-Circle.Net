@@ -800,7 +800,7 @@ async function loadLikelyTeamsUsers() {
 }
 
 async function loadCircleCardPlanBoundary() {
-  const [totalCircleCardUsers, accountTypeGroups, likelyProUsers, likelyTeamsUsers] =
+  const [totalCircleCardUsers, accountTypeGroups, likelyProUsers, likelyTeamsUsers, proInterestCount] =
     await Promise.all([
       db.user.count({
         where: {
@@ -816,7 +816,15 @@ async function loadCircleCardPlanBoundary() {
         }
       }),
       loadLikelyProUsers(),
-      loadLikelyTeamsUsers()
+      loadLikelyTeamsUsers(),
+      db.lead.count({
+        where: {
+          OR: [
+            { tags: { hasSome: ["pro-interest", "circle-card-pro"] } },
+            { sourceLabel: { contains: "Circle Card Pro Interest", mode: "insensitive" } }
+          ]
+        }
+      })
     ]);
 
   const planCounts = CIRCLE_CARD_PLANS.reduce(
@@ -845,6 +853,7 @@ async function loadCircleCardPlanBoundary() {
   return {
     counts: planCounts,
     accountTypeCounts,
+    proInterestCount,
     likelyProUsers,
     likelyTeamsUsers,
     note: "No paid Circle Card plan assignment is stored yet, so Pro and Teams counts stay at 0 until a future billing or admin assignment phase."

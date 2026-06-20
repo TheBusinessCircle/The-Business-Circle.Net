@@ -213,12 +213,17 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
 
   const planSignalMetrics: MetricItem[] = [
     {
-      label: "Users likely needing Pro",
+      label: "Pro interest leads",
+      value: dashboard.plans.proInterestCount,
+      hint: "Leads tagged from the Circle Card Pro interest form."
+    },
+    {
+      label: "Likely Pro candidates",
       value: dashboard.plans.likelyProUsers.length,
       hint: "Founder/business, link, traffic, recommendation, referral or opportunity signals."
     },
     {
-      label: "Users likely needing Teams",
+      label: "Likely Teams candidates",
       value: dashboard.plans.likelyTeamsUsers.length,
       hint: "Team / Organisation account type signals."
     }
@@ -432,18 +437,24 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
         <MetricGrid metrics={planMetrics} />
         <MetricGrid metrics={accountTypeMetrics} />
         <MetricGrid metrics={planSignalMetrics} />
+        <Link href="/admin/lead-generation?segment=CIRCLE_CARD_PRO_INTEREST" className="inline-flex w-fit">
+          <Button type="button" variant="outline" size="sm" className="gap-2">
+            <Crown size={14} />
+            View Pro interest leads
+          </Button>
+        </Link>
         <p className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-sm leading-relaxed text-muted">
           {dashboard.plans.note}
         </p>
         <div className="grid gap-4 xl:grid-cols-2">
           <PlanCandidatePanel
-            title="Users likely needing Pro"
+            title="Likely Pro candidates"
             description="Founder, business growth and lead-capture signals from current Circle Card usage."
             items={dashboard.plans.likelyProUsers}
             emptyTitle="No Pro signals yet"
           />
           <PlanCandidatePanel
-            title="Users likely needing Teams"
+            title="Likely Teams candidates"
             description="Company, organisation and staff rollout signals from current Circle Card usage."
             items={dashboard.plans.likelyTeamsUsers}
             emptyTitle="No Teams signals yet"

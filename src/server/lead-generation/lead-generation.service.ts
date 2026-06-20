@@ -19,6 +19,7 @@ export type LeadSegmentFilter =
   | "AUDIT"
   | "EVENT"
   | "CIRCLE_CARD"
+  | "CIRCLE_CARD_PRO_INTEREST"
   | "SALES26";
 export type LeadFollowUpDraftType =
   | "EVENT_FOLLOW_UP"
@@ -322,6 +323,10 @@ function recommendedNextStepForLead(lead: {
   const savedStep = metadataRecommendedNextStep(lead.metadata);
   if (savedStep) {
     return savedStep;
+  }
+
+  if (lead.sourceLabel?.toLowerCase().includes("circle card pro interest")) {
+    return "Qualify Pro fit around visibility, analytics, lead capture and timing.";
   }
 
   if (lead.source === LeadSource.AUDIT_QUIZ || lead.source === LeadSource.FOUNDER_AUDIT) {
@@ -800,7 +805,16 @@ function leadSegmentWhere(segment?: LeadSegmentFilter): Prisma.LeadWhereInput | 
     return {
       OR: [
         { source: LeadSource.CIRCLE_CARD_SIGNUP },
-        { tags: { hasSome: ["circle-card", "circle_card"] } }
+        { tags: { hasSome: ["circle-card", "circle_card", "circle-card-pro", "pro-interest"] } }
+      ]
+    };
+  }
+
+  if (selected === "CIRCLE_CARD_PRO_INTEREST") {
+    return {
+      OR: [
+        { tags: { hasSome: ["pro-interest", "circle-card-pro"] } },
+        { sourceLabel: { contains: "Circle Card Pro Interest", mode: "insensitive" } }
       ]
     };
   }
@@ -1258,6 +1272,7 @@ export function parseLeadSegmentFilter(value: string): LeadSegmentFilter {
     value === "AUDIT" ||
     value === "EVENT" ||
     value === "CIRCLE_CARD" ||
+    value === "CIRCLE_CARD_PRO_INTEREST" ||
     value === "SALES26"
   ) {
     return value;
