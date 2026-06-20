@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LeadSource, LeadStatus } from "@prisma/client";
-import { MailCheck, Search, UsersRound } from "lucide-react";
+import { Eye, MailCheck, Search, UsersRound } from "lucide-react";
 import { updateLeadGenerationLeadAction } from "@/actions/admin/lead-generation.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
   getLeadGenerationStats,
   listAdminLeads,
   parseLeadMarketingFilter,
+  parseLeadSegmentFilter,
   parseLeadSource,
   parseLeadStatus
 } from "@/server/lead-generation";
@@ -32,6 +33,14 @@ type PageProps = {
 const PAGE_SIZE = 25;
 const SOURCE_OPTIONS = Object.values(LeadSource);
 const STATUS_OPTIONS = Object.values(LeadStatus);
+const SEGMENT_OPTIONS = [
+  { value: "ALL", label: "All leads" },
+  { value: "NEW_THIS_WEEK", label: "New this week" },
+  { value: "AUDIT", label: "Audit leads" },
+  { value: "EVENT", label: "Event leads" },
+  { value: "CIRCLE_CARD", label: "Circle Card leads" },
+  { value: "SALES26", label: "sales26" }
+] as const;
 
 export const metadata: Metadata = createPageMetadata({
   title: "Lead Generation",
@@ -55,6 +64,7 @@ function buildReturnPath(input: {
   source: LeadSource | "ALL";
   status: LeadStatus | "ALL";
   marketing: "ANY" | "OPTED_IN" | "NOT_OPTED_IN";
+  segment: string;
   page: number;
 }) {
   const search = new URLSearchParams();
@@ -70,6 +80,9 @@ function buildReturnPath(input: {
   if (input.marketing !== "ANY") {
     search.set("marketing", input.marketing);
   }
+  if (input.segment !== "ALL") {
+    search.set("segment", input.segment);
+  }
   if (input.page > 1) {
     search.set("page", String(input.page));
   }
@@ -80,11 +93,18 @@ function buildReturnPath(input: {
 
 function feedbackMessage(input: { notice: string; error: string }) {
   const noticeMap: Record<string, string> = {
-    "lead-updated": "Lead updated."
+    "lead-updated": "Lead updated.",
+    "follow-up-sent": "Follow-up email sent."
   };
   const errorMap: Record<string, string> = {
     invalid: "That lead update was invalid.",
-    "not-found": "That lead could not be found."
+    "invalid-email": "That email draft was invalid.",
+    "not-found": "That lead could not be found.",
+    "email-not-configured": "Resend is not configured, so the email was not sent.",
+    "email-send-failed": "Resend could not send that email.",
+    "email-send-blocked": "That follow-up email was blocked.",
+    "marketing-consent-required": "Marketing follow-up requires marketing opt-in.",
+    "do-not-contact": "This lead is marked Do Not Contact."
   };
 
   if (input.notice && noticeMap[input.notice]) {
@@ -136,8 +156,9 @@ export default async function AdminLeadGenerationPage({ searchParams }: PageProp
   const source = parseLeadSource(firstValue(params.source));
   const status = parseLeadStatus(firstValue(params.status));
   const marketing = parseLeadMarketingFilter(firstValue(params.marketing));
+  const segment = parseLeadSegmentFilter(firstValue(params.segment));
   const page = parsePage(firstValue(params.page));
-  const returnPath = buildReturnPath({ query, source, status, marketing, page });
+  const returnPath = buildReturnPath({ query, source, status, marketing, segment, page });
   const feedback = feedbackMessage({
     notice: firstValue(params.notice),
     error: firstValue(params.error)
@@ -150,6 +171,7 @@ export default async function AdminLeadGenerationPage({ searchParams }: PageProp
       source,
       status,
       marketing,
+      segment,
       page,
       pageSize: PAGE_SIZE
     })
@@ -215,10 +237,20 @@ export default async function AdminLeadGenerationPage({ searchParams }: PageProp
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form method="GET" className="grid gap-3 lg:grid-cols-[1fr_220px_220px_220px_auto]">
+          <form method="GET" className="grid gap-3 lg:grid-cols-[1fr_190px_190px_190px_190px_auto]">
             <div className="space-y-2">
               <Label htmlFor="q">Search</Label>
               <Input id="q" name="q" defaultValue={query} placeholder="Name, email, business, website or tag" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="segment">View</Label>
+              <Select id="segment" name="segment" defaultValue={segment}>
+                {SEGMENT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="source">Source</Label>
@@ -258,8 +290,73 @@ export default async function AdminLeadGenerationPage({ searchParams }: PageProp
             </div>
           </form>
 
+          <div className="flex flex-wrap gap-2">
+            {SEGMENT_OPTIONS.filter((option) => option.value !== "ALL").map((option) => (
+              <Link
+                key={option.value}
+                href={buildReturnPath({
+                  query,
+                  source: "ALL",
+                  status,
+                  marketing,
+                  segment: option.value,
+                  page: 1
+                })}
+                className={
+                  option.value === segment
+                    ? "rounded-full border border-gold/40 bg-gold/14 px-3 py-1.5 text-xs font-medium text-gold"
+                    : "rounded-full border border-border/70 px-3 py-1.5 text-xs font-medium text-foreground hover:border-gold/35"
+                }
+              >
+                {option.label}
+              </Link>
+            ))}
+          </div>
+
           {leads.items.length ? (
-            <div className="overflow-x-auto rounded-[1.35rem] border border-border/70">
+            <>
+            <div className="grid gap-3 lg:hidden">
+              {leads.items.map((lead) => (
+                <div key={lead.id} className="rounded-2xl border border-border/70 bg-background/25 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">{lead.name}</p>
+                      <a href={`mailto:${lead.email}`} className="break-all text-sm text-primary hover:underline">
+                        {lead.email}
+                      </a>
+                    </div>
+                    <Badge variant={leadStatusBadgeVariant(lead.status)} className="shrink-0 normal-case tracking-normal">
+                      {formatLeadStatusLabel(lead.status)}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-sm text-muted">
+                    <p>{lead.businessName || "No business recorded"}</p>
+                    <p>{formatLeadSourceLabel(lead.source, lead.sourceLabel)}</p>
+                    <p>{formatLeadConsentStatus(lead)}</p>
+                    <p>Score: {typeof lead.score === "number" ? lead.score : "N/A"}</p>
+                    <p>Last emailed: {lead.lastEmailedAt ? formatDateTime(lead.lastEmailedAt) : "Not recorded"}</p>
+                  </div>
+                  {lead.tags.length ? (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {lead.tags.slice(0, 5).map((tag) => (
+                        <Badge key={tag} variant="muted" className="normal-case tracking-normal">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  <Link
+                    href={`/admin/lead-generation/${lead.id}?returnTo=${encodeURIComponent(returnPath)}`}
+                    className="mt-4 inline-flex items-center rounded-lg border border-border/70 px-3 py-1.5 text-xs font-medium text-foreground hover:border-gold/35"
+                  >
+                    <Eye size={14} className="mr-2" />
+                    Open detail
+                  </Link>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-[1.35rem] border border-border/70 lg:block">
               <table className="min-w-[1320px] divide-y divide-border/70 text-left text-sm">
                 <thead className="bg-background/35 text-xs uppercase tracking-[0.08em] text-muted">
                   <tr>
@@ -273,6 +370,7 @@ export default async function AdminLeadGenerationPage({ searchParams }: PageProp
                     <th className="px-4 py-3 font-medium">Tags</th>
                     <th className="px-4 py-3 font-medium">Score/status</th>
                     <th className="px-4 py-3 font-medium">Last emailed</th>
+                    <th className="px-4 py-3 font-medium">Detail</th>
                     <th className="px-4 py-3 font-medium">Notes</th>
                   </tr>
                 </thead>
@@ -345,6 +443,15 @@ export default async function AdminLeadGenerationPage({ searchParams }: PageProp
                         {lead.lastEmailedAt ? formatDateTime(lead.lastEmailedAt) : "Not recorded"}
                       </td>
                       <td className="px-4 py-4">
+                        <Link
+                          href={`/admin/lead-generation/${lead.id}?returnTo=${encodeURIComponent(returnPath)}`}
+                          className="inline-flex items-center rounded-lg border border-border/70 px-3 py-1.5 text-xs font-medium text-foreground hover:border-gold/35"
+                        >
+                          <Eye size={14} className="mr-2" />
+                          Open
+                        </Link>
+                      </td>
+                      <td className="px-4 py-4">
                         <form action={updateLeadGenerationLeadAction} className="w-[260px] space-y-2">
                           <input type="hidden" name="leadId" value={lead.id} />
                           <input type="hidden" name="returnPath" value={returnPath} />
@@ -372,6 +479,7 @@ export default async function AdminLeadGenerationPage({ searchParams }: PageProp
                 </tbody>
               </table>
             </div>
+            </>
           ) : (
             <EmptyState
               icon={UsersRound}
@@ -387,7 +495,7 @@ export default async function AdminLeadGenerationPage({ searchParams }: PageProp
             <div className="flex gap-2">
               {leads.page > 1 ? (
                 <Link
-                  href={buildReturnPath({ query, source, status, marketing, page: leads.page - 1 })}
+                  href={buildReturnPath({ query, source, status, marketing, segment, page: leads.page - 1 })}
                   className="rounded-full border border-border/70 px-3 py-1.5 text-foreground hover:border-gold/30"
                 >
                   Previous
@@ -395,7 +503,7 @@ export default async function AdminLeadGenerationPage({ searchParams }: PageProp
               ) : null}
               {leads.page < leads.totalPages ? (
                 <Link
-                  href={buildReturnPath({ query, source, status, marketing, page: leads.page + 1 })}
+                  href={buildReturnPath({ query, source, status, marketing, segment, page: leads.page + 1 })}
                   className="rounded-full border border-border/70 px-3 py-1.5 text-foreground hover:border-gold/30"
                 >
                   Next

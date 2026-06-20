@@ -13,12 +13,26 @@ import { logServerError, logServerWarning } from "@/lib/security/logging";
 import { formatDateTime, toTitleCase } from "@/lib/utils";
 
 export type LeadMarketingFilter = "ANY" | "OPTED_IN" | "NOT_OPTED_IN";
+export type LeadSegmentFilter =
+  | "ALL"
+  | "NEW_THIS_WEEK"
+  | "AUDIT"
+  | "EVENT"
+  | "CIRCLE_CARD"
+  | "SALES26";
+export type LeadFollowUpDraftType =
+  | "EVENT_FOLLOW_UP"
+  | "CIRCLE_CARD_SIGNUP_FOLLOW_UP"
+  | "AUDIT_RESULT_FOLLOW_UP"
+  | "BCN_INVITE_FOLLOW_UP"
+  | "GROWTH_ARCHITECT_FOLLOW_UP";
 
 export type ListAdminLeadsInput = {
   query?: string;
   source?: LeadSource | "ALL";
   status?: LeadStatus | "ALL";
   marketing?: LeadMarketingFilter;
+  segment?: LeadSegmentFilter;
   page?: number;
   pageSize?: number;
 };
@@ -70,6 +84,8 @@ export type RecordAuditQuizLeadInput = {
 };
 
 export type AdminLeadListItem = Awaited<ReturnType<typeof listAdminLeads>>["items"][number];
+export type AdminLeadDetail = Awaited<ReturnType<typeof getAdminLeadDetail>>;
+export type LeadFollowUpDraft = ReturnType<typeof buildLeadFollowUpDraft>;
 
 const LEAD_SELECT = {
   id: true,
@@ -103,6 +119,63 @@ const LEAD_SELECT = {
     }
   }
 } satisfies Prisma.LeadSelect;
+
+const LEAD_DETAIL_SELECT = {
+  id: true,
+  userId: true,
+  contactSubmissionId: true,
+  name: true,
+  email: true,
+  businessName: true,
+  website: true,
+  source: true,
+  sourceLabel: true,
+  consentSource: true,
+  essentialConsent: true,
+  marketingEmailOptIn: true,
+  consentedAt: true,
+  marketingConsentAt: true,
+  termsAcceptedAt: true,
+  privacyAcceptedAt: true,
+  tags: true,
+  score: true,
+  status: true,
+  lastEmailedAt: true,
+  notes: true,
+  metadata: true,
+  createdAt: true,
+  updatedAt: true,
+  user: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      membershipTier: true,
+      subscription: {
+        select: {
+          status: true
+        }
+      }
+    }
+  },
+  contactSubmission: {
+    select: {
+      id: true,
+      subject: true,
+      message: true,
+      createdAt: true
+    }
+  }
+} satisfies Prisma.LeadSelect;
+
+const LEAD_FOLLOW_UP_DRAFT_TYPES = [
+  "EVENT_FOLLOW_UP",
+  "CIRCLE_CARD_SIGNUP_FOLLOW_UP",
+  "AUDIT_RESULT_FOLLOW_UP",
+  "BCN_INVITE_FOLLOW_UP",
+  "GROWTH_ARCHITECT_FOLLOW_UP"
+] as const satisfies LeadFollowUpDraftType[];
 
 function toNullableText(value?: string | null) {
   const trimmed = value?.trim();
@@ -138,8 +211,145 @@ function normalizeTags(tags: string[] | undefined) {
     .slice(0, 24);
 }
 
+function parseTagsInput(value?: string | string[] | null) {
+  if (Array.isArray(value)) {
+    return normalizeTags(value);
+  }
+
+  return normalizeTags(
+    value
+      ?.split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+  );
+}
+
 function firstNameFromName(name: string) {
   return name.trim().split(/\s+/)[0] || "there";
+}
+
+function isJsonObject(value: Prisma.JsonValue | null | undefined): value is Prisma.JsonObject {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function readStringFromJsonObject(object: Prisma.JsonObject | null, key: string) {
+  const value = object?.[key];
+  return typeof value === "string" ? value : null;
+}
+
+function leadMetadataObject(metadata: Prisma.JsonValue | null): Prisma.JsonObject {
+  return isJsonObject(metadata) ? metadata : {};
+}
+
+function readLeadFollowUpMetadata(metadata: Prisma.JsonValue | null) {
+  const root = leadMetadataObject(metadata);
+  const followUp = isJsonObject(root.followUp as Prisma.JsonValue | null)
+    ? (root.followUp as Prisma.JsonObject)
+    : null;
+
+  return {
+    nextStep: readStringFromJsonObject(followUp, "nextStep"),
+    followUpDate: readStringFromJsonObject(followUp, "followUpDate"),
+    lastDraftType: readStringFromJsonObject(followUp, "lastDraftType"),
+    lastSentAt: readStringFromJsonObject(followUp, "lastSentAt")
+  };
+}
+
+function mergeLeadFollowUpMetadata(input: {
+  metadata: Prisma.JsonValue | null;
+  nextStep?: string | null;
+  followUpDate?: string | null;
+  lastDraftType?: LeadFollowUpDraftType | null;
+  lastSentAt?: Date | null;
+  lastSentSubject?: string | null;
+  lastResendEmailId?: string | null;
+}) {
+  const root = { ...leadMetadataObject(input.metadata) };
+  const existingFollowUp = isJsonObject(root.followUp as Prisma.JsonValue | null)
+    ? (root.followUp as Prisma.JsonObject)
+    : {};
+  const followUp: Prisma.JsonObject = {
+    ...existingFollowUp,
+    updatedAt: new Date().toISOString()
+  };
+
+  if ("nextStep" in input) {
+    followUp.nextStep = toNullableText(input.nextStep) ?? null;
+  }
+
+  if ("followUpDate" in input) {
+    followUp.followUpDate = toNullableText(input.followUpDate) ?? null;
+  }
+
+  if ("lastDraftType" in input) {
+    followUp.lastDraftType = input.lastDraftType ?? null;
+  }
+
+  if (input.lastSentAt) {
+    followUp.lastSentAt = input.lastSentAt.toISOString();
+  }
+
+  if ("lastSentSubject" in input) {
+    followUp.lastSentSubject = toNullableText(input.lastSentSubject) ?? null;
+  }
+
+  if ("lastResendEmailId" in input) {
+    followUp.lastResendEmailId = toNullableText(input.lastResendEmailId) ?? null;
+  }
+
+  return {
+    ...root,
+    followUp
+  } satisfies Prisma.InputJsonObject;
+}
+
+function metadataRecommendedNextStep(metadata: Prisma.JsonValue | null) {
+  const root = leadMetadataObject(metadata);
+  const followUp = readLeadFollowUpMetadata(metadata);
+  return (
+    followUp.nextStep ||
+    readStringFromJsonObject(root, "recommendedNextStep") ||
+    readStringFromJsonObject(root, "recommendedPath") ||
+    readStringFromJsonObject(root, "resultType")
+  );
+}
+
+function recommendedNextStepForLead(lead: {
+  source: LeadSource;
+  sourceLabel: string | null;
+  metadata: Prisma.JsonValue | null;
+}) {
+  const savedStep = metadataRecommendedNextStep(lead.metadata);
+  if (savedStep) {
+    return savedStep;
+  }
+
+  if (lead.source === LeadSource.AUDIT_QUIZ || lead.source === LeadSource.FOUNDER_AUDIT) {
+    return "Review the audit result and suggest one practical next step.";
+  }
+
+  if (lead.source === LeadSource.CIRCLE_CARD_SIGNUP) {
+    return "Help them complete and share their Circle Card.";
+  }
+
+  if (lead.source === LeadSource.EVENT_SIGNUP || lead.sourceLabel?.toLowerCase().includes("event")) {
+    return "Send a warm event follow-up and ask what connection would help next.";
+  }
+
+  if (lead.source === LeadSource.BCN_JOIN) {
+    return "Confirm the best membership next step or invite path.";
+  }
+
+  if (lead.source === LeadSource.CONTACT_FORM) {
+    return "Reply to their enquiry with a focused next action.";
+  }
+
+  return "Qualify the lead and choose the most relevant follow-up.";
+}
+
+function leadHasAnyTag(lead: { tags: string[] }, tags: string[]) {
+  const leadTags = new Set(lead.tags.map((tag) => tag.toLowerCase()));
+  return tags.some((tag) => leadTags.has(tag));
 }
 
 function adminNotificationRecipient() {
@@ -165,6 +375,14 @@ export function formatLeadSourceLabel(source: LeadSource, sourceLabel?: string |
 }
 
 export function formatLeadStatusLabel(status: LeadStatus) {
+  if (status === LeadStatus.NEW) {
+    return "New / Needs Follow-Up";
+  }
+
+  if (status === LeadStatus.CONTACTED) {
+    return "Followed Up";
+  }
+
   return toTitleCase(status.replaceAll("_", " "));
 }
 
@@ -551,30 +769,93 @@ export async function markLatestBcnJoinLeadEmailed(email: string, date = new Dat
   });
 }
 
+function leadSegmentWhere(segment?: LeadSegmentFilter): Prisma.LeadWhereInput | null {
+  const selected = segment ?? "ALL";
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  if (selected === "NEW_THIS_WEEK") {
+    return { createdAt: { gte: sevenDaysAgo } };
+  }
+
+  if (selected === "AUDIT") {
+    return {
+      OR: [
+        { source: { in: [LeadSource.AUDIT_QUIZ, LeadSource.FOUNDER_AUDIT] } },
+        { tags: { hasSome: ["audit", "founder-audit"] } }
+      ]
+    };
+  }
+
+  if (selected === "EVENT") {
+    return {
+      OR: [
+        { source: LeadSource.EVENT_SIGNUP },
+        { tags: { has: "event" } },
+        { sourceLabel: { contains: "event", mode: "insensitive" } }
+      ]
+    };
+  }
+
+  if (selected === "CIRCLE_CARD") {
+    return {
+      OR: [
+        { source: LeadSource.CIRCLE_CARD_SIGNUP },
+        { tags: { hasSome: ["circle-card", "circle_card"] } }
+      ]
+    };
+  }
+
+  if (selected === "SALES26") {
+    return {
+      OR: [
+        { tags: { has: "sales26" } },
+        { sourceLabel: { contains: "sales26", mode: "insensitive" } }
+      ]
+    };
+  }
+
+  return null;
+}
+
 function buildLeadWhere(input: ListAdminLeadsInput): Prisma.LeadWhereInput {
   const query = input.query?.trim();
+  const and: Prisma.LeadWhereInput[] = [];
 
-  return {
-    ...(query
-      ? {
-          OR: [
-            { name: { contains: query, mode: "insensitive" } },
-            { email: { contains: query, mode: "insensitive" } },
-            { businessName: { contains: query, mode: "insensitive" } },
-            { website: { contains: query, mode: "insensitive" } },
-            { notes: { contains: query, mode: "insensitive" } },
-            { tags: { has: query.toLowerCase() } }
-          ]
-        }
-      : {}),
-    ...(input.source && input.source !== "ALL" ? { source: input.source } : {}),
-    ...(input.status && input.status !== "ALL" ? { status: input.status } : {}),
-    ...(input.marketing === "OPTED_IN"
-      ? { marketingEmailOptIn: true }
-      : input.marketing === "NOT_OPTED_IN"
-        ? { marketingEmailOptIn: false }
-        : {})
-  };
+  if (query) {
+    and.push({
+      OR: [
+        { name: { contains: query, mode: "insensitive" } },
+        { email: { contains: query, mode: "insensitive" } },
+        { businessName: { contains: query, mode: "insensitive" } },
+        { website: { contains: query, mode: "insensitive" } },
+        { notes: { contains: query, mode: "insensitive" } },
+        { tags: { has: query.toLowerCase() } }
+      ]
+    });
+  }
+
+  if (input.source && input.source !== "ALL") {
+    and.push({ source: input.source });
+  }
+
+  if (input.status && input.status !== "ALL") {
+    and.push({ status: input.status });
+  }
+
+  if (input.marketing === "OPTED_IN") {
+    and.push({ marketingEmailOptIn: true });
+  }
+
+  if (input.marketing === "NOT_OPTED_IN") {
+    and.push({ marketingEmailOptIn: false });
+  }
+
+  const segment = leadSegmentWhere(input.segment);
+  if (segment) {
+    and.push(segment);
+  }
+
+  return and.length ? { AND: and } : {};
 }
 
 export async function listAdminLeads(input: ListAdminLeadsInput = {}) {
@@ -621,23 +902,334 @@ export async function getLeadGenerationStats() {
   };
 }
 
+export async function getAdminLeadDetail(leadId: string) {
+  const lead = await prisma.lead.findUnique({
+    where: {
+      id: leadId
+    },
+    select: LEAD_DETAIL_SELECT
+  });
+
+  if (!lead) {
+    return null;
+  }
+
+  return {
+    ...lead,
+    followUp: readLeadFollowUpMetadata(lead.metadata),
+    recommendedNextStep: recommendedNextStepForLead(lead)
+  };
+}
+
 export async function updateLeadForAdmin(input: {
   leadId: string;
   status: LeadStatus;
   notes?: string | null;
+  tags?: string[] | string | null;
+  nextStep?: string | null;
+  followUpDate?: string | null;
 }) {
+  const existing = await prisma.lead.findUnique({
+    where: {
+      id: input.leadId
+    },
+    select: {
+      metadata: true
+    }
+  });
+
+  if (!existing) {
+    throw new Error("Lead not found.");
+  }
+
   return prisma.lead.update({
     where: {
       id: input.leadId
     },
     data: {
       status: input.status,
-      notes: toNullableText(input.notes)
+      notes: toNullableText(input.notes),
+      ...(input.tags !== undefined ? { tags: parseTagsInput(input.tags) } : {}),
+      ...(input.nextStep !== undefined || input.followUpDate !== undefined
+        ? {
+            metadata: mergeLeadFollowUpMetadata({
+              metadata: existing.metadata,
+              ...(input.nextStep !== undefined ? { nextStep: input.nextStep } : {}),
+              ...(input.followUpDate !== undefined ? { followUpDate: input.followUpDate } : {})
+            })
+          }
+        : {})
     },
     select: {
       id: true
     }
   });
+}
+
+function htmlEscape(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function textToSimpleHtml(value: string) {
+  return value
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${htmlEscape(paragraph).replaceAll("\n", "<br>")}</p>`)
+    .join("");
+}
+
+function inferDraftPurpose(
+  lead: Pick<
+    NonNullable<AdminLeadDetail>,
+    "source" | "sourceLabel" | "tags" | "essentialConsent" | "marketingEmailOptIn" | "status"
+  >,
+  draftType: LeadFollowUpDraftType
+) {
+  const sourceLabel = lead.sourceLabel?.toLowerCase() ?? "";
+  const eventLead =
+    lead.source === LeadSource.EVENT_SIGNUP ||
+    sourceLabel.includes("event") ||
+    leadHasAnyTag(lead, ["event", "sales26", "spin-to-connect"]);
+  const circleCardLead =
+    lead.source === LeadSource.CIRCLE_CARD_SIGNUP ||
+    leadHasAnyTag(lead, ["circle-card", "circle_card", "spin-to-connect"]);
+  const auditLead =
+    lead.source === LeadSource.AUDIT_QUIZ ||
+    lead.source === LeadSource.FOUNDER_AUDIT ||
+    leadHasAnyTag(lead, ["audit", "founder-audit"]);
+  const contactLead = lead.source === LeadSource.CONTACT_FORM;
+  const bcnLead = lead.source === LeadSource.BCN_JOIN || leadHasAnyTag(lead, ["bcn-join"]);
+
+  const serviceReply =
+    (draftType === "EVENT_FOLLOW_UP" && eventLead) ||
+    (draftType === "CIRCLE_CARD_SIGNUP_FOLLOW_UP" && circleCardLead) ||
+    (draftType === "AUDIT_RESULT_FOLLOW_UP" && auditLead) ||
+    (draftType === "BCN_INVITE_FOLLOW_UP" && bcnLead) ||
+    (draftType === "GROWTH_ARCHITECT_FOLLOW_UP" && (auditLead || contactLead));
+  const purpose = serviceReply ? "SERVICE_REPLY" : "MARKETING";
+
+  if (lead.status === LeadStatus.DO_NOT_CONTACT) {
+    return {
+      purpose,
+      canSend: false,
+      reason: "This lead is marked Do Not Contact."
+    };
+  }
+
+  if (purpose === "SERVICE_REPLY" && !lead.essentialConsent) {
+    return {
+      purpose,
+      canSend: false,
+      reason: "No service consent is recorded for this lead."
+    };
+  }
+
+  if (purpose === "MARKETING" && !lead.marketingEmailOptIn) {
+    return {
+      purpose,
+      canSend: false,
+      reason: "Marketing follow-up requires marketing opt-in."
+    };
+  }
+
+  return {
+    purpose,
+    canSend: true,
+    reason:
+      purpose === "SERVICE_REPLY"
+        ? "Allowed as a one-to-one service/reply follow-up."
+        : "Allowed because marketing opt-in is recorded."
+  };
+}
+
+function leadWebsiteLine(lead: Pick<NonNullable<AdminLeadDetail>, "website">) {
+  return lead.website ? `I had a look at ${lead.website} and wanted to follow up while it is fresh.` : "";
+}
+
+export function buildLeadFollowUpDraft(
+  lead: Pick<
+    NonNullable<AdminLeadDetail>,
+    | "name"
+    | "email"
+    | "businessName"
+    | "website"
+    | "source"
+    | "sourceLabel"
+    | "tags"
+    | "essentialConsent"
+    | "marketingEmailOptIn"
+    | "status"
+    | "metadata"
+    | "recommendedNextStep"
+  >,
+  draftType: LeadFollowUpDraftType
+) {
+  const firstName = firstNameFromName(lead.name);
+  const business = lead.businessName ? ` for ${lead.businessName}` : "";
+  const nextStep = recommendedNextStepForLead(lead);
+  const websiteLine = leadWebsiteLine(lead);
+  const consent = inferDraftPurpose(lead, draftType);
+
+  const drafts: Record<LeadFollowUpDraftType, { label: string; subject: string; body: string }> = {
+    EVENT_FOLLOW_UP: {
+      label: "Event follow-up",
+      subject: `Lovely to connect${business}`,
+      body: [
+        `Hi ${firstName},`,
+        "Thanks for signing up around the event. I wanted to follow up with one useful next step rather than a long pitch.",
+        websiteLine,
+        `From what you shared, the most useful next step looks like: ${nextStep}`,
+        "Would it help if I pointed you towards the right Circle Card, BCN or Growth Architect route?",
+        "Best,",
+        "The Business Circle Network"
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+    },
+    CIRCLE_CARD_SIGNUP_FOLLOW_UP: {
+      label: "Circle Card signup follow-up",
+      subject: "A quick next step for your Circle Card",
+      body: [
+        `Hi ${firstName},`,
+        "Welcome to Circle Card. The strongest cards usually have a clear profile image, business details, one featured link and a first share.",
+        `Your next best step: ${nextStep}`,
+        "If you want a quick sanity check on what to add first, reply with your main goal for the card and I will point you in the right direction.",
+        "Best,",
+        "The Business Circle Network"
+      ].join("\n\n")
+    },
+    AUDIT_RESULT_FOLLOW_UP: {
+      label: "Audit result follow-up",
+      subject: "Your Founder Audit next step",
+      body: [
+        `Hi ${firstName},`,
+        "Thanks for completing the Founder Audit. I wanted to follow up with a practical next step while the result is still useful.",
+        `Recommended next step: ${nextStep}`,
+        "If you reply with the one thing that feels most urgent right now, I can suggest whether Foundation, Inner Circle or Growth Architect support is the better fit.",
+        "Best,",
+        "The Business Circle Network"
+      ].join("\n\n")
+    },
+    BCN_INVITE_FOLLOW_UP: {
+      label: "BCN invite follow-up",
+      subject: "Your Business Circle invite",
+      body: [
+        `Hi ${firstName},`,
+        "I wanted to follow up with a simple Business Circle next step.",
+        `Based on the information captured so far, I would suggest: ${nextStep}`,
+        "If you are considering joining, reply with what you want from the network and I will point you towards the most relevant route.",
+        "Best,",
+        "The Business Circle Network"
+      ].join("\n\n")
+    },
+    GROWTH_ARCHITECT_FOLLOW_UP: {
+      label: "Growth Architect follow-up",
+      subject: "Growth Architect support for your next step",
+      body: [
+        `Hi ${firstName},`,
+        "I wanted to follow up because your submission suggests there may be a practical growth or positioning step we can help with.",
+        websiteLine,
+        `The next useful step looks like: ${nextStep}`,
+        "If you reply with the outcome you want most in the next 30 days, I can suggest a focused Growth Architect route.",
+        "Best,",
+        "The Business Circle Network"
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+    }
+  };
+
+  return {
+    type: draftType,
+    ...drafts[draftType],
+    to: lead.email,
+    purpose: consent.purpose,
+    canSend: consent.canSend,
+    consentReason: consent.reason
+  };
+}
+
+export function parseLeadFollowUpDraftType(value: string): LeadFollowUpDraftType {
+  return LEAD_FOLLOW_UP_DRAFT_TYPES.includes(value as LeadFollowUpDraftType)
+    ? (value as LeadFollowUpDraftType)
+    : "EVENT_FOLLOW_UP";
+}
+
+export function listLeadFollowUpDraftTypes() {
+  return LEAD_FOLLOW_UP_DRAFT_TYPES.map((value) => ({
+    value,
+    label: toTitleCase(value.toLowerCase().replaceAll("_", " "))
+      .replace("Bcn", "BCN")
+      .replace("Circle Card Signup", "Circle Card signup")
+  }));
+}
+
+export async function sendLeadFollowUpEmail(input: {
+  leadId: string;
+  draftType: LeadFollowUpDraftType;
+  subject: string;
+  body: string;
+}) {
+  const lead = await getAdminLeadDetail(input.leadId);
+  if (!lead) {
+    throw new Error("Lead not found.");
+  }
+
+  const subject = toNullableText(input.subject);
+  const body = toNullableText(input.body);
+  if (!subject || !body) {
+    throw new Error("Subject and body are required.");
+  }
+
+  const draft = buildLeadFollowUpDraft(lead, input.draftType);
+  if (!draft.canSend) {
+    throw new Error(draft.consentReason);
+  }
+
+  const result = await sendTransactionalEmail({
+    to: lead.email,
+    subject,
+    text: body,
+    html: textToSimpleHtml(body),
+    tags: [
+      { name: "type", value: "lead-follow-up" },
+      { name: "source", value: lead.source.toLowerCase().slice(0, 64) },
+      { name: "draft", value: input.draftType.toLowerCase().slice(0, 64) }
+    ]
+  });
+
+  if (!result.sent) {
+    return result;
+  }
+
+  const sentAt = new Date();
+  await prisma.lead.update({
+    where: {
+      id: lead.id
+    },
+    data: {
+      lastEmailedAt: sentAt,
+      status: lead.status === LeadStatus.NEW ? LeadStatus.CONTACTED : lead.status,
+      metadata: mergeLeadFollowUpMetadata({
+        metadata: lead.metadata,
+        lastDraftType: input.draftType,
+        lastSentAt: sentAt,
+        lastSentSubject: subject,
+        lastResendEmailId: result.id ?? null
+      })
+    },
+    select: {
+      id: true
+    }
+  });
+
+  return result;
 }
 
 export function parseLeadSource(value: string): LeadSource | "ALL" {
@@ -658,6 +1250,20 @@ export function parseLeadMarketingFilter(value: string): LeadMarketingFilter {
   }
 
   return "ANY";
+}
+
+export function parseLeadSegmentFilter(value: string): LeadSegmentFilter {
+  if (
+    value === "NEW_THIS_WEEK" ||
+    value === "AUDIT" ||
+    value === "EVENT" ||
+    value === "CIRCLE_CARD" ||
+    value === "SALES26"
+  ) {
+    return value;
+  }
+
+  return "ALL";
 }
 
 export { LeadSource, LeadStatus, firstNameFromName };
