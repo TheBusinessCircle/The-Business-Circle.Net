@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CircleCardOnboardingFlow } from "@/components/circle-card/circle-card-onboarding-flow";
+import { CIRCLE_CARD_PLAN_DEFINITIONS } from "@/lib/circle-card/plans";
 import { createPageMetadata } from "@/lib/seo";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
@@ -68,7 +69,7 @@ export default async function CircleCardOnboardingPage({ searchParams }: PagePro
       <section className="member-accent-panel rounded-2xl border p-5 sm:p-6">
         <div className="max-w-3xl">
           <p className="text-[11px] uppercase tracking-[0.08em] text-[hsl(var(--member-accent-text))]">
-            Circle Card Free
+            {CIRCLE_CARD_PLAN_DEFINITIONS.FREE.label}
           </p>
           <h1 className="mt-3 font-display text-4xl text-foreground sm:text-5xl">
             Set up your first Circle Card

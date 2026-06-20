@@ -5,6 +5,7 @@ import {
   BadgeCheck,
   BarChart3,
   ContactRound,
+  Crown,
   ExternalLink,
   Files,
   Handshake,
@@ -22,6 +23,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import {
+  CIRCLE_CARD_ACCOUNT_TYPE_COPY,
+  getCircleCardAccountTypeLabel
+} from "@/lib/circle-card/identity";
+import {
+  CIRCLE_CARD_PLAN_DEFINITIONS,
+  CIRCLE_CARD_PLANS
+} from "@/lib/circle-card/plans";
 import {
   circleCardReportReasonLabel,
   circleCardReportStatusLabel
@@ -46,6 +55,7 @@ type MetricItem = {
 
 const sectionTabs = [
   { label: "Overview", href: "#overview" },
+  { label: "Plans", href: "#plans" },
   { label: "Users & Cards", href: "#users-cards" },
   { label: "Activity", href: "#activity" },
   { label: "Safety", href: "#safety" },
@@ -167,6 +177,51 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
       hint: "Failed private unlock attempts."
     },
     { label: "Open reports", value: dashboard.overview.openReports, hint: "Reports awaiting first review." }
+  ];
+
+  const planMetrics: MetricItem[] = CIRCLE_CARD_PLANS.map((plan) => ({
+    label: `${CIRCLE_CARD_PLAN_DEFINITIONS[plan].shortLabel} users`,
+    value: dashboard.plans.counts[plan],
+    hint:
+      plan === "FREE"
+        ? "Users currently treated as Circle Card Free because no paid Circle Card plan assignment exists yet."
+        : `${CIRCLE_CARD_PLAN_DEFINITIONS[plan].description} Count stays 0 until paid Circle Card assignment exists.`
+  }));
+
+  const accountTypeMetrics: MetricItem[] = [
+    {
+      label: CIRCLE_CARD_ACCOUNT_TYPE_COPY.INDIVIDUAL.shortLabel,
+      value: dashboard.plans.accountTypeCounts.INDIVIDUAL,
+      hint: CIRCLE_CARD_ACCOUNT_TYPE_COPY.INDIVIDUAL.description
+    },
+    {
+      label: CIRCLE_CARD_ACCOUNT_TYPE_COPY.FOUNDER.shortLabel,
+      value: dashboard.plans.accountTypeCounts.FOUNDER,
+      hint: CIRCLE_CARD_ACCOUNT_TYPE_COPY.FOUNDER.description
+    },
+    {
+      label: CIRCLE_CARD_ACCOUNT_TYPE_COPY.TEAM.shortLabel,
+      value: dashboard.plans.accountTypeCounts.TEAM,
+      hint: CIRCLE_CARD_ACCOUNT_TYPE_COPY.TEAM.description
+    },
+    {
+      label: "Unknown",
+      value: dashboard.plans.accountTypeCounts.UNKNOWN,
+      hint: "Cards created before account type was captured."
+    }
+  ];
+
+  const planSignalMetrics: MetricItem[] = [
+    {
+      label: "Users likely needing Pro",
+      value: dashboard.plans.likelyProUsers.length,
+      hint: "Founder/business, link, traffic, recommendation, referral or opportunity signals."
+    },
+    {
+      label: "Users likely needing Teams",
+      value: dashboard.plans.likelyTeamsUsers.length,
+      hint: "Team / Organisation account type signals."
+    }
   ];
 
   const growthMetrics: MetricItem[] = [
@@ -365,6 +420,35 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           description="The full Circle Card operating snapshot in compact tiles."
         />
         <MetricGrid metrics={overviewMetrics} />
+      </section>
+
+      <section id="plans" className="scroll-mt-24 space-y-4">
+        <SectionHeading
+          icon={Crown}
+          eyebrow="Plans"
+          title="Circle Card Plan Boundary"
+          description="Free, Pro and Teams visibility without changing BCN membership or Stripe."
+        />
+        <MetricGrid metrics={planMetrics} />
+        <MetricGrid metrics={accountTypeMetrics} />
+        <MetricGrid metrics={planSignalMetrics} />
+        <p className="rounded-2xl border border-silver/14 bg-background/20 p-4 text-sm leading-relaxed text-muted">
+          {dashboard.plans.note}
+        </p>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <PlanCandidatePanel
+            title="Users likely needing Pro"
+            description="Founder, business growth and lead-capture signals from current Circle Card usage."
+            items={dashboard.plans.likelyProUsers}
+            emptyTitle="No Pro signals yet"
+          />
+          <PlanCandidatePanel
+            title="Users likely needing Teams"
+            description="Company, organisation and staff rollout signals from current Circle Card usage."
+            items={dashboard.plans.likelyTeamsUsers}
+            emptyTitle="No Teams signals yet"
+          />
+        </div>
       </section>
 
       <section id="users-cards" className="scroll-mt-24 space-y-4">
@@ -829,6 +913,74 @@ function ActivityRow({
         </Badge>
       </div>
     </Link>
+  );
+}
+
+type PlanCandidate = Awaited<
+  ReturnType<typeof getAdminCircleCardCommandCentre>
+>["plans"]["likelyProUsers"][number];
+
+function PlanCandidatePanel({
+  title,
+  description,
+  items,
+  emptyTitle
+}: {
+  title: string;
+  description: string;
+  items: PlanCandidate[];
+  emptyTitle: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="inline-flex items-center gap-2">
+          <Crown size={18} className="text-gold" />
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {items.length ? (
+          items.map((item) => (
+            <article key={`${item.userId}-${item.cardId}`} className="rounded-xl border border-border/80 bg-background/25 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {displayCard({ fullName: item.fullName, businessName: item.businessName })}
+                  </p>
+                  <p className="mt-1 break-all text-xs text-muted">
+                    {item.ownerName ? `${item.ownerName} / ` : ""}
+                    {item.ownerEmail}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {item.accountType ? (
+                      <Badge variant="outline" className="normal-case tracking-normal text-muted">
+                        {getCircleCardAccountTypeLabel(item.accountType)}
+                      </Badge>
+                    ) : null}
+                    {item.reasons.slice(0, 4).map((reason) => (
+                      <Badge key={reason} variant="outline" className="normal-case tracking-normal text-muted">
+                        {reason}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
+                  {item.score} signal{item.score === 1 ? "" : "s"}
+                </Badge>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <AdminLinkButton href={`/card/${item.slug}`} label="Public card" external />
+                <AdminLinkButton href={`/admin/members/${item.userId}`} label="Owner" />
+              </div>
+            </article>
+          ))
+        ) : (
+          <EmptyState icon={Crown} title={emptyTitle} description="Matching users will appear here as Circle Card usage grows." />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

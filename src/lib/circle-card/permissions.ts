@@ -1,5 +1,6 @@
 import type { MembershipTier, Role } from "@prisma/client";
 import { getMembershipTierRank } from "@/config/membership";
+import { CIRCLE_CARD_FREE_CARD_LIMIT } from "@/lib/circle-card/plans";
 
 export const CIRCLE_CARD_ACCESS_LEVELS = [
   "FREE",
@@ -25,8 +26,8 @@ export type CircleCardFeatureAccess = {
 export const CIRCLE_CARD_FEATURE_ACCESS: Record<CircleCardAccessLevel, CircleCardFeatureAccess> = {
   FREE: {
     label: "Circle Card Free",
-    cardLimit: 1,
-    futureCardLimit: 1,
+    cardLimit: CIRCLE_CARD_FREE_CARD_LIMIT,
+    futureCardLimit: CIRCLE_CARD_FREE_CARD_LIMIT,
     walletEnabled: true,
     notesEnabled: true,
     analyticsPreview: true,

@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   CircleCardActivityType,
+  CircleCardAccountType,
   CircleCardEventType,
   CircleCardReportReason,
   CircleCardReportStatus,
@@ -9,6 +10,11 @@ import {
   SubscriptionStatus
 } from "@prisma/client";
 import { db } from "@/lib/db";
+import {
+  CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
+  CIRCLE_CARD_PLANS,
+  type CircleCardPlanKey
+} from "@/lib/circle-card/plans";
 import { requireAdmin } from "@/lib/session";
 import { getCircleCardActivationSnapshot } from "@/server/circle-card/activation.service";
 
@@ -71,6 +77,19 @@ export type AdminCircleCardTopCard = {
   ownerId: string;
   ownerEmail: string;
   metricValue: number;
+};
+
+export type AdminCircleCardPlanCandidate = {
+  userId: string;
+  ownerName: string | null;
+  ownerEmail: string;
+  cardId: string;
+  slug: string;
+  fullName: string;
+  businessName: string | null;
+  accountType: CircleCardAccountType | null;
+  reasons: string[];
+  score: number;
 };
 
 export type AdminCircleCardCommandCentre = Awaited<
@@ -545,6 +564,293 @@ async function loadSearch(query: string) {
   };
 }
 
+type PlanBoundaryCandidateCard = {
+  id: string;
+  slug: string;
+  fullName: string;
+  businessName: string | null;
+  accountType: CircleCardAccountType | null;
+  viewCount: number;
+  customLinks: Array<{
+    id: string;
+    isActive: boolean;
+    fileUrl: string | null;
+    fileName: string | null;
+    fileMimeType: string | null;
+  }>;
+  _count: {
+    opportunities: number;
+    referralsMade: number;
+    recommendationsReceived: number;
+  };
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+};
+
+function mapPlanCandidate(
+  card: PlanBoundaryCandidateCard,
+  extraReasons: string[] = []
+): AdminCircleCardPlanCandidate {
+  const activeLinkCount = card.customLinks.filter((link) => link.isActive).length;
+  const hasFileBackedLinks = card.customLinks.some((link) =>
+    Boolean(link.fileUrl || link.fileName || link.fileMimeType)
+  );
+  const reasons = [...extraReasons];
+
+  if (card.accountType === CircleCardAccountType.FOUNDER) {
+    reasons.push("Founder / Business Owner account type");
+  }
+
+  if (card.businessName) {
+    reasons.push("Business name on public card");
+  }
+
+  if (activeLinkCount >= CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT) {
+    reasons.push("At Free featured link limit");
+  }
+
+  if (hasFileBackedLinks) {
+    reasons.push("Uses file-backed links during early access");
+  }
+
+  if (card._count.opportunities > 0) {
+    reasons.push("Tracks opportunities");
+  }
+
+  if (card._count.referralsMade > 0) {
+    reasons.push("Sends referrals");
+  }
+
+  if (card._count.recommendationsReceived > 0) {
+    reasons.push("Has recommendations");
+  }
+
+  if (card.viewCount >= 25) {
+    reasons.push("Meaningful public-card traffic");
+  }
+
+  const uniqueReasons = Array.from(new Set(reasons));
+
+  return {
+    userId: card.user.id,
+    ownerName: card.user.name,
+    ownerEmail: card.user.email,
+    cardId: card.id,
+    slug: card.slug,
+    fullName: card.fullName,
+    businessName: card.businessName,
+    accountType: card.accountType,
+    reasons: uniqueReasons,
+    score: uniqueReasons.length
+  };
+}
+
+async function loadLikelyProUsers() {
+  const cards = await db.circleCard.findMany({
+    where: {
+      OR: [
+        { accountType: CircleCardAccountType.FOUNDER },
+        {
+          customLinks: {
+            some: {
+              isActive: true
+            }
+          }
+        },
+        {
+          customLinks: {
+            some: {
+              OR: [
+                {
+                  fileUrl: {
+                    not: null
+                  }
+                },
+                {
+                  fileName: {
+                    not: null
+                  }
+                },
+                {
+                  fileMimeType: {
+                    not: null
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          opportunities: {
+            some: {}
+          }
+        },
+        {
+          referralsMade: {
+            some: {}
+          }
+        },
+        {
+          recommendationsReceived: {
+            some: {
+              status: "ACTIVE"
+            }
+          }
+        },
+        {
+          viewCount: {
+            gte: 25
+          }
+        }
+      ]
+    },
+    orderBy: [{ updatedAt: "desc" }, { viewCount: "desc" }],
+    take: RECENT_LIMIT,
+    select: {
+      id: true,
+      slug: true,
+      fullName: true,
+      businessName: true,
+      accountType: true,
+      viewCount: true,
+      customLinks: {
+        orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
+        take: CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT + 1,
+        select: {
+          id: true,
+          isActive: true,
+          fileUrl: true,
+          fileName: true,
+          fileMimeType: true
+        }
+      },
+      _count: {
+        select: {
+          opportunities: true,
+          referralsMade: true,
+          recommendationsReceived: true
+        }
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    }
+  });
+
+  return cards.map((card) => mapPlanCandidate(card)).sort((a, b) => b.score - a.score);
+}
+
+async function loadLikelyTeamsUsers() {
+  const cards = await db.circleCard.findMany({
+    where: {
+      accountType: CircleCardAccountType.TEAM
+    },
+    orderBy: [{ updatedAt: "desc" }],
+    take: RECENT_LIMIT,
+    select: {
+      id: true,
+      slug: true,
+      fullName: true,
+      businessName: true,
+      accountType: true,
+      viewCount: true,
+      customLinks: {
+        orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
+        take: CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT + 1,
+        select: {
+          id: true,
+          isActive: true,
+          fileUrl: true,
+          fileName: true,
+          fileMimeType: true
+        }
+      },
+      _count: {
+        select: {
+          opportunities: true,
+          referralsMade: true,
+          recommendationsReceived: true
+        }
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    }
+  });
+
+  return cards
+    .map((card) =>
+      mapPlanCandidate(card, [
+        "Team / Organisation account type",
+        "Free is for personal use"
+      ])
+    )
+    .sort((a, b) => b.score - a.score);
+}
+
+async function loadCircleCardPlanBoundary() {
+  const [totalCircleCardUsers, accountTypeGroups, likelyProUsers, likelyTeamsUsers] =
+    await Promise.all([
+      db.user.count({
+        where: {
+          circleCards: {
+            some: {}
+          }
+        }
+      }),
+      db.circleCard.groupBy({
+        by: ["accountType"],
+        _count: {
+          _all: true
+        }
+      }),
+      loadLikelyProUsers(),
+      loadLikelyTeamsUsers()
+    ]);
+
+  const planCounts = CIRCLE_CARD_PLANS.reduce(
+    (counts, plan) => ({
+      ...counts,
+      [plan]: plan === "FREE" ? totalCircleCardUsers : 0
+    }),
+    {} as Record<CircleCardPlanKey, number>
+  );
+  const accountTypeCounts = {
+    INDIVIDUAL: 0,
+    FOUNDER: 0,
+    TEAM: 0,
+    UNKNOWN: 0
+  };
+
+  accountTypeGroups.forEach((group) => {
+    if (!group.accountType) {
+      accountTypeCounts.UNKNOWN += group._count._all;
+      return;
+    }
+
+    accountTypeCounts[group.accountType] = group._count._all;
+  });
+
+  return {
+    counts: planCounts,
+    accountTypeCounts,
+    likelyProUsers,
+    likelyTeamsUsers,
+    note: "No paid Circle Card plan assignment is stored yet, so Pro and Teams counts stay at 0 until a future billing or admin assignment phase."
+  };
+}
+
 function eventCount(
   counts: Array<{ eventType: CircleCardEventType; _count: { _all: number } }>,
   eventType: CircleCardEventType
@@ -592,6 +898,7 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
     reportsByReason,
     latestReports,
     activationSnapshot,
+    planBoundary,
     search
   ] = await Promise.all([
     db.user.count({
@@ -946,6 +1253,7 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
     getCircleCardActivationSnapshot({
       limit: RECENT_LIMIT
     }),
+    loadCircleCardPlanBoundary(),
     loadSearch(input.query ?? "")
   ]);
 
@@ -1071,6 +1379,7 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
       })),
       latestReports
     },
+    plans: planBoundary,
     search,
     meta: {
       topCardLimit: TOP_CARD_LIMIT,

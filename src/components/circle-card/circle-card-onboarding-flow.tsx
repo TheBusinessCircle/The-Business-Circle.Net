@@ -32,6 +32,7 @@ import {
   CIRCLE_CARD_IDENTITY_TAGS,
   getCircleCardIdentityTagLabel
 } from "@/lib/circle-card/identity";
+import { getCircleCardOnboardingPlanGuidance } from "@/lib/circle-card/plans";
 import { cn } from "@/lib/utils";
 
 type CircleCardOnboardingDefaults = {
@@ -202,6 +203,7 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
   const accountTypeLabel = values.accountType
     ? CIRCLE_CARD_ACCOUNT_TYPE_COPY[values.accountType].shortLabel
     : null;
+  const selectedPlanGuidance = getCircleCardOnboardingPlanGuidance(values.accountType);
   const identityTagLabels = useMemo(
     () => values.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2),
     [values.identityTags]
@@ -374,6 +376,7 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
                 <div className="grid gap-3 md:grid-cols-3">
                   {CIRCLE_CARD_ACCOUNT_TYPES.map((type) => {
                     const copy = CIRCLE_CARD_ACCOUNT_TYPE_COPY[type];
+                    const planGuidance = getCircleCardOnboardingPlanGuidance(type);
                     const Icon = ACCOUNT_TYPE_ICONS[type];
                     const selected = values.accountType === type;
 
@@ -393,6 +396,11 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
                           <Icon size={17} className="text-gold" />
                           {copy.label}
                         </span>
+                        {planGuidance ? (
+                          <span className="w-fit rounded-full border border-gold/24 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold">
+                            Suggested: {planGuidance.suggestedLabel}
+                          </span>
+                        ) : null}
                         <span className="text-xs leading-relaxed text-muted">{copy.description}</span>
                         <span className="mt-auto flex flex-wrap gap-1.5">
                           {copy.points.slice(0, 3).map((point) => (
@@ -407,6 +415,30 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
                       </button>
                     );
                   })}
+                </div>
+                <div
+                  className={cn(
+                    "rounded-2xl border border-silver/14 bg-background/18 p-4 text-sm text-muted",
+                    selectedPlanGuidance?.warning ? "border-amber-500/30 bg-amber-500/10" : ""
+                  )}
+                >
+                  <p className="font-medium text-foreground">
+                    {selectedPlanGuidance
+                      ? `Recommended path: ${selectedPlanGuidance.suggestedLabel}`
+                      : "Choose the path that fits how you will share your card."}
+                  </p>
+                  <p className="mt-1 leading-relaxed">
+                    {selectedPlanGuidance
+                      ? selectedPlanGuidance.description
+                      : "Individual cards can stay on Free, while business growth and team rollout will have clearer upgrade paths."}
+                  </p>
+                  <p className="mt-2 leading-relaxed">
+                    {selectedPlanGuidance?.guidance ??
+                      "Start free. Upgrade when your card becomes part of your business growth system."}
+                  </p>
+                  {selectedPlanGuidance?.warning ? (
+                    <p className="mt-2 font-medium text-amber-200">{selectedPlanGuidance.warning}</p>
+                  ) : null}
                 </div>
                 {stepError ? <p className="text-xs text-destructive">{stepError}</p> : null}
               </div>
@@ -574,6 +606,11 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
             <Badge variant="outline" className="border-gold/25 text-gold">
               Circle Card Free
             </Badge>
+            {selectedPlanGuidance ? (
+              <Badge variant="outline" className="border-gold/25 text-gold">
+                Suggested: {selectedPlanGuidance.suggestedLabel}
+              </Badge>
+            ) : null}
             {accountTypeLabel ? (
               <Badge variant="outline" className="border-silver/18 text-silver">
                 {accountTypeLabel}

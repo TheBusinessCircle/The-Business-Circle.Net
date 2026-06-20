@@ -78,6 +78,7 @@ import {
   CircleCardIdentityFields,
   CircleCardImageUploadField,
   CircleCardInstallPrompt,
+  CircleCardPlanPanel,
   CircleCardQrPanel,
   CircleCardSectionRouter,
   CircleCardShareAssetsPanel,
@@ -110,6 +111,11 @@ import {
   isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
+import {
+  CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
+  CIRCLE_CARD_PLAN_DEFINITIONS,
+  type CircleCardPlanFeature
+} from "@/lib/circle-card/plans";
 import { buildCircleCardShareSourceUrl } from "@/lib/circle-card/share-sources";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import {
@@ -323,7 +329,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   "custom-link-not-found": "That custom link could not be found.",
   "custom-link-save-failed": "The custom link could not be saved.",
   "custom-link-access-code-required": "Generate a 4-digit access code before saving a private link.",
-  "custom-link-active-limit": "Free Circle Cards can keep up to 5 active custom links in this phase.",
+  "custom-link-active-limit": `Free Circle Cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links in this phase.`,
   "custom-link-total-limit": "This Circle Card already has the maximum number of saved custom links.",
   "connection-invalid": "Check the connection request and try again.",
   "connection-card-not-found": "That Circle Card could not be found.",
@@ -397,14 +403,10 @@ const WALLET_FOLLOW_UP_FILTER_OPTIONS = [
   { value: "needs-follow-up", label: "Needs Follow-Up" }
 ] as const;
 
-const FUTURE_ANALYTICS_FEATURES = [
-  "30-day trends",
-  "Lead tracking",
-  "Advanced analytics",
-  "Team analytics"
-] as const;
-
-const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
+const FUTURE_ANALYTICS_FEATURES: CircleCardPlanFeature[] =
+  CIRCLE_CARD_PLAN_DEFINITIONS.FREE.lockedFeatures.filter((feature) =>
+    ["advanced-analytics", "lead-capture", "team-analytics"].includes(feature.id)
+  );
 
 const CUSTOM_LINK_TYPE_LABELS: Record<CircleCardLinkType, string> = {
   GENERAL: "General",
@@ -2046,10 +2048,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const customLinks = card?.customLinks ?? [];
   const activeCustomLinkCount = customLinks.filter((link) => link.isActive).length;
   const customLinkLimitLabel = isCircleCardFree
-    ? `${activeCustomLinkCount}/${FREE_ACTIVE_CUSTOM_LINK_LIMIT} active links`
+    ? `${activeCustomLinkCount}/${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active links`
     : `${activeCustomLinkCount} active links`;
   const freeActiveCustomLinkLimitReached =
-    isCircleCardFree && activeCustomLinkCount >= FREE_ACTIVE_CUSTOM_LINK_LIMIT;
+    isCircleCardFree && activeCustomLinkCount >= CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT;
   const socialLinks = readCircleCardSocialLinks(card?.socialLinks ?? null);
   const socialLinkItems = mergeInitialCircleCardSocialLinks(socialLinks.links, [
     { platform: "linkedin", url: member?.profile?.linkedin },
@@ -2395,6 +2397,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       </nav>
 
       <CircleCardInstallPrompt />
+
+      <CircleCardPlanPanel
+        currentPlanKey="FREE"
+        cardCount={cardCount}
+        activeFeaturedLinkCount={activeCustomLinkCount}
+      />
 
       <section className="rounded-2xl border border-gold/24 bg-card/70 p-4 shadow-panel-soft sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -5026,7 +5034,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               sortOrder={customLinks.length}
               defaultActive={!freeActiveCustomLinkLimitReached}
               examples={CUSTOM_LINK_EXAMPLES}
-              activeLimitLabel={`Free cards can keep up to ${FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links.`}
+              activeLimitLabel={`Free cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links.`}
             />
 
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -5312,7 +5320,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   <CardHeader>
                     <CardTitle className="text-lg">Phase limit</CardTitle>
                     <CardDescription>
-                      Free Circle Cards can keep up to {FREE_ACTIVE_CUSTOM_LINK_LIMIT} active
+                      Free Circle Cards can keep up to {CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active
                       custom links. Paused links can stay saved for later.
                     </CardDescription>
                   </CardHeader>
@@ -5452,8 +5460,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
                       {FUTURE_ANALYTICS_FEATURES.map((feature) => (
-                        <Badge key={feature} variant="outline" className="border-gold/25 text-gold">
-                          {feature}
+                        <Badge key={feature.id} variant="outline" className="border-gold/25 text-gold">
+                          {feature.label}
                         </Badge>
                       ))}
                     </div>

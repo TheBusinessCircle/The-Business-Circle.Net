@@ -80,6 +80,7 @@ import {
   isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
+import { CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT } from "@/lib/circle-card/plans";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
@@ -265,7 +266,6 @@ const CIRCLE_CARD_OPPORTUNITY_STATUS_FIELDS = [
 const CIRCLE_CARD_NOTIFICATION_ID_FIELDS = ["notificationId", "returnPath"] as const;
 const CIRCLE_CARD_NOTIFICATION_MARK_ALL_FIELDS = ["returnPath"] as const;
 
-const FREE_ACTIVE_CUSTOM_LINK_LIMIT = 5;
 const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = 24;
 const CIRCLE_CARD_PRIVATE_LINK_TYPES = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
 const CIRCLE_CARD_RELATIONSHIP_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
@@ -868,7 +868,7 @@ async function circleCardCustomLinkActivationLimitExceeded(input: {
     }
   });
 
-  return activeLinkCount >= FREE_ACTIVE_CUSTOM_LINK_LIMIT;
+  return activeLinkCount >= CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT;
 }
 
 const CIRCLE_CARD_LINK_DASHBOARD_SELECT = {
@@ -1285,7 +1285,7 @@ export async function applyCircleCardSmartImportAction(formData: FormData) {
 
   const activeLinkCount = card.customLinks.length;
   let remainingFreeActiveSlots = isFreeCircleCardActionUser(user)
-    ? Math.max(0, FREE_ACTIVE_CUSTOM_LINK_LIMIT - activeLinkCount)
+    ? Math.max(0, CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT - activeLinkCount)
     : Number.POSITIVE_INFINITY;
 
   if (hasCardUpdates) {
@@ -1999,7 +1999,7 @@ export async function upsertCircleCardLinkInlineAction(
   if (activeLimitExceeded) {
     return inlineCircleCardError(
       "custom-link-active-limit",
-      "Free Circle Cards can keep up to 5 active custom links in this phase."
+      `Free Circle Cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links in this phase.`
     );
   }
 
@@ -2125,7 +2125,7 @@ export async function toggleCircleCardLinkInlineAction(input: {
   if (activeLimitExceeded) {
     return inlineCircleCardError(
       "custom-link-active-limit",
-      "Free Circle Cards can keep up to 5 active custom links in this phase."
+      `Free Circle Cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links in this phase.`
     );
   }
 
