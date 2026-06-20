@@ -103,6 +103,25 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
       { id: "qr", label: "QR", status: "available", enforcement: "messaging-only" },
       { id: "basic-wallet", label: "Basic wallet", status: "available", enforcement: "messaging-only" },
       { id: "save-contacts", label: "Save contacts", status: "available", enforcement: "messaging-only" },
+      { id: "share-card", label: "Share card", status: "available", enforcement: "messaging-only" },
+      {
+        id: "basic-analytics-summary",
+        label: "Basic analytics summary",
+        status: "available",
+        enforcement: "messaging-only"
+      },
+      {
+        id: "spin-to-connect",
+        label: "Spin to Connect",
+        status: "available",
+        enforcement: "messaging-only"
+      },
+      {
+        id: "auto-connect",
+        label: "Auto connect where applicable",
+        status: "available",
+        enforcement: "messaging-only"
+      },
       {
         id: "five-active-featured-links",
         label: "Up to 5 active featured links",
@@ -123,26 +142,27 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
     plan: "PRO",
     positioning: "individual visibility, creator/founder/business growth tools",
     features: [
-      { id: "more-featured-links", label: "More featured links", status: "future", enforcement: "messaging-only" },
-      { id: "advanced-analytics", label: "Advanced analytics", status: "future", enforcement: "messaging-only" },
-      { id: "file-backed-links", label: "File-backed links", status: "early-access", enforcement: "messaging-only" },
+      { id: "twenty-five-featured-links", label: "25 featured links", status: "future", enforcement: "messaging-only" },
+      { id: "enhanced-analytics", label: "Enhanced analytics", status: "future", enforcement: "messaging-only" },
+      { id: "download-file-links", label: "Download/file links", status: "early-access", enforcement: "messaging-only" },
       { id: "custom-colours", label: "Custom colours", status: "early-access", enforcement: "messaging-only" },
       {
-        id: "creator-business-enhanced-sections",
-        label: "Creator/business enhanced sections",
+        id: "advanced-profile-sections",
+        label: "Advanced profile sections",
         status: "early-access",
         enforcement: "messaging-only"
       },
-      { id: "lead-capture", label: "Lead capture", status: "future", enforcement: "messaging-only" },
+      { id: "opportunity-tracking", label: "Opportunity tracking", status: "early-access", enforcement: "messaging-only" },
+      { id: "lead-capture-tools", label: "Lead capture tools", status: "future", enforcement: "messaging-only" },
       {
-        id: "priority-visibility-preparation",
-        label: "Priority visibility preparation",
+        id: "priority-visibility-features",
+        label: "Priority visibility features",
         status: "future",
         enforcement: "messaging-only"
       },
       {
-        id: "verification-preparation",
-        label: "Verification preparation",
+        id: "future-verification-eligibility",
+        label: "Future verification eligibility",
         status: "future",
         enforcement: "messaging-only"
       }
@@ -154,7 +174,6 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
     plan: "TEAMS",
     positioning: "companies, staff cards, shared contacts and team control",
     features: [
-      { id: "team-owner-dashboard", label: "Team owner dashboard", status: "future", enforcement: "messaging-only" },
       { id: "staff-cards", label: "Staff cards", status: "future", enforcement: "messaging-only" },
       {
         id: "shared-company-wallet",
@@ -163,14 +182,22 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
         enforcement: "messaging-only"
       },
       { id: "team-analytics", label: "Team analytics", status: "future", enforcement: "messaging-only" },
+      { id: "team-management", label: "Team management", status: "future", enforcement: "messaging-only" },
       { id: "company-profile", label: "Company profile", status: "future", enforcement: "messaging-only" },
+      { id: "department-structures", label: "Department structures", status: "future", enforcement: "messaging-only" },
       {
-        id: "owner-staff-verification",
-        label: "Owner/staff verification",
+        id: "company-verification",
+        label: "Company verification",
         status: "future",
         enforcement: "messaging-only"
       },
-      { id: "team-permissions", label: "Team permissions", status: "future", enforcement: "messaging-only" }
+      { id: "team-reporting", label: "Team reporting", status: "future", enforcement: "messaging-only" },
+      {
+        id: "shared-relationship-visibility",
+        label: "Shared relationship visibility",
+        status: "future",
+        enforcement: "messaging-only"
+      }
     ],
     enforcementNote:
       "Teams locks are readiness-only. No company/staff restrictions are enforced during this billing prep phase."
@@ -229,4 +256,24 @@ export function formatCircleCardPrice(plan: CircleCardPlanKey) {
   }
 
   return `${prefix}£${config.priceMonthly.toFixed(2)}/month`;
+}
+
+export function formatCircleCardAnnualPrice(plan: CircleCardPlanKey) {
+  const config = CIRCLE_CARD_PRICING_CONFIG[plan];
+
+  if (config.priceAnnual === null) {
+    return null;
+  }
+
+  if (config.priceAnnual === 0) {
+    return "£0/year";
+  }
+
+  return `£${config.priceAnnual.toFixed(2)}/year`;
+}
+
+export function formatCircleCardAnnualDiscount(plan: CircleCardPlanKey) {
+  const config = CIRCLE_CARD_PRICING_CONFIG[plan];
+
+  return config.annualDiscountPercent ? `${config.annualDiscountPercent}% annual discount` : null;
 }

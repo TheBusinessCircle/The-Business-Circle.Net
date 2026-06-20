@@ -12,15 +12,20 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  CIRCLE_CARD_CAPABILITY_MAP,
+  CIRCLE_CARD_CAPABILITY_STATUS_LABELS,
   CIRCLE_CARD_FEATURE_STATUS_LABELS,
   CIRCLE_CARD_PLAN_DEFINITIONS,
   CIRCLE_CARD_PRO_FEATURE_PREVIEWS,
   CIRCLE_CARD_TEAMS_FEATURE_PREVIEWS,
+  type CircleCardCapability,
   type CircleCardPlanFeature,
   type CircleCardPlanKey
 } from "@/lib/circle-card/plans";
 import {
   CIRCLE_CARD_PRICING_CONFIG,
+  formatCircleCardAnnualDiscount,
+  formatCircleCardAnnualPrice,
   formatCircleCardPrice
 } from "@/lib/circle-card/pricing";
 import { cn } from "@/lib/utils";
@@ -52,6 +57,53 @@ function featureStatusClassName(feature: CircleCardPlanFeature) {
     default:
       return "border-gold/25 bg-gold/10 text-gold";
   }
+}
+
+function capabilityStatusClassName(capability: CircleCardCapability) {
+  switch (capability.status) {
+    case "available-early-access":
+      return "border-gold/25 bg-gold/10 text-gold";
+    case "planned":
+      return "border-silver/18 bg-silver/10 text-silver";
+    case "included":
+    default:
+      return "border-emerald-500/28 bg-emerald-500/10 text-emerald-200";
+  }
+}
+
+function CapabilityList({
+  title,
+  items,
+  empty,
+  limit = 4
+}: {
+  title: string;
+  items: CircleCardCapability[];
+  empty: string;
+  limit?: number;
+}) {
+  return (
+    <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <div className="mt-3 grid gap-2">
+        {items.length ? (
+          items.slice(0, limit).map((item) => (
+            <div key={item.id} className="rounded-xl border border-silver/12 bg-card/42 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium text-foreground">{item.label}</p>
+                <Badge variant="outline" className={cn("normal-case tracking-normal", capabilityStatusClassName(item))}>
+                  {CIRCLE_CARD_CAPABILITY_STATUS_LABELS[item.status]}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-muted">{item.description}</p>
+            </div>
+          ))
+        ) : (
+          <p className="text-xs leading-relaxed text-muted">{empty}</p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function FeaturePreviewList({
@@ -91,6 +143,8 @@ function PlanPreviewPanel({
   actionLabel,
   priceLabel,
   statusLabel,
+  annualPriceLabel,
+  annualDiscountLabel,
   iconClassName = "border-gold/20 bg-gold/10 text-gold"
 }: {
   eyebrow: string;
@@ -102,6 +156,8 @@ function PlanPreviewPanel({
   actionLabel: string;
   priceLabel: string;
   statusLabel: string;
+  annualPriceLabel?: string | null;
+  annualDiscountLabel?: string | null;
   iconClassName?: string;
 }) {
   return (
@@ -117,6 +173,12 @@ function PlanPreviewPanel({
                   {priceLabel}
                 </Badge>
               </div>
+              {annualPriceLabel ? (
+                <p className="mt-1 text-xs text-silver">
+                  {annualPriceLabel}
+                  {annualDiscountLabel ? ` / ${annualDiscountLabel}` : ""}
+                </p>
+              ) : null}
               <p className="mt-1 text-xs leading-relaxed text-muted">{description}</p>
               <p className="mt-1 text-xs text-silver">{statusLabel}</p>
             </div>
@@ -153,9 +215,12 @@ export function CircleCardPlanPanel({
   const currentPlan = CIRCLE_CARD_PLAN_DEFINITIONS[currentPlanKey];
   const proPlan = CIRCLE_CARD_PLAN_DEFINITIONS.PRO;
   const teamsPlan = CIRCLE_CARD_PLAN_DEFINITIONS.TEAMS;
+  const currentCapabilityMap = CIRCLE_CARD_CAPABILITY_MAP[currentPlanKey];
   const currentPricing = CIRCLE_CARD_PRICING_CONFIG[currentPlanKey];
   const proPricing = CIRCLE_CARD_PRICING_CONFIG.PRO;
   const teamsPricing = CIRCLE_CARD_PRICING_CONFIG.TEAMS;
+  const teamsAnnualPrice = formatCircleCardAnnualPrice("TEAMS");
+  const teamsAnnualDiscount = formatCircleCardAnnualDiscount("TEAMS");
 
   const limitItems = [
     {
@@ -194,10 +259,12 @@ export function CircleCardPlanPanel({
               <Badge variant="outline" className="border-gold/28 text-gold">
                 Current Plan: {currentPlan.shortLabel}
               </Badge>
-              <h2 className="mt-3 font-display text-2xl text-foreground">Circle Card plan status</h2>
+              <h2 className="mt-3 font-display text-2xl text-foreground">
+                {currentCapabilityMap.relationshipPositioning}
+              </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                {currentPricing.label}: {formatCircleCardPrice(currentPlanKey)}. Good for: {currentPlan.goodFor}.
-                Next unlock: {currentPlan.upgradeMessaging.nextUnlock}.
+                {currentPricing.label}: {formatCircleCardPrice(currentPlanKey)}. What it does:{" "}
+                {currentCapabilityMap.summary}
               </p>
             </div>
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/10 text-gold">
@@ -222,18 +289,24 @@ export function CircleCardPlanPanel({
               })}
             </div>
 
-            {currentPlan.notFor?.length ? (
-              <div className="rounded-2xl border border-silver/14 bg-background/18 p-4">
-                <p className="text-sm font-medium text-foreground">Free is not designed for</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {currentPlan.notFor.map((item) => (
-                    <Badge key={item} variant="outline" className="border-silver/18 text-silver">
-                      {item}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+            <CapabilityList
+              title="What is included"
+              items={currentCapabilityMap.included}
+              empty="Included capabilities appear here as the plan matures."
+            />
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <CapabilityList
+              title="What is unlocked"
+              items={currentCapabilityMap.unlocked}
+              empty="Your current plan is focused on its included relationship tools."
+            />
+            <CapabilityList
+              title="What becomes available next"
+              items={currentCapabilityMap.next}
+              empty="This plan already represents the current top-level Circle Card capability map."
+            />
           </div>
         </details>
 
@@ -258,6 +331,8 @@ export function CircleCardPlanPanel({
             href="/circle-card/teams"
             actionLabel="Explore Teams"
             priceLabel={formatCircleCardPrice("TEAMS")}
+            annualPriceLabel={teamsAnnualPrice}
+            annualDiscountLabel={teamsAnnualDiscount}
             statusLabel={teamsPricing.billingStatusLabel}
             iconClassName="border-silver/18 bg-silver/10 text-silver"
           />

@@ -131,6 +131,24 @@ export type AdminCircleCardPlanCandidate = {
   readinessLabel: string;
 };
 
+export type AdminCircleCardFreeLimitCandidate = {
+  userId: string;
+  ownerName: string | null;
+  ownerEmail: string;
+  cardId: string;
+  slug: string;
+  fullName: string;
+  businessName: string | null;
+  activeFeaturedLinks: number;
+  featuredLinkLimit: number;
+  walletContacts: number;
+  profileCompletion: number;
+  shares: number;
+  cardViews: number;
+  reasons: string[];
+  score: number;
+};
+
 export type AdminCircleCardCommandCentre = Awaited<
   ReturnType<typeof getAdminCircleCardCommandCentre>
 >;
@@ -861,6 +879,174 @@ function mapPlanCandidate(
   };
 }
 
+function mapFreeLimitCandidate(card: PlanBoundaryCandidateCard): AdminCircleCardFreeLimitCandidate {
+  const activeFeaturedLinks = card.customLinks.filter((link) => link.isActive).length;
+  const shares = card._count.events;
+  const completion = calculateCircleCardCompletionForCard(card, shares);
+  const reasons: string[] = [];
+
+  if (activeFeaturedLinks >= CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT - 1) {
+    reasons.push(`${activeFeaturedLinks}/${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} featured links active`);
+  }
+
+  if (card._count.walletContacts >= 25) {
+    reasons.push(`${card._count.walletContacts} wallet saves`);
+  }
+
+  if (completion.score >= 80) {
+    reasons.push(`${completion.score}% profile completion`);
+  }
+
+  if (shares >= 20) {
+    reasons.push(`${shares} shares`);
+  }
+
+  if (card.viewCount >= 500) {
+    reasons.push(`${card.viewCount} card views`);
+  }
+
+  const linkScore = Math.min(activeFeaturedLinks / CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT, 1) * 35;
+  const walletScore = Math.min(card._count.walletContacts / 25, 1) * 20;
+  const completionScore = Math.min(completion.score / 100, 1) * 20;
+  const shareScore = Math.min(shares / 20, 1) * 15;
+  const viewScore = Math.min(card.viewCount / 500, 1) * 10;
+
+  return {
+    userId: card.user.id,
+    ownerName: card.user.name,
+    ownerEmail: card.user.email,
+    cardId: card.id,
+    slug: card.slug,
+    fullName: card.fullName,
+    businessName: card.businessName,
+    activeFeaturedLinks,
+    featuredLinkLimit: CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
+    walletContacts: card._count.walletContacts,
+    profileCompletion: completion.score,
+    shares,
+    cardViews: card.viewCount,
+    reasons,
+    score: Math.round(linkScore + walletScore + completionScore + shareScore + viewScore)
+  };
+}
+
+async function loadFreeLimitUsers() {
+  const cards = await db.circleCard.findMany({
+    where: {
+      OR: [
+        {
+          customLinks: {
+            some: {
+              isActive: true
+            }
+          }
+        },
+        {
+          walletContacts: {
+            some: {}
+          }
+        },
+        {
+          events: {
+            some: {
+              eventType: {
+                in: CIRCLE_CARD_SHARE_EVENT_TYPES
+              }
+            }
+          }
+        },
+        {
+          viewCount: {
+            gte: 100
+          }
+        }
+      ]
+    },
+    orderBy: [{ updatedAt: "desc" }, { viewCount: "desc" }],
+    take: 50,
+    select: {
+      id: true,
+      slug: true,
+      fullName: true,
+      businessName: true,
+      accountType: true,
+      role: true,
+      tagline: true,
+      about: true,
+      location: true,
+      email: true,
+      phone: true,
+      websiteUrl: true,
+      profileImageUrl: true,
+      socialLinks: true,
+      identityTags: true,
+      viewCount: true,
+      customLinks: {
+        orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
+        take: CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT + 1,
+        select: {
+          id: true,
+          isActive: true,
+          fileUrl: true,
+          fileName: true,
+          fileMimeType: true
+        }
+      },
+      _count: {
+        select: {
+          events: {
+            where: {
+              eventType: {
+                in: CIRCLE_CARD_SHARE_EVENT_TYPES
+              }
+            }
+          },
+          walletContacts: true,
+          opportunities: true,
+          introductionsMade: true,
+          introductionsAsPersonA: true,
+          introductionsAsPersonB: true,
+          referralsMade: true,
+          referralsReceived: true,
+          recommendationsReceived: true
+        }
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          profile: {
+            select: {
+              bio: true,
+              location: true,
+              website: true,
+              linkedin: true,
+              instagram: true,
+              facebook: true,
+              tiktok: true,
+              youtube: true,
+              business: {
+                select: {
+                  companyName: true,
+                  website: true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  return cards
+    .map((card) => mapFreeLimitCandidate(card))
+    .filter((candidate) => candidate.score >= 50 || candidate.reasons.length > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, RECENT_LIMIT);
+}
+
 async function loadLikelyProUsers() {
   const cards = await db.circleCard.findMany({
     where: {
@@ -1129,6 +1315,7 @@ async function loadCircleCardPlanBoundary() {
   const [
     totalCircleCardUsers,
     accountTypeGroups,
+    freeLimitUsers,
     likelyProUsers,
     likelyTeamsUsers,
     proInterestCount,
@@ -1148,6 +1335,7 @@ async function loadCircleCardPlanBoundary() {
           _all: true
         }
       }),
+      loadFreeLimitUsers(),
       loadLikelyProUsers(),
       loadLikelyTeamsUsers(),
       db.lead.count({
@@ -1196,6 +1384,7 @@ async function loadCircleCardPlanBoundary() {
     accountTypeCounts,
     proInterestCount,
     teamsInterestCount,
+    freeLimitUsers,
     likelyProUsers,
     likelyTeamsUsers,
     note: "No paid Circle Card plan assignment is stored yet, so Pro and Teams counts stay at 0 until a future billing or admin assignment phase."

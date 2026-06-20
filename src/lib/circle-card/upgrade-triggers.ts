@@ -39,8 +39,8 @@ export const CIRCLE_CARD_UPGRADE_TRIGGER_THRESHOLDS = {
   featuredLinkUsage: 0.8,
   highProfileCompletion: 80,
   multipleSocialProfiles: 3,
-  highCardViews: 100,
-  highShares: 10,
+  highCardViews: 500,
+  highShares: 20,
   walletGrowth: 25,
   repeatedRelationshipFlow: 3,
   activeOpportunities: 2
@@ -99,8 +99,8 @@ export function buildCircleCardUpgradeTriggers(snapshot: CircleCardUpgradeUsageS
     pro.push({
       id: "featured-links-80",
       plan: "PRO",
-      title: "Featured links nearly full",
-      message: `You are using ${activeLinks}/${linkLimit} featured links. Pro prepares more room for stronger visibility.`,
+      title: "Your featured links are nearly full",
+      message: `You are using ${activeLinks}/${linkLimit} featured links. Pro prepares 25 links for offers, booking, proof, downloads and sales paths.`,
       priority: 80
     });
   }
@@ -110,7 +110,7 @@ export function buildCircleCardUpgradeTriggers(snapshot: CircleCardUpgradeUsageS
       id: "profile-completion-high",
       plan: "PRO",
       title: "Your profile looks ready",
-      message: "Pro adds deeper analytics, lead capture and stronger profile control.",
+      message: `Your profile is ${profileCompletion}% complete. Pro adds enhanced analytics, lead capture and stronger profile control.`,
       priority: 70
     });
   }
@@ -120,7 +120,7 @@ export function buildCircleCardUpgradeTriggers(snapshot: CircleCardUpgradeUsageS
       id: "multiple-social-profiles",
       plan: "PRO",
       title: "Your identity spans channels",
-      message: "Pro helps turn those channels into a stronger public profile.",
+      message: "Pro helps relationship builders turn active channels into a stronger public profile.",
       priority: 65
     });
   }
@@ -130,7 +130,7 @@ export function buildCircleCardUpgradeTriggers(snapshot: CircleCardUpgradeUsageS
       id: "high-card-views",
       plan: "PRO",
       title: "Your card is gaining traction",
-      message: "Unlock deeper visibility tools with Pro.",
+      message: `You have generated ${cardViews.toLocaleString("en-GB")} card views. Pro analytics fits this level of visibility.`,
       priority: 90
     });
   }
@@ -140,8 +140,18 @@ export function buildCircleCardUpgradeTriggers(snapshot: CircleCardUpgradeUsageS
       id: "high-card-shares",
       plan: "PRO",
       title: "Your card is being shared",
-      message: "Pro fits cards that help you network, sell and get referred.",
+      message: `You have shared your card ${shares.toLocaleString("en-GB")} times. Pro supports stronger lead generation and follow-up.`,
       priority: 85
+    });
+  }
+
+  if (walletContacts >= CIRCLE_CARD_UPGRADE_TRIGGER_THRESHOLDS.walletGrowth) {
+    pro.push({
+      id: "wallet-growth",
+      plan: "PRO",
+      title: "Your wallet is growing",
+      message: `You have saved ${walletContacts.toLocaleString("en-GB")} contacts. Pro relationship tools support follow-up and opportunity tracking.`,
+      priority: 72
     });
   }
 
@@ -149,8 +159,8 @@ export function buildCircleCardUpgradeTriggers(snapshot: CircleCardUpgradeUsageS
     teams.push({
       id: "team-account-type",
       plan: "TEAMS",
-      title: "Teams matches this account",
-      message: "Shared contacts and staff cards work better with Teams.",
+      title: "You appear to be managing multiple people",
+      message: "Teams is built for staff cards, shared contacts and owner/admin control.",
       priority: 95
     });
   }
@@ -159,8 +169,8 @@ export function buildCircleCardUpgradeTriggers(snapshot: CircleCardUpgradeUsageS
     teams.push({
       id: "organisation-language",
       plan: "TEAMS",
-      title: "Company signals detected",
-      message: "Teams keeps company identity, staff cards and shared contacts in one place.",
+      title: "Company-related activity detected",
+      message: "Teams keeps company identity, staff cards and shared contacts in one controlled workspace.",
       priority: 78
     });
   }
@@ -169,8 +179,8 @@ export function buildCircleCardUpgradeTriggers(snapshot: CircleCardUpgradeUsageS
     teams.push({
       id: "relationship-flow",
       plan: "TEAMS",
-      title: "Relationship flow is becoming shared",
-      message: "Teams gives owners and staff better control over referrals and introductions.",
+      title: "Relationship flow is becoming company activity",
+      message: "Teams gives owners and staff better visibility across referrals, introductions and shared contacts.",
       priority: 82
     });
   }
@@ -183,7 +193,7 @@ export function buildCircleCardUpgradeTriggers(snapshot: CircleCardUpgradeUsageS
       id: "wallet-and-opportunities",
       plan: "TEAMS",
       title: "Your network is turning into pipeline",
-      message: "Teams helps companies manage shared contacts, follow-ups and team analytics.",
+      message: "Teams helps companies manage staff cards, shared contacts, follow-ups and team analytics.",
       priority: 75
     });
   }

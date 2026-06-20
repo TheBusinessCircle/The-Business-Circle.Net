@@ -209,7 +209,7 @@ export default async function CircleCardLandingPage() {
             <UsersRound size={18} className="text-silver" />
             <h3 className="mt-4 font-display text-xl text-foreground">Teams preview</h3>
             <p className="mt-2 text-sm text-muted">
-              Company cards, employee cards, shared branding and team analytics are prepared for a
+              Company cards, staff cards, shared branding and team analytics are prepared for a
               later release.
             </p>
           </div>

@@ -17,6 +17,25 @@ export type CircleCardPlanFeature = {
   status: CircleCardPlanFeatureStatus;
 };
 
+export type CircleCardCapabilityStatus = "included" | "available-early-access" | "planned";
+
+export type CircleCardCapability = {
+  id: string;
+  label: string;
+  description: string;
+  status: CircleCardCapabilityStatus;
+};
+
+export type CircleCardPlanCapabilityMap = {
+  plan: CircleCardPlanKey;
+  relationshipPositioning: string;
+  audience: string;
+  summary: string;
+  included: CircleCardCapability[];
+  unlocked: CircleCardCapability[];
+  next: CircleCardCapability[];
+};
+
 export type CircleCardPlanLimits = {
   circleCards: number;
   activeFeaturedLinks: number | "more" | "team";
@@ -45,22 +64,247 @@ export type CircleCardPlanDefinition = {
   };
 };
 
+export const CIRCLE_CARD_CAPABILITY_STATUS_LABELS: Record<CircleCardCapabilityStatus, string> = {
+  included: "Included",
+  "available-early-access": "Available during early access",
+  planned: "Coming soon / early access"
+};
+
+export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPlanCapabilityMap> = {
+  FREE: {
+    plan: "FREE",
+    relationshipPositioning: "Start building relationships.",
+    audience: "Personal networking and simple sharing",
+    summary:
+      "Free keeps Circle Card genuinely useful: a public profile, QR sharing, wallet, contacts, sharing, basic analytics and connection tools.",
+    included: [
+      {
+        id: "one-card",
+        label: "1 Circle Card",
+        description: "One personal public Circle Card.",
+        status: "included"
+      },
+      {
+        id: "five-featured-links",
+        label: "5 active featured links",
+        description: "Enough public actions for a useful profile, offer, booking link and core proof.",
+        status: "included"
+      },
+      {
+        id: "qr-code",
+        label: "QR code",
+        description: "Share the public card in person, at events and from printed material.",
+        status: "included"
+      },
+      {
+        id: "public-profile",
+        label: "Public profile",
+        description: "A useful identity page with contact details, socials, image, role and business context.",
+        status: "included"
+      },
+      {
+        id: "wallet",
+        label: "Wallet and saved contacts",
+        description: "Save Circle Cards, keep contacts and build a personal relationship memory.",
+        status: "included"
+      }
+    ],
+    unlocked: [
+      {
+        id: "share-card",
+        label: "Share card",
+        description: "Copy, share and open the public card from the dashboard.",
+        status: "included"
+      },
+      {
+        id: "basic-analytics-summary",
+        label: "Basic analytics summary",
+        description: "View core card views, saves, shares, downloads and link activity.",
+        status: "included"
+      },
+      {
+        id: "spin-to-connect",
+        label: "Spin to Connect",
+        description: "Use the connection flow where it applies to turn a meeting into a saved relationship.",
+        status: "included"
+      },
+      {
+        id: "auto-connect",
+        label: "Auto connect where applicable",
+        description: "Existing connection paths stay active for a smoother relationship flow.",
+        status: "included"
+      }
+    ],
+    next: [
+      {
+        id: "pro-growth-tools",
+        label: "Pro growth tools",
+        description: "Move to Pro when visibility, lead capture and relationship management matter.",
+        status: "planned"
+      },
+      {
+        id: "teams-company-tools",
+        label: "Teams company tools",
+        description: "Move to Teams when staff cards, shared contacts and company control matter.",
+        status: "planned"
+      }
+    ]
+  },
+  PRO: {
+    plan: "PRO",
+    relationshipPositioning: "Grow relationships.",
+    audience: "Relationship builders, networkers, creators, sales people and founders",
+    summary:
+      "Pro is the individual growth layer for visibility, analytics, lead generation and relationship management.",
+    included: [],
+    unlocked: [
+      {
+        id: "twenty-five-featured-links",
+        label: "25 featured links",
+        description: "More public actions for offers, booking, content, proof, downloads and sales paths.",
+        status: "planned"
+      },
+      {
+        id: "enhanced-analytics",
+        label: "Enhanced analytics",
+        description: "Deeper visibility trends, source performance and conversion signals.",
+        status: "planned"
+      },
+      {
+        id: "lead-capture-tools",
+        label: "Lead capture tools",
+        description: "Capture and qualify interest from the public card.",
+        status: "planned"
+      },
+      {
+        id: "download-file-links",
+        label: "Download/file links",
+        description: "Attach files, downloads and private resources to featured actions.",
+        status: "available-early-access"
+      },
+      {
+        id: "advanced-profile-sections",
+        label: "Advanced profile sections",
+        description: "Richer profile areas for creators, founders, sales people and business operators.",
+        status: "available-early-access"
+      },
+      {
+        id: "profile-colour-customisation",
+        label: "Profile colour customisation",
+        description: "Brand-aware public card colour controls.",
+        status: "available-early-access"
+      },
+      {
+        id: "opportunity-tracking",
+        label: "Opportunity tracking",
+        description: "Turn saved relationships into tracked opportunities and follow-up.",
+        status: "available-early-access"
+      },
+      {
+        id: "priority-visibility",
+        label: "Priority visibility features",
+        description: "Prepare stronger visibility inside discovery and relationship surfaces.",
+        status: "planned"
+      },
+      {
+        id: "future-verification",
+        label: "Future verification eligibility",
+        description: "Prepare identity and trust signals for future verification.",
+        status: "planned"
+      }
+    ],
+    next: [
+      {
+        id: "teams-company-system",
+        label: "Teams company system",
+        description: "Move to Teams when staff, departments and shared company relationships need control.",
+        status: "planned"
+      }
+    ]
+  },
+  TEAMS: {
+    plan: "TEAMS",
+    relationshipPositioning: "Scale relationships.",
+    audience: "Businesses, departments, sales teams, networking groups and growing companies",
+    summary:
+      "Teams is the business layer for staff cards, shared relationship visibility, company identity and team control.",
+    included: [],
+    unlocked: [
+      {
+        id: "staff-cards",
+        label: "Staff cards",
+        description: "Cards connected to a company workspace.",
+        status: "planned"
+      },
+      {
+        id: "shared-company-wallet",
+        label: "Shared company wallet",
+        description: "Company-level contacts and relationship context for the team.",
+        status: "planned"
+      },
+      {
+        id: "team-analytics",
+        label: "Team analytics",
+        description: "Visibility across cards, shares, contacts and relationship activity.",
+        status: "planned"
+      },
+      {
+        id: "team-management",
+        label: "Team management",
+        description: "Owner and admin control for company card access.",
+        status: "planned"
+      },
+      {
+        id: "company-profile",
+        label: "Company profile",
+        description: "A company profile connected to staff cards and shared contacts.",
+        status: "planned"
+      },
+      {
+        id: "department-structures",
+        label: "Department structures",
+        description: "Organise cards and contacts around teams, departments or business units.",
+        status: "planned"
+      },
+      {
+        id: "company-verification",
+        label: "Company verification",
+        description: "Prepare company trust signals and owner verification.",
+        status: "planned"
+      },
+      {
+        id: "team-reporting",
+        label: "Team reporting",
+        description: "Reporting for team visibility, contact growth and relationship activity.",
+        status: "planned"
+      },
+      {
+        id: "shared-relationship-visibility",
+        label: "Shared relationship visibility",
+        description: "See company relationship flow without turning personal cards into community membership.",
+        status: "planned"
+      }
+    ],
+    next: []
+  }
+};
+
 export const CIRCLE_CARD_PRO_FEATURE_PREVIEWS: CircleCardPlanFeature[] = [
   {
-    id: "advanced-analytics",
-    label: "Advanced analytics",
+    id: "twenty-five-featured-links",
+    label: "25 featured links",
+    description: "More public actions for offers, booking, reviews, downloads and sales paths.",
+    status: "pro-later"
+  },
+  {
+    id: "enhanced-analytics",
+    label: "Enhanced analytics",
     description: "Deeper visibility trends, source performance and conversion signals.",
     status: "pro-later"
   },
   {
-    id: "more-featured-links",
-    label: "More featured links",
-    description: "More active public action blocks for offers, booking, reviews and content.",
-    status: "pro-later"
-  },
-  {
     id: "file-backed-links",
-    label: "File-backed links",
+    label: "Download/file links",
     description: "Downloads and private file links attached to featured actions.",
     status: "early-access"
   },
@@ -72,13 +316,19 @@ export const CIRCLE_CARD_PRO_FEATURE_PREVIEWS: CircleCardPlanFeature[] = [
   },
   {
     id: "enhanced-layout-sections",
-    label: "Creator/business enhanced sections",
+    label: "Advanced profile sections",
     description: "Richer layout sections for creators, founders and business profiles.",
     status: "early-access"
   },
   {
+    id: "opportunity-tracking",
+    label: "Opportunity tracking",
+    description: "Relationship follow-up and opportunity tracking during early access.",
+    status: "early-access"
+  },
+  {
     id: "lead-capture",
-    label: "Lead capture from public card",
+    label: "Lead capture tools",
     description: "Capture and qualify public-card interest directly from the card.",
     status: "pro-later"
   },
@@ -99,13 +349,13 @@ export const CIRCLE_CARD_PRO_FEATURE_PREVIEWS: CircleCardPlanFeature[] = [
 export const CIRCLE_CARD_TEAMS_FEATURE_PREVIEWS: CircleCardPlanFeature[] = [
   {
     id: "company-wallet",
-    label: "Company wallet",
+    label: "Shared company wallet",
     description: "A shared company relationship wallet.",
     status: "coming-soon"
   },
   {
-    id: "employee-cards",
-    label: "Employee cards",
+    id: "staff-cards",
+    label: "Staff cards",
     description: "Staff cards connected to a company workspace.",
     status: "coming-soon"
   },
@@ -122,15 +372,27 @@ export const CIRCLE_CARD_TEAMS_FEATURE_PREVIEWS: CircleCardPlanFeature[] = [
     status: "coming-soon"
   },
   {
-    id: "owner-verification",
-    label: "Owner verification",
-    description: "Verification flow for company owners and admins.",
+    id: "team-management",
+    label: "Team management",
+    description: "Owner and admin controls for staff cards and company access.",
     status: "coming-soon"
   },
   {
-    id: "staff-verification",
-    label: "Staff verification",
-    description: "Verified staff identity attached to a company.",
+    id: "department-structures",
+    label: "Department structures",
+    description: "Organise staff cards by team, department or business unit.",
+    status: "coming-soon"
+  },
+  {
+    id: "team-reporting",
+    label: "Team reporting",
+    description: "Company-level reporting for visibility and relationship activity.",
+    status: "coming-soon"
+  },
+  {
+    id: "owner-verification",
+    label: "Company verification",
+    description: "Verification flow for company owners, admins and staff.",
     status: "coming-soon"
   },
   {
@@ -152,8 +414,8 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
     key: "FREE",
     label: "Circle Card Free",
     shortLabel: "Free",
-    description: "For individuals, simple networking, a basic public card and a basic wallet.",
-    goodFor: "Personal networking and simple sharing",
+    description: "Start building relationships with a useful public card, QR sharing, wallet and basic analytics.",
+    goodFor: "Start building relationships",
     limits: {
       circleCards: 1,
       activeFeaturedLinks: 5,
@@ -172,7 +434,7 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
       },
       {
         id: "basic-profile",
-        label: "Basic profile",
+        label: "Public profile",
         description: "Name, role, business, image, contact details and social links.",
         status: "included"
       },
@@ -190,7 +452,7 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
       },
       {
         id: "basic-qr",
-        label: "Basic QR",
+        label: "QR code",
         description: "QR sharing for the public card.",
         status: "included"
       },
@@ -205,6 +467,24 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
         label: "Share card",
         description: "Copy, share and save public card details.",
         status: "included"
+      },
+      {
+        id: "basic-analytics-summary",
+        label: "Basic analytics summary",
+        description: "A simple summary of views, saves, shares and link activity.",
+        status: "included"
+      },
+      {
+        id: "spin-to-connect",
+        label: "Spin to Connect",
+        description: "A relationship-first connection flow where it applies.",
+        status: "included"
+      },
+      {
+        id: "auto-connect",
+        label: "Auto connect where applicable",
+        description: "Existing connection paths stay active for smoother relationship building.",
+        status: "included"
       }
     ],
     lockedFeatures: [...CIRCLE_CARD_PRO_FEATURE_PREVIEWS, ...CIRCLE_CARD_TEAMS_FEATURE_PREVIEWS],
@@ -216,8 +496,8 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
       "Company verification"
     ],
     upgradeMessaging: {
-      headline: "Start free. Upgrade when your card becomes part of your business growth system.",
-      body: "Free is personal. Pro adds visibility tools, analytics depth and lead capture. Teams is designed for companies, staff and shared contacts.",
+      headline: "Start building relationships.",
+      body: "Free stays useful. Pro grows visibility, analytics, leads and follow-up. Teams scales staff cards, shared contacts and company control.",
       nextUnlock: "Pro visibility tools / Teams company tools",
       actionLabel: "Coming soon"
     }
@@ -227,11 +507,11 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
     label: "Circle Card Pro",
     shortLabel: "Pro",
     description:
-      "For founders, creators, consultants, tradespeople and personal brands who want better visibility, analytics and lead capture.",
-    goodFor: "Founders, creators, consultants, tradespeople and personal brands",
+      "Grow relationships with visibility, analytics, lead generation and relationship management tools.",
+    goodFor: "Grow relationships",
     limits: {
       circleCards: 1,
-      activeFeaturedLinks: "more",
+      activeFeaturedLinks: 25,
       profileLayouts: "classic-business-creator",
       qr: "advanced",
       wallet: "basic",
@@ -241,8 +521,8 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
     enabledFeatures: CIRCLE_CARD_PRO_FEATURE_PREVIEWS,
     lockedFeatures: CIRCLE_CARD_TEAMS_FEATURE_PREVIEWS,
     upgradeMessaging: {
-      headline: "Unlock more visibility and lead capture.",
-      body: "Pro is the personal business layer for people using Circle Card to drive trust, enquiries and follow-up.",
+      headline: "Grow relationships.",
+      body: "Pro fits relationship builders, networkers, creators, sales people and founders using Circle Card for visibility, leads and follow-up.",
       nextUnlock: "Teams company tools",
       actionLabel: "Register interest"
     }
@@ -252,8 +532,8 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
     label: "Circle Card Teams",
     shortLabel: "Teams",
     description:
-      "For companies, organisations, staff cards, shared contacts, team analytics and owner/admin control.",
-    goodFor: "Companies, organisations, staff cards and shared contacts",
+      "Scale relationships across businesses, departments, sales teams, networking groups and growing companies.",
+    goodFor: "Scale relationships",
     limits: {
       circleCards: 1,
       activeFeaturedLinks: "team",
@@ -266,8 +546,8 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
     enabledFeatures: [...CIRCLE_CARD_PRO_FEATURE_PREVIEWS, ...CIRCLE_CARD_TEAMS_FEATURE_PREVIEWS],
     lockedFeatures: [],
     upgradeMessaging: {
-      headline: "Designed for companies, staff and shared contacts.",
-      body: "Teams separates company rollout from personal Free cards with company wallet, employee cards and owner/admin control.",
+      headline: "Scale relationships.",
+      body: "Teams separates company rollout from personal Free and Pro cards with staff cards, shared wallet, team reporting and owner/admin control.",
       nextUnlock: "Owner/admin company controls",
       actionLabel: "Register interest"
     }
@@ -297,22 +577,22 @@ export const CIRCLE_CARD_ONBOARDING_PLAN_GUIDANCE: Record<
 > = {
   INDIVIDUAL: {
     suggestedPlan: "FREE",
-    suggestedLabel: "Free or Pro Personal",
-    description: "Start with Free for personal networking. Pro Personal fits when visibility and lead capture matter.",
-    guidance: "Start free. Upgrade when your card becomes part of your business growth system."
+    suggestedLabel: "Free",
+    description: "Start with Free for a useful personal card, QR sharing, wallet and basic analytics.",
+    guidance: "Start building relationships. Upgrade to Pro when visibility, leads and follow-up matter."
   },
   FOUNDER: {
     suggestedPlan: "PRO",
     suggestedLabel: "Pro",
-    description: "Pro is the planned path for founders, business owners and personal brands.",
-    guidance: "Start free. Upgrade when your card becomes part of your business growth system."
+    description: "Pro is the planned path for relationship builders, founders, creators, sales people and personal brands.",
+    guidance: "Start with Free. Grow with Pro when the card becomes part of your relationship pipeline."
   },
   TEAM: {
     suggestedPlan: "TEAMS",
     suggestedLabel: "Teams",
-    description: "Teams is the planned path for companies, organisations and staff card rollout.",
-    guidance: "Start free. Upgrade when your card becomes part of your business growth system.",
-    warning: "Free is for personal use. Teams is designed for companies, staff and shared contacts."
+    description: "Teams is the planned path for businesses, departments, sales teams and staff card rollout.",
+    guidance: "Start with Free for the first card. Scale with Teams when staff, shared contacts and company control matter.",
+    warning: "Free is for personal use. Teams is designed for companies, staff cards and shared relationship visibility."
   }
 };
 

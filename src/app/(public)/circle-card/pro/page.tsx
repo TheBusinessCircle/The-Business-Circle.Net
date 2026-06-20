@@ -55,12 +55,12 @@ const DECISION_STEPS = [
   {
     label: "What",
     title: "A stronger Circle Card.",
-    body: "Pro turns a simple contact card into a sharper visibility and relationship tool."
+    body: "Pro turns Circle Card into a sharper visibility, lead generation and relationship tool."
   },
   {
     label: "Who",
     title: "Built for active operators.",
-    body: "Founders, creators, consultants, tradespeople, service providers and personal brands."
+    body: "Relationship builders, networkers, creators, sales people and founders."
   },
   {
     label: "How",
@@ -88,41 +88,50 @@ const PLAN_COMPARISON: Array<{
     status: "Available",
     features: [
       { label: "1 card", status: "Available" },
-      { label: "Basic profile", status: "Available" },
+      { label: "Public profile", status: "Available" },
       { label: "QR sharing", status: "Available" },
+      { label: "Share card", status: "Available" },
       { label: "Save contacts", status: "Available" },
-      { label: "Basic wallet", status: "Available" },
-      { label: "5 featured links", status: "Available" }
+      { label: "Wallet", status: "Available" },
+      { label: "5 active featured links", status: "Available" },
+      { label: "Basic analytics summary", status: "Available" },
+      { label: "Spin to Connect", status: "Available" },
+      { label: "Auto connect where applicable", status: "Available" }
     ]
   },
   {
     name: "Pro",
-    fit: "Serious personal brand, founder, creator or business visibility",
+    fit: "Grow relationships with visibility, leads and relationship management",
     icon: Crown,
     status: "Coming soon / early access",
     features: [
-      { label: "More featured links", status: "Coming soon / early access" },
-      { label: "Better analytics", status: "Coming soon / early access" },
-      { label: "File-backed links", status: "Available during early access" },
+      { label: "25 featured links", status: "Coming soon / early access" },
+      { label: "Enhanced analytics", status: "Coming soon / early access" },
+      { label: "Lead capture tools", status: "Coming soon / early access" },
+      { label: "Download/file links", status: "Available during early access" },
+      { label: "Advanced profile sections", status: "Available during early access" },
       { label: "Custom profile colours", status: "Available during early access" },
-      { label: "Creator/business enhancements", status: "Available during early access" },
-      { label: "Lead capture", status: "Coming soon / early access" },
-      { label: "Trust/verification preparation", status: "Coming soon / early access" },
-      { label: "Priority visibility preparation", status: "Coming soon / early access" }
+      { label: "Opportunity tracking", status: "Available during early access" },
+      { label: "Priority visibility features", status: "Coming soon / early access" },
+      { label: "Future verification eligibility", status: "Coming soon / early access" }
     ]
   },
   {
     name: "Teams",
-    fit: "Companies, staff, shared contacts and team control",
+    fit: "Scale relationships with staff cards, shared contacts and team control",
     icon: Building2,
     status: "Coming soon / early access",
     features: [
-      { label: "Company wallet", status: "Coming soon / early access" },
-      { label: "Employee cards", status: "Coming soon / early access" },
+      { label: "Staff cards", status: "Coming soon / early access" },
+      { label: "Shared company wallet", status: "Coming soon / early access" },
       { label: "Shared contacts", status: "Coming soon / early access" },
       { label: "Team analytics", status: "Coming soon / early access" },
-      { label: "Owner/staff verification", status: "Coming soon / early access" },
-      { label: "Company profile", status: "Coming soon / early access" }
+      { label: "Team management", status: "Coming soon / early access" },
+      { label: "Company profile", status: "Coming soon / early access" },
+      { label: "Department structures", status: "Coming soon / early access" },
+      { label: "Company verification", status: "Coming soon / early access" },
+      { label: "Team reporting", status: "Coming soon / early access" },
+      { label: "Shared relationship visibility", status: "Coming soon / early access" }
     ]
   }
 ];
@@ -315,8 +324,9 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
           </div>
           <h2 className="mt-4 font-display text-3xl text-foreground">Which option fits?</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            Free handles personal/basic use. Pro improves personal visibility and lead intent.
-            Teams handles companies, staff, shared contacts and team control.
+            Free starts relationships. Pro grows relationships with visibility, lead generation and
+            follow-up. Teams scales relationships across companies, staff, shared contacts and team
+            control.
           </p>
           <p className="mt-3 text-sm leading-relaxed text-muted">
             Pro does not replace BCN membership. It upgrades the Circle Card itself.

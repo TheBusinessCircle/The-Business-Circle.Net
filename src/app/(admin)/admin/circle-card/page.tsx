@@ -32,7 +32,11 @@ import {
   CIRCLE_CARD_PLAN_DEFINITIONS,
   CIRCLE_CARD_PLANS
 } from "@/lib/circle-card/plans";
-import { getCircleCardBillingReadiness } from "@/lib/circle-card/pricing";
+import {
+  formatCircleCardAnnualPrice,
+  formatCircleCardPrice,
+  getCircleCardBillingReadiness
+} from "@/lib/circle-card/pricing";
 import {
   circleCardReportReasonLabel,
   circleCardReportStatusLabel
@@ -103,6 +107,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
   const query = firstValue(params.q).trim();
   const dashboard = await getAdminCircleCardCommandCentre({ query });
   const pricingReadiness = getCircleCardBillingReadiness();
+  const teamsAnnualPrice = formatCircleCardAnnualPrice("TEAMS");
 
   const overviewMetrics: MetricItem[] = [
     {
@@ -239,6 +244,11 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
       label: "Likely Teams candidates",
       value: dashboard.plans.likelyTeamsUsers.length,
       hint: "Team / Organisation account type signals."
+    },
+    {
+      label: "Closest to Free limits",
+      value: dashboard.plans.freeLimitUsers.length,
+      hint: "Featured links, wallet growth, profile completion, shares and view activity."
     }
   ];
 
@@ -462,10 +472,18 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
               Circle Card billing preparation only. Stripe price IDs stay server-side and hidden.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <ReadinessTile label="Billing enabled" ready={pricingReadiness.billingEnabled} />
             <ReadinessTile label="Pro price configured" ready={pricingReadiness.proPriceConfigured} />
             <ReadinessTile label="Teams price configured" ready={pricingReadiness.teamsPriceConfigured} />
+            <div className="rounded-xl border border-border/80 bg-background/25 p-3">
+              <p className="text-xs text-muted">Configured prices</p>
+              <p className="mt-2 text-sm text-foreground">Pro {formatCircleCardPrice("PRO")}</p>
+              <p className="mt-1 text-xs text-muted">
+                Teams {formatCircleCardPrice("TEAMS")}
+                {teamsAnnualPrice ? ` / ${teamsAnnualPrice}` : ""}
+              </p>
+            </div>
             <div className="rounded-xl border border-border/80 bg-background/25 p-3">
               <p className="text-xs text-muted">Interest / candidates</p>
               <p className="mt-2 text-sm text-foreground">
@@ -512,6 +530,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
             <MetricGrid metrics={accountTypeMetrics} />
           </div>
         </details>
+        <FreeLimitCandidatePanel items={dashboard.plans.freeLimitUsers} />
         <div className="grid gap-4 xl:grid-cols-2">
           <PlanCandidatePanel
             title="Likely Pro candidates"
@@ -1053,6 +1072,89 @@ function ActivityRow({
 type PlanCandidate = Awaited<
   ReturnType<typeof getAdminCircleCardCommandCentre>
 >["plans"]["likelyProUsers"][number];
+
+type FreeLimitCandidate = Awaited<
+  ReturnType<typeof getAdminCircleCardCommandCentre>
+>["plans"]["freeLimitUsers"][number];
+
+function FreeLimitCandidatePanel({ items }: { items: FreeLimitCandidate[] }) {
+  return (
+    <Card>
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-6 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0">
+            <CardTitle className="inline-flex items-center gap-2">
+              <Link2 size={18} className="text-gold" />
+              Users closest to Free limits
+            </CardTitle>
+            <CardDescription className="mt-2">
+              Featured link usage, wallet growth, profile completion, share activity and views.
+            </CardDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="outline" className="normal-case tracking-normal">
+              {items.length}
+            </Badge>
+            <ChevronDown size={17} className="text-silver transition-transform group-open:rotate-180" />
+          </div>
+        </summary>
+        <CardContent className="grid gap-2 pt-0 lg:grid-cols-2">
+          {items.length ? (
+            items.map((item) => (
+              <article key={`${item.userId}-${item.cardId}`} className="rounded-xl border border-border/80 bg-background/25 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {displayCard({ fullName: item.fullName, businessName: item.businessName })}
+                    </p>
+                    <p className="mt-1 break-all text-xs text-muted">
+                      {item.ownerName ? `${item.ownerName} / ` : ""}
+                      {item.ownerEmail}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
+                    {item.score}/100
+                  </Badge>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                  <span className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Links {item.activeFeaturedLinks}/{item.featuredLinkLimit}
+                  </span>
+                  <span className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Wallet {numberLabel(item.walletContacts)}
+                  </span>
+                  <span className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Complete {item.profileCompletion}%
+                  </span>
+                  <span className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Shares {numberLabel(item.shares)}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {item.reasons.slice(0, 4).map((reason) => (
+                    <Badge key={reason} variant="outline" className="normal-case tracking-normal text-muted">
+                      {reason}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <AdminLinkButton href={`/card/${item.slug}`} label="Public card" external />
+                  <AdminLinkButton href={`/admin/members/${item.userId}`} label="Owner" />
+                </div>
+              </article>
+            ))
+          ) : (
+            <EmptyState
+              icon={Link2}
+              title="No Free-limit signals yet"
+              description="Users nearing featured link, wallet, completion, share or view thresholds will appear here."
+            />
+          )}
+        </CardContent>
+      </details>
+    </Card>
+  );
+}
 
 function PlanCandidatePanel({
   title,

@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
 import {
+  formatCircleCardAnnualDiscount,
+  formatCircleCardAnnualPrice,
   formatCircleCardPrice,
   getCircleCardBillingReadiness
 } from "@/lib/circle-card/pricing";
@@ -63,7 +65,7 @@ const DECISION_STEPS = [
   {
     label: "How",
     title: "One relationship system.",
-    body: "Company wallet, employee cards, team analytics, staff verification and owner/admin control."
+    body: "Shared company wallet, staff cards, team analytics, company verification and owner/admin control."
   },
   {
     label: "When",
@@ -73,30 +75,32 @@ const DECISION_STEPS = [
 ] as const;
 
 const TEAMS_FEATURES: Array<{ label: string; status: FeatureStatus }> = [
-  { label: "Company wallet", status: "Coming soon / early access" },
-  { label: "Employee cards", status: "Coming soon / early access" },
+  { label: "Staff cards", status: "Coming soon / early access" },
+  { label: "Shared company wallet", status: "Coming soon / early access" },
   { label: "Shared contacts", status: "Coming soon / early access" },
   { label: "Team analytics", status: "Coming soon / early access" },
-  { label: "Owner/admin control", status: "Coming soon / early access" },
-  { label: "Owner/staff verification", status: "Coming soon / early access" },
+  { label: "Team management", status: "Coming soon / early access" },
   { label: "Company profile", status: "Coming soon / early access" },
-  { label: "Team networking visibility", status: "Coming soon / early access" }
+  { label: "Department structures", status: "Coming soon / early access" },
+  { label: "Company verification", status: "Coming soon / early access" },
+  { label: "Team reporting", status: "Coming soon / early access" },
+  { label: "Shared relationship visibility", status: "Coming soon / early access" }
 ];
 
 const PLAN_BOUNDARY = [
   {
     name: "Free",
-    fit: "Personal/basic use",
+    fit: "Start building relationships",
     icon: QrCode
   },
   {
     name: "Pro",
-    fit: "Individual visibility, analytics, leads and relationship growth",
+    fit: "Grow relationships with visibility, leads and relationship management",
     icon: Crown
   },
   {
     name: "Teams",
-    fit: "Company-wide relationship system for staff and shared contacts",
+    fit: "Scale relationships across staff, shared contacts and company control",
     icon: Building2
   },
   {
@@ -164,6 +168,8 @@ export default async function CircleCardTeamsPage({ searchParams }: PageProps) {
   const defaultBusinessName = primaryCard?.businessName || "";
   const defaultWebsite = primaryCard?.websiteUrl || "";
   const teamsPrice = formatCircleCardPrice("TEAMS");
+  const teamsAnnualPrice = formatCircleCardAnnualPrice("TEAMS");
+  const teamsAnnualDiscount = formatCircleCardAnnualDiscount("TEAMS");
 
   return (
     <div className="public-page-stack">
@@ -173,6 +179,12 @@ export default async function CircleCardTeamsPage({ searchParams }: PageProps) {
             <UsersRound size={14} />
             Circle Card Teams / {teamsPrice}
           </div>
+          {teamsAnnualPrice ? (
+            <p className="mt-3 w-fit rounded-full border border-silver/16 bg-background/24 px-3 py-1 text-xs text-silver">
+              Annual: {teamsAnnualPrice}
+              {teamsAnnualDiscount ? ` / ${teamsAnnualDiscount}` : ""}
+            </p>
+          ) : null}
           <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-6xl">
             Give every staff connection a company relationship layer.
           </h1>
