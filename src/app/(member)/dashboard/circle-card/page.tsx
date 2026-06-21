@@ -107,10 +107,8 @@ import {
   resolveCircleCardFileAction
 } from "@/lib/circle-card/file-actions";
 import {
-  getCircleCardAccountLabel,
   getCircleCardFeatureAccess,
-  isCircleCardFreeAccount,
-  resolveCircleCardAccessLevel
+  resolveCircleCardEntitlement
 } from "@/lib/circle-card/permissions";
 import {
   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
@@ -2159,23 +2157,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     .map((request) => otherConnectionCard(request))
     .slice(0, 5);
   const connectHubLookupMissing = Boolean(connectCardSlug && !connectHubCard);
-  const accessLevel = resolveCircleCardAccessLevel({
-    role: session.user.role,
-    membershipTier: session.user.membershipTier,
-    hasActiveSubscription: session.user.hasActiveSubscription
-  });
-  const featureAccess = getCircleCardFeatureAccess(accessLevel);
-  const accountLabel = getCircleCardAccountLabel({
+  const circleCardEntitlement = resolveCircleCardEntitlement({
     role: session.user.role,
     membershipTier: session.user.membershipTier,
     hasActiveSubscription: session.user.hasActiveSubscription,
     suspended: session.user.suspended
   });
-  const isCircleCardFree = isCircleCardFreeAccount({
-    role: session.user.role,
-    hasActiveSubscription: session.user.hasActiveSubscription,
-    suspended: session.user.suspended
-  });
+  const featureAccess = getCircleCardFeatureAccess(circleCardEntitlement.accessLevel);
+  const accountLabel = circleCardEntitlement.label;
+  const isCircleCardFree = circleCardEntitlement.source === "FREE";
   const customLinks = card?.customLinks ?? [];
   const activeCustomLinkCount = customLinks.filter((link) => link.isActive).length;
   const customLinkLimitLabel = isCircleCardFree
@@ -2581,7 +2571,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       <CircleCardInstallPrompt />
 
       <CircleCardPlanPanel
-        currentPlanKey="FREE"
+        currentPlanKey={circleCardEntitlement.plan}
         cardCount={cardCount}
         activeFeaturedLinkCount={activeCustomLinkCount}
       />

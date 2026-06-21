@@ -16,7 +16,7 @@ describe("admin member access display", () => {
     expect(access.circleCardPlan).toBe("FREE");
     expect(access.bcnMembershipTier).toBeNull();
     expect(access.hasBcnMembershipAccess).toBe(false);
-    expect(getAdminCircleCardPlanLabel(access.circleCardPlan)).toBe("Free");
+    expect(getAdminCircleCardPlanLabel(access.circleCardPlan)).toBe("Circle Card Free");
     expect(getAdminBcnMembershipLabel(access.bcnMembershipTier)).toBe("None");
   });
 
@@ -37,10 +37,12 @@ describe("admin member access display", () => {
       subscriptionTier: "INNER_CIRCLE"
     });
 
-    expect(trialing.circleCardPlan).toBe("INCLUDED");
+    expect(trialing.circleCardPlan).toBe("BCN_INCLUDED_PRO");
+    expect(trialing.circleCardEntitlementPlan).toBe("PRO");
+    expect(trialing.circleCardEntitlementSource).toBe("BCN_INCLUDED_PRO");
     expect(trialing.bcnMembershipTier).toBe("INNER_CIRCLE");
     expect(trialing.hasBcnMembershipAccess).toBe(true);
-    expect(getAdminCircleCardPlanLabel(trialing.circleCardPlan)).toBe("Included / Active");
+    expect(getAdminCircleCardPlanLabel(trialing.circleCardPlan)).toBe("BCN Included Pro");
   });
 
   it("does not show cancelled subscriptions as active BCN membership", () => {
@@ -63,9 +65,25 @@ describe("admin member access display", () => {
       subscriptionStatus: "NONE"
     });
 
-    expect(access.circleCardPlan).toBe("ADMIN");
+    expect(access.circleCardPlan).toBe("ADMIN_OVERRIDE");
+    expect(access.circleCardEntitlementPlan).toBe("PRO");
     expect(access.bcnMembershipTier).toBeNull();
     expect(access.isAdmin).toBe(true);
     expect(access.hasBcnMembershipAccess).toBe(false);
+  });
+
+  it("distinguishes future paid Circle Card Pro from BCN included Pro", () => {
+    const access = resolveAdminMemberAccess({
+      role: "MEMBER",
+      membershipTier: "FOUNDATION",
+      subscriptionStatus: "NONE",
+      hasActiveCircleCardSubscription: true,
+      circleCardSubscriptionPlan: "PRO"
+    });
+
+    expect(access.circleCardPlan).toBe("PRO_SUBSCRIPTION");
+    expect(access.circleCardEntitlementPlan).toBe("PRO");
+    expect(access.hasBcnMembershipAccess).toBe(false);
+    expect(getAdminCircleCardPlanLabel(access.circleCardPlan)).toBe("Paid Circle Card Pro");
   });
 });

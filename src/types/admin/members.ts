@@ -7,6 +7,8 @@ import type {
   SubscriptionStatus
 } from "@prisma/client";
 import type { AdminMemberCircleCardPlan } from "@/lib/admin/member-access";
+import type { CircleCardPlanKey } from "@/lib/circle-card/plans";
+import type { CircleCardEntitlementSource } from "@/lib/circle-card/permissions";
 import type {
   CommunityRecognitionSummary,
   InviteDashboardModel
@@ -32,6 +34,8 @@ export interface AdminMemberListItem {
   role: Role;
   membershipTier: MembershipTier;
   circleCardPlan: AdminMemberCircleCardPlan;
+  circleCardEntitlementPlan: CircleCardPlanKey;
+  circleCardEntitlementSource: CircleCardEntitlementSource;
   bcnMembershipTier: MembershipTier | null;
   hasBcnMembershipAccess: boolean;
   isAdmin: boolean;
@@ -65,6 +69,8 @@ export interface AdminMemberDetails {
   role: Role;
   membershipTier: MembershipTier;
   circleCardPlan: AdminMemberCircleCardPlan;
+  circleCardEntitlementPlan: CircleCardPlanKey;
+  circleCardEntitlementSource: CircleCardEntitlementSource;
   bcnMembershipTier: MembershipTier | null;
   hasBcnMembershipAccess: boolean;
   isAdmin: boolean;

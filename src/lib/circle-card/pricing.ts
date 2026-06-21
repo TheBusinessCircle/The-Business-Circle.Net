@@ -12,6 +12,11 @@ export type CircleCardPricingConfig = {
   annualDiscountPercent?: number;
   pricePerExtraSeat: number | null;
   pricePrefix?: string;
+  bcnMemberDiscount?: {
+    eligible: boolean;
+    affectsBcnSubscription: false;
+    note: string;
+  };
   stripe: {
     monthlyPriceEnvVar?: string;
     annualPriceEnvVar?: string;
@@ -80,6 +85,12 @@ export const CIRCLE_CARD_PRICING_CONFIG: Record<CircleCardPlanKey, CircleCardPri
     annualDiscountPercent: CIRCLE_CARD_TEAMS_ANNUAL_DISCOUNT_PERCENT,
     pricePerExtraSeat: null,
     pricePrefix: "from",
+    bcnMemberDiscount: {
+      eligible: true,
+      affectsBcnSubscription: false,
+      note:
+        "Future BCN member Teams discounts must apply to Circle Card Teams billing only, without changing BCN subscription logic."
+    },
     stripe: {
       monthlyPriceEnvVar: "STRIPE_CIRCLE_CARD_TEAMS_MONTHLY_PRICE_ID",
       annualPriceEnvVar: "STRIPE_CIRCLE_CARD_TEAMS_ANNUAL_PRICE_ID"
@@ -207,7 +218,8 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
 export const CIRCLE_CARD_FUTURE_UPGRADE_NOTES = [
   "Free -> Pro: use when an individual needs stronger visibility, analytics, lead capture and trust signals.",
   "Free/Pro -> Teams: use when a company needs staff cards, shared contacts, company identity and owner/admin control.",
-  "BCN member included benefits: keep separate from Circle Card billing; decide later whether BCN tiers include selected Circle Card benefits.",
+  "BCN member included benefits: active BCN membership grants Circle Card Pro as BCN_INCLUDED_PRO with no separate Circle Card subscription.",
+  "BCN member Teams discounts: apply any future discount to Circle Card Teams billing/reporting only, never by changing BCN subscription logic.",
   "Founder 50 early access: reserve compatibility for founder launch privileges without changing current BCN membership entitlements.",
   "Referral commission compatibility: keep future Circle Card billing compatible with referral attribution before implementing commissions."
 ] as const;

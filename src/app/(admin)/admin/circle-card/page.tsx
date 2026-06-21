@@ -33,6 +33,10 @@ import {
   CIRCLE_CARD_PLANS
 } from "@/lib/circle-card/plans";
 import {
+  CIRCLE_CARD_ENTITLEMENT_SOURCE_LABELS,
+  CIRCLE_CARD_ENTITLEMENT_SOURCES
+} from "@/lib/circle-card/permissions";
+import {
   formatCircleCardAnnualPrice,
   formatCircleCardPrice,
   getCircleCardBillingReadiness
@@ -192,8 +196,21 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
     value: dashboard.plans.counts[plan],
     hint:
       plan === "FREE"
-        ? "Users currently treated as Circle Card Free because no paid Circle Card plan assignment exists yet."
-        : `${CIRCLE_CARD_PLAN_DEFINITIONS[plan].description} Count stays 0 until paid Circle Card assignment exists.`
+        ? "Users with Free Circle Card entitlement after BCN included Pro and overrides are separated."
+        : `${CIRCLE_CARD_PLAN_DEFINITIONS[plan].description} Source counts below distinguish paid access from included or override access.`
+  }));
+  const entitlementSourceHints = {
+    FREE: "No paid Circle Card subscription, BCN included Pro, admin override or early access source.",
+    PRO_SUBSCRIPTION: "Future paid Circle Card Pro subscriptions only.",
+    TEAMS_SUBSCRIPTION: "Future paid Circle Card Teams subscriptions only.",
+    BCN_INCLUDED_PRO: "Active BCN members receiving Circle Card Pro without a separate Circle Card subscription.",
+    ADMIN_OVERRIDE: "Admin access source, separate from paid and BCN-included reporting.",
+    EARLY_ACCESS: "Future early-access grants, separate from paid and BCN-included reporting."
+  } satisfies Record<(typeof CIRCLE_CARD_ENTITLEMENT_SOURCES)[number], string>;
+  const entitlementSourceMetrics: MetricItem[] = CIRCLE_CARD_ENTITLEMENT_SOURCES.map((source) => ({
+    label: CIRCLE_CARD_ENTITLEMENT_SOURCE_LABELS[source],
+    value: dashboard.plans.sourceCounts[source],
+    hint: entitlementSourceHints[source]
   }));
 
   const accountTypeMetrics: MetricItem[] = [
@@ -498,6 +515,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
         <MetricGrid metrics={planSignalMetrics} />
+        <MetricGrid metrics={entitlementSourceMetrics} />
         <div className="flex flex-wrap gap-2">
           <Link href="/admin/lead-generation?segment=CIRCLE_CARD_PRO_INTEREST" className="inline-flex w-fit">
             <Button type="button" variant="outline" size="sm" className="gap-2">

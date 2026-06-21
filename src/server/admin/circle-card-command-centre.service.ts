@@ -12,9 +12,9 @@ import {
 import { db } from "@/lib/db";
 import {
   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
-  CIRCLE_CARD_PLANS,
   type CircleCardPlanKey
 } from "@/lib/circle-card/plans";
+import type { CircleCardEntitlementSource } from "@/lib/circle-card/permissions";
 import {
   buildCircleCardUpgradeTriggers,
   calculateCircleCardUpgradeReadiness,
@@ -1314,6 +1314,8 @@ async function loadLikelyTeamsUsers() {
 async function loadCircleCardPlanBoundary() {
   const [
     totalCircleCardUsers,
+    bcnIncludedProUsers,
+    adminOverrideUsers,
     accountTypeGroups,
     freeLimitUsers,
     likelyProUsers,
@@ -1324,6 +1326,31 @@ async function loadCircleCardPlanBoundary() {
     await Promise.all([
       db.user.count({
         where: {
+          circleCards: {
+            some: {}
+          }
+        }
+      }),
+      db.user.count({
+        where: {
+          role: {
+            not: "ADMIN"
+          },
+          circleCards: {
+            some: {}
+          },
+          subscription: {
+            is: {
+              status: {
+                in: ACTIVE_SUBSCRIPTION_STATUSES
+              }
+            }
+          }
+        }
+      }),
+      db.user.count({
+        where: {
+          role: "ADMIN",
           circleCards: {
             some: {}
           }
@@ -1356,13 +1383,35 @@ async function loadCircleCardPlanBoundary() {
       })
     ]);
 
-  const planCounts = CIRCLE_CARD_PLANS.reduce(
-    (counts, plan) => ({
-      ...counts,
-      [plan]: plan === "FREE" ? totalCircleCardUsers : 0
-    }),
-    {} as Record<CircleCardPlanKey, number>
+  const paidCircleCardProUsers = 0;
+  const paidCircleCardTeamsUsers = 0;
+  const earlyAccessUsers = 0;
+  const freeEntitlementUsers = Math.max(
+    totalCircleCardUsers -
+      bcnIncludedProUsers -
+      adminOverrideUsers -
+      paidCircleCardProUsers -
+      paidCircleCardTeamsUsers -
+      earlyAccessUsers,
+    0
   );
+  const sourceCounts: Record<CircleCardEntitlementSource, number> = {
+    FREE: freeEntitlementUsers,
+    PRO_SUBSCRIPTION: paidCircleCardProUsers,
+    TEAMS_SUBSCRIPTION: paidCircleCardTeamsUsers,
+    BCN_INCLUDED_PRO: bcnIncludedProUsers,
+    ADMIN_OVERRIDE: adminOverrideUsers,
+    EARLY_ACCESS: earlyAccessUsers
+  };
+  const planCounts: Record<CircleCardPlanKey, number> = {
+    FREE: sourceCounts.FREE,
+    PRO:
+      sourceCounts.PRO_SUBSCRIPTION +
+      sourceCounts.BCN_INCLUDED_PRO +
+      sourceCounts.ADMIN_OVERRIDE +
+      sourceCounts.EARLY_ACCESS,
+    TEAMS: sourceCounts.TEAMS_SUBSCRIPTION
+  };
   const accountTypeCounts = {
     INDIVIDUAL: 0,
     FOUNDER: 0,
@@ -1381,13 +1430,15 @@ async function loadCircleCardPlanBoundary() {
 
   return {
     counts: planCounts,
+    sourceCounts,
     accountTypeCounts,
     proInterestCount,
     teamsInterestCount,
     freeLimitUsers,
     likelyProUsers,
     likelyTeamsUsers,
-    note: "No paid Circle Card plan assignment is stored yet, so Pro and Teams counts stay at 0 until a future billing or admin assignment phase."
+    note:
+      "Circle Card entitlements distinguish paid subscriptions from BCN included Pro. Active BCN members count as BCN_INCLUDED_PRO and do not create a separate Circle Card subscription."
   };
 }
 

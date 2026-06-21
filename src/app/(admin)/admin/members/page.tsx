@@ -21,7 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import {
   getAdminCircleCardPlanLabel,
-  getAdminBcnMembershipLabel
+  getAdminBcnMembershipLabel,
+  type AdminMemberCircleCardPlan
 } from "@/lib/admin/member-access";
 import { buildMemberProfilePath } from "@/lib/member-paths";
 import { createPageMetadata } from "@/lib/seo";
@@ -82,7 +83,7 @@ function formatBillingInterval(value: "MONTH" | "YEAR" | null) {
 }
 
 function renderCircleCardPlan(member: {
-  circleCardPlan: "FREE" | "INCLUDED" | "ADMIN";
+  circleCardPlan: AdminMemberCircleCardPlan;
 }) {
   const variant = member.circleCardPlan === "FREE" ? "muted" : "outline";
 

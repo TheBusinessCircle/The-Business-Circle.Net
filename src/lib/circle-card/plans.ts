@@ -557,6 +557,8 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
 export const CIRCLE_CARD_FREE_CARD_LIMIT = CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.circleCards;
 export const CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT =
   CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.activeFeaturedLinks as number;
+export const CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT =
+  CIRCLE_CARD_PLAN_DEFINITIONS.PRO.limits.activeFeaturedLinks as number;
 
 export const CIRCLE_CARD_FEATURE_STATUS_LABELS: Record<CircleCardPlanFeatureStatus, string> = {
   included: "Included",

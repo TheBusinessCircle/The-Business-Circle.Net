@@ -6,6 +6,8 @@ import type {
   SubscriptionStatus
 } from "@prisma/client";
 import type { AdminMemberCircleCardPlan } from "@/lib/admin/member-access";
+import type { CircleCardPlanKey } from "@/lib/circle-card/plans";
+import type { CircleCardEntitlementSource } from "@/lib/circle-card/permissions";
 
 export interface AdminMetrics {
   totalUsers: number;
@@ -42,6 +44,8 @@ export interface AdminRecentMember {
   role: Role;
   membershipTier: MembershipTier;
   circleCardPlan: AdminMemberCircleCardPlan;
+  circleCardEntitlementPlan: CircleCardPlanKey;
+  circleCardEntitlementSource: CircleCardEntitlementSource;
   bcnMembershipTier: MembershipTier | null;
   hasBcnMembershipAccess: boolean;
   isAdmin: boolean;

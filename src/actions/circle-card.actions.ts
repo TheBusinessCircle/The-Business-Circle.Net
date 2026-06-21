@@ -80,7 +80,10 @@ import {
   isCircleCardFreeAccount,
   resolveCircleCardAccessLevel
 } from "@/lib/circle-card/permissions";
-import { CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT } from "@/lib/circle-card/plans";
+import {
+  CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
+  CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT
+} from "@/lib/circle-card/plans";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
@@ -266,7 +269,7 @@ const CIRCLE_CARD_OPPORTUNITY_STATUS_FIELDS = [
 const CIRCLE_CARD_NOTIFICATION_ID_FIELDS = ["notificationId", "returnPath"] as const;
 const CIRCLE_CARD_NOTIFICATION_MARK_ALL_FIELDS = ["returnPath"] as const;
 
-const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = 24;
+const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT;
 const CIRCLE_CARD_PRIVATE_LINK_TYPES = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
 const CIRCLE_CARD_RELATIONSHIP_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const CIRCLE_CARD_SMART_IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -724,6 +727,7 @@ async function ensureAcceptedIntroductionConnection(
 function isFreeCircleCardActionUser(user: CircleCardActionUser) {
   return isCircleCardFreeAccount({
     role: user.role,
+    membershipTier: user.membershipTier,
     hasActiveSubscription: user.hasActiveSubscription,
     suspended: false
   });
