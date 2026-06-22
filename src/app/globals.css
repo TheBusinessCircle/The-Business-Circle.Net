@@ -915,6 +915,124 @@ a:hover {
   animation: brand-mark-shine-sweep 7.4s cubic-bezier(0.18, 0.72, 0.22, 1) infinite;
 }
 
+.circle-card-spin-guide-arrow {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  width: clamp(2rem, 18%, 2.75rem);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid hsl(var(--cc-theme-primary-hsl, var(--gold)) / 0.34);
+  border-radius: 9999px;
+  color: rgba(220, 233, 255, 0.96);
+  background:
+    radial-gradient(circle at 50% 38%, hsl(var(--cc-theme-primary-hsl, var(--gold)) / 0.16), transparent 62%),
+    linear-gradient(145deg, rgba(8, 19, 43, 0.92), rgba(4, 10, 24, 0.78));
+  box-shadow:
+    0 0 30px hsl(var(--cc-theme-primary-hsl, var(--gold)) / 0.34),
+    0 0 18px rgba(30, 91, 255, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  opacity: 0.78;
+  transform: translate3d(0, -50%, 0);
+  will-change: transform, opacity;
+}
+
+.circle-card-spin-guide-arrow::after {
+  content: "";
+  position: absolute;
+  right: 24%;
+  bottom: 20%;
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 9999px;
+  background: hsl(var(--gold) / 0.82);
+  box-shadow: 0 0 14px hsl(var(--gold) / 0.62);
+}
+
+.circle-card-spin-guide-arrow-left {
+  left: clamp(-2.45rem, -24%, -1.5rem);
+  animation: circle-card-spin-guide-left 7.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.circle-card-spin-guide-arrow-right {
+  right: clamp(-2.45rem, -24%, -1.5rem);
+  animation: circle-card-spin-guide-right 7.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.circle-card-spin-guide-arrow-right::after {
+  right: auto;
+  left: 24%;
+}
+
+[data-circle-card-spin-guide="true"][data-interacted="true"] .circle-card-spin-guide-arrow {
+  opacity: 0.52;
+  filter: saturate(0.92);
+}
+
+.circle-card-spin-profile-nudge {
+  animation: circle-card-spin-profile-nudge 10.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+
+@keyframes circle-card-spin-guide-left {
+  0%,
+  72%,
+  100% {
+    opacity: 0.58;
+    transform: translate3d(0, -50%, 0);
+  }
+
+  9% {
+    opacity: 0.96;
+    transform: translate3d(0.48rem, -50%, 0);
+  }
+
+  18% {
+    opacity: 0.7;
+    transform: translate3d(0.12rem, -50%, 0);
+  }
+}
+
+@keyframes circle-card-spin-guide-right {
+  0%,
+  72%,
+  100% {
+    opacity: 0.58;
+    transform: translate3d(0, -50%, 0);
+  }
+
+  9% {
+    opacity: 0.96;
+    transform: translate3d(-0.48rem, -50%, 0);
+  }
+
+  18% {
+    opacity: 0.7;
+    transform: translate3d(-0.12rem, -50%, 0);
+  }
+}
+
+@keyframes circle-card-spin-profile-nudge {
+  0%,
+  74%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  80% {
+    transform: rotate(-3deg);
+  }
+
+  86% {
+    transform: rotate(3deg);
+  }
+
+  92% {
+    transform: rotate(0deg);
+  }
+}
+
 @keyframes brand-mark-shine-sweep {
   0%,
   70%,
@@ -1657,6 +1775,15 @@ a:hover {
   }
 
   .join-hero-video {
+    transform: none !important;
+  }
+
+  .circle-card-spin-guide-arrow,
+  .circle-card-spin-profile-nudge {
+    animation: none !important;
+  }
+
+  .circle-card-spin-profile-nudge {
     transform: none !important;
   }
 

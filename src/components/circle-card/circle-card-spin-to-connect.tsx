@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
+  useEffect,
   useRef,
   useState
 } from "react";
@@ -19,6 +20,7 @@ import {
   X
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { CircleCardSpinActivationGuide } from "@/components/circle-card/circle-card-spin-activation-guide";
 import { trackCircleCardEvent } from "@/lib/circle-card/analytics-client";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +57,8 @@ type DragState = {
 const SPIN_DRAG_THRESHOLD = 32;
 const SPIN_ROTATION_DEGREES = 760;
 const PARTICLE_COUNT = 14;
+const SPIN_TO_CONNECT_LABEL = "Spin To Connect";
+const SPIN_INTERACTION_STORAGE_KEY = "circle-card:spin-to-connect:has-interacted";
 
 function readPointerAngle(target: HTMLElement, event: PointerEvent<HTMLElement>) {
   const rect = target.getBoundingClientRect();
@@ -135,12 +139,14 @@ export function CircleCardSpinToConnect({
   const suppressClickRef = useRef(false);
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [hasInteractedWithSpin, setHasInteractedWithSpin] = useState(false);
   const [localConnected, setLocalConnected] = useState(
     isConnected || initialState === "connected" || initialState === "first" || initialState === "already"
   );
   const [statusMessage, setStatusMessage] = useState(() => {
     if (initialState === "return") {
-      return "Spin Me Now";
+      return SPIN_TO_CONNECT_LABEL;
     }
 
     if (initialState === "already" || isConnected) {
@@ -152,10 +158,10 @@ export function CircleCardSpinToConnect({
     }
 
     if (viewerIsOwner) {
-      return "Spin My CC";
+      return SPIN_TO_CONNECT_LABEL;
     }
 
-    return "Spin to connect";
+    return SPIN_TO_CONNECT_LABEL;
   });
   const [showAcquisitionModal, setShowAcquisitionModal] = useState(false);
   const [showCelebrationModal, setShowCelebrationModal] = useState(initialState === "first");
@@ -171,6 +177,25 @@ export function CircleCardSpinToConnect({
   });
   const registerHref = `/register?${registerParams.toString()}`;
   const loginHref = `/login?from=${encodeURIComponent(returnTarget)}`;
+  const shouldShowProfileNudge = !hasInteractedWithSpin && !isSpinning && !isDragging;
+
+  useEffect(() => {
+    try {
+      setHasInteractedWithSpin(localStorage.getItem(SPIN_INTERACTION_STORAGE_KEY) === "true");
+    } catch {
+      setHasInteractedWithSpin(false);
+    }
+  }, []);
+
+  function markSpinInteraction() {
+    setHasInteractedWithSpin(true);
+
+    try {
+      localStorage.setItem(SPIN_INTERACTION_STORAGE_KEY, "true");
+    } catch {
+      // Local preference storage is progressive enhancement only.
+    }
+  }
 
   function vibrate() {
     try {
@@ -196,6 +221,8 @@ export function CircleCardSpinToConnect({
       return;
     }
 
+    markSpinInteraction();
+
     trackSpinEvent(analyticsCardId, "SPIN_COMPLETED", {
       source: "spin_to_connect",
       cardSlug,
@@ -203,7 +230,7 @@ export function CircleCardSpinToConnect({
     });
 
     if (viewerIsOwner) {
-      setStatusMessage("Spin My CC");
+      setStatusMessage(SPIN_TO_CONNECT_LABEL);
       setIsSpinning(false);
       return;
     }
@@ -267,6 +294,7 @@ export function CircleCardSpinToConnect({
     }
 
     event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDragging(true);
     dragRef.current = {
       pointerId: event.pointerId,
       startAngle: readPointerAngle(event.currentTarget, event),
@@ -299,6 +327,7 @@ export function CircleCardSpinToConnect({
     }
 
     dragRef.current = null;
+    setIsDragging(false);
 
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -340,7 +369,7 @@ export function CircleCardSpinToConnect({
     <div
       className={cn(
         "relative inline-flex select-none items-center justify-center align-middle",
-        pendingReturn && "animate-pulse",
+        pendingReturn && "motion-safe:animate-pulse",
         className
       )}
     >
@@ -360,10 +389,11 @@ export function CircleCardSpinToConnect({
           pendingReturn && "border-gold/80 shadow-[0_0_76px_rgba(212,175,95,0.55)]"
         )}
       />
+      <CircleCardSpinActivationGuide hasInteracted={hasInteractedWithSpin} />
       {pendingReturn ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute -inset-5 rounded-full border border-dashed border-gold/45 animate-spin"
+          className="pointer-events-none absolute -inset-5 rounded-full border border-dashed border-gold/45 motion-safe:animate-spin"
           style={{ animationDuration: "4.8s" }}
         />
       ) : null}
@@ -386,7 +416,14 @@ export function CircleCardSpinToConnect({
             : "transform 180ms cubic-bezier(0.18, 0.89, 0.32, 1.28)"
         }}
       >
-        <span className="block h-full w-full rounded-full">{children}</span>
+        <span
+          className={cn(
+            "block h-full w-full rounded-full",
+            shouldShowProfileNudge && "circle-card-spin-profile-nudge"
+          )}
+        >
+          {children}
+        </span>
       </button>
 
       {burst

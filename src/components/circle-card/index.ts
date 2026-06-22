@@ -20,6 +20,7 @@ export * from "@/components/circle-card/circle-card-social-link-editor";
 export * from "@/components/circle-card/circle-card-smart-link-fields";
 export * from "@/components/circle-card/circle-card-smart-link-manager";
 export * from "@/components/circle-card/circle-card-smart-profile-import-panel";
+export * from "@/components/circle-card/circle-card-spin-activation-guide";
 export * from "@/components/circle-card/circle-card-spin-to-connect";
 export * from "@/components/circle-card/circle-card-submit-button";
 export * from "@/components/circle-card/circle-card-theme-fields";
