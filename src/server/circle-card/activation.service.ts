@@ -2,7 +2,7 @@ import "server-only";
 
 import { createElement } from "react";
 import { CircleCardEventType, LeadSource, Prisma } from "@prisma/client";
-import { CircleCardActivationReminderEmail } from "@/emails";
+import { CircleCardActivationReminderEmail, CircleCardWeeklySummaryEmail } from "@/emails";
 import { renderEmailHtml } from "@/emails/render";
 import { buildBrandedEmailText } from "@/emails/text";
 import {
@@ -31,6 +31,8 @@ const ACTIVATION_SHARE_EVENT_TYPES: CircleCardEventType[] = [
   CircleCardEventType.CONNECT_HUB_SHARE,
   CircleCardEventType.CONNECT_HUB_COPY_LINK
 ];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 type ActivationCardInput = {
   id: string;
@@ -64,6 +66,18 @@ type ActivationCardInput = {
 
 function firstNameFromName(name: string | null | undefined) {
   return name?.trim().split(/\s+/)[0] || "there";
+}
+
+function utcDateOnly(value: Date) {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+}
+
+function utcWeekKey(value: Date) {
+  const day = value.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = utcDateOnly(new Date(value.getTime() + mondayOffset * DAY_MS));
+
+  return monday.toISOString().slice(0, 10);
 }
 
 function readJsonObject(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
@@ -414,6 +428,275 @@ export async function sendDueCircleCardActivationReminders(input: { limit?: numb
     sent,
     skipped,
     completed
+  };
+}
+
+export type CircleCardWeeklySummary = {
+  userId: string;
+  email: string;
+  firstName: string;
+  completionScore: number;
+  cardViews: number;
+  shares: number;
+  walletContacts: number;
+  nextBestAction: string;
+  completeProfileUrl: string;
+  shareCardUrl: string;
+};
+
+function weeklySummariesSentFromMetadata(metadata: Prisma.JsonValue | null | undefined) {
+  const root = readJsonObject(metadata);
+  const activation = readNestedJsonObject(root, "circleCardActivation");
+
+  return readNestedJsonObject(activation, "weeklySummariesSent");
+}
+
+function weeklySummaryAlreadySent(metadata: Prisma.JsonValue | null | undefined, weekKey: string) {
+  const sent = weeklySummariesSentFromMetadata(metadata);
+
+  return Boolean(sent[weekKey]);
+}
+
+export async function buildCircleCardWeeklySummaryForUser(
+  userId: string,
+  now = new Date()
+): Promise<CircleCardWeeklySummary | null> {
+  const weekAgo = new Date(now.getTime() - 7 * DAY_MS);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      image: true,
+      profile: {
+        select: {
+          bio: true,
+          location: true,
+          website: true,
+          linkedin: true,
+          instagram: true,
+          facebook: true,
+          tiktok: true,
+          youtube: true,
+          business: {
+            select: {
+              companyName: true,
+              website: true
+            }
+          }
+        }
+      },
+      circleCards: {
+        orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+        take: 1,
+        select: {
+          id: true,
+          slug: true,
+          profileImageUrl: true,
+          businessName: true,
+          about: true,
+          location: true,
+          email: true,
+          phone: true,
+          websiteUrl: true,
+          socialLinks: true,
+          viewCount: true,
+          customLinks: {
+            select: {
+              id: true,
+              isActive: true
+            }
+          }
+        }
+      },
+      circleWalletContacts: {
+        select: {
+          id: true
+        }
+      }
+    }
+  });
+  const card = user?.circleCards[0];
+
+  if (!user || !card) {
+    return null;
+  }
+
+  const [weeklyCardViews, weeklyShares] = await Promise.all([
+    prisma.circleCardEvent.count({
+      where: {
+        cardId: card.id,
+        eventType: CircleCardEventType.CARD_VIEW,
+        createdAt: { gte: weekAgo }
+      }
+    }),
+    prisma.circleCardEvent.count({
+      where: {
+        cardId: card.id,
+        eventType: { in: ACTIVATION_SHARE_EVENT_TYPES },
+        createdAt: { gte: weekAgo }
+      }
+    })
+  ]);
+  const totalShareCounts = await loadShareCounts([card.id]);
+  const completion = calculateCircleCardCompletionForCard(
+    {
+      ...card,
+      user
+    },
+    totalShareCounts.get(card.id) ?? 0
+  );
+  const nextBestAction = completion.missingItems[0]?.label ?? "Share your Circle Card";
+
+  return {
+    userId: user.id,
+    email: user.email,
+    firstName: firstNameFromName(user.name),
+    completionScore: completion.score,
+    cardViews: weeklyCardViews,
+    shares: weeklyShares,
+    walletContacts: user.circleWalletContacts.length,
+    nextBestAction,
+    completeProfileUrl: absoluteUrl("/dashboard/circle-card?section=home#circle-card-completion"),
+    shareCardUrl: absoluteUrl(`/card/${card.slug}`)
+  };
+}
+
+async function sendCircleCardWeeklySummaryEmail(summary: CircleCardWeeklySummary) {
+  const emailTemplate = createElement(CircleCardWeeklySummaryEmail, summary);
+  const html = await renderEmailHtml(emailTemplate);
+
+  return sendTransactionalEmail({
+    to: summary.email,
+    subject: "Your Circle Card weekly summary",
+    text: buildBrandedEmailText({
+      greeting: `Hi ${summary.firstName},`,
+      eyebrow: "Circle Card weekly summary",
+      heading: "Your Circle Card this week",
+      bodyLines: [
+        `Profile completion: ${summary.completionScore}%.`,
+        `Card views this week: ${summary.cardViews.toLocaleString("en-GB")}.`,
+        `Shares this week: ${summary.shares.toLocaleString("en-GB")}.`,
+        `Wallet contacts: ${summary.walletContacts.toLocaleString("en-GB")}.`,
+        `Next best action: ${summary.nextBestAction}.`,
+        `Share card: ${summary.shareCardUrl}.`,
+        "This is a service email for your Circle Card account, not a marketing newsletter."
+      ],
+      ctaLabel: "Complete Profile",
+      ctaUrl: summary.completeProfileUrl,
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
+    }),
+    html,
+    react: emailTemplate,
+    tags: [
+      { name: "type", value: "circle-card-weekly-summary" },
+      { name: "source", value: "circle-card" }
+    ]
+  });
+}
+
+export async function sendDueCircleCardWeeklySummaries(input: { limit?: number } = {}) {
+  const now = new Date();
+  const weekKey = utcWeekKey(now);
+  const leads = await prisma.lead.findMany({
+    where: {
+      source: LeadSource.CIRCLE_CARD_SIGNUP,
+      essentialConsent: true,
+      userId: {
+        not: null
+      },
+      user: {
+        is: {
+          circleCards: {
+            some: {}
+          }
+        }
+      }
+    },
+    orderBy: [{ lastEmailedAt: "asc" }, { createdAt: "asc" }],
+    take: (input.limit ?? 50) * 2,
+    select: {
+      id: true,
+      userId: true,
+      metadata: true,
+      tags: true
+    }
+  });
+  const seenUserIds = new Set<string>();
+  let checked = 0;
+  let sent = 0;
+  let skipped = 0;
+
+  for (const lead of leads) {
+    if (!lead.userId || seenUserIds.has(lead.userId)) {
+      skipped += 1;
+      continue;
+    }
+
+    seenUserIds.add(lead.userId);
+
+    if (seenUserIds.size > (input.limit ?? 50)) {
+      break;
+    }
+
+    checked += 1;
+
+    if (weeklySummaryAlreadySent(lead.metadata, weekKey)) {
+      skipped += 1;
+      continue;
+    }
+
+    const summary = await buildCircleCardWeeklySummaryForUser(lead.userId, now);
+
+    if (!summary) {
+      skipped += 1;
+      continue;
+    }
+
+    const result = await sendCircleCardWeeklySummaryEmail(summary);
+
+    if (!result.sent) {
+      skipped += 1;
+      if (!result.skipped) {
+        logServerWarning("circle-card-weekly-summary-email-failed");
+      }
+      continue;
+    }
+
+    const previousWeeklySummaries = weeklySummariesSentFromMetadata(lead.metadata);
+
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        lastEmailedAt: now,
+        tags: Array.from(new Set([...lead.tags, "circle-card-weekly-summary"])).slice(0, 24),
+        metadata: leadMetadataWithActivation(lead.metadata, {
+          weeklySummariesSent: {
+            ...previousWeeklySummaries,
+            [weekKey]: now.toISOString()
+          },
+          lastWeeklySummaryWeekKey: weekKey,
+          lastWeeklySummarySentAt: now.toISOString(),
+          lastWeeklySummary: {
+            completionScore: summary.completionScore,
+            cardViews: summary.cardViews,
+            shares: summary.shares,
+            walletContacts: summary.walletContacts,
+            nextBestAction: summary.nextBestAction
+          }
+        })
+      }
+    });
+
+    sent += 1;
+  }
+
+  return {
+    weekKey,
+    checked,
+    sent,
+    skipped
   };
 }
 

@@ -30,7 +30,24 @@ export const circleCardNotificationMarkAllSchema = z.object({
   returnPath: optionalText(600)
 });
 
-export function circleCardNotificationTypeLabel(value: string | null | undefined) {
+export function circleCardNotificationTypeLabel(
+  value: string | null | undefined,
+  entityType?: string | null
+) {
+  if (value === "SYSTEM") {
+    if (entityType?.startsWith("ACTIVATION_")) {
+      return "Activation";
+    }
+
+    if (entityType?.startsWith("USAGE_")) {
+      return "Usage";
+    }
+
+    if (entityType?.startsWith("UPGRADE_")) {
+      return "Readiness";
+    }
+  }
+
   switch (value) {
     case "CONNECTION_REQUEST":
       return "Connection request";
@@ -64,7 +81,43 @@ export function circleCardNotificationTypeLabel(value: string | null | undefined
   }
 }
 
-export function circleCardNotificationHref(value: string | null | undefined) {
+export function circleCardNotificationHref(
+  value: string | null | undefined,
+  entityType?: string | null
+) {
+  if (value === "SYSTEM") {
+    switch (entityType) {
+      case "ACTIVATION_PROFILE_IMAGE":
+        return "/dashboard/circle-card?section=my-card#circle-card-media";
+      case "ACTIVATION_BIO":
+      case "ACTIVATION_LOCATION":
+        return "/dashboard/circle-card?section=my-card#circle-card-form";
+      case "ACTIVATION_FEATURED_LINK":
+        return "/dashboard/circle-card?section=my-card#featured-links";
+      case "ACTIVATION_LOW_COMPLETION":
+      case "ACTIVATION_FINISH_CARD":
+      case "USAGE_PROFILE_PROGRESS":
+        return "/dashboard/circle-card?section=home#circle-card-completion";
+      case "USAGE_CARD_VIEWED":
+      case "USAGE_FEATURED_LINK_CLICKED":
+        return "/dashboard/circle-card?section=my-card#analytics";
+      case "USAGE_CARD_SHARED":
+      case "USAGE_SHARE_TODAY":
+        return "/dashboard/circle-card?section=share#share-assets";
+      case "USAGE_CONTACT_SAVED":
+      case "USAGE_CIRCLE_GROWING":
+        return "/dashboard/circle-card/wallet";
+      case "USAGE_INACTIVE_7D":
+        return "/dashboard/circle-card";
+      case "UPGRADE_PRO_READINESS":
+        return "/dashboard/circle-card?section=home#circle-card-upgrade-signals";
+      case "UPGRADE_TEAMS_READINESS":
+        return "/dashboard/circle-card?section=home#circle-card-upgrade-signals";
+      default:
+        break;
+    }
+  }
+
   switch (value) {
     case "CONNECTION_REQUEST":
     case "CONNECTION_ACCEPTED":

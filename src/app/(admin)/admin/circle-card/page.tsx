@@ -582,6 +582,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
             description="Completion and activation health for Circle Card users."
           />
           <MetricGrid metrics={activationMetrics} />
+          <ActivationVisibilityPanel visibility={dashboard.activation.visibility} />
 
           <Card>
             <CardHeader>
@@ -1094,6 +1095,168 @@ type PlanCandidate = Awaited<
 type FreeLimitCandidate = Awaited<
   ReturnType<typeof getAdminCircleCardCommandCentre>
 >["plans"]["freeLimitUsers"][number];
+
+type ActivationVisibility = Awaited<
+  ReturnType<typeof getAdminCircleCardCommandCentre>
+>["activation"]["visibility"];
+
+type ActivationPanelItem = {
+  key: string;
+  title: string;
+  meta: string;
+  badge: string;
+  href: string;
+};
+
+function ActivationVisibilityPanel({ visibility }: { visibility: ActivationVisibility }) {
+  const sections: Array<{
+    title: string;
+    description: string;
+    items: ActivationPanelItem[];
+  }> = [
+    {
+      title: "Unread activation notifications",
+      description: "Users with unread setup guidance.",
+      items: visibility.unreadActivationNotifications.map((item) => ({
+        key: item.id,
+        title: item.fullName || item.ownerName || item.ownerEmail,
+        meta: item.title,
+        badge: formatDate(item.createdAt),
+        href: `/admin/members/${item.userId}`
+      }))
+    },
+    {
+      title: "Under 50% completion",
+      description: "Cards missing the basics.",
+      items: visibility.under50CompletionUsers.map((item) => ({
+        key: item.cardId,
+        title: displayCard({ fullName: item.fullName, businessName: item.businessName }),
+        meta: item.missingItems.slice(0, 3).join(", ") || item.ownerEmail,
+        badge: `${item.completionScore}%`,
+        href: `/admin/members/${item.userId}`
+      }))
+    },
+    {
+      title: "Inactive 7+ days",
+      description: "Users with no recent Circle Card action.",
+      items: visibility.inactiveUsers.map((item) => ({
+        key: item.cardId,
+        title: displayCard({ fullName: item.fullName, businessName: item.businessName }),
+        meta: item.ownerEmail,
+        badge: formatDate(item.lastActiveAt),
+        href: `/admin/members/${item.userId}`
+      }))
+    },
+    {
+      title: "Views but incomplete",
+      description: "Traffic arriving before the profile is strong.",
+      items: visibility.viewsButIncompleteProfiles.map((item) => ({
+        key: item.cardId,
+        title: displayCard({ fullName: item.fullName, businessName: item.businessName }),
+        meta: `${item.completionScore}% complete`,
+        badge: `${numberLabel(item.viewCount)} views`,
+        href: `/card/${item.slug}`
+      }))
+    },
+    {
+      title: "Needs weekly nudge",
+      description: "Eligible for the service summary foundation.",
+      items: visibility.needingWeeklyNudge.map((item) => ({
+        key: item.cardId,
+        title: displayCard({ fullName: item.fullName, businessName: item.businessName }),
+        meta: `Next: ${item.nextBestAction}`,
+        badge: `${item.completionScore}%`,
+        href: `/admin/members/${item.userId}`
+      }))
+    },
+    {
+      title: "Strong Pro readiness",
+      description: "Existing trigger system reports high intent.",
+      items: visibility.strongProReadiness.map((item) => ({
+        key: item.cardId,
+        title: displayCard({ fullName: item.fullName, businessName: item.businessName }),
+        meta: item.reasons.slice(0, 2).join(", ") || item.ownerEmail,
+        badge: `${item.readinessScore}/100`,
+        href: `/admin/members/${item.userId}`
+      }))
+    },
+    {
+      title: "Strong Teams readiness",
+      description: "Company or shared-relationship signals.",
+      items: visibility.strongTeamsReadiness.map((item) => ({
+        key: item.cardId,
+        title: displayCard({ fullName: item.fullName, businessName: item.businessName }),
+        meta: item.reasons.slice(0, 2).join(", ") || item.ownerEmail,
+        badge: `${item.readinessScore}/100`,
+        href: `/admin/members/${item.userId}`
+      }))
+    }
+  ];
+  const totalItems = sections.reduce((total, section) => total + section.items.length, 0);
+
+  return (
+    <Card>
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-6 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0">
+            <CardTitle className="inline-flex items-center gap-2">
+              <BadgeCheck size={18} className="text-gold" />
+              Activation signals
+            </CardTitle>
+            <CardDescription className="mt-2">
+              Compact view of guidance, completion, inactivity, weekly nudges and readiness.
+            </CardDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="outline" className="normal-case tracking-normal">
+              {totalItems}
+            </Badge>
+            <ChevronDown size={17} className="text-silver transition-transform group-open:rotate-180" />
+          </div>
+        </summary>
+        <CardContent className="grid gap-3 pt-0 xl:grid-cols-2">
+          {sections.map((section) => (
+            <div key={section.title} className="rounded-2xl border border-border/80 bg-background/25 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{section.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted">{section.description}</p>
+                </div>
+                <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
+                  {section.items.length}
+                </Badge>
+              </div>
+              <div className="mt-3 space-y-2">
+                {section.items.slice(0, 3).map((item) => (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className="block rounded-xl border border-silver/12 bg-card/42 p-3 transition-colors hover:border-gold/35"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">{item.meta}</p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
+                        {item.badge}
+                      </Badge>
+                    </div>
+                  </Link>
+                ))}
+                {!section.items.length ? (
+                  <p className="rounded-xl border border-dashed border-silver/14 bg-card/30 p-3 text-xs text-muted">
+                    No users in this bucket right now.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </details>
+    </Card>
+  );
+}
 
 function FreeLimitCandidatePanel({ items }: { items: FreeLimitCandidate[] }) {
   return (

@@ -3,6 +3,7 @@ import { resolveEmailAssetUrl } from "@/emails/assets";
 import { BCN_EMAIL_FOOTER_NAME, BCN_EMAIL_THEME } from "@/emails/theme";
 
 type BcnEmailLayoutProps = {
+  brand?: "bcn" | "circle-card";
   previewText?: string;
   eyebrow?: string;
   heading: string;
@@ -174,6 +175,7 @@ const styles = {
 };
 
 export function BcnEmailLayout({
+  brand = "bcn",
   previewText,
   eyebrow,
   heading,
@@ -186,7 +188,11 @@ export function BcnEmailLayout({
   children,
   footerText
 }: BcnEmailLayoutProps) {
-  const logoUrl = resolveEmailAssetUrl("/branding/the-business-circle-logo.png");
+  const circleCardBrand = brand === "circle-card";
+  const logoUrl = resolveEmailAssetUrl(
+    circleCardBrand ? "/branding/circle-card-logo.png" : "/branding/the-business-circle-logo.png"
+  );
+  const brandName = circleCardBrand ? "Circle Card" : BCN_EMAIL_FOOTER_NAME;
 
   return (
     <div style={styles.root}>
@@ -195,7 +201,7 @@ export function BcnEmailLayout({
         <div style={styles.logoWrap}>
           <img
             src={logoUrl}
-            alt={BCN_EMAIL_FOOTER_NAME}
+            alt={brandName}
             width="92"
             height="92"
             style={styles.logo}
@@ -234,7 +240,7 @@ export function BcnEmailLayout({
 
           {note}
 
-          <p style={styles.footer}>{footerText || BCN_EMAIL_FOOTER_NAME}</p>
+          <p style={styles.footer}>{footerText || brandName}</p>
         </div>
       </div>
     </div>

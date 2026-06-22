@@ -2,6 +2,7 @@ export * from "@/emails/bcn-email-layout";
 export * from "@/emails/welcome-member";
 export * from "@/emails/circle-card-welcome";
 export * from "@/emails/circle-card-activation-reminder";
+export * from "@/emails/circle-card-weekly-summary";
 export * from "@/emails/founding-access-welcome";
 export * from "@/emails/billing-receipt";
 export * from "@/emails/inner-circle-upgrade";

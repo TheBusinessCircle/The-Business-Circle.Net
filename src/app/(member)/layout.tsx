@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { MembershipTier } from "@prisma/client";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
+import { CircleCardNotificationOrb } from "@/components/circle-card";
 import { MemberFooter, MemberNavigation, RulesEntryOverlay } from "@/components/member";
 import { AppShell } from "@/components/shell/app-shell";
 import { Avatar } from "@/components/ui/avatar";
@@ -31,7 +32,11 @@ import {
 } from "@/lib/rules-acceptance";
 import { shouldShowRulesWelcomeOverlay } from "@/lib/rules-onboarding";
 import { requireUser } from "@/lib/session";
-import { getCircleCardNotificationUnreadCount } from "@/server/circle-card";
+import {
+  createCircleCardActivationNotificationsForUser,
+  getCircleCardNotificationPanel,
+  getCircleCardNotificationUnreadCount
+} from "@/server/circle-card";
 import { getDirectMessageNavCounts } from "@/server/messages";
 
 export const metadata: Metadata = {
@@ -54,7 +59,19 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     hasActiveSubscription: session.user.hasActiveSubscription,
     suspended: session.user.suspended
   });
-  const [messageCounts, rulesAccepted, profileTheme, circleCardUnreadCount] = await Promise.all([
+  const showCircleCardNotificationOrb = isCircleCardDashboardPath(currentPathname);
+
+  if (showCircleCardNotificationOrb) {
+    await createCircleCardActivationNotificationsForUser(session.user.id);
+  }
+
+  const [
+    messageCounts,
+    rulesAccepted,
+    profileTheme,
+    circleCardUnreadCount,
+    circleCardNotifications
+  ] = await Promise.all([
     circleCardFree
       ? Promise.resolve({ unreadCount: 0, pendingRequestCount: 0, pendingWinCredits: 0 })
       : getDirectMessageNavCounts(session.user.id),
@@ -63,8 +80,22 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       where: { userId: session.user.id },
       select: { accentTheme: true, workspaceAtmosphereEnabled: true }
     }),
-    getCircleCardNotificationUnreadCount(session.user.id)
+    getCircleCardNotificationUnreadCount(session.user.id),
+    showCircleCardNotificationOrb
+      ? getCircleCardNotificationPanel(session.user.id, 10)
+      : Promise.resolve([])
   ]);
+  const circleCardOrbNotifications = circleCardNotifications.map((notification) => ({
+    id: notification.id,
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+    entityType: notification.entityType,
+    entityId: notification.entityId,
+    isRead: notification.isRead,
+    readAt: notification.readAt?.toISOString() ?? null,
+    createdAt: notification.createdAt.toISOString()
+  }));
   const accentTheme = resolveAccentTheme(profileTheme?.accentTheme);
   const workspaceAtmosphereEnabled = profileTheme?.workspaceAtmosphereEnabled ?? false;
   const accentThemeStyle = getAccentThemeCssVariables(accentTheme) as CSSProperties;
@@ -173,6 +204,13 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                   {membershipBadge}
                 </Badge>
                 <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
+                {showCircleCardNotificationOrb ? (
+                  <CircleCardNotificationOrb
+                    unreadCount={circleCardUnreadCount}
+                    notifications={circleCardOrbNotifications}
+                    returnPath={currentPathname || "/dashboard/circle-card"}
+                  />
+                ) : null}
                 <MemberNavigation
                   items={mobileNavItems}
                   secondaryItems={circleCardFree ? circleCardDiscoveryNavItems : undefined}

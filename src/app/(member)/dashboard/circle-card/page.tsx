@@ -6,7 +6,6 @@ import {
   ArrowDown,
   ArrowUp,
   BarChart3,
-  Bell,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -30,6 +29,7 @@ import {
   Send,
   Save,
   Share2,
+  Sparkles,
   Star,
   StickyNote,
   Tag,
@@ -2221,6 +2221,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       : null,
     shareCount
   );
+  const nextCompletionAction = circleCardCompletion.missingItems[0] ?? null;
+  const nextCompletionActionHref = nextCompletionAction
+    ? circleCardCompletionItemHref(nextCompletionAction.id)
+    : circleCardSectionHref("share", "share-assets");
   const circleCardUpgradeTriggers = buildCircleCardUpgradeTriggers({
     activeFeaturedLinks: activeCustomLinkCount,
     featuredLinkLimit: CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
@@ -2380,7 +2384,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       label: "Notifications",
       value: unreadNotificationCount,
       href: circleCardSectionHref("network", "notifications"),
-      icon: Bell
+      icon: Sparkles
     },
     {
       label: "Pending requests",
@@ -2576,13 +2580,18 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         activeFeaturedLinkCount={activeCustomLinkCount}
       />
 
-      <CircleCardUpgradeSignalsPanel
-        metrics={circleCardUsageMetrics}
-        proTriggers={circleCardUpgradeTriggers.pro}
-        teamsTriggers={circleCardUpgradeTriggers.teams}
-      />
+      <div id="circle-card-upgrade-signals" className="scroll-mt-24">
+        <CircleCardUpgradeSignalsPanel
+          metrics={circleCardUsageMetrics}
+          proTriggers={circleCardUpgradeTriggers.pro}
+          teamsTriggers={circleCardUpgradeTriggers.teams}
+        />
+      </div>
 
-      <section className="rounded-2xl border border-gold/24 bg-card/70 p-4 shadow-panel-soft sm:p-5">
+      <section
+        id="circle-card-completion"
+        className="scroll-mt-24 rounded-2xl border border-gold/24 bg-card/70 p-4 shadow-panel-soft sm:p-5"
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
@@ -2592,8 +2601,26 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Complete your Circle Card
             </h2>
             <p className="mt-1 text-sm leading-relaxed text-muted">
-              A complete card is easier to trust, save and share.
+              Your Circle Card is {circleCardCompletion.score}% complete. A complete card is easier
+              to trust, save and share.
             </p>
+            {nextCompletionAction ? (
+              <p className="mt-2 text-sm font-medium text-foreground">
+                Next step:{" "}
+                <Link href={nextCompletionActionHref} className="text-gold underline-offset-4 hover:underline">
+                  {nextCompletionAction.label.toLowerCase()}
+                </Link>
+                .
+              </p>
+            ) : (
+              <p className="mt-2 text-sm font-medium text-foreground">
+                Next step:{" "}
+                <Link href={nextCompletionActionHref} className="text-gold underline-offset-4 hover:underline">
+                  share your card
+                </Link>
+                .
+              </p>
+            )}
           </div>
           <Badge
             variant={circleCardCompletion.activationComplete ? "premium" : "outline"}
@@ -2867,7 +2894,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             variant="outline"
                             className={notification.isRead ? "border-silver/18 text-silver" : "border-gold/28 text-gold"}
                           >
-                            {circleCardNotificationTypeLabel(notification.type)}
+                            {circleCardNotificationTypeLabel(notification.type, notification.entityType)}
                           </Badge>
                           {!notification.isRead ? (
                             <Badge variant="outline" className="border-gold/28 text-gold">
@@ -2883,7 +2910,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
                     <div className="grid gap-2 sm:grid-cols-2">
                       <a
-                        href={circleCardNotificationHref(notification.type)}
+                        href={circleCardNotificationHref(notification.type, notification.entityType)}
                         className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
                       >
                         Open related section
@@ -2912,11 +2939,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             <Card className="border-dashed border-silver/18 bg-card/48">
               <CardContent className="py-10 text-center">
                 <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-silver/16 bg-background/24 text-silver">
-                  <Bell size={20} />
+                  <Sparkles size={20} />
                 </div>
                 <h3 className="mt-4 font-display text-2xl text-foreground">No notifications yet</h3>
                 <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
-                  New connection requests, introductions, referrals and due opportunity follow-ups will appear here.
+                  Nothing new right now. Keep building your Circle.
                 </p>
               </CardContent>
             </Card>

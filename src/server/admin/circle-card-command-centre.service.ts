@@ -6,6 +6,7 @@ import {
   CircleCardEventType,
   CircleCardReportReason,
   CircleCardReportStatus,
+  LeadSource,
   Prisma,
   SubscriptionStatus
 } from "@prisma/client";
@@ -36,6 +37,7 @@ const TOP_CARD_LIMIT = 5;
 const RECENT_LIMIT = 10;
 const SEARCH_LIMIT = 8;
 const RAW_EVENT_LIMIT = 8;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const CIRCLE_CARD_SHARE_EVENT_TYPES: CircleCardEventType[] = [
   CircleCardEventType.SHARE,
   CircleCardEventType.CONNECT_HUB_SHARE,
@@ -182,6 +184,44 @@ function buildDateWindow() {
     weekAgo,
     monthAgo
   };
+}
+
+function utcDateOnly(value: Date) {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+}
+
+function utcWeekKey(value: Date) {
+  const day = value.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = utcDateOnly(new Date(value.getTime() + mondayOffset * DAY_MS));
+
+  return monday.toISOString().slice(0, 10);
+}
+
+function readJsonObject(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return { ...(value as Record<string, unknown>) };
+}
+
+function readNestedJsonObject(parent: Record<string, unknown>, key: string) {
+  const value = parent[key];
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return { ...(value as Record<string, unknown>) };
+}
+
+function hasWeeklySummaryForWeek(metadata: Prisma.JsonValue | null | undefined, weekKey: string) {
+  const root = readJsonObject(metadata);
+  const activation = readNestedJsonObject(root, "circleCardActivation");
+  const weeklySummariesSent = readNestedJsonObject(activation, "weeklySummariesSent");
+
+  return Boolean(weeklySummariesSent[weekKey]);
 }
 
 function cardWhereForSearch(query: string): Prisma.CircleCardWhereInput {
@@ -1442,6 +1482,318 @@ async function loadCircleCardPlanBoundary() {
   };
 }
 
+async function loadCircleCardActivationVisibility(input: {
+  planBoundary: Awaited<ReturnType<typeof loadCircleCardPlanBoundary>>;
+  weekAgo: Date;
+  weekKey: string;
+}) {
+  const [unreadActivationNotifications, cards, weeklyNudgeLeads] = await Promise.all([
+    db.circleCardNotification.findMany({
+      where: {
+        type: "SYSTEM",
+        isRead: false,
+        entityType: {
+          startsWith: "ACTIVATION_"
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        circleCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true
+          }
+        }
+      }
+    }),
+    db.circleCard.findMany({
+      orderBy: [{ updatedAt: "asc" }, { viewCount: "desc" }],
+      take: 160,
+      select: {
+        id: true,
+        slug: true,
+        fullName: true,
+        businessName: true,
+        profileImageUrl: true,
+        about: true,
+        location: true,
+        email: true,
+        phone: true,
+        websiteUrl: true,
+        socialLinks: true,
+        viewCount: true,
+        createdAt: true,
+        updatedAt: true,
+        customLinks: {
+          select: {
+            id: true,
+            isActive: true
+          }
+        },
+        _count: {
+          select: {
+            events: {
+              where: {
+                eventType: {
+                  in: CIRCLE_CARD_SHARE_EVENT_TYPES
+                }
+              }
+            }
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            profile: {
+              select: {
+                bio: true,
+                location: true,
+                website: true,
+                linkedin: true,
+                instagram: true,
+                facebook: true,
+                tiktok: true,
+                youtube: true,
+                business: {
+                  select: {
+                    companyName: true,
+                    website: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }),
+    db.lead.findMany({
+      where: {
+        source: LeadSource.CIRCLE_CARD_SIGNUP,
+        essentialConsent: true,
+        userId: {
+          not: null
+        },
+        user: {
+          is: {
+            circleCards: {
+              some: {}
+            }
+          }
+        }
+      },
+      orderBy: [{ lastEmailedAt: "asc" }, { createdAt: "asc" }],
+      take: 80,
+      select: {
+        id: true,
+        userId: true,
+        metadata: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            profile: {
+              select: {
+                bio: true,
+                location: true,
+                website: true,
+                linkedin: true,
+                instagram: true,
+                facebook: true,
+                tiktok: true,
+                youtube: true,
+                business: {
+                  select: {
+                    companyName: true,
+                    website: true
+                  }
+                }
+              }
+            },
+            circleCards: {
+              orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+              take: 1,
+              select: {
+                id: true,
+                slug: true,
+                fullName: true,
+                businessName: true,
+                profileImageUrl: true,
+                about: true,
+                location: true,
+                email: true,
+                phone: true,
+                websiteUrl: true,
+                socialLinks: true,
+                customLinks: {
+                  select: {
+                    id: true,
+                    isActive: true
+                  }
+                },
+                _count: {
+                  select: {
+                    events: {
+                      where: {
+                        eventType: {
+                          in: CIRCLE_CARD_SHARE_EVENT_TYPES
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+  ]);
+  const userIds = Array.from(new Set(cards.map((card) => card.user.id)));
+  const [latestActivityRows, latestWalletRows] = userIds.length
+    ? await Promise.all([
+        db.circleCardActivity.groupBy({
+          by: ["userId"],
+          where: {
+            userId: {
+              in: userIds
+            }
+          },
+          _max: {
+            createdAt: true
+          }
+        }),
+        db.circleWalletContact.groupBy({
+          by: ["userId"],
+          where: {
+            userId: {
+              in: userIds
+            }
+          },
+          _max: {
+            savedAt: true
+          }
+        })
+      ])
+    : [[], []];
+  const latestActivityByUser = new Map(
+    latestActivityRows.map((row) => [row.userId, row._max.createdAt])
+  );
+  const latestWalletByUser = new Map(latestWalletRows.map((row) => [row.userId, row._max.savedAt]));
+  const activationRows = cards.map((card) => {
+    const completion = calculateCircleCardCompletionForCard(card, card._count.events);
+    const latestActivityAt = latestActivityByUser.get(card.user.id);
+    const latestWalletAt = latestWalletByUser.get(card.user.id);
+    const lastActiveAt = new Date(
+      Math.max(
+        card.updatedAt.getTime(),
+        latestActivityAt?.getTime() ?? 0,
+        latestWalletAt?.getTime() ?? 0
+      )
+    );
+
+    return {
+      userId: card.user.id,
+      ownerName: card.user.name,
+      ownerEmail: card.user.email,
+      cardId: card.id,
+      slug: card.slug,
+      fullName: card.fullName,
+      businessName: card.businessName,
+      completionScore: completion.score,
+      missingItems: completion.missingItems.map((item) => item.label),
+      viewCount: card.viewCount,
+      lastActiveAt
+    };
+  });
+  const needingWeeklyNudge = weeklyNudgeLeads
+    .filter((lead) => lead.user && !hasWeeklySummaryForWeek(lead.metadata, input.weekKey))
+    .map((lead) => {
+      const card = lead.user?.circleCards[0];
+
+      if (!lead.user || !card) {
+        return null;
+      }
+
+      const completion = calculateCircleCardCompletionForCard(
+        {
+          ...card,
+          user: lead.user
+        },
+        card._count.events
+      );
+
+      if (completion.score >= 100) {
+        return null;
+      }
+
+      return {
+        userId: lead.user.id,
+        ownerName: lead.user.name,
+        ownerEmail: lead.user.email,
+        cardId: card.id,
+        slug: card.slug,
+        fullName: card.fullName,
+        businessName: card.businessName,
+        completionScore: completion.score,
+        nextBestAction: completion.missingItems[0]?.label ?? "Share Circle Card"
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .slice(0, 8);
+
+  return {
+    unreadActivationNotifications: unreadActivationNotifications.map((notification) => ({
+      id: notification.id,
+      title: notification.title,
+      createdAt: notification.createdAt,
+      userId: notification.user.id,
+      ownerName: notification.user.name,
+      ownerEmail: notification.user.email,
+      cardId: notification.circleCard?.id ?? null,
+      slug: notification.circleCard?.slug ?? null,
+      fullName: notification.circleCard?.fullName ?? null,
+      businessName: notification.circleCard?.businessName ?? null
+    })),
+    under50CompletionUsers: activationRows
+      .filter((row) => row.completionScore < 50)
+      .sort((left, right) => left.completionScore - right.completionScore)
+      .slice(0, 8),
+    inactiveUsers: activationRows
+      .filter((row) => row.lastActiveAt < input.weekAgo)
+      .sort((left, right) => left.lastActiveAt.getTime() - right.lastActiveAt.getTime())
+      .slice(0, 8),
+    viewsButIncompleteProfiles: activationRows
+      .filter((row) => row.viewCount > 0 && row.completionScore < 80)
+      .sort((left, right) => right.viewCount - left.viewCount)
+      .slice(0, 8),
+    needingWeeklyNudge,
+    strongProReadiness: input.planBoundary.likelyProUsers
+      .filter((item) => item.readinessScore >= 55)
+      .slice(0, 8),
+    strongTeamsReadiness: input.planBoundary.likelyTeamsUsers
+      .filter((item) => item.readinessScore >= 55)
+      .slice(0, 8)
+  };
+}
+
 function eventCount(
   counts: Array<{ eventType: CircleCardEventType; _count: { _all: number } }>,
   eventType: CircleCardEventType
@@ -1878,6 +2230,11 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
 
   const reportStatusCount = (status: CircleCardReportStatus) =>
     reportsByStatus.find((report) => report.status === status)?._count._all ?? 0;
+  const activationVisibility = await loadCircleCardActivationVisibility({
+    planBoundary,
+    weekAgo,
+    weekKey: utcWeekKey(new Date())
+  });
 
   return {
     overview: {
@@ -1925,7 +2282,8 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
       activatedUsers: activationSnapshot.activatedUsers,
       activationRate: activationSnapshot.activationRate,
       averageCompletion: activationSnapshot.averageCompletion,
-      topIncompleteUsers: activationSnapshot.topIncompleteUsers
+      topIncompleteUsers: activationSnapshot.topIncompleteUsers,
+      visibility: activationVisibility
     },
     topCards: {
       mostViewed: topViewedCards,
