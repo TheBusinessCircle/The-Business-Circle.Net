@@ -102,7 +102,7 @@ export function CircleCardRegisterForm({
         return;
       }
 
-      router.push(data.redirectTo ?? "/dashboard/circle-card/onboarding");
+      router.push(data.redirectTo ?? "/dashboard/circle-card");
       router.refresh();
     });
   });

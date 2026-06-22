@@ -936,7 +936,7 @@ export async function createCircleCardFreeRegistration(
 
     return {
       user,
-      redirectTo: returnTo || "/dashboard/circle-card/onboarding"
+      redirectTo: returnTo || "/dashboard/circle-card"
     };
   } catch (error) {
     if (isUniqueEmailError(error)) {

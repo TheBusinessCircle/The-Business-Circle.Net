@@ -5,10 +5,12 @@ import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  BarChart3,
   CalendarDays,
   ContactRound,
   Compass,
   Crown,
+  ExternalLink,
   GitBranch,
   LayoutGrid,
   Mail,
@@ -17,8 +19,10 @@ import {
   Sparkles,
   Trophy,
   Search,
+  Settings,
   UserCircle2,
   Video,
+  WalletCards,
   X
 } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -44,6 +48,26 @@ type MemberNavigationProps = {
 };
 
 function iconForHref(href: string) {
+  if (href.includes("/dashboard/circle-card/wallet")) {
+    return WalletCards;
+  }
+
+  if (href.includes("#analytics")) {
+    return BarChart3;
+  }
+
+  if (href.includes("section=settings")) {
+    return Settings;
+  }
+
+  if (href.includes("#discover")) {
+    return Compass;
+  }
+
+  if (href.startsWith("/card/")) {
+    return ExternalLink;
+  }
+
   if (href === "/home") {
     return Compass;
   }

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TERMS_LABEL, TERMS_VERSION } from "@/config/legal";
 
 const createPendingRegistrationMock = vi.hoisted(() => vi.fn());
+const createCircleCardFreeRegistrationMock = vi.hoisted(() => vi.fn());
 const createStripeCheckoutSessionForPendingRegistrationMock = vi.hoisted(() => vi.fn());
 const consumeRateLimitMock = vi.hoisted(() => vi.fn());
 const rateLimitHeadersMock = vi.hoisted(() => vi.fn());
@@ -21,6 +22,7 @@ const MockRegistrationServiceError = vi.hoisted(
 );
 
 vi.mock("@/lib/auth/register", () => ({
+  createCircleCardFreeRegistration: createCircleCardFreeRegistrationMock,
   createPendingRegistration: createPendingRegistrationMock,
   RegistrationServiceError: MockRegistrationServiceError
 }));
@@ -175,6 +177,50 @@ describe("register route", () => {
     expect(payload).toEqual({
       error: "Stripe billing is not configured."
     });
+    expect(createPendingRegistrationMock).not.toHaveBeenCalled();
+    expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
+  });
+
+  it("routes Circle Card free registration without starting Stripe checkout", async () => {
+    createCircleCardFreeRegistrationMock.mockResolvedValueOnce({
+      user: {
+        id: "user_circle_123",
+        email: "card@example.com",
+        name: "Card User"
+      },
+      redirectTo: "/dashboard/circle-card"
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          source: "circle-card",
+          name: "Card User",
+          email: "card@example.com",
+          password: "ValidPassword1!",
+          acceptedTerms: true,
+          minimumAgeConfirmed: true,
+          marketingEmailOptIn: false
+        })
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({
+      ok: true,
+      redirectTo: "/dashboard/circle-card"
+    });
+    expect(createCircleCardFreeRegistrationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "circle-card",
+        email: "card@example.com"
+      })
+    );
     expect(createPendingRegistrationMock).not.toHaveBeenCalled();
     expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
   });

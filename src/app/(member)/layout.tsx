@@ -59,7 +59,9 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     hasActiveSubscription: session.user.hasActiveSubscription,
     suspended: session.user.suspended
   });
-  const showCircleCardNotificationOrb = isCircleCardDashboardPath(currentPathname);
+  const isCircleCardWorkspaceRoute = isCircleCardDashboardPath(currentPathname);
+  const showCircleCardShell = isCircleCardWorkspaceRoute || circleCardFree;
+  const showCircleCardNotificationOrb = showCircleCardShell;
 
   if (showCircleCardNotificationOrb) {
     await createCircleCardActivationNotificationsForUser(session.user.id);
@@ -70,12 +72,13 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     rulesAccepted,
     profileTheme,
     circleCardUnreadCount,
-    circleCardNotifications
+    circleCardNotifications,
+    primaryCircleCard
   ] = await Promise.all([
-    circleCardFree
+    showCircleCardShell
       ? Promise.resolve({ unreadCount: 0, pendingRequestCount: 0, pendingWinCredits: 0 })
       : getDirectMessageNavCounts(session.user.id),
-    circleCardFree ? Promise.resolve(true) : hasAcceptedBcnRules(session.user.id),
+    showCircleCardShell ? Promise.resolve(true) : hasAcceptedBcnRules(session.user.id),
     prisma.profile.findUnique({
       where: { userId: session.user.id },
       select: { accentTheme: true, workspaceAtmosphereEnabled: true }
@@ -83,7 +86,14 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     getCircleCardNotificationUnreadCount(session.user.id),
     showCircleCardNotificationOrb
       ? getCircleCardNotificationPanel(session.user.id, 10)
-      : Promise.resolve([])
+      : Promise.resolve([]),
+    showCircleCardShell
+      ? prisma.circleCard.findFirst({
+          where: { userId: session.user.id },
+          orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+          select: { slug: true, isPublished: true }
+        })
+      : Promise.resolve(null)
   ]);
   const circleCardOrbNotifications = circleCardNotifications.map((notification) => ({
     id: notification.id,
@@ -129,39 +139,76 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     return item;
   };
 
+  const publicCardHref =
+    primaryCircleCard?.slug && primaryCircleCard.isPublished
+      ? `/card/${primaryCircleCard.slug}`
+      : "/dashboard/circle-card?section=share#share-assets";
   const circleCardNavItems = [
-    { label: "My Circle Card", href: "/dashboard/circle-card", badgeCount: circleCardUnreadCount },
+    {
+      label: "My Circle Card",
+      href: "/dashboard/circle-card",
+      badgeCount: circleCardUnreadCount
+    },
     { label: "Wallet", href: "/dashboard/circle-card/wallet" },
     { label: "Analytics", href: "/dashboard/circle-card?section=my-card#analytics" },
-    { label: "Settings", href: "/dashboard/circle-card?section=settings#circle-card-settings" }
+    { label: "Settings", href: "/dashboard/circle-card?section=settings#circle-card-settings" },
+    {
+      label: "Public card",
+      href: publicCardHref,
+      description: primaryCircleCard?.isPublished ? "Open your live public profile." : "Publish and share your card."
+    },
+    {
+      label: "Discover",
+      href: "/dashboard/circle-card?section=network#discover",
+      description: "Find and save other Circle Cards."
+    }
   ];
-  const circleCardDiscoveryNavItems = [
+  const circleCardOnlyDiscoveryNavItems = [
     {
       label: "The Business Circle",
       href: "/home",
       description: "Discover the founder community behind Circle Card."
     }
   ];
+  const circleCardMemberSwitchNavItems = [
+    {
+      label: "BCN Dashboard",
+      href: "/dashboard",
+      description: "Switch to the member workspace."
+    }
+  ];
+  const circleCardSecondaryNavItems = circleCardFree
+    ? circleCardOnlyDiscoveryNavItems
+    : circleCardMemberSwitchNavItems;
+  const circleCardSecondaryLabel = circleCardFree ? "The Business Circle" : "Workspace switch";
+  const circleCardSecondaryDescription = circleCardFree
+    ? "Discover the founder community behind Circle Card."
+    : "Return to the BCN member workspace when you need the wider member tools.";
 
-  const visibleNavItems = circleCardFree
+  const visibleNavItems = showCircleCardShell
     ? circleCardNavItems
     : PLATFORM_NAV.filter((item) => {
-    const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
-    const tierAllowed = item.requiresTier ? canAccessTier(effectiveTier, item.requiresTier) : true;
-    return roleAllowed && tierAllowed;
-  }).map(applyMemberNavCounts);
+        const roleAllowed = item.requiresRole ? item.requiresRole === session.user.role : true;
+        const tierAllowed = item.requiresTier ? canAccessTier(effectiveTier, item.requiresTier) : true;
+        return roleAllowed && tierAllowed;
+      }).map(applyMemberNavCounts);
 
-  const mobileNavItems = circleCardFree
+  const mobileNavItems = showCircleCardShell
     ? circleCardNavItems
     : PLATFORM_NAV.filter((item) => {
-    return item.requiresRole ? item.requiresRole === session.user.role : true;
-  }).map(applyMemberNavCounts);
+        return item.requiresRole ? item.requiresRole === session.user.role : true;
+      }).map(applyMemberNavCounts);
 
-  const membershipBadge = circleCardFree
-    ? "Circle Card Free"
+  const membershipBadge = showCircleCardShell
+    ? getCircleCardAccountLabel({
+        role: session.user.role,
+        membershipTier: session.user.membershipTier,
+        hasActiveSubscription: session.user.hasActiveSubscription,
+        suspended: session.user.suspended
+      })
     : `${getMembershipTierLabel(effectiveTier)} Active`;
-  const workspaceTitle = circleCardFree ? "Circle Card Workspace" : "Member Workspace";
-  const workspaceSubtitle = circleCardFree
+  const workspaceTitle = showCircleCardShell ? "Circle Card Workspace" : "Member Workspace";
+  const workspaceSubtitle = showCircleCardShell
     ? "Card, wallet, analytics, and relationship tools"
     : "The Business Circle Network";
   const circleCardAccountLabel = getCircleCardAccountLabel({
@@ -173,7 +220,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   const premiumLinkLabel = canAccessTier(effectiveTier, MembershipTier.CORE)
     ? "Open Core Access"
     : "Open Inner Circle";
-  const showRulesWelcome = !circleCardFree && shouldShowRulesWelcomeOverlay({
+  const showRulesWelcome = !showCircleCardShell && shouldShowRulesWelcomeOverlay({
     isLoggedIn: true,
     rulesAccepted
   });
@@ -185,10 +232,10 @@ export default async function MemberLayout({ children }: { children: ReactNode }
           <div className="bcn-container-wide flex flex-col gap-4 py-4">
             <div className="flex items-center justify-between gap-4">
               <Link
-                href={circleCardFree ? "/dashboard/circle-card" : "/dashboard"}
+                href={showCircleCardShell ? "/dashboard/circle-card" : "/dashboard"}
                 className="inline-flex min-w-0 items-center gap-3"
               >
-                <BrandMark placement="workspace" brand={circleCardFree ? "circle-card" : "bcn"} />
+                <BrandMark placement="workspace" brand={showCircleCardShell ? "circle-card" : "bcn"} />
                 <div className="min-w-0">
                   <p className="truncate font-display text-base text-foreground">
                     {workspaceTitle}
@@ -203,7 +250,9 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                 <Badge variant="muted" className="hidden sm:inline-flex">
                   {membershipBadge}
                 </Badge>
-                <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
+                {showCircleCardShell ? null : (
+                  <FoundingBadge tier={session.user.foundingTier} className="hidden sm:inline-flex" />
+                )}
                 {showCircleCardNotificationOrb ? (
                   <CircleCardNotificationOrb
                     unreadCount={circleCardUnreadCount}
@@ -213,25 +262,23 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                 ) : null}
                 <MemberNavigation
                   items={mobileNavItems}
-                  secondaryItems={circleCardFree ? circleCardDiscoveryNavItems : undefined}
-                  secondaryLabel={circleCardFree ? "The Business Circle" : undefined}
+                  secondaryItems={showCircleCardShell ? circleCardSecondaryNavItems : undefined}
+                  secondaryLabel={showCircleCardShell ? circleCardSecondaryLabel : undefined}
                   secondaryDescription={
-                    circleCardFree
-                      ? "Discover the founder community behind Circle Card."
-                      : undefined
+                    showCircleCardShell ? circleCardSecondaryDescription : undefined
                   }
                   orientation="horizontal"
                   accentThemeStyle={memberShellStyle}
                   showAdminLink={session.user.role === "ADMIN"}
-                  workspaceEyebrow={circleCardFree ? "Circle Card Free" : undefined}
-                  workspaceTitle={circleCardFree ? "Relationship tools" : undefined}
+                  workspaceEyebrow={showCircleCardShell ? membershipBadge : undefined}
+                  workspaceTitle={showCircleCardShell ? "Relationship tools" : undefined}
                   workspaceDescription={
-                    circleCardFree
+                    showCircleCardShell
                       ? "Create your card, manage your wallet, and keep your relationship tools close."
                       : undefined
                   }
-                  dialogLabel={circleCardFree ? "Circle Card navigation" : undefined}
-                  workspaceBrand={circleCardFree ? "circle-card" : "bcn"}
+                  dialogLabel={showCircleCardShell ? "Circle Card navigation" : undefined}
+                  workspaceBrand={showCircleCardShell ? "circle-card" : "bcn"}
                 />
                 {session.user.role === "ADMIN" ? (
                   <Link href="/admin" className="hidden lg:inline-flex">
@@ -267,14 +314,14 @@ export default async function MemberLayout({ children }: { children: ReactNode }
         />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground">
-            {session.user.name ?? (circleCardFree ? "Circle Card Member" : "Business Circle Member")}
+            {session.user.name ?? (showCircleCardShell ? "Circle Card Member" : "Business Circle Member")}
           </p>
           <p className="truncate text-xs text-muted">{session.user.email}</p>
         </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {circleCardFree ? (
+        {showCircleCardShell ? (
           <Badge variant="muted">{circleCardAccountLabel}</Badge>
         ) : (
           <>
@@ -288,14 +335,14 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       <Separator className="my-4" />
       <MemberNavigation
         items={visibleNavItems}
-        secondaryItems={circleCardFree ? circleCardDiscoveryNavItems : undefined}
-        secondaryLabel={circleCardFree ? "The Business Circle" : undefined}
+        secondaryItems={showCircleCardShell ? circleCardSecondaryNavItems : undefined}
+        secondaryLabel={showCircleCardShell ? circleCardSecondaryLabel : undefined}
         secondaryDescription={
-          circleCardFree ? "Discover the founder community behind Circle Card." : undefined
+          showCircleCardShell ? circleCardSecondaryDescription : undefined
         }
       />
 
-      {circleCardFree ? null : canAccessTier(effectiveTier, MembershipTier.INNER_CIRCLE) ? (
+      {showCircleCardShell ? null : canAccessTier(effectiveTier, MembershipTier.INNER_CIRCLE) ? (
         <Link
           href="/inner-circle"
           className="mt-5 flex items-center gap-2 rounded-xl border border-gold/35 bg-gold/10 px-3 py-2 text-sm text-gold transition-colors hover:bg-gold/15"
@@ -325,7 +372,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
         className="overflow-x-clip"
         header={header}
         sidebar={sidebar}
-        footer={<MemberFooter variant={circleCardFree ? "circle-card-free" : "member"} />}
+        footer={<MemberFooter variant={showCircleCardShell ? "circle-card-free" : "member"} />}
         contentClassName="py-6 sm:py-7 lg:py-8"
       >
         <div className="member-page-stack">
