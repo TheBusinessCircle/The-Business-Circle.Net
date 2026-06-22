@@ -103,7 +103,8 @@ export default async function CircleCardOnboardingPage({ searchParams }: PagePro
           profileImageScale: 1,
           businessLogoPositionX: 50,
           businessLogoPositionY: 50,
-          businessLogoScale: 1
+          businessLogoScale: 1,
+          showInDiscover: false
         }}
       />
     </div>

@@ -15,6 +15,7 @@ import {
   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
   type CircleCardPlanKey
 } from "@/lib/circle-card/plans";
+import { CIRCLE_CARD_DISCOVER_VISIBLE_WHERE } from "@/lib/circle-card/privacy";
 import type { CircleCardEntitlementSource } from "@/lib/circle-card/permissions";
 import {
   buildCircleCardUpgradeTriggers,
@@ -756,6 +757,99 @@ async function loadSearch(query: string) {
     cards,
     users,
     active: true
+  };
+}
+
+const DISCOVER_PRIVACY_CARD_SELECT = {
+  id: true,
+  slug: true,
+  fullName: true,
+  businessName: true,
+  isPublished: true,
+  showInDiscover: true,
+  discoverOptedInAt: true,
+  updatedAt: true,
+  user: {
+    select: {
+      id: true,
+      name: true,
+      email: true
+    }
+  }
+} satisfies Prisma.CircleCardSelect;
+
+async function loadDiscoverPrivacySnapshot() {
+  const [
+    visibleUsers,
+    hiddenUsers,
+    visibleCardsCount,
+    hiddenCardsCount,
+    recentlyVisibleCards,
+    recentlyHiddenCards,
+    recentlyOptedInCards
+  ] = await Promise.all([
+    db.user.count({
+      where: {
+        circleCards: {
+          some: CIRCLE_CARD_DISCOVER_VISIBLE_WHERE
+        }
+      }
+    }),
+    db.user.count({
+      where: {
+        circleCards: {
+          some: {}
+        },
+        NOT: {
+          circleCards: {
+            some: CIRCLE_CARD_DISCOVER_VISIBLE_WHERE
+          }
+        }
+      }
+    }),
+    db.circleCard.count({
+      where: CIRCLE_CARD_DISCOVER_VISIBLE_WHERE
+    }),
+    db.circleCard.count({
+      where: {
+        NOT: CIRCLE_CARD_DISCOVER_VISIBLE_WHERE
+      }
+    }),
+    db.circleCard.findMany({
+      where: CIRCLE_CARD_DISCOVER_VISIBLE_WHERE,
+      orderBy: [{ discoverOptedInAt: "desc" }, { updatedAt: "desc" }],
+      take: RECENT_LIMIT,
+      select: DISCOVER_PRIVACY_CARD_SELECT
+    }),
+    db.circleCard.findMany({
+      where: {
+        NOT: CIRCLE_CARD_DISCOVER_VISIBLE_WHERE
+      },
+      orderBy: [{ updatedAt: "desc" }],
+      take: RECENT_LIMIT,
+      select: DISCOVER_PRIVACY_CARD_SELECT
+    }),
+    db.circleCard.findMany({
+      where: {
+        showInDiscover: true,
+        discoverOptedInAt: {
+          not: null
+        }
+      },
+      orderBy: [{ discoverOptedInAt: "desc" }],
+      take: RECENT_LIMIT,
+      select: DISCOVER_PRIVACY_CARD_SELECT
+    })
+  ]);
+
+  return {
+    visibleUsers,
+    hiddenUsers,
+    visibleCardsCount,
+    hiddenCardsCount,
+    recentlyVisibleCards,
+    recentlyHiddenCards,
+    recentlyOptedInCards
   };
 }
 
@@ -1844,6 +1938,7 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
     latestReports,
     activationSnapshot,
     planBoundary,
+    discoverPrivacy,
     search
   ] = await Promise.all([
     db.user.count({
@@ -2201,6 +2296,7 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
       limit: RECENT_LIMIT
     }),
     loadCircleCardPlanBoundary(),
+    loadDiscoverPrivacySnapshot(),
     loadSearch(input.query ?? "")
   ]);
 
@@ -2285,6 +2381,7 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
       topIncompleteUsers: activationSnapshot.topIncompleteUsers,
       visibility: activationVisibility
     },
+    discoverPrivacy,
     topCards: {
       mostViewed: topViewedCards,
       mostSaved: topSavedCards,

@@ -8,6 +8,8 @@ import {
   ContactRound,
   Crown,
   ExternalLink,
+  Eye,
+  EyeOff,
   Files,
   Handshake,
   Link2,
@@ -129,6 +131,16 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
       label: "Unpublished cards",
       value: dashboard.overview.unpublishedCards,
       hint: "Cards held back from public view."
+    },
+    {
+      label: "Discover visible users",
+      value: dashboard.discoverPrivacy.visibleUsers,
+      hint: "Users with at least one published card opted in to Discover."
+    },
+    {
+      label: "Discover hidden users",
+      value: dashboard.discoverPrivacy.hiddenUsers,
+      hint: "Circle Card users without a currently visible Discover card."
     },
     { label: "Free users", value: dashboard.overview.freeUsers, hint: "Card owners without active BCN access." },
     {
@@ -573,6 +585,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           description="New accounts, new cards and the freshest user/card movement."
         />
         <MetricGrid metrics={growthMetrics} />
+        <DiscoverPrivacyPanel privacy={dashboard.discoverPrivacy} />
 
         <div className="space-y-4">
           <SectionHeading
@@ -1100,6 +1113,10 @@ type ActivationVisibility = Awaited<
   ReturnType<typeof getAdminCircleCardCommandCentre>
 >["activation"]["visibility"];
 
+type DiscoverPrivacy = Awaited<
+  ReturnType<typeof getAdminCircleCardCommandCentre>
+>["discoverPrivacy"];
+
 type ActivationPanelItem = {
   key: string;
   title: string;
@@ -1107,6 +1124,113 @@ type ActivationPanelItem = {
   badge: string;
   href: string;
 };
+
+function DiscoverPrivacyPanel({ privacy }: { privacy: DiscoverPrivacy }) {
+  const privacyMetrics: MetricItem[] = [
+    {
+      label: "Discover visible users",
+      value: privacy.visibleUsers,
+      hint: "Users with at least one published Circle Card opted in to Discover."
+    },
+    {
+      label: "Discover hidden users",
+      value: privacy.hiddenUsers,
+      hint: "Users with no published Circle Card currently visible in Discover."
+    },
+    {
+      label: "Recently opted in",
+      value: privacy.recentlyOptedInCards.length,
+      hint: "Newest cards whose owners actively chose Discover visibility."
+    }
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="inline-flex items-center gap-2">
+          <Eye size={18} className="text-gold" />
+          Discover Privacy
+        </CardTitle>
+        <CardDescription>
+          Discover visibility is opt-in and separate from whether a public card link works.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <MetricGrid metrics={privacyMetrics} />
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="space-y-2">
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Eye size={16} className="text-gold" />
+              Discover visible users
+            </p>
+            {privacy.recentlyVisibleCards.length ? (
+              privacy.recentlyVisibleCards.map((card) => (
+                <CardRow
+                  key={card.id}
+                  name={card.fullName}
+                  businessName={card.businessName}
+                  slug={card.slug}
+                  ownerEmail={card.user.email}
+                  ownerId={card.user.id}
+                  badge="Visible on Discover"
+                  date={card.discoverOptedInAt ?? card.updatedAt}
+                />
+              ))
+            ) : (
+              <EmptyState icon={Eye} title="No visible users" description="Opted-in Discover cards will appear here." />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+              <EyeOff size={16} className="text-silver" />
+              Discover hidden users
+            </p>
+            {privacy.recentlyHiddenCards.length ? (
+              privacy.recentlyHiddenCards.map((card) => (
+                <CardRow
+                  key={card.id}
+                  name={card.fullName}
+                  businessName={card.businessName}
+                  slug={card.slug}
+                  ownerEmail={card.user.email}
+                  ownerId={card.user.id}
+                  badge={card.showInDiscover ? "Opted in, unpublished" : "Hidden from Discover"}
+                  date={card.updatedAt}
+                />
+              ))
+            ) : (
+              <EmptyState icon={EyeOff} title="No hidden users" description="Hidden Discover cards will appear here." />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+              <BadgeCheck size={16} className="text-gold" />
+              Recently opted-in users
+            </p>
+            {privacy.recentlyOptedInCards.length ? (
+              privacy.recentlyOptedInCards.map((card) => (
+                <CardRow
+                  key={card.id}
+                  name={card.fullName}
+                  businessName={card.businessName}
+                  slug={card.slug}
+                  ownerEmail={card.user.email}
+                  ownerId={card.user.id}
+                  badge={card.isPublished ? "Opted in" : "Opted in, unpublished"}
+                  date={card.discoverOptedInAt ?? card.updatedAt}
+                />
+              ))
+            ) : (
+              <EmptyState icon={BadgeCheck} title="No opt-ins yet" description="Recent Discover opt-ins will appear here." />
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function ActivationVisibilityPanel({ visibility }: { visibility: ActivationVisibility }) {
   const sections: Array<{

@@ -153,6 +153,12 @@ import {
 } from "@/lib/circle-card/notifications";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import {
+  CIRCLE_CARD_DISCOVER_HIDDEN_LABEL,
+  CIRCLE_CARD_DISCOVER_SETTING_COPY,
+  CIRCLE_CARD_DISCOVER_VISIBLE_LABEL,
+  CIRCLE_CARD_DISCOVER_VISIBLE_WHERE
+} from "@/lib/circle-card/privacy";
+import {
   type CircleCardLinkActionMode,
   type CircleCardLinkType,
   type CircleCardLinkVisibility,
@@ -1419,7 +1425,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       : Promise.resolve(null),
     prisma.circleCard.findMany({
       where: {
-        isPublished: true,
+        ...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE,
         userId: {
           not: session.user.id
         },
@@ -3703,7 +3709,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       <CircleCardDashboardSection
         id="discover"
         title="Discover"
-        summary="Find published Circle Cards, save useful people, and start connection requests"
+        summary="Find opted-in Circle Cards, save useful people, and start connection requests"
         appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
         defaultOpen
@@ -3826,7 +3832,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
               <div className="flex flex-col gap-2 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
                 <p>
-                  Showing published cards, excluding your own. Recently updated cards appear first.
+                  Showing public cards whose owners chose to appear in Discover, excluding your own.
+                  Recently updated cards appear first.
                 </p>
                 {discoverHasFilters ? (
                   <Link
@@ -5074,6 +5081,25 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   Published
                   <span className="mt-1 block text-xs text-muted">
                     Public cards are available at their /card link.
+                  </span>
+                </span>
+              </label>
+
+              <label
+                htmlFor="showInDiscover"
+                className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
+              >
+                <input
+                  id="showInDiscover"
+                  name="showInDiscover"
+                  type="checkbox"
+                  defaultChecked={card?.showInDiscover ?? false}
+                  className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                />
+                <span>
+                  Show my Circle Card in Discover
+                  <span className="mt-1 block text-xs text-muted">
+                    {CIRCLE_CARD_DISCOVER_SETTING_COPY}
                   </span>
                 </span>
               </label>
@@ -7288,7 +7314,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     <input type="hidden" name="location" value={card.location ?? ""} />
                     <input type="hidden" name="socialLinksJson" value={JSON.stringify(socialLinkItems)} />
 
-                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_220px]">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px_220px_260px]">
                       <div className="space-y-2">
                         <Label htmlFor="settings-slug">Public slug</Label>
                         <Input id="settings-slug" name="slug" defaultValue={card.slug} placeholder="your-name" />
@@ -7332,6 +7358,46 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           </span>
                         </span>
                       </label>
+                      <label
+                        htmlFor="settings-showInDiscover"
+                        className="flex min-h-11 items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
+                      >
+                        <input
+                          id="settings-showInDiscover"
+                          name="showInDiscover"
+                          type="checkbox"
+                          value="on"
+                          defaultChecked={card.showInDiscover}
+                          className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                        />
+                        <span>
+                          Show my Circle Card in Discover
+                          <span className="mt-1 block text-xs text-muted">
+                            {CIRCLE_CARD_DISCOVER_SETTING_COPY}
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="rounded-2xl border border-silver/14 bg-background/18 p-4 text-sm">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "normal-case tracking-normal",
+                            card.showInDiscover
+                              ? "border-gold/28 text-gold"
+                              : "border-silver/18 text-silver"
+                          )}
+                        >
+                          {card.showInDiscover
+                            ? CIRCLE_CARD_DISCOVER_VISIBLE_LABEL
+                            : CIRCLE_CARD_DISCOVER_HIDDEN_LABEL}
+                        </Badge>
+                        <span className="text-muted">
+                          Discover visibility is separate from your public card link.
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">

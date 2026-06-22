@@ -49,6 +49,7 @@ import {
   buildCircleCardThemeMetadata,
   buildCircleCardThemeStorage
 } from "@/lib/circle-card/theme";
+import { buildCircleCardDiscoverVisibilityData } from "@/lib/circle-card/privacy";
 import {
   circleCardRecommendationFormSchema,
   circleCardRecommendationStatusSchema,
@@ -132,7 +133,8 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "youtubeUrl",
   "discordUrl",
   "socialLinksJson",
-  "isPublished"
+  "isPublished",
+  "showInDiscover"
 ] as const;
 
 const CIRCLE_CARD_ONBOARDING_FIELDS = [
@@ -150,7 +152,8 @@ const CIRCLE_CARD_ONBOARDING_FIELDS = [
   "role",
   "tagline",
   "websiteUrl",
-  "isPublished"
+  "isPublished",
+  "showInDiscover"
 ] as const;
 
 const CIRCLE_CARD_LINK_FORM_FIELDS = [
@@ -1377,7 +1380,9 @@ export async function upsertCircleCardAction(formData: FormData) {
         },
         select: {
           id: true,
-          slug: true
+          slug: true,
+          showInDiscover: true,
+          discoverOptedInAt: true
         }
       })
     : null;
@@ -1463,7 +1468,12 @@ export async function upsertCircleCardAction(formData: FormData) {
     phone: nullableText(values.phone),
     location: nullableText(values.location),
     socialLinks,
-    isPublished: values.isPublished
+    isPublished: values.isPublished,
+    ...buildCircleCardDiscoverVisibilityData({
+      showInDiscover: values.showInDiscover,
+      previousShowInDiscover: existingCard?.showInDiscover,
+      previousDiscoverOptedInAt: existingCard?.discoverOptedInAt
+    })
   };
 
   try {
@@ -2380,6 +2390,9 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           userId: user.id,
           isPrimary: true,
           isPublished: values.isPublished,
+          ...buildCircleCardDiscoverVisibilityData({
+            showInDiscover: values.showInDiscover
+          }),
           fullName: values.fullName.trim(),
           businessName,
           accountType: values.accountType,

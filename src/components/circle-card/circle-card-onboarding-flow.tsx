@@ -11,6 +11,7 @@ import {
   Building2,
   Camera,
   ContactRound,
+  Eye,
   Globe2,
   Rocket,
   Sparkles,
@@ -33,6 +34,11 @@ import {
   getCircleCardIdentityTagLabel
 } from "@/lib/circle-card/identity";
 import { getCircleCardOnboardingPlanGuidance } from "@/lib/circle-card/plans";
+import {
+  CIRCLE_CARD_DISCOVER_HIDDEN_LABEL,
+  CIRCLE_CARD_DISCOVER_SETTING_COPY,
+  CIRCLE_CARD_DISCOVER_VISIBLE_LABEL
+} from "@/lib/circle-card/privacy";
 import { cn } from "@/lib/utils";
 
 type CircleCardOnboardingDefaults = {
@@ -51,6 +57,7 @@ type CircleCardOnboardingDefaults = {
   businessLogoPositionX: number;
   businessLogoPositionY: number;
   businessLogoScale: number;
+  showInDiscover: boolean;
 };
 
 type CircleCardOnboardingFlowProps = {
@@ -140,6 +147,15 @@ const STEPS = [
     placeholder: "https://example.com"
   },
   {
+    id: "discover",
+    title: "Want to be found by other Circle Card users?",
+    label: "Discover visibility",
+    description: CIRCLE_CARD_DISCOVER_SETTING_COPY,
+    icon: Eye,
+    optional: false,
+    placeholder: ""
+  },
+  {
     id: "publish",
     title: "Publish card",
     label: "Publish",
@@ -161,6 +177,7 @@ type TextFieldKey = Exclude<
   | "businessLogoPositionX"
   | "businessLogoPositionY"
   | "businessLogoScale"
+  | "showInDiscover"
 >;
 
 const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
@@ -191,7 +208,8 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
   const currentValue =
     currentStep.id !== "publish" &&
     currentStep.id !== "accountType" &&
-    currentStep.id !== "identityTags"
+    currentStep.id !== "identityTags" &&
+    currentStep.id !== "discover"
       ? String(values[currentStep.id as TextFieldKey] ?? "")
       : "";
 
@@ -243,6 +261,13 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
         identityTags: Array.from(selectedTags)
       };
     });
+  }
+
+  function updateDiscoverVisibility(showInDiscover: boolean) {
+    setValues((previous) => ({
+      ...previous,
+      showInDiscover
+    }));
   }
 
   function updateImageAdjustments(
@@ -468,6 +493,49 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
                 </div>
                 <p className="text-xs text-muted">Optional. Choose up to eight.</p>
               </div>
+            ) : currentStep.id === "discover" ? (
+              <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Discover visibility">
+                {[
+                  {
+                    value: false,
+                    title: "No, keep me hidden",
+                    label: CIRCLE_CARD_DISCOVER_HIDDEN_LABEL,
+                    description:
+                      "Your public card link still works when you share it directly."
+                  },
+                  {
+                    value: true,
+                    title: "Yes, show my card",
+                    label: CIRCLE_CARD_DISCOVER_VISIBLE_LABEL,
+                    description:
+                      "Other Circle Card users can find your public card in Discover."
+                  }
+                ].map((option) => {
+                  const selected = values.showInDiscover === option.value;
+
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => updateDiscoverVisibility(option.value)}
+                      className={cn(
+                        "min-h-36 rounded-2xl border bg-background/22 p-4 text-left text-sm transition",
+                        selected
+                          ? "border-gold/45 bg-gold/10 text-foreground shadow-gold-soft"
+                          : "border-silver/14 text-muted hover:border-silver/28 hover:text-foreground"
+                      )}
+                    >
+                      <span className="text-base font-semibold text-foreground">{option.title}</span>
+                      <span className="mt-2 block text-xs font-medium text-gold">{option.label}</span>
+                      <span className="mt-3 block text-xs leading-relaxed text-muted">
+                        {option.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             ) : currentStep.id === "profileImageUrl" || currentStep.id === "businessLogoUrl" ? (
               <CircleCardImageUploadField
                 id={`onboarding-${currentStep.id}`}
@@ -623,6 +691,11 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
             ))}
             <Badge variant="outline" className="border-silver/18 text-silver">
               Wallet ready
+            </Badge>
+            <Badge variant="outline" className="border-silver/18 text-silver">
+              {values.showInDiscover
+                ? CIRCLE_CARD_DISCOVER_VISIBLE_LABEL
+                : CIRCLE_CARD_DISCOVER_HIDDEN_LABEL}
             </Badge>
           </div>
         </div>

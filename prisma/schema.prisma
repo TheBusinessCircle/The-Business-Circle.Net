@@ -434,6 +434,8 @@ model CircleCard {
   socialLinks     Json                  @default("{}")
   isPrimary       Boolean               @default(false)
   isPublished     Boolean               @default(true)
+  showInDiscover  Boolean               @default(false)
+  discoverOptedInAt DateTime?
   viewCount       Int                   @default(0)
   qrCodeUrl       String?
   createdAt       DateTime              @default(now())
@@ -458,6 +460,8 @@ model CircleCard {
 
   @@index([userId])
   @@index([isPublished])
+  @@index([showInDiscover])
+  @@index([discoverOptedInAt])
   @@index([accountType])
   @@index([profileLayout])
   @@index([themeSurfaceStyle])

@@ -399,7 +399,8 @@ export const circleCardFormSchema = z.object({
   youtubeUrl: optionalHttpUrl("YouTube"),
   discordUrl: optionalDiscordSocialUrl,
   socialLinksJson: optionalJsonText,
-  isPublished: checkboxBoolean.default(false)
+  isPublished: checkboxBoolean.default(false),
+  showInDiscover: checkboxBoolean.default(false)
 });
 
 export type CircleCardFormValues = z.infer<typeof circleCardFormSchema>;
@@ -420,7 +421,8 @@ export const circleCardOnboardingSchema = z.object({
   role: optionalText(120),
   tagline: optionalText(180),
   websiteUrl: optionalHttpUrl("Website"),
-  isPublished: checkboxBoolean.default(true)
+  isPublished: checkboxBoolean.default(true),
+  showInDiscover: checkboxBoolean.default(false)
 });
 
 export type CircleCardOnboardingValues = z.infer<typeof circleCardOnboardingSchema>;
