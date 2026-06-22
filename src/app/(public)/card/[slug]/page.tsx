@@ -4,6 +4,11 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { PublicCircleCardProfile } from "@/components/circle-card";
 import { SITE_CONFIG } from "@/config/site";
+import {
+  CIRCLE_CARD_APP_NAME,
+  CIRCLE_CARD_ICON_512,
+  CIRCLE_CARD_PWA_METADATA
+} from "@/lib/circle-card/metadata";
 import { getCircleCardAccountLabel } from "@/lib/circle-card/permissions";
 import { resolveCircleCardShareSource, type CircleCardShareSource } from "@/lib/circle-card/share-sources";
 import { prisma } from "@/lib/prisma";
@@ -87,6 +92,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!card) {
     return {
+      ...CIRCLE_CARD_PWA_METADATA,
       metadataBase: new URL(SITE_CONFIG.url),
       title: "Circle Card",
       robots: {
@@ -101,9 +107,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     card.tagline || card.about?.slice(0, 155) || `${card.fullName}'s Circle Card.`;
   const imageUrl = card.profileImageUrl?.startsWith("http")
     ? card.profileImageUrl
-    : absoluteUrl(card.profileImageUrl || "/social-share.png");
+    : absoluteUrl(card.profileImageUrl || CIRCLE_CARD_ICON_512);
 
   return {
+    ...CIRCLE_CARD_PWA_METADATA,
     metadataBase: new URL(SITE_CONFIG.url),
     title,
     description,
@@ -115,6 +122,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       type: "profile",
       url: absoluteUrl(`/card/${card.slug}`),
+      siteName: CIRCLE_CARD_APP_NAME,
       images: [{ url: imageUrl }]
     },
     twitter: {

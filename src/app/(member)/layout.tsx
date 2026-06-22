@@ -131,7 +131,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     : `${getMembershipTierLabel(effectiveTier)} Active`;
   const workspaceTitle = circleCardFree ? "Circle Card Workspace" : "Member Workspace";
   const workspaceSubtitle = circleCardFree
-    ? "The relationship layer of The Business Circle"
+    ? "Card, wallet, analytics, and relationship tools"
     : "The Business Circle Network";
   const circleCardAccountLabel = getCircleCardAccountLabel({
     role: session.user.role,
@@ -157,7 +157,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                 href={circleCardFree ? "/dashboard/circle-card" : "/dashboard"}
                 className="inline-flex min-w-0 items-center gap-3"
               >
-                <BrandMark placement="workspace" />
+                <BrandMark placement="workspace" brand={circleCardFree ? "circle-card" : "bcn"} />
                 <div className="min-w-0">
                   <p className="truncate font-display text-base text-foreground">
                     {workspaceTitle}
@@ -189,10 +189,11 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                   workspaceTitle={circleCardFree ? "Relationship tools" : undefined}
                   workspaceDescription={
                     circleCardFree
-                      ? "Create your card, manage your wallet, and explore BCN when you are ready."
+                      ? "Create your card, manage your wallet, and keep your relationship tools close."
                       : undefined
                   }
                   dialogLabel={circleCardFree ? "Circle Card navigation" : undefined}
+                  workspaceBrand={circleCardFree ? "circle-card" : "bcn"}
                 />
                 {session.user.role === "ADMIN" ? (
                   <Link href="/admin" className="hidden lg:inline-flex">
@@ -228,7 +229,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
         />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground">
-            {session.user.name ?? "Business Circle Member"}
+            {session.user.name ?? (circleCardFree ? "Circle Card Member" : "Business Circle Member")}
           </p>
           <p className="truncate text-xs text-muted">{session.user.email}</p>
         </div>

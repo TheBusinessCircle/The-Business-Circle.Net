@@ -14,8 +14,14 @@ async function getFreshUserEntitlement(userId: string) {
     select: {
       role: true,
       membershipTier: true,
+      registrationSource: true,
       emailVerified: true,
       suspended: true,
+      _count: {
+        select: {
+          circleCards: true
+        }
+      },
       subscription: {
         select: {
           status: true
@@ -51,6 +57,8 @@ export async function requireUser(options: RequireUserOptions = {}) {
 
   session.user.role = fresh.role;
   session.user.membershipTier = fresh.membershipTier;
+  session.user.registrationSource = fresh.registrationSource;
+  session.user.hasCircleCard = fresh._count.circleCards > 0;
   session.user.subscriptionStatus = fresh.subscription?.status ?? null;
   session.user.hasActiveSubscription = hasActiveSubscription;
   session.user.suspended = fresh.suspended;

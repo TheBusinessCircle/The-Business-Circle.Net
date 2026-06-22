@@ -27,8 +27,8 @@ import {
   formatCircleCardPrice,
   getCircleCardBillingReadiness
 } from "@/lib/circle-card/pricing";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { prisma } from "@/lib/prisma";
-import { createPageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
 type PageProps = {
@@ -37,7 +37,7 @@ type PageProps = {
 
 type FeatureStatus = "Available" | "Coming soon / early access";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Circle Card Teams",
   description:
     "Register interest in Circle Card Teams, the company-wide relationship system for staff cards, shared contacts, and team control.",

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CircleCardOnboardingFlow } from "@/components/circle-card/circle-card-onboarding-flow";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { CIRCLE_CARD_PLAN_DEFINITIONS } from "@/lib/circle-card/plans";
-import { createPageMetadata } from "@/lib/seo";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Circle Card Onboarding",
   description: "Set up your free Circle Card.",
   path: "/dashboard/circle-card/onboarding",

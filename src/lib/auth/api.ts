@@ -45,6 +45,8 @@ function toSessionUser(session: Session | null): SessionUser | null {
     foundingTier: session.user.foundingTier ?? null,
     foundingPrice: session.user.foundingPrice ?? null,
     foundingClaimedAt: session.user.foundingClaimedAt ?? null,
+    registrationSource: session.user.registrationSource ?? null,
+    hasCircleCard: session.user.hasCircleCard ?? false,
     subscriptionStatus: session.user.subscriptionStatus ?? null,
     hasActiveSubscription: session.user.hasActiveSubscription ?? false,
     suspended: session.user.suspended,
@@ -58,8 +60,14 @@ async function refreshUserEntitlement(userId: string) {
     select: {
       role: true,
       membershipTier: true,
+      registrationSource: true,
       emailVerified: true,
       suspended: true,
+      _count: {
+        select: {
+          circleCards: true
+        }
+      },
       subscription: {
         select: {
           status: true
@@ -93,6 +101,8 @@ export async function requireApiUser(options: ApiAuthOptions = {}): Promise<ApiA
     ...user,
     role: fresh.role,
     membershipTier: fresh.membershipTier,
+    registrationSource: fresh.registrationSource,
+    hasCircleCard: fresh._count.circleCards > 0,
     subscriptionStatus: fresh.subscription?.status ?? null,
     hasActiveSubscription,
     suspended: fresh.suspended,

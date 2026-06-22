@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const SIZE_BY_PLACEMENT = {
@@ -14,23 +14,44 @@ const SIZE_BY_PLACEMENT = {
 } as const;
 
 type BrandMarkPlacement = keyof typeof SIZE_BY_PLACEMENT;
+type BrandMarkBrand = "bcn" | "circle-card";
 
 type BrandMarkProps = {
   placement?: BrandMarkPlacement;
+  brand?: BrandMarkBrand;
   className?: string;
   priority?: boolean;
   shine?: boolean;
 };
 
+const BRAND_ASSETS: Record<BrandMarkBrand, { src: string; fallbackSrc?: string; alt: string }> = {
+  bcn: {
+    src: "/branding/the-business-circle-logo.webp",
+    fallbackSrc: "/branding/the-business-circle-logo.png",
+    alt: "The Business Circle logo"
+  },
+  "circle-card": {
+    src: "/branding/circle-card-logo.png",
+    alt: "Circle Card logo"
+  }
+};
+
 export function BrandMark({
   placement = "navbar",
+  brand = "bcn",
   className,
   priority = false,
   shine = false
 }: BrandMarkProps) {
   const [imageMissing, setImageMissing] = useState(false);
-  const [src, setSrc] = useState("/branding/the-business-circle-logo.webp");
+  const asset = BRAND_ASSETS[brand];
+  const [src, setSrc] = useState(asset.src);
   const size = SIZE_BY_PLACEMENT[placement];
+
+  useEffect(() => {
+    setImageMissing(false);
+    setSrc(asset.src);
+  }, [asset.src]);
 
   const shellClassName = cn(
     "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/45 bg-slate-950 shadow-inner-surface",
@@ -61,14 +82,14 @@ export function BrandMark({
       {shine ? <span aria-hidden="true" className="brand-mark-shine" /> : null}
       <Image
         src={src}
-        alt="The Business Circle logo"
+        alt={asset.alt}
         fill
         sizes={imageSizes}
         className="object-contain"
         priority={priority}
         onError={() => {
-          if (src.endsWith(".webp")) {
-            setSrc("/branding/the-business-circle-logo.png");
+          if (asset.fallbackSrc && src !== asset.fallbackSrc) {
+            setSrc(asset.fallbackSrc);
             return;
           }
 

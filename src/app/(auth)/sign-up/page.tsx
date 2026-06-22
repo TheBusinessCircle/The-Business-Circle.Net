@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
 import {
   buildJoinConfirmationRedirect,
   firstValue
@@ -19,6 +20,27 @@ type SignUpPageProps = {
 
 export default async function SignUpPage({ searchParams }: SignUpPageProps) {
   const params = await searchParams;
+
+  if (isCircleCardRegistrationSource(firstValue(params.source))) {
+    const registerParams = new URLSearchParams({ source: "circle-card" });
+    const returnTo = firstValue(params.returnTo);
+    const sourceCardSlug = firstValue(params.sourceCardSlug);
+    const claim = firstValue(params.claim);
+
+    if (returnTo) {
+      registerParams.set("returnTo", returnTo);
+    }
+
+    if (sourceCardSlug) {
+      registerParams.set("sourceCardSlug", sourceCardSlug);
+    }
+
+    if (claim) {
+      registerParams.set("claim", claim);
+    }
+
+    redirect(`/register?${registerParams.toString()}`);
+  }
 
   redirect(
     buildJoinConfirmationRedirect({

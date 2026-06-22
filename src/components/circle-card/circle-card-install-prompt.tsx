@@ -119,7 +119,7 @@ export function CircleCardInstallPrompt({ className }: CircleCardInstallPromptPr
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground">Add Circle Card to your home screen</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
-            Open your card and wallet like an app, with the same BCN account.
+            Open your card, wallet, and relationship tools like an app.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {mode === "install" ? (

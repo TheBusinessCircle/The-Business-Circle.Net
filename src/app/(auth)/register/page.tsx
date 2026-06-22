@@ -3,21 +3,35 @@ import { redirect } from "next/navigation";
 import { CircleCardRegisterForm } from "@/components/auth/circle-card-register-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { safeRedirectPath } from "@/lib/auth/utils";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { buildJoinConfirmationRedirect, firstValue } from "@/lib/join/routing";
 import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = createPageMetadata({
-  title: "Register Redirect",
-  description: "Redirecting to the Business Circle join page.",
-  path: "/register",
-  noIndex: true
-});
-
 type RegisterPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ searchParams }: RegisterPageProps): Promise<Metadata> {
+  const params = await searchParams;
+
+  if (isCircleCardRegistrationSource(firstValue(params.source))) {
+    return createCircleCardPageMetadata({
+      title: "Create Free Circle Card",
+      description: "Create your free Circle Card account.",
+      path: "/register",
+      noIndex: true
+    });
+  }
+
+  return createPageMetadata({
+    title: "Register Redirect",
+    description: "Redirecting to the Business Circle join page.",
+    path: "/register",
+    noIndex: true
+  });
+}
 
 export default async function RegisterPage({ searchParams }: RegisterPageProps) {
   const params = await searchParams;
@@ -53,7 +67,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
           <CardContent className="space-y-4 text-sm leading-relaxed text-muted">
             <p>
               Create a public card, save contacts into Circle Wallet, track basic activity and
-              install the mobile web app with the same BCN account system.
+              install the mobile web app with the same secure account system.
             </p>
             <p>
               Community, calls, resources, messaging, founder rooms and member dashboards remain

@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import {
+  CIRCLE_CARD_DASHBOARD_PATH,
+  isCircleCardFirstAccount,
   isCircleCardDashboardPath,
   isCircleCardRegistrationSource
 } from "@/lib/circle-card/routes";
@@ -112,6 +114,7 @@ export default auth((req) => {
   const isJoinRoute =
     pathname === "/join" || pathname === "/join-desktop" || pathname === "/join-mobile";
   const authFromPath = safeRedirectPath(nextUrl.searchParams.get("from"), "");
+  const shouldPreferCircleCard = isCircleCardFirstAccount(session?.user);
 
   if (isAuthRoute && session?.user && !session.user.suspended) {
     if (isJoinRoute) {
@@ -123,7 +126,15 @@ export default auth((req) => {
       isCircleCardDashboardPath(authFromPath) ||
       authFromPath.startsWith("/card/")
     ) {
-      return NextResponse.redirect(new URL(authFromPath || "/dashboard/circle-card", nextUrl));
+      return NextResponse.redirect(new URL(authFromPath || CIRCLE_CARD_DASHBOARD_PATH, nextUrl));
+    }
+
+    if (
+      shouldPreferCircleCard &&
+      session.user.role !== "ADMIN" &&
+      !session.user.hasActiveSubscription
+    ) {
+      return NextResponse.redirect(new URL(CIRCLE_CARD_DASHBOARD_PATH, nextUrl));
     }
 
     if (session.user.role !== "ADMIN" && !session.user.hasActiveSubscription) {
@@ -158,6 +169,10 @@ export default auth((req) => {
     session.user.role !== "ADMIN" &&
     !session.user.hasActiveSubscription
   ) {
+    if (shouldPreferCircleCard) {
+      return NextResponse.redirect(new URL(CIRCLE_CARD_DASHBOARD_PATH, nextUrl));
+    }
+
     return NextResponse.redirect(
       new URL(
         `/membership?billing=${membershipAccessBillingQuery(

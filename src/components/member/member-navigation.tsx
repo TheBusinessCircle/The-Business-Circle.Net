@@ -40,6 +40,7 @@ type MemberNavigationProps = {
   workspaceTitle?: string;
   workspaceDescription?: string;
   dialogLabel?: string;
+  workspaceBrand?: "bcn" | "circle-card";
 };
 
 function iconForHref(href: string) {
@@ -123,7 +124,8 @@ export function MemberNavigation({
   workspaceEyebrow = "Member Workspace",
   workspaceTitle = "Inside The Business Circle",
   workspaceDescription = "Move through the rooms without leaving the member environment.",
-  dialogLabel = "Member navigation"
+  dialogLabel = "Member navigation",
+  workspaceBrand = "bcn"
 }: MemberNavigationProps) {
   const pathname = usePathname();
   const horizontal = orientation === "horizontal";
@@ -290,6 +292,7 @@ export function MemberNavigation({
                 <div className="flex min-w-0 items-center gap-3">
                   <BrandMark
                     placement="workspace"
+                    brand={workspaceBrand}
                     className="border-[hsl(var(--member-accent-border)/0.45)]"
                   />
                   <div className="min-w-0">
@@ -315,7 +318,7 @@ export function MemberNavigation({
               </p>
             </div>
 
-            <nav className="mt-5 flex flex-col gap-2" aria-label="Member mobile navigation">
+            <nav className="mt-5 flex flex-col gap-2" aria-label={`${dialogLabel} links`}>
               {items.map(renderMobileNavLink)}
             </nav>
 

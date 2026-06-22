@@ -21,6 +21,7 @@ type LoginFormProps = {
   errorDetailCode?: string;
   initialNotice?: string;
   initialEmail?: string;
+  mode?: "default" | "circle-card";
 };
 
 function withFrom(pathname: string, from?: string) {
@@ -43,7 +44,8 @@ export function LoginForm({
   errorCode,
   errorDetailCode,
   initialNotice,
-  initialEmail
+  initialEmail,
+  mode = "default"
 }: LoginFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -76,6 +78,7 @@ export function LoginForm({
     circleCardRegistrationHref.startsWith("/register")
       ? "Create a free Circle Card"
       : "Create one";
+  const circleCardMode = mode === "circle-card";
 
   const form = useForm<CredentialsSignInInput>({
     resolver: zodResolver(credentialsSignInSchema),
@@ -120,8 +123,12 @@ export function LoginForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign In</CardTitle>
-        <CardDescription>Access your dashboard, resources, and founder network.</CardDescription>
+        <CardTitle>{circleCardMode ? "Sign in to Circle Card" : "Sign In"}</CardTitle>
+        <CardDescription>
+          {circleCardMode
+            ? "Open your card, wallet, QR tools, and relationship dashboard."
+            : "Access your dashboard, resources, and founder network."}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {notice ? (

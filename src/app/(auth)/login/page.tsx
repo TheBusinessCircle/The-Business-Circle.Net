@@ -13,7 +13,7 @@ type LoginPageProps = {
 export const metadata: Metadata = createPageMetadata({
   title: "Sign In",
   description:
-    "Sign in to The Business Circle Network to access your dashboard, resources, and community channels.",
+    "Sign in to access your Circle Card or The Business Circle Network workspace.",
   path: "/login",
   noIndex: true
 });
@@ -21,24 +21,46 @@ export const metadata: Metadata = createPageMetadata({
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const { from, errorCode, errorDetailCode, initialNotice } = parseLoginSearchParams(params);
+  const isCircleCardLogin =
+    from?.startsWith("/dashboard/circle-card") === true || from?.startsWith("/card/") === true;
 
   return (
     <div className="grid w-full min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
       <Card>
         <CardHeader>
           <CardTitle className="font-display text-3xl">
-            Rejoin the founder network built for focused business growth
+            {isCircleCardLogin
+              ? "Open your Circle Card workspace"
+              : "Rejoin the founder network built for focused business growth"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted">
-          <p>Access your dashboard, resource vault, channel conversations, and member collaborations.</p>
-          <p>
-            New here?{" "}
-            <Link href={withFromParam("/membership", from)} className="text-primary hover:underline">
-              Start the join flow
-            </Link>{" "}
-            to join The Business Circle Network.
-          </p>
+          {isCircleCardLogin ? (
+            <>
+              <p>
+                Continue to your public card, Circle Wallet, QR sharing, analytics, and saved
+                relationship tools.
+              </p>
+              <p>
+                New here?{" "}
+                <Link href="/register?source=circle-card" className="text-primary hover:underline">
+                  Create a free Circle Card
+                </Link>
+                .
+              </p>
+            </>
+          ) : (
+            <>
+              <p>Access your dashboard, resource vault, channel conversations, and member collaborations.</p>
+              <p>
+                New here?{" "}
+                <Link href={withFromParam("/membership", from)} className="text-primary hover:underline">
+                  Start the join flow
+                </Link>{" "}
+                to join The Business Circle Network.
+              </p>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -47,6 +69,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         errorCode={errorCode}
         errorDetailCode={errorDetailCode}
         initialNotice={initialNotice}
+        mode={isCircleCardLogin ? "circle-card" : "default"}
       />
     </div>
   );

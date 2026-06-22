@@ -13,6 +13,8 @@ declare module "next-auth" {
       foundingTier: MembershipTier | null;
       foundingPrice: number | null;
       foundingClaimedAt: Date | null;
+      registrationSource: string | null;
+      hasCircleCard: boolean;
       subscriptionStatus: SubscriptionStatus | null;
       hasActiveSubscription: boolean;
       suspended: boolean;
@@ -28,6 +30,8 @@ declare module "next-auth" {
     foundingTier: MembershipTier | null;
     foundingPrice: number | null;
     foundingClaimedAt: Date | null;
+    registrationSource: string | null;
+    hasCircleCard: boolean;
     subscriptionStatus: SubscriptionStatus | null;
     hasActiveSubscription: boolean;
     suspended: boolean;
@@ -44,6 +48,8 @@ declare module "next-auth/jwt" {
     foundingTier?: MembershipTier | null;
     foundingPrice?: number | null;
     foundingClaimedAt?: string | null;
+    registrationSource?: string | null;
+    hasCircleCard?: boolean;
     subscriptionStatus?: SubscriptionStatus | null;
     hasActiveSubscription?: boolean;
     suspended?: boolean;

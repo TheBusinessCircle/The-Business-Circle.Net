@@ -3,9 +3,9 @@ import Link from "next/link";
 import { CheckCircle2, ShieldCheck, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createPageMetadata } from "@/lib/seo";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Circle Card Community Standards",
   description:
     "The community standards for Circle Card: a trusted, welcoming identity and discovery platform for businesses, creators, professionals and communities.",

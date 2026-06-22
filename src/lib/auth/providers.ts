@@ -70,8 +70,14 @@ function credentialsProvider() {
             foundingTier: true,
             foundingPrice: true,
             foundingClaimedAt: true,
+            registrationSource: true,
             emailVerified: true,
             suspended: true,
+            _count: {
+              select: {
+                circleCards: true
+              }
+            },
             subscription: {
               select: {
                 status: true
@@ -107,6 +113,8 @@ function credentialsProvider() {
           foundingTier: user.foundingTier,
           foundingPrice: user.foundingPrice,
           foundingClaimedAt: user.foundingClaimedAt ?? null,
+          registrationSource: user.registrationSource,
+          hasCircleCard: user._count.circleCards > 0,
           subscriptionStatus,
           hasActiveSubscription,
           suspended: user.suspended,

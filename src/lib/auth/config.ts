@@ -62,8 +62,14 @@ export const authConfig = {
           foundingTier: true,
           foundingPrice: true,
           foundingClaimedAt: true,
+          registrationSource: true,
           emailVerified: true,
           suspended: true,
+          _count: {
+            select: {
+              circleCards: true
+            }
+          },
           subscription: {
             select: {
               status: true
@@ -114,6 +120,15 @@ export const authConfig = {
         normalizedFallbackFoundingClaimedAt ??
         token.foundingClaimedAt ??
         null;
+      const resolvedRegistrationSource =
+        dbUser?.registrationSource ??
+        (user as { registrationSource?: string | null } | undefined)?.registrationSource ??
+        token.registrationSource ??
+        null;
+      const resolvedHasCircleCard =
+        (dbUser?._count.circleCards ?? 0) > 0 ||
+        (user as { hasCircleCard?: boolean } | undefined)?.hasCircleCard === true ||
+        token.hasCircleCard === true;
       const resolvedSuspended =
         dbUser?.suspended ??
         (user as { suspended?: boolean } | undefined)?.suspended ??
@@ -145,6 +160,8 @@ export const authConfig = {
       token.foundingTier = resolvedFoundingTier;
       token.foundingPrice = resolvedFoundingPrice;
       token.foundingClaimedAt = resolvedFoundingClaimedAt;
+      token.registrationSource = resolvedRegistrationSource;
+      token.hasCircleCard = resolvedHasCircleCard;
       token.subscriptionStatus = subscriptionStatus;
       token.hasActiveSubscription = hasActiveSubscription;
       token.suspended = resolvedSuspended;
@@ -167,6 +184,8 @@ export const authConfig = {
       session.user.foundingClaimedAt = token.foundingClaimedAt
         ? new Date(token.foundingClaimedAt)
         : null;
+      session.user.registrationSource = token.registrationSource ?? null;
+      session.user.hasCircleCard = token.hasCircleCard ?? false;
       session.user.subscriptionStatus = token.subscriptionStatus ?? null;
       session.user.hasActiveSubscription = token.hasActiveSubscription ?? false;
       session.user.suspended = token.suspended ?? false;

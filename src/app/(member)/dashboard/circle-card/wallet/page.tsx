@@ -12,12 +12,12 @@ import {
   buildCircleCardThemeStyle,
   resolveCircleCardTheme
 } from "@/lib/circle-card/theme";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { prisma } from "@/lib/prisma";
-import { createPageMetadata } from "@/lib/seo";
 import { requireCircleCardUser } from "@/lib/session";
 import { absoluteUrl } from "@/lib/utils";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Circle Wallet",
   description: "Your private Circle Card relationship operating system.",
   path: "/dashboard/circle-card/wallet",

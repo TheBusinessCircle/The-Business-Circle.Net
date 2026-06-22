@@ -11,6 +11,8 @@ export interface SessionUser {
   foundingTier: MembershipTier | null;
   foundingPrice: number | null;
   foundingClaimedAt: Date | null;
+  registrationSource: string | null;
+  hasCircleCard: boolean;
   subscriptionStatus: SubscriptionStatus | null;
   hasActiveSubscription: boolean;
   suspended: boolean;

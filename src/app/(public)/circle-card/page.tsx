@@ -19,14 +19,14 @@ import {
   CIRCLE_CARD_DASHBOARD_PATH,
   CIRCLE_CARD_ONBOARDING_PATH
 } from "@/lib/circle-card/routes";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { prisma } from "@/lib/prisma";
-import { createPageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Circle Card",
   description:
-    "Circle Card is the relationship layer of The Business Circle, helping professionals share a digital identity, save contacts, and reconnect later.",
+    "Create a professional digital identity, share your QR code, save contacts in Circle Wallet, and keep relationship tools close.",
   path: "/circle-card",
   keywords: [
     "digital business card",
@@ -90,10 +90,9 @@ export default async function CircleCardLandingPage() {
             More than a digital business card. The relationship layer of The Business Circle.
           </p>
           <p className="mt-5 max-w-3xl text-base leading-relaxed text-muted">
-            Circle Card is the relationship layer of The Business Circle ecosystem. It helps
-            professionals and business owners create a professional digital identity, share details
-            instantly with QR codes, save contacts into a wallet, remember people they meet,
-            reconnect later, and move naturally into The Business Circle Network when ready.
+            Circle Card helps professionals and business owners create a professional digital
+            identity, share details instantly with QR codes, save contacts into a wallet, remember
+            people they meet, and reconnect later.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link

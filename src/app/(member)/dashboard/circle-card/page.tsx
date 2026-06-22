@@ -151,6 +151,7 @@ import {
   circleCardNotificationHref,
   circleCardNotificationTypeLabel
 } from "@/lib/circle-card/notifications";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import {
   type CircleCardLinkActionMode,
   type CircleCardLinkType,
@@ -183,7 +184,6 @@ import {
 } from "@/lib/circle-card/profile-layout";
 import type { CircleCardCompletionItemId } from "@/lib/circle-card/completion";
 import { prisma } from "@/lib/prisma";
-import { createPageMetadata } from "@/lib/seo";
 import { requireCircleCardUser } from "@/lib/session";
 import { absoluteUrl, cn, formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -194,9 +194,9 @@ import {
   trackCircleCardEvent
 } from "@/server/circle-card";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createCircleCardPageMetadata({
   title: "My Circle Card",
-  description: "Create and manage your Circle Card inside The Business Circle Network.",
+  description: "Create your card, manage Circle Wallet, track activity, and share your public identity.",
   path: "/dashboard/circle-card",
   noIndex: true
 });
@@ -2445,8 +2445,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               Your relationship identity layer
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--member-accent-muted))] sm:text-base">
-              Create a clean card, share it with a QR code, and give new contacts a direct route
-              back to you and the Business Circle ecosystem.
+              Create a clean card, share it with a QR code, save useful contacts, and give people
+              a direct route back to you.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <Link

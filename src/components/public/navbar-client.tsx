@@ -14,6 +14,7 @@ type NavbarClientProps = {
   isAuthenticated: boolean;
   isCircleCardOnly: boolean;
   navItems: readonly NavigationItem[];
+  brand: "bcn" | "circle-card";
   dashboardHref: string;
   dashboardLabel: string;
 };
@@ -46,6 +47,7 @@ export function NavbarClient({
   isAuthenticated,
   isCircleCardOnly,
   navItems,
+  brand,
   dashboardHref,
   dashboardLabel
 }: NavbarClientProps) {
@@ -86,7 +88,7 @@ export function NavbarClient({
     <>
       <header className="sticky top-0 z-50 overflow-x-clip border-b border-border/80 bg-background/88 backdrop-blur-xl">
         <div className="bcn-container flex h-[4.5rem] items-center justify-between gap-3 sm:h-[5.5rem] sm:gap-6">
-          <NavbarBrand />
+          <NavbarBrand brand={brand} />
 
           <nav className="hidden flex-1 items-center justify-center px-3 lg:flex">
             <div className="surface-subtle flex min-w-0 max-w-[44rem] items-center gap-1 rounded-2xl p-1.5">
@@ -163,7 +165,7 @@ export function NavbarClient({
           <div className="mx-auto flex min-h-[calc(100svh-6.5rem)] w-full max-w-md flex-col">
             <div className="rounded-3xl border border-gold/25 bg-[linear-gradient(145deg,rgba(217,168,74,0.14),rgba(255,255,255,0.045)_42%,rgba(10,20,46,0.84))] p-4 shadow-panel-soft">
               <p className="text-[11px] uppercase tracking-[0.12em] text-gold">
-                The Business Circle
+                {isCircleCardOnly ? "Circle Card" : "The Business Circle"}
               </p>
               <p className="mt-2 font-display text-2xl leading-tight text-foreground">
                 {isCircleCardOnly

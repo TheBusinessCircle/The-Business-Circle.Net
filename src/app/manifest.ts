@@ -1,11 +1,12 @@
 import type { MetadataRoute } from "next";
+import { SITE_CONFIG } from "@/config/site";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Circle Card",
-    short_name: "Circle Card",
-    description: "The relationship layer of The Business Circle.",
-    start_url: "/dashboard/circle-card",
+    name: SITE_CONFIG.name,
+    short_name: SITE_CONFIG.shortName,
+    description: SITE_CONFIG.description,
+    start_url: "/home",
     scope: "/",
     display: "standalone",
     background_color: "#070e1f",
@@ -24,15 +25,15 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable"
       },
       {
-        src: "/icon-512.svg",
+        src: "/icon-512.png",
         sizes: "512x512",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "any"
       },
       {
-        src: "/icon-512.svg",
+        src: "/icon-512.png",
         sizes: "512x512",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "maskable"
       }
     ]

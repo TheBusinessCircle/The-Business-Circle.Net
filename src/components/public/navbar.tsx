@@ -27,6 +27,7 @@ export async function Navbar() {
       isAuthenticated={isAuthenticated}
       isCircleCardOnly={isCircleCardOnly}
       navItems={publicNavItems}
+      brand={isCircleCardOnly ? "circle-card" : "bcn"}
       dashboardHref={isCircleCardOnly ? CIRCLE_CARD_DASHBOARD_PATH : "/dashboard"}
       dashboardLabel={isCircleCardOnly ? "My Circle Card" : "Member home"}
     />
