@@ -1,9 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   createCircleCardFreeRegistration,
   createPendingRegistration,
   RegistrationServiceError
 } from "@/lib/auth/register";
+import {
+  CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID,
+  CIRCLE_CARD_REFERRAL_COOKIE_CODE,
+  CIRCLE_CARD_REFERRAL_COOKIE_SOURCE,
+  normalizeCircleCardReferralCode
+} from "@/lib/circle-card/referral-engine";
 import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
 import {
   clientIpFromHeaders,
@@ -18,8 +24,30 @@ import {
   getBillingConfigurationErrorMessage,
   isBillingEnabled
 } from "@/server/subscriptions";
+import { attributeCircleCardReferralSignup } from "@/server/circle-card";
 
 export const runtime = "nodejs";
+
+function requestCookieValue(request: NextRequest, name: string) {
+  const nextCookie = request.cookies?.get(name)?.value;
+
+  if (nextCookie) {
+    return nextCookie;
+  }
+
+  const cookieHeader = request.headers.get("cookie");
+
+  if (!cookieHeader) {
+    return "";
+  }
+
+  const match = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
+}
 
 function checkoutCodeErrorMessage(code: string) {
   if (code === "invite-code-limit-reached") {
@@ -53,7 +81,7 @@ function checkoutCodeErrorMessage(code: string) {
   return null;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
     return NextResponse.json(
       { error: "Untrusted request origin." },
@@ -90,13 +118,39 @@ export async function POST(request: Request) {
       isCircleCardRegistrationSource((payload as { source?: string }).source)
     ) {
       const result = await createCircleCardFreeRegistration(payload);
-      return NextResponse.json(
+      const response = NextResponse.json(
         {
           ok: true,
           redirectTo: result.redirectTo
         },
         { headers }
       );
+      const payloadReferralCode = normalizeCircleCardReferralCode(
+        (payload as { referralCode?: string }).referralCode
+      );
+      const referralCode =
+        requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CODE) || payloadReferralCode;
+      const referralClickId = requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID);
+      const referralSource =
+        requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE) || "circle_card_signup";
+
+      if (referralCode || referralClickId) {
+        try {
+          await attributeCircleCardReferralSignup({
+            referredUserId: result.user.id,
+            referralCode,
+            referralClickId,
+            referralSource
+          });
+          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_CODE);
+          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID);
+          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE);
+        } catch (error) {
+          logServerError("circle-card-referral-attribution-failed", error);
+        }
+      }
+
+      return response;
     }
 
     const billingConfigurationError = getBillingConfigurationErrorMessage();

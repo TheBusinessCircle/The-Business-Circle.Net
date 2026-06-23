@@ -17,6 +17,7 @@ import {
   QrCode,
   ScanLine,
   Search,
+  Send,
   ShieldAlert,
   UserRound,
   UsersRound
@@ -67,6 +68,7 @@ type MetricItem = {
 
 const sectionTabs = [
   { label: "Overview", href: "#overview" },
+  { label: "Referrals", href: "#referrals" },
   { label: "Plans", href: "#plans" },
   { label: "Users & Cards", href: "#users-cards" },
   { label: "Activity", href: "#activity" },
@@ -111,7 +113,8 @@ function displayCard(card: { fullName: string; businessName: string | null } | n
 export default async function AdminCircleCardPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const query = firstValue(params.q).trim();
-  const dashboard = await getAdminCircleCardCommandCentre({ query });
+  const referralSort = firstValue(params.refSort).trim();
+  const dashboard = await getAdminCircleCardCommandCentre({ query, referralSort });
   const pricingReadiness = getCircleCardBillingReadiness();
   const teamsAnnualPrice = formatCircleCardAnnualPrice("TEAMS");
 
@@ -211,6 +214,33 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
         ? "Users with Free Circle Card entitlement after BCN included Pro and overrides are separated."
         : `${CIRCLE_CARD_PLAN_DEFINITIONS[plan].description} Source counts below distinguish paid access from included or override access.`
   }));
+  const referralFunnelMetrics: MetricItem[] = [
+    {
+      label: "Referral Clicks",
+      value: dashboard.referralEngine.funnel.clicks,
+      hint: "Tracked visits through Circle Card referral links."
+    },
+    {
+      label: "Referral Signups",
+      value: dashboard.referralEngine.funnel.signups,
+      hint: "Users attributed to a Circle Card referrer."
+    },
+    {
+      label: "Referral Activations",
+      value: dashboard.referralEngine.funnel.activations,
+      hint: "Referred users who completed key Circle Card setup."
+    },
+    {
+      label: "Referral Pro Interest",
+      value: dashboard.referralEngine.funnel.proInterest,
+      hint: "Referred users or visitors who registered Pro interest."
+    },
+    {
+      label: "Referral Teams Interest",
+      value: dashboard.referralEngine.funnel.teamsInterest,
+      hint: "Referred users or visitors who registered Teams interest."
+    }
+  ];
   const entitlementSourceHints = {
     FREE: "No paid Circle Card subscription, BCN included Pro, admin override or early access source.",
     PRO_SUBSCRIPTION: "Future paid Circle Card Pro subscriptions only.",
@@ -482,6 +512,17 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           description="The full Circle Card operating snapshot in compact tiles."
         />
         <MetricGrid metrics={overviewMetrics} />
+      </section>
+
+      <section id="referrals" className="scroll-mt-24 space-y-4">
+        <SectionHeading
+          icon={Send}
+          eyebrow="Referral Engine"
+          title="Referral Growth"
+          description="Referral clicks, signups, activations and early Pro or Teams intent."
+        />
+        <MetricGrid metrics={referralFunnelMetrics} />
+        <ReferralEnginePanel referralEngine={dashboard.referralEngine} />
       </section>
 
       <section id="plans" className="scroll-mt-24 space-y-4">
@@ -1098,6 +1139,141 @@ function ActivityRow({
         </Badge>
       </div>
     </Link>
+  );
+}
+
+type ReferralEngine = Awaited<
+  ReturnType<typeof getAdminCircleCardCommandCentre>
+>["referralEngine"];
+
+const referralSortOptions = [
+  { label: "Clicks", value: "clicks" },
+  { label: "Signups", value: "signups" },
+  { label: "Activations", value: "activations" },
+  { label: "Pro", value: "pro" },
+  { label: "Teams", value: "teams" }
+] as const;
+
+function ReferralEnginePanel({ referralEngine }: { referralEngine: ReferralEngine }) {
+  const activeSortLabel =
+    referralSortOptions.find((option) => option.value === referralEngine.sort)?.label ?? "Clicks";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="inline-flex items-center gap-2">
+          <Send size={18} className="text-gold" />
+          Referral Centre Intelligence
+        </CardTitle>
+        <CardDescription>
+          Sorted by {activeSortLabel.toLowerCase()}. Reward calculations and payouts are not active.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {referralSortOptions.map((option) => (
+            <Link key={option.value} href={`/admin/circle-card?refSort=${option.value}#referrals`}>
+              <Button
+                type="button"
+                variant={option.value === referralEngine.sort ? "default" : "outline"}
+                size="sm"
+              >
+                {option.label}
+              </Button>
+            </Link>
+          ))}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["Inactive", referralEngine.insights.referredButInactive],
+            ["Incomplete", referralEngine.insights.referredButIncomplete],
+            ["Activated", referralEngine.insights.referredAndActivated],
+            ["Likely Pro", referralEngine.insights.likelyProCandidates]
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl border border-border/80 bg-background/25 p-3">
+              <p className="text-xs text-muted">{label}</p>
+              <p className="mt-2 text-xl font-semibold text-foreground">
+                {Number(value).toLocaleString("en-GB")}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <details open className="group rounded-2xl border border-border/80 bg-background/20">
+          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Top Referrers</p>
+              <p className="mt-1 text-xs text-muted">Compact leaderboard for the selected sort.</p>
+            </div>
+            <ChevronDown size={17} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="grid gap-2 border-t border-border/70 p-4 xl:grid-cols-2">
+            {referralEngine.topReferrers.length ? (
+              referralEngine.topReferrers.map((referrer) => (
+                <article key={referrer.userId} className="rounded-xl border border-border/80 bg-background/25 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{referrer.name}</p>
+                      {referrer.email ? (
+                        <p className="mt-1 break-all text-xs text-muted">{referrer.email}</p>
+                      ) : null}
+                      {referrer.code ? (
+                        <p className="mt-1 break-all text-xs text-muted">/r/{referrer.code}</p>
+                      ) : null}
+                    </div>
+                    <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
+                      {numberLabel(referrer.metricValue)}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <AdminLinkButton href={`/admin/members/${referrer.userId}`} label="Member" />
+                    {referrer.cardSlug ? (
+                      <AdminLinkButton href={`/card/${referrer.cardSlug}`} label="Card" external />
+                    ) : null}
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState icon={Send} title="No referrers yet" description="Referral leaders will appear here." />
+            )}
+          </div>
+        </details>
+
+        <details className="group rounded-2xl border border-border/80 bg-background/20">
+          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Recent Referrals</p>
+              <p className="mt-1 text-xs text-muted">Latest clicks, signups, activations and product interest.</p>
+            </div>
+            <ChevronDown size={17} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-2 border-t border-border/70 p-4">
+            {referralEngine.recentReferrals.length ? (
+              referralEngine.recentReferrals.map((referral) => (
+                <ActivityRow
+                  key={referral.id}
+                  title={referral.referrer.name}
+                  meta={referral.referredUser ? `Referred ${referral.referredUser.email}` : "Pending signup"}
+                  detail={[
+                    referral.activationStatus,
+                    referral.referralSource ? `source: ${referral.referralSource}` : "",
+                    referral.proInterestAt ? "Pro interest" : "",
+                    referral.teamsInterestAt ? "Teams interest" : ""
+                  ]
+                    .filter(Boolean)
+                    .join(" / ")}
+                  href={`/admin/members/${referral.referrer.id}`}
+                  date={referral.activatedAt ?? referral.signedUpAt ?? referral.clickedAt}
+                />
+              ))
+            ) : (
+              <EmptyState icon={Send} title="No referral activity" description="Referral activity will appear here." />
+            )}
+          </div>
+        </details>
+      </CardContent>
+    </Card>
   );
 }
 

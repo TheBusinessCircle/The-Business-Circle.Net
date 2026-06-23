@@ -29,6 +29,7 @@ model User {
   acceptedTermsVersion           String?
   acceptedRulesVersion           String?
   registrationSource             String?
+  circleCardReferralCode         String?                      @unique @db.VarChar(120)
   suspended                      Boolean                      @default(false)
   suspendedAt                    DateTime?
   createdAt                      DateTime                     @default(now())
@@ -118,6 +119,8 @@ model User {
   circleCardIntroductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonB")
   circleCardReferralsMade              CircleCardReferral[] @relation("CircleCardReferralReferrer")
   circleCardReferralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipient")
+  circleCardGrowthReferralsMade        CircleCardGrowthReferral[] @relation("CircleCardGrowthReferralReferrer")
+  circleCardGrowthReferralReceived     CircleCardGrowthReferral? @relation("CircleCardGrowthReferralReferredUser")
   opportunities                        Opportunity[]
   circleCardNotifications              CircleCardNotification[]
   circleCardActivities                 CircleCardActivity[]
@@ -453,6 +456,7 @@ model CircleCard {
   introductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonBCard")
   referralsMade              CircleCardReferral[] @relation("CircleCardReferralReferrerCard")
   referralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipientCard")
+  growthReferralsMade        CircleCardGrowthReferral[] @relation("CircleCardGrowthReferralCard")
   opportunities              Opportunity[]
   notifications              CircleCardNotification[]
   activities                 CircleCardActivity[]
@@ -662,6 +666,38 @@ model CircleCardReferral {
   @@index([status])
   @@index([createdAt])
   @@index([recipientCardId, visibility, status, createdAt])
+}
+
+model CircleCardGrowthReferral {
+  id               String    @id @default(cuid())
+  referrerUserId   String
+  referrerCardId   String?
+  referredUserId   String?   @unique
+  referralCode     String    @db.VarChar(120)
+  referralSource   String?   @db.VarChar(80)
+  visitorId        String?   @db.VarChar(120)
+  clickedAt        DateTime  @default(now())
+  signedUpAt       DateTime?
+  activatedAt      DateTime?
+  activationStatus String    @default("CLICKED") @db.VarChar(40)
+  proInterestAt    DateTime?
+  teamsInterestAt  DateTime?
+  metadata         Json      @default("{}")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  referrerUser     User      @relation("CircleCardGrowthReferralReferrer", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referrerCard     CircleCard? @relation("CircleCardGrowthReferralCard", fields: [referrerCardId], references: [id], onDelete: SetNull)
+  referredUser     User?     @relation("CircleCardGrowthReferralReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+
+  @@index([referrerUserId, createdAt])
+  @@index([referrerCardId])
+  @@index([referralCode, createdAt])
+  @@index([visitorId, createdAt])
+  @@index([activationStatus, createdAt])
+  @@index([signedUpAt])
+  @@index([activatedAt])
+  @@index([proInterestAt])
+  @@index([teamsInterestAt])
 }
 
 model CircleCardConnectionRequest {

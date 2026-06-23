@@ -32,12 +32,14 @@ type CircleCardRegisterFormProps = {
   };
   returnTo?: string;
   sourceCardSlug?: string;
+  referralCode?: string;
 };
 
 export function CircleCardRegisterForm({
   defaults,
   returnTo,
-  sourceCardSlug
+  sourceCardSlug,
+  referralCode
 }: CircleCardRegisterFormProps = {}) {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
@@ -58,7 +60,8 @@ export function CircleCardRegisterForm({
       marketingEmailOptIn: false,
       businessName: defaults?.businessName ?? "",
       returnTo: returnTo ?? "",
-      sourceCardSlug: sourceCardSlug ?? ""
+      sourceCardSlug: sourceCardSlug ?? "",
+      referralCode: referralCode ?? ""
     }
   });
 
@@ -81,7 +84,8 @@ export function CircleCardRegisterForm({
           marketingEmailOptIn: values.marketingEmailOptIn,
           businessName: values.businessName,
           returnTo: values.returnTo,
-          sourceCardSlug: values.sourceCardSlug
+          sourceCardSlug: values.sourceCardSlug,
+          referralCode: values.referralCode
         })
       });
       const data = (await response.json().catch(() => ({}))) as CircleCardRegisterResponse;
@@ -147,6 +151,7 @@ export function CircleCardRegisterForm({
           <input type="hidden" {...form.register("source")} />
           <input type="hidden" {...form.register("returnTo")} />
           <input type="hidden" {...form.register("sourceCardSlug")} />
+          <input type="hidden" {...form.register("referralCode")} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

@@ -132,6 +132,10 @@ import {
   circleCardReferralVisibilityLabel
 } from "@/lib/circle-card/referrals";
 import {
+  buildCircleCardReferralPath,
+  circleCardReferralStatusLabel as circleCardGrowthReferralStatusLabel
+} from "@/lib/circle-card/referral-engine";
+import {
   CIRCLE_CARD_OPPORTUNITY_CURRENCY_OPTIONS,
   CIRCLE_CARD_OPPORTUNITY_SOURCE_TYPES,
   CIRCLE_CARD_OPPORTUNITY_STATUSES,
@@ -195,7 +199,9 @@ import { absoluteUrl, cn, formatCurrency, formatDate } from "@/lib/utils";
 import {
   calculateCircleCardCompletionForCard,
   createDueOpportunityNotificationsForUser,
+  getCircleCardReferralCentreForUser,
   getCircleCardAnalyticsSummary,
+  markCircleCardReferralActivationForUser,
   syncCircleCardActivationLeadScore,
   trackCircleCardEvent
 } from "@/server/circle-card";
@@ -218,6 +224,7 @@ const CIRCLE_CARD_APP_SECTIONS = [
   "my-card",
   "network",
   "business",
+  "referrals",
   "share",
   "settings"
 ] as const;
@@ -229,6 +236,7 @@ const CIRCLE_CARD_APP_SECTION_LABELS: Record<CircleCardAppSection, string> = {
   "my-card": "My Card",
   network: "Network",
   business: "Business",
+  referrals: "Referrals",
   share: "Share",
   settings: "Settings"
 };
@@ -1252,7 +1260,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     opportunities,
     notifications,
     unreadNotificationCount,
-    activityItems
+    activityItems,
+    referralCentre
   ] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id },
@@ -1706,7 +1715,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         entityId: true,
         createdAt: true
       }
-    })
+    }),
+    getCircleCardReferralCentreForUser(session.user.id)
   ]);
   const normalizedWalletContacts = walletContacts.map((contact) => {
     const socialLinks = readCircleWalletBusinessCardSocialLinks(contact.socialLinks);
@@ -2199,6 +2209,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     {}
   );
   const publicUrl = card ? absoluteUrl(`/card/${card.slug}`) : null;
+  const referralPath = referralCentre?.identity.code
+    ? buildCircleCardReferralPath(referralCentre.identity.code)
+    : "";
+  const referralUrl = referralPath ? absoluteUrl(referralPath) : null;
+  const referralShareUrl = referralUrl ? `${referralUrl}?source=referral_share` : null;
+  const referralQrUrl = referralUrl ? `${referralUrl}?source=referral_qr` : null;
   const qrUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "qr") : null;
   const nfcUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "nfc") : null;
   const eventUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "event") : null;
@@ -2287,6 +2303,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       userId: session.user.id,
       completion: circleCardCompletion
     });
+    if (circleCardCompletion.activationComplete) {
+      await markCircleCardReferralActivationForUser({
+        userId: session.user.id,
+        circleCardId: card.id,
+        completionScore: circleCardCompletion.score
+      });
+    }
   }
 
   const analyticsOverview = [
@@ -2382,6 +2405,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       icon: ShoppingBag,
       badge: receivedReferrals.length + dueOpportunityFollowUps.length
     },
+    {
+      section: "referrals",
+      icon: Send,
+      badge: referralCentre?.stats.signups
+    },
     { section: "share", icon: QrCode },
     { section: "settings", icon: MenuIcon }
   ];
@@ -2417,6 +2445,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       value: savedContactCount,
       href: "/dashboard/circle-card/wallet",
       icon: WalletCards
+    },
+    {
+      label: "Referral signups",
+      value: referralCentre?.stats.signups ?? 0,
+      href: circleCardSectionHref("referrals", "referral-centre"),
+      icon: Send
     }
   ];
   const recentHomeActivity = visibleActivityItems.slice(0, 3);
@@ -2495,11 +2529,18 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 Introductions
               </Link>
               <Link
+                href={circleCardSectionHref("referrals", "referral-centre")}
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
+              >
+                <Send size={16} />
+                Referral Centre
+              </Link>
+              <Link
                 href={circleCardSectionHref("business", "referrals")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
               >
                 <Handshake size={16} />
-                Referrals
+                Business Referrals
               </Link>
               <Link
                 href={circleCardSectionHref("business", "opportunities")}
@@ -2827,7 +2868,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </Card>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           {homeQuickStats.map((item) => {
             const Icon = item.icon;
 
@@ -2849,6 +2890,163 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           })}
         </div>
       </section>
+
+      <CircleCardDashboardSection
+        id="referral-centre"
+        title="Referral Centre"
+        summary="Share Circle Card with people who would benefit from a cleaner way to connect"
+        appSection="referrals"
+        className={activeSection === "referrals" ? undefined : "hidden"}
+        defaultOpen
+        badge={
+          <Badge variant="outline" className="border-gold/28 text-gold">
+            {referralCentre?.stats.signups ?? 0} signup
+            {(referralCentre?.stats.signups ?? 0) === 1 ? "" : "s"}
+          </Badge>
+        }
+      >
+        {referralCentre && referralUrl ? (
+          <div className="space-y-5">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-gold/18 bg-gold/8 p-4 sm:p-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                        My referral link
+                      </p>
+                      <p className="mt-2 break-all text-sm font-medium text-foreground">
+                        {referralUrl}
+                      </p>
+                      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+                        Invite people to discover Circle Card. Clicks, signups and activation are
+                        tracked here before rewards are switched on.
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="w-fit shrink-0 border-silver/18 text-silver">
+                      {referralCentre.identity.code}
+                    </Badge>
+                  </div>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                    <CircleCardCopyLinkButton
+                      publicUrl={referralUrl}
+                      label="Copy referral link"
+                      className="h-11 w-full"
+                    />
+                    <CircleCardShareButton
+                      title="Circle Card"
+                      publicUrl={referralShareUrl ?? referralUrl}
+                      text="Create your free Circle Card and make it easier for people to connect with you."
+                      label="Share referral link"
+                      hideStatus
+                      buttonClassName="h-11"
+                    />
+                    <Link href="#referral-qr">
+                      <Button type="button" variant="outline" className="h-11 w-full gap-2">
+                        <QrCode size={16} />
+                        Referral QR
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  {[
+                    ["Referral Clicks", referralCentre.stats.clicks, "People who opened your link"],
+                    ["Referral Signups", referralCentre.stats.signups, "People who created an account"],
+                    ["Activated Referrals", referralCentre.stats.activated, "Completed key setup"],
+                    ["Pro Referrals", referralCentre.stats.proReferrals, "Pro interest captured"],
+                    ["Teams Referrals", referralCentre.stats.teamsReferrals, "Teams interest captured"]
+                  ].map(([label, value, hint]) => (
+                    <div key={label} className="rounded-2xl border border-silver/14 bg-background/20 p-4">
+                      <p className="text-xs text-muted">{label}</p>
+                      <p className="mt-2 text-2xl font-semibold text-foreground">
+                        {Number(value).toLocaleString("en-GB")}
+                      </p>
+                      <p className="mt-2 text-xs leading-relaxed text-muted">{hint}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-2xl border border-silver/14 bg-card/58 p-4">
+                    <p className="text-sm font-semibold text-foreground">Activation insight</p>
+                    <div className="mt-3 grid gap-2 text-sm text-muted">
+                      <p>Inactive: {referralCentre.insights.referredButInactive}</p>
+                      <p>Incomplete: {referralCentre.insights.referredButIncomplete}</p>
+                      <p>Activated: {referralCentre.insights.referredAndActivated}</p>
+                      <p>Likely Pro candidates: {referralCentre.insights.likelyProCandidates}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-gold/18 bg-gold/8 p-4">
+                    <p className="text-sm font-semibold text-foreground">Future Earnings</p>
+                    <p className="mt-2 font-display text-2xl text-gold">
+                      {referralCentre.rewardAwareness.statusLabel}
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                      Reward tiers are recognised in the architecture, but no payout or commission
+                      calculations are active.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div id="referral-qr">
+                  <CircleCardQrPanel
+                    publicUrl={referralQrUrl ?? referralUrl}
+                    slug={`${referralCentre.identity.code}-referral`}
+                    label="Referral QR code"
+                    showCopyImage
+                  />
+                </div>
+                <div className="rounded-2xl border border-silver/14 bg-card/58 p-4">
+                  <p className="text-sm font-semibold text-foreground">Recent referrals</p>
+                  <div className="mt-3 space-y-2">
+                    {referralCentre.recentReferrals.length ? (
+                      referralCentre.recentReferrals.map((referral) => (
+                        <div
+                          key={referral.id}
+                          className="rounded-xl border border-silver/12 bg-background/20 p-3"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {referral.name}
+                              </p>
+                              {referral.email ? (
+                                <p className="mt-1 break-all text-xs text-muted">{referral.email}</p>
+                              ) : null}
+                            </div>
+                            <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
+                              {circleCardGrowthReferralStatusLabel(referral.activationStatus)}
+                            </Badge>
+                          </div>
+                          <p className="mt-2 text-xs text-muted">
+                            {referral.activatedAt
+                              ? `Activated ${formatDate(referral.activatedAt)}`
+                              : referral.signedUpAt
+                                ? `Signed up ${formatDate(referral.signedUpAt)}`
+                                : `Clicked ${formatDate(referral.clickedAt)}`}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
+                        Referral signups and activations will appear here.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+            Create your Circle Card to generate a referral identity.
+          </div>
+        )}
+      </CircleCardDashboardSection>
 
       <CircleCardDashboardSection
         id="notifications"

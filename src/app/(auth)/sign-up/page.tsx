@@ -26,6 +26,7 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
     const returnTo = firstValue(params.returnTo);
     const sourceCardSlug = firstValue(params.sourceCardSlug);
     const claim = firstValue(params.claim);
+    const referralCode = firstValue(params.ref) || firstValue(params.referralCode);
 
     if (returnTo) {
       registerParams.set("returnTo", returnTo);
@@ -37,6 +38,10 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
 
     if (claim) {
       registerParams.set("claim", claim);
+    }
+
+    if (referralCode) {
+      registerParams.set("referralCode", referralCode);
     }
 
     redirect(`/register?${registerParams.toString()}`);

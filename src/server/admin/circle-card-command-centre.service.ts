@@ -28,6 +28,7 @@ import {
   calculateCircleCardCompletionForCard,
   getCircleCardActivationSnapshot
 } from "@/server/circle-card/activation.service";
+import { getAdminCircleCardReferralEngineDashboard } from "@/server/circle-card/referral-engine.service";
 
 const ACTIVE_SUBSCRIPTION_STATUSES: SubscriptionStatus[] = [
   SubscriptionStatus.ACTIVE,
@@ -1895,7 +1896,10 @@ function eventCount(
   return counts.find((count) => count.eventType === eventType)?._count._all ?? 0;
 }
 
-export async function getAdminCircleCardCommandCentre(input: { query?: string } = {}) {
+export async function getAdminCircleCardCommandCentre(input: {
+  query?: string;
+  referralSort?: string | null;
+} = {}) {
   await requireAdmin();
 
   const { startOfToday, weekAgo, monthAgo } = buildDateWindow();
@@ -1939,6 +1943,7 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
     activationSnapshot,
     planBoundary,
     discoverPrivacy,
+    referralEngine,
     search
   ] = await Promise.all([
     db.user.count({
@@ -2297,6 +2302,9 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
     }),
     loadCircleCardPlanBoundary(),
     loadDiscoverPrivacySnapshot(),
+    getAdminCircleCardReferralEngineDashboard({
+      sort: input.referralSort
+    }),
     loadSearch(input.query ?? "")
   ]);
 
@@ -2432,6 +2440,7 @@ export async function getAdminCircleCardCommandCentre(input: { query?: string } 
       latestReports
     },
     plans: planBoundary,
+    referralEngine,
     search,
     meta: {
       topCardLimit: TOP_CARD_LIMIT,

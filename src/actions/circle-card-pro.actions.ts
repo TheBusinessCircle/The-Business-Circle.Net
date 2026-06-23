@@ -1,16 +1,23 @@
 "use server";
 
 import { LeadSource, Prisma } from "@prisma/client";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/auth";
+import {
+  CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID,
+  CIRCLE_CARD_REFERRAL_COOKIE_CODE,
+  CIRCLE_CARD_REFERRAL_COOKIE_SOURCE
+} from "@/lib/circle-card/referral-engine";
 import { prisma } from "@/lib/prisma";
+import { logServerWarning } from "@/lib/security/logging";
 import {
   clientIpFromHeaders,
   consumeRateLimit
 } from "@/lib/security/rate-limit";
 import { recordLead } from "@/server/lead-generation";
+import { markCircleCardReferralProductInterest } from "@/server/circle-card";
 
 const CIRCLE_CARD_PRO_INTEREST_SOURCE = "CIRCLE_CARD_PRO_INTEREST";
 const CIRCLE_CARD_PRO_INTEREST_PATH = "/circle-card/pro";
@@ -43,6 +50,16 @@ function redirectWithStatus(
   }
 
   redirect(`${path}?error=${status}#register-interest`);
+}
+
+async function readCircleCardReferralContext() {
+  const cookieStore = await cookies();
+
+  return {
+    referralCode: cookieStore.get(CIRCLE_CARD_REFERRAL_COOKIE_CODE)?.value ?? "",
+    referralClickId: cookieStore.get(CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID)?.value ?? "",
+    referralSource: cookieStore.get(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE)?.value ?? ""
+  };
 }
 
 export async function registerCircleCardProInterestAction(formData: FormData) {
@@ -146,6 +163,20 @@ export async function registerCircleCardProInterestAction(formData: FormData) {
         tags: ["pro-interest"]
       } satisfies Prisma.InputJsonObject
     });
+    try {
+      const referralContext = await readCircleCardReferralContext();
+      await markCircleCardReferralProductInterest({
+        product: "PRO",
+        userId: activeUserContext?.id,
+        referralCode: referralContext.referralCode,
+        referralClickId: referralContext.referralClickId,
+        source: referralContext.referralSource || "circle_card_pro_interest"
+      });
+    } catch (error) {
+      logServerWarning("circle-card-pro-referral-interest-mark-failed", {
+        error: error instanceof Error ? error.message : "unknown"
+      });
+    }
   } catch {
     redirectWithStatus(CIRCLE_CARD_PRO_INTEREST_PATH, "failed");
   }
@@ -263,6 +294,20 @@ export async function registerCircleCardTeamsInterestAction(formData: FormData) 
         tags: ["teams-interest"]
       } satisfies Prisma.InputJsonObject
     });
+    try {
+      const referralContext = await readCircleCardReferralContext();
+      await markCircleCardReferralProductInterest({
+        product: "TEAMS",
+        userId: activeUserContext?.id,
+        referralCode: referralContext.referralCode,
+        referralClickId: referralContext.referralClickId,
+        source: referralContext.referralSource || "circle_card_teams_interest"
+      });
+    } catch (error) {
+      logServerWarning("circle-card-teams-referral-interest-mark-failed", {
+        error: error instanceof Error ? error.message : "unknown"
+      });
+    }
   } catch {
     redirectWithStatus(CIRCLE_CARD_TEAMS_INTEREST_PATH, "failed");
   }

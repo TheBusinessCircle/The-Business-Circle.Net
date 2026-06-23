@@ -5,4 +5,5 @@ export * from "@/server/circle-card/business-card-scanner.service";
 export * from "@/server/circle-card/moderation.service";
 export * from "@/server/circle-card/notifications.service";
 export * from "@/server/circle-card/public-card.service";
+export * from "@/server/circle-card/referral-engine.service";
 export * from "@/server/circle-card/upload.service";

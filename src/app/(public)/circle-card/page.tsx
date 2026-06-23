@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   BadgeCheck,
@@ -20,6 +21,7 @@ import {
   CIRCLE_CARD_ONBOARDING_PATH
 } from "@/lib/circle-card/routes";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
+import { normalizeCircleCardReferralCode } from "@/lib/circle-card/referral-engine";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +58,24 @@ const HOW_IT_WORKS = [
   }
 ] as const;
 
-export default async function CircleCardLandingPage() {
+type CircleCardLandingPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function firstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function CircleCardLandingPage({
+  searchParams
+}: CircleCardLandingPageProps) {
+  const params = await searchParams;
+  const referralCode = normalizeCircleCardReferralCode(firstValue(params.ref));
+
+  if (referralCode) {
+    redirect(`/r/${referralCode}?source=circle_card_query`);
+  }
+
   const session = await auth();
   const existingCard = session?.user && !session.user.suspended
     ? await prisma.circleCard.findFirst({

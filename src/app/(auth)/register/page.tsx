@@ -4,6 +4,7 @@ import { CircleCardRegisterForm } from "@/components/auth/circle-card-register-f
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
+import { normalizeCircleCardReferralCode } from "@/lib/circle-card/referral-engine";
 import { buildJoinConfirmationRedirect, firstValue } from "@/lib/join/routing";
 import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
 import { prisma } from "@/lib/prisma";
@@ -40,6 +41,9 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
     const claimToken = firstValue(params.claim);
     const returnTo = safeRedirectPath(firstValue(params.returnTo), "");
     const sourceCardSlugCandidate = firstValue(params.sourceCardSlug);
+    const referralCode = normalizeCircleCardReferralCode(
+      firstValue(params.ref) || firstValue(params.referralCode)
+    );
     const sourceCardSlug =
       sourceCardSlugCandidate && /^[a-z0-9-]+$/i.test(sourceCardSlugCandidate)
         ? sourceCardSlugCandidate
@@ -79,6 +83,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
         <CircleCardRegisterForm
           returnTo={returnTo}
           sourceCardSlug={sourceCardSlug}
+          referralCode={referralCode}
           defaults={{
             name: claimContact?.fullName ?? "",
             email: claimContact?.email ?? "",
