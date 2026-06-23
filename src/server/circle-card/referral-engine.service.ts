@@ -3,6 +3,7 @@ import "server-only";
 import { CircleCardEventType, Prisma } from "@prisma/client";
 import {
   CIRCLE_CARD_REFERRAL_ACTIVATION_STATUSES,
+  CIRCLE_CARD_REFERRAL_SOURCE_TYPES,
   normalizeCircleCardReferralSourceCardSlug,
   normalizeCircleCardReferralSourceType,
   normalizeCircleCardReferralCode,
@@ -17,6 +18,7 @@ import { slugify } from "@/lib/utils";
 const REFERRAL_RECENT_LIMIT = 8;
 const ADMIN_REFERRAL_RECENT_LIMIT = 12;
 const ADMIN_TOP_REFERRER_LIMIT = 8;
+const ADMIN_REFERRAL_VALIDATION_RECENT_LIMIT = 10;
 const RESERVED_REFERRAL_CODES = new Set([
   "admin",
   "api",
@@ -102,6 +104,28 @@ function readReferralMetadata(value: Prisma.JsonValue | null | undefined) {
   }
 
   return { ...(value as Record<string, unknown>) };
+}
+
+function referralMetadataString(
+  metadata: Prisma.JsonValue | null | undefined,
+  key: string
+) {
+  const value = readReferralMetadata(metadata)[key];
+
+  return typeof value === "string" ? value : null;
+}
+
+function referralSourceType(referral: {
+  referralSource: string | null;
+  metadata: Prisma.JsonValue | null;
+}) {
+  return (
+    normalizeCircleCardReferralSourceType(referralMetadataString(referral.metadata, "sourceType")) ??
+    normalizeCircleCardReferralSourceType(referral.referralSource) ??
+    (referral.referralSource === "referral_link" || referral.referralSource === "circle_card_query"
+      ? "direct_referral_route"
+      : "last_safe_source")
+  );
 }
 
 async function createReferralNotificationOnce(input: {
@@ -460,6 +484,8 @@ async function loadAttributionReferral(input: {
         referrerCardId: true,
         referralCode: true,
         referralSource: true,
+        proInterestAt: true,
+        teamsInterestAt: true,
         metadata: true
       }
     });
@@ -487,6 +513,8 @@ async function loadAttributionReferral(input: {
       referrerCardId: true,
       referralCode: true,
       referralSource: true,
+      proInterestAt: true,
+      teamsInterestAt: true,
       metadata: true
     }
   });
@@ -720,7 +748,13 @@ export async function markCircleCardReferralProductInterest(input: {
   const existing = input.userId
     ? await prisma.circleCardGrowthReferral.findUnique({
         where: { referredUserId: input.userId },
-        select: { id: true, proInterestAt: true, teamsInterestAt: true }
+        select: {
+          id: true,
+          referrerUserId: true,
+          referrerCardId: true,
+          proInterestAt: true,
+          teamsInterestAt: true
+        }
       })
     : await loadAttributionReferral(input);
 
@@ -729,6 +763,29 @@ export async function markCircleCardReferralProductInterest(input: {
       where: { id: existing.id },
       data: productData
     });
+
+    const alreadyMarked =
+      input.product === "PRO" ? existing.proInterestAt : existing.teamsInterestAt;
+
+    if (!alreadyMarked) {
+      await createReferralNotificationOnce({
+        userId: existing.referrerUserId,
+        circleCardId: existing.referrerCardId,
+        title:
+          input.product === "PRO"
+            ? "A referral registered Pro interest"
+            : "A referral registered Teams interest",
+        message:
+          input.product === "PRO"
+            ? "Future rewards will be tracked when Pro billing is active."
+            : "Teams interest has been captured from a referral. No payout logic is active.",
+        entityType:
+          input.product === "PRO"
+            ? "CIRCLE_CARD_REFERRAL_PRO_INTEREST"
+            : "CIRCLE_CARD_REFERRAL_TEAMS_INTEREST",
+        entityId: existing.id
+      });
+    }
 
     return { marked: true as const, referralId: existing.id };
   }
@@ -752,7 +809,29 @@ export async function markCircleCardReferralProductInterest(input: {
         productInterest: input.product
       })
     },
-    select: { id: true }
+    select: {
+      id: true,
+      referrerUserId: true,
+      referrerCardId: true
+    }
+  });
+
+  await createReferralNotificationOnce({
+    userId: referral.referrerUserId,
+    circleCardId: referral.referrerCardId,
+    title:
+      input.product === "PRO"
+        ? "A referral registered Pro interest"
+        : "A referral registered Teams interest",
+    message:
+      input.product === "PRO"
+        ? "Future rewards will be tracked when Pro billing is active."
+        : "Teams interest has been captured from a referral. No payout logic is active.",
+    entityType:
+      input.product === "PRO"
+        ? "CIRCLE_CARD_REFERRAL_PRO_INTEREST"
+        : "CIRCLE_CARD_REFERRAL_TEAMS_INTEREST",
+    entityId: referral.id
   });
 
   return { marked: true as const, referralId: referral.id };
@@ -864,11 +943,92 @@ export async function getCircleCardReferralCentreForUser(userId: string) {
       activationStatus: sanitizeStatus(referral.activationStatus),
       proInterestAt: referral.proInterestAt,
       teamsInterestAt: referral.teamsInterestAt
-    }))
+    })),
+    nudges: [
+      {
+        id: "referral-link-ready",
+        title: "Your referral link is ready",
+        message: "Share your Circle Card referral link with people who would benefit from easier connection.",
+        actionHref: "#referral-link-actions",
+        actionLabel: "Share link"
+      },
+      clicks === 0
+        ? {
+            id: "first-referral-waiting",
+            title: "Your first referral is waiting",
+            message: "One useful share is enough to start seeing whether your network is responding.",
+            actionHref: "#referral-link-actions",
+            actionLabel: "Copy referral link"
+          }
+        : null,
+      signups > 0
+        ? {
+            id: "someone-joined",
+            title: "Someone joined through your Circle",
+            message: "Your referral loop is working. Keep sharing where Circle Card would genuinely help.",
+            actionHref: "#recent-referrals",
+            actionLabel: "View referrals"
+          }
+        : null,
+      activated > 0
+        ? {
+            id: "referral-activated",
+            title: "One referral completed their Circle Card",
+            message: "Activation is being tracked before future rewards are enabled.",
+            actionHref: "#recent-referrals",
+            actionLabel: "View activation"
+          }
+        : null
+    ].filter(
+      (
+        nudge
+      ): nudge is {
+        id: string;
+        title: string;
+        message: string;
+        actionHref: string;
+        actionLabel: string;
+      } => Boolean(nudge)
+    )
   };
 }
 
 type AdminReferralSort = "clicks" | "signups" | "activations" | "pro" | "teams";
+
+const ADMIN_REFERRAL_SOURCE_FILTERS: Record<
+  CircleCardReferralSourceType,
+  Prisma.CircleCardGrowthReferralWhereInput
+> = {
+  direct_referral_route: {
+    referralSource: {
+      in: [
+        "referral_link",
+        "direct_referral_route",
+        "circle_card_query",
+        "circle_card_landing_ref"
+      ]
+    }
+  },
+  circle_card_landing_ref: {
+    referralSource: {
+      in: ["circle_card_query", "circle_card_landing_ref"]
+    }
+  },
+  public_card_ref: {
+    referralSource: "public_card_ref"
+  },
+  spin_to_connect: {
+    referralSource: "spin_to_connect"
+  },
+  signup_referral_code: {
+    referralSource: "signup_referral_code"
+  },
+  last_safe_source: {
+    referralSource: {
+      in: ["last_safe_source", "circle_card_signup", "circle_card_product_interest"]
+    }
+  }
+};
 
 function mergeCount(
   target: Map<string, number>,
@@ -879,8 +1039,159 @@ function mergeCount(
   }
 }
 
+async function countReferralSourceTypes(
+  baseWhere: Prisma.CircleCardGrowthReferralWhereInput = {}
+) {
+  const entries = await Promise.all(
+    CIRCLE_CARD_REFERRAL_SOURCE_TYPES.map(async (sourceType) => [
+      sourceType,
+      await prisma.circleCardGrowthReferral.count({
+        where: {
+          AND: [baseWhere, ADMIN_REFERRAL_SOURCE_FILTERS[sourceType]]
+        }
+      })
+    ] as const)
+  );
+
+  return Object.fromEntries(entries) as Record<CircleCardReferralSourceType, number>;
+}
+
+async function getAdminCircleCardReferralValidationSnapshot(input: {
+  code?: string | null;
+}) {
+  const code = normalizeCircleCardReferralCode(input.code);
+
+  if (!code) {
+    return null;
+  }
+
+  const owner = await loadReferralOwnerByCode(code);
+  const referralCodes = Array.from(
+    new Set([code, owner?.circleCardReferralCode].filter(Boolean) as string[])
+  );
+  const baseWhere: Prisma.CircleCardGrowthReferralWhereInput = owner
+    ? {
+        OR: [
+          { referrerUserId: owner.id },
+          referralCodes.length ? { referralCode: { in: referralCodes } } : {}
+        ]
+      }
+    : {
+        referralCode: {
+          in: referralCodes
+        }
+      };
+  const [
+    clicks,
+    signups,
+    activations,
+    proInterest,
+    teamsInterest,
+    sourceTypeCounts,
+    recentEvents
+  ] = await Promise.all([
+    prisma.circleCardGrowthReferral.count({ where: baseWhere }),
+    prisma.circleCardGrowthReferral.count({
+      where: { AND: [baseWhere, { signedUpAt: { not: null } }] }
+    }),
+    prisma.circleCardGrowthReferral.count({
+      where: { AND: [baseWhere, { activatedAt: { not: null } }] }
+    }),
+    prisma.circleCardGrowthReferral.count({
+      where: { AND: [baseWhere, { proInterestAt: { not: null } }] }
+    }),
+    prisma.circleCardGrowthReferral.count({
+      where: { AND: [baseWhere, { teamsInterestAt: { not: null } }] }
+    }),
+    countReferralSourceTypes(baseWhere),
+    prisma.circleCardGrowthReferral.findMany({
+      where: baseWhere,
+      orderBy: [{ updatedAt: "desc" }, { clickedAt: "desc" }],
+      take: ADMIN_REFERRAL_VALIDATION_RECENT_LIMIT,
+      select: {
+        id: true,
+        referralCode: true,
+        referralSource: true,
+        metadata: true,
+        clickedAt: true,
+        signedUpAt: true,
+        activatedAt: true,
+        activationStatus: true,
+        proInterestAt: true,
+        teamsInterestAt: true,
+        referredUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            circleCards: {
+              orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+              take: 1,
+              select: {
+                slug: true,
+                fullName: true,
+                businessName: true
+              }
+            }
+          }
+        }
+      }
+    })
+  ]);
+  const ownerCard = owner?.circleCards[0] ?? null;
+  const validationCode = owner?.circleCardReferralCode || code;
+
+  return {
+    query: code,
+    found: Boolean(owner || clicks),
+    owner: owner
+      ? {
+          id: owner.id,
+          name: referralDisplayName(owner),
+          email: owner.email,
+          referralCode: owner.circleCardReferralCode,
+          cardSlug: ownerCard?.slug ?? null,
+          cardName: ownerCard ? [ownerCard.fullName, ownerCard.businessName].filter(Boolean).join(" / ") : null
+        }
+      : null,
+    referralLink: `/r/${validationCode}`,
+    publicCardRefLink: ownerCard ? `/card/${ownerCard.slug}?ref=${validationCode}` : null,
+    stats: {
+      clicks,
+      signups,
+      activations,
+      proInterest,
+      teamsInterest
+    },
+    sourceTypeCounts,
+    recentEvents: recentEvents.map((event) => ({
+      id: event.id,
+      referralCode: event.referralCode,
+      sourceType: referralSourceType(event),
+      sourceCardSlug: referralMetadataString(event.metadata, "sourceCardSlug"),
+      sourceEvent: referralMetadataString(event.metadata, "sourceEvent"),
+      referralSource: event.referralSource,
+      clickedAt: event.clickedAt,
+      signedUpAt: event.signedUpAt,
+      activatedAt: event.activatedAt,
+      activationStatus: sanitizeStatus(event.activationStatus),
+      proInterestAt: event.proInterestAt,
+      teamsInterestAt: event.teamsInterestAt,
+      referredUser: event.referredUser
+        ? {
+            id: event.referredUser.id,
+            name: referralDisplayName(event.referredUser),
+            email: event.referredUser.email,
+            cardSlug: event.referredUser.circleCards[0]?.slug ?? null
+          }
+        : null
+    }))
+  };
+}
+
 export async function getAdminCircleCardReferralEngineDashboard(input: {
   sort?: string | null;
+  validationCode?: string | null;
 } = {}) {
   const sort = (
     input.sort === "signups" ||
@@ -905,7 +1216,9 @@ export async function getAdminCircleCardReferralEngineDashboard(input: {
     activationGroups,
     proGroups,
     teamsGroups,
-    recentReferrals
+    recentReferrals,
+    sourceTypeCounts,
+    validation
   ] = await Promise.all([
     prisma.circleCardGrowthReferral.count(),
     prisma.circleCardGrowthReferral.count({ where: { signedUpAt: { not: null } } }),
@@ -997,7 +1310,9 @@ export async function getAdminCircleCardReferralEngineDashboard(input: {
           }
         }
       }
-    })
+    }),
+    countReferralSourceTypes(),
+    getAdminCircleCardReferralValidationSnapshot({ code: input.validationCode })
   ]);
 
   const scoreByUserId = new Map<string, number>();
@@ -1051,6 +1366,52 @@ export async function getAdminCircleCardReferralEngineDashboard(input: {
       publicCardReferralClicks,
       spinToConnectReferralClicks
     },
+    sourceTypeCounts,
+    exportViews: [
+      {
+        id: "top-referrers",
+        label: "Top referrers",
+        count: topUserIds.length,
+        description: "Leaderboard-ready referral rows by selected sort."
+      },
+      {
+        id: "by-source-type",
+        label: "Referrals by source type",
+        count: totalClicks,
+        description: "Direct, public-card, spin and safe-source attribution split."
+      },
+      {
+        id: "with-signups",
+        label: "Referrals with signups",
+        count: totalSignups,
+        description: "Rows with signedUpAt populated."
+      },
+      {
+        id: "activated",
+        label: "Activated referrals",
+        count: totalActivations,
+        description: "Rows with activatedAt populated."
+      },
+      {
+        id: "pro-interest",
+        label: "Pro interest referrals",
+        count: totalProInterest,
+        description: "Rows with Pro interest captured."
+      },
+      {
+        id: "teams-interest",
+        label: "Teams interest referrals",
+        count: totalTeamsInterest,
+        description: "Rows with Teams interest captured."
+      },
+      {
+        id: "inactive-referred-users",
+        label: "Inactive referred users",
+        count: Math.max(totalSignups - totalActivations, 0),
+        description: "Signed up but not activated."
+      }
+    ],
+    validation,
     insights: {
       referredButInactive: Math.max(totalSignups - totalActivations, 0),
       referredButIncomplete: Math.max(totalSignups - totalActivations, 0),

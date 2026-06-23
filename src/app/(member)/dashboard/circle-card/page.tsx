@@ -93,6 +93,7 @@ import {
   CircleCardSmartLinkFields,
   CircleCardThemeFields
 } from "@/components/circle-card";
+import { CircleCardReferralNudges } from "@/components/circle-card/circle-card-referral-nudges";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2948,7 +2949,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       {referralCentre.identity.code}
                     </Badge>
                   </div>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  <div id="referral-link-actions" className="mt-4 grid gap-2 sm:grid-cols-3">
                     <CircleCardCopyLinkButton
                       publicUrl={referralUrl}
                       label="Copy referral link"
@@ -2970,6 +2971,48 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     </Link>
                   </div>
                 </div>
+
+                <CircleCardReferralNudges nudges={referralCentre.nudges} />
+
+                {circleCardCompletion.score >= 80 && card ? (
+                  <div className="rounded-2xl border border-gold/20 bg-card/62 p-4 sm:p-5">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          Your Circle Card is ready to share.
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-muted">
+                          Your profile is strong enough to invite people in. Future rewards will be
+                          tracked when Pro billing is active.
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="w-fit shrink-0 border-gold/28 text-gold">
+                        {circleCardCompletion.score}% complete
+                      </Badge>
+                    </div>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      <CircleCardCopyLinkButton
+                        publicUrl={referralUrl}
+                        label="Copy referral link"
+                        className="h-11 w-full"
+                      />
+                      <CircleCardShareButton
+                        title="Circle Card"
+                        publicUrl={referralShareUrl ?? referralUrl}
+                        text="Create your free Circle Card and make it easier for people to connect with you."
+                        label="Share referral link"
+                        hideStatus
+                        buttonClassName="h-11"
+                      />
+                      <Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" variant="outline" className="h-11 w-full gap-2">
+                          Open public card
+                          <ArrowUpRight size={16} />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                   {[
@@ -3005,15 +3048,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       {referralCentre.rewardAwareness.statusLabel}
                     </p>
                     <p className="mt-2 text-sm leading-relaxed text-muted">
-                      Reward eligibility is tracked after a referred user upgrades to Pro. No payout
-                      or commission calculations are active.
+                      Future rewards will be tracked when Pro billing is active. No payout or
+                      commission calculations are active.
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div id="referral-qr">
+                  <div id="referral-qr">
                   <CircleCardQrPanel
                     publicUrl={referralQrUrl ?? referralUrl}
                     slug={`${referralCentre.identity.code}-referral`}
@@ -3021,7 +3064,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     showCopyImage
                   />
                 </div>
-                <div className="rounded-2xl border border-silver/14 bg-card/58 p-4">
+                <div id="recent-referrals" className="rounded-2xl border border-silver/14 bg-card/58 p-4">
                   <p className="text-sm font-semibold text-foreground">Recent referrals</p>
                   <div className="mt-3 space-y-2">
                     {referralCentre.recentReferrals.length ? (

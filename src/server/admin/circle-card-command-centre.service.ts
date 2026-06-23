@@ -1951,6 +1951,7 @@ function eventCount(
 export async function getAdminCircleCardCommandCentre(input: {
   query?: string;
   referralSort?: string | null;
+  referralCode?: string | null;
 } = {}) {
   await requireAdmin();
 
@@ -2355,7 +2356,8 @@ export async function getAdminCircleCardCommandCentre(input: {
     loadCircleCardPlanBoundary(),
     loadDiscoverPrivacySnapshot(),
     getAdminCircleCardReferralEngineDashboard({
-      sort: input.referralSort
+      sort: input.referralSort,
+      validationCode: input.referralCode
     }),
     loadSearch(input.query ?? "")
   ]);

@@ -114,7 +114,12 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const query = firstValue(params.q).trim();
   const referralSort = firstValue(params.refSort).trim();
-  const dashboard = await getAdminCircleCardCommandCentre({ query, referralSort });
+  const referralCode = firstValue(params.refCode).trim();
+  const dashboard = await getAdminCircleCardCommandCentre({
+    query,
+    referralSort,
+    referralCode
+  });
   const pricingReadiness = getCircleCardBillingReadiness();
   const teamsAnnualPrice = formatCircleCardAnnualPrice("TEAMS");
 
@@ -1165,9 +1170,20 @@ const referralSortOptions = [
   { label: "Teams", value: "teams" }
 ] as const;
 
+const referralSourceTypeLabels = {
+  direct_referral_route: "Direct referral route",
+  circle_card_landing_ref: "Circle Card landing ref",
+  public_card_ref: "Public card ref",
+  spin_to_connect: "Spin To Connect",
+  signup_referral_code: "Signup referral code",
+  last_safe_source: "Last safe source"
+} as const;
+
 function ReferralEnginePanel({ referralEngine }: { referralEngine: ReferralEngine }) {
   const activeSortLabel =
     referralSortOptions.find((option) => option.value === referralEngine.sort)?.label ?? "Clicks";
+  const validation = referralEngine.validation;
+  const validationCode = validation?.query ?? "";
 
   return (
     <Card>
@@ -1181,9 +1197,27 @@ function ReferralEnginePanel({ referralEngine }: { referralEngine: ReferralEngin
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <form action="/admin/circle-card#referrals" className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <Input
+            name="refCode"
+            defaultValue={validationCode}
+            placeholder="Search referral code or public card slug"
+            aria-label="Search referral code"
+          />
+          <Button type="submit" variant="outline" className="gap-2">
+            <Search size={15} />
+            Validate
+          </Button>
+        </form>
+
         <div className="flex flex-wrap gap-2">
           {referralSortOptions.map((option) => (
-            <Link key={option.value} href={`/admin/circle-card?refSort=${option.value}#referrals`}>
+            <Link
+              key={option.value}
+              href={`/admin/circle-card?refSort=${option.value}${
+                validationCode ? `&refCode=${encodeURIComponent(validationCode)}` : ""
+              }#referrals`}
+            >
               <Button
                 type="button"
                 variant={option.value === referralEngine.sort ? "default" : "outline"}
@@ -1225,6 +1259,153 @@ function ReferralEnginePanel({ referralEngine }: { referralEngine: ReferralEngin
             </div>
           ))}
         </div>
+
+        <details open={Boolean(validation)} className="group rounded-2xl border border-border/80 bg-background/20">
+          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Live Referral Validation</p>
+              <p className="mt-1 text-xs text-muted">
+                Search a referral code or public card slug to inspect owner, flow counts and attribution events.
+              </p>
+            </div>
+            <ChevronDown size={17} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-4 border-t border-border/70 p-4">
+            {validation ? (
+              <>
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.65fr)]">
+                  <div className="rounded-xl border border-border/80 bg-background/25 p-3">
+                    <p className="text-xs text-muted">Referral owner</p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {validation.owner?.name ?? (validation.found ? "Referral rows found" : "No owner found")}
+                    </p>
+                    {validation.owner?.email ? (
+                      <p className="mt-1 break-all text-xs text-muted">{validation.owner.email}</p>
+                    ) : null}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <AdminLinkButton href={validation.referralLink} label={validation.referralLink} external />
+                      {validation.publicCardRefLink ? (
+                        <AdminLinkButton href={validation.publicCardRefLink} label="Public ref test" external />
+                      ) : null}
+                      {validation.owner?.id ? (
+                        <AdminLinkButton href={`/admin/members/${validation.owner.id}`} label="Member" />
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      ["Clicks", validation.stats.clicks],
+                      ["Signups", validation.stats.signups],
+                      ["Activations", validation.stats.activations],
+                      ["Pro", validation.stats.proInterest],
+                      ["Teams", validation.stats.teamsInterest]
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-xl border border-border/80 bg-background/25 p-3">
+                        <p className="text-xs text-muted">{label}</p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">{numberLabel(Number(value))}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {Object.entries(referralSourceTypeLabels).map(([sourceType, label]) => (
+                    <div key={sourceType} className="rounded-xl border border-border/80 bg-background/25 p-3">
+                      <p className="text-xs text-muted">{label}</p>
+                      <p className="mt-1 text-lg font-semibold text-foreground">
+                        {numberLabel(validation.sourceTypeCounts[sourceType as keyof typeof referralSourceTypeLabels] ?? 0)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-foreground">Recent attribution events</p>
+                  {validation.recentEvents.length ? (
+                    validation.recentEvents.map((event) => (
+                      <ActivityRow
+                        key={event.id}
+                        title={event.referredUser?.name ?? "Pending signup"}
+                        meta={event.referredUser?.email ?? event.referralCode}
+                        detail={[
+                          referralSourceTypeLabels[event.sourceType as keyof typeof referralSourceTypeLabels] ??
+                            event.sourceType,
+                          event.sourceCardSlug ? `card: ${event.sourceCardSlug}` : "",
+                          event.sourceEvent ? `event: ${event.sourceEvent}` : "",
+                          event.signedUpAt ? "signup attributed" : "",
+                          event.activatedAt ? "activated" : "",
+                          event.proInterestAt ? "Pro interest" : "",
+                          event.teamsInterestAt ? "Teams interest" : ""
+                        ]
+                          .filter(Boolean)
+                          .join(" / ")}
+                        href={event.referredUser ? `/admin/members/${event.referredUser.id}` : "/admin/circle-card#referrals"}
+                        date={event.activatedAt ?? event.signedUpAt ?? event.clickedAt}
+                      />
+                    ))
+                  ) : (
+                    <EmptyState icon={Search} title="No attribution events" description="Matching referral events will appear here." />
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="rounded-xl border border-dashed border-border/80 bg-background/20 p-3 text-sm text-muted">
+                Enter a referral code to validate the flow end-to-end.
+              </p>
+            )}
+          </div>
+        </details>
+
+        <details className="group rounded-2xl border border-border/80 bg-background/20">
+          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Referral Test Mode</p>
+              <p className="mt-1 text-xs text-muted">Admin-only checklist. This does not create fake referral rows.</p>
+            </div>
+            <ChevronDown size={17} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+          </summary>
+          <ol className="grid gap-2 border-t border-border/70 p-4 text-sm text-muted md:grid-cols-2">
+            {[
+              "Open /r/{code}",
+              "Confirm redirect to Circle Card landing",
+              "Open /card/{slug}?ref={code}",
+              "Spin profile image",
+              "Register new account",
+              "Complete onboarding",
+              "Register Pro interest",
+              "Register Teams interest",
+              "Confirm admin attribution data updates"
+            ].map((item, index) => (
+              <li key={item} className="rounded-xl border border-border/80 bg-background/25 p-3">
+                <span className="mr-2 text-gold">{index + 1}.</span>
+                {item}
+              </li>
+            ))}
+          </ol>
+        </details>
+
+        <details className="group rounded-2xl border border-border/80 bg-background/20">
+          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Filter / Export Readiness</p>
+              <p className="mt-1 text-xs text-muted">CSV export can attach to these prepared views later.</p>
+            </div>
+            <ChevronDown size={17} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="grid gap-2 border-t border-border/70 p-4 md:grid-cols-2 xl:grid-cols-3">
+            {referralEngine.exportViews.map((view) => (
+              <div key={view.id} className="rounded-xl border border-border/80 bg-background/25 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">{view.label}</p>
+                  <Badge variant="outline" className="shrink-0 normal-case tracking-normal">
+                    {numberLabel(view.count)}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-muted">{view.description}</p>
+              </div>
+            ))}
+          </div>
+        </details>
 
         <details open className="group rounded-2xl border border-border/80 bg-background/20">
           <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
