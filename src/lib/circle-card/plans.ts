@@ -1,6 +1,9 @@
 import type { CircleCardAccountType } from "@prisma/client";
 
 export const CIRCLE_CARD_PLANS = ["FREE", "PRO", "TEAMS"] as const;
+export const CIRCLE_CARD_FREE_CARD_LIMIT = 1;
+export const CIRCLE_CARD_PRO_CARD_LIMIT = 2;
+export const CIRCLE_CARD_TEAMS_CARD_LIMIT = "team" as const;
 
 export type CircleCardPlanKey = (typeof CIRCLE_CARD_PLANS)[number];
 
@@ -37,7 +40,7 @@ export type CircleCardPlanCapabilityMap = {
 };
 
 export type CircleCardPlanLimits = {
-  circleCards: number;
+  circleCards: number | typeof CIRCLE_CARD_TEAMS_CARD_LIMIT;
   activeFeaturedLinks: number | "more" | "team";
   profileLayouts: "classic-business-creator";
   qr: "basic" | "advanced";
@@ -158,6 +161,12 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
       "Pro is the individual growth layer for visibility, analytics, lead generation and relationship management.",
     included: [],
     unlocked: [
+      {
+        id: "personal-business-card-pair",
+        label: "Personal + business card",
+        description: "Prepare one personal Circle Card and one business or brand Circle Card under Pro.",
+        status: "planned"
+      },
       {
         id: "twenty-five-featured-links",
         label: "25 featured links",
@@ -417,7 +426,7 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
     description: "Start building relationships with a useful public card, QR sharing, wallet and basic analytics.",
     goodFor: "Start building relationships",
     limits: {
-      circleCards: 1,
+      circleCards: CIRCLE_CARD_FREE_CARD_LIMIT,
       activeFeaturedLinks: 5,
       profileLayouts: "classic-business-creator",
       qr: "basic",
@@ -510,7 +519,7 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
       "Grow relationships with visibility, analytics, lead generation and relationship management tools.",
     goodFor: "Grow relationships",
     limits: {
-      circleCards: 1,
+      circleCards: CIRCLE_CARD_PRO_CARD_LIMIT,
       activeFeaturedLinks: 25,
       profileLayouts: "classic-business-creator",
       qr: "advanced",
@@ -535,7 +544,7 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
       "Scale relationships across businesses, departments, sales teams, networking groups and growing companies.",
     goodFor: "Scale relationships",
     limits: {
-      circleCards: 1,
+      circleCards: CIRCLE_CARD_TEAMS_CARD_LIMIT,
       activeFeaturedLinks: "team",
       profileLayouts: "classic-business-creator",
       qr: "advanced",
@@ -554,7 +563,6 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
   }
 };
 
-export const CIRCLE_CARD_FREE_CARD_LIMIT = CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.circleCards;
 export const CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT =
   CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.activeFeaturedLinks as number;
 export const CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT =

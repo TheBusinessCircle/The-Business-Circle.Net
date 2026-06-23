@@ -8,6 +8,9 @@ import {
   CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID,
   CIRCLE_CARD_REFERRAL_COOKIE_CODE,
   CIRCLE_CARD_REFERRAL_COOKIE_SOURCE,
+  CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG,
+  CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT,
+  CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE,
   normalizeCircleCardReferralCode
 } from "@/lib/circle-card/referral-engine";
 import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
@@ -129,10 +132,23 @@ export async function POST(request: NextRequest) {
         (payload as { referralCode?: string }).referralCode
       );
       const referralCode =
-        requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CODE) || payloadReferralCode;
-      const referralClickId = requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID);
+        payloadReferralCode || requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CODE);
+      const referralClickId = payloadReferralCode
+        ? ""
+        : requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID);
       const referralSource =
-        requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE) || "circle_card_signup";
+        (payloadReferralCode
+          ? "signup_referral_code"
+          : requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE)) ||
+        "circle_card_signup";
+      const sourceType = payloadReferralCode
+        ? "signup_referral_code"
+        : requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE);
+      const sourceCardSlug = requestCookieValue(
+        request,
+        CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG
+      );
+      const sourceEvent = requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT);
 
       if (referralCode || referralClickId) {
         try {
@@ -140,11 +156,17 @@ export async function POST(request: NextRequest) {
             referredUserId: result.user.id,
             referralCode,
             referralClickId,
-            referralSource
+            referralSource,
+            sourceType,
+            sourceCardSlug,
+            sourceEvent
           });
           response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_CODE);
           response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID);
           response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE);
+          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE);
+          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG);
+          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT);
         } catch (error) {
           logServerError("circle-card-referral-attribution-failed", error);
         }

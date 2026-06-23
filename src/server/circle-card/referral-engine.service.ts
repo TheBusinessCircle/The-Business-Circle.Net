@@ -3,8 +3,11 @@ import "server-only";
 import { CircleCardEventType, Prisma } from "@prisma/client";
 import {
   CIRCLE_CARD_REFERRAL_ACTIVATION_STATUSES,
+  normalizeCircleCardReferralSourceCardSlug,
+  normalizeCircleCardReferralSourceType,
   normalizeCircleCardReferralCode,
-  type CircleCardReferralActivationStatus
+  type CircleCardReferralActivationStatus,
+  type CircleCardReferralSourceType
 } from "@/lib/circle-card/referral-engine";
 import { getCircleCardReferralRewardAwareness } from "@/lib/circle-card/referral-rewards";
 import { calculateCircleCardCompletionForCard } from "@/server/circle-card/activation.service";
@@ -297,6 +300,9 @@ export async function ensureCircleCardReferralIdentityForUser(userId: string) {
 export async function recordCircleCardReferralClick(input: {
   code: string;
   source?: string | null;
+  sourceType?: CircleCardReferralSourceType | string | null;
+  sourceCardSlug?: string | null;
+  sourceEvent?: string | null;
   visitorId?: string | null;
   viewerUserId?: string | null;
   userAgent?: string | null;
@@ -325,12 +331,105 @@ export async function recordCircleCardReferralClick(input: {
       referrerUserId: owner.id,
       referrerCardId: identity.card?.id ?? null,
       referralCode: identity.code,
-      referralSource: input.source?.trim().slice(0, 80) || "referral_link",
+      referralSource:
+        input.source?.trim().slice(0, 80) ||
+        normalizeCircleCardReferralSourceType(input.sourceType)?.slice(0, 80) ||
+        "referral_link",
       visitorId: input.visitorId?.trim().slice(0, 120) || null,
       metadata: referralMetadata({
         requestedCode,
         requestedPath: input.requestedPath,
-        userAgent: input.userAgent?.slice(0, 240) ?? null
+        userAgent: input.userAgent?.slice(0, 240) ?? null,
+        sourceType: normalizeCircleCardReferralSourceType(input.sourceType),
+        sourceCardSlug: normalizeCircleCardReferralSourceCardSlug(input.sourceCardSlug),
+        sourceEvent: input.sourceEvent?.trim().slice(0, 80) || null
+      })
+    },
+    select: {
+      id: true,
+      referralCode: true,
+      referrerUserId: true,
+      referrerCardId: true
+    }
+  });
+
+  return referral;
+}
+
+export async function recordCircleCardReferralDiscoveryFromCard(input: {
+  cardSlug: string;
+  source?: string | null;
+  sourceType?: CircleCardReferralSourceType | string | null;
+  sourceEvent?: string | null;
+  visitorId?: string | null;
+  viewerUserId?: string | null;
+  userAgent?: string | null;
+  requestedPath?: string | null;
+}) {
+  const sourceCardSlug = normalizeCircleCardReferralSourceCardSlug(input.cardSlug);
+
+  if (!sourceCardSlug) {
+    return null;
+  }
+
+  const card = await prisma.circleCard.findUnique({
+    where: { slug: sourceCardSlug },
+    select: {
+      id: true,
+      slug: true,
+      isPublished: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          circleCardReferralCode: true,
+          foundingMember: true,
+          circleCards: {
+            orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+            take: 1,
+            select: {
+              id: true,
+              slug: true,
+              fullName: true,
+              businessName: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!card || !card.isPublished || card.user.id === input.viewerUserId) {
+    return null;
+  }
+
+  const identity = card.user.circleCardReferralCode
+    ? {
+        code: card.user.circleCardReferralCode,
+        card
+      }
+    : await ensureCircleCardReferralIdentityForUser(card.user.id);
+
+  if (!identity) {
+    return null;
+  }
+
+  const sourceType =
+    normalizeCircleCardReferralSourceType(input.sourceType) ?? "last_safe_source";
+  const referral = await prisma.circleCardGrowthReferral.create({
+    data: {
+      referrerUserId: card.user.id,
+      referrerCardId: card.id,
+      referralCode: identity.code,
+      referralSource: input.source?.trim().slice(0, 80) || sourceType,
+      visitorId: input.visitorId?.trim().slice(0, 120) || null,
+      metadata: referralMetadata({
+        requestedPath: input.requestedPath,
+        userAgent: input.userAgent?.slice(0, 240) ?? null,
+        sourceType,
+        sourceCardSlug: card.slug,
+        sourceEvent: input.sourceEvent?.trim().slice(0, 80) || "CARD_DISCOVERY"
       })
     },
     select: {
@@ -360,7 +459,8 @@ async function loadAttributionReferral(input: {
         referrerUserId: true,
         referrerCardId: true,
         referralCode: true,
-        referralSource: true
+        referralSource: true,
+        metadata: true
       }
     });
 
@@ -386,7 +486,8 @@ async function loadAttributionReferral(input: {
       referrerUserId: true,
       referrerCardId: true,
       referralCode: true,
-      referralSource: true
+      referralSource: true,
+      metadata: true
     }
   });
 }
@@ -395,12 +496,19 @@ async function notifyReferralSignupMilestones(input: {
   referrerUserId: string;
   referrerCardId: string | null;
   referralId: string;
+  sourceType?: CircleCardReferralSourceType | null;
 }) {
+  const spinSignup = input.sourceType === "spin_to_connect";
+
   await createReferralNotificationOnce({
     userId: input.referrerUserId,
     circleCardId: input.referrerCardId,
-    title: "Someone joined through your referral link",
-    message: "Your Circle Card referral link helped someone discover the platform.",
+    title: spinSignup
+      ? "Someone spun your Circle and joined"
+      : "Someone joined through your referral link",
+    message: spinSignup
+      ? "A visitor discovered Circle Card through Spin To Connect on your public profile."
+      : "Your Circle Card referral link helped someone discover the platform.",
     entityType: "CIRCLE_CARD_REFERRAL_SIGNUP",
     entityId: input.referralId
   });
@@ -440,6 +548,9 @@ export async function attributeCircleCardReferralSignup(input: {
   referralClickId?: string | null;
   referralCode?: string | null;
   referralSource?: string | null;
+  sourceType?: CircleCardReferralSourceType | string | null;
+  sourceCardSlug?: string | null;
+  sourceEvent?: string | null;
 }) {
   const referredUser = await prisma.user.findUnique({
     where: { id: input.referredUserId },
@@ -461,6 +572,9 @@ export async function attributeCircleCardReferralSignup(input: {
 
   const referral = await loadAttributionReferral(input);
   const now = new Date();
+  const sourceType = normalizeCircleCardReferralSourceType(input.sourceType);
+  const sourceCardSlug = normalizeCircleCardReferralSourceCardSlug(input.sourceCardSlug);
+  const sourceEvent = input.sourceEvent?.trim().slice(0, 80) || null;
 
   try {
     if (referral) {
@@ -475,14 +589,22 @@ export async function attributeCircleCardReferralSignup(input: {
           signedUpAt: now,
           activationStatus: "SIGNED_UP",
           referralSource:
-            input.referralSource?.trim().slice(0, 80) || referral.referralSource || "circle_card_signup"
+            input.referralSource?.trim().slice(0, 80) || referral.referralSource || "circle_card_signup",
+          metadata: {
+            ...readReferralMetadata(referral.metadata),
+            signupSourceType: sourceType,
+            signupSourceCardSlug: sourceCardSlug || null,
+            signupSourceEvent: sourceEvent,
+            futureRewards: "tracked_after_pro_upgrade"
+          } as Prisma.InputJsonObject
         }
       });
 
       await notifyReferralSignupMilestones({
         referrerUserId: referral.referrerUserId,
         referrerCardId: referral.referrerCardId,
-        referralId: referral.id
+        referralId: referral.id,
+        sourceType
       });
 
       return { attributed: true as const, referralId: referral.id };
@@ -506,7 +628,11 @@ export async function attributeCircleCardReferralSignup(input: {
         signedUpAt: now,
         activationStatus: "SIGNED_UP",
         metadata: referralMetadata({
-          attribution: "signup_without_click_cookie"
+          attribution: "signup_without_click_cookie",
+          signupSourceType: sourceType,
+          signupSourceCardSlug: sourceCardSlug || null,
+          signupSourceEvent: sourceEvent,
+          futureRewards: "tracked_after_pro_upgrade"
         })
       },
       select: {
@@ -519,7 +645,8 @@ export async function attributeCircleCardReferralSignup(input: {
     await notifyReferralSignupMilestones({
       referrerUserId: created.referrerUserId,
       referrerCardId: created.referrerCardId,
-      referralId: created.id
+      referralId: created.id,
+      sourceType
     });
 
     return { attributed: true as const, referralId: created.id };
@@ -770,6 +897,9 @@ export async function getAdminCircleCardReferralEngineDashboard(input: {
     totalActivations,
     totalProInterest,
     totalTeamsInterest,
+    directReferralClicks,
+    publicCardReferralClicks,
+    spinToConnectReferralClicks,
     clickGroups,
     signupGroups,
     activationGroups,
@@ -782,6 +912,20 @@ export async function getAdminCircleCardReferralEngineDashboard(input: {
     prisma.circleCardGrowthReferral.count({ where: { activatedAt: { not: null } } }),
     prisma.circleCardGrowthReferral.count({ where: { proInterestAt: { not: null } } }),
     prisma.circleCardGrowthReferral.count({ where: { teamsInterestAt: { not: null } } }),
+    prisma.circleCardGrowthReferral.count({
+      where: {
+        referralSource: {
+          in: [
+            "referral_link",
+            "direct_referral_route",
+            "circle_card_query",
+            "circle_card_landing_ref"
+          ]
+        }
+      }
+    }),
+    prisma.circleCardGrowthReferral.count({ where: { referralSource: "public_card_ref" } }),
+    prisma.circleCardGrowthReferral.count({ where: { referralSource: "spin_to_connect" } }),
     prisma.circleCardGrowthReferral.groupBy({
       by: ["referrerUserId"],
       _count: { _all: true }
@@ -813,6 +957,7 @@ export async function getAdminCircleCardReferralEngineDashboard(input: {
         id: true,
         referralCode: true,
         referralSource: true,
+        metadata: true,
         clickedAt: true,
         signedUpAt: true,
         activatedAt: true,
@@ -901,7 +1046,10 @@ export async function getAdminCircleCardReferralEngineDashboard(input: {
       signups: totalSignups,
       activations: totalActivations,
       proInterest: totalProInterest,
-      teamsInterest: totalTeamsInterest
+      teamsInterest: totalTeamsInterest,
+      directReferralClicks,
+      publicCardReferralClicks,
+      spinToConnectReferralClicks
     },
     insights: {
       referredButInactive: Math.max(totalSignups - totalActivations, 0),
@@ -925,6 +1073,18 @@ export async function getAdminCircleCardReferralEngineDashboard(input: {
       id: referral.id,
       referralCode: referral.referralCode,
       referralSource: referral.referralSource,
+      sourceType:
+        typeof readReferralMetadata(referral.metadata).sourceType === "string"
+          ? (readReferralMetadata(referral.metadata).sourceType as string)
+          : null,
+      sourceCardSlug:
+        typeof readReferralMetadata(referral.metadata).sourceCardSlug === "string"
+          ? (readReferralMetadata(referral.metadata).sourceCardSlug as string)
+          : null,
+      sourceEvent:
+        typeof readReferralMetadata(referral.metadata).sourceEvent === "string"
+          ? (readReferralMetadata(referral.metadata).sourceEvent as string)
+          : null,
       clickedAt: referral.clickedAt,
       signedUpAt: referral.signedUpAt,
       activatedAt: referral.activatedAt,

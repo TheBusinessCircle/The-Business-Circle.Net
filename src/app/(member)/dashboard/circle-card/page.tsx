@@ -2627,6 +2627,27 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         activeFeaturedLinkCount={activeCustomLinkCount}
       />
 
+      <section className="grid gap-3 rounded-2xl border border-silver/14 bg-card/60 p-4 sm:grid-cols-[1fr_auto] sm:items-center sm:p-5">
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Pro multi-card foundation</p>
+          <h2 className="mt-1 font-display text-xl text-foreground">Business Card coming with Pro</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Pro is being prepared for one personal Circle Card plus one business or brand card. Public
+            switching stays hidden until multi-card creation is ready.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="rounded-xl border border-gold/18 bg-gold/8 p-3">
+            <p className="font-semibold text-foreground">Personal</p>
+            <p className="mt-1 text-xs text-muted">Default public card</p>
+          </div>
+          <div className="rounded-xl border border-silver/14 bg-background/24 p-3">
+            <p className="font-semibold text-foreground">Business</p>
+            <p className="mt-1 text-xs text-muted">Pro placeholder</p>
+          </div>
+        </div>
+      </section>
+
       <div id="circle-card-upgrade-signals" className="scroll-mt-24">
         <CircleCardUpgradeSignalsPanel
           metrics={circleCardUsageMetrics}
@@ -2979,13 +3000,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     </div>
                   </div>
                   <div className="rounded-2xl border border-gold/18 bg-gold/8 p-4">
-                    <p className="text-sm font-semibold text-foreground">Future Earnings</p>
+                    <p className="text-sm font-semibold text-foreground">Future Rewards</p>
                     <p className="mt-2 font-display text-2xl text-gold">
                       {referralCentre.rewardAwareness.statusLabel}
                     </p>
                     <p className="mt-2 text-sm leading-relaxed text-muted">
-                      Reward tiers are recognised in the architecture, but no payout or commission
-                      calculations are active.
+                      Reward eligibility is tracked after a referred user upgrades to Pro. No payout
+                      or commission calculations are active.
                     </p>
                   </div>
                 </div>

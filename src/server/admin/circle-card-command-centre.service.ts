@@ -1446,6 +1446,56 @@ async function loadLikelyTeamsUsers() {
     .sort((a, b) => b.readinessScore - a.readinessScore || b.score - a.score);
 }
 
+async function loadLikelyProMultiCardUsers(
+  candidates: AdminCircleCardPlanCandidate[]
+) {
+  const userIds = Array.from(new Set(candidates.map((candidate) => candidate.userId)));
+
+  if (!userIds.length) {
+    return [];
+  }
+
+  const cardCounts = await db.circleCard.groupBy({
+    by: ["userId"],
+    where: {
+      userId: {
+        in: userIds
+      }
+    },
+    _count: {
+      _all: true
+    }
+  });
+  const countByUserId = new Map(
+    cardCounts.map((row) => [row.userId, row._count._all])
+  );
+
+  return candidates
+    .filter((candidate) => {
+      const hasBusinessIdentity = Boolean(
+        candidate.businessName ||
+          candidate.accountType === CircleCardAccountType.FOUNDER ||
+          candidate.accountType === CircleCardAccountType.TEAM ||
+          candidate.reasons.some((reason) =>
+            /business|founder|company|brand|lead|visibility/i.test(reason)
+          )
+      );
+
+      return hasBusinessIdentity && countByUserId.get(candidate.userId) === 1;
+    })
+    .map((candidate) => ({
+      ...candidate,
+      reasons: Array.from(
+        new Set([
+          "Business identity with one Circle Card",
+          "Business Card coming with Pro",
+          ...candidate.reasons
+        ])
+      )
+    }))
+    .slice(0, RECENT_LIMIT);
+}
+
 async function loadCircleCardPlanBoundary() {
   const [
     totalCircleCardUsers,
@@ -1518,6 +1568,7 @@ async function loadCircleCardPlanBoundary() {
       })
     ]);
 
+  const multiCardCandidates = await loadLikelyProMultiCardUsers(likelyProUsers);
   const paidCircleCardProUsers = 0;
   const paidCircleCardTeamsUsers = 0;
   const earlyAccessUsers = 0;
@@ -1572,6 +1623,7 @@ async function loadCircleCardPlanBoundary() {
     freeLimitUsers,
     likelyProUsers,
     likelyTeamsUsers,
+    multiCardCandidates,
     note:
       "Circle Card entitlements distinguish paid subscriptions from BCN included Pro. Active BCN members count as BCN_INCLUDED_PRO and do not create a separate Circle Card subscription."
   };

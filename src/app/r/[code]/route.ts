@@ -5,6 +5,9 @@ import {
   CIRCLE_CARD_REFERRAL_COOKIE_CODE,
   CIRCLE_CARD_REFERRAL_COOKIE_MAX_AGE_SECONDS,
   CIRCLE_CARD_REFERRAL_COOKIE_SOURCE,
+  CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG,
+  CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT,
+  CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE,
   normalizeCircleCardReferralCode
 } from "@/lib/circle-card/referral-engine";
 import { recordCircleCardReferralClick } from "@/server/circle-card";
@@ -32,12 +35,16 @@ export async function GET(request: NextRequest, { params }: ReferralRouteProps) 
   const { code } = await params;
   const referralCode = normalizeCircleCardReferralCode(code);
   const source = request.nextUrl.searchParams.get("source") || "referral_link";
+  const sourceType =
+    source === "circle_card_query" ? "circle_card_landing_ref" : "direct_referral_route";
   const visitorId = request.cookies.get("bcn_anon_id")?.value ?? null;
   const session = await auth();
   const referral = referralCode
     ? await recordCircleCardReferralClick({
         code: referralCode,
-        source,
+        source: sourceType,
+        sourceType,
+        sourceEvent: "REFERRAL_ROUTE_VISIT",
         visitorId,
         viewerUserId: session?.user?.id ?? null,
         userAgent: request.headers.get("user-agent"),
@@ -62,9 +69,16 @@ export async function GET(request: NextRequest, { params }: ReferralRouteProps) 
     response.cookies.set(CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID, referral.id, cookieOptions);
     response.cookies.set(
       CIRCLE_CARD_REFERRAL_COOKIE_SOURCE,
-      source.slice(0, 80),
+      sourceType,
       cookieOptions
     );
+    response.cookies.set(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE, sourceType, cookieOptions);
+    response.cookies.set(
+      CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT,
+      "REFERRAL_ROUTE_VISIT",
+      cookieOptions
+    );
+    response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG);
   }
 
   return response;

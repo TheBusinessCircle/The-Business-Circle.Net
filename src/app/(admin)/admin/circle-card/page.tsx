@@ -305,6 +305,11 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
       hint: "Team / Organisation account type signals."
     },
     {
+      label: "Multi-card fit",
+      value: dashboard.plans.multiCardCandidates.length,
+      hint: "Business identity with only one Circle Card."
+    },
+    {
       label: "Closest to Free limits",
       value: dashboard.plans.freeLimitUsers.length,
       hint: "Featured links, wallet growth, profile completion, shares and view activity."
@@ -602,12 +607,18 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           </div>
         </details>
         <FreeLimitCandidatePanel items={dashboard.plans.freeLimitUsers} />
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-3">
           <PlanCandidatePanel
             title="Likely Pro candidates"
             description="Founder, business growth and lead-capture signals from current Circle Card usage."
             items={dashboard.plans.likelyProUsers}
             emptyTitle="No Pro signals yet"
+          />
+          <PlanCandidatePanel
+            title="Pro multi-card candidates"
+            description="Business or brand identity signals from users who still have only one Circle Card."
+            items={dashboard.plans.multiCardCandidates}
+            emptyTitle="No multi-card signals yet"
           />
           <PlanCandidatePanel
             title="Likely Teams candidates"
@@ -1200,6 +1211,21 @@ function ReferralEnginePanel({ referralEngine }: { referralEngine: ReferralEngin
           ))}
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            ["Direct links", referralEngine.funnel.directReferralClicks],
+            ["Public card refs", referralEngine.funnel.publicCardReferralClicks],
+            ["Spin To Connect", referralEngine.funnel.spinToConnectReferralClicks]
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl border border-border/80 bg-background/25 p-3">
+              <p className="text-xs text-muted">{label}</p>
+              <p className="mt-2 text-xl font-semibold text-foreground">
+                {Number(value).toLocaleString("en-GB")}
+              </p>
+            </div>
+          ))}
+        </div>
+
         <details open className="group rounded-2xl border border-border/80 bg-background/20">
           <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
             <div>
@@ -1258,6 +1284,8 @@ function ReferralEnginePanel({ referralEngine }: { referralEngine: ReferralEngin
                   detail={[
                     referral.activationStatus,
                     referral.referralSource ? `source: ${referral.referralSource}` : "",
+                    referral.sourceCardSlug ? `card: ${referral.sourceCardSlug}` : "",
+                    referral.sourceEvent ? `event: ${referral.sourceEvent}` : "",
                     referral.proInterestAt ? "Pro interest" : "",
                     referral.teamsInterestAt ? "Teams interest" : ""
                   ]

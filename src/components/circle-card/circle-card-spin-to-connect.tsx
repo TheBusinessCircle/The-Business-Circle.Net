@@ -116,6 +116,29 @@ function withSpinReturn(path: string) {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
+function captureSpinReferralAttribution(input: {
+  cardSlug: string;
+  isDemo: boolean;
+  viewerIsOwner: boolean;
+}) {
+  if (input.isDemo || input.viewerIsOwner) {
+    return;
+  }
+
+  void fetch("/api/circle-card/referral-attribution", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      sourceType: "spin_to_connect",
+      sourceCardSlug: input.cardSlug,
+      sourceEvent: "SPIN_COMPLETED"
+    }),
+    keepalive: true
+  }).catch(() => undefined);
+}
+
 export function CircleCardSpinToConnect({
   cardId,
   analyticsCardId,
@@ -227,6 +250,11 @@ export function CircleCardSpinToConnect({
       source: "spin_to_connect",
       cardSlug,
       viewerState: localConnected ? "connected" : "open"
+    });
+    captureSpinReferralAttribution({
+      cardSlug,
+      isDemo,
+      viewerIsOwner
     });
 
     if (viewerIsOwner) {

@@ -36,6 +36,6 @@ export function getCircleCardReferralRewardAwareness(input: {
     lane: ambassador ? "FOUNDER_AMBASSADOR" : "STANDARD_USER",
     activatedReferralCount: input.activatedReferralCount,
     displayLabel: ambassador ? "Founder Ambassador reward awareness" : "Standard reward awareness",
-    statusLabel: "Coming Soon"
+    statusLabel: "Future rewards: tracked after Pro upgrade"
   };
 }

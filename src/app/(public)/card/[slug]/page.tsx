@@ -3,12 +3,14 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { PublicCircleCardProfile } from "@/components/circle-card";
+import { CircleCardReferralAttribution } from "@/components/circle-card/circle-card-referral-attribution";
 import { SITE_CONFIG } from "@/config/site";
 import {
   CIRCLE_CARD_APP_NAME,
   CIRCLE_CARD_ICON_512,
   CIRCLE_CARD_PWA_METADATA
 } from "@/lib/circle-card/metadata";
+import { normalizeCircleCardReferralCode } from "@/lib/circle-card/referral-engine";
 import { getCircleCardAccountLabel } from "@/lib/circle-card/permissions";
 import { resolveCircleCardShareSource, type CircleCardShareSource } from "@/lib/circle-card/share-sources";
 import { prisma } from "@/lib/prisma";
@@ -142,6 +144,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
   const error = firstValue(paramsValue.error);
   const source = resolveCircleCardShareSource(firstValue(paramsValue.source));
   const spinState = resolveSpinState(paramsValue.spin);
+  const referralCode = normalizeCircleCardReferralCode(firstValue(paramsValue.ref));
   const card = await getPublicCircleCard(slug);
 
   if (!card) {
@@ -252,31 +255,41 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
   const ownerIsBcnMember = card.user.role === "ADMIN" || card.user.hasActiveSubscription;
 
   return (
-    <PublicCircleCardProfile
-      card={card}
-      publicUrl={publicUrl}
-      analyticsCardId={card.isDemo ? undefined : card.id}
-      viewerIsOwner={viewerIsOwner}
-      isAuthenticated={Boolean(session?.user)}
-      savedContact={savedContact}
-      connectionState={{
-        viewerPrimaryCardId: viewerPrimaryCard?.id ?? null,
-        request: connectionRequest
-          ? {
-              id: connectionRequest.id,
-              status: connectionRequest.status,
-              direction: connectionRequest.requesterId === viewerUserId ? "OUTGOING" : "INCOMING",
-              message: connectionRequest.message
-            }
-          : null
-      }}
-      ownerAccountLabel={ownerAccountLabel}
-      ownerIsBcnMember={ownerIsBcnMember}
-      source={source}
-      spinState={spinState}
-      viewerCircleConnectionCount={viewerCircleConnectionCount}
-      notice={notice}
-      error={error}
-    />
+    <>
+      {referralCode && !card.isDemo ? (
+        <CircleCardReferralAttribution
+          referralCode={referralCode}
+          sourceType="public_card_ref"
+          sourceCardSlug={card.slug}
+          sourceEvent="PUBLIC_CARD_VIEW"
+        />
+      ) : null}
+      <PublicCircleCardProfile
+        card={card}
+        publicUrl={publicUrl}
+        analyticsCardId={card.isDemo ? undefined : card.id}
+        viewerIsOwner={viewerIsOwner}
+        isAuthenticated={Boolean(session?.user)}
+        savedContact={savedContact}
+        connectionState={{
+          viewerPrimaryCardId: viewerPrimaryCard?.id ?? null,
+          request: connectionRequest
+            ? {
+                id: connectionRequest.id,
+                status: connectionRequest.status,
+                direction: connectionRequest.requesterId === viewerUserId ? "OUTGOING" : "INCOMING",
+                message: connectionRequest.message
+              }
+            : null
+        }}
+        ownerAccountLabel={ownerAccountLabel}
+        ownerIsBcnMember={ownerIsBcnMember}
+        source={source}
+        spinState={spinState}
+        viewerCircleConnectionCount={viewerCircleConnectionCount}
+        notice={notice}
+        error={error}
+      />
+    </>
   );
 }
