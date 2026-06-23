@@ -39,6 +39,7 @@ export type CircleCardFeatureLockGroup = {
 };
 
 export const CIRCLE_CARD_BILLING_FLAG_ENV = "CIRCLE_CARD_BILLING_ENABLED";
+export const CIRCLE_CARD_PRO_ANNUAL_DISCOUNT_PERCENT = 20;
 export const CIRCLE_CARD_TEAMS_ANNUAL_DISCOUNT_PERCENT = 20;
 
 function discountedAnnualPrice(monthlyPrice: number, discountPercent: number) {
@@ -67,7 +68,8 @@ export const CIRCLE_CARD_PRICING_CONFIG: Record<CircleCardPlanKey, CircleCardPri
       "founders, creators, consultants, tradespeople, service providers and personal brands",
     currency: "GBP",
     priceMonthly: 9.99,
-    priceAnnual: null,
+    priceAnnual: discountedAnnualPrice(9.99, CIRCLE_CARD_PRO_ANNUAL_DISCOUNT_PERCENT),
+    annualDiscountPercent: CIRCLE_CARD_PRO_ANNUAL_DISCOUNT_PERCENT,
     pricePerExtraSeat: null,
     stripe: {
       monthlyPriceEnvVar: "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID",
@@ -257,6 +259,24 @@ export function getCircleCardBillingReadiness() {
       annualPriceConfigured: teamsAnnualConfigured
     }
   };
+}
+
+export function getCircleCardProBillingConfigurationErrorMessage() {
+  const readiness = getCircleCardBillingReadiness();
+
+  if (!readiness.billingEnabled) {
+    return "Circle Card billing is disabled.";
+  }
+
+  if (!readiness.pro.monthlyPriceConfigured) {
+    return "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID is required when Circle Card billing is enabled.";
+  }
+
+  if (!readiness.pro.annualPriceConfigured) {
+    return "STRIPE_CIRCLE_CARD_PRO_ANNUAL_PRICE_ID is required when Circle Card billing is enabled.";
+  }
+
+  return null;
 }
 
 export function formatCircleCardPrice(plan: CircleCardPlanKey) {

@@ -121,6 +121,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
     referralCode
   });
   const pricingReadiness = getCircleCardBillingReadiness();
+  const proAnnualPrice = formatCircleCardAnnualPrice("PRO");
   const teamsAnnualPrice = formatCircleCardAnnualPrice("TEAMS");
 
   const overviewMetrics: MetricItem[] = [
@@ -552,18 +553,32 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
               Circle Card billing preparation only. Stripe price IDs stay server-side and hidden.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <ReadinessTile label="Billing enabled" ready={pricingReadiness.billingEnabled} />
-            <ReadinessTile label="Pro price configured" ready={pricingReadiness.proPriceConfigured} />
+            <ReadinessTile
+              label="Pro monthly configured"
+              ready={pricingReadiness.pro.monthlyPriceConfigured}
+            />
+            <ReadinessTile
+              label="Pro annual configured"
+              ready={pricingReadiness.pro.annualPriceConfigured}
+            />
             <ReadinessTile label="Teams price configured" ready={pricingReadiness.teamsPriceConfigured} />
             <div className="rounded-xl border border-border/80 bg-background/25 p-3">
               <p className="text-xs text-muted">Configured prices</p>
-              <p className="mt-2 text-sm text-foreground">Pro {formatCircleCardPrice("PRO")}</p>
+              <p className="mt-2 text-sm text-foreground">
+                Pro {formatCircleCardPrice("PRO")}
+                {proAnnualPrice ? ` / ${proAnnualPrice}` : ""}
+              </p>
               <p className="mt-1 text-xs text-muted">
                 Teams {formatCircleCardPrice("TEAMS")}
                 {teamsAnnualPrice ? ` / ${teamsAnnualPrice}` : ""}
               </p>
             </div>
+            <ReadinessTile
+              label="Referral Pro conversion ready"
+              ready={dashboard.referralEngine.funnel.proInterest > 0}
+            />
             <div className="rounded-xl border border-border/80 bg-background/25 p-3">
               <p className="text-xs text-muted">Interest / candidates</p>
               <p className="mt-2 text-sm text-foreground">

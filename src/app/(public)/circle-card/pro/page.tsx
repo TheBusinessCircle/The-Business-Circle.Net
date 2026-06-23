@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
 import {
+  formatCircleCardAnnualPrice,
   formatCircleCardPrice,
   getCircleCardBillingReadiness
 } from "@/lib/circle-card/pricing";
@@ -211,6 +212,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
   const defaultEmail = activeUser?.email || "";
   const defaultBusinessName = primaryCard?.businessName || "";
   const proPrice = formatCircleCardPrice("PRO");
+  const proAnnualPrice = formatCircleCardAnnualPrice("PRO");
 
   return (
     <div className="public-page-stack">
@@ -219,6 +221,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
           <div className="inline-flex items-center gap-2 rounded-full border border-gold/24 bg-gold/10 px-3 py-1 text-xs uppercase tracking-[0.08em] text-gold">
             <Crown size={14} />
             Circle Card Pro / {proPrice}
+            {proAnnualPrice ? ` / ${proAnnualPrice}` : ""}
           </div>
           <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-6xl">
             Turn your Circle Card into a stronger visibility tool.
