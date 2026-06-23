@@ -92,7 +92,7 @@ function NotificationItem({
   return (
     <article
       className={cn(
-        "rounded-2xl border p-3 transition-colors",
+        "min-w-0 overflow-hidden rounded-2xl border p-3 transition-colors",
         notification.isRead
           ? "border-silver/12 bg-background/22"
           : "border-gold/24 bg-gold/10 shadow-[0_0_28px_rgba(56,189,248,0.08)]"
@@ -129,7 +129,7 @@ function NotificationItem({
       <div className={cn("mt-3 grid gap-2", compact ? "sm:grid-cols-1" : "sm:grid-cols-2")}>
         <Link
           href={actionHref}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "min-w-0 gap-2")}
         >
           Open
           <ArrowUpRight size={14} />
@@ -255,98 +255,106 @@ export function CircleCardNotificationOrb({
       </button>
 
       {open ? (
-        <div
-          role="dialog"
-          aria-label="Circle Card notification panel"
-          className="absolute right-0 top-[calc(100%+0.75rem)] z-[70] w-[min(calc(100vw-2rem),24rem)] overflow-hidden rounded-2xl border border-gold/22 bg-[#050b18]/96 text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.55),0_0_40px_rgba(56,189,248,0.12)] backdrop-blur-xl"
-        >
-          <div className="border-b border-silver/12 bg-[linear-gradient(135deg,rgba(214,168,79,0.13),rgba(56,189,248,0.09),transparent)] p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.12em] text-gold">
-                  Circle Card Orb
-                </p>
-                <h2 className="mt-1 font-display text-xl text-foreground">Notifications</h2>
-                <p className="mt-1 text-xs leading-relaxed text-muted">
-                  Guidance, activity and useful relationship prompts.
-                </p>
+        <>
+          <button
+            type="button"
+            aria-label="Close Circle Card notifications"
+            className="fixed inset-0 z-[60] border-0 bg-[#020617]/35 p-0 backdrop-blur-[1px] sm:hidden"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-label="Circle Card notification panel"
+            className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] right-[max(0.75rem,env(safe-area-inset-right))] z-[70] flex max-h-[calc(100dvh_-_max(4.75rem,env(safe-area-inset-top))_-_max(1rem,env(safe-area-inset-bottom)))] min-w-0 flex-col overflow-hidden rounded-2xl border border-gold/22 bg-[#050b18]/96 text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.55),0_0_40px_rgba(56,189,248,0.12)] backdrop-blur-xl sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-[calc(100%+0.75rem)] sm:max-h-none sm:w-[min(calc(100vw_-_2rem),24rem)]"
+          >
+            <div className="shrink-0 border-b border-silver/12 bg-[linear-gradient(135deg,rgba(214,168,79,0.13),rgba(56,189,248,0.09),transparent)] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-gold">
+                    Circle Card Orb
+                  </p>
+                  <h2 className="mt-1 font-display text-xl text-foreground">Notifications</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted">
+                    Guidance, activity and useful relationship prompts.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close Circle Card notifications"
+                  onClick={() => setOpen(false)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-silver/16 bg-background/30 text-silver transition-colors hover:border-gold/28 hover:text-gold"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                type="button"
-                aria-label="Close Circle Card notifications"
-                onClick={() => setOpen(false)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-silver/16 bg-background/30 text-silver transition-colors hover:border-gold/28 hover:text-gold"
-              >
-                <X size={16} />
-              </button>
+              <form action={markAllCircleCardNotificationsReadAction} className="mt-4">
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2"
+                  disabled={!hasUnread}
+                >
+                  <CheckCircle2 size={14} />
+                  Mark all as read
+                </Button>
+              </form>
             </div>
-            <form action={markAllCircleCardNotificationsReadAction} className="mt-4">
-              <input type="hidden" name="returnPath" value={returnPath} />
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-                disabled={!hasUnread}
-              >
-                <CheckCircle2 size={14} />
-                Mark all as read
-              </Button>
-            </form>
+
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:max-h-[min(70vh,34rem)]">
+              {unreadNotifications.length ? (
+                <section>
+                  <div className="mb-2 flex items-center justify-between gap-3 px-1">
+                    <p className="text-xs font-semibold text-foreground">Unread</p>
+                    <Badge variant="outline" className="border-gold/28 text-gold">
+                      {unreadCount}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {unreadNotifications.map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        notification={notification}
+                        returnPath={returnPath}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {recentNotifications.length ? (
+                <section>
+                  <p className="mb-2 px-1 text-xs font-semibold text-foreground">Recent</p>
+                  <div className="space-y-2">
+                    {recentNotifications.map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        notification={notification}
+                        returnPath={returnPath}
+                        compact
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {!notifications.length ? (
+                <div className="rounded-2xl border border-dashed border-silver/18 bg-background/22 p-6 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-gold/24 bg-[#071426] text-gold shadow-[0_0_24px_rgba(56,189,248,0.18)]">
+                    <Sparkles size={18} />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold text-foreground">
+                    Nothing new right now.
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">
+                    Keep building your Circle.
+                  </p>
+                </div>
+              ) : null}
+            </div>
           </div>
-
-          <div className="max-h-[min(70vh,34rem)] space-y-4 overflow-y-auto p-3">
-            {unreadNotifications.length ? (
-              <section>
-                <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                  <p className="text-xs font-semibold text-foreground">Unread</p>
-                  <Badge variant="outline" className="border-gold/28 text-gold">
-                    {unreadCount}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  {unreadNotifications.map((notification) => (
-                    <NotificationItem
-                      key={notification.id}
-                      notification={notification}
-                      returnPath={returnPath}
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {recentNotifications.length ? (
-              <section>
-                <p className="mb-2 px-1 text-xs font-semibold text-foreground">Recent</p>
-                <div className="space-y-2">
-                  {recentNotifications.map((notification) => (
-                    <NotificationItem
-                      key={notification.id}
-                      notification={notification}
-                      returnPath={returnPath}
-                      compact
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {!notifications.length ? (
-              <div className="rounded-2xl border border-dashed border-silver/18 bg-background/22 p-6 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-gold/24 bg-[#071426] text-gold shadow-[0_0_24px_rgba(56,189,248,0.18)]">
-                  <Sparkles size={18} />
-                </div>
-                <p className="mt-4 text-sm font-semibold text-foreground">
-                  Nothing new right now.
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-muted">
-                  Keep building your Circle.
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </div>
+        </>
       ) : null}
     </div>
   );
