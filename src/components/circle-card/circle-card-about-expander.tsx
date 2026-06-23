@@ -12,14 +12,14 @@ type CircleCardAboutExpanderProps = {
 
 export function CircleCardAboutExpander({ text, className }: CircleCardAboutExpanderProps) {
   const [expanded, setExpanded] = useState(false);
-  const shouldToggle = text.length > 260;
+  const shouldToggle = text.trim().length > 180;
 
   return (
     <div className={cn("space-y-3", className)}>
       <p
         className={cn(
           "text-sm leading-relaxed text-muted",
-          !expanded && shouldToggle ? "line-clamp-4" : null
+          !expanded && shouldToggle ? "line-clamp-3" : null
         )}
       >
         {text}

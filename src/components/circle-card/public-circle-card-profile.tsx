@@ -32,8 +32,6 @@ import {
 import {
   buildCircleCardFileActionLabel,
   circleCardFileActionLabel,
-  circleCardFileKindLabel,
-  detectCircleCardFileKind,
   resolveCircleCardFileAction
 } from "@/lib/circle-card/file-actions";
 import { getExternalLinkProps } from "@/lib/links";
@@ -50,9 +48,7 @@ import {
   BarChart3,
   BookOpen,
   BriefcaseBusiness,
-  Building2,
   CalendarDays,
-  CheckCircle2,
   ChevronRight,
   Crown,
   Download,
@@ -435,37 +431,6 @@ function customLinkDisplayLabel(link: PublicCircleCard["customLinks"][number]) {
   }
 }
 
-function customLinkActionType(link: PublicCircleCard["customLinks"][number]) {
-  if (link.fileUrl || link.fileMimeType || link.fileName) {
-    return `${circleCardFileActionLabel(resolveCircleCardFileAction(link))} ${circleCardFileKindLabel(
-      detectCircleCardFileKind(link)
-    )}`.replace(" Unknown", " File");
-  }
-
-  switch (link.type) {
-    case "BOOK_CALL":
-      return "Book a call";
-    case "PORTFOLIO":
-      return "Portfolio";
-    case "LATEST_OFFER":
-      return "Latest offer";
-    case "COMMUNITY":
-      return "Community";
-    case "DOWNLOAD":
-      return link.fileUrl ? "Download" : "Download link";
-    case "REVIEW":
-      return "Review";
-    case "SHOP":
-      return "Shop";
-    case "MENU":
-      return "Menu";
-    case "CASE_STUDY":
-      return "Case study";
-    default:
-      return "Custom link";
-  }
-}
-
 function customLinkHref(link: PublicCircleCard["customLinks"][number]) {
   if (link.visibility === "PRIVATE_CODE") {
     return "";
@@ -777,14 +742,16 @@ function creatorLinkCtaLabel(link: PublicCircleCard["customLinks"][number]) {
   }
 }
 
-function CreatorSmartLinkCard({
+function FeaturedLinkCard({
   link,
   analyticsCardId,
-  layout
+  layout,
+  source = "public_card"
 }: {
   link: PublicCircleCard["customLinks"][number];
   analyticsCardId?: string;
   layout: PublicCircleCard["profileLayout"];
+  source?: string;
 }) {
   const accentLabel = creatorLinkAccentLabel(link);
   const description = offerEndDescription(link);
@@ -854,11 +821,15 @@ function CreatorSmartLinkCard({
       cardId={analyticsCardId ?? ""}
       eventType="CUSTOM_LINK_CLICK"
       metadata={{
-        source: "creator_featured_card",
+        source,
         layout,
         linkId: link.id,
         label: link.label,
         type: link.type,
+        actionMode: link.actionMode,
+        resolvedAction: link.fileUrl || link.fileMimeType || link.fileName
+          ? resolveCircleCardFileAction(link)
+          : undefined,
         url: analyticsUrlValue(href)
       }}
       className="group relative flex min-h-[280px] flex-col overflow-hidden rounded-[1.6rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(22,39,45,0.9),rgba(8,16,32,0.96)_48%,rgba(4,10,24,0.98))] p-3 shadow-[0_22px_56px_rgba(0,0,0,0.26)] transition-all hover:-translate-y-0.5 hover:border-gold/35 hover:shadow-[0_28px_72px_rgba(68,211,188,0.13)] sm:p-4"
@@ -1179,6 +1150,10 @@ export function PublicCircleCardProfile({
 
   const socialContactRows = contactRows.filter((row) => row.isSocial);
   const directContactRows = contactRows.filter((row) => !row.isSocial);
+  const websiteContactRow = directContactRows.find((row) => row.key === "website") ?? null;
+  const featuredLinks = creatorFeaturedLinks(card);
+  const primaryCustomLink = selectCreatorPrimaryLink(card, Boolean(websiteContactRow));
+  const primaryWebsiteLink = primaryCustomLink ? null : websiteContactRow;
 
   function renderWalletAction({ mobileBar = false }: { mobileBar?: boolean } = {}) {
     const iconSize = mobileBar ? 15 : 16;
@@ -1424,51 +1399,267 @@ export function PublicCircleCardProfile({
     );
   }
 
-  function renderCustomLinkAction(link: PublicCircleCard["customLinks"][number]) {
-    if (link.visibility === "PRIVATE_CODE") {
+  function renderPrimaryCta({
+    link = primaryCustomLink,
+    website = primaryWebsiteLink,
+    source,
+    className,
+    label
+  }: {
+    link?: PublicCircleCard["customLinks"][number] | null;
+    website?: ContactRow | null;
+    source: string;
+    className?: string;
+    label?: string;
+  }) {
+    if (link) {
+      const href = customLinkHref(link);
+
+      if (href) {
+        return (
+          <CircleCardTrackedLink
+            {...customLinkAnchorProps(link, href)}
+            href={href}
+            cardId={analyticsCardId ?? ""}
+            eventType="CUSTOM_LINK_CLICK"
+            metadata={{
+              source,
+              layout: card.profileLayout,
+              linkId: link.id,
+              label: link.label,
+              type: link.type,
+              actionMode: link.actionMode,
+              resolvedAction: link.fileUrl || link.fileMimeType || link.fileName
+                ? resolveCircleCardFileAction(link)
+                : undefined,
+              url: analyticsUrlValue(href)
+            }}
+            className={cn(buttonVariants(), primaryActionClassName, "min-w-0 gap-2 px-4", className)}
+          >
+            <span className="shrink-0">{customLinkIcon(link)}</span>
+            <span className="min-w-0 truncate">{label ?? creatorLinkCtaLabel(link)}</span>
+            <ChevronRight size={16} className="shrink-0" />
+          </CircleCardTrackedLink>
+        );
+      }
+    }
+
+    if (website) {
       return (
-        <CircleCardPrivateLinkAction
-          key={link.id}
-          linkId={link.id}
-          type={link.type}
-          value={customLinkDisplayLabel(link)}
-          description={offerEndDescription(link)}
-          accessCodeHint={link.accessCodeHint}
-          hasAccessCode={link.hasAccessCode}
-        />
+        <CircleCardTrackedLink
+          href={website.href}
+          {...website.anchorProps}
+          cardId={analyticsCardId ?? ""}
+          eventType="WEBSITE_CLICK"
+          metadata={{
+            source,
+            layout: card.profileLayout,
+            url: analyticsUrlValue(website.href)
+          }}
+          className={cn(buttonVariants(), primaryActionClassName, "min-w-0 gap-2 px-4", className)}
+        >
+          <Globe2 size={16} className="shrink-0" />
+          <span className="min-w-0 truncate">{label ?? "Visit Website"}</span>
+          <ChevronRight size={16} className="shrink-0" />
+        </CircleCardTrackedLink>
       );
     }
 
-    const href = customLinkHref(link);
+    return null;
+  }
 
-    if (!href) {
+  function renderAboutSection({
+    className,
+    heading = "About",
+    id = "circle-card-about"
+  }: {
+    className?: string;
+    heading?: string;
+    id?: string;
+  } = {}) {
+    if (!card.about) {
       return null;
     }
 
     return (
-      <ContactAction
-        key={link.id}
-        icon={customLinkIcon(link)}
-        label={customLinkActionType(link)}
-        value={customLinkDisplayLabel(link)}
-        description={offerEndDescription(link)}
-        href={href}
-        anchorProps={customLinkAnchorProps(link, href)}
-        analyticsCardId={analyticsCardId}
-        eventType="CUSTOM_LINK_CLICK"
-        metadata={{
-          source: "public_card",
-          layout: card.profileLayout,
-          linkId: link.id,
-          label: link.label,
-          type: link.type,
-          actionMode: link.actionMode,
-          resolvedAction: link.fileUrl || link.fileMimeType || link.fileName
-            ? resolveCircleCardFileAction(link)
-            : undefined,
-          url: analyticsUrlValue(href)
-        }}
-      />
+      <section
+        aria-labelledby={id}
+        className={cn("rounded-[1.5rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6", className)}
+      >
+        <h2 id={id} className="text-sm font-semibold text-foreground">
+          {heading}
+        </h2>
+        <CircleCardAboutExpander text={card.about} className="mt-3" />
+      </section>
+    );
+  }
+
+  function renderQuickConnectSection({
+    rows = contactRows,
+    className,
+    id = "circle-card-quick-connect",
+    heading = "Direct routes back",
+    emptyMessage = "Contact details can be added from the Circle Card dashboard."
+  }: {
+    rows?: ContactRow[];
+    className?: string;
+    id?: string;
+    heading?: string;
+    emptyMessage?: string;
+  } = {}) {
+    return (
+      <section
+        aria-labelledby={id}
+        className={cn(
+          "rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.86),rgba(4,10,24,0.94))] p-5 shadow-panel-soft",
+          className
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Quick Connect</p>
+            <h2 id={id} className="mt-1 font-display text-2xl text-foreground">
+              {heading}
+            </h2>
+          </div>
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+            <ChevronRight size={18} />
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-2">
+          {rows.length ? (
+            rows.map((row) => (
+              <ContactAction
+                key={row.key}
+                icon={row.icon}
+                label={row.label}
+                value={row.value}
+                description={row.description}
+                href={row.href}
+                anchorProps={row.anchorProps}
+                analyticsCardId={analyticsCardId}
+                eventType={row.eventType}
+                metadata={row.metadata}
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-dashed border-silver/16 bg-white/[0.03] p-4 text-sm text-muted">
+              {emptyMessage}
+            </p>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  function renderFeaturedLinksSection({
+    className,
+    id = "circle-card-featured-links",
+    eyebrow = "Featured Links",
+    heading = "Featured links",
+    description,
+    source = "public_card"
+  }: {
+    className?: string;
+    id?: string;
+    eyebrow?: string;
+    heading?: string;
+    description?: string;
+    source?: string;
+  } = {}) {
+    if (!featuredLinks.length) {
+      return null;
+    }
+
+    return (
+      <section
+        aria-labelledby={id}
+        className={cn(
+          "rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6",
+          className
+        )}
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">{eyebrow}</p>
+            <h2 id={id} className="mt-1 font-display text-2xl text-foreground">
+              {heading}
+            </h2>
+            {description ? (
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{description}</p>
+            ) : null}
+          </div>
+          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-silver/14 bg-white/[0.05] px-3 py-1.5 text-xs text-silver">
+            <Sparkles size={13} className="text-gold" />
+            Active links
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {featuredLinks.map((link) => (
+            <FeaturedLinkCard
+              key={link.id}
+              link={link}
+              analyticsCardId={analyticsCardId}
+              layout={card.profileLayout}
+              source={source}
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  function renderShareQrSection({
+    className,
+    id = "circle-card-share",
+    qrLabel = "Scan to save this contact",
+    analyticsSource = "public_card"
+  }: {
+    className?: string;
+    id?: string;
+    qrLabel?: string;
+    analyticsSource?: string;
+  } = {}) {
+    return (
+      <section id={id} aria-labelledby={`${id}-title`} className={cn("scroll-mt-24 space-y-3", className)}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Share</p>
+            <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">
+              Share this Circle Card
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+              Use the link or QR code when this person should be easier to find again.
+            </p>
+          </div>
+          <CircleCardShareButton
+            title={`${card.fullName} | Circle Card`}
+            publicUrl={publicUrl}
+            cardId={analyticsCardId}
+            label="Share Card"
+            hideStatus
+            className="min-w-0 sm:w-52"
+            buttonClassName={cn(secondaryActionClassName, "gap-2")}
+          />
+        </div>
+
+        <CircleCardQrPanel
+          publicUrl={publicUrl}
+          slug={card.slug}
+          label={qrLabel}
+          variant="premium"
+          analytics={
+            analyticsCardId
+              ? {
+                  cardId: analyticsCardId,
+                  source: analyticsSource
+                }
+              : undefined
+          }
+        />
+      </section>
     );
   }
 
@@ -1508,7 +1699,7 @@ export function PublicCircleCardProfile({
             />
           </header>
 
-          <main className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <main className="mx-auto mt-5 max-w-4xl space-y-5">
             <section className="rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                 <CircleCardSpinToConnect {...spinToConnectProps} className="h-28 w-28 shrink-0">
@@ -1551,6 +1742,15 @@ export function PublicCircleCardProfile({
                       <PremiumBadge icon={<MapPin size={13} />} label={card.location} muted />
                     ) : null}
                   </div>
+
+                  {primaryCustomLink || primaryWebsiteLink ? (
+                    <div className="mt-5 flex">
+                      {renderPrimaryCta({
+                        source: "classic_hero_cta",
+                        className: "max-w-full sm:w-auto"
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -1591,57 +1791,23 @@ export function PublicCircleCardProfile({
               ) : null}
             </section>
 
-            <aside id="classic-contact" className="space-y-5">
-              <section className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(9,20,45,0.9),rgba(4,10,24,0.96))] p-5 shadow-panel-soft">
-                <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Mail size={16} className="text-gold" />
-                  Contact
-                </h2>
-                <div className="mt-4 space-y-2">
-                  {contactRows.length ? (
-                    contactRows.map((row) => (
-                      <ContactAction
-                        key={row.key}
-                        icon={row.icon}
-                        label={row.label}
-                        value={row.value}
-                        description={row.description}
-                        href={row.href}
-                        anchorProps={row.anchorProps}
-                        analyticsCardId={analyticsCardId}
-                        eventType={row.eventType}
-                        metadata={row.metadata}
-                      />
-                    ))
-                  ) : (
-                    <p className="rounded-2xl border border-dashed border-silver/16 bg-white/[0.03] p-4 text-sm text-muted">
-                      Contact details can be added from the Circle Card dashboard.
-                    </p>
-                  )}
-                </div>
-              </section>
+            {renderAboutSection({ id: "classic-about" })}
+            {renderQuickConnectSection({
+              id: "classic-quick-connect",
+              heading: "Ways to connect"
+            })}
+            {renderFeaturedLinksSection({
+              id: "classic-featured-links",
+              heading: "Featured links",
+              description: "Useful routes, offers and resources from this Circle Card."
+            })}
+            {renderShareQrSection({
+              id: "classic-share"
+            })}
 
-              {card.customLinks.length ? (
-                <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft">
-                  <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <LinkIcon size={16} className="text-gold" />
-                    Links
-                  </h2>
-                  <div className="mt-4 space-y-2">{card.customLinks.map(renderCustomLinkAction)}</div>
-                </section>
-              ) : null}
-
-              {card.about ? (
-                <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft">
-                  <h2 className="text-sm font-semibold text-foreground">About</h2>
-                  <CircleCardAboutExpander text={card.about} className="mt-3" />
-                </section>
-              ) : null}
-
-              {!card.isDemo ? (
-                <CircleCardReportForm cardId={card.id} cardSlug={card.slug} />
-              ) : null}
-            </aside>
+            {!card.isDemo ? (
+              <CircleCardReportForm cardId={card.id} cardSlug={card.slug} />
+            ) : null}
           </main>
         </div>
       </div>
@@ -1649,18 +1815,10 @@ export function PublicCircleCardProfile({
   }
 
   if (card.profileLayout === "CREATOR") {
-    const creatorWebsiteRow = directContactRows.find((row) => row.key === "website") ?? null;
-    const creatorPrimaryLink = selectCreatorPrimaryLink(card, Boolean(creatorWebsiteRow));
-    const creatorPrimaryWebsite = creatorPrimaryLink ? null : creatorWebsiteRow;
-    const creatorLinks = creatorFeaturedLinks(card);
     const creatorSocialRows = [
       ...socialContactRows,
-      ...(creatorWebsiteRow ? [creatorWebsiteRow] : [])
+      ...(websiteContactRow ? [websiteContactRow] : [])
     ];
-    const creatorDirectContactRows = directContactRows.filter((row) => row.key !== "website");
-    const hasCreatorPrimaryAction = Boolean(creatorPrimaryLink || creatorPrimaryWebsite);
-    const creatorActionGridClassName =
-      viewerIsOwner || hasCreatorPrimaryAction ? "sm:grid-cols-3" : "sm:grid-cols-2";
     const creatorFirstName = card.fullName.split(" ").filter(Boolean)[0] ?? "Creator";
 
     return (
@@ -1813,15 +1971,24 @@ export function PublicCircleCardProfile({
                       ))}
                     </div>
                   ) : null}
+
+                  {primaryCustomLink || primaryWebsiteLink ? (
+                    <div className="mt-6 flex justify-center lg:justify-start">
+                      {renderPrimaryCta({
+                        source: "creator_hero_cta",
+                        className: "max-w-full sm:w-auto"
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </section>
 
             <section
-              aria-label="Creator primary actions"
+              aria-label="Circle Card actions"
               className="rounded-[1.5rem] border border-silver/14 bg-white/[0.04] p-3 shadow-[0_20px_58px_rgba(0,0,0,0.24)] backdrop-blur sm:p-4"
             >
-              <div className={cn("grid gap-3", creatorActionGridClassName)}>
+              <div className="grid gap-3 sm:grid-cols-3">
                 <a
                   href={`/card/${card.slug}/vcard`}
                   className={cn(buttonVariants({ variant: "outline" }), secondaryActionClassName, "gap-2")}
@@ -1829,66 +1996,17 @@ export function PublicCircleCardProfile({
                   <Download size={16} />
                   Save Contact
                 </a>
+                {renderWalletAction()}
                 <CircleCardShareButton
                   title={`${card.fullName} | Circle Card`}
                   publicUrl={publicUrl}
                   cardId={analyticsCardId}
-                  label="Share"
+                  label="Share Card"
                   hideStatus
                   buttonClassName={cn(secondaryActionClassName, "gap-2")}
                 />
-
-                {viewerIsOwner ? (
-                  <span className={cn(buttonVariants({ variant: "outline" }), secondaryActionClassName, "gap-2 opacity-80")}>
-                    <UserRound size={16} />
-                    Your Card
-                  </span>
-                ) : creatorPrimaryLink ? (
-                  <CircleCardTrackedLink
-                    {...customLinkAnchorProps(creatorPrimaryLink, customLinkHref(creatorPrimaryLink))}
-                    href={customLinkHref(creatorPrimaryLink)}
-                    cardId={analyticsCardId ?? ""}
-                    eventType="CUSTOM_LINK_CLICK"
-                    metadata={{
-                      source: "creator_primary_cta",
-                      layout: card.profileLayout,
-                      linkId: creatorPrimaryLink.id,
-                      label: creatorPrimaryLink.label,
-                      type: creatorPrimaryLink.type,
-                      actionMode: creatorPrimaryLink.actionMode,
-                      resolvedAction:
-                        creatorPrimaryLink.fileUrl ||
-                        creatorPrimaryLink.fileMimeType ||
-                        creatorPrimaryLink.fileName
-                          ? resolveCircleCardFileAction(creatorPrimaryLink)
-                          : undefined,
-                      url: analyticsUrlValue(customLinkHref(creatorPrimaryLink))
-                    }}
-                    className={cn(buttonVariants(), primaryActionClassName, "min-w-0 gap-2 px-3")}
-                  >
-                    <span className="shrink-0">{customLinkIcon(creatorPrimaryLink)}</span>
-                    <span className="min-w-0 truncate">{creatorLinkCtaLabel(creatorPrimaryLink)}</span>
-                    <ChevronRight size={16} className="shrink-0" />
-                  </CircleCardTrackedLink>
-                ) : creatorPrimaryWebsite ? (
-                  <CircleCardTrackedLink
-                    href={creatorPrimaryWebsite.href}
-                    {...creatorPrimaryWebsite.anchorProps}
-                    cardId={analyticsCardId ?? ""}
-                    eventType="WEBSITE_CLICK"
-                    metadata={{
-                      source: "creator_primary_cta",
-                      layout: card.profileLayout,
-                      url: analyticsUrlValue(creatorPrimaryWebsite.href)
-                    }}
-                    className={cn(buttonVariants(), primaryActionClassName, "min-w-0 gap-2 px-3")}
-                  >
-                    <Globe2 size={16} className="shrink-0" />
-                    <span className="min-w-0 truncate">Visit Website</span>
-                    <ChevronRight size={16} className="shrink-0" />
-                  </CircleCardTrackedLink>
-                ) : null}
               </div>
+              {renderConnectionAction()}
             </section>
 
             {noticeMessage || errorMessage ? (
@@ -1906,119 +2024,22 @@ export function PublicCircleCardProfile({
               </div>
             ) : null}
 
-            {creatorLinks.length ? (
-              <section
-                aria-labelledby="creator-links-title"
-                className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6"
-              >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-gold">Featured links</p>
-                    <h2 id="creator-links-title" className="mt-1 font-display text-2xl text-foreground">
-                      Latest from {creatorFirstName}
-                    </h2>
-                  </div>
-                  <span className="inline-flex w-fit items-center gap-2 rounded-full border border-silver/14 bg-white/[0.05] px-3 py-1.5 text-xs text-silver">
-                    <Sparkles size={13} className="text-gold" />
-                    Live creator picks
-                  </span>
-                </div>
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {creatorLinks.map((link) => (
-                    <CreatorSmartLinkCard
-                      key={link.id}
-                      link={link}
-                      analyticsCardId={analyticsCardId}
-                      layout={card.profileLayout}
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            <div
-              className={cn(
-                "grid gap-5 lg:items-start",
-                creatorDirectContactRows.length
-                  ? "lg:grid-cols-2"
-                  : "lg:grid-cols-[minmax(0,560px)] lg:justify-center"
-              )}
-            >
-              {creatorDirectContactRows.length ? (
-                <section className="rounded-[1.5rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft">
-                  <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <Mail size={16} className="text-gold" />
-                    Contact
-                  </h2>
-                  <div className="mt-4 space-y-2">
-                    {creatorDirectContactRows.map((row) => (
-                      <ContactAction
-                        key={row.key}
-                        icon={row.icon}
-                        label={row.label}
-                        value={row.value}
-                        description={row.description}
-                        href={row.href}
-                        anchorProps={row.anchorProps}
-                        analyticsCardId={analyticsCardId}
-                        eventType={row.eventType}
-                        metadata={row.metadata}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-              <section id="qr" aria-label="Circle Card QR code" className="scroll-mt-24">
-                <CircleCardQrPanel
-                  publicUrl={publicUrl}
-                  slug={card.slug}
-                  label="Scan to save this creator"
-                  variant="premium"
-                  analytics={
-                    analyticsCardId
-                      ? {
-                          cardId: analyticsCardId,
-                          source: "creator_profile"
-                        }
-                      : undefined
-                  }
-                />
-              </section>
-            </div>
-
-            {!viewerIsOwner ? (
-              <section className="rounded-[1.5rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(8,20,28,0.78),rgba(4,10,24,0.92))] p-4 shadow-inner-surface sm:p-5">
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] sm:items-center">
-                  <div className="min-w-0">
-                    <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <WalletCards size={16} className="text-gold" />
-                      Circle Wallet
-                    </p>
-                    <p className="mt-1 text-sm leading-relaxed text-muted">
-                      Save this creator privately and keep the relationship layer close.
-                    </p>
-                  </div>
-                  <div className="min-w-0">{renderWalletAction()}</div>
-                </div>
-                {savedContact ? (
-                  <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm text-gold">
-                    <CheckCircle2 size={16} />
-                    Saved in your Circle Wallet
-                    {savedContact.favourite ? (
-                      <span className="text-xs text-gold/80">Favourite</span>
-                    ) : null}
-                  </div>
-                ) : null}
-                {renderConnectionAction()}
-              </section>
-            ) : null}
-
-            {card.about ? (
-              <section className="rounded-[1.5rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6">
-                <h2 className="text-sm font-semibold text-foreground">About</h2>
-                <CircleCardAboutExpander text={card.about} className="mt-3" />
-              </section>
-            ) : null}
+            {renderAboutSection({ id: "creator-about" })}
+            {renderQuickConnectSection({
+              id: "creator-quick-connect",
+              heading: "Contact and socials"
+            })}
+            {renderFeaturedLinksSection({
+              id: "creator-featured-links",
+              heading: `Latest from ${creatorFirstName}`,
+              description: "Current places to watch, book, buy, download or follow.",
+              source: "creator_featured_card"
+            })}
+            {renderShareQrSection({
+              id: "creator-share",
+              qrLabel: "Scan to save this creator",
+              analyticsSource: "creator_profile"
+            })}
 
             <section
               aria-label="Circle Card trust"
@@ -2101,7 +2122,7 @@ export function PublicCircleCardProfile({
           />
         </header>
 
-        <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,820px)_minmax(300px,360px)] xl:justify-center xl:items-start">
+        <section className="mx-auto mt-5 max-w-5xl">
           <main className="space-y-5">
             <article
               aria-labelledby="circle-card-profile-title"
@@ -2218,6 +2239,15 @@ export function PublicCircleCardProfile({
                   ) : null}
                 </div>
 
+                {primaryCustomLink || primaryWebsiteLink ? (
+                  <div className="mt-6 flex justify-center">
+                    {renderPrimaryCta({
+                      source: "business_hero_cta",
+                      className: "max-w-full sm:w-auto"
+                    })}
+                  </div>
+                ) : null}
+
                 {noticeMessage || errorMessage ? (
                   <div className="mt-6 space-y-2">
                     {noticeMessage ? (
@@ -2262,16 +2292,6 @@ export function PublicCircleCardProfile({
                 />
               </div>
 
-              {savedContact ? (
-                <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm text-gold">
-                  <CheckCircle2 size={16} />
-                  Saved in your Circle Wallet
-                  {savedContact.favourite ? (
-                    <span className="text-xs text-gold/80">Favourite</span>
-                  ) : null}
-                </div>
-              ) : null}
-
               {renderConnectionAction()}
 
               {!isAuthenticated ? (
@@ -2301,190 +2321,37 @@ export function PublicCircleCardProfile({
               ) : null}
             </section>
 
+            {renderAboutSection({ id: "business-about" })}
+            {renderQuickConnectSection({
+              id: "business-quick-connect",
+              heading: "Direct routes back"
+            })}
+            {renderFeaturedLinksSection({
+              id: "business-featured-links",
+              heading: "Featured links",
+              description: "Offers, bookings, files and proof links from this Circle Card."
+            })}
+            {renderShareQrSection({
+              id: "business-share"
+            })}
             <PublicRecommendations recommendations={card.recommendations} />
-
-            <section id="qr" aria-label="Circle Card QR code" className="scroll-mt-24 xl:hidden">
-              <CircleCardQrPanel
-                publicUrl={publicUrl}
-                slug={card.slug}
-                label="Scan to save this contact"
-                variant="premium"
-                analytics={
-                  analyticsCardId
-                    ? {
-                        cardId: analyticsCardId,
-                        source: "public_card"
-                      }
-                    : undefined
-                }
-              />
-            </section>
-
-            <section
-              aria-labelledby="circle-card-contact-title"
-              className="rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.86),rgba(4,10,24,0.94))] p-5 shadow-panel-soft"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium text-gold">Contact Hub</p>
-                  <h2 id="circle-card-contact-title" className="mt-1 font-display text-2xl text-foreground">
-                    Direct routes back
-                  </h2>
-                </div>
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
-                  <ChevronRight size={18} />
+            <TrustArea
+              card={card}
+              ownerAccountLabel={ownerAccountLabel}
+              ownerIsBcnMember={ownerIsBcnMember}
+            />
+            <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-inner-surface">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[#2f6dff]/26 bg-[#1e5bff]/12 text-[#d8e6ff]">
+                  <BarChart3 size={18} />
                 </span>
-              </div>
-
-              <div className="mt-4 grid gap-2">
-                {contactRows.map((row) => (
-                  <ContactAction
-                    key={row.key}
-                    icon={row.icon}
-                    label={row.label}
-                    value={row.value}
-                    description={row.description}
-                    href={row.href}
-                    anchorProps={row.anchorProps}
-                    analyticsCardId={analyticsCardId}
-                    eventType={row.eventType}
-                    metadata={row.metadata}
-                  />
-                ))}
-
-                {card.customLinks.length ? (
-                  <div className="mt-3 space-y-2 border-t border-gold/14 pt-4">
-                    <p className="px-1 text-xs font-medium text-gold">Featured links</p>
-                    {card.customLinks.map((link) => {
-                      if (link.visibility === "PRIVATE_CODE") {
-                        return (
-                          <CircleCardPrivateLinkAction
-                            key={link.id}
-                            linkId={link.id}
-                            type={link.type}
-                            value={customLinkDisplayLabel(link)}
-                            description={offerEndDescription(link)}
-                            accessCodeHint={link.accessCodeHint}
-                            hasAccessCode={link.hasAccessCode}
-                          />
-                        );
-                      }
-
-                      const href = customLinkHref(link);
-
-                      if (!href) {
-                        return null;
-                      }
-
-                      return (
-                        <ContactAction
-                          key={link.id}
-                          icon={customLinkIcon(link)}
-                          label={customLinkActionType(link)}
-                          value={customLinkDisplayLabel(link)}
-                          description={offerEndDescription(link)}
-                          thumbnailUrl={link.imageUrl}
-                          href={href}
-                          anchorProps={customLinkAnchorProps(link, href)}
-                          analyticsCardId={analyticsCardId}
-                          eventType="CUSTOM_LINK_CLICK"
-                          metadata={{
-                            source: "public_card",
-                            linkId: link.id,
-                            label: link.label,
-                            type: link.type,
-                            actionMode: link.actionMode,
-                            resolvedAction: link.fileUrl || link.fileMimeType || link.fileName
-                              ? resolveCircleCardFileAction(link)
-                              : undefined,
-                            url: analyticsUrlValue(href)
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                ) : null}
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Identity signals</p>
+                  <p className="text-xs text-muted">Views, QR scans, saves and shares stay tracked.</p>
+                </div>
               </div>
             </section>
-
-            {(card.businessName || card.role || card.tagline || card.about) ? (
-              <section
-                aria-labelledby="circle-card-business-title"
-                className="rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.86),rgba(4,10,24,0.94))] p-5 shadow-panel-soft"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
-                    <Building2 size={18} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-gold">Business</p>
-                    <h2 id="circle-card-business-title" className="mt-1 font-display text-2xl text-foreground">
-                      {card.businessName || card.fullName}
-                    </h2>
-                    {displayRole ? (
-                      <p className="mt-2 inline-flex max-w-full items-center gap-2 text-sm text-silver">
-                        <BriefcaseBusiness size={15} className="shrink-0 text-gold" />
-                        <span className="truncate">{displayRole}</span>
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-
-                {card.tagline ? (
-                  <p className="mt-5 text-base font-medium leading-relaxed text-foreground">
-                    {card.tagline}
-                  </p>
-                ) : null}
-
-                {card.about ? <CircleCardAboutExpander text={card.about} className="mt-4" /> : null}
-              </section>
-            ) : null}
-
-            <div className="grid gap-5 xl:hidden">
-              <TrustArea
-                card={card}
-                ownerAccountLabel={ownerAccountLabel}
-                ownerIsBcnMember={ownerIsBcnMember}
-              />
-            </div>
           </main>
-
-          <aside className="hidden space-y-5 xl:block">
-            <div className="sticky top-24 space-y-5">
-              <section id="qr-desktop" aria-label="Circle Card QR code">
-                <CircleCardQrPanel
-                  publicUrl={publicUrl}
-                  slug={card.slug}
-                  label="Scan to save this contact"
-                  variant="premium"
-                  analytics={
-                    analyticsCardId
-                      ? {
-                          cardId: analyticsCardId,
-                          source: "public_card"
-                        }
-                      : undefined
-                  }
-                />
-              </section>
-              <TrustArea
-                card={card}
-                ownerAccountLabel={ownerAccountLabel}
-                ownerIsBcnMember={ownerIsBcnMember}
-              />
-              <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-inner-surface">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[#2f6dff]/26 bg-[#1e5bff]/12 text-[#d8e6ff]">
-                    <BarChart3 size={18} />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Identity signals</p>
-                    <p className="text-xs text-muted">Views, QR scans, saves and shares stay tracked.</p>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </aside>
         </section>
 
         <CircleCardInstallPrompt className="mt-5 lg:hidden" />
