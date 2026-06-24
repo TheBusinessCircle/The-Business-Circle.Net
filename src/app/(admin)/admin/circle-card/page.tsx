@@ -252,7 +252,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
     PRO_SUBSCRIPTION: "Future paid Circle Card Pro subscriptions only.",
     TEAMS_SUBSCRIPTION: "Future paid Circle Card Teams subscriptions only.",
     BCN_INCLUDED_PRO: "Active BCN members receiving Circle Card Pro without a separate Circle Card subscription.",
-    ADMIN_OVERRIDE: "Admin access source, separate from paid and BCN-included reporting.",
+    ADMIN_OVERRIDE: "Admin Preview access, separate from paid and BCN-included reporting.",
     EARLY_ACCESS: "Future early-access grants, separate from paid and BCN-included reporting."
   } satisfies Record<(typeof CIRCLE_CARD_ENTITLEMENT_SOURCES)[number], string>;
   const entitlementSourceMetrics: MetricItem[] = CIRCLE_CARD_ENTITLEMENT_SOURCES.map((source) => ({

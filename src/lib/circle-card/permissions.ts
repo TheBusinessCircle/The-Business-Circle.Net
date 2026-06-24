@@ -71,7 +71,7 @@ export const CIRCLE_CARD_ENTITLEMENT_SOURCE_LABELS: Record<
   PRO_SUBSCRIPTION: "Paid Circle Card Pro",
   TEAMS_SUBSCRIPTION: "Paid Circle Card Teams",
   BCN_INCLUDED_PRO: "BCN Included Pro",
-  ADMIN_OVERRIDE: "Admin Override",
+  ADMIN_OVERRIDE: "Admin Preview",
   EARLY_ACCESS: "Early Access"
 };
 

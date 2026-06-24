@@ -70,6 +70,7 @@ describe("admin member access display", () => {
     expect(access.bcnMembershipTier).toBeNull();
     expect(access.isAdmin).toBe(true);
     expect(access.hasBcnMembershipAccess).toBe(false);
+    expect(getAdminCircleCardPlanLabel(access.circleCardPlan)).toBe("Admin Preview");
   });
 
   it("distinguishes future paid Circle Card Pro from BCN included Pro", () => {

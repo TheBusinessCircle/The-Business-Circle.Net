@@ -86,6 +86,7 @@ describe("Circle Card entitlements", () => {
 
     expect(entitlement.plan).toBe("PRO");
     expect(entitlement.source).toBe("ADMIN_OVERRIDE");
+    expect(entitlement.label).toBe("Admin Preview");
     expect(entitlement.isAdminOverride).toBe(true);
     expect(entitlement.hasPaidCircleCardSubscription).toBe(false);
   });

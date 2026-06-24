@@ -2249,6 +2249,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const connectHubLookupMissing = Boolean(connectCardSlug && !connectHubCard);
   const accountLabel = circleCardEntitlement.label;
   const isCircleCardFree = circleCardEntitlement.source === "FREE";
+  const canPreviewFutureCircleCardFoundation =
+    circleCardEntitlement.isAdminOverride || circleCardEntitlement.isEarlyAccess;
   const cardLimitReached = !canCreateAdditionalCard;
   const activeCardLimitLabel = `${cardCount}/${featureAccess.cardLimit} active`;
   const selectedCardReturnPath = card
@@ -2888,27 +2890,61 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
 
           <aside className="space-y-3 rounded-xl border border-border/80 bg-background/22 p-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Card type foundation</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted">
-                Personal, Business and Creator are stored per card. Future blocks stay reserved until
-                their editing surfaces are ready.
-              </p>
-            </div>
-            <div className="grid gap-2 text-xs">
-              <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
-                Creator blocks reserved: {CIRCLE_CARD_CREATOR_BLOCK_TYPES.length}
-              </div>
-              <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
-                Business blocks reserved: {CIRCLE_CARD_BUSINESS_BLOCK_TYPES.length}
-              </div>
-              {cardLimitReached ? (
-                <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1 gap-2")}>
-                  <Crown size={14} />
-                  Review upgrade pathway
-                </Link>
-              ) : null}
-            </div>
+            {canPreviewFutureCircleCardFoundation ? (
+              <>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">Admin Preview foundation</p>
+                    <Badge variant="outline" className="border-gold/28 text-gold">
+                      {circleCardEntitlement.isEarlyAccess ? "Early Access" : "Admin Preview"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-muted">
+                    Personal, Business and Creator card types are live for testing. Reserved Creator,
+                    Business and Teams foundations stay preview-labelled and separate from billing.
+                  </p>
+                </div>
+                <div className="grid gap-2 text-xs">
+                  <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Creator blocks reserved: {CIRCLE_CARD_CREATOR_BLOCK_TYPES.length}
+                  </div>
+                  <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Business blocks reserved: {CIRCLE_CARD_BUSINESS_BLOCK_TYPES.length}
+                  </div>
+                  <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Teams foundation: staff-card structure prepared
+                  </div>
+                  {cardLimitReached ? (
+                    <Link
+                      href="/circle-card/pro"
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1 gap-2")}
+                    >
+                      <Crown size={14} />
+                      Review upgrade pathway
+                    </Link>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Card access</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted">
+                    Card management follows your current Circle Card access. Future Pro and Teams tools
+                    stay hidden until they are ready.
+                  </p>
+                </div>
+                {cardLimitReached ? (
+                  <Link
+                    href="/circle-card/pro"
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1 gap-2")}
+                  >
+                    <Crown size={14} />
+                    Review upgrade pathway
+                  </Link>
+                ) : null}
+              </>
+            )}
           </aside>
         </div>
       </section>
