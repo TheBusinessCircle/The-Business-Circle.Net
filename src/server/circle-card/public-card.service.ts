@@ -2,6 +2,7 @@ import "server-only";
 import type {
   CircleCardAccountType,
   CircleCardProfileLayout,
+  CircleCardType,
   MembershipTier,
   Prisma,
   Role
@@ -51,10 +52,25 @@ export type PublicCircleCardRecommendation = {
   };
 };
 
+export type PublicCircleCardSwitcherItem = {
+  id: string;
+  slug: string;
+  cardType: CircleCardType;
+  fullName: string;
+  businessName: string | null;
+  tagline: string | null;
+  profileImageUrl: string | null;
+  displayOrder: number;
+  isDefaultCard: boolean;
+};
+
 export type PublicCircleCard = {
   id: string;
   userId: string;
   slug: string;
+  cardType: CircleCardType;
+  displayOrder: number;
+  isDefaultCard: boolean;
   fullName: string;
   businessName: string | null;
   accountType: CircleCardAccountType | null;
@@ -83,6 +99,7 @@ export type PublicCircleCard = {
   location: string | null;
   socialLinks: CircleCardSocialLinks;
   customLinks: PublicCircleCardLink[];
+  ownerCards: PublicCircleCardSwitcherItem[];
   recommendations: PublicCircleCardRecommendation[];
   successfulReferralCount: number;
   viewCount: number;
@@ -99,6 +116,9 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   id: "demo",
   userId: "demo",
   slug: "demo",
+  cardType: "PERSONAL",
+  displayOrder: 0,
+  isDefaultCard: true,
   fullName: "Trev Clarke",
   businessName: "The Business Circle",
   accountType: "FOUNDER",
@@ -173,6 +193,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
       sortOrder: 1
     }
   ],
+  ownerCards: [],
   recommendations: [],
   successfulReferralCount: 0,
   viewCount: 0,
@@ -194,6 +215,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     where: {
       slug,
       isPublished: true,
+      archivedAt: null,
       user: {
         suspended: false
       }
@@ -202,6 +224,9 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       id: true,
       userId: true,
       slug: true,
+      cardType: true,
+      displayOrder: true,
+      isDefaultCard: true,
       fullName: true,
       businessName: true,
       accountType: true,
@@ -312,6 +337,29 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     return null;
   }
 
+  const ownerCards = await prisma.circleCard.findMany({
+    where: {
+      userId: card.userId,
+      isPublished: true,
+      archivedAt: null,
+      user: {
+        suspended: false
+      }
+    },
+    orderBy: [{ displayOrder: "asc" }, { isDefaultCard: "desc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      slug: true,
+      cardType: true,
+      fullName: true,
+      businessName: true,
+      tagline: true,
+      profileImageUrl: true,
+      displayOrder: true,
+      isDefaultCard: true
+    }
+  });
+
   const customLinks = await Promise.all(
     card.customLinks.map(async (link) => {
       const { accessCodeHash, ...publicLink } = link;
@@ -349,6 +397,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     recommendations: card.recommendationsReceived,
     successfulReferralCount: card._count.referralsReceived,
+    ownerCards,
     customLinks,
     isDemo: false
   };

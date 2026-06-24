@@ -18,8 +18,8 @@ function isFileValue(value: FormDataEntryValue | null): value is File {
 
 async function getPrimaryCardId(userId: string) {
   const card = await prisma.circleCard.findFirst({
-    where: { userId },
-    orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+    where: { userId, archivedAt: null },
+    orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
     select: { id: true }
   });
 

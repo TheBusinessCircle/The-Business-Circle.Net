@@ -20,6 +20,10 @@ import {
 } from "@/lib/circle-card/theme";
 import { normalizeExternalHref } from "@/lib/links";
 import { slugify } from "@/lib/utils";
+import {
+  CIRCLE_CARD_TYPES,
+  DEFAULT_CIRCLE_CARD_TYPE
+} from "@/lib/circle-card/card-types";
 
 export const CIRCLE_CARD_SOCIAL_PLATFORMS = [
   "tiktok",
@@ -212,6 +216,13 @@ const optionalCircleCardAccountType = z.preprocess(
   },
   z.enum(CIRCLE_CARD_ACCOUNT_TYPES).optional()
 );
+const circleCardTypeInput = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim()
+      ? value.trim().toUpperCase()
+      : DEFAULT_CIRCLE_CARD_TYPE,
+  z.enum(CIRCLE_CARD_TYPES)
+);
 const requiredCircleCardAccountType = z.preprocess(
   (value) => (typeof value === "string" ? value.trim().toUpperCase() : value),
   z.enum(CIRCLE_CARD_ACCOUNT_TYPES)
@@ -366,6 +377,7 @@ const optionalDiscordSocialUrl = z
 export const circleCardFormSchema = z.object({
   cardId: z.string().cuid().optional().or(z.literal("")),
   slug: optionalSlug,
+  cardType: circleCardTypeInput,
   fullName: z.string().trim().min(2).max(120),
   businessName: optionalText(140),
   accountType: optionalCircleCardAccountType,

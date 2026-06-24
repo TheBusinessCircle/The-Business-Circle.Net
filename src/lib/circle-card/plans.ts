@@ -3,6 +3,7 @@ import type { CircleCardAccountType } from "@prisma/client";
 export const CIRCLE_CARD_PLANS = ["FREE", "PRO", "TEAMS"] as const;
 export const CIRCLE_CARD_FREE_CARD_LIMIT = 1;
 export const CIRCLE_CARD_PRO_CARD_LIMIT = 2;
+export const CIRCLE_CARD_TEAMS_STAFF_CARD_LIMIT = 25;
 export const CIRCLE_CARD_TEAMS_CARD_LIMIT = "team" as const;
 
 export type CircleCardPlanKey = (typeof CIRCLE_CARD_PLANS)[number];

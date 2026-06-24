@@ -29,6 +29,7 @@ import {
   getCircleCardAccountTypeLabel,
   getCircleCardIdentityTagLabel
 } from "@/lib/circle-card/identity";
+import { getCircleCardTypeLabel } from "@/lib/circle-card/card-types";
 import {
   buildCircleCardFileActionLabel,
   circleCardFileActionLabel,
@@ -1155,6 +1156,57 @@ export function PublicCircleCardProfile({
   const primaryCustomLink = selectCreatorPrimaryLink(card, Boolean(websiteContactRow));
   const primaryWebsiteLink = primaryCustomLink ? null : websiteContactRow;
 
+  function renderCardSwitcher() {
+    if (card.ownerCards.length <= 1) {
+      return null;
+    }
+
+    return (
+      <nav
+        aria-label={`${card.fullName} Circle Cards`}
+        className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-2 shadow-inner-surface backdrop-blur"
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 px-2 py-1">
+            <p className="truncate text-sm font-semibold text-foreground">{card.fullName}</p>
+            <p className="text-xs text-muted">Choose a Circle Card</p>
+          </div>
+          <div className="grid gap-2 sm:flex sm:min-w-0 sm:flex-wrap sm:justify-end">
+            {card.ownerCards.map((ownerCard) => {
+              const selected = ownerCard.id === card.id;
+              const label = getCircleCardTypeLabel(ownerCard.cardType) ?? ownerCard.cardType;
+              const subtitle = ownerCard.isDefaultCard
+                ? "Default"
+                : ownerCard.businessName ?? ownerCard.tagline ?? ownerCard.fullName;
+
+              return (
+                <Link
+                  key={ownerCard.id}
+                  href={publicCardPath(ownerCard.slug, source)}
+                  aria-current={selected ? "page" : undefined}
+                  data-active={selected ? "true" : "false"}
+                  className={cn(
+                    "flex min-h-12 min-w-0 items-center justify-between gap-3 rounded-xl border border-silver/12 bg-background/22 px-3 py-2 text-left transition-colors hover:border-gold/32 hover:text-foreground sm:min-w-[148px]",
+                    "data-[active=true]:border-gold/42 data-[active=true]:bg-gold/14"
+                  )}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-foreground">{label}</span>
+                    <span className="block truncate text-xs text-muted">{subtitle}</span>
+                  </span>
+                  <ChevronRight
+                    size={16}
+                    className={cn("shrink-0 text-silver", selected && "text-gold")}
+                  />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
   function renderWalletAction({ mobileBar = false }: { mobileBar?: boolean } = {}) {
     const iconSize = mobileBar ? 15 : 16;
     const actionClassName = mobileBar
@@ -1698,6 +1750,7 @@ export function PublicCircleCardProfile({
               buttonClassName="rounded-full border-silver/18 bg-white/[0.035] px-4 text-silver hover:border-gold/35 hover:text-foreground"
             />
           </header>
+          {renderCardSwitcher()}
 
           <main className="mx-auto mt-5 max-w-4xl space-y-5">
             <section className="rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7">
@@ -1855,6 +1908,7 @@ export function PublicCircleCardProfile({
               buttonClassName="rounded-full border-silver/18 bg-white/[0.04] px-4 text-silver hover:border-gold/35 hover:text-foreground"
             />
           </header>
+          {renderCardSwitcher()}
 
           <main className="mt-5 space-y-4 sm:space-y-5">
             <section className="relative isolate overflow-hidden rounded-[2rem] border border-gold/22 bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7 lg:p-8">
@@ -2121,6 +2175,7 @@ export function PublicCircleCardProfile({
             buttonClassName="rounded-full border-silver/18 bg-white/[0.035] px-4 text-silver hover:border-gold/35 hover:text-foreground"
           />
         </header>
+        {renderCardSwitcher()}
 
         <section className="mx-auto mt-5 max-w-5xl">
           <main className="space-y-5">

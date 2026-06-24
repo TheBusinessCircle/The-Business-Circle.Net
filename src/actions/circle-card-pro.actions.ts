@@ -89,7 +89,8 @@ export async function registerCircleCardProInterestAction(formData: FormData) {
           email: true,
           suspended: true,
           circleCards: {
-            orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+            where: { archivedAt: null },
+            orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
             take: 1,
             select: {
               id: true,
@@ -213,7 +214,8 @@ export async function registerCircleCardTeamsInterestAction(formData: FormData) 
           email: true,
           suspended: true,
           circleCards: {
-            orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+            where: { archivedAt: null },
+            orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
             take: 1,
             select: {
               id: true,

@@ -201,9 +201,9 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
       prisma.circleCard.findFirst({
         where: {
           userId: viewerUserId,
-          isPrimary: true
+          archivedAt: null
         },
-        orderBy: [{ updatedAt: "desc" }],
+        orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
         select: {
           id: true
         }

@@ -7,7 +7,8 @@ export const CIRCLE_CARD_DISCOVER_SETTING_COPY =
 
 export const CIRCLE_CARD_DISCOVER_VISIBLE_WHERE = {
   isPublished: true,
-  showInDiscover: true
+  showInDiscover: true,
+  archivedAt: null
 } satisfies Prisma.CircleCardWhereInput;
 
 export const CIRCLE_CARD_PRIVACY_CONTROL_MAP = {

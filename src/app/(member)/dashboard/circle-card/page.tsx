@@ -43,6 +43,7 @@ import {
 import {
   acceptCircleCardConnectionRequestAction,
   acceptCircleCardIntroductionAction,
+  archiveCircleCardAction,
   cancelCircleCardConnectionRequestAction,
   cancelCircleCardIntroductionAction,
   createCircleCardOpportunityAction,
@@ -54,11 +55,13 @@ import {
   generateBusinessCardClaimLinkAction,
   markAllCircleCardNotificationsReadAction,
   markCircleCardNotificationReadAction,
+  moveCircleCardDisplayOrderAction,
   moveCircleCardLinkAction,
   removeCircleWalletContactAction,
   resolveCircleCardLinkAction,
   saveCircleWalletContactAction,
   sendCircleCardConnectionRequestAction,
+  setDefaultCircleCardAction,
   toggleCircleWalletFavouriteAction,
   toggleCircleCardLinkAction,
   updateCircleCardOpportunityAction,
@@ -108,6 +111,7 @@ import {
   resolveCircleCardFileAction
 } from "@/lib/circle-card/file-actions";
 import {
+  canCreateCircleCard,
   getCircleCardFeatureAccess,
   resolveCircleCardEntitlement
 } from "@/lib/circle-card/permissions";
@@ -126,6 +130,15 @@ import {
   CIRCLE_CARD_RECOMMENDATION_CATEGORIES,
   circleCardRecommendationVisibilityLabel
 } from "@/lib/circle-card/recommendations";
+import {
+  CIRCLE_CARD_TYPE_COPY,
+  CIRCLE_CARD_TYPES,
+  getCircleCardTypeLabel
+} from "@/lib/circle-card/card-types";
+import {
+  CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
+  CIRCLE_CARD_CREATOR_BLOCK_TYPES
+} from "@/lib/circle-card/content-blocks";
 import { circleCardIntroductionStatusLabel } from "@/lib/circle-card/introductions";
 import {
   CIRCLE_CARD_REFERRAL_OPEN_STATUSES,
@@ -256,6 +269,28 @@ function resolveCircleCardAppSection(value: string | undefined): CircleCardAppSe
 function circleCardSectionHref(section: CircleCardAppSection, hash?: string) {
   const suffix = hash ? `#${hash.replace(/^#/, "")}` : "";
   return `/dashboard/circle-card?section=${section}${suffix}`;
+}
+
+function circleCardManageHref(input: {
+  cardId?: string | null;
+  section?: CircleCardAppSection;
+  hash?: string;
+  newCard?: boolean;
+}) {
+  const params = new URLSearchParams({
+    section: input.section ?? "my-card"
+  });
+
+  if (input.cardId) {
+    params.set("cardId", input.cardId);
+  }
+
+  if (input.newCard) {
+    params.set("newCard", "1");
+  }
+
+  const suffix = input.hash ? `#${input.hash.replace(/^#/, "")}` : "";
+  return `/dashboard/circle-card?${params.toString()}${suffix}`;
 }
 
 function circleCardCompletionItemHref(itemId: CircleCardCompletionItemId) {
@@ -412,6 +447,10 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "card-created": "Circle Card created.",
   "onboarding-complete": "Your Circle Card is live.",
   "card-updated": "Circle Card updated.",
+  "card-default-updated": "Default Circle Card updated.",
+  "card-order-updated": "Public card order updated.",
+  "card-order-unchanged": "That card is already in that position.",
+  "card-archived": "Circle Card archived.",
   "card-saved": "Contact saved to your Circle Wallet.",
   "card-already-saved": "That card is already in your Circle Wallet.",
   "card-removed": "Contact removed from your Circle Wallet.",
@@ -466,7 +505,7 @@ const NOTICE_MESSAGES: Record<string, string> = {
 const ERROR_MESSAGES: Record<string, string> = {
   "invalid-card": "Check the card fields and try again.",
   "card-not-found": "That Circle Card could not be found.",
-  "card-limit": "Your current Circle Card access includes one card in Phase 1.",
+  "card-limit": "You have reached the Circle Card limit for your current access.",
   "slug-taken": "That public card link is already taken.",
   "card-save-failed": "The Circle Card could not be saved.",
   "custom-link-invalid": "Check the custom link fields and try again.",
@@ -1220,6 +1259,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const session = await requireCircleCardUser();
   const params = await searchParams;
   const activeSection = resolveCircleCardAppSection(firstValue(params.section));
+  const selectedCardId = firstValue(params.cardId) ?? "";
+  const createCardRequested = firstValue(params.newCard) === "1";
   const notice = firstValue(params.notice);
   const created = firstValue(params.created) === "1";
   const error = firstValue(params.error);
@@ -1249,8 +1290,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     activityFilter === "all" ? null : CIRCLE_CARD_ACTIVITY_FILTER_TYPE_MAP[activityFilter];
   await createDueOpportunityNotificationsForUser(session.user.id);
   const [
-    card,
-    cardCount,
+    cards,
+    archivedCardCount,
     member,
     walletContacts,
     connectionRequests,
@@ -1264,9 +1305,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     activityItems,
     referralCentre
   ] = await Promise.all([
-    prisma.circleCard.findFirst({
-      where: { userId: session.user.id },
-      orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+    prisma.circleCard.findMany({
+      where: {
+        userId: session.user.id,
+        archivedAt: null
+      },
+      orderBy: [
+        { displayOrder: "asc" },
+        { isDefaultCard: "desc" },
+        { isPrimary: "desc" },
+        { updatedAt: "desc" }
+      ],
       include: {
         customLinks: {
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
@@ -1274,7 +1323,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       }
     }),
     prisma.circleCard.count({
-      where: { userId: session.user.id }
+      where: {
+        userId: session.user.id,
+        archivedAt: {
+          not: null
+        }
+      }
     }),
     prisma.user.findUnique({
       where: { id: session.user.id },
@@ -1719,6 +1773,25 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     }),
     getCircleCardReferralCentreForUser(session.user.id)
   ]);
+  const circleCardEntitlement = resolveCircleCardEntitlement({
+    role: session.user.role,
+    membershipTier: session.user.membershipTier,
+    hasActiveSubscription: session.user.hasActiveSubscription,
+    suspended: session.user.suspended
+  });
+  const featureAccess = getCircleCardFeatureAccess(circleCardEntitlement.accessLevel);
+  const cardCount = cards.length;
+  const canCreateAdditionalCard = canCreateCircleCard({
+    accessLevel: circleCardEntitlement.accessLevel,
+    existingCardCount: cardCount
+  });
+  const shouldShowNewCardForm = createCardRequested && canCreateAdditionalCard;
+  const selectedExistingCard =
+    selectedCardId && !shouldShowNewCardForm
+      ? cards.find((candidate) => candidate.id === selectedCardId) ?? null
+      : null;
+  const defaultCard = cards.find((candidate) => candidate.isDefaultCard || candidate.isPrimary) ?? null;
+  const card = shouldShowNewCardForm ? null : selectedExistingCard ?? defaultCard ?? cards[0] ?? null;
   const normalizedWalletContacts = walletContacts.map((contact) => {
     const socialLinks = readCircleWalletBusinessCardSocialLinks(contact.socialLinks);
     const fullName =
@@ -2174,15 +2247,22 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     .map((request) => otherConnectionCard(request))
     .slice(0, 5);
   const connectHubLookupMissing = Boolean(connectCardSlug && !connectHubCard);
-  const circleCardEntitlement = resolveCircleCardEntitlement({
-    role: session.user.role,
-    membershipTier: session.user.membershipTier,
-    hasActiveSubscription: session.user.hasActiveSubscription,
-    suspended: session.user.suspended
-  });
-  const featureAccess = getCircleCardFeatureAccess(circleCardEntitlement.accessLevel);
   const accountLabel = circleCardEntitlement.label;
   const isCircleCardFree = circleCardEntitlement.source === "FREE";
+  const cardLimitReached = !canCreateAdditionalCard;
+  const activeCardLimitLabel = `${cardCount}/${featureAccess.cardLimit} active`;
+  const selectedCardReturnPath = card
+    ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "circle-card-form" })
+    : circleCardManageHref({ section: "my-card", hash: "circle-card-form", newCard: true });
+  const createCardHref = circleCardManageHref({
+    section: "my-card",
+    hash: "circle-card-form",
+    newCard: true
+  });
+  const isCreatingAdditionalCard = shouldShowNewCardForm && cardCount > 0;
+  const defaultNewCardType = cards.some((ownedCard) => ownedCard.cardType === "PERSONAL")
+    ? "BUSINESS"
+    : "PERSONAL";
   const customLinks = card?.customLinks ?? [];
   const activeCustomLinkCount = customLinks.filter((link) => link.isActive).length;
   const customLinkLimitLabel = isCircleCardFree
@@ -2495,14 +2575,18 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <Link
-                href={circleCardSectionHref("share", "share-assets-qr")}
+                href={
+                  card
+                    ? circleCardManageHref({ cardId: card.id, section: "share", hash: "share-assets-qr" })
+                    : circleCardSectionHref("share", "share-assets-qr")
+                }
                 className={cn(buttonVariants(), "h-11 min-w-[128px] justify-center gap-2")}
               >
                 <QrCode size={16} />
                 QR
               </Link>
               <Link
-                href={circleCardSectionHref("my-card", "circle-card-form")}
+                href={card ? selectedCardReturnPath : circleCardSectionHref("my-card", "circle-card-form")}
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
               >
                 <ContactRound size={16} />
@@ -2558,7 +2642,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 Wallet
               </Link>
               <Link
-                href={circleCardSectionHref("my-card", "analytics")}
+                href={
+                  card
+                    ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "analytics" })
+                    : circleCardSectionHref("my-card", "analytics")
+                }
                 className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
               >
                 <BarChart3 size={16} />
@@ -2580,7 +2668,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           <div className="flex flex-wrap gap-2">
             <Badge variant="muted">{accountLabel}</Badge>
             <Badge variant="outline" className="border-silver/18 text-silver">
-              {cardCount}/{featureAccess.cardLimit} active
+              {activeCardLimitLabel}
             </Badge>
           </div>
         </div>
@@ -2598,7 +2686,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             return (
               <Link
                 key={item.section}
-                href={circleCardSectionHref(item.section)}
+                href={
+                  card
+                    ? circleCardManageHref({ cardId: card.id, section: item.section })
+                    : circleCardSectionHref(item.section)
+                }
                 data-circle-card-section-tab={item.section}
                 data-active={selected ? "true" : "false"}
                 aria-current={selected ? "page" : undefined}
@@ -2628,24 +2720,196 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         activeFeaturedLinkCount={activeCustomLinkCount}
       />
 
-      <section className="grid gap-3 rounded-2xl border border-silver/14 bg-card/60 p-4 sm:grid-cols-[1fr_auto] sm:items-center sm:p-5">
-        <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Pro multi-card foundation</p>
-          <h2 className="mt-1 font-display text-xl text-foreground">Business Card coming with Pro</h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            Pro is being prepared for one personal Circle Card plus one business or brand card. Public
-            switching stays hidden until multi-card creation is ready.
-          </p>
+      <section id="my-cards" className="scroll-mt-24 rounded-2xl border border-silver/14 bg-card/60 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">My Cards</p>
+            <h2 className="mt-1 font-display text-2xl text-foreground">Manage your Circle Cards</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+              Switch cards, choose the public order, set the default landing card, and archive cards
+              you no longer want public.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline" className="border-gold/28 text-gold">
+              {activeCardLimitLabel}
+            </Badge>
+            {archivedCardCount ? (
+              <Badge variant="outline" className="border-silver/18 text-silver">
+                {archivedCardCount} archived
+              </Badge>
+            ) : null}
+            {canCreateAdditionalCard ? (
+              <Link href={createCardHref} className={cn(buttonVariants(), "gap-2")}>
+                <ContactRound size={16} />
+                Create Card
+              </Link>
+            ) : (
+              <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+                <Crown size={16} />
+                Upgrade pathway
+              </Link>
+            )}
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-xl border border-gold/18 bg-gold/8 p-3">
-            <p className="font-semibold text-foreground">Personal</p>
-            <p className="mt-1 text-xs text-muted">Default public card</p>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="grid gap-3">
+            {cards.length ? (
+              cards.map((ownedCard, index) => {
+                const selected = card?.id === ownedCard.id;
+                const isFirst = index === 0;
+                const isLast = index === cards.length - 1;
+                const manageReturnPath = circleCardManageHref({
+                  cardId: ownedCard.id,
+                  section: "my-card",
+                  hash: "my-cards"
+                });
+
+                return (
+                  <article
+                    key={ownedCard.id}
+                    data-active={selected ? "true" : "false"}
+                    className={cn(
+                      "rounded-xl border border-border/80 bg-background/24 p-3 transition-colors",
+                      "data-[active=true]:border-gold/38 data-[active=true]:bg-gold/8"
+                    )}
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="border-silver/18 text-silver">
+                            {getCircleCardTypeLabel(ownedCard.cardType)}
+                          </Badge>
+                          {ownedCard.isDefaultCard ? (
+                            <Badge variant="premium">Default</Badge>
+                          ) : null}
+                          <Badge variant={ownedCard.isPublished ? "outline" : "muted"}>
+                            {ownedCard.isPublished ? "Published" : "Unpublished"}
+                          </Badge>
+                        </div>
+                        <h3 className="mt-2 truncate text-base font-semibold text-foreground">
+                          {ownedCard.fullName}
+                        </h3>
+                        <p className="mt-1 truncate text-sm text-muted">
+                          {[ownedCard.businessName, ownedCard.role].filter(Boolean).join(" / ") ||
+                            CIRCLE_CARD_TYPE_COPY[ownedCard.cardType].description}
+                        </p>
+                        <p className="mt-1 break-all text-xs text-silver">/card/{ownedCard.slug}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                        <Link
+                          href={circleCardManageHref({
+                            cardId: ownedCard.id,
+                            section: "my-card",
+                            hash: "circle-card-form"
+                          })}
+                          className={cn(buttonVariants({ variant: selected ? "default" : "outline", size: "sm" }), "gap-2")}
+                        >
+                          <ContactRound size={14} />
+                          {selected ? "Editing" : "Switch"}
+                        </Link>
+                        <Link
+                          href={`/card/${ownedCard.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+                        >
+                          <ArrowUpRight size={14} />
+                          Public
+                        </Link>
+                        <form action={setDefaultCircleCardAction}>
+                          <input type="hidden" name="cardId" value={ownedCard.id} />
+                          <input type="hidden" name="returnPath" value={manageReturnPath} />
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2"
+                            disabled={ownedCard.isDefaultCard}
+                          >
+                            <Star size={14} />
+                            Default
+                          </Button>
+                        </form>
+                        <form action={moveCircleCardDisplayOrderAction}>
+                          <input type="hidden" name="cardId" value={ownedCard.id} />
+                          <input type="hidden" name="direction" value="up" />
+                          <input type="hidden" name="returnPath" value={manageReturnPath} />
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2"
+                            disabled={isFirst}
+                          >
+                            <ArrowUp size={14} />
+                            Up
+                          </Button>
+                        </form>
+                        <form action={moveCircleCardDisplayOrderAction}>
+                          <input type="hidden" name="cardId" value={ownedCard.id} />
+                          <input type="hidden" name="direction" value="down" />
+                          <input type="hidden" name="returnPath" value={manageReturnPath} />
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2"
+                            disabled={isLast}
+                          >
+                            <ArrowDown size={14} />
+                            Down
+                          </Button>
+                        </form>
+                        <form action={archiveCircleCardAction}>
+                          <input type="hidden" name="cardId" value={ownedCard.id} />
+                          <input
+                            type="hidden"
+                            name="returnPath"
+                            value={circleCardSectionHref("my-card", "my-cards")}
+                          />
+                          <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
+                            <Trash2 size={14} />
+                            Archive
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
+                Create your first Circle Card to open the dashboard editor and public card tools.
+              </div>
+            )}
           </div>
-          <div className="rounded-xl border border-silver/14 bg-background/24 p-3">
-            <p className="font-semibold text-foreground">Business</p>
-            <p className="mt-1 text-xs text-muted">Pro placeholder</p>
-          </div>
+
+          <aside className="space-y-3 rounded-xl border border-border/80 bg-background/22 p-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Card type foundation</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Personal, Business and Creator are stored per card. Future blocks stay reserved until
+                their editing surfaces are ready.
+              </p>
+            </div>
+            <div className="grid gap-2 text-xs">
+              <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                Creator blocks reserved: {CIRCLE_CARD_CREATOR_BLOCK_TYPES.length}
+              </div>
+              <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                Business blocks reserved: {CIRCLE_CARD_BUSINESS_BLOCK_TYPES.length}
+              </div>
+              {cardLimitReached ? (
+                <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1 gap-2")}>
+                  <Crown size={14} />
+                  Review upgrade pathway
+                </Link>
+              ) : null}
+            </div>
+          </aside>
         </div>
       </section>
 
@@ -5152,14 +5416,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       >
         <Card id="circle-card-form" className="scroll-mt-24 border-silver/16 bg-card/62">
           <CardHeader>
-            <CardTitle>{card ? "Edit your Circle Card" : "Create your first Circle Card"}</CardTitle>
+            <CardTitle>
+              {card
+                ? "Edit your Circle Card"
+                : isCreatingAdditionalCard
+                  ? "Create another Circle Card"
+                  : "Create your first Circle Card"}
+            </CardTitle>
             <CardDescription>
               Keep the card focused on the details people need when they want to reconnect.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form action={upsertCircleCardAction} className="space-y-5" noValidate>
-              <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "circle-card-form")} />
+              <input type="hidden" name="returnPath" value={selectedCardReturnPath} />
               {card ? <input type="hidden" name="cardId" value={card.id} /> : null}
 
               <CircleCardDashboardSection
@@ -5185,6 +5455,23 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       name="businessName"
                       defaultValue={card?.businessName ?? member?.profile?.business?.companyName ?? ""}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cardType">Card type</Label>
+                    <Select
+                      id="cardType"
+                      name="cardType"
+                      defaultValue={card?.cardType ?? defaultNewCardType}
+                    >
+                      {CIRCLE_CARD_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {CIRCLE_CARD_TYPE_COPY[type].label}
+                        </option>
+                      ))}
+                    </Select>
+                    <p className="text-xs text-muted">
+                      Used for dashboard management and the public card switcher.
+                    </p>
                   </div>
                   <div className="md:col-span-2">
                     <CircleCardIdentityFields
@@ -7551,8 +7838,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <CardContent>
                 {card ? (
                   <form action={upsertCircleCardAction} className="space-y-4" noValidate>
-                    <input type="hidden" name="returnPath" value={circleCardSectionHref("settings", "circle-card-settings")} />
+                    <input
+                      type="hidden"
+                      name="returnPath"
+                      value={circleCardManageHref({
+                        cardId: card.id,
+                        section: "settings",
+                        hash: "circle-card-settings"
+                      })}
+                    />
                     <input type="hidden" name="cardId" value={card.id} />
+                    <input type="hidden" name="cardType" value={card.cardType} />
                     <input type="hidden" name="fullName" value={card.fullName} />
                     <input type="hidden" name="businessName" value={card.businessName ?? ""} />
                     <input type="hidden" name="accountType" value={card.accountType ?? ""} />

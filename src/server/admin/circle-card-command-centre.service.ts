@@ -4,6 +4,7 @@ import {
   CircleCardActivityType,
   CircleCardAccountType,
   CircleCardEventType,
+  CircleCardType,
   CircleCardReportReason,
   CircleCardReportStatus,
   LeadSource,
@@ -16,7 +17,11 @@ import {
   type CircleCardPlanKey
 } from "@/lib/circle-card/plans";
 import { CIRCLE_CARD_DISCOVER_VISIBLE_WHERE } from "@/lib/circle-card/privacy";
-import type { CircleCardEntitlementSource } from "@/lib/circle-card/permissions";
+import {
+  getCircleCardFeatureAccess,
+  resolveCircleCardEntitlement,
+  type CircleCardEntitlementSource
+} from "@/lib/circle-card/permissions";
 import {
   buildCircleCardUpgradeTriggers,
   calculateCircleCardUpgradeReadiness,
@@ -585,7 +590,8 @@ async function loadMostActiveUsers(since: Date): Promise<AdminCircleCardActiveUs
       name: true,
       email: true,
       circleCards: {
-        orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+        where: { archivedAt: null },
+        orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
         take: 1,
         select: {
           id: true,
@@ -1629,6 +1635,105 @@ async function loadCircleCardPlanBoundary() {
   };
 }
 
+function emptyCardTypeCounts(): Record<CircleCardType, number> {
+  return {
+    PERSONAL: 0,
+    BUSINESS: 0,
+    CREATOR: 0
+  };
+}
+
+async function loadCircleCardMultiCardFoundation() {
+  const [cardTypeGroups, defaultCardTypeGroups, users] = await Promise.all([
+    db.circleCard.groupBy({
+      by: ["cardType"],
+      where: {
+        archivedAt: null
+      },
+      _count: {
+        _all: true
+      }
+    }),
+    db.circleCard.groupBy({
+      by: ["cardType"],
+      where: {
+        archivedAt: null,
+        isDefaultCard: true
+      },
+      _count: {
+        _all: true
+      }
+    }),
+    db.user.findMany({
+      where: {
+        circleCards: {
+          some: {
+            archivedAt: null
+          }
+        }
+      },
+      select: {
+        id: true,
+        role: true,
+        membershipTier: true,
+        suspended: true,
+        subscription: {
+          select: {
+            status: true
+          }
+        },
+        circleCards: {
+          where: {
+            archivedAt: null
+          },
+          select: {
+            id: true,
+            isDefaultCard: true
+          }
+        }
+      }
+    })
+  ]);
+  const cardTypeCounts = emptyCardTypeCounts();
+  const defaultCardCounts = emptyCardTypeCounts();
+
+  for (const group of cardTypeGroups) {
+    cardTypeCounts[group.cardType] = group._count._all;
+  }
+
+  for (const group of defaultCardTypeGroups) {
+    defaultCardCounts[group.cardType] = group._count._all;
+  }
+
+  const usersAtCardLimit = users.filter((user) => {
+    const subscriptionStatus = user.subscription?.status ?? null;
+    const hasActiveSubscription =
+      user.role === "ADMIN" ||
+      (subscriptionStatus ? ACTIVE_SUBSCRIPTION_STATUSES.includes(subscriptionStatus) : false);
+    const entitlement = resolveCircleCardEntitlement({
+      role: user.role,
+      membershipTier: user.membershipTier,
+      suspended: user.suspended,
+      hasActiveSubscription
+    });
+    const featureAccess = getCircleCardFeatureAccess(entitlement.accessLevel);
+
+    return user.circleCards.length >= featureAccess.cardLimit;
+  }).length;
+
+  return {
+    multiCardUsers: users.filter((user) => user.circleCards.length > 1).length,
+    businessCards: cardTypeCounts.BUSINESS,
+    creatorCards: cardTypeCounts.CREATOR,
+    personalCards: cardTypeCounts.PERSONAL,
+    defaultCardCounts,
+    usersAtCardLimit,
+    usersMissingDefaultCard: users.filter(
+      (user) => user.circleCards.length > 0 && !user.circleCards.some((card) => card.isDefaultCard)
+    ).length
+  };
+}
+
 async function loadCircleCardActivationVisibility(input: {
   planBoundary: Awaited<ReturnType<typeof loadCircleCardPlanBoundary>>;
   weekAgo: Date;
@@ -1995,6 +2100,7 @@ export async function getAdminCircleCardCommandCentre(input: {
     latestReports,
     activationSnapshot,
     planBoundary,
+    multiCardFoundation,
     discoverPrivacy,
     referralEngine,
     search
@@ -2354,6 +2460,7 @@ export async function getAdminCircleCardCommandCentre(input: {
       limit: RECENT_LIMIT
     }),
     loadCircleCardPlanBoundary(),
+    loadCircleCardMultiCardFoundation(),
     loadDiscoverPrivacySnapshot(),
     getAdminCircleCardReferralEngineDashboard({
       sort: input.referralSort,
@@ -2443,6 +2550,7 @@ export async function getAdminCircleCardCommandCentre(input: {
       topIncompleteUsers: activationSnapshot.topIncompleteUsers,
       visibility: activationVisibility
     },
+    multiCardFoundation,
     discoverPrivacy,
     topCards: {
       mostViewed: topViewedCards,

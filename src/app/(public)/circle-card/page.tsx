@@ -79,7 +79,7 @@ export default async function CircleCardLandingPage({
   const session = await auth();
   const existingCard = session?.user && !session.user.suspended
     ? await prisma.circleCard.findFirst({
-        where: { userId: session.user.id },
+        where: { userId: session.user.id, archivedAt: null },
         select: { id: true }
       })
     : null;

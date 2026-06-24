@@ -45,6 +45,7 @@ import {
   resolveCircleWalletLastInteractionDate
 } from "@/lib/circle-card/schema";
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
+import { createEmptyCircleCardContentBlocks } from "@/lib/circle-card/content-blocks";
 import {
   buildCircleCardThemeMetadata,
   buildCircleCardThemeStorage
@@ -101,6 +102,7 @@ import { scanCircleCardSmartImportUrls } from "@/server/circle-card/smart-profil
 const CIRCLE_CARD_FORM_FIELDS = [
   "cardId",
   "slug",
+  "cardType",
   "fullName",
   "businessName",
   "accountType",
@@ -271,6 +273,8 @@ const CIRCLE_CARD_OPPORTUNITY_STATUS_FIELDS = [
 ] as const;
 const CIRCLE_CARD_NOTIFICATION_ID_FIELDS = ["notificationId", "returnPath"] as const;
 const CIRCLE_CARD_NOTIFICATION_MARK_ALL_FIELDS = ["returnPath"] as const;
+const CIRCLE_CARD_MANAGEMENT_FIELDS = ["cardId", "returnPath"] as const;
+const CIRCLE_CARD_ORDER_FIELDS = ["cardId", "direction", "returnPath"] as const;
 
 const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT;
 const CIRCLE_CARD_PRIVATE_LINK_TYPES = new Set<string>(CIRCLE_CARD_FILE_LINK_TYPES);
@@ -482,6 +486,18 @@ function readCircleCardNotificationMarkAllFormData(formData: FormData) {
   );
 }
 
+function readCircleCardManagementFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_MANAGEMENT_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardOrderFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_ORDER_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
 async function resolveAvailableSlug(input: {
   slugBase: string;
   cardId?: string | null;
@@ -547,9 +563,9 @@ async function getPrimaryCircleCardForUser(userId: string) {
   return prisma.circleCard.findFirst({
     where: {
       userId,
-      isPrimary: true
+      archivedAt: null
     },
-    orderBy: [{ updatedAt: "desc" }],
+    orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
     select: {
       id: true,
       slug: true,
@@ -1382,18 +1398,22 @@ export async function upsertCircleCardAction(formData: FormData) {
           id: true,
           slug: true,
           showInDiscover: true,
-          discoverOptedInAt: true
+          discoverOptedInAt: true,
+          archivedAt: true
         }
       })
     : null;
 
-  if (cardId && !existingCard) {
+  if (cardId && (!existingCard || existingCard.archivedAt)) {
     redirectWithError(returnPath, "card-not-found");
   }
 
   if (!cardId) {
     const existingCardCount = await prisma.circleCard.count({
-      where: { userId: user.id }
+      where: {
+        userId: user.id,
+        archivedAt: null
+      }
     });
     const accessLevel = resolveCircleCardAccessLevel({
       role: user.role,
@@ -1433,6 +1453,7 @@ export async function upsertCircleCardAction(formData: FormData) {
   const resolvedTheme = themeStorage.theme;
   const data = {
     slug,
+    cardType: values.cardType,
     fullName: values.fullName.trim(),
     businessName: nullableText(values.businessName),
     ...(shouldUpdateIdentity
@@ -1499,13 +1520,19 @@ export async function upsertCircleCardAction(formData: FormData) {
     }
 
     const cardCount = await prisma.circleCard.count({
-      where: { userId: user.id }
+      where: {
+        userId: user.id,
+        archivedAt: null
+      }
     });
     const card = await prisma.circleCard.create({
       data: {
         ...data,
         userId: user.id,
-        isPrimary: cardCount === 0
+        isPrimary: cardCount === 0,
+        isDefaultCard: cardCount === 0,
+        displayOrder: cardCount,
+        contentBlocks: createEmptyCircleCardContentBlocks() as Prisma.InputJsonValue
       },
       select: { id: true, slug: true }
     });
@@ -1521,7 +1548,10 @@ export async function upsertCircleCardAction(formData: FormData) {
     });
 
     revalidateCircleCardPaths(card.slug);
-    redirectWithNotice(returnPath, "card-created");
+    redirectWithNotice(
+      `/dashboard/circle-card?section=my-card&cardId=${card.id}#circle-card-form`,
+      "card-created"
+    );
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -1532,6 +1562,243 @@ export async function upsertCircleCardAction(formData: FormData) {
 
     redirectWithError(returnPath, "card-save-failed");
   }
+}
+
+export async function setDefaultCircleCardAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const values = readCircleCardManagementFormData(formData);
+  const returnPath = resolveReturnPath(values.returnPath, "/dashboard/circle-card");
+  const cardId = typeof values.cardId === "string" ? values.cardId : "";
+
+  if (!cardId) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: cardId,
+      userId: user.id,
+      archivedAt: null
+    },
+    select: {
+      id: true,
+      slug: true
+    }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  await prisma.$transaction([
+    prisma.circleCard.updateMany({
+      where: {
+        userId: user.id,
+        archivedAt: null
+      },
+      data: {
+        isDefaultCard: false,
+        isPrimary: false
+      }
+    }),
+    prisma.circleCard.update({
+      where: { id: card.id },
+      data: {
+        isDefaultCard: true,
+        isPrimary: true
+      }
+    })
+  ]);
+
+  await createCircleCardActivity({
+    userId: user.id,
+    circleCardId: card.id,
+    type: "CARD_UPDATED",
+    title: "Default Circle Card updated",
+    message: "Your default public landing card was updated.",
+    entityType: "CIRCLE_CARD",
+    entityId: card.id,
+    metadata: {
+      source: "circle_card_multi_card_management"
+    }
+  });
+
+  const activeCardSlugs = await prisma.circleCard.findMany({
+    where: {
+      userId: user.id,
+      archivedAt: null
+    },
+    select: {
+      slug: true
+    }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  for (const activeCard of activeCardSlugs) {
+    revalidateCircleCardPublicPaths(activeCard.slug);
+  }
+  redirectWithNotice(returnPath, "card-default-updated");
+}
+
+export async function moveCircleCardDisplayOrderAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const values = readCircleCardOrderFormData(formData);
+  const returnPath = resolveReturnPath(values.returnPath, "/dashboard/circle-card");
+  const cardId = typeof values.cardId === "string" ? values.cardId : "";
+  const direction = values.direction === "up" ? -1 : values.direction === "down" ? 1 : 0;
+
+  if (!cardId || direction === 0) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  const cards = await prisma.circleCard.findMany({
+    where: {
+      userId: user.id,
+      archivedAt: null
+    },
+    orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      slug: true
+    }
+  });
+  const currentIndex = cards.findIndex((card) => card.id === cardId);
+  const nextIndex = currentIndex + direction;
+
+  if (currentIndex < 0) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  if (nextIndex < 0 || nextIndex >= cards.length) {
+    redirectWithNotice(returnPath, "card-order-unchanged");
+  }
+
+  const reorderedCards = [...cards];
+  const [movingCard] = reorderedCards.splice(currentIndex, 1);
+  if (!movingCard) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+  reorderedCards.splice(nextIndex, 0, movingCard);
+
+  await prisma.$transaction(
+    reorderedCards.map((card, index) =>
+      prisma.circleCard.update({
+        where: { id: card.id },
+        data: { displayOrder: index }
+      })
+    )
+  );
+
+  revalidatePath("/dashboard/circle-card");
+  for (const card of reorderedCards) {
+    revalidateCircleCardPublicPaths(card.slug);
+  }
+  redirectWithNotice(returnPath, "card-order-updated");
+}
+
+export async function archiveCircleCardAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const values = readCircleCardManagementFormData(formData);
+  const returnPath = resolveReturnPath(values.returnPath, "/dashboard/circle-card");
+  const cardId = typeof values.cardId === "string" ? values.cardId : "";
+
+  if (!cardId) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: cardId,
+      userId: user.id,
+      archivedAt: null
+    },
+    select: {
+      id: true,
+      slug: true,
+      isDefaultCard: true,
+      isPrimary: true,
+      fullName: true
+    }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.circleCard.update({
+      where: { id: card.id },
+      data: {
+        archivedAt: new Date(),
+        isPublished: false,
+        showInDiscover: false,
+        discoverOptedInAt: null,
+        isDefaultCard: false,
+        isPrimary: false
+      }
+    });
+
+    if (card.isDefaultCard || card.isPrimary) {
+      const nextDefaultCard = await tx.circleCard.findFirst({
+        where: {
+          userId: user.id,
+          archivedAt: null
+        },
+        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+        select: {
+          id: true
+        }
+      });
+
+      if (nextDefaultCard) {
+        await tx.circleCard.updateMany({
+          where: {
+            userId: user.id,
+            archivedAt: null
+          },
+          data: {
+            isDefaultCard: false,
+            isPrimary: false
+          }
+        });
+        await tx.circleCard.update({
+          where: { id: nextDefaultCard.id },
+          data: {
+            isDefaultCard: true,
+            isPrimary: true
+          }
+        });
+      }
+    }
+  });
+
+  await createCircleCardActivity({
+    userId: user.id,
+    circleCardId: card.id,
+    type: "CARD_UPDATED",
+    title: "Circle Card archived",
+    message: `${card.fullName}'s Circle Card was archived.`,
+    entityType: "CIRCLE_CARD",
+    entityId: card.id,
+    metadata: {
+      source: "circle_card_multi_card_management"
+    }
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  const activeCardSlugs = await prisma.circleCard.findMany({
+    where: {
+      userId: user.id,
+      archivedAt: null
+    },
+    select: {
+      slug: true
+    }
+  });
+  for (const activeCard of activeCardSlugs) {
+    revalidateCircleCardPublicPaths(activeCard.slug);
+  }
+  redirectWithNotice(returnPath, "card-archived");
 }
 
 export type CircleCardSocialLinksInlineActionResult =
@@ -2287,7 +2554,10 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
 
   const values = parsed.data;
   const existingCard = await prisma.circleCard.findFirst({
-    where: { userId: user.id },
+    where: {
+      userId: user.id,
+      archivedAt: null
+    },
     select: { slug: true }
   });
 
@@ -2297,7 +2567,10 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
   }
 
   const existingCardCount = await prisma.circleCard.count({
-    where: { userId: user.id }
+    where: {
+      userId: user.id,
+      archivedAt: null
+    }
   });
   const accessLevel = resolveCircleCardAccessLevel({
     role: user.role,
@@ -2389,6 +2662,8 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           slug,
           userId: user.id,
           isPrimary: true,
+          isDefaultCard: true,
+          displayOrder: 0,
           isPublished: values.isPublished,
           ...buildCircleCardDiscoverVisibilityData({
             showInDiscover: values.showInDiscover
@@ -2415,7 +2690,8 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           themePreset: themeStorage.values.themePreset,
           themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue,
           websiteUrl,
-          socialLinks: {}
+          socialLinks: {},
+          contentBlocks: createEmptyCircleCardContentBlocks() as Prisma.InputJsonValue
         },
         select: { id: true, slug: true }
       });
@@ -5441,9 +5717,9 @@ export async function updateCircleWalletContactDetailsAction(formData: FormData)
     prisma.circleCard.findFirst({
       where: {
         userId: user.id,
-        isPrimary: true
+        archivedAt: null
       },
-      orderBy: [{ updatedAt: "desc" }],
+      orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
       select: {
         id: true
       }

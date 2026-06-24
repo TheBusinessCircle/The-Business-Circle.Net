@@ -149,8 +149,8 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
   const [card, walletContacts, connectionRequests, opportunities, introductions, referrals] =
     await Promise.all([
       prisma.circleCard.findFirst({
-        where: { userId: session.user.id },
-        orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+        where: { userId: session.user.id, archivedAt: null },
+        orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
         select: {
           id: true,
           slug: true,

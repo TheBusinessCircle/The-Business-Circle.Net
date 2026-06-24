@@ -30,6 +30,7 @@ import {
   registerMemberSchema
 } from "@/lib/auth/schemas";
 import { normalizeEmail, safeRedirectPath } from "@/lib/auth/utils";
+import { createEmptyCircleCardContentBlocks } from "@/lib/circle-card/content-blocks";
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
 import { buildCircleCardSlugBase } from "@/lib/circle-card/schema";
 import {
@@ -882,6 +883,8 @@ export async function createCircleCardFreeRegistration(
             slug,
             userId: createdUser.id,
             isPrimary: true,
+            isDefaultCard: true,
+            displayOrder: 0,
             isPublished: true,
             fullName: input.name.trim(),
             businessName,
@@ -894,7 +897,8 @@ export async function createCircleCardFreeRegistration(
             themeSurfaceStyle: themeStorage.values.themeSurfaceStyle,
             themePreset: themeStorage.values.themePreset,
             themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue,
-            socialLinks: {}
+            socialLinks: {},
+            contentBlocks: createEmptyCircleCardContentBlocks() as Prisma.InputJsonValue
           },
           select: {
             id: true

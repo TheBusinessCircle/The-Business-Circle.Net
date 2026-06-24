@@ -191,7 +191,8 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
           email: true,
           suspended: true,
           circleCards: {
-            orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+            where: { archivedAt: null },
+            orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
             take: 1,
             select: {
               slug: true,

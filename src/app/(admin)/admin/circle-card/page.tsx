@@ -321,6 +321,46 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
       hint: "Featured links, wallet growth, profile completion, shares and view activity."
     }
   ];
+  const multiCardFoundationMetrics: MetricItem[] = [
+    {
+      label: "Multi-card users",
+      value: dashboard.multiCardFoundation.multiCardUsers,
+      hint: "Users with more than one active Circle Card."
+    },
+    {
+      label: "Business cards",
+      value: dashboard.multiCardFoundation.businessCards,
+      hint: "Active cards stored with Business card type."
+    },
+    {
+      label: "Creator cards",
+      value: dashboard.multiCardFoundation.creatorCards,
+      hint: "Active cards stored with Creator card type."
+    },
+    {
+      label: "Personal cards",
+      value: dashboard.multiCardFoundation.personalCards,
+      hint: "Active cards stored with Personal card type."
+    },
+    {
+      label: "Default cards",
+      value:
+        dashboard.multiCardFoundation.defaultCardCounts.PERSONAL +
+        dashboard.multiCardFoundation.defaultCardCounts.BUSINESS +
+        dashboard.multiCardFoundation.defaultCardCounts.CREATOR,
+      hint: "Active cards marked as the owner default landing card."
+    },
+    {
+      label: "Users at card limit",
+      value: dashboard.multiCardFoundation.usersAtCardLimit,
+      hint: "Current active card count is at the resolved entitlement limit."
+    },
+    {
+      label: "Missing default",
+      value: dashboard.multiCardFoundation.usersMissingDefaultCard,
+      hint: "Active card owners without a default card marker."
+    }
+  ];
 
   const growthMetrics: MetricItem[] = [
     { label: "New users today", value: dashboard.growth.newUsersToday, hint: "Circle Card owners created today." },
@@ -657,6 +697,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
           description="New accounts, new cards and the freshest user/card movement."
         />
         <MetricGrid metrics={growthMetrics} />
+        <MetricGrid metrics={multiCardFoundationMetrics} />
         <DiscoverPrivacyPanel privacy={dashboard.discoverPrivacy} />
 
         <div className="space-y-4">

@@ -2,6 +2,7 @@ import type { MembershipTier, Role } from "@prisma/client";
 import {
   CIRCLE_CARD_FREE_CARD_LIMIT,
   CIRCLE_CARD_PRO_CARD_LIMIT,
+  CIRCLE_CARD_TEAMS_STAFF_CARD_LIMIT,
   type CircleCardPlanKey
 } from "@/lib/circle-card/plans";
 
@@ -105,8 +106,8 @@ export const CIRCLE_CARD_FEATURE_ACCESS: Record<CircleCardAccessLevel, CircleCar
   },
   TEAMS: {
     label: "Teams",
-    cardLimit: 1,
-    futureCardLimit: 25,
+    cardLimit: CIRCLE_CARD_TEAMS_STAFF_CARD_LIMIT,
+    futureCardLimit: CIRCLE_CARD_TEAMS_STAFF_CARD_LIMIT,
     walletEnabled: true,
     notesEnabled: true,
     analyticsPreview: true,

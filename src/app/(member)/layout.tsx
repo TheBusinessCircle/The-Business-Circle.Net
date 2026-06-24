@@ -89,8 +89,8 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       : Promise.resolve([]),
     showCircleCardShell
       ? prisma.circleCard.findFirst({
-          where: { userId: session.user.id },
-          orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+          where: { userId: session.user.id, archivedAt: null },
+          orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
           select: { slug: true, isPublished: true }
         })
       : Promise.resolve(null)

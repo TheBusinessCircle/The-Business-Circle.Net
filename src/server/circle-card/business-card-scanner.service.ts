@@ -472,6 +472,7 @@ export async function findBusinessCardCircleCardMatches(input: {
   return prisma.circleCard.findMany({
     where: {
       isPublished: true,
+      archivedAt: null,
       user: {
         suspended: false
       },
@@ -505,7 +506,7 @@ export async function findBusinessCardCircleCardMatches(input: {
       ].filter(isPresent)
     },
     take: 3,
-    orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+    orderBy: [{ isDefaultCard: "desc" }, { displayOrder: "asc" }, { updatedAt: "desc" }],
     select: {
       id: true,
       slug: true,

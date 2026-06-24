@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  canCreateCircleCard,
+  getCircleCardFeatureAccess,
   isCircleCardFreeAccount,
   resolveCircleCardEntitlement
 } from "@/lib/circle-card/permissions";
@@ -65,6 +67,14 @@ describe("Circle Card entitlements", () => {
     expect(entitlement.source).toBe("TEAMS_SUBSCRIPTION");
     expect(entitlement.billingReportCategory).toBe("PAID_CIRCLE_CARD");
     expect(entitlement.affectsBcnSubscription).toBe(false);
+  });
+
+  it("enforces card limits through central feature access", () => {
+    expect(canCreateCircleCard({ accessLevel: "FREE", existingCardCount: 0 })).toBe(true);
+    expect(canCreateCircleCard({ accessLevel: "FREE", existingCardCount: 1 })).toBe(false);
+    expect(canCreateCircleCard({ accessLevel: "PRO", existingCardCount: 1 })).toBe(true);
+    expect(canCreateCircleCard({ accessLevel: "PRO", existingCardCount: 2 })).toBe(false);
+    expect(getCircleCardFeatureAccess("TEAMS").cardLimit).toBeGreaterThan(2);
   });
 
   it("keeps admin override as its own source", () => {

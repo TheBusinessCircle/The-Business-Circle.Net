@@ -25,7 +25,7 @@ function firstValue(value: string | string[] | undefined) {
 
 const ERROR_MESSAGES: Record<string, string> = {
   "invalid-onboarding": "Check the current setup step and try again.",
-  "card-limit": "Your current Circle Card access includes one card.",
+  "card-limit": "You have reached the Circle Card limit for your current access.",
   "slug-taken": "That public card link is already taken.",
   "card-save-failed": "Your Circle Card could not be created."
 };
@@ -36,7 +36,7 @@ export default async function CircleCardOnboardingPage({ searchParams }: PagePro
   const error = firstValue(params.error);
   const [existingCard, member] = await Promise.all([
     prisma.circleCard.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: session.user.id, archivedAt: null },
       select: { id: true }
     }),
     prisma.user.findUnique({

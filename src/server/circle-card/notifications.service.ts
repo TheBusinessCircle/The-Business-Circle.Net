@@ -215,8 +215,8 @@ export async function createCircleCardActivationNotificationsForUser(
   now = new Date()
 ) {
   const card = await prisma.circleCard.findFirst({
-    where: { userId },
-    orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }],
+    where: { userId, archivedAt: null },
+    orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
     select: {
       id: true,
       slug: true,
