@@ -6,11 +6,15 @@ import {
   ArrowDown,
   ArrowUp,
   BarChart3,
+  Bell,
   BookOpen,
   CalendarDays,
   CheckCircle2,
+  ClipboardCheck,
+  Code2,
   Compass,
   ContactRound,
+  CreditCard,
   Camera,
   Handshake,
   ChevronDown,
@@ -18,6 +22,7 @@ import {
   Download,
   Eye,
   Filter,
+  Gauge,
   Link as LinkIcon,
   Lock,
   LogOut,
@@ -25,10 +30,12 @@ import {
   MessageSquare,
   MousePointerClick,
   QrCode,
+  Rocket,
   Search,
   Send,
   Save,
   Share2,
+  ShieldCheck,
   Sparkles,
   Star,
   StickyNote,
@@ -36,6 +43,7 @@ import {
   Trash2,
   ShoppingBag,
   UserCheck,
+  Wrench,
   UserX,
   WalletCards,
   XCircle
@@ -116,10 +124,17 @@ import {
   resolveCircleCardEntitlement
 } from "@/lib/circle-card/permissions";
 import {
+  CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
+  CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
+  isCircleCardPlatformOwner,
+  type CircleCardPlatformStatusTone
+} from "@/lib/circle-card/platform-owner-control";
+import {
   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
   CIRCLE_CARD_PLAN_DEFINITIONS,
   type CircleCardPlanFeature
 } from "@/lib/circle-card/plans";
+import { getCircleCardBillingReadiness } from "@/lib/circle-card/pricing";
 import {
   buildCircleCardUpgradeTriggers,
   type CircleCardUpgradeTrigger
@@ -258,6 +273,30 @@ const USE_OPTIMISTIC_SMART_LINK_MANAGER = true;
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function circleCardPlatformStatusToneClass(tone: CircleCardPlatformStatusTone) {
+  switch (tone) {
+    case "green":
+      return "border-emerald-400/24 bg-emerald-400/10 text-emerald-200";
+    case "red":
+      return "border-red-400/24 bg-red-400/10 text-red-200";
+    case "amber":
+    default:
+      return "border-gold/24 bg-gold/10 text-gold";
+  }
+}
+
+function circleCardPlatformStatusDotClass(tone: CircleCardPlatformStatusTone) {
+  switch (tone) {
+    case "green":
+      return "bg-emerald-300";
+    case "red":
+      return "bg-red-300";
+    case "amber":
+    default:
+      return "bg-gold";
+  }
 }
 
 function resolveCircleCardAppSection(value: string | undefined): CircleCardAppSection {
@@ -2536,6 +2575,169 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       icon: Send
     }
   ];
+  const circleCardBillingReadiness = getCircleCardBillingReadiness();
+  const isPlatformOwner = isCircleCardPlatformOwner({
+    role: session.user.role,
+    email: session.user.email
+  });
+  const platformStatusItems: Array<{
+    label: string;
+    state: "Configured" | "Pending" | "Future";
+    tone: CircleCardPlatformStatusTone;
+    detail: string;
+    icon: typeof Activity;
+  }> = [
+    {
+      label: "Circle Card Status",
+      state: card ? "Configured" : "Pending",
+      tone: card ? "green" : "amber",
+      detail: `${cardCount} active card${cardCount === 1 ? "" : "s"} / ${featureAccess.cardLimit} available`,
+      icon: ContactRound
+    },
+    {
+      label: "Billing",
+      state: circleCardBillingReadiness.billingEnabled ? "Configured" : "Pending",
+      tone: circleCardBillingReadiness.billingEnabled ? "green" : "amber",
+      detail: circleCardBillingReadiness.billingEnabled
+        ? "Billing flag is enabled; prices are read-only here."
+        : "Billing is disabled for this foundation phase.",
+      icon: CreditCard
+    },
+    {
+      label: "Notifications",
+      state: "Configured",
+      tone: "green",
+      detail: `${unreadNotificationCount} unread / ${notifications.length} recent loaded`,
+      icon: Bell
+    },
+    {
+      label: "Referral Engine",
+      state: referralCentre ? "Configured" : "Pending",
+      tone: referralCentre ? "green" : "amber",
+      detail: `${referralCentre?.stats.signups ?? 0} signup${(referralCentre?.stats.signups ?? 0) === 1 ? "" : "s"} tracked`,
+      icon: Send
+    },
+    {
+      label: "Discover",
+      state: card?.showInDiscover ? "Configured" : "Pending",
+      tone: card?.showInDiscover ? "green" : "amber",
+      detail: `${discoverCards.length} visible candidate${discoverCards.length === 1 ? "" : "s"} in this view`,
+      icon: Compass
+    },
+    {
+      label: "Wallet",
+      state: "Configured",
+      tone: "green",
+      detail: `${savedContactCount} saved contact${savedContactCount === 1 ? "" : "s"}`,
+      icon: WalletCards
+    },
+    {
+      label: "Analytics",
+      state: analytics ? "Configured" : "Pending",
+      tone: analytics ? "green" : "amber",
+      detail: `${cardViewCount.toLocaleString("en-GB")} public view${cardViewCount === 1 ? "" : "s"}`,
+      icon: BarChart3
+    },
+    {
+      label: "PWA",
+      state: "Configured",
+      tone: "green",
+      detail: "Install prompt and manifest surfaces are present.",
+      icon: Gauge
+    }
+  ];
+  const platformOwnerQuickActions: Array<{
+    label: string;
+    href: string;
+    icon: typeof Activity;
+    external?: boolean;
+  }> = [
+    ...(card
+      ? [
+          {
+            label: "Open Public Card",
+            href: `/card/${card.slug}`,
+            icon: ArrowUpRight,
+            external: true
+          }
+        ]
+      : []),
+    {
+      label: "Open Dashboard",
+      href: circleCardSectionHref("home"),
+      icon: Activity
+    },
+    {
+      label: "Open Wallet",
+      href: "/dashboard/circle-card/wallet",
+      icon: WalletCards
+    },
+    {
+      label: "Open Discover",
+      href: circleCardSectionHref("network", "discover"),
+      icon: Compass
+    },
+    {
+      label: "Open Referral Centre",
+      href: circleCardSectionHref("referrals", "referral-centre"),
+      icon: Send
+    },
+    {
+      label: "Open Notifications",
+      href: circleCardSectionHref("network", "notifications"),
+      icon: Bell
+    },
+    {
+      label: "Open Analytics",
+      href: card
+        ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "analytics" })
+        : circleCardSectionHref("my-card", "analytics"),
+      icon: BarChart3
+    },
+    {
+      label: "Open Admin Command Centre",
+      href: "/admin/circle-card",
+      icon: ShieldCheck
+    }
+  ];
+  const platformInformationItems = [
+    {
+      label: "Current Platform Version",
+      value: process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0"
+    },
+    {
+      label: "Environment",
+      value: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development"
+    },
+    {
+      label: "Circle Card Billing Enabled",
+      value: circleCardBillingReadiness.billingEnabled ? "Yes" : "No"
+    },
+    {
+      label: "Current Circle Card Plan",
+      value: circleCardEntitlement.plan
+    },
+    {
+      label: "Current Entitlement",
+      value: circleCardEntitlement.label
+    },
+    {
+      label: "Admin Override Active",
+      value: circleCardEntitlement.isAdminOverride ? "Yes" : "No"
+    },
+    {
+      label: "Notification Count",
+      value: unreadNotificationCount.toLocaleString("en-GB")
+    },
+    {
+      label: "Referral Count",
+      value: referrals.length.toLocaleString("en-GB")
+    },
+    {
+      label: "Profile Completion",
+      value: `${circleCardCompletion.score}%`
+    }
+  ];
   const recentHomeActivity = visibleActivityItems.slice(0, 3);
 
   if (card && discoverHasFilters) {
@@ -2721,6 +2923,180 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         cardCount={cardCount}
         activeFeaturedLinkCount={activeCustomLinkCount}
       />
+
+      {isPlatformOwner ? (
+        <CircleCardDashboardSection
+          id="platform-owner-control-centre"
+          title="Platform Owner Control Centre"
+          summary="Owner-only operating cockpit for Circle Card build, test and launch foundations."
+          badge={<Badge variant="premium">Platform Owner</Badge>}
+          className="border-gold/26 bg-[linear-gradient(145deg,hsl(var(--card)/0.76),hsl(var(--background)/0.42))]"
+        >
+          <div className="grid gap-3">
+            <details open className="group rounded-xl border border-silver/14 bg-background/18">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+                <span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Gauge size={15} className="text-gold" />
+                    Platform Status
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-muted">
+                    Compact readiness signals for the current Circle Card operating layer.
+                  </span>
+                </span>
+                <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2 xl:grid-cols-4">
+                {platformStatusItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <div key={item.label} className="rounded-xl border border-border/70 bg-card/42 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/16 bg-gold/10 text-gold">
+                          <Icon size={15} />
+                        </span>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                            circleCardPlatformStatusToneClass(item.tone)
+                          )}
+                        >
+                          <span
+                            className={cn("h-1.5 w-1.5 rounded-full", circleCardPlatformStatusDotClass(item.tone))}
+                          />
+                          {item.state}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-foreground">{item.label}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted">{item.detail}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+
+            <details open className="group rounded-xl border border-silver/14 bg-background/18">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+                <span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Rocket size={15} className="text-gold" />
+                    Quick Actions
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-muted">
+                    Direct launch links into existing Circle Card and admin surfaces.
+                  </span>
+                </span>
+                <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                {platformOwnerQuickActions.map((action) => {
+                  const Icon = action.icon;
+
+                  return (
+                    <Link
+                      key={action.label}
+                      href={action.href}
+                      target={action.external ? "_blank" : undefined}
+                      rel={action.external ? "noopener noreferrer" : undefined}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-start gap-2")}
+                    >
+                      <Icon size={14} />
+                      {action.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </details>
+
+            <details className="group rounded-xl border border-silver/14 bg-background/18">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+                <span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Wrench size={15} className="text-gold" />
+                    Development Modules
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-muted">
+                    Permanent slots for upcoming internal tools.
+                  </span>
+                </span>
+                <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="grid gap-2 border-t border-silver/12 p-3 md:grid-cols-2 xl:grid-cols-3">
+                {CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES.map((module) => (
+                  <div key={module.id} className="rounded-xl border border-border/70 bg-card/42 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-foreground">{module.title}</p>
+                      <Badge variant="outline" className="border-gold/24 text-gold">
+                        {module.status}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-xs leading-relaxed text-muted">{module.description}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
+
+            <details className="group rounded-xl border border-silver/14 bg-background/18">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+                <span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Code2 size={15} className="text-gold" />
+                    Platform Information
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-muted">
+                    Live read-only operating context for the current owner session.
+                  </span>
+                </span>
+                <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+              </summary>
+              <dl className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2 xl:grid-cols-3">
+                {platformInformationItems.map((item) => (
+                  <div key={item.label} className="rounded-xl border border-border/70 bg-card/42 p-3">
+                    <dt className="text-[11px] uppercase tracking-[0.08em] text-muted">{item.label}</dt>
+                    <dd className="mt-1 break-words text-sm font-semibold text-foreground">{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
+
+            <details className="group rounded-xl border border-silver/14 bg-background/18">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+                <span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <ClipboardCheck size={15} className="text-gold" />
+                    Future Roadmap
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-muted">
+                    Internal phase map for Circle Card platform expansion.
+                  </span>
+                </span>
+                <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2 xl:grid-cols-4">
+                {CIRCLE_CARD_CONTROL_CENTRE_ROADMAP.map((item) => (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm",
+                      item.status === "completed"
+                        ? "border-gold/24 bg-gold/10 text-foreground"
+                        : "border-border/70 bg-card/42 text-muted"
+                    )}
+                  >
+                    {item.status === "completed" ? (
+                      <CheckCircle2 size={15} className="shrink-0 text-gold" />
+                    ) : (
+                      <XCircle size={15} className="shrink-0 text-muted" />
+                    )}
+                    <span className="min-w-0">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+        </CircleCardDashboardSection>
+      ) : null}
 
       <section id="my-cards" className="scroll-mt-24 rounded-2xl border border-silver/14 bg-card/60 p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
