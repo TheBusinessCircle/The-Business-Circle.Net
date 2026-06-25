@@ -1549,7 +1549,7 @@ export async function upsertCircleCardAction(formData: FormData) {
 
     revalidateCircleCardPaths(card.slug);
     redirectWithNotice(
-      `/dashboard/circle-card?section=my-card&cardId=${card.id}#circle-card-form`,
+      `/dashboard/circle-card?section=my-card&cardId=${card.id}&created=1#circle-card-created`,
       "card-created"
     );
   } catch (error) {

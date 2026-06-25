@@ -86,6 +86,7 @@ import {
   CircleCardBcnDiscoveryPanel,
   CircleCardCopyLinkButton,
   CircleCardDashboardSection,
+  CircleCardFirstCardFormHelper,
   CircleCardIdentityBanner,
   CircleCardIdentityFields,
   CircleCardImageUploadField,
@@ -242,6 +243,7 @@ import {
   resolveCircleCardAccountType
 } from "@/lib/circle-card/identity";
 import {
+  DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT,
   buildCircleCardProfileLayoutFilterWhere,
   CIRCLE_CARD_PROFILE_LAYOUTS,
   CIRCLE_CARD_PROFILE_LAYOUT_COPY,
@@ -251,7 +253,7 @@ import {
 import type { CircleCardCompletionItemId } from "@/lib/circle-card/completion";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
-import { absoluteUrl, cn, formatCurrency, formatDate } from "@/lib/utils";
+import { absoluteUrl, cn, formatCurrency, formatDate, slugify } from "@/lib/utils";
 import {
   calculateCircleCardCompletionForCard,
   createDueOpportunityNotificationsForUser,
@@ -2428,9 +2430,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     newCard: true
   });
   const isCreatingAdditionalCard = shouldShowNewCardForm && cardCount > 0;
+  const isFirstCardCreateFlow = !card && !isCreatingAdditionalCard;
   const defaultNewCardType = cards.some((ownedCard) => ownedCard.cardType === "PERSONAL")
     ? "BUSINESS"
     : "PERSONAL";
+  const defaultFirstCardName = member?.name ?? session.user.name ?? "";
+  const defaultFirstCardBusinessName = member?.profile?.business?.companyName ?? "";
+  const defaultFirstCardSlug = slugify(defaultFirstCardBusinessName || defaultFirstCardName);
   const customLinks = card?.customLinks ?? [];
   const activeCustomLinkCount = customLinks.filter((link) => link.isActive).length;
   const customLinkLimitLabel = isCircleCardFree
@@ -6218,6 +6224,45 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         data-circle-card-section="my-card"
         className={cn("grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]", activeSection !== "my-card" && "hidden")}
       >
+        {card && publicUrl && (created || notice === "card-created") ? (
+          <section
+            id="circle-card-created"
+            className="scroll-mt-24 rounded-2xl border border-emerald-400/28 bg-emerald-400/10 p-4 shadow-panel-soft sm:p-5 xl:col-span-2"
+          >
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <Badge variant="outline" className="border-emerald-400/30 text-emerald-200">
+                  Your Circle Card has been created
+                </Badge>
+                <h2 className="mt-3 font-display text-2xl text-foreground">
+                  {card.fullName}&apos;s Circle Card is ready.
+                </h2>
+                <p className="mt-2 break-all text-sm text-muted">{publicUrl}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
+                <Link href={circleCardSectionHref("my-card", "card-images")}>
+                  <Button type="button" variant="outline" className="w-full gap-2">
+                    <Camera size={16} />
+                    Add profile photo
+                  </Button>
+                </Link>
+                <Link href={circleCardSectionHref("my-card", "custom-links")}>
+                  <Button type="button" variant="outline" className="w-full gap-2">
+                    <LinkIcon size={16} />
+                    Add first featured link
+                  </Button>
+                </Link>
+                <Link href={circleCardSectionHref("share", "share-assets")}>
+                  <Button type="button" className="w-full gap-2">
+                    <Share2 size={16} />
+                    Share your card
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         <Card id="circle-card-form" className="scroll-mt-24 border-silver/16 bg-card/62">
           <CardHeader>
             <CardTitle>
@@ -6232,10 +6277,171 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={upsertCircleCardAction} className="space-y-5" noValidate>
+            <form
+              id={isFirstCardCreateFlow ? "circle-card-first-card-form" : undefined}
+              action={upsertCircleCardAction}
+              className="space-y-5 pb-24 sm:pb-0"
+              noValidate={!isFirstCardCreateFlow}
+            >
               <input type="hidden" name="returnPath" value={selectedCardReturnPath} />
               {card ? <input type="hidden" name="cardId" value={card.id} /> : null}
 
+              {isFirstCardCreateFlow ? (
+                <>
+                  <CircleCardFirstCardFormHelper
+                    formId="circle-card-first-card-form"
+                    draftKey={`circle-card:first-card-draft:${session.user.id}`}
+                    clearDraft={created || notice === "card-created"}
+                  />
+                  <input type="hidden" name="profileLayout" value={DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT} />
+                  <input type="hidden" name="isPublished" value="on" />
+
+                  {error ? (
+                    <div
+                      role="alert"
+                      className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+                    >
+                      <p className="font-semibold">We could not create your Circle Card yet.</p>
+                      <p className="mt-1">
+                        {error === "slug-taken"
+                          ? "That public link is already taken. Try adding your town, business name or initials to the slug."
+                          : error === "identity-invalid"
+                            ? "Choose what best describes you before creating your card."
+                            : error === "invalid-card"
+                              ? "Check your name, card type and public link, then try again."
+                              : ERROR_MESSAGES[error] ?? "Check the highlighted fields and try again."}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-2xl border border-gold/24 bg-gold/8 p-4 sm:p-5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <Badge variant="premium">Under 30 seconds</Badge>
+                        <h2 className="mt-3 font-display text-2xl text-foreground">
+                          Create your first Circle Card
+                        </h2>
+                        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+                          Start with the essentials. You can add photos, socials, colours and links after the card exists.
+                        </p>
+                      </div>
+                      <CircleCardSubmitButton
+                        className="hidden gap-2 sm:inline-flex"
+                        pendingLabel="Creating..."
+                      >
+                        <Save size={16} />
+                        Create Circle Card
+                      </CircleCardSubmitButton>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="first-card-fullName">Full name</Label>
+                        <Input
+                          id="first-card-fullName"
+                          name="fullName"
+                          defaultValue={defaultFirstCardName}
+                          autoComplete="name"
+                          required
+                          minLength={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="first-card-businessName">Business or display name</Label>
+                        <Input
+                          id="first-card-businessName"
+                          name="businessName"
+                          defaultValue={defaultFirstCardBusinessName}
+                          placeholder="Your business, brand or display name"
+                          autoComplete="organization"
+                          required
+                        />
+                        <p className="text-xs text-muted">
+                          Use your business, brand or preferred public display name.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="first-card-slug">Public link slug</Label>
+                        <Input
+                          id="first-card-slug"
+                          name="slug"
+                          defaultValue={defaultFirstCardSlug}
+                          placeholder="your-name"
+                          pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                          maxLength={80}
+                          required
+                          aria-describedby="first-card-slug-help"
+                        />
+                        <p id="first-card-slug-help" className="text-xs text-muted">
+                          Your card link will be /card/your-name. Use lowercase letters, numbers and hyphens.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="first-card-cardType">Card type</Label>
+                        <Select
+                          id="first-card-cardType"
+                          name="cardType"
+                          defaultValue={defaultNewCardType}
+                          required
+                        >
+                          {CIRCLE_CARD_TYPES.map((type) => (
+                            <option key={type} value={type}>
+                              {CIRCLE_CARD_TYPE_COPY[type].label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+
+                    <fieldset className="mt-5 space-y-3">
+                      <legend className="text-sm font-medium text-foreground">
+                        What best describes you?
+                      </legend>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        {CIRCLE_CARD_ACCOUNT_TYPES.map((type, index) => {
+                          const copy = CIRCLE_CARD_ACCOUNT_TYPE_COPY[type];
+                          const id = `first-card-account-${type.toLowerCase()}`;
+
+                          return (
+                            <label key={type} htmlFor={id} className="block cursor-pointer">
+                              <input
+                                id={id}
+                                type="radio"
+                                name="accountType"
+                                value={type}
+                                defaultChecked={index === 0}
+                                required
+                                className="peer sr-only"
+                              />
+                              <span className="flex h-full flex-col gap-2 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-muted transition peer-checked:border-gold/40 peer-checked:bg-gold/10 peer-checked:text-foreground">
+                                <span className="font-medium text-foreground">{copy.label}</span>
+                                <span className="text-xs leading-relaxed text-muted">
+                                  {copy.description}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
+
+                    <div className="mt-5 rounded-xl border border-silver/14 bg-background/22 p-3 text-xs leading-relaxed text-muted">
+                      Optional setup comes next: profile photo, logo, bio, colours, website, contact details, socials, featured links, location and identity tags.
+                    </div>
+                  </div>
+
+                  <div className="sticky bottom-2 z-30 rounded-2xl border border-gold/28 bg-background/92 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur sm:hidden">
+                    <CircleCardSubmitButton
+                      className="h-12 w-full gap-2"
+                      pendingLabel="Creating..."
+                    >
+                      <Save size={16} />
+                      Create Circle Card
+                    </CircleCardSubmitButton>
+                  </div>
+                </>
+              ) : (
+                <>
               <CircleCardDashboardSection
                 id="card-identity"
                 title="Card identity"
@@ -6464,6 +6670,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 <Save size={16} />
                 {card ? "Save Circle Card" : "Create Circle Card"}
               </CircleCardSubmitButton>
+              <div className="sticky bottom-2 z-30 rounded-2xl border border-gold/28 bg-background/92 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur sm:hidden">
+                <CircleCardSubmitButton
+                  className="h-12 w-full gap-2"
+                  pendingLabel={card ? "Saving..." : "Creating..."}
+                >
+                  <Save size={16} />
+                  {card ? "Save Circle Card" : "Create Circle Card"}
+                </CircleCardSubmitButton>
+              </div>
+                </>
+              )}
             </form>
           </CardContent>
         </Card>

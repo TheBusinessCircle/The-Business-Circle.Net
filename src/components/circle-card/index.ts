@@ -6,6 +6,7 @@ export * from "@/components/circle-card/circle-card-notification-orb";
 export * from "@/components/circle-card/circle-card-copy-link-button";
 export * from "@/components/circle-card/circle-card-dashboard-section";
 export * from "@/components/circle-card/circle-card-framed-image";
+export * from "@/components/circle-card/circle-card-first-card-form-helper";
 export * from "@/components/circle-card/circle-card-identity-fields";
 export * from "@/components/circle-card/circle-card-image-upload-field";
 export * from "@/components/circle-card/circle-card-link-file-upload-field";
