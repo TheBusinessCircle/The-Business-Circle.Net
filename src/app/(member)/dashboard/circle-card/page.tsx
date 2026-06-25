@@ -114,7 +114,8 @@ import {
   CircleCardPlatformOwnerSandboxBadge,
   CircleCardPlatformOwnerSandboxIndicator,
   CircleCardPlatformOwnerSandboxPanel,
-  CircleCardPlatformOwnerSandboxToggle
+  CircleCardPlatformOwnerSandboxToggle,
+  CircleCardPlatformOwnerSessionDebug
 } from "@/components/circle-card/circle-card-platform-owner-preview-switcher";
 import { CircleCardReferralNudges } from "@/components/circle-card/circle-card-referral-nudges";
 import { Badge } from "@/components/ui/badge";
@@ -139,10 +140,12 @@ import {
   CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
   CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
   buildCircleCardPlatformOwnerLaunchChecklist,
+  buildCircleCardPlatformOwnerPerformanceInspector,
   resolveCircleCardPlatformOwnerPreviewEntitlement,
   resolveCircleCardPlatformOwnerPreviewMode,
   resolveCircleCardPlatformOwnerDiagnostics,
   type CircleCardPlatformOwnerLaunchChecklistStatus,
+  type CircleCardPlatformOwnerPerformanceStatus,
   type CircleCardPlatformStatusTone
 } from "@/lib/circle-card/platform-owner-control";
 import { isAdminRole } from "@/lib/auth/permissions";
@@ -151,7 +154,10 @@ import {
   CIRCLE_CARD_PLAN_DEFINITIONS,
   type CircleCardPlanFeature
 } from "@/lib/circle-card/plans";
-import { getCircleCardBillingReadiness } from "@/lib/circle-card/pricing";
+import {
+  CIRCLE_CARD_BILLING_FLAG_ENV,
+  getCircleCardBillingReadiness
+} from "@/lib/circle-card/pricing";
 import {
   buildCircleCardUpgradeTriggers,
   type CircleCardUpgradeTrigger
@@ -201,7 +207,11 @@ import {
   circleCardNotificationHref,
   circleCardNotificationTypeLabel
 } from "@/lib/circle-card/notifications";
-import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
+import {
+  CIRCLE_CARD_ICON_192,
+  CIRCLE_CARD_MANIFEST_PATH,
+  createCircleCardPageMetadata
+} from "@/lib/circle-card/metadata";
 import {
   CIRCLE_CARD_DISCOVER_HIDDEN_LABEL,
   CIRCLE_CARD_DISCOVER_SETTING_COPY,
@@ -353,6 +363,48 @@ function circleCardLaunchChecklistStatusDotClass(status: CircleCardPlatformOwner
     case "critical":
       return "bg-red-300";
     case "future":
+    default:
+      return "bg-silver";
+  }
+}
+
+function circleCardPerformanceStatusLabel(status: CircleCardPlatformOwnerPerformanceStatus) {
+  switch (status) {
+    case "good":
+      return "Good";
+    case "warning":
+      return "Warning";
+    case "issue":
+      return "Issue";
+    case "not-active":
+    default:
+      return "Not active";
+  }
+}
+
+function circleCardPerformanceStatusClass(status: CircleCardPlatformOwnerPerformanceStatus) {
+  switch (status) {
+    case "good":
+      return "border-emerald-400/24 bg-emerald-400/10 text-emerald-200";
+    case "warning":
+      return "border-gold/24 bg-gold/10 text-gold";
+    case "issue":
+      return "border-red-400/24 bg-red-400/10 text-red-200";
+    case "not-active":
+    default:
+      return "border-silver/18 bg-silver/10 text-silver";
+  }
+}
+
+function circleCardPerformanceStatusDotClass(status: CircleCardPlatformOwnerPerformanceStatus) {
+  switch (status) {
+    case "good":
+      return "bg-emerald-300";
+    case "warning":
+      return "bg-gold";
+    case "issue":
+      return "bg-red-300";
+    case "not-active":
     default:
       return "bg-silver";
   }
@@ -2810,6 +2862,31 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     discoverCandidateCount: discoverCards.length,
     notificationCount: notifications.length
   });
+  const platformOwnerPerformanceInspector = buildCircleCardPlatformOwnerPerformanceInspector({
+    appUrlConfigured: Boolean(process.env.APP_URL?.trim()),
+    nextAuthUrlConfigured: Boolean(process.env.NEXTAUTH_URL?.trim()),
+    cronSecretConfigured: Boolean(process.env.CRON_SECRET?.trim()),
+    resendConfigured: Boolean(
+      process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM_EMAIL?.trim()
+    ),
+    billingFlagConfigured: process.env[CIRCLE_CARD_BILLING_FLAG_ENV] !== undefined,
+    billingEnabled: circleCardBillingReadiness.billingEnabled,
+    analyticsConfigured: Boolean(analytics),
+    cardAvailable: Boolean(card),
+    publicCardHref: card ? `/card/${card.slug}` : null,
+    dashboardHref: circleCardSectionHref("home"),
+    walletHref: "/dashboard/circle-card/wallet",
+    referralCentreHref: circleCardSectionHref("referrals", "referral-centre"),
+    discoverHref: circleCardSectionHref("network", "discover"),
+    notificationCount: notifications.length,
+    referralCount: referralCentre?.stats.signups ?? 0,
+    manifestPath: CIRCLE_CARD_MANIFEST_PATH,
+    logoAssetConfigured: true,
+    pwaIconConfigured: Boolean(CIRCLE_CARD_ICON_192),
+    uploadRouteConfigured: true,
+    imageFallbackHandlingPresent: true
+  });
+  const currentEnvironment = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
   const platformInformationItems = [
     {
       label: "Current Platform Version",
@@ -2817,7 +2894,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     },
     {
       label: "Environment",
-      value: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development"
+      value: currentEnvironment
     },
     {
       label: "Circle Card Billing Enabled",
@@ -3157,6 +3234,86 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     </div>
                   </div>
                 ))}
+              </div>
+            </details>
+            <details className="group rounded-xl border border-silver/14 bg-background/18">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+                <span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Gauge size={15} className="text-gold" />
+                    Performance Inspector
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-muted">
+                    Read-only system health lite using already-loaded dashboard data and static config.
+                  </span>
+                </span>
+                <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="grid gap-3 border-t border-silver/12 p-3 xl:grid-cols-3">
+                {platformOwnerPerformanceInspector.map((group) => (
+                  <div key={group.id} className="rounded-xl border border-border/70 bg-card/42 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                      {group.title}
+                    </p>
+                    <div className="mt-3 grid gap-2">
+                      {group.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-lg border border-silver/12 bg-background/22 p-3"
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                              <p className="mt-1 text-xs leading-relaxed text-muted">
+                                {item.message}
+                              </p>
+                            </div>
+                            <span
+                              className={cn(
+                                "inline-flex w-fit shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                                circleCardPerformanceStatusClass(item.status)
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "h-1.5 w-1.5 rounded-full",
+                                  circleCardPerformanceStatusDotClass(item.status)
+                                )}
+                              />
+                              {circleCardPerformanceStatusLabel(item.status)}
+                            </span>
+                          </div>
+                          {item.href && item.actionLabel ? (
+                            <Link
+                              href={item.href}
+                              target={item.external ? "_blank" : undefined}
+                              rel={item.external ? "noopener noreferrer" : undefined}
+                              className={cn(
+                                buttonVariants({ variant: "outline", size: "sm" }),
+                                "mt-2 h-8 gap-2"
+                              )}
+                            >
+                              {item.actionLabel}
+                              <ArrowUpRight size={13} />
+                            </Link>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div className="xl:col-span-3">
+                  <CircleCardPlatformOwnerSessionDebug
+                    membershipMode={selectedOwnerPreviewMode}
+                    cardTypeMode={selectedOwnerCardTypePreviewMode}
+                    environment={currentEnvironment}
+                    billingEnabled={circleCardBillingReadiness.billingEnabled}
+                    platformOwnerResolved={platformOwnerDiagnostics.platformOwnerResolved}
+                    notificationCount={notifications.length}
+                    referralCount={referralCentre?.stats.signups ?? 0}
+                    profileCompletionScore={circleCardCompletion.score}
+                  />
+                </div>
               </div>
             </details>
             <CircleCardPlatformOwnerCardTypePreviewModules

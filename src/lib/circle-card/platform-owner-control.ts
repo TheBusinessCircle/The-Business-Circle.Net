@@ -11,6 +11,11 @@ export type CircleCardPlatformOwnerLaunchChecklistStatus =
   | "attention"
   | "future"
   | "critical";
+export type CircleCardPlatformOwnerPerformanceStatus =
+  | "good"
+  | "warning"
+  | "issue"
+  | "not-active";
 
 export type CircleCardControlCentreModule = {
   id: string;
@@ -72,6 +77,45 @@ export type CircleCardPlatformOwnerLaunchChecklistInput = {
   notificationCount: number;
 };
 
+export type CircleCardPlatformOwnerPerformanceInspectorItem = {
+  id: string;
+  label: string;
+  status: CircleCardPlatformOwnerPerformanceStatus;
+  message: string;
+  href?: string;
+  actionLabel?: string;
+  external?: boolean;
+};
+
+export type CircleCardPlatformOwnerPerformanceInspectorGroup = {
+  id: string;
+  title: string;
+  items: CircleCardPlatformOwnerPerformanceInspectorItem[];
+};
+
+export type CircleCardPlatformOwnerPerformanceInspectorInput = {
+  appUrlConfigured: boolean;
+  nextAuthUrlConfigured: boolean;
+  cronSecretConfigured: boolean;
+  resendConfigured: boolean;
+  billingFlagConfigured: boolean;
+  billingEnabled: boolean;
+  analyticsConfigured: boolean;
+  cardAvailable: boolean;
+  publicCardHref?: string | null;
+  dashboardHref: string;
+  walletHref: string;
+  referralCentreHref: string;
+  discoverHref: string;
+  notificationCount: number;
+  referralCount: number;
+  manifestPath: string;
+  logoAssetConfigured: boolean;
+  pwaIconConfigured: boolean;
+  uploadRouteConfigured: boolean;
+  imageFallbackHandlingPresent: boolean;
+};
+
 export const CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES: CircleCardControlCentreModule[] = [
   {
     id: "membership-preview",
@@ -100,7 +144,7 @@ export const CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES: CircleCardControlCe
   {
     id: "performance-inspector",
     title: "Performance Inspector",
-    status: "Coming Next",
+    status: "Ready for implementation",
     description: "Reserved for future health, speed and rendering diagnostics."
   },
   {
@@ -123,6 +167,7 @@ export const CIRCLE_CARD_CONTROL_CENTRE_ROADMAP: CircleCardControlCentreRoadmapI
   { id: "platform-preview", label: "Platform Preview", status: "pending" },
   { id: "sandbox", label: "Sandbox", status: "completed" },
   { id: "launch-checklist", label: "Launch checklist", status: "completed" },
+  { id: "performance-inspector", label: "Performance inspector", status: "completed" },
   { id: "business-card-builder", label: "Business Card Builder", status: "pending" },
   { id: "creator-builder", label: "Creator Builder", status: "pending" },
   { id: "products", label: "Products", status: "pending" },
@@ -592,6 +637,212 @@ export function buildCircleCardPlatformOwnerLaunchChecklist(
             : "Platform Owner is not resolved for this session.",
           href: input.adminHref,
           actionLabel: "Open admin page"
+        }
+      ]
+    }
+  ];
+}
+
+function envStatus(configured: boolean): CircleCardPlatformOwnerPerformanceStatus {
+  return configured ? "good" : "warning";
+}
+
+function envMessage(label: string, configured: boolean) {
+  return configured ? `${label} configured.` : `${label} not configured.`;
+}
+
+export function buildCircleCardPlatformOwnerPerformanceInspector(
+  input: CircleCardPlatformOwnerPerformanceInspectorInput
+): CircleCardPlatformOwnerPerformanceInspectorGroup[] {
+  const envReady = input.appUrlConfigured && input.nextAuthUrlConfigured;
+  const weeklyEmailReady = input.cronSecretConfigured && input.resendConfigured;
+  const assetReady =
+    input.logoAssetConfigured &&
+    input.pwaIconConfigured &&
+    input.uploadRouteConfigured &&
+    input.imageFallbackHandlingPresent;
+
+  return [
+    {
+      id: "performance-inspector",
+      title: "Performance Inspector",
+      items: [
+        {
+          id: "dashboard-load-status",
+          label: "Dashboard load status",
+          status: "good",
+          message: "Dashboard data rendered from already-loaded page state.",
+          href: input.dashboardHref,
+          actionLabel: "Open dashboard"
+        },
+        {
+          id: "public-card-route-status",
+          label: "Public card route status",
+          status: input.cardAvailable ? "good" : "warning",
+          message: input.cardAvailable
+            ? "Public card route is available for the selected card."
+            : "Public card route exists. Select or create a card to inspect a live card URL.",
+          href: input.publicCardHref ?? undefined,
+          actionLabel: input.publicCardHref ? "Open public card" : undefined,
+          external: Boolean(input.publicCardHref)
+        },
+        {
+          id: "wallet-route-status",
+          label: "Wallet route status",
+          status: "good",
+          message: "Wallet route is registered.",
+          href: input.walletHref,
+          actionLabel: "Open wallet"
+        },
+        {
+          id: "referral-route-status",
+          label: "Referral route status",
+          status: "good",
+          message: `${input.referralCount} referral${input.referralCount === 1 ? "" : "s"} already loaded from the dashboard state.`,
+          href: input.referralCentreHref,
+          actionLabel: "Open referral centre"
+        },
+        {
+          id: "discover-route-status",
+          label: "Discover route status",
+          status: "good",
+          message: "Discover route is available inside the Circle Card dashboard.",
+          href: input.discoverHref,
+          actionLabel: "Open Discover"
+        },
+        {
+          id: "notification-system-status",
+          label: "Notification system status",
+          status: "good",
+          message: `${input.notificationCount} notification${input.notificationCount === 1 ? "" : "s"} loaded from the existing dashboard query.`
+        },
+        {
+          id: "weekly-email-runner-status",
+          label: "Weekly email runner status",
+          status: weeklyEmailReady ? "good" : "warning",
+          message: weeklyEmailReady
+            ? "Weekly email route has cron and email configuration."
+            : "Weekly email route exists, but CRON_SECRET and/or Resend config is missing."
+        },
+        {
+          id: "pwa-manifest-status",
+          label: "PWA manifest status",
+          status: "good",
+          message: `Manifest route configured at ${input.manifestPath}.`
+        },
+        {
+          id: "image-upload-status",
+          label: "Image/upload status",
+          status: assetReady ? "good" : "warning",
+          message: assetReady
+            ? "Logo, PWA icon, upload route and fallback handling are configured."
+            : "One or more asset/upload indicators need attention."
+        },
+        {
+          id: "environment-readiness",
+          label: "Environment readiness",
+          status: envReady ? "good" : "warning",
+          message: envReady
+            ? "APP_URL and NEXTAUTH_URL are configured."
+            : "APP_URL and/or NEXTAUTH_URL are missing."
+        }
+      ]
+    },
+    {
+      id: "system-health-lite",
+      title: "System Health Lite",
+      items: [
+        {
+          id: "database",
+          label: "Database",
+          status: "good",
+          message: "Connected through existing dashboard data load. No extra health query was run."
+        },
+        {
+          id: "app-url",
+          label: "APP_URL configured",
+          status: envStatus(input.appUrlConfigured),
+          message: envMessage("APP_URL", input.appUrlConfigured)
+        },
+        {
+          id: "nextauth-url",
+          label: "NEXTAUTH_URL configured",
+          status: envStatus(input.nextAuthUrlConfigured),
+          message: envMessage("NEXTAUTH_URL", input.nextAuthUrlConfigured)
+        },
+        {
+          id: "cron-secret",
+          label: "CRON_SECRET configured",
+          status: envStatus(input.cronSecretConfigured),
+          message: envMessage("CRON_SECRET", input.cronSecretConfigured)
+        },
+        {
+          id: "resend",
+          label: "RESEND configured",
+          status: envStatus(input.resendConfigured),
+          message: input.resendConfigured
+            ? "RESEND_API_KEY and RESEND_FROM_EMAIL configured."
+            : "RESEND_API_KEY and/or RESEND_FROM_EMAIL missing."
+        },
+        {
+          id: "circle-card-billing-flag",
+          label: "Circle Card billing flag configured",
+          status: input.billingFlagConfigured ? "good" : "not-active",
+          message: input.billingFlagConfigured
+            ? `CIRCLE_CARD_BILLING_ENABLED is configured as ${input.billingEnabled ? "true" : "false"}.`
+            : "CIRCLE_CARD_BILLING_ENABLED is not configured; billing remains inactive by default."
+        },
+        {
+          id: "dashboard-route",
+          label: "Circle Card dashboard route exists",
+          status: "good",
+          message: "Dashboard route is serving this owner-only surface.",
+          href: input.dashboardHref,
+          actionLabel: "Open dashboard"
+        },
+        {
+          id: "manifest-route",
+          label: "Manifest route exists",
+          status: "good",
+          message: `Circle Card manifest route exists at ${input.manifestPath}.`
+        }
+      ]
+    },
+    {
+      id: "asset-image-health",
+      title: "Asset / Image Health",
+      items: [
+        {
+          id: "circle-card-logo-asset",
+          label: "Circle Card logo asset configured",
+          status: input.logoAssetConfigured ? "good" : "warning",
+          message: input.logoAssetConfigured
+            ? "Circle Card logo asset path is configured."
+            : "Circle Card logo asset path is not configured."
+        },
+        {
+          id: "circle-card-pwa-icon",
+          label: "Circle Card PWA icon configured",
+          status: input.pwaIconConfigured ? "good" : "warning",
+          message: input.pwaIconConfigured
+            ? "Circle Card PWA icon path is configured."
+            : "Circle Card PWA icon path is not configured."
+        },
+        {
+          id: "upload-route",
+          label: "Upload route configured",
+          status: input.uploadRouteConfigured ? "good" : "warning",
+          message: input.uploadRouteConfigured
+            ? "Circle Card upload route is registered."
+            : "Circle Card upload route is not configured."
+        },
+        {
+          id: "image-fallback-handling",
+          label: "Image fallback handling present",
+          status: input.imageFallbackHandlingPresent ? "good" : "warning",
+          message: input.imageFallbackHandlingPresent
+            ? "Public image fallback handling is present."
+            : "Image fallback handling was not detected."
         }
       ]
     }

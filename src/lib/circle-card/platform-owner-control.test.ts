@@ -3,6 +3,7 @@ import {
   CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
   CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
   buildCircleCardPlatformOwnerLaunchChecklist,
+  buildCircleCardPlatformOwnerPerformanceInspector,
   hasCircleCardPlatformOwnerAdminAccess,
   isCircleCardPlatformOwner,
   parseCircleCardPlatformOwnerEmails,
@@ -196,6 +197,46 @@ describe("Circle Card platform owner control centre", () => {
       status: "future",
       message: "Pro price IDs missing. Billing is disabled, so paid checkout remains inactive."
     });
+  });
+
+  it("builds a read-only performance inspector without requiring live checks", () => {
+    const inspector = buildCircleCardPlatformOwnerPerformanceInspector({
+      appUrlConfigured: true,
+      nextAuthUrlConfigured: true,
+      cronSecretConfigured: false,
+      resendConfigured: false,
+      billingFlagConfigured: false,
+      billingEnabled: false,
+      analyticsConfigured: false,
+      cardAvailable: false,
+      publicCardHref: null,
+      dashboardHref: "/dashboard/circle-card",
+      walletHref: "/dashboard/circle-card/wallet",
+      referralCentreHref: "/dashboard/circle-card?section=referrals#referral-centre",
+      discoverHref: "/dashboard/circle-card?section=network#discover",
+      notificationCount: 0,
+      referralCount: 0,
+      manifestPath: "/circle-card.webmanifest",
+      logoAssetConfigured: true,
+      pwaIconConfigured: true,
+      uploadRouteConfigured: true,
+      imageFallbackHandlingPresent: true
+    });
+    const performanceGroup = inspector.find((group) => group.id === "performance-inspector");
+    const healthGroup = inspector.find((group) => group.id === "system-health-lite");
+
+    expect(inspector).toHaveLength(3);
+    expect(performanceGroup?.items.find((item) => item.id === "weekly-email-runner-status")).toMatchObject({
+      status: "warning",
+      message: "Weekly email route exists, but CRON_SECRET and/or Resend config is missing."
+    });
+    expect(healthGroup?.items.find((item) => item.id === "circle-card-billing-flag")).toMatchObject({
+      status: "not-active",
+      message: "CIRCLE_CARD_BILLING_ENABLED is not configured; billing remains inactive by default."
+    });
+    expect(healthGroup?.items.find((item) => item.id === "database")?.message).toContain(
+      "No extra health query was run"
+    );
   });
 
   it("registers future modules and roadmap items as foundation data", () => {

@@ -57,6 +57,15 @@ type CircleCardPlatformOwnerPreviewSurfaceProps = {
   cardTypeMode: CircleCardPlatformOwnerCardTypePreviewMode;
 };
 
+type CircleCardPlatformOwnerSessionDebugProps = CircleCardPlatformOwnerPreviewSurfaceProps & {
+  environment: string;
+  billingEnabled: boolean;
+  platformOwnerResolved: boolean;
+  notificationCount: number;
+  referralCount: number;
+  profileCompletionScore: number;
+};
+
 function useCircleCardPlatformOwnerSandboxMode() {
   const [selectedMode, setSelectedMode] = useState<CircleCardPlatformOwnerSandboxMode>("off");
 
@@ -543,6 +552,54 @@ export function CircleCardPlatformOwnerSandboxPanel() {
           <div key={item.system} className="rounded-xl border border-border/70 bg-card/42 p-3">
             <p className="text-sm font-medium text-foreground">{item.system}</p>
             <p className="mt-1 text-xs leading-relaxed text-muted">{item.status}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function CircleCardPlatformOwnerSessionDebug({
+  membershipMode,
+  cardTypeMode,
+  environment,
+  billingEnabled,
+  platformOwnerResolved,
+  notificationCount,
+  referralCount,
+  profileCompletionScore
+}: CircleCardPlatformOwnerSessionDebugProps) {
+  const { selectedMembershipMode, selectedCardTypeMode } = usePlatformOwnerPreviewModes(
+    membershipMode,
+    cardTypeMode
+  );
+  const sandboxMode = useCircleCardPlatformOwnerSandboxMode();
+  const items = [
+    { label: "Current environment", value: environment },
+    { label: "Billing enabled", value: billingEnabled ? "true" : "false" },
+    { label: "Platform owner resolved", value: platformOwnerResolved ? "true" : "false" },
+    { label: "Sandbox mode active", value: sandboxMode === "on" ? "true" : "false" },
+    {
+      label: "Membership preview mode",
+      value: CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS[selectedMembershipMode]
+    },
+    {
+      label: "Card type preview mode",
+      value: CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_LABELS[selectedCardTypeMode]
+    },
+    { label: "Notification count", value: notificationCount.toLocaleString("en-GB") },
+    { label: "Referral count", value: referralCount.toLocaleString("en-GB") },
+    { label: "Profile completion", value: `${profileCompletionScore}%` }
+  ];
+
+  return (
+    <div className="rounded-xl border border-silver/14 bg-background/18 p-3">
+      <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Owner Debug</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {items.map((item) => (
+          <div key={item.label} className="rounded-lg border border-border/70 bg-card/42 p-3">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-muted">{item.label}</p>
+            <p className="mt-1 break-words text-sm font-semibold text-foreground">{item.value}</p>
           </div>
         ))}
       </div>
