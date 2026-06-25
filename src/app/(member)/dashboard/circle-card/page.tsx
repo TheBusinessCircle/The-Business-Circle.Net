@@ -105,6 +105,10 @@ import {
   CircleCardThemeFields
 } from "@/components/circle-card";
 import {
+  CircleCardPlatformOwnerCardTypePreviewBadge,
+  CircleCardPlatformOwnerCardTypePreviewModules,
+  CircleCardPlatformOwnerCardTypePreviewSwitcher,
+  CircleCardPlatformOwnerFeatureMatrixLite,
   CircleCardPlatformOwnerPreviewBadge,
   CircleCardPlatformOwnerPreviewSwitcher
 } from "@/components/circle-card/circle-card-platform-owner-preview-switcher";
@@ -1828,6 +1832,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedOwnerPreviewMode = isPlatformOwner
     ? resolveCircleCardPlatformOwnerPreviewMode(firstValue(params.ownerPreview))
     : "platform-owner";
+  const selectedOwnerCardTypePreviewMode = "personal";
   const actualCircleCardEntitlement = resolveCircleCardEntitlement({
     role: session.user.role,
     membershipTier: session.user.membershipTier,
@@ -2914,6 +2919,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             {isPlatformOwner ? (
               <CircleCardPlatformOwnerPreviewBadge activeMode={selectedOwnerPreviewMode} />
             ) : null}
+            {isPlatformOwner ? (
+              <CircleCardPlatformOwnerCardTypePreviewBadge
+                activeMode={selectedOwnerCardTypePreviewMode}
+              />
+            ) : null}
             <Badge variant="muted">{accountLabel}</Badge>
             <Badge variant="outline" className="border-silver/18 text-silver">
               {activeCardLimitLabel}
@@ -2968,6 +2978,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         activeFeaturedLinkCount={activeCustomLinkCount}
         platformOwnerPreviewEnabled={isPlatformOwner}
         platformOwnerPreviewMode={selectedOwnerPreviewMode}
+        platformOwnerCardTypePreviewMode={selectedOwnerCardTypePreviewMode}
       />
 
       {showPlatformOwnerDiagnostics ? (
@@ -3005,6 +3016,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         >
           <div className="grid gap-3">
             <CircleCardPlatformOwnerPreviewSwitcher activeMode={selectedOwnerPreviewMode} />
+            <CircleCardPlatformOwnerCardTypePreviewSwitcher
+              activeMode={selectedOwnerCardTypePreviewMode}
+            />
+            <CircleCardPlatformOwnerCardTypePreviewModules
+              membershipMode={selectedOwnerPreviewMode}
+              cardTypeMode={selectedOwnerCardTypePreviewMode}
+            />
+            <CircleCardPlatformOwnerFeatureMatrixLite
+              membershipMode={selectedOwnerPreviewMode}
+              cardTypeMode={selectedOwnerCardTypePreviewMode}
+            />
 
             <details open className="group rounded-xl border border-silver/14 bg-background/18">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">

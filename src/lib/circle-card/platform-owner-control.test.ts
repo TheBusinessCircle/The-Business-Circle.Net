@@ -5,6 +5,8 @@ import {
   hasCircleCardPlatformOwnerAdminAccess,
   isCircleCardPlatformOwner,
   parseCircleCardPlatformOwnerEmails,
+  resolveCircleCardPlatformOwnerCardTypePreviewMode,
+  resolveCircleCardPlatformOwnerFeatureMatrix,
   resolveCircleCardPlatformOwnerPreviewEntitlement,
   resolveCircleCardPlatformOwnerPreviewMode,
   resolveCircleCardPlatformOwnerDiagnostics
@@ -87,6 +89,14 @@ describe("Circle Card platform owner control centre", () => {
     expect(resolveCircleCardPlatformOwnerPreviewMode("bad-value")).toBe("platform-owner");
   });
 
+  it("resolves supported platform owner card type preview modes", () => {
+    expect(resolveCircleCardPlatformOwnerCardTypePreviewMode("personal")).toBe("personal");
+    expect(resolveCircleCardPlatformOwnerCardTypePreviewMode("business")).toBe("business");
+    expect(resolveCircleCardPlatformOwnerCardTypePreviewMode("creator")).toBe("creator");
+    expect(resolveCircleCardPlatformOwnerCardTypePreviewMode("team")).toBe("team");
+    expect(resolveCircleCardPlatformOwnerCardTypePreviewMode("bad-value")).toBe("personal");
+  });
+
   it("maps platform owner preview modes to UI-only entitlements", () => {
     const ownerEntitlement = resolveCircleCardEntitlement({ role: "ADMIN" });
 
@@ -105,6 +115,31 @@ describe("Circle Card platform owner control centre", () => {
     expect(
       resolveCircleCardPlatformOwnerPreviewEntitlement("platform-owner", ownerEntitlement)
     ).toBe(ownerEntitlement);
+  });
+
+  it("maps card type feature matrix statuses for membership preview combinations", () => {
+    const freeBusiness = resolveCircleCardPlatformOwnerFeatureMatrix({
+      membershipMode: "free",
+      cardTypeMode: "business"
+    });
+    const proBusiness = resolveCircleCardPlatformOwnerFeatureMatrix({
+      membershipMode: "pro",
+      cardTypeMode: "business"
+    });
+    const teamsTeam = resolveCircleCardPlatformOwnerFeatureMatrix({
+      membershipMode: "teams",
+      cardTypeMode: "team"
+    });
+    const platformOwnerCreator = resolveCircleCardPlatformOwnerFeatureMatrix({
+      membershipMode: "platform-owner",
+      cardTypeMode: "creator"
+    });
+
+    expect(freeBusiness.find((row) => row.id === "business-card")?.status).toBe("Requires Pro");
+    expect(proBusiness.find((row) => row.id === "business-card")?.status).toBe("Available");
+    expect(teamsTeam.find((row) => row.id === "team-card")?.status).toBe("Available");
+    expect(teamsTeam.find((row) => row.id === "team-analytics")?.status).toBe("Available");
+    expect(platformOwnerCreator.every((row) => row.status === "Platform Preview")).toBe(true);
   });
 
   it("registers future modules and roadmap items as foundation data", () => {

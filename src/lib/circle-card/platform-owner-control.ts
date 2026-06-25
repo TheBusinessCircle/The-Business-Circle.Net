@@ -102,6 +102,39 @@ export const CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS: Record<
   "platform-owner": "Platform Owner"
 };
 
+export const CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_MODES = [
+  "personal",
+  "business",
+  "creator",
+  "team"
+] as const;
+
+export type CircleCardPlatformOwnerCardTypePreviewMode =
+  (typeof CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_MODES)[number];
+
+export const CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_LABELS: Record<
+  CircleCardPlatformOwnerCardTypePreviewMode,
+  string
+> = {
+  personal: "Personal",
+  business: "Business",
+  creator: "Creator",
+  team: "Team"
+};
+
+export type CircleCardPlatformOwnerFeatureMatrixStatus =
+  | "Available"
+  | "Requires Pro"
+  | "Requires Teams"
+  | "Coming Soon"
+  | "Platform Preview";
+
+export type CircleCardPlatformOwnerFeatureMatrixRow = {
+  id: string;
+  label: string;
+  status: CircleCardPlatformOwnerFeatureMatrixStatus;
+};
+
 export function parseCircleCardPlatformOwnerEmails(value?: string | null) {
   return (value ?? "")
     .split(",")
@@ -117,6 +150,16 @@ export function resolveCircleCardPlatformOwnerPreviewMode(
   )
     ? (value as CircleCardPlatformOwnerPreviewMode)
     : "platform-owner";
+}
+
+export function resolveCircleCardPlatformOwnerCardTypePreviewMode(
+  value?: string | null
+): CircleCardPlatformOwnerCardTypePreviewMode {
+  return CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_MODES.includes(
+    value as CircleCardPlatformOwnerCardTypePreviewMode
+  )
+    ? (value as CircleCardPlatformOwnerCardTypePreviewMode)
+    : "personal";
 }
 
 export function resolveCircleCardPlatformOwnerPreviewEntitlement(
@@ -154,6 +197,99 @@ export function resolveCircleCardPlatformOwnerPreviewEntitlement(
     default:
       return platformOwnerEntitlement;
   }
+}
+
+function membershipHasProPreview(mode: CircleCardPlatformOwnerPreviewMode) {
+  return mode === "pro" || mode === "teams" || mode === "bcn-included-pro";
+}
+
+function membershipHasTeamsPreview(mode: CircleCardPlatformOwnerPreviewMode) {
+  return mode === "teams";
+}
+
+function platformPreviewStatus(mode: CircleCardPlatformOwnerPreviewMode) {
+  return mode === "platform-owner" ? "Platform Preview" : null;
+}
+
+function proStatus(mode: CircleCardPlatformOwnerPreviewMode) {
+  return platformPreviewStatus(mode) ?? (membershipHasProPreview(mode) ? "Available" : "Requires Pro");
+}
+
+function teamsStatus(mode: CircleCardPlatformOwnerPreviewMode) {
+  return platformPreviewStatus(mode) ?? (membershipHasTeamsPreview(mode) ? "Available" : "Requires Teams");
+}
+
+export function resolveCircleCardPlatformOwnerFeatureMatrix(input: {
+  membershipMode: CircleCardPlatformOwnerPreviewMode;
+  cardTypeMode: CircleCardPlatformOwnerCardTypePreviewMode;
+}): CircleCardPlatformOwnerFeatureMatrixRow[] {
+  const { membershipMode, cardTypeMode } = input;
+  const platformStatus = platformPreviewStatus(membershipMode);
+  const proFeatureStatus = proStatus(membershipMode);
+  const teamFeatureStatus = teamsStatus(membershipMode);
+  const creatorFeatureStatus =
+    platformStatus ?? (cardTypeMode === "creator" ? proFeatureStatus : "Coming Soon");
+  const businessFeatureStatus =
+    platformStatus ??
+    (cardTypeMode === "business" || cardTypeMode === "team" ? proFeatureStatus : "Coming Soon");
+
+  return [
+    {
+      id: "personal-card",
+      label: "Personal Card",
+      status: platformStatus ?? "Available"
+    },
+    {
+      id: "business-card",
+      label: "Business Card",
+      status: platformStatus ?? (membershipHasProPreview(membershipMode) ? "Available" : "Requires Pro")
+    },
+    {
+      id: "creator-card",
+      label: "Creator Card",
+      status: platformStatus ?? (membershipHasProPreview(membershipMode) ? "Available" : "Requires Pro")
+    },
+    {
+      id: "team-card",
+      label: "Team Card",
+      status: teamFeatureStatus
+    },
+    {
+      id: "products",
+      label: "Products",
+      status: businessFeatureStatus
+    },
+    {
+      id: "services",
+      label: "Services",
+      status: businessFeatureStatus
+    },
+    {
+      id: "downloads",
+      label: "Downloads",
+      status: proFeatureStatus
+    },
+    {
+      id: "video-intro",
+      label: "Video Intro",
+      status: creatorFeatureStatus
+    },
+    {
+      id: "lead-capture",
+      label: "Lead Capture",
+      status: proFeatureStatus
+    },
+    {
+      id: "staff-cards",
+      label: "Staff Cards",
+      status: teamFeatureStatus
+    },
+    {
+      id: "team-analytics",
+      label: "Team Analytics",
+      status: teamFeatureStatus
+    }
+  ];
 }
 
 export type CircleCardPlatformOwnerInput = {

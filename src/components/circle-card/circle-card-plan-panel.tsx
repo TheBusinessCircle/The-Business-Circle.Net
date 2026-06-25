@@ -15,11 +15,17 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_EVENT,
   CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT,
+  readCircleCardPlatformOwnerCardTypePreviewMode,
   readCircleCardPlatformOwnerPreviewMode
 } from "@/components/circle-card/circle-card-platform-owner-preview-switcher";
 import {
+  CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_LABELS,
   CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS,
+  resolveCircleCardPlatformOwnerFeatureMatrix,
+  type CircleCardPlatformOwnerCardTypePreviewMode,
+  type CircleCardPlatformOwnerFeatureMatrixStatus,
   type CircleCardPlatformOwnerPreviewMode
 } from "@/lib/circle-card/platform-owner-control";
 import {
@@ -47,6 +53,7 @@ type CircleCardPlanPanelProps = {
   activeFeaturedLinkCount: number;
   platformOwnerPreviewEnabled?: boolean;
   platformOwnerPreviewMode?: CircleCardPlatformOwnerPreviewMode;
+  platformOwnerCardTypePreviewMode?: CircleCardPlatformOwnerCardTypePreviewMode;
   className?: string;
 };
 
@@ -237,19 +244,47 @@ function planKeyForPreviewMode(
   }
 }
 
+function matrixStatusClassName(status: CircleCardPlatformOwnerFeatureMatrixStatus) {
+  switch (status) {
+    case "Available":
+      return "border-emerald-500/28 bg-emerald-500/10 text-emerald-200";
+    case "Requires Pro":
+      return "border-gold/28 bg-gold/10 text-gold";
+    case "Requires Teams":
+      return "border-silver/22 bg-silver/10 text-silver";
+    case "Platform Preview":
+      return "border-cyan-400/28 bg-cyan-400/10 text-cyan-100";
+    case "Coming Soon":
+    default:
+      return "border-border/80 bg-background/32 text-muted";
+  }
+}
+
 export function CircleCardPlanPanel({
   currentPlanKey,
   cardCount,
   activeFeaturedLinkCount,
   platformOwnerPreviewEnabled = false,
   platformOwnerPreviewMode = "platform-owner",
+  platformOwnerCardTypePreviewMode = "personal",
   className
 }: CircleCardPlanPanelProps) {
   const [selectedPreviewMode, setSelectedPreviewMode] = useState(platformOwnerPreviewMode);
+  const [selectedCardTypeMode, setSelectedCardTypeMode] = useState(
+    platformOwnerCardTypePreviewMode
+  );
   const displayedPlanKey = platformOwnerPreviewEnabled
     ? planKeyForPreviewMode(selectedPreviewMode, currentPlanKey)
     : currentPlanKey;
   const previewLabel = CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS[selectedPreviewMode];
+  const cardTypePreviewLabel = CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_LABELS[selectedCardTypeMode];
+  const cardTypeMatrixRows = resolveCircleCardPlatformOwnerFeatureMatrix({
+    membershipMode: selectedPreviewMode,
+    cardTypeMode: selectedCardTypeMode
+  });
+  const selectedCardTypeStatus =
+    cardTypeMatrixRows.find((row) => row.id === `${selectedCardTypeMode}-card`)?.status ??
+    "Available";
   const currentPlan = CIRCLE_CARD_PLAN_DEFINITIONS[displayedPlanKey];
   const proPlan = CIRCLE_CARD_PLAN_DEFINITIONS.PRO;
   const teamsPlan = CIRCLE_CARD_PLAN_DEFINITIONS.TEAMS;
@@ -268,6 +303,9 @@ export function CircleCardPlanPanel({
     setSelectedPreviewMode(
       readCircleCardPlatformOwnerPreviewMode(platformOwnerPreviewMode)
     );
+    setSelectedCardTypeMode(
+      readCircleCardPlatformOwnerCardTypePreviewMode(platformOwnerCardTypePreviewMode)
+    );
 
     function handlePreviewChange(event: Event) {
       const mode = (event as CustomEvent<{ mode?: CircleCardPlatformOwnerPreviewMode }>).detail
@@ -278,12 +316,29 @@ export function CircleCardPlanPanel({
       }
     }
 
+    function handleCardTypePreviewChange(event: Event) {
+      const mode = (event as CustomEvent<{ mode?: CircleCardPlatformOwnerCardTypePreviewMode }>)
+        .detail?.mode;
+
+      if (mode) {
+        setSelectedCardTypeMode(mode);
+      }
+    }
+
     window.addEventListener(CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT, handlePreviewChange);
+    window.addEventListener(
+      CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_EVENT,
+      handleCardTypePreviewChange
+    );
 
     return () => {
       window.removeEventListener(CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT, handlePreviewChange);
+      window.removeEventListener(
+        CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_EVENT,
+        handleCardTypePreviewChange
+      );
     };
-  }, [platformOwnerPreviewEnabled, platformOwnerPreviewMode]);
+  }, [platformOwnerCardTypePreviewMode, platformOwnerPreviewEnabled, platformOwnerPreviewMode]);
 
   const limitItems = [
     {
@@ -363,6 +418,27 @@ export function CircleCardPlanPanel({
               empty="Included capabilities appear here as the plan matures."
             />
           </div>
+
+          {platformOwnerPreviewEnabled ? (
+            <div className="mt-4 rounded-2xl border border-cyan-400/18 bg-cyan-400/10 p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-cyan-100">
+                    Card Type Fit
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {previewLabel} + {cardTypePreviewLabel}
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={cn("w-fit normal-case tracking-normal", matrixStatusClassName(selectedCardTypeStatus))}
+                >
+                  {selectedCardTypeStatus}
+                </Badge>
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
             <CapabilityList
