@@ -138,9 +138,11 @@ import {
 import {
   CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
   CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
+  buildCircleCardPlatformOwnerLaunchChecklist,
   resolveCircleCardPlatformOwnerPreviewEntitlement,
   resolveCircleCardPlatformOwnerPreviewMode,
   resolveCircleCardPlatformOwnerDiagnostics,
+  type CircleCardPlatformOwnerLaunchChecklistStatus,
   type CircleCardPlatformStatusTone
 } from "@/lib/circle-card/platform-owner-control";
 import { isAdminRole } from "@/lib/auth/permissions";
@@ -311,6 +313,48 @@ function circleCardPlatformStatusDotClass(tone: CircleCardPlatformStatusTone) {
     case "amber":
     default:
       return "bg-gold";
+  }
+}
+
+function circleCardLaunchChecklistStatusLabel(status: CircleCardPlatformOwnerLaunchChecklistStatus) {
+  switch (status) {
+    case "ready":
+      return "Ready";
+    case "attention":
+      return "Needs attention";
+    case "critical":
+      return "Critical issue";
+    case "future":
+    default:
+      return "Future / not active";
+  }
+}
+
+function circleCardLaunchChecklistStatusClass(status: CircleCardPlatformOwnerLaunchChecklistStatus) {
+  switch (status) {
+    case "ready":
+      return "border-emerald-400/24 bg-emerald-400/10 text-emerald-200";
+    case "attention":
+      return "border-gold/24 bg-gold/10 text-gold";
+    case "critical":
+      return "border-red-400/24 bg-red-400/10 text-red-200";
+    case "future":
+    default:
+      return "border-silver/18 bg-silver/10 text-silver";
+  }
+}
+
+function circleCardLaunchChecklistStatusDotClass(status: CircleCardPlatformOwnerLaunchChecklistStatus) {
+  switch (status) {
+    case "ready":
+      return "bg-emerald-300";
+    case "attention":
+      return "bg-gold";
+    case "critical":
+      return "bg-red-300";
+    case "future":
+    default:
+      return "bg-silver";
   }
 }
 
@@ -2746,6 +2790,26 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       icon: ShieldCheck
     }
   ];
+  const platformOwnerLaunchChecklist = buildCircleCardPlatformOwnerLaunchChecklist({
+    billingReadiness: circleCardBillingReadiness,
+    platformOwnerDiagnostics,
+    appUrlConfigured: Boolean(process.env.APP_URL?.trim()),
+    nextAuthUrlConfigured: Boolean(process.env.NEXTAUTH_URL?.trim()),
+    cronSecretConfigured: Boolean(process.env.CRON_SECRET?.trim()),
+    resendConfigured: Boolean(
+      process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM_EMAIL?.trim()
+    ),
+    analyticsConfigured: Boolean(analytics),
+    cardAvailable: Boolean(card),
+    publicCardHref: card ? `/card/${card.slug}` : null,
+    referralCentreHref: circleCardSectionHref("referrals", "referral-centre"),
+    adminHref: "/admin/circle-card",
+    proHref: "/circle-card/pro",
+    teamsHref: "/circle-card/teams",
+    walletContactCount: savedContactCount,
+    discoverCandidateCount: discoverCards.length,
+    notificationCount: notifications.length
+  });
   const platformInformationItems = [
     {
       label: "Current Platform Version",
@@ -3027,6 +3091,74 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             />
             <CircleCardPlatformOwnerSandboxToggle />
             <CircleCardPlatformOwnerSandboxPanel />
+            <details open className="group rounded-xl border border-silver/14 bg-background/18">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+                <span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <ClipboardCheck size={15} className="text-gold" />
+                    Launch Checklist
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-muted">
+                    Read-only launch readiness for deployment, testing, promotion and paid-feature prep.
+                  </span>
+                </span>
+                <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="grid gap-3 border-t border-silver/12 p-3 lg:grid-cols-2">
+                {platformOwnerLaunchChecklist.map((group) => (
+                  <div key={group.id} className="rounded-xl border border-border/70 bg-card/42 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
+                      {group.title}
+                    </p>
+                    <div className="mt-3 grid gap-2">
+                      {group.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-lg border border-silver/12 bg-background/22 p-3"
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                              <p className="mt-1 text-xs leading-relaxed text-muted">
+                                {item.message}
+                              </p>
+                            </div>
+                            <span
+                              className={cn(
+                                "inline-flex w-fit shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                                circleCardLaunchChecklistStatusClass(item.status)
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "h-1.5 w-1.5 rounded-full",
+                                  circleCardLaunchChecklistStatusDotClass(item.status)
+                                )}
+                              />
+                              {circleCardLaunchChecklistStatusLabel(item.status)}
+                            </span>
+                          </div>
+                          {item.href && item.actionLabel ? (
+                            <Link
+                              href={item.href}
+                              target={item.external ? "_blank" : undefined}
+                              rel={item.external ? "noopener noreferrer" : undefined}
+                              className={cn(
+                                buttonVariants({ variant: "outline", size: "sm" }),
+                                "mt-2 h-8 gap-2"
+                              )}
+                            >
+                              {item.actionLabel}
+                              <ArrowUpRight size={13} />
+                            </Link>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
             <CircleCardPlatformOwnerCardTypePreviewModules
               membershipMode={selectedOwnerPreviewMode}
               cardTypeMode={selectedOwnerCardTypePreviewMode}

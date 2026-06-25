@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
   CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
+  buildCircleCardPlatformOwnerLaunchChecklist,
   hasCircleCardPlatformOwnerAdminAccess,
   isCircleCardPlatformOwner,
   parseCircleCardPlatformOwnerEmails,
@@ -147,6 +148,54 @@ describe("Circle Card platform owner control centre", () => {
     expect(teamsTeam.find((row) => row.id === "team-card")?.status).toBe("Available");
     expect(teamsTeam.find((row) => row.id === "team-analytics")?.status).toBe("Available");
     expect(platformOwnerCreator.every((row) => row.status === "Platform Preview")).toBe(true);
+  });
+
+  it("builds an owner-only launch checklist with safe billing readiness states", () => {
+    const checklist = buildCircleCardPlatformOwnerLaunchChecklist({
+      billingReadiness: {
+        billingEnabled: false,
+        pro: {
+          monthlyPriceConfigured: false,
+          annualPriceConfigured: false
+        },
+        teams: {
+          monthlyPriceConfigured: false,
+          annualPriceConfigured: false
+        }
+      },
+      platformOwnerDiagnostics: {
+        currentUserEmail: "owner@example.com",
+        currentUserRole: "ADMIN",
+        ownerEmailAllowlistPresent: true,
+        hasAdminAccess: true,
+        platformOwnerResolved: true
+      },
+      appUrlConfigured: true,
+      nextAuthUrlConfigured: true,
+      cronSecretConfigured: true,
+      resendConfigured: true,
+      analyticsConfigured: true,
+      cardAvailable: true,
+      publicCardHref: "/card/owner",
+      referralCentreHref: "/dashboard/circle-card?section=referrals#referral-centre",
+      adminHref: "/admin/circle-card",
+      proHref: "/circle-card/pro",
+      teamsHref: "/circle-card/teams",
+      walletContactCount: 2,
+      discoverCandidateCount: 1,
+      notificationCount: 3
+    });
+    const billingGroup = checklist.find((group) => group.id === "billing-readiness");
+
+    expect(checklist).toHaveLength(5);
+    expect(billingGroup?.items.find((item) => item.id === "circle-card-billing-flag")).toMatchObject({
+      status: "ready",
+      message: "CIRCLE_CARD_BILLING_ENABLED is false. Billing is safely disabled."
+    });
+    expect(billingGroup?.items.find((item) => item.id === "stripe-pro-price-ids")).toMatchObject({
+      status: "future",
+      message: "Pro price IDs missing. Billing is disabled, so paid checkout remains inactive."
+    });
   });
 
   it("registers future modules and roadmap items as foundation data", () => {

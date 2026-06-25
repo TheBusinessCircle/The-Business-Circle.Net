@@ -6,6 +6,11 @@ import {
 } from "@/lib/circle-card/permissions";
 
 export type CircleCardPlatformStatusTone = "green" | "amber" | "red";
+export type CircleCardPlatformOwnerLaunchChecklistStatus =
+  | "ready"
+  | "attention"
+  | "future"
+  | "critical";
 
 export type CircleCardControlCentreModule = {
   id: string;
@@ -18,6 +23,53 @@ export type CircleCardControlCentreRoadmapItem = {
   id: string;
   label: string;
   status: "completed" | "pending";
+};
+
+export type CircleCardPlatformOwnerLaunchChecklistItem = {
+  id: string;
+  label: string;
+  status: CircleCardPlatformOwnerLaunchChecklistStatus;
+  message: string;
+  href?: string;
+  actionLabel?: string;
+  external?: boolean;
+};
+
+export type CircleCardPlatformOwnerLaunchChecklistGroup = {
+  id: string;
+  title: string;
+  items: CircleCardPlatformOwnerLaunchChecklistItem[];
+};
+
+export type CircleCardPlatformOwnerBillingReadinessSnapshot = {
+  billingEnabled: boolean;
+  pro: {
+    monthlyPriceConfigured: boolean;
+    annualPriceConfigured: boolean;
+  };
+  teams: {
+    monthlyPriceConfigured: boolean;
+    annualPriceConfigured: boolean;
+  };
+};
+
+export type CircleCardPlatformOwnerLaunchChecklistInput = {
+  billingReadiness: CircleCardPlatformOwnerBillingReadinessSnapshot;
+  platformOwnerDiagnostics: CircleCardPlatformOwnerDiagnostics;
+  appUrlConfigured: boolean;
+  nextAuthUrlConfigured: boolean;
+  cronSecretConfigured: boolean;
+  resendConfigured: boolean;
+  analyticsConfigured: boolean;
+  cardAvailable: boolean;
+  publicCardHref?: string | null;
+  referralCentreHref: string;
+  adminHref: string;
+  proHref: string;
+  teamsHref: string;
+  walletContactCount: number;
+  discoverCandidateCount: number;
+  notificationCount: number;
 };
 
 export const CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES: CircleCardControlCentreModule[] = [
@@ -70,6 +122,7 @@ export const CIRCLE_CARD_CONTROL_CENTRE_ROADMAP: CircleCardControlCentreRoadmapI
   { id: "owner-control-centre", label: "Platform Owner Control Centre", status: "completed" },
   { id: "platform-preview", label: "Platform Preview", status: "pending" },
   { id: "sandbox", label: "Sandbox", status: "completed" },
+  { id: "launch-checklist", label: "Launch checklist", status: "completed" },
   { id: "business-card-builder", label: "Business Card Builder", status: "pending" },
   { id: "creator-builder", label: "Creator Builder", status: "pending" },
   { id: "products", label: "Products", status: "pending" },
@@ -325,6 +378,222 @@ export function resolveCircleCardPlatformOwnerFeatureMatrix(input: {
       id: "team-analytics",
       label: "Team Analytics",
       status: teamFeatureStatus
+    }
+  ];
+}
+
+function priceIdStatus(input: {
+  billingEnabled: boolean;
+  monthlyConfigured: boolean;
+  annualConfigured: boolean;
+  label: string;
+}): CircleCardPlatformOwnerLaunchChecklistItem["status"] {
+  if (input.monthlyConfigured && input.annualConfigured) {
+    return "ready";
+  }
+
+  if (input.billingEnabled) {
+    return "critical";
+  }
+
+  return input.monthlyConfigured || input.annualConfigured ? "attention" : "future";
+}
+
+function priceIdMessage(input: {
+  billingEnabled: boolean;
+  monthlyConfigured: boolean;
+  annualConfigured: boolean;
+  label: string;
+}) {
+  if (input.monthlyConfigured && input.annualConfigured) {
+    return `${input.label} price IDs configured.`;
+  }
+
+  if (input.billingEnabled) {
+    return `${input.label} price IDs missing while billing is enabled.`;
+  }
+
+  if (input.monthlyConfigured || input.annualConfigured) {
+    return `${input.label} price IDs are partially configured. Billing remains disabled.`;
+  }
+
+  return `${input.label} price IDs missing. Billing is disabled, so paid checkout remains inactive.`;
+}
+
+export function buildCircleCardPlatformOwnerLaunchChecklist(
+  input: CircleCardPlatformOwnerLaunchChecklistInput
+): CircleCardPlatformOwnerLaunchChecklistGroup[] {
+  const envReady = input.appUrlConfigured && input.nextAuthUrlConfigured;
+  const proPrice = {
+    billingEnabled: input.billingReadiness.billingEnabled,
+    monthlyConfigured: input.billingReadiness.pro.monthlyPriceConfigured,
+    annualConfigured: input.billingReadiness.pro.annualPriceConfigured,
+    label: "Pro"
+  };
+  const teamsPrice = {
+    billingEnabled: input.billingReadiness.billingEnabled,
+    monthlyConfigured: input.billingReadiness.teams.monthlyPriceConfigured,
+    annualConfigured: input.billingReadiness.teams.annualPriceConfigured,
+    label: "Teams"
+  };
+  const allStripePricesReady =
+    proPrice.monthlyConfigured &&
+    proPrice.annualConfigured &&
+    teamsPrice.monthlyConfigured &&
+    teamsPrice.annualConfigured;
+
+  return [
+    {
+      id: "core-system",
+      title: "Core System",
+      items: [
+        {
+          id: "build-status",
+          label: "Build status",
+          status: "ready",
+          message: "Dashboard build is serving the owner-only checklist."
+        },
+        {
+          id: "database-migrations",
+          label: "Database migrations",
+          status: "attention",
+          message: "Confirm prisma migrate deploy in the deployment pipeline. This panel is read-only."
+        },
+        {
+          id: "environment-variables",
+          label: "Environment variables",
+          status: envReady && input.platformOwnerDiagnostics.ownerEmailAllowlistPresent ? "ready" : "attention",
+          message:
+            envReady && input.platformOwnerDiagnostics.ownerEmailAllowlistPresent
+              ? "APP_URL, NEXTAUTH_URL and owner allowlist are present."
+              : "Check APP_URL, NEXTAUTH_URL and owner allowlist before launch."
+        },
+        {
+          id: "public-card-routes",
+          label: "Public card routes",
+          status: "ready",
+          message: input.cardAvailable
+            ? "Public /card routes are available for the current card."
+            : "Public /card routes exist. Create or select a card before live promotion.",
+          href: input.publicCardHref ?? undefined,
+          actionLabel: input.publicCardHref ? "Open public card" : undefined,
+          external: Boolean(input.publicCardHref)
+        }
+      ]
+    },
+    {
+      id: "growth-system",
+      title: "Growth System",
+      items: [
+        {
+          id: "notifications",
+          label: "Notifications",
+          status: "ready",
+          message: `${input.notificationCount} notification${input.notificationCount === 1 ? "" : "s"} loaded for the owner dashboard.`
+        },
+        {
+          id: "weekly-emails",
+          label: "Weekly emails",
+          status: input.cronSecretConfigured && input.resendConfigured ? "ready" : "attention",
+          message:
+            input.cronSecretConfigured && input.resendConfigured
+              ? "Weekly summary route has CRON_SECRET and Resend email configuration."
+              : "Weekly emails need CRON_SECRET plus RESEND_API_KEY and RESEND_FROM_EMAIL."
+        },
+        {
+          id: "referral-engine",
+          label: "Referral engine",
+          status: "ready",
+          message: "Referral engine configured. Payouts inactive.",
+          href: input.referralCentreHref,
+          actionLabel: "Open referral centre"
+        },
+        {
+          id: "discover-privacy",
+          label: "Discover privacy",
+          status: "ready",
+          message: `${input.discoverCandidateCount} visible Discover candidate${input.discoverCandidateCount === 1 ? "" : "s"} in this dashboard view. Discover remains opt-in.`
+        },
+        {
+          id: "analytics",
+          label: "Analytics",
+          status: input.analyticsConfigured ? "ready" : "attention",
+          message: input.analyticsConfigured
+            ? "Analytics events and dashboard summary are available."
+            : "Analytics summary is empty or not available for the selected card."
+        }
+      ]
+    },
+    {
+      id: "billing-readiness",
+      title: "Billing Readiness",
+      items: [
+        {
+          id: "circle-card-billing-flag",
+          label: "Circle Card billing flag",
+          status:
+            input.billingReadiness.billingEnabled && !allStripePricesReady ? "critical" : "ready",
+          message: input.billingReadiness.billingEnabled
+            ? "CIRCLE_CARD_BILLING_ENABLED is true. Stripe price IDs must be complete before paid launch."
+            : "CIRCLE_CARD_BILLING_ENABLED is false. Billing is safely disabled."
+        },
+        {
+          id: "stripe-pro-price-ids",
+          label: "Stripe Pro price IDs",
+          status: priceIdStatus(proPrice),
+          message: priceIdMessage(proPrice),
+          href: input.proHref,
+          actionLabel: "Open Pro page"
+        },
+        {
+          id: "stripe-teams-price-ids",
+          label: "Stripe Teams price IDs",
+          status: priceIdStatus(teamsPrice),
+          message: priceIdMessage(teamsPrice),
+          href: input.teamsHref,
+          actionLabel: "Open Teams page"
+        }
+      ]
+    },
+    {
+      id: "user-experience",
+      title: "User Experience",
+      items: [
+        {
+          id: "wallet",
+          label: "Wallet",
+          status: "ready",
+          message: `${input.walletContactCount} wallet contact${input.walletContactCount === 1 ? "" : "s"} loaded for this account.`
+        },
+        {
+          id: "pwa-icons",
+          label: "PWA icons",
+          status: "ready",
+          message: "Circle Card manifest route exists."
+        },
+        {
+          id: "mobile-layout-readiness",
+          label: "Mobile layout readiness",
+          status: "ready",
+          message: "Dashboard sections use responsive grids and compact owner controls."
+        }
+      ]
+    },
+    {
+      id: "admin-owner-tools",
+      title: "Admin / Owner Tools",
+      items: [
+        {
+          id: "admin-access",
+          label: "Admin access",
+          status: input.platformOwnerDiagnostics.platformOwnerResolved ? "ready" : "critical",
+          message: input.platformOwnerDiagnostics.platformOwnerResolved
+            ? "Platform Owner resolved through admin access and allowlisted email."
+            : "Platform Owner is not resolved for this session.",
+          href: input.adminHref,
+          actionLabel: "Open admin page"
+        }
+      ]
     }
   ];
 }
