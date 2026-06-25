@@ -5,8 +5,11 @@ import {
   hasCircleCardPlatformOwnerAdminAccess,
   isCircleCardPlatformOwner,
   parseCircleCardPlatformOwnerEmails,
+  resolveCircleCardPlatformOwnerPreviewEntitlement,
+  resolveCircleCardPlatformOwnerPreviewMode,
   resolveCircleCardPlatformOwnerDiagnostics
 } from "./platform-owner-control";
+import { resolveCircleCardEntitlement } from "./permissions";
 
 describe("Circle Card platform owner control centre", () => {
   it("parses configured owner email allowlists", () => {
@@ -74,6 +77,34 @@ describe("Circle Card platform owner control centre", () => {
       hasAdminAccess: true,
       platformOwnerResolved: false
     });
+  });
+
+  it("resolves supported platform owner preview modes", () => {
+    expect(resolveCircleCardPlatformOwnerPreviewMode("free")).toBe("free");
+    expect(resolveCircleCardPlatformOwnerPreviewMode("pro")).toBe("pro");
+    expect(resolveCircleCardPlatformOwnerPreviewMode("teams")).toBe("teams");
+    expect(resolveCircleCardPlatformOwnerPreviewMode("bcn-included-pro")).toBe("bcn-included-pro");
+    expect(resolveCircleCardPlatformOwnerPreviewMode("bad-value")).toBe("platform-owner");
+  });
+
+  it("maps platform owner preview modes to UI-only entitlements", () => {
+    const ownerEntitlement = resolveCircleCardEntitlement({ role: "ADMIN" });
+
+    expect(
+      resolveCircleCardPlatformOwnerPreviewEntitlement("free", ownerEntitlement)
+    ).toMatchObject({ plan: "FREE", source: "FREE" });
+    expect(
+      resolveCircleCardPlatformOwnerPreviewEntitlement("pro", ownerEntitlement)
+    ).toMatchObject({ plan: "PRO", source: "PRO_SUBSCRIPTION" });
+    expect(
+      resolveCircleCardPlatformOwnerPreviewEntitlement("teams", ownerEntitlement)
+    ).toMatchObject({ plan: "TEAMS", source: "TEAMS_SUBSCRIPTION" });
+    expect(
+      resolveCircleCardPlatformOwnerPreviewEntitlement("bcn-included-pro", ownerEntitlement)
+    ).toMatchObject({ plan: "PRO", source: "BCN_INCLUDED_PRO" });
+    expect(
+      resolveCircleCardPlatformOwnerPreviewEntitlement("platform-owner", ownerEntitlement)
+    ).toBe(ownerEntitlement);
   });
 
   it("registers future modules and roadmap items as foundation data", () => {

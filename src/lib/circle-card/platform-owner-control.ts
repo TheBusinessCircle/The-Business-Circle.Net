@@ -1,5 +1,9 @@
 import type { Role } from "@prisma/client";
 import { isAdminRole } from "@/lib/auth/permissions";
+import {
+  resolveCircleCardEntitlement,
+  type CircleCardEntitlement
+} from "@/lib/circle-card/permissions";
 
 export type CircleCardPlatformStatusTone = "green" | "amber" | "red";
 
@@ -76,11 +80,80 @@ export const CIRCLE_CARD_CONTROL_CENTRE_ROADMAP: CircleCardControlCentreRoadmapI
   { id: "commerce", label: "Commerce", status: "pending" }
 ];
 
+export const CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_MODES = [
+  "free",
+  "pro",
+  "teams",
+  "bcn-included-pro",
+  "platform-owner"
+] as const;
+
+export type CircleCardPlatformOwnerPreviewMode =
+  (typeof CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_MODES)[number];
+
+export const CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS: Record<
+  CircleCardPlatformOwnerPreviewMode,
+  string
+> = {
+  free: "Free",
+  pro: "Pro",
+  teams: "Teams",
+  "bcn-included-pro": "BCN Included Pro",
+  "platform-owner": "Platform Owner"
+};
+
 export function parseCircleCardPlatformOwnerEmails(value?: string | null) {
   return (value ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
+}
+
+export function resolveCircleCardPlatformOwnerPreviewMode(
+  value?: string | null
+): CircleCardPlatformOwnerPreviewMode {
+  return CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_MODES.includes(
+    value as CircleCardPlatformOwnerPreviewMode
+  )
+    ? (value as CircleCardPlatformOwnerPreviewMode)
+    : "platform-owner";
+}
+
+export function resolveCircleCardPlatformOwnerPreviewEntitlement(
+  mode: CircleCardPlatformOwnerPreviewMode,
+  platformOwnerEntitlement: CircleCardEntitlement
+) {
+  switch (mode) {
+    case "free":
+      return resolveCircleCardEntitlement({
+        role: "MEMBER",
+        hasActiveSubscription: false,
+        suspended: false
+      });
+    case "pro":
+      return resolveCircleCardEntitlement({
+        role: "MEMBER",
+        hasActiveCircleCardSubscription: true,
+        circleCardSubscriptionPlan: "PRO",
+        suspended: false
+      });
+    case "teams":
+      return resolveCircleCardEntitlement({
+        role: "MEMBER",
+        hasActiveCircleCardSubscription: true,
+        circleCardSubscriptionPlan: "TEAMS",
+        suspended: false
+      });
+    case "bcn-included-pro":
+      return resolveCircleCardEntitlement({
+        role: "MEMBER",
+        hasActiveSubscription: true,
+        suspended: false
+      });
+    case "platform-owner":
+    default:
+      return platformOwnerEntitlement;
+  }
 }
 
 export type CircleCardPlatformOwnerInput = {

@@ -104,6 +104,7 @@ import {
   CircleCardSmartLinkFields,
   CircleCardThemeFields
 } from "@/components/circle-card";
+import { CircleCardPlatformOwnerPreviewSwitcher } from "@/components/circle-card/circle-card-platform-owner-preview-switcher";
 import { CircleCardReferralNudges } from "@/components/circle-card/circle-card-referral-nudges";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -126,6 +127,9 @@ import {
 import {
   CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
   CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
+  CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS,
+  resolveCircleCardPlatformOwnerPreviewEntitlement,
+  resolveCircleCardPlatformOwnerPreviewMode,
   resolveCircleCardPlatformOwnerDiagnostics,
   type CircleCardPlatformStatusTone
 } from "@/lib/circle-card/platform-owner-control";
@@ -1813,12 +1817,27 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     }),
     getCircleCardReferralCentreForUser(session.user.id)
   ]);
-  const circleCardEntitlement = resolveCircleCardEntitlement({
+  const platformOwnerDiagnostics = resolveCircleCardPlatformOwnerDiagnostics({
+    role: session.user.role,
+    email: session.user.email,
+    hasAdminAccess: isAdminRole(session.user.role)
+  });
+  const isPlatformOwner = platformOwnerDiagnostics.platformOwnerResolved;
+  const selectedOwnerPreviewMode = isPlatformOwner
+    ? resolveCircleCardPlatformOwnerPreviewMode(firstValue(params.ownerPreview))
+    : "platform-owner";
+  const actualCircleCardEntitlement = resolveCircleCardEntitlement({
     role: session.user.role,
     membershipTier: session.user.membershipTier,
     hasActiveSubscription: session.user.hasActiveSubscription,
     suspended: session.user.suspended
   });
+  const circleCardEntitlement = isPlatformOwner
+    ? resolveCircleCardPlatformOwnerPreviewEntitlement(
+        selectedOwnerPreviewMode,
+        actualCircleCardEntitlement
+      )
+    : actualCircleCardEntitlement;
   const featureAccess = getCircleCardFeatureAccess(circleCardEntitlement.accessLevel);
   const cardCount = cards.length;
   const canCreateAdditionalCard = canCreateCircleCard({
@@ -2577,13 +2596,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     }
   ];
   const circleCardBillingReadiness = getCircleCardBillingReadiness();
-  const platformOwnerDiagnostics = resolveCircleCardPlatformOwnerDiagnostics({
-    role: session.user.role,
-    email: session.user.email,
-    hasAdminAccess: isAdminRole(session.user.role)
-  });
-  const isPlatformOwner = platformOwnerDiagnostics.platformOwnerResolved;
   const showPlatformOwnerDiagnostics = platformOwnerDiagnostics.hasAdminAccess;
+  const ownerPreviewLabel = CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS[selectedOwnerPreviewMode];
   const platformOwnerDiagnosticItems = [
     {
       label: "Current User Email",
@@ -2600,6 +2614,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     {
       label: "Platform Owner Resolved",
       value: platformOwnerDiagnostics.platformOwnerResolved ? "True" : "False"
+    },
+    {
+      label: "Preview Mode",
+      value: ownerPreviewLabel
     }
   ];
   const platformStatusItems: Array<{
@@ -2742,6 +2760,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     {
       label: "Current Entitlement",
       value: circleCardEntitlement.label
+    },
+    {
+      label: "Actual Entitlement",
+      value: actualCircleCardEntitlement.label
+    },
+    {
+      label: "Preview Mode",
+      value: ownerPreviewLabel
     },
     {
       label: "Admin Override Active",
@@ -2892,6 +2918,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            {isPlatformOwner ? (
+              <Badge variant="premium">Previewing: {ownerPreviewLabel}</Badge>
+            ) : null}
             <Badge variant="muted">{accountLabel}</Badge>
             <Badge variant="outline" className="border-silver/18 text-silver">
               {activeCardLimitLabel}
@@ -2980,6 +3009,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           className="border-gold/26 bg-[linear-gradient(145deg,hsl(var(--card)/0.76),hsl(var(--background)/0.42))]"
         >
           <div className="grid gap-3">
+            <CircleCardPlatformOwnerPreviewSwitcher activeMode={selectedOwnerPreviewMode} />
+
             <details open className="group rounded-xl border border-silver/14 bg-background/18">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
                 <span>
