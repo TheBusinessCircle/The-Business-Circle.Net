@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowUpRight,
   BarChart3,
@@ -9,8 +11,17 @@ import {
   WalletCards
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT,
+  readCircleCardPlatformOwnerPreviewMode
+} from "@/components/circle-card/circle-card-platform-owner-preview-switcher";
+import {
+  CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS,
+  type CircleCardPlatformOwnerPreviewMode
+} from "@/lib/circle-card/platform-owner-control";
 import {
   CIRCLE_CARD_CAPABILITY_MAP,
   CIRCLE_CARD_CAPABILITY_STATUS_LABELS,
@@ -34,6 +45,8 @@ type CircleCardPlanPanelProps = {
   currentPlanKey: CircleCardPlanKey;
   cardCount: number;
   activeFeaturedLinkCount: number;
+  platformOwnerPreviewEnabled?: boolean;
+  platformOwnerPreviewMode?: CircleCardPlatformOwnerPreviewMode;
   className?: string;
 };
 
@@ -206,21 +219,71 @@ function PlanPreviewPanel({
   );
 }
 
+function planKeyForPreviewMode(
+  mode: CircleCardPlatformOwnerPreviewMode,
+  fallback: CircleCardPlanKey
+): CircleCardPlanKey {
+  switch (mode) {
+    case "free":
+      return "FREE";
+    case "pro":
+    case "bcn-included-pro":
+    case "platform-owner":
+      return "PRO";
+    case "teams":
+      return "TEAMS";
+    default:
+      return fallback;
+  }
+}
+
 export function CircleCardPlanPanel({
   currentPlanKey,
   cardCount,
   activeFeaturedLinkCount,
+  platformOwnerPreviewEnabled = false,
+  platformOwnerPreviewMode = "platform-owner",
   className
 }: CircleCardPlanPanelProps) {
-  const currentPlan = CIRCLE_CARD_PLAN_DEFINITIONS[currentPlanKey];
+  const [selectedPreviewMode, setSelectedPreviewMode] = useState(platformOwnerPreviewMode);
+  const displayedPlanKey = platformOwnerPreviewEnabled
+    ? planKeyForPreviewMode(selectedPreviewMode, currentPlanKey)
+    : currentPlanKey;
+  const previewLabel = CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS[selectedPreviewMode];
+  const currentPlan = CIRCLE_CARD_PLAN_DEFINITIONS[displayedPlanKey];
   const proPlan = CIRCLE_CARD_PLAN_DEFINITIONS.PRO;
   const teamsPlan = CIRCLE_CARD_PLAN_DEFINITIONS.TEAMS;
-  const currentCapabilityMap = CIRCLE_CARD_CAPABILITY_MAP[currentPlanKey];
-  const currentPricing = CIRCLE_CARD_PRICING_CONFIG[currentPlanKey];
+  const currentCapabilityMap = CIRCLE_CARD_CAPABILITY_MAP[displayedPlanKey];
+  const currentPricing = CIRCLE_CARD_PRICING_CONFIG[displayedPlanKey];
   const proPricing = CIRCLE_CARD_PRICING_CONFIG.PRO;
   const teamsPricing = CIRCLE_CARD_PRICING_CONFIG.TEAMS;
   const teamsAnnualPrice = formatCircleCardAnnualPrice("TEAMS");
   const teamsAnnualDiscount = formatCircleCardAnnualDiscount("TEAMS");
+
+  useEffect(() => {
+    if (!platformOwnerPreviewEnabled) {
+      return undefined;
+    }
+
+    setSelectedPreviewMode(
+      readCircleCardPlatformOwnerPreviewMode(platformOwnerPreviewMode)
+    );
+
+    function handlePreviewChange(event: Event) {
+      const mode = (event as CustomEvent<{ mode?: CircleCardPlatformOwnerPreviewMode }>).detail
+        ?.mode;
+
+      if (mode) {
+        setSelectedPreviewMode(mode);
+      }
+    }
+
+    window.addEventListener(CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT, handlePreviewChange);
+
+    return () => {
+      window.removeEventListener(CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT, handlePreviewChange);
+    };
+  }, [platformOwnerPreviewEnabled, platformOwnerPreviewMode]);
 
   const limitItems = [
     {
@@ -259,11 +322,16 @@ export function CircleCardPlanPanel({
               <Badge variant="outline" className="border-gold/28 text-gold">
                 Current Plan: {currentPlan.shortLabel}
               </Badge>
+              {platformOwnerPreviewEnabled ? (
+                <Badge variant="premium" className="ml-2">
+                  Previewing: {previewLabel}
+                </Badge>
+              ) : null}
               <h2 className="mt-3 font-display text-2xl text-foreground">
                 {currentCapabilityMap.relationshipPositioning}
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                {currentPricing.label}: {formatCircleCardPrice(currentPlanKey)}. What it does:{" "}
+                {currentPricing.label}: {formatCircleCardPrice(displayedPlanKey)}. What it does:{" "}
                 {currentCapabilityMap.summary}
               </p>
             </div>

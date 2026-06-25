@@ -1,8 +1,7 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { useEffect } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,69 +12,73 @@ import {
 } from "@/lib/circle-card/platform-owner-control";
 import { cn } from "@/lib/utils";
 
-const STORAGE_KEY = "circle-card-platform-owner-preview";
-const PARAM_NAME = "ownerPreview";
+export const CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_STORAGE_KEY =
+  "circle-card-platform-owner-preview";
+export const CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT =
+  "circle-card-platform-owner-preview-change";
 
 type CircleCardPlatformOwnerPreviewSwitcherProps = {
   activeMode: CircleCardPlatformOwnerPreviewMode;
 };
 
-function previewHref(
-  pathname: string,
-  searchParams: URLSearchParams,
-  mode: CircleCardPlatformOwnerPreviewMode
-) {
-  const nextParams = new URLSearchParams(searchParams.toString());
+type CircleCardPlatformOwnerPreviewBadgeProps = {
+  activeMode: CircleCardPlatformOwnerPreviewMode;
+};
 
-  if (mode === "platform-owner") {
-    nextParams.delete(PARAM_NAME);
-  } else {
-    nextParams.set(PARAM_NAME, mode);
+export function readCircleCardPlatformOwnerPreviewMode(
+  fallback: CircleCardPlatformOwnerPreviewMode
+) {
+  if (typeof window === "undefined") {
+    return fallback;
   }
 
-  const query = nextParams.toString();
-  const hash =
-    typeof window === "undefined"
-      ? "#platform-owner-control-centre"
-      : window.location.hash || "#platform-owner-control-centre";
+  return resolveCircleCardPlatformOwnerPreviewMode(
+    window.sessionStorage.getItem(CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_STORAGE_KEY) ?? fallback
+  );
+}
 
-  return `${pathname}${query ? `?${query}` : ""}${hash}`;
+export function writeCircleCardPlatformOwnerPreviewMode(
+  mode: CircleCardPlatformOwnerPreviewMode
+) {
+  window.sessionStorage.setItem(CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_STORAGE_KEY, mode);
+  window.dispatchEvent(
+    new CustomEvent(CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT, {
+      detail: { mode }
+    })
+  );
+}
+
+function removeOwnerPreviewUrlParam() {
+  const url = new URL(window.location.href);
+
+  if (!url.searchParams.has("ownerPreview")) {
+    return;
+  }
+
+  url.searchParams.delete("ownerPreview");
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 export function CircleCardPlatformOwnerPreviewSwitcher({
   activeMode
 }: CircleCardPlatformOwnerPreviewSwitcherProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const activeLabel = CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS[activeMode];
+  const [selectedMode, setSelectedMode] = useState(activeMode);
+  const activeLabel = CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS[selectedMode];
 
   useEffect(() => {
-    const urlMode = searchParams.get(PARAM_NAME);
-    const storedMode = resolveCircleCardPlatformOwnerPreviewMode(
-      window.sessionStorage.getItem(STORAGE_KEY)
-    );
+    const urlHasPreviewMode = new URLSearchParams(window.location.search).has("ownerPreview");
+    const initialMode = urlHasPreviewMode
+      ? activeMode
+      : readCircleCardPlatformOwnerPreviewMode(activeMode);
 
-    if (urlMode) {
-      window.sessionStorage.setItem(STORAGE_KEY, activeMode);
-      return;
-    }
-
-    if (storedMode !== "platform-owner" && storedMode !== activeMode) {
-      router.replace(previewHref(pathname, new URLSearchParams(searchParams.toString()), storedMode), {
-        scroll: false
-      });
-      return;
-    }
-
-    window.sessionStorage.setItem(STORAGE_KEY, activeMode);
-  }, [activeMode, pathname, router, searchParams]);
+    setSelectedMode(initialMode);
+    writeCircleCardPlatformOwnerPreviewMode(initialMode);
+    removeOwnerPreviewUrlParam();
+  }, [activeMode]);
 
   function setPreviewMode(mode: CircleCardPlatformOwnerPreviewMode) {
-    window.sessionStorage.setItem(STORAGE_KEY, mode);
-    router.replace(previewHref(pathname, new URLSearchParams(searchParams.toString()), mode), {
-      scroll: false
-    });
+    setSelectedMode(mode);
+    writeCircleCardPlatformOwnerPreviewMode(mode);
   }
 
   return (
@@ -83,7 +86,7 @@ export function CircleCardPlatformOwnerPreviewSwitcher({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="premium">Previewing: {activeLabel}</Badge>
-          {activeMode !== "platform-owner" ? (
+          {selectedMode !== "platform-owner" ? (
             <Button
               type="button"
               variant="outline"
@@ -101,10 +104,10 @@ export function CircleCardPlatformOwnerPreviewSwitcher({
             <Button
               key={mode}
               type="button"
-              variant={mode === activeMode ? "default" : "outline"}
+              variant={mode === selectedMode ? "default" : "outline"}
               size="sm"
-              className={cn("min-w-[7.5rem]", mode === activeMode && "pointer-events-none")}
-              aria-pressed={mode === activeMode}
+              className={cn("min-w-[7.5rem]", mode === selectedMode && "pointer-events-none")}
+              aria-pressed={mode === selectedMode}
               onClick={() => setPreviewMode(mode)}
             >
               {CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS[mode]}
@@ -113,5 +116,36 @@ export function CircleCardPlatformOwnerPreviewSwitcher({
         </div>
       </div>
     </div>
+  );
+}
+
+export function CircleCardPlatformOwnerPreviewBadge({
+  activeMode
+}: CircleCardPlatformOwnerPreviewBadgeProps) {
+  const [selectedMode, setSelectedMode] = useState(activeMode);
+
+  useEffect(() => {
+    setSelectedMode(readCircleCardPlatformOwnerPreviewMode(activeMode));
+
+    function handlePreviewChange(event: Event) {
+      const mode = (event as CustomEvent<{ mode?: CircleCardPlatformOwnerPreviewMode }>).detail
+        ?.mode;
+
+      if (mode) {
+        setSelectedMode(mode);
+      }
+    }
+
+    window.addEventListener(CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT, handlePreviewChange);
+
+    return () => {
+      window.removeEventListener(CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_EVENT, handlePreviewChange);
+    };
+  }, [activeMode]);
+
+  return (
+    <Badge variant="premium">
+      Previewing: {CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS[selectedMode]}
+    </Badge>
   );
 }

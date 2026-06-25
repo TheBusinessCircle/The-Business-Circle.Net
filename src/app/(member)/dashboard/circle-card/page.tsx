@@ -104,7 +104,10 @@ import {
   CircleCardSmartLinkFields,
   CircleCardThemeFields
 } from "@/components/circle-card";
-import { CircleCardPlatformOwnerPreviewSwitcher } from "@/components/circle-card/circle-card-platform-owner-preview-switcher";
+import {
+  CircleCardPlatformOwnerPreviewBadge,
+  CircleCardPlatformOwnerPreviewSwitcher
+} from "@/components/circle-card/circle-card-platform-owner-preview-switcher";
 import { CircleCardReferralNudges } from "@/components/circle-card/circle-card-referral-nudges";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -127,7 +130,6 @@ import {
 import {
   CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
   CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
-  CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS,
   resolveCircleCardPlatformOwnerPreviewEntitlement,
   resolveCircleCardPlatformOwnerPreviewMode,
   resolveCircleCardPlatformOwnerDiagnostics,
@@ -2597,7 +2599,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   ];
   const circleCardBillingReadiness = getCircleCardBillingReadiness();
   const showPlatformOwnerDiagnostics = platformOwnerDiagnostics.hasAdminAccess;
-  const ownerPreviewLabel = CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS[selectedOwnerPreviewMode];
   const platformOwnerDiagnosticItems = [
     {
       label: "Current User Email",
@@ -2614,10 +2615,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     {
       label: "Platform Owner Resolved",
       value: platformOwnerDiagnostics.platformOwnerResolved ? "True" : "False"
-    },
-    {
-      label: "Preview Mode",
-      value: ownerPreviewLabel
     }
   ];
   const platformStatusItems: Array<{
@@ -2764,10 +2761,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     {
       label: "Actual Entitlement",
       value: actualCircleCardEntitlement.label
-    },
-    {
-      label: "Preview Mode",
-      value: ownerPreviewLabel
     },
     {
       label: "Admin Override Active",
@@ -2919,7 +2912,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
           <div className="flex flex-wrap gap-2">
             {isPlatformOwner ? (
-              <Badge variant="premium">Previewing: {ownerPreviewLabel}</Badge>
+              <CircleCardPlatformOwnerPreviewBadge activeMode={selectedOwnerPreviewMode} />
             ) : null}
             <Badge variant="muted">{accountLabel}</Badge>
             <Badge variant="outline" className="border-silver/18 text-silver">
@@ -2973,6 +2966,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         currentPlanKey={circleCardEntitlement.plan}
         cardCount={cardCount}
         activeFeaturedLinkCount={activeCustomLinkCount}
+        platformOwnerPreviewEnabled={isPlatformOwner}
+        platformOwnerPreviewMode={selectedOwnerPreviewMode}
       />
 
       {showPlatformOwnerDiagnostics ? (
