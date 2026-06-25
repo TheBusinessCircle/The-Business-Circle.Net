@@ -36,7 +36,7 @@ export const CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES: CircleCardControlCe
   {
     id: "sandbox-mode",
     title: "Sandbox Mode",
-    status: "Coming Next",
+    status: "Ready for implementation",
     description: "Reserved for non-production testing flows."
   },
   {
@@ -69,7 +69,7 @@ export const CIRCLE_CARD_CONTROL_CENTRE_ROADMAP: CircleCardControlCentreRoadmapI
   { id: "multi-card-foundation", label: "Multi-card foundation", status: "completed" },
   { id: "owner-control-centre", label: "Platform Owner Control Centre", status: "completed" },
   { id: "platform-preview", label: "Platform Preview", status: "pending" },
-  { id: "sandbox", label: "Sandbox", status: "pending" },
+  { id: "sandbox", label: "Sandbox", status: "completed" },
   { id: "business-card-builder", label: "Business Card Builder", status: "pending" },
   { id: "creator-builder", label: "Creator Builder", status: "pending" },
   { id: "products", label: "Products", status: "pending" },
@@ -122,6 +122,33 @@ export const CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_LABELS: Record<
   team: "Team"
 };
 
+export const CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_MODES = ["off", "on"] as const;
+
+export type CircleCardPlatformOwnerSandboxMode =
+  (typeof CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_MODES)[number];
+
+export const CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_LABELS: Record<
+  CircleCardPlatformOwnerSandboxMode,
+  string
+> = {
+  off: "Sandbox Off",
+  on: "Sandbox On"
+};
+
+export type CircleCardPlatformOwnerSandboxProtection = {
+  system: string;
+  status: string;
+};
+
+export const CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_PROTECTIONS: CircleCardPlatformOwnerSandboxProtection[] =
+  [
+    { system: "Analytics", status: "Suppressed" },
+    { system: "Referrals", status: "Suppressed where supported" },
+    { system: "Notifications", status: "Suppressed where supported" },
+    { system: "Emails", status: "Suppressed where supported" },
+    { system: "Database writes", status: "Still real unless explicitly blocked" }
+  ];
+
 export type CircleCardPlatformOwnerFeatureMatrixStatus =
   | "Available"
   | "Requires Pro"
@@ -160,6 +187,16 @@ export function resolveCircleCardPlatformOwnerCardTypePreviewMode(
   )
     ? (value as CircleCardPlatformOwnerCardTypePreviewMode)
     : "personal";
+}
+
+export function resolveCircleCardPlatformOwnerSandboxMode(
+  value?: string | null
+): CircleCardPlatformOwnerSandboxMode {
+  return CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_MODES.includes(
+    value as CircleCardPlatformOwnerSandboxMode
+  )
+    ? (value as CircleCardPlatformOwnerSandboxMode)
+    : "off";
 }
 
 export function resolveCircleCardPlatformOwnerPreviewEntitlement(

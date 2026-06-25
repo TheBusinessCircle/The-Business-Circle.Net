@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,22 @@ import {
   CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_MODES,
   CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_LABELS,
   CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_MODES,
+  CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_LABELS,
+  CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_PROTECTIONS,
   resolveCircleCardPlatformOwnerCardTypePreviewMode,
   resolveCircleCardPlatformOwnerFeatureMatrix,
   resolveCircleCardPlatformOwnerPreviewMode,
   type CircleCardPlatformOwnerCardTypePreviewMode,
   type CircleCardPlatformOwnerFeatureMatrixStatus,
-  type CircleCardPlatformOwnerPreviewMode
+  type CircleCardPlatformOwnerPreviewMode,
+  type CircleCardPlatformOwnerSandboxMode
 } from "@/lib/circle-card/platform-owner-control";
+import {
+  CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_EVENT,
+  markCircleCardPlatformOwnerSandboxEligible,
+  readCircleCardPlatformOwnerSandboxMode,
+  writeCircleCardPlatformOwnerSandboxMode
+} from "@/lib/circle-card/platform-owner-sandbox";
 import { cn } from "@/lib/utils";
 
 export const CIRCLE_CARD_PLATFORM_OWNER_PREVIEW_STORAGE_KEY =
@@ -47,6 +56,32 @@ type CircleCardPlatformOwnerPreviewSurfaceProps = {
   membershipMode: CircleCardPlatformOwnerPreviewMode;
   cardTypeMode: CircleCardPlatformOwnerCardTypePreviewMode;
 };
+
+function useCircleCardPlatformOwnerSandboxMode() {
+  const [selectedMode, setSelectedMode] = useState<CircleCardPlatformOwnerSandboxMode>("off");
+
+  useEffect(() => {
+    markCircleCardPlatformOwnerSandboxEligible();
+    setSelectedMode(readCircleCardPlatformOwnerSandboxMode("off"));
+
+    function handleSandboxChange(event: Event) {
+      const mode = (event as CustomEvent<{ mode?: CircleCardPlatformOwnerSandboxMode }>).detail
+        ?.mode;
+
+      if (mode) {
+        setSelectedMode(mode);
+      }
+    }
+
+    window.addEventListener(CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_EVENT, handleSandboxChange);
+
+    return () => {
+      window.removeEventListener(CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_EVENT, handleSandboxChange);
+    };
+  }, []);
+
+  return selectedMode;
+}
 
 export function readCircleCardPlatformOwnerPreviewMode(
   fallback: CircleCardPlatformOwnerPreviewMode
@@ -322,6 +357,63 @@ export function CircleCardPlatformOwnerCardTypePreviewSwitcher({
   );
 }
 
+export function CircleCardPlatformOwnerSandboxToggle() {
+  const selectedMode = useCircleCardPlatformOwnerSandboxMode();
+  const sandboxActive = selectedMode === "on";
+
+  function setSandboxMode(mode: CircleCardPlatformOwnerSandboxMode) {
+    writeCircleCardPlatformOwnerSandboxMode(mode);
+  }
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border p-3",
+        sandboxActive
+          ? "border-amber-300/38 bg-amber-300/12"
+          : "border-silver/14 bg-background/18"
+      )}
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant="outline"
+              className={cn(
+                "w-fit border-amber-300/34 bg-amber-300/10 text-amber-100",
+                sandboxActive ? "shadow-[0_0_28px_rgba(252,211,77,0.16)]" : null
+              )}
+            >
+              {sandboxActive ? "SANDBOX MODE ACTIVE" : "Sandbox Mode"}
+            </Badge>
+            <Badge variant="outline" className="normal-case tracking-normal">
+              {CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_LABELS[selectedMode]}
+            </Badge>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            Sandbox Mode prevents test activity from polluting live data where supported.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(["off", "on"] as const).map((mode) => (
+            <Button
+              key={mode}
+              type="button"
+              variant={mode === selectedMode ? "default" : "outline"}
+              size="sm"
+              className={cn("min-w-[7rem]", mode === selectedMode && "pointer-events-none")}
+              aria-pressed={mode === selectedMode}
+              onClick={() => setSandboxMode(mode)}
+            >
+              {CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_LABELS[mode]}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CircleCardPlatformOwnerPreviewBadge({
   activeMode
 }: CircleCardPlatformOwnerPreviewBadgeProps) {
@@ -384,6 +476,77 @@ export function CircleCardPlatformOwnerCardTypePreviewBadge({
     <Badge variant="outline" className="border-cyan-400/30 bg-cyan-400/10 text-cyan-100">
       Previewing Card Type: {CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_LABELS[selectedMode]}
     </Badge>
+  );
+}
+
+export function CircleCardPlatformOwnerSandboxBadge() {
+  const selectedMode = useCircleCardPlatformOwnerSandboxMode();
+
+  if (selectedMode !== "on") {
+    return null;
+  }
+
+  return (
+    <Badge variant="outline" className="border-amber-300/38 bg-amber-300/12 text-amber-100">
+      SANDBOX MODE ACTIVE
+    </Badge>
+  );
+}
+
+export function CircleCardPlatformOwnerSandboxIndicator() {
+  const selectedMode = useCircleCardPlatformOwnerSandboxMode();
+
+  if (selectedMode !== "on") {
+    return null;
+  }
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)] rounded-xl border border-amber-300/38 bg-background/92 px-3 py-2 text-xs font-semibold text-amber-100 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur">
+      <span className="inline-flex items-center gap-2">
+        <ShieldAlert size={14} />
+        SANDBOX MODE ACTIVE
+      </span>
+    </div>
+  );
+}
+
+export function CircleCardPlatformOwnerSandboxPanel() {
+  const selectedMode = useCircleCardPlatformOwnerSandboxMode();
+  const sandboxActive = selectedMode === "on";
+
+  return (
+    <div className="rounded-xl border border-amber-300/20 bg-background/18 p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-amber-100">
+            Sandbox Safety
+          </p>
+          <h3 className="mt-1 text-sm font-semibold text-foreground">Test action protection</h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            This action may still write production data.
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className={cn(
+            "w-fit normal-case tracking-normal",
+            sandboxActive
+              ? "border-amber-300/38 bg-amber-300/12 text-amber-100"
+              : "border-silver/18 text-silver"
+          )}
+        >
+          {sandboxActive ? "Active" : "Inactive"}
+        </Badge>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        {CIRCLE_CARD_PLATFORM_OWNER_SANDBOX_PROTECTIONS.map((item) => (
+          <div key={item.system} className="rounded-xl border border-border/70 bg-card/42 p-3">
+            <p className="text-sm font-medium text-foreground">{item.system}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">{item.status}</p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
+import { shouldSuppressCircleCardPlatformOwnerSandboxEvent } from "@/lib/circle-card/platform-owner-sandbox";
 
 const VISITOR_KEY = "bcn_anon_id";
 
@@ -27,6 +28,10 @@ function readVisitorId() {
 
 export function trackCircleCardEvent(input: TrackCircleCardEventInput) {
   try {
+    if (shouldSuppressCircleCardPlatformOwnerSandboxEvent("analytics")) {
+      return;
+    }
+
     const body = JSON.stringify({
       cardId: input.cardId,
       eventType: input.eventType,

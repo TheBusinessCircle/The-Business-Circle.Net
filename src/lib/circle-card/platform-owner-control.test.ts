@@ -9,6 +9,7 @@ import {
   resolveCircleCardPlatformOwnerFeatureMatrix,
   resolveCircleCardPlatformOwnerPreviewEntitlement,
   resolveCircleCardPlatformOwnerPreviewMode,
+  resolveCircleCardPlatformOwnerSandboxMode,
   resolveCircleCardPlatformOwnerDiagnostics
 } from "./platform-owner-control";
 import { resolveCircleCardEntitlement } from "./permissions";
@@ -95,6 +96,12 @@ describe("Circle Card platform owner control centre", () => {
     expect(resolveCircleCardPlatformOwnerCardTypePreviewMode("creator")).toBe("creator");
     expect(resolveCircleCardPlatformOwnerCardTypePreviewMode("team")).toBe("team");
     expect(resolveCircleCardPlatformOwnerCardTypePreviewMode("bad-value")).toBe("personal");
+  });
+
+  it("resolves supported platform owner sandbox modes", () => {
+    expect(resolveCircleCardPlatformOwnerSandboxMode("off")).toBe("off");
+    expect(resolveCircleCardPlatformOwnerSandboxMode("on")).toBe("on");
+    expect(resolveCircleCardPlatformOwnerSandboxMode("bad-value")).toBe("off");
   });
 
   it("maps platform owner preview modes to UI-only entitlements", () => {

@@ -22,6 +22,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CircleCardSpinActivationGuide } from "@/components/circle-card/circle-card-spin-activation-guide";
 import { trackCircleCardEvent } from "@/lib/circle-card/analytics-client";
+import { shouldSuppressCircleCardPlatformOwnerSandboxEvent } from "@/lib/circle-card/platform-owner-sandbox";
 import { cn } from "@/lib/utils";
 
 export type CircleCardSpinState = "return" | "connected" | "first" | "already";
@@ -121,7 +122,11 @@ function captureSpinReferralAttribution(input: {
   isDemo: boolean;
   viewerIsOwner: boolean;
 }) {
-  if (input.isDemo || input.viewerIsOwner) {
+  if (
+    input.isDemo ||
+    input.viewerIsOwner ||
+    shouldSuppressCircleCardPlatformOwnerSandboxEvent("referral")
+  ) {
     return;
   }
 

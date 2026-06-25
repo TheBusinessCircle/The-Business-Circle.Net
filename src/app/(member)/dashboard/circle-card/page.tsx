@@ -110,7 +110,11 @@ import {
   CircleCardPlatformOwnerCardTypePreviewSwitcher,
   CircleCardPlatformOwnerFeatureMatrixLite,
   CircleCardPlatformOwnerPreviewBadge,
-  CircleCardPlatformOwnerPreviewSwitcher
+  CircleCardPlatformOwnerPreviewSwitcher,
+  CircleCardPlatformOwnerSandboxBadge,
+  CircleCardPlatformOwnerSandboxIndicator,
+  CircleCardPlatformOwnerSandboxPanel,
+  CircleCardPlatformOwnerSandboxToggle
 } from "@/components/circle-card/circle-card-platform-owner-preview-switcher";
 import { CircleCardReferralNudges } from "@/components/circle-card/circle-card-referral-nudges";
 import { Badge } from "@/components/ui/badge";
@@ -2924,6 +2928,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 activeMode={selectedOwnerCardTypePreviewMode}
               />
             ) : null}
+            {isPlatformOwner ? <CircleCardPlatformOwnerSandboxBadge /> : null}
             <Badge variant="muted">{accountLabel}</Badge>
             <Badge variant="outline" className="border-silver/18 text-silver">
               {activeCardLimitLabel}
@@ -2971,6 +2976,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       </nav>
 
       <CircleCardInstallPrompt />
+      {isPlatformOwner ? <CircleCardPlatformOwnerSandboxIndicator /> : null}
 
       <CircleCardPlanPanel
         currentPlanKey={circleCardEntitlement.plan}
@@ -3019,6 +3025,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             <CircleCardPlatformOwnerCardTypePreviewSwitcher
               activeMode={selectedOwnerCardTypePreviewMode}
             />
+            <CircleCardPlatformOwnerSandboxToggle />
+            <CircleCardPlatformOwnerSandboxPanel />
             <CircleCardPlatformOwnerCardTypePreviewModules
               membershipMode={selectedOwnerPreviewMode}
               cardTypeMode={selectedOwnerCardTypePreviewMode}
