@@ -126,9 +126,10 @@ import {
 import {
   CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
   CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
-  isCircleCardPlatformOwner,
+  resolveCircleCardPlatformOwnerDiagnostics,
   type CircleCardPlatformStatusTone
 } from "@/lib/circle-card/platform-owner-control";
+import { isAdminRole } from "@/lib/auth/permissions";
 import {
   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
   CIRCLE_CARD_PLAN_DEFINITIONS,
@@ -2576,10 +2577,31 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     }
   ];
   const circleCardBillingReadiness = getCircleCardBillingReadiness();
-  const isPlatformOwner = isCircleCardPlatformOwner({
+  const platformOwnerDiagnostics = resolveCircleCardPlatformOwnerDiagnostics({
     role: session.user.role,
-    email: session.user.email
+    email: session.user.email,
+    hasAdminAccess: isAdminRole(session.user.role)
   });
+  const isPlatformOwner = platformOwnerDiagnostics.platformOwnerResolved;
+  const showPlatformOwnerDiagnostics = platformOwnerDiagnostics.hasAdminAccess;
+  const platformOwnerDiagnosticItems = [
+    {
+      label: "Current User Email",
+      value: platformOwnerDiagnostics.currentUserEmail || "Not available"
+    },
+    {
+      label: "Current User Role",
+      value: platformOwnerDiagnostics.currentUserRole
+    },
+    {
+      label: "Owner Email Allowlist Present",
+      value: platformOwnerDiagnostics.ownerEmailAllowlistPresent ? "Yes" : "No"
+    },
+    {
+      label: "Platform Owner Resolved",
+      value: platformOwnerDiagnostics.platformOwnerResolved ? "True" : "False"
+    }
+  ];
   const platformStatusItems: Array<{
     label: string;
     state: "Configured" | "Pending" | "Future";
@@ -2923,6 +2945,31 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         cardCount={cardCount}
         activeFeaturedLinkCount={activeCustomLinkCount}
       />
+
+      {showPlatformOwnerDiagnostics ? (
+        <section
+          id="platform-owner-diagnostics"
+          className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-4 sm:p-5"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Admin Diagnostics</p>
+              <h2 className="mt-1 font-display text-xl text-foreground">Platform Owner Detection</h2>
+            </div>
+            <Badge variant={isPlatformOwner ? "premium" : "outline"}>
+              {isPlatformOwner ? "Owner resolved" : "Owner hidden"}
+            </Badge>
+          </div>
+          <dl className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {platformOwnerDiagnosticItems.map((item) => (
+              <div key={item.label} className="rounded-xl border border-border/70 bg-card/42 p-3">
+                <dt className="text-[11px] uppercase tracking-[0.08em] text-muted">{item.label}</dt>
+                <dd className="mt-1 break-words text-sm font-semibold text-foreground">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
 
       {isPlatformOwner ? (
         <CircleCardDashboardSection

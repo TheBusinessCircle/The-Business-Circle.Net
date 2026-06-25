@@ -1,4 +1,5 @@
 import type { Role } from "@prisma/client";
+import { isAdminRole } from "@/lib/auth/permissions";
 
 export type CircleCardPlatformStatusTone = "green" | "amber" | "red";
 
@@ -82,22 +83,46 @@ export function parseCircleCardPlatformOwnerEmails(value?: string | null) {
     .filter(Boolean);
 }
 
+export type CircleCardPlatformOwnerInput = {
+  role?: Role | null;
+  email?: string | null;
+  hasAdminAccess?: boolean;
+};
+
+export type CircleCardPlatformOwnerDiagnostics = {
+  currentUserEmail: string;
+  currentUserRole: string;
+  ownerEmailAllowlistPresent: boolean;
+  hasAdminAccess: boolean;
+  platformOwnerResolved: boolean;
+};
+
+export function hasCircleCardPlatformOwnerAdminAccess(input: CircleCardPlatformOwnerInput) {
+  return Boolean(input.hasAdminAccess || (input.role && isAdminRole(input.role)));
+}
+
+export function resolveCircleCardPlatformOwnerDiagnostics(
+  input: CircleCardPlatformOwnerInput,
+  ownerEmailConfig = process.env.CIRCLE_CARD_PLATFORM_OWNER_EMAILS ?? process.env.PLATFORM_OWNER_EMAILS
+): CircleCardPlatformOwnerDiagnostics {
+  const ownerEmails = parseCircleCardPlatformOwnerEmails(ownerEmailConfig);
+  const currentUserEmail = input.email?.trim().toLowerCase() ?? "";
+  const hasAdminAccess = hasCircleCardPlatformOwnerAdminAccess(input);
+  const platformOwnerResolved =
+    hasAdminAccess && ownerEmails.length > 0 && ownerEmails.includes(currentUserEmail);
+
+  return {
+    currentUserEmail: input.email?.trim() ?? "",
+    currentUserRole: input.role ?? "unknown",
+    ownerEmailAllowlistPresent: ownerEmails.length > 0,
+    hasAdminAccess,
+    platformOwnerResolved
+  };
+}
+
 export function isCircleCardPlatformOwner(
-  input: {
-    role?: Role | null;
-    email?: string | null;
-  },
+  input: CircleCardPlatformOwnerInput,
   ownerEmailConfig = process.env.CIRCLE_CARD_PLATFORM_OWNER_EMAILS ?? process.env.PLATFORM_OWNER_EMAILS
 ) {
-  if (input.role !== "ADMIN") {
-    return false;
-  }
-
-  const ownerEmails = parseCircleCardPlatformOwnerEmails(ownerEmailConfig);
-
-  if (!ownerEmails.length) {
-    return false;
-  }
-
-  return ownerEmails.includes(input.email?.trim().toLowerCase() ?? "");
+  return resolveCircleCardPlatformOwnerDiagnostics(input, ownerEmailConfig).platformOwnerResolved;
 }
