@@ -251,7 +251,6 @@ import {
   getCircleCardProfileLayoutLabel,
   resolveCircleCardProfileLayoutFilter
 } from "@/lib/circle-card/profile-layout";
-import type { CircleCardCompletionItemId } from "@/lib/circle-card/completion";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
 import { absoluteUrl, cn, formatCurrency, formatDate, slugify } from "@/lib/utils";
@@ -446,27 +445,229 @@ function circleCardManageHref(input: {
   return `/dashboard/circle-card?${params.toString()}${suffix}`;
 }
 
-function circleCardCompletionItemHref(itemId: CircleCardCompletionItemId) {
-  const hrefs: Record<CircleCardCompletionItemId, string> = {
-    "profile-photo": circleCardSectionHref("my-card", "circle-card-form"),
-    bio: circleCardSectionHref("my-card", "circle-card-form"),
-    location: circleCardSectionHref("my-card", "circle-card-form"),
-    "business-name": circleCardSectionHref("my-card", "circle-card-form"),
-    "featured-link": circleCardSectionHref("my-card", "custom-links"),
-    "contact-details": circleCardSectionHref("my-card", "circle-card-form"),
-    "social-profile": circleCardSectionHref("my-card", "card-social-profiles"),
-    "card-share": circleCardSectionHref("share", "share-assets")
-  };
-
-  return hrefs[itemId];
-}
-
 type CircleCardUsageMetric = {
   label: string;
   value: string;
   hint: string;
   icon: typeof Activity;
 };
+
+type CircleCardSetupChecklistItemId =
+  | "profile-image"
+  | "about"
+  | "featured-link"
+  | "location"
+  | "share";
+
+type CircleCardSetupChecklistItem = {
+  id: CircleCardSetupChecklistItemId;
+  label: string;
+  complete: boolean;
+  href: string;
+  actionLabel: string;
+};
+
+const CIRCLE_CARD_SETUP_TOTAL_STEPS = 5;
+
+function hasSetupText(value?: string | null) {
+  return Boolean(value?.trim());
+}
+
+function circleCardSetupNextActionCopy(item: CircleCardSetupChecklistItem | null) {
+  switch (item?.id) {
+    case "profile-image":
+      return "Add your profile image first.";
+    case "about":
+      return "Add a short intro so people know what you do.";
+    case "featured-link":
+      return "Add your first link so people have somewhere useful to go.";
+    case "location":
+      return "Add your location so people know where you work.";
+    case "share":
+    default:
+      return "Your card is ready to share.";
+  }
+}
+
+function buildCircleCardSetupChecklist(input: {
+  profileImageUrl?: string | null;
+  about?: string | null;
+  activeFeaturedLinkCount: number;
+  location?: string | null;
+  shareCount: number;
+}): CircleCardSetupChecklistItem[] {
+  return [
+    {
+      id: "profile-image",
+      label: "Add profile image",
+      complete: hasSetupText(input.profileImageUrl),
+      href: circleCardSectionHref("my-card", "card-images"),
+      actionLabel: "Edit images"
+    },
+    {
+      id: "about",
+      label: "Add bio/about",
+      complete: hasSetupText(input.about),
+      href: circleCardSectionHref("my-card", "card-identity"),
+      actionLabel: "Edit profile"
+    },
+    {
+      id: "featured-link",
+      label: "Add first featured link",
+      complete: input.activeFeaturedLinkCount > 0,
+      href: circleCardSectionHref("my-card", "custom-links"),
+      actionLabel: "Add link"
+    },
+    {
+      id: "location",
+      label: "Add location",
+      complete: hasSetupText(input.location),
+      href: circleCardSectionHref("my-card", "card-contact-details"),
+      actionLabel: "Edit contact/location"
+    },
+    {
+      id: "share",
+      label: "Share your card",
+      complete: input.shareCount > 0,
+      href: circleCardSectionHref("share", "share-assets"),
+      actionLabel: "Share card"
+    }
+  ];
+}
+
+function CircleCardSetupChecklistPanel({
+  cardId,
+  fullName,
+  publicUrl,
+  setupItems,
+  created = false,
+  className
+}: {
+  cardId: string;
+  fullName: string;
+  publicUrl: string;
+  setupItems: CircleCardSetupChecklistItem[];
+  created?: boolean;
+  className?: string;
+}) {
+  const completeCount = setupItems.filter((item) => item.complete).length;
+  const progress = Math.round((completeCount / CIRCLE_CARD_SETUP_TOTAL_STEPS) * 100);
+  const nextItem = setupItems.find((item) => !item.complete) ?? null;
+  const nextActionHref = nextItem?.href ?? circleCardSectionHref("share", "share-assets");
+  const nextActionLabel = nextItem?.actionLabel ?? "Share card";
+  const nextActionCopy = circleCardSetupNextActionCopy(nextItem);
+
+  return (
+    <section
+      id="circle-card-completion"
+      className={cn(
+        "scroll-mt-24 rounded-2xl border p-4 shadow-panel-soft sm:p-5",
+        created
+          ? "border-emerald-400/28 bg-emerald-400/10"
+          : "border-gold/24 bg-card/70",
+        className
+      )}
+    >
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+        <div className="min-w-0">
+          <Badge
+            variant="outline"
+            className={cn(
+              "w-fit",
+              created ? "border-emerald-400/30 text-emerald-200" : "border-gold/28 text-gold"
+            )}
+          >
+            {created ? "Your Circle Card has been created" : "Activation"}
+          </Badge>
+          <h2 className="mt-3 font-display text-2xl text-foreground">
+            {created ? "Your Circle Card has been created." : "Complete your Circle Card"}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Your card is live. A few small steps will make it stronger.
+          </p>
+
+          <div className="mt-4 rounded-xl border border-silver/14 bg-background/24 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Circle Card setup: {progress}%
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">{nextActionCopy}</p>
+              </div>
+              <Link href={nextActionHref} className={cn(buttonVariants({ size: "sm" }), "w-full gap-2 sm:w-auto")}>
+                {nextActionLabel}
+                <ArrowUpRight size={14} />
+              </Link>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/70">
+              <div
+                className="h-full rounded-full bg-gold transition-[width] duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            {setupItems.map((item) => (
+              <div
+                key={item.id}
+                className="grid gap-2 rounded-xl border border-silver/14 bg-background/18 p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  {item.complete ? (
+                    <CheckCircle2 size={16} className="shrink-0 text-emerald-200" />
+                  ) : (
+                    <ClipboardCheck size={16} className="shrink-0 text-silver" />
+                  )}
+                  <span className="min-w-0 text-sm font-medium text-foreground">{item.label}</span>
+                </div>
+                <Badge
+                  variant={item.complete ? "outline" : "muted"}
+                  className={cn(
+                    "w-fit",
+                    item.complete ? "border-emerald-400/28 text-emerald-200" : ""
+                  )}
+                >
+                  {item.complete ? "Complete" : "Incomplete"}
+                </Badge>
+                <Link
+                  href={item.href}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full gap-2 sm:w-auto")}
+                >
+                  {item.actionLabel}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <aside className="rounded-xl border border-silver/14 bg-background/24 p-3 sm:p-4">
+          <p className="text-sm font-semibold text-foreground">Public card link</p>
+          <p className="mt-2 break-all rounded-lg border border-silver/12 bg-background/28 p-3 text-xs text-muted">
+            {publicUrl}
+          </p>
+          <div className="mt-3 grid gap-2">
+            <Link href={publicUrl} target="_blank" rel="noopener noreferrer">
+              <Button type="button" variant="outline" className="w-full gap-2">
+                View public card
+                <ArrowUpRight size={16} />
+              </Button>
+            </Link>
+            <CircleCardCopyLinkButton publicUrl={publicUrl} className="w-full" />
+            <CircleCardShareButton
+              title={`${fullName} | Circle Card`}
+              publicUrl={publicUrl}
+              cardId={cardId}
+              analyticsSource={created ? "dashboard_created" : "dashboard_completion"}
+              label="Share card"
+              hideStatus
+            />
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
 
 function UpgradeTriggerColumn({
   title,
@@ -2499,10 +2700,13 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       : null,
     shareCount
   );
-  const nextCompletionAction = circleCardCompletion.missingItems[0] ?? null;
-  const nextCompletionActionHref = nextCompletionAction
-    ? circleCardCompletionItemHref(nextCompletionAction.id)
-    : circleCardSectionHref("share", "share-assets");
+  const setupChecklistItems = buildCircleCardSetupChecklist({
+    profileImageUrl: card?.profileImageUrl,
+    about: card?.about,
+    activeFeaturedLinkCount: activeCustomLinkCount,
+    location: card?.location,
+    shareCount
+  });
   const circleCardUpgradeTriggers = buildCircleCardUpgradeTriggers({
     activeFeaturedLinks: activeCustomLinkCount,
     featuredLinkLimit: CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
@@ -3126,6 +3330,16 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       <CircleCardInstallPrompt />
       {isPlatformOwner ? <CircleCardPlatformOwnerSandboxIndicator /> : null}
 
+      {!isPlatformOwner && card && publicUrl ? (
+        <CircleCardSetupChecklistPanel
+          cardId={card.id}
+          fullName={card.fullName}
+          publicUrl={publicUrl}
+          setupItems={setupChecklistItems}
+          created={created || notice === "card-created"}
+        />
+      ) : null}
+
       <CircleCardPlanPanel
         currentPlanKey={circleCardEntitlement.plan}
         cardCount={cardCount}
@@ -3732,123 +3946,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         />
       </div>
 
-      <section
-        id="circle-card-completion"
-        className="scroll-mt-24 rounded-2xl border border-gold/24 bg-card/70 p-4 shadow-panel-soft sm:p-5"
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-              {circleCardCompletion.score}% complete
-            </p>
-            <h2 className="mt-1 font-display text-2xl text-foreground">
-              Complete your Circle Card
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted">
-              Your Circle Card is {circleCardCompletion.score}% complete. A complete card is easier
-              to trust, save and share.
-            </p>
-            {nextCompletionAction ? (
-              <p className="mt-2 text-sm font-medium text-foreground">
-                Next step:{" "}
-                <Link href={nextCompletionActionHref} className="text-gold underline-offset-4 hover:underline">
-                  {nextCompletionAction.label.toLowerCase()}
-                </Link>
-                .
-              </p>
-            ) : (
-              <p className="mt-2 text-sm font-medium text-foreground">
-                Next step:{" "}
-                <Link href={nextCompletionActionHref} className="text-gold underline-offset-4 hover:underline">
-                  share your card
-                </Link>
-                .
-              </p>
-            )}
-          </div>
-          <Badge
-            variant={circleCardCompletion.activationComplete ? "premium" : "outline"}
-            className={cn(
-              "w-fit",
-              !circleCardCompletion.activationComplete && "border-gold/28 text-gold"
-            )}
-          >
-            {circleCardCompletion.completedCount}/{circleCardCompletion.totalCount} steps
-          </Badge>
-        </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-background/60">
-          <div
-            className="h-full rounded-full bg-gold transition-[width] duration-300"
-            style={{ width: `${circleCardCompletion.score}%` }}
-          />
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {circleCardCompletion.items.map((item) => (
-            <Link
-              key={item.id}
-              href={circleCardCompletionItemHref(item.id)}
-              className={cn(
-                "flex min-h-12 items-center gap-3 rounded-xl border px-3 py-2 text-sm transition-colors",
-                item.complete
-                  ? "border-gold/24 bg-gold/10 text-foreground"
-                  : "border-silver/14 bg-background/22 text-muted hover:border-gold/24 hover:text-foreground"
-              )}
-            >
-              {item.complete ? (
-                <CheckCircle2 size={16} className="shrink-0 text-gold" />
-              ) : (
-                <XCircle size={16} className="shrink-0 text-muted" />
-              )}
-              <span className="min-w-0">{item.label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {isPlatformOwner && card && publicUrl ? (
+        <CircleCardSetupChecklistPanel
+          cardId={card.id}
+          fullName={card.fullName}
+          publicUrl={publicUrl}
+          setupItems={setupChecklistItems}
+          created={created || notice === "card-created"}
+        />
+      ) : null}
 
       {isCircleCardFree ? <CircleCardBcnDiscoveryPanel /> : null}
-
-      {created && card && publicUrl ? (
-        <section className="rounded-2xl border border-gold/28 bg-gold/10 p-5 shadow-gold-soft sm:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">
-                Circle Card published
-              </p>
-              <h2 className="mt-2 font-display text-3xl text-foreground">
-                Your Circle Card is live.
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                Share your public card, copy the link, or open the QR panel whenever you are ready
-                to use it.
-              </p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[420px]">
-              <Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">
-                <Button type="button" className="w-full gap-2">
-                  View Card
-                  <ArrowUpRight size={16} />
-                </Button>
-              </Link>
-              <CircleCardCopyLinkButton publicUrl={publicUrl} className="w-full" />
-              <a
-                href={circleCardSectionHref("share", "share-assets-qr")}
-                className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}
-              >
-                <QrCode size={16} />
-                View QR
-              </a>
-              <CircleCardShareButton
-                title={`${card.fullName} | Circle Card`}
-                publicUrl={publicUrl}
-                cardId={card.id}
-                analyticsSource="dashboard_created"
-                label="Share Card"
-                hideStatus
-              />
-            </div>
-          </div>
-        </section>
-      ) : null}
 
       {notice && NOTICE_MESSAGES[notice] ? (
         <p className="rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-gold">
@@ -6225,45 +6333,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         data-circle-card-section="my-card"
         className={cn("grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]", activeSection !== "my-card" && "hidden")}
       >
-        {card && publicUrl && (created || notice === "card-created") ? (
-          <section
-            id="circle-card-created"
-            className="scroll-mt-24 rounded-2xl border border-emerald-400/28 bg-emerald-400/10 p-4 shadow-panel-soft sm:p-5 xl:col-span-2"
-          >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <Badge variant="outline" className="border-emerald-400/30 text-emerald-200">
-                  Your Circle Card has been created
-                </Badge>
-                <h2 className="mt-3 font-display text-2xl text-foreground">
-                  {card.fullName}&apos;s Circle Card is ready.
-                </h2>
-                <p className="mt-2 break-all text-sm text-muted">{publicUrl}</p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
-                <Link href={circleCardSectionHref("my-card", "card-images")}>
-                  <Button type="button" variant="outline" className="w-full gap-2">
-                    <Camera size={16} />
-                    Add profile photo
-                  </Button>
-                </Link>
-                <Link href={circleCardSectionHref("my-card", "custom-links")}>
-                  <Button type="button" variant="outline" className="w-full gap-2">
-                    <LinkIcon size={16} />
-                    Add first featured link
-                  </Button>
-                </Link>
-                <Link href={circleCardSectionHref("share", "share-assets")}>
-                  <Button type="button" className="w-full gap-2">
-                    <Share2 size={16} />
-                    Share your card
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </section>
-        ) : null}
-
         <Card id="circle-card-form" className="scroll-mt-24 border-silver/16 bg-card/62">
           <CardHeader>
             <CardTitle>
