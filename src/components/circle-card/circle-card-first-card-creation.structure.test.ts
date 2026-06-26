@@ -24,7 +24,9 @@ describe("Circle Card first-card creation UX", () => {
     expect(dashboard).toContain("first-card-slug");
     expect(dashboard).toContain("That public link is already taken");
     expect(dashboard).toContain("Your Circle Card has been created");
-    expect(action).toContain("created=1#circle-card-created");
+    expect(action).toContain("CircleCardSaveActionState");
+    expect(action).toContain("Your Circle Card has been saved.");
+    expect(action).toContain("The Circle Card could not be saved.");
   });
 
   it("adds mobile sticky save and local draft protection for first-card creation", () => {
@@ -32,6 +34,7 @@ describe("Circle Card first-card creation UX", () => {
     const helper = readSource("src/components/circle-card/circle-card-first-card-form-helper.tsx");
 
     expect(dashboard).toContain("sticky bottom-2");
+    expect(dashboard).toContain("CircleCardSaveForm");
     expect(dashboard).toContain("CircleCardFirstCardFormHelper");
     expect(helper).toContain("window.localStorage.setItem");
     expect(helper).toContain("scrollIntoView");

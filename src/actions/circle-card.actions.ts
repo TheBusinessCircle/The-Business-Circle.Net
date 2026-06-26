@@ -86,9 +86,11 @@ import {
   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
   CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT
 } from "@/lib/circle-card/plans";
+import type { CircleCardSaveActionState } from "@/lib/circle-card/save-action-state";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { absoluteUrl } from "@/lib/utils";
 import {
   createCircleCardActivity,
   createCircleCardNotification,
@@ -999,6 +1001,33 @@ function inlineCircleCardError(error: string, message: string): CircleCardInline
   };
 }
 
+function circleCardSaveSuccess(input: { cardId: string; slug: string }): CircleCardSaveActionState {
+  return {
+    success: true,
+    message: "Your Circle Card has been saved.",
+    cardId: input.cardId,
+    slug: input.slug,
+    publicUrl: absoluteUrl(`/card/${input.slug}`),
+    submittedAt: Date.now()
+  };
+}
+
+function circleCardSaveFailure(input: {
+  message?: string;
+  fieldErrors?: Partial<Record<string, string[]>>;
+  formError?: string;
+}): CircleCardSaveActionState {
+  const message = input.message ?? "The Circle Card could not be saved.";
+
+  return {
+    success: false,
+    message,
+    fieldErrors: input.fieldErrors,
+    formError: input.formError ?? message,
+    submittedAt: Date.now()
+  };
+}
+
 export async function markCircleCardNotificationReadAction(formData: FormData) {
   const parsed = circleCardNotificationIdSchema.safeParse(readCircleCardNotificationIdFormData(formData));
   const returnPath = resolveReturnPath(
@@ -1362,13 +1391,19 @@ export async function applyCircleCardSmartImportAction(formData: FormData) {
   redirectWithNotice(returnPath, "smart-import-applied");
 }
 
-export async function upsertCircleCardAction(formData: FormData) {
+export async function upsertCircleCardAction(
+  _previousState: CircleCardSaveActionState,
+  formData: FormData
+): Promise<CircleCardSaveActionState> {
   const user = await requireCircleCardActionUser();
-  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
   const parsed = circleCardFormSchema.safeParse(readCircleCardFormData(formData));
 
   if (!parsed.success) {
-    redirectWithError(returnPath, "invalid-card");
+    return circleCardSaveFailure({
+      message: "The Circle Card could not be saved.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+      formError: "Check the card fields and try again."
+    });
   }
 
   const values = parsed.data;
@@ -1385,7 +1420,13 @@ export async function upsertCircleCardAction(formData: FormData) {
   const cardId = values.cardId || null;
 
   if (!cardId && !values.accountType) {
-    redirectWithError(returnPath, "identity-invalid");
+    return circleCardSaveFailure({
+      message: "The Circle Card could not be saved.",
+      fieldErrors: {
+        accountType: ["Choose what best describes you before saving your Circle Card."]
+      },
+      formError: "Choose what best describes you before saving your Circle Card."
+    });
   }
 
   const existingCard = cardId
@@ -1405,7 +1446,10 @@ export async function upsertCircleCardAction(formData: FormData) {
     : null;
 
   if (cardId && (!existingCard || existingCard.archivedAt)) {
-    redirectWithError(returnPath, "card-not-found");
+    return circleCardSaveFailure({
+      message: "The Circle Card could not be saved.",
+      formError: "That Circle Card could not be found."
+    });
   }
 
   if (!cardId) {
@@ -1422,7 +1466,10 @@ export async function upsertCircleCardAction(formData: FormData) {
     });
 
     if (!canCreateCircleCard({ accessLevel, existingCardCount })) {
-      redirectWithError(returnPath, "card-limit");
+      return circleCardSaveFailure({
+        message: "The Circle Card could not be saved.",
+        formError: "You have reached the Circle Card limit for your current access."
+      });
     }
   }
 
@@ -1435,7 +1482,13 @@ export async function upsertCircleCardAction(formData: FormData) {
   });
 
   if (!slug) {
-    redirectWithError(returnPath, "slug-taken");
+    return circleCardSaveFailure({
+      message: "The Circle Card could not be saved.",
+      fieldErrors: {
+        slug: ["That public card link is already taken."]
+      },
+      formError: "That public card link is already taken."
+    });
   }
 
   const socialLinks = buildCircleCardSocialLinks(values);
@@ -1516,7 +1569,7 @@ export async function upsertCircleCardAction(formData: FormData) {
 
       revalidateCircleCardPaths(existingCard?.slug);
       revalidateCircleCardPaths(slug);
-      redirectWithNotice(returnPath, "card-updated");
+      return circleCardSaveSuccess({ cardId, slug });
     }
 
     const cardCount = await prisma.circleCard.count({
@@ -1548,19 +1601,25 @@ export async function upsertCircleCardAction(formData: FormData) {
     });
 
     revalidateCircleCardPaths(card.slug);
-    redirectWithNotice(
-      `/dashboard/circle-card?section=my-card&cardId=${card.id}&created=1#circle-card-created`,
-      "card-created"
-    );
+    return circleCardSaveSuccess({ cardId: card.id, slug: card.slug });
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      redirectWithError(returnPath, "slug-taken");
+      return circleCardSaveFailure({
+        message: "The Circle Card could not be saved.",
+        fieldErrors: {
+          slug: ["That public card link is already taken."]
+        },
+        formError: "That public card link is already taken."
+      });
     }
 
-    redirectWithError(returnPath, "card-save-failed");
+    return circleCardSaveFailure({
+      message: "The Circle Card could not be saved.",
+      formError: "The Circle Card could not be saved."
+    });
   }
 }
 

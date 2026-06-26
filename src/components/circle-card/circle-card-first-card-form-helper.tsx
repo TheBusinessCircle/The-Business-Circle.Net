@@ -58,13 +58,23 @@ export function CircleCardFirstCardFormHelper({
   clearDraft = false
 }: CircleCardFirstCardFormHelperProps) {
   useEffect(() => {
-    if (clearDraft) {
+    function clearStoredDraft() {
       try {
         window.localStorage.removeItem(draftKey);
       } catch {
         // Draft storage is a local convenience only.
       }
     }
+
+    if (clearDraft) {
+      clearStoredDraft();
+    }
+
+    window.addEventListener("circle-card:save-success", clearStoredDraft);
+
+    return () => {
+      window.removeEventListener("circle-card:save-success", clearStoredDraft);
+    };
   }, [clearDraft, draftKey]);
 
   useEffect(() => {

@@ -93,6 +93,7 @@ import {
   CircleCardInstallPrompt,
   CircleCardPlanPanel,
   CircleCardQrPanel,
+  CircleCardSaveForm,
   CircleCardSectionRouter,
   CircleCardShareAssetsPanel,
   CircleCardShareButton,
@@ -6277,8 +6278,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form
-              id={isFirstCardCreateFlow ? "circle-card-first-card-form" : undefined}
+            <CircleCardSaveForm
+              id={isFirstCardCreateFlow ? "circle-card-first-card-form" : "circle-card-edit-form"}
               action={upsertCircleCardAction}
               className="space-y-5 pb-24 sm:pb-0"
               noValidate={!isFirstCardCreateFlow}
@@ -6681,7 +6682,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               </div>
                 </>
               )}
-            </form>
+            </CircleCardSaveForm>
           </CardContent>
         </Card>
 
@@ -8858,7 +8859,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               </CardHeader>
               <CardContent>
                 {card ? (
-                  <form action={upsertCircleCardAction} className="space-y-4" noValidate>
+                  <CircleCardSaveForm
+                    id="circle-card-settings-form"
+                    action={upsertCircleCardAction}
+                    className="space-y-4"
+                    noValidate
+                  >
                     <input
                       type="hidden"
                       name="returnPath"
@@ -8989,7 +8995,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         <ArrowUpRight size={16} />
                       </Link>
                     </div>
-                  </form>
+                  </CircleCardSaveForm>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-5 text-sm text-muted">
                     Create your Circle Card before changing publishing settings.
