@@ -51,7 +51,6 @@ import {
 import {
   acceptCircleCardConnectionRequestAction,
   acceptCircleCardIntroductionAction,
-  archiveCircleCardAction,
   cancelCircleCardConnectionRequestAction,
   cancelCircleCardIntroductionAction,
   createCircleCardOpportunityAction,
@@ -63,7 +62,6 @@ import {
   generateBusinessCardClaimLinkAction,
   markAllCircleCardNotificationsReadAction,
   markCircleCardNotificationReadAction,
-  moveCircleCardDisplayOrderAction,
   moveCircleCardLinkAction,
   removeCircleWalletContactAction,
   resolveCircleCardLinkAction,
@@ -173,8 +171,7 @@ import {
 } from "@/lib/circle-card/recommendations";
 import {
   CIRCLE_CARD_TYPE_COPY,
-  CIRCLE_CARD_TYPES,
-  getCircleCardTypeLabel
+  CIRCLE_CARD_TYPES
 } from "@/lib/circle-card/card-types";
 import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
@@ -445,6 +442,49 @@ function circleCardManageHref(input: {
 
   const suffix = input.hash ? `#${input.hash.replace(/^#/, "")}` : "";
   return `/dashboard/circle-card?${params.toString()}${suffix}`;
+}
+
+function circleCardHubTypeMeta(cardType: string) {
+  switch (cardType) {
+    case "BUSINESS":
+      return {
+        label: "Business",
+        icon: ShoppingBag,
+        description: CIRCLE_CARD_TYPE_COPY.BUSINESS.description
+      };
+    case "CREATOR":
+      return {
+        label: "Creator",
+        icon: Camera,
+        description: CIRCLE_CARD_TYPE_COPY.CREATOR.description
+      };
+    case "TEAM":
+      return {
+        label: "Team",
+        icon: UserCheck,
+        description: "Team identity, staff cards and shared-branding card foundation."
+      };
+    default:
+      return {
+        label: "Personal",
+        icon: ContactRound,
+        description: CIRCLE_CARD_TYPE_COPY.PERSONAL.description
+      };
+  }
+}
+
+function circleCardHubStatusMeta(input: { isPublished: boolean }) {
+  if (input.isPublished) {
+    return {
+      label: "Live",
+      className: "border-emerald-400/24 bg-emerald-400/10 text-emerald-200"
+    };
+  }
+
+  return {
+    label: "Hidden (future)",
+    className: "border-silver/18 bg-silver/8 text-silver"
+  };
 }
 
 type CircleCardUsageMetric = {
@@ -2859,7 +2899,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const isCircleCardFree = circleCardEntitlement.source === "FREE";
   const canPreviewFutureCircleCardFoundation =
     circleCardEntitlement.isAdminOverride || circleCardEntitlement.isEarlyAccess;
-  const cardLimitReached = !canCreateAdditionalCard;
   const activeCardLimitLabel = `${cardCount}/${featureAccess.cardLimit} active`;
   const selectedCardReturnPath = card
     ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "circle-card-form" })
@@ -3591,6 +3630,280 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       <CircleCardInstallPrompt />
       {isPlatformOwner ? <CircleCardPlatformOwnerSandboxIndicator /> : null}
 
+      <section id="my-cards" className="scroll-mt-24 rounded-2xl border border-gold/20 bg-[linear-gradient(145deg,hsl(var(--card)/0.78),hsl(var(--background)/0.42))] p-4 shadow-inner-surface sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Circle Card Hub</p>
+            <h2 className="mt-1 font-display text-2xl text-foreground">My Circle Cards</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+              Manage each digital identity from one place. Every card keeps its own public URL, QR
+              tools, share link, analytics and settings.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline" className="border-gold/28 text-gold">
+              {activeCardLimitLabel}
+            </Badge>
+            <Badge variant="outline" className="border-silver/18 text-silver">
+              {isPlatformOwner ? `${circleCardEntitlement.plan} preview` : circleCardEntitlement.label}
+            </Badge>
+            {archivedCardCount ? (
+              <Badge variant="outline" className="border-silver/18 text-silver">
+                {archivedCardCount} archived
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-3 lg:grid-cols-2">
+            {cards.length ? (
+              cards.map((ownedCard) => {
+                const selected = card?.id === ownedCard.id;
+                const typeMeta = circleCardHubTypeMeta(ownedCard.cardType);
+                const statusMeta = circleCardHubStatusMeta({ isPublished: ownedCard.isPublished });
+                const TypeIcon = typeMeta.icon;
+                const ownedPublicUrl = absoluteUrl(`/card/${ownedCard.slug}`);
+                const cardTitle = `${ownedCard.fullName} | Circle Card`;
+                const manageReturnPath = circleCardManageHref({
+                  cardId: ownedCard.id,
+                  section: "home",
+                  hash: "my-cards"
+                });
+
+                return (
+                  <article
+                    key={ownedCard.id}
+                    data-active={selected ? "true" : "false"}
+                    className={cn(
+                      "rounded-2xl border border-border/80 bg-background/28 p-4 transition-colors",
+                      "data-[active=true]:border-gold/42 data-[active=true]:bg-gold/8"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gold/18 bg-gold/10 text-gold">
+                          <TypeIcon size={20} />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="border-silver/18 text-silver">
+                              {typeMeta.label} Card
+                            </Badge>
+                            <Badge variant="outline" className={statusMeta.className}>
+                              Status: {statusMeta.label}
+                            </Badge>
+                          </div>
+                          <h3 className="mt-2 truncate text-lg font-semibold text-foreground">
+                            {ownedCard.businessName || ownedCard.fullName}
+                          </h3>
+                          <p className="mt-1 truncate text-sm text-muted">
+                            {[ownedCard.fullName, ownedCard.role].filter(Boolean).join(" / ") ||
+                              typeMeta.description}
+                          </p>
+                        </div>
+                      </div>
+                      {ownedCard.isDefaultCard ? (
+                        <Badge variant="premium" className="shrink-0 gap-1">
+                          <Star size={13} />
+                          Default Public Card
+                        </Badge>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-silver/12 bg-card/36 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Public URL</p>
+                      <p className="mt-1 break-all text-sm font-medium text-foreground">{ownedPublicUrl}</p>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                      <span className="inline-flex items-center rounded-full border border-emerald-400/24 bg-emerald-400/10 px-2 py-0.5 font-medium text-emerald-200">
+                        Live
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-silver/14 bg-card/32 px-2 py-0.5 text-muted">
+                        Draft - future
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-silver/14 bg-card/32 px-2 py-0.5 text-muted">
+                        Archived - future
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-silver/14 bg-card/32 px-2 py-0.5 text-muted">
+                        Hidden - future
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <Link
+                        href={`/card/${ownedCard.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 justify-center gap-2")}
+                      >
+                        <Eye size={15} />
+                        View Public Card
+                      </Link>
+                      <Link
+                        href={circleCardManageHref({
+                          cardId: ownedCard.id,
+                          section: "my-card",
+                          hash: "circle-card-form"
+                        })}
+                        className={cn(buttonVariants({ variant: selected ? "default" : "outline", size: "sm" }), "h-10 justify-center gap-2")}
+                      >
+                        <ContactRound size={15} />
+                        {selected ? "Editing Card" : "Edit Card"}
+                      </Link>
+                      <CircleCardCopyLinkButton
+                        publicUrl={ownedPublicUrl}
+                        label="Copy Public Link"
+                        size="sm"
+                        className="h-10 w-full justify-center"
+                        analytics={{
+                          cardId: ownedCard.id,
+                          source: "my_circle_cards_hub"
+                        }}
+                      />
+                      <Link
+                        href={circleCardManageHref({
+                          cardId: ownedCard.id,
+                          section: "share",
+                          hash: "share-assets-qr"
+                        })}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 justify-center gap-2")}
+                      >
+                        <QrCode size={15} />
+                        Download QR
+                      </Link>
+                      <Link
+                        href={circleCardManageHref({
+                          cardId: ownedCard.id,
+                          section: "my-card",
+                          hash: "analytics"
+                        })}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 justify-center gap-2")}
+                      >
+                        <BarChart3 size={15} />
+                        Open Analytics
+                      </Link>
+                      <Link
+                        href={circleCardManageHref({
+                          cardId: ownedCard.id,
+                          section: "settings",
+                          hash: "circle-card-settings"
+                        })}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 justify-center gap-2")}
+                      >
+                        <Wrench size={15} />
+                        Settings
+                      </Link>
+                      <div className="sm:col-span-2">
+                        <CircleCardShareButton
+                          title={cardTitle}
+                          publicUrl={ownedPublicUrl}
+                          cardId={ownedCard.id}
+                          analyticsSource="my_circle_cards_hub"
+                          label="Share"
+                          size="sm"
+                          hideStatus
+                          buttonClassName="h-10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <form action={setDefaultCircleCardAction}>
+                        <input type="hidden" name="cardId" value={ownedCard.id} />
+                        <input type="hidden" name="returnPath" value={manageReturnPath} />
+                        <Button
+                          type="submit"
+                          variant="outline"
+                          size="sm"
+                          className="h-10 w-full gap-2"
+                          disabled={ownedCard.isDefaultCard}
+                        >
+                          <Star size={15} />
+                          {ownedCard.isDefaultCard ? "Default Public Card" : "Make Default Public"}
+                        </Button>
+                      </form>
+                      <Button type="button" variant="outline" size="sm" className="h-10 w-full gap-2" disabled>
+                        <WalletCards size={15} />
+                        Wallet Pass - Coming Soon
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-10 w-full gap-2" disabled>
+                        <ClipboardCheck size={15} />
+                        Duplicate - Coming Soon
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-10 w-full gap-2" disabled>
+                        <XCircle size={15} />
+                        Archive - Coming Soon
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-10 w-full gap-2 sm:col-span-2" disabled>
+                        <Trash2 size={15} />
+                        Delete - Coming Soon
+                      </Button>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted lg:col-span-2">
+                Create your first Circle Card to open the dashboard editor and public card tools.
+              </div>
+            )}
+          </div>
+
+          <aside className="space-y-3 rounded-2xl border border-border/80 bg-background/24 p-4">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Plan limit</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                {circleCardEntitlement.label} allows {featureAccess.cardLimit} active Circle Card
+                {featureAccess.cardLimit === 1 ? "" : "s"} in this dashboard preview.
+              </p>
+            </div>
+            {canCreateAdditionalCard ? (
+              <Link href={createCardHref} className={cn(buttonVariants(), "w-full justify-center gap-2")}>
+                <ContactRound size={16} />
+                + Create Another Circle Card
+              </Link>
+            ) : (
+              <div className="rounded-xl border border-silver/14 bg-card/42 p-3">
+                <p className="text-sm font-semibold text-foreground">You&apos;ve reached your plan limit.</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Existing cards keep their own public URLs, QR codes, share links, settings and analytics.
+                </p>
+              </div>
+            )}
+            <div className="rounded-xl border border-silver/12 bg-card/42 p-3">
+              <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Star size={15} className="text-gold" />
+                Default Public Card
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Changing the default only changes the main public identity for the owner. Individual URLs,
+                QR codes, wallet passes and analytics stay tied to each card.
+              </p>
+            </div>
+            <div className="grid gap-2 text-xs">
+              <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                Live is active now. Draft, Archived and Hidden are reserved future states.
+              </div>
+              {canPreviewFutureCircleCardFoundation ? (
+                <>
+                  <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Creator blocks reserved: {CIRCLE_CARD_CREATOR_BLOCK_TYPES.length}
+                  </div>
+                  <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Business blocks reserved: {CIRCLE_CARD_BUSINESS_BLOCK_TYPES.length}
+                  </div>
+                  <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
+                    Teams foundation stays preview-labelled until staff cards are active.
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </aside>
+        </div>
+      </section>
+
       {!isPlatformOwner && card && publicUrl ? (
         <CircleCardSetupChecklistPanel
           cardId={card.id}
@@ -3971,233 +4284,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
         </CircleCardDashboardSection>
       ) : null}
-
-      <section id="my-cards" className="scroll-mt-24 rounded-2xl border border-silver/14 bg-card/60 p-4 sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-gold">My Cards</p>
-            <h2 className="mt-1 font-display text-2xl text-foreground">Manage your Circle Cards</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-              Switch cards, choose the public order, set the default landing card, and archive cards
-              you no longer want public.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className="border-gold/28 text-gold">
-              {activeCardLimitLabel}
-            </Badge>
-            {archivedCardCount ? (
-              <Badge variant="outline" className="border-silver/18 text-silver">
-                {archivedCardCount} archived
-              </Badge>
-            ) : null}
-            {canCreateAdditionalCard ? (
-              <Link href={createCardHref} className={cn(buttonVariants(), "gap-2")}>
-                <ContactRound size={16} />
-                Create Card
-              </Link>
-            ) : (
-              <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
-                <Crown size={16} />
-                Upgrade pathway
-              </Link>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="grid gap-3">
-            {cards.length ? (
-              cards.map((ownedCard, index) => {
-                const selected = card?.id === ownedCard.id;
-                const isFirst = index === 0;
-                const isLast = index === cards.length - 1;
-                const manageReturnPath = circleCardManageHref({
-                  cardId: ownedCard.id,
-                  section: "my-card",
-                  hash: "my-cards"
-                });
-
-                return (
-                  <article
-                    key={ownedCard.id}
-                    data-active={selected ? "true" : "false"}
-                    className={cn(
-                      "rounded-xl border border-border/80 bg-background/24 p-3 transition-colors",
-                      "data-[active=true]:border-gold/38 data-[active=true]:bg-gold/8"
-                    )}
-                  >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="border-silver/18 text-silver">
-                            {getCircleCardTypeLabel(ownedCard.cardType)}
-                          </Badge>
-                          {ownedCard.isDefaultCard ? (
-                            <Badge variant="premium">Default</Badge>
-                          ) : null}
-                          <Badge variant={ownedCard.isPublished ? "outline" : "muted"}>
-                            {ownedCard.isPublished ? "Published" : "Unpublished"}
-                          </Badge>
-                        </div>
-                        <h3 className="mt-2 truncate text-base font-semibold text-foreground">
-                          {ownedCard.fullName}
-                        </h3>
-                        <p className="mt-1 truncate text-sm text-muted">
-                          {[ownedCard.businessName, ownedCard.role].filter(Boolean).join(" / ") ||
-                            CIRCLE_CARD_TYPE_COPY[ownedCard.cardType].description}
-                        </p>
-                        <p className="mt-1 break-all text-xs text-silver">/card/{ownedCard.slug}</p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                        <Link
-                          href={circleCardManageHref({
-                            cardId: ownedCard.id,
-                            section: "my-card",
-                            hash: "circle-card-form"
-                          })}
-                          className={cn(buttonVariants({ variant: selected ? "default" : "outline", size: "sm" }), "gap-2")}
-                        >
-                          <ContactRound size={14} />
-                          {selected ? "Editing" : "Switch"}
-                        </Link>
-                        <Link
-                          href={`/card/${ownedCard.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
-                        >
-                          <ArrowUpRight size={14} />
-                          Public
-                        </Link>
-                        <form action={setDefaultCircleCardAction}>
-                          <input type="hidden" name="cardId" value={ownedCard.id} />
-                          <input type="hidden" name="returnPath" value={manageReturnPath} />
-                          <Button
-                            type="submit"
-                            variant="outline"
-                            size="sm"
-                            className="w-full gap-2"
-                            disabled={ownedCard.isDefaultCard}
-                          >
-                            <Star size={14} />
-                            Default
-                          </Button>
-                        </form>
-                        <form action={moveCircleCardDisplayOrderAction}>
-                          <input type="hidden" name="cardId" value={ownedCard.id} />
-                          <input type="hidden" name="direction" value="up" />
-                          <input type="hidden" name="returnPath" value={manageReturnPath} />
-                          <Button
-                            type="submit"
-                            variant="outline"
-                            size="sm"
-                            className="w-full gap-2"
-                            disabled={isFirst}
-                          >
-                            <ArrowUp size={14} />
-                            Up
-                          </Button>
-                        </form>
-                        <form action={moveCircleCardDisplayOrderAction}>
-                          <input type="hidden" name="cardId" value={ownedCard.id} />
-                          <input type="hidden" name="direction" value="down" />
-                          <input type="hidden" name="returnPath" value={manageReturnPath} />
-                          <Button
-                            type="submit"
-                            variant="outline"
-                            size="sm"
-                            className="w-full gap-2"
-                            disabled={isLast}
-                          >
-                            <ArrowDown size={14} />
-                            Down
-                          </Button>
-                        </form>
-                        <form action={archiveCircleCardAction}>
-                          <input type="hidden" name="cardId" value={ownedCard.id} />
-                          <input
-                            type="hidden"
-                            name="returnPath"
-                            value={circleCardSectionHref("my-card", "my-cards")}
-                          />
-                          <Button type="submit" variant="outline" size="sm" className="w-full gap-2">
-                            <Trash2 size={14} />
-                            Archive
-                          </Button>
-                        </form>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })
-            ) : (
-              <div className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
-                Create your first Circle Card to open the dashboard editor and public card tools.
-              </div>
-            )}
-          </div>
-
-          <aside className="space-y-3 rounded-xl border border-border/80 bg-background/22 p-3">
-            {canPreviewFutureCircleCardFoundation ? (
-              <>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">Admin Preview foundation</p>
-                    <Badge variant="outline" className="border-gold/28 text-gold">
-                      {circleCardEntitlement.isEarlyAccess ? "Early Access" : "Admin Preview"}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-xs leading-relaxed text-muted">
-                    Personal, Business and Creator card types are live for testing. Reserved Creator,
-                    Business and Teams foundations stay preview-labelled and separate from billing.
-                  </p>
-                </div>
-                <div className="grid gap-2 text-xs">
-                  <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
-                    Creator blocks reserved: {CIRCLE_CARD_CREATOR_BLOCK_TYPES.length}
-                  </div>
-                  <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
-                    Business blocks reserved: {CIRCLE_CARD_BUSINESS_BLOCK_TYPES.length}
-                  </div>
-                  <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
-                    Teams foundation: staff-card structure prepared
-                  </div>
-                  {cardLimitReached ? (
-                    <Link
-                      href="/circle-card/pro"
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1 gap-2")}
-                    >
-                      <Crown size={14} />
-                      Review upgrade pathway
-                    </Link>
-                  ) : null}
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Card access</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted">
-                    Card management follows your current Circle Card access. Future Pro and Teams tools
-                    stay hidden until they are ready.
-                  </p>
-                </div>
-                {cardLimitReached ? (
-                  <Link
-                    href="/circle-card/pro"
-                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1 gap-2")}
-                  >
-                    <Crown size={14} />
-                    Review upgrade pathway
-                  </Link>
-                ) : null}
-              </>
-            )}
-          </aside>
-        </div>
-      </section>
 
       <div id="circle-card-upgrade-signals" className="scroll-mt-24">
         <CircleCardUpgradeSignalsPanel
