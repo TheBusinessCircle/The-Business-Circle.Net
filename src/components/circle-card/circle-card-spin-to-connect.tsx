@@ -44,6 +44,7 @@ type CircleCardSpinToConnectProps = {
   initialState?: CircleCardSpinState | null;
   connectAction: SpinToConnectAction;
   className?: string;
+  showAmbientRing?: boolean;
   children: ReactNode;
 };
 
@@ -159,6 +160,7 @@ export function CircleCardSpinToConnect({
   initialState,
   connectAction,
   className,
+  showAmbientRing = true,
   children
 }: CircleCardSpinToConnectProps) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -412,16 +414,18 @@ export function CircleCardSpinToConnect({
         <input type="hidden" name="source" value="spin_to_connect" />
       </form>
 
-      <span
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none absolute -inset-3 rounded-full border transition-all duration-500",
-          localConnected
-            ? "border-emerald-300/60 bg-emerald-300/10 shadow-[0_0_50px_rgba(52,211,153,0.38)]"
-            : "border-gold/45 bg-gold/8 shadow-[0_0_48px_rgba(212,175,95,0.24)]",
-          pendingReturn && "border-gold/80 shadow-[0_0_76px_rgba(212,175,95,0.55)]"
-        )}
-      />
+      {showAmbientRing ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute -inset-3 rounded-full border transition-all duration-500",
+            localConnected
+              ? "border-emerald-300/60 bg-emerald-300/10 shadow-[0_0_50px_rgba(52,211,153,0.38)]"
+              : "border-gold/45 bg-gold/8 shadow-[0_0_48px_rgba(212,175,95,0.24)]",
+            pendingReturn && "border-gold/80 shadow-[0_0_76px_rgba(212,175,95,0.55)]"
+          )}
+        />
+      ) : null}
       <CircleCardSpinActivationGuide hasInteracted={hasInteractedWithSpin} />
       {pendingReturn ? (
         <span

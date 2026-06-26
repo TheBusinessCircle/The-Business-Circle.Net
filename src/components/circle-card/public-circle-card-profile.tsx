@@ -503,38 +503,6 @@ function CircleCardLogoMark({ className, alt = "" }: { className?: string; alt?:
   );
 }
 
-function CircleCardBadgeMark({
-  imageUrl,
-  label,
-  positionX,
-  positionY,
-  scale
-}: {
-  imageUrl?: string | null;
-  label: string;
-  positionX?: number | null;
-  positionY?: number | null;
-  scale?: number | null;
-}) {
-  return (
-    <span className="absolute bottom-2 right-2 inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-gold/70 bg-[#061126] p-1 shadow-[0_0_34px_hsl(var(--cc-theme-primary-hsl)/0.3)]">
-      <CircleCardFramedImage
-        src={imageUrl || CIRCLE_CARD_LOGO_SRC}
-        fallbackSrc={CIRCLE_CARD_LOGO_SRC}
-        alt=""
-        positionX={positionX}
-        positionY={positionY}
-        scale={scale}
-        fallbackPositionX={50}
-        fallbackPositionY={50}
-        fallbackScale={1}
-        className="rounded-full"
-      />
-      <span className="sr-only">{label}</span>
-    </span>
-  );
-}
-
 type PremiumBadgeProps = {
   icon: ReactNode;
   label: string;
@@ -2140,6 +2108,21 @@ export function PublicCircleCardProfile({
     );
   }
 
+  const businessHeroImageUrl = card.businessLogoUrl || card.profileImageUrl;
+  const businessHeroImageAlt = card.businessLogoUrl
+    ? `${card.businessName || card.fullName} logo`
+    : card.fullName;
+  const businessHeroImagePositionX = card.businessLogoUrl
+    ? card.businessLogoPositionX
+    : card.profileImagePositionX;
+  const businessHeroImagePositionY = card.businessLogoUrl
+    ? card.businessLogoPositionY
+    : card.profileImagePositionY;
+  const businessHeroImageScale = card.businessLogoUrl
+    ? card.businessLogoScale
+    : card.profileImageScale;
+  const businessHeroFallbackInitials = initials(card.businessName || card.fullName);
+
   return (
     <div
       className="circle-card-public-theme relative overflow-hidden pb-32 lg:pb-16"
@@ -2190,34 +2173,27 @@ export function PublicCircleCardProfile({
 
               <div className="relative z-10">
                 <div className="flex justify-center">
-                  <div className="relative">
-                    <CircleCardSpinToConnect {...spinToConnectProps} className="h-40 w-40 sm:h-48 sm:w-48">
-                      <div className="grid h-full w-full place-items-center rounded-full border border-gold/60 bg-gold/12 p-1.5 shadow-[0_0_0_10px_hsl(var(--cc-theme-accent-hsl)/0.05),0_0_64px_hsl(var(--cc-theme-primary-hsl)/0.3)]">
-                        <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground">
-                          {card.profileImageUrl ? (
-                            <CircleCardFramedImage
-                              src={card.profileImageUrl}
-                              alt={card.fullName}
-                              positionX={card.profileImagePositionX}
-                              positionY={card.profileImagePositionY}
-                              scale={card.profileImageScale}
-                            >
-                              <span>{initials(card.fullName)}</span>
-                            </CircleCardFramedImage>
-                          ) : (
-                            <span>{initials(card.fullName)}</span>
-                          )}
-                        </div>
-                      </div>
-                    </CircleCardSpinToConnect>
-                    <CircleCardBadgeMark
-                      imageUrl={card.businessLogoUrl}
-                      label={card.businessName ? `${card.businessName} logo` : "Circle Card badge"}
-                      positionX={card.businessLogoPositionX}
-                      positionY={card.businessLogoPositionY}
-                      scale={card.businessLogoScale}
-                    />
-                  </div>
+                  <CircleCardSpinToConnect
+                    {...spinToConnectProps}
+                    className="h-40 w-40 sm:h-48 sm:w-48"
+                    showAmbientRing={false}
+                  >
+                    <div className="grid h-full w-full place-items-center overflow-hidden rounded-full border border-gold/60 bg-[#071126] text-4xl font-semibold text-foreground shadow-[0_0_64px_hsl(var(--cc-theme-primary-hsl)/0.3)]">
+                      {businessHeroImageUrl ? (
+                        <CircleCardFramedImage
+                          src={businessHeroImageUrl}
+                          alt={businessHeroImageAlt}
+                          positionX={businessHeroImagePositionX}
+                          positionY={businessHeroImagePositionY}
+                          scale={businessHeroImageScale}
+                        >
+                          <span>{businessHeroFallbackInitials}</span>
+                        </CircleCardFramedImage>
+                      ) : (
+                        <span>{businessHeroFallbackInitials}</span>
+                      )}
+                    </div>
+                  </CircleCardSpinToConnect>
                 </div>
 
                 <div className="mx-auto mt-6 max-w-2xl text-center">
