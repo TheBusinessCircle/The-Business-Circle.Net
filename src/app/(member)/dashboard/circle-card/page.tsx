@@ -143,6 +143,7 @@ import {
   CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
   buildCircleCardPlatformOwnerLaunchChecklist,
   buildCircleCardPlatformOwnerPerformanceInspector,
+  resolveCircleCardPlatformOwnerCardTypePreviewMode,
   resolveCircleCardPlatformOwnerPreviewEntitlement,
   resolveCircleCardPlatformOwnerPreviewMode,
   resolveCircleCardPlatformOwnerDiagnostics,
@@ -177,6 +178,7 @@ import {
 } from "@/lib/circle-card/card-types";
 import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
+  CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
   CIRCLE_CARD_CREATOR_BLOCK_TYPES
 } from "@/lib/circle-card/content-blocks";
 import { circleCardIntroductionStatusLabel } from "@/lib/circle-card/introductions";
@@ -666,6 +668,240 @@ function CircleCardSetupChecklistPanel({
         </aside>
       </div>
     </section>
+  );
+}
+
+type BusinessCardBuilderAccess = "locked" | "available" | "platform-preview";
+
+const BUSINESS_CARD_BUILDER_BLOCK_DESCRIPTIONS: Record<string, string> = {
+  SERVICES: "Explain the main services your business provides.",
+  PRODUCTS: "Prepare a simple product showcase without checkout.",
+  PRICE_LIST: "Outline pricing guidance or starting points.",
+  OPENING_HOURS: "Show when the business is available.",
+  GALLERY_PORTFOLIO: "Present project images, proof or portfolio examples.",
+  REVIEWS_TESTIMONIALS: "Bring trust signals into the business profile.",
+  BOOKING_ENQUIRY_LINK: "Send visitors to an existing booking or enquiry page.",
+  DOWNLOADS_DOCUMENTS: "Make brochures, menus, forms or documents easy to find.",
+  MENU_OFFERS: "Highlight a menu, seasonal offer or current promotion."
+};
+
+function businessBuilderBlockIcon(type: string) {
+  switch (type) {
+    case "SERVICES":
+      return Wrench;
+    case "PRODUCTS":
+      return ShoppingBag;
+    case "PRICE_LIST":
+      return Tag;
+    case "OPENING_HOURS":
+      return CalendarDays;
+    case "GALLERY_PORTFOLIO":
+      return Camera;
+    case "REVIEWS_TESTIMONIALS":
+      return Star;
+    case "BOOKING_ENQUIRY_LINK":
+      return LinkIcon;
+    case "DOWNLOADS_DOCUMENTS":
+      return Download;
+    case "MENU_OFFERS":
+      return BookOpen;
+    default:
+      return ClipboardCheck;
+  }
+}
+
+function BusinessCardBuilderFoundation({
+  access,
+  previewLabel,
+  businessName,
+  businessDescription,
+  primaryService,
+  businessCategory,
+  serviceArea,
+  websiteUrl,
+  className
+}: {
+  access: BusinessCardBuilderAccess;
+  previewLabel: string;
+  businessName?: string | null;
+  businessDescription?: string | null;
+  primaryService?: string | null;
+  businessCategory?: string | null;
+  serviceArea?: string | null;
+  websiteUrl?: string | null;
+  className?: string;
+}) {
+  const locked = access === "locked";
+  const blockDefinitions = CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS.filter(
+    (definition) => definition.family === "BUSINESS"
+  );
+  const detailItems = [
+    {
+      label: "Business description",
+      value: businessDescription,
+      href: circleCardSectionHref("my-card", "card-identity"),
+      action: "Edit profile"
+    },
+    {
+      label: "Primary service",
+      value: primaryService,
+      href: circleCardSectionHref("my-card", "card-identity"),
+      action: "Edit role/service"
+    },
+    {
+      label: "Business category",
+      value: businessCategory || businessName,
+      href: circleCardSectionHref("my-card", "card-identity"),
+      action: "Edit identity"
+    },
+    {
+      label: "Service area",
+      value: serviceArea,
+      href: circleCardSectionHref("my-card", "card-contact-details"),
+      action: "Edit location"
+    },
+    {
+      label: "Website",
+      value: websiteUrl,
+      href: circleCardSectionHref("my-card", "card-contact-details"),
+      action: "Edit website"
+    },
+    {
+      label: "Enquiry CTA label",
+      value: null,
+      href: null,
+      action: "Coming next"
+    },
+    {
+      label: "Enquiry CTA link",
+      value: websiteUrl,
+      href: circleCardSectionHref("my-card", "card-contact-details"),
+      action: websiteUrl ? "Uses website" : "Coming next"
+    }
+  ];
+
+  return (
+    <CircleCardDashboardSection
+      id="business-card-builder"
+      title="Business Card Builder"
+      summary={
+        locked
+          ? "Business Card Builder is a Pro feature."
+          : "Structure services, products, enquiry and trust sections for a stronger business profile."
+      }
+      appSection="my-card"
+      className={cn(
+        "border-gold/20 bg-[linear-gradient(145deg,hsl(var(--card)/0.72),hsl(var(--background)/0.36))]",
+        className
+      )}
+      badge={
+        <Badge
+          variant={access === "platform-preview" ? "premium" : "outline"}
+          className={cn(access !== "platform-preview" && "border-gold/28 text-gold")}
+        >
+          {previewLabel}
+        </Badge>
+      }
+    >
+      {locked ? (
+        <div className="rounded-2xl border border-gold/24 bg-gold/10 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                Business Card Builder is a Pro feature.
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">
+                Free keeps your personal identity card, 5 featured links and basic analytics. Pro prepares a
+                second business card with services, products, stronger customisation and deeper insight.
+              </p>
+            </div>
+            <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 sm:w-auto")}>
+              Explore Pro
+              <ArrowUpRight size={16} />
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-gold/20 bg-gold/8 p-4">
+            <p className="text-sm font-semibold text-foreground">
+              Business card = services, products, enquiry and trust.
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              This foundation uses your existing card details now. Products, payments, checkout and booking engines
+              are not active in this phase.
+            </p>
+          </div>
+
+          <details open className="group rounded-xl border border-silver/14 bg-background/18">
+            <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+              <span>
+                <span className="text-sm font-semibold text-foreground">Business details</span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted">
+                  Existing card fields that can safely power a business profile.
+                </span>
+              </span>
+              <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2 xl:grid-cols-3">
+              {detailItems.map((item) => (
+                <div key={item.label} className="rounded-xl border border-silver/12 bg-card/42 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">{item.label}</p>
+                  <p className="mt-1 min-h-5 break-words text-sm font-semibold text-foreground">
+                    {item.value?.trim() || "Coming next"}
+                  </p>
+                  {item.href ? (
+                    <Link href={item.href} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 h-8 gap-2")}>
+                      {item.action}
+                    </Link>
+                  ) : (
+                    <Badge variant="muted" className="mt-3">
+                      {item.action}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
+
+          <details className="group rounded-xl border border-silver/14 bg-background/18">
+            <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+              <span>
+                <span className="text-sm font-semibold text-foreground">Business profile blocks</span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted">
+                  Reserved structure for business-focused public sections.
+                </span>
+              </span>
+              <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2 xl:grid-cols-3">
+              {blockDefinitions.map((definition) => {
+                const Icon = businessBuilderBlockIcon(definition.type);
+
+                return (
+                  <div key={definition.type} className="rounded-xl border border-silver/12 bg-card/42 p-3">
+                    <div className="flex items-start gap-3">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gold/18 bg-gold/10 text-gold">
+                        <Icon size={16} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">{definition.label}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted">
+                          {BUSINESS_CARD_BUILDER_BLOCK_DESCRIPTIONS[definition.type] ?? "Prepared for a future business profile block."}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="muted" className="mt-3">
+                      Foundation only
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        </div>
+      )}
+    </CircleCardDashboardSection>
   );
 }
 
@@ -2136,7 +2372,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedOwnerPreviewMode = isPlatformOwner
     ? resolveCircleCardPlatformOwnerPreviewMode(firstValue(params.ownerPreview))
     : "platform-owner";
-  const selectedOwnerCardTypePreviewMode = "personal";
+  const selectedOwnerCardTypePreviewMode = isPlatformOwner
+    ? resolveCircleCardPlatformOwnerCardTypePreviewMode(firstValue(params.ownerCardType))
+    : "personal";
   const actualCircleCardEntitlement = resolveCircleCardEntitlement({
     role: session.user.role,
     membershipTier: session.user.membershipTier,
@@ -3141,6 +3379,29 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     }
   ];
   const recentHomeActivity = visibleActivityItems.slice(0, 3);
+  const businessBuilderPreviewingBusiness =
+    isPlatformOwner && selectedOwnerCardTypePreviewMode === "business";
+  const showBusinessCardBuilder =
+    Boolean(card?.cardType === "BUSINESS") || businessBuilderPreviewingBusiness;
+  const businessBuilderAccess: BusinessCardBuilderAccess = isPlatformOwner
+    ? "platform-preview"
+    : isCircleCardFree
+      ? "locked"
+      : "available";
+  const businessBuilderPreviewLabel =
+    businessBuilderAccess === "platform-preview"
+      ? "Platform Preview"
+      : businessBuilderAccess === "locked"
+        ? "Requires Pro"
+        : circleCardEntitlement.isEarlyAccess
+          ? "Early Access"
+          : circleCardEntitlement.isAdminOverride
+            ? "Admin Preview"
+            : "Pro Preview";
+  const businessBuilderCategory =
+    card?.identityTags[0]
+      ? getCircleCardIdentityTagLabel(card.identityTags[0])
+      : getCircleCardAccountTypeLabel(card?.accountType);
 
   if (card && discoverHasFilters) {
     await trackCircleCardEvent({
@@ -6831,34 +7092,55 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <CardHeader>
                 <CardTitle className="inline-flex items-center gap-2">
                   <Crown size={17} className="text-gold" />
-                  {isCircleCardFree ? "Future Circle Card tools" : "Upgrade path"}
+                  Circle Card growth path
                 </CardTitle>
                 <CardDescription>
                   {isCircleCardFree
-                    ? "More relationship tools can build on your card, wallet and analytics over time."
-                    : "Pro, Teams and BCN tier benefits are prepared in the access layer."}
+                    ? "Free is your personal identity card. Pro is where the Business Card Builder becomes useful."
+                    : "Pro and Teams benefits are prepared in the access layer without activating billing here."}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="border-gold/25 text-gold">
-                    Wallet
-                  </Badge>
-                  <Badge variant="outline" className="border-gold/25 text-gold">
-                    Analytics
-                  </Badge>
-                  <Badge variant="outline" className="border-gold/25 text-gold">
-                    Teams
-                  </Badge>
-                  <Badge variant="outline" className="border-gold/25 text-gold">
-                    BCN badges
-                  </Badge>
+                <div className="grid gap-2 text-sm">
+                  <div className="rounded-xl border border-silver/14 bg-background/22 p-3">
+                    <p className="font-semibold text-foreground">Free</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted">
+                      Personal identity card, 5 featured links and basic analytics.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-gold/22 bg-gold/10 p-3">
+                    <p className="font-semibold text-foreground">Pro</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted">
+                      Second card, Business Card Builder, services/products sections, stronger customisation,
+                      stronger analytics and referral earning eligibility when billing is live.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-silver/14 bg-background/22 p-3">
+                    <p className="font-semibold text-foreground">Teams</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted">
+                      Company cards, staff cards, shared branding and team analytics.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </aside>
       </div>
+
+      {card && showBusinessCardBuilder ? (
+        <BusinessCardBuilderFoundation
+          access={businessBuilderAccess}
+          previewLabel={businessBuilderPreviewLabel}
+          businessName={card.businessName}
+          businessDescription={card.about}
+          primaryService={card.role}
+          businessCategory={businessBuilderCategory}
+          serviceArea={card.location}
+          websiteUrl={card.websiteUrl}
+          className={activeSection === "my-card" ? undefined : "hidden"}
+        />
+      ) : null}
 
       {card ? (
         <CircleCardDashboardSection

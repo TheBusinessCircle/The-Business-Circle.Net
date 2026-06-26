@@ -159,13 +159,19 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
     relationshipPositioning: "Grow relationships.",
     audience: "Relationship builders, networkers, creators, sales people and founders",
     summary:
-      "Pro is the individual growth layer for visibility, analytics, lead generation and relationship management.",
+      "Pro adds a second card, Business Card Builder foundations, stronger analytics, richer customisation and relationship growth tools.",
     included: [],
     unlocked: [
       {
         id: "personal-business-card-pair",
         label: "Personal + business card",
         description: "Prepare one personal Circle Card and one business or brand Circle Card under Pro.",
+        status: "planned"
+      },
+      {
+        id: "business-card-builder",
+        label: "Business Card Builder",
+        description: "Structure services, products, enquiry routes and trust sections for a clearer business profile.",
         status: "planned"
       },
       {

@@ -150,6 +150,12 @@ function removeOwnerPreviewUrlParam() {
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
+function navigateToOwnerCardTypePreview(mode: CircleCardPlatformOwnerCardTypePreviewMode) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("ownerCardType", mode);
+  window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+}
+
 function usePlatformOwnerPreviewModes(
   membershipMode: CircleCardPlatformOwnerPreviewMode,
   cardTypeMode: CircleCardPlatformOwnerCardTypePreviewMode
@@ -329,7 +335,10 @@ export function CircleCardPlatformOwnerCardTypePreviewSwitcher({
   const activeLabel = CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_LABELS[selectedMode];
 
   useEffect(() => {
-    const initialMode = readCircleCardPlatformOwnerCardTypePreviewMode(activeMode);
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialMode = urlParams.has("ownerCardType")
+      ? activeMode
+      : readCircleCardPlatformOwnerCardTypePreviewMode(activeMode);
 
     setSelectedMode(initialMode);
     writeCircleCardPlatformOwnerCardTypePreviewMode(initialMode);
@@ -338,6 +347,7 @@ export function CircleCardPlatformOwnerCardTypePreviewSwitcher({
   function setPreviewMode(mode: CircleCardPlatformOwnerCardTypePreviewMode) {
     setSelectedMode(mode);
     writeCircleCardPlatformOwnerCardTypePreviewMode(mode);
+    navigateToOwnerCardTypePreview(mode);
   }
 
   return (

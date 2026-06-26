@@ -8,9 +8,14 @@ export const CIRCLE_CARD_CREATOR_BLOCK_TYPES = [
 
 export const CIRCLE_CARD_BUSINESS_BLOCK_TYPES = [
   "SERVICES",
-  "MENUS",
-  "PRICE_LISTS",
-  "DOWNLOADS"
+  "PRODUCTS",
+  "PRICE_LIST",
+  "OPENING_HOURS",
+  "GALLERY_PORTFOLIO",
+  "REVIEWS_TESTIMONIALS",
+  "BOOKING_ENQUIRY_LINK",
+  "DOWNLOADS_DOCUMENTS",
+  "MENU_OFFERS"
 ] as const;
 
 export type CircleCardCreatorBlockType =
@@ -68,21 +73,51 @@ export const CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS = [
     publicEditingEnabled: false
   },
   {
-    type: "MENUS",
+    type: "PRODUCTS",
     family: "BUSINESS",
-    label: "Menus",
+    label: "Products",
     publicEditingEnabled: false
   },
   {
-    type: "PRICE_LISTS",
+    type: "PRICE_LIST",
     family: "BUSINESS",
-    label: "Price lists",
+    label: "Price List",
     publicEditingEnabled: false
   },
   {
-    type: "DOWNLOADS",
+    type: "OPENING_HOURS",
     family: "BUSINESS",
-    label: "Downloads",
+    label: "Opening Hours",
+    publicEditingEnabled: false
+  },
+  {
+    type: "GALLERY_PORTFOLIO",
+    family: "BUSINESS",
+    label: "Gallery / Portfolio",
+    publicEditingEnabled: false
+  },
+  {
+    type: "REVIEWS_TESTIMONIALS",
+    family: "BUSINESS",
+    label: "Reviews / Testimonials",
+    publicEditingEnabled: false
+  },
+  {
+    type: "BOOKING_ENQUIRY_LINK",
+    family: "BUSINESS",
+    label: "Booking / Enquiry Link",
+    publicEditingEnabled: false
+  },
+  {
+    type: "DOWNLOADS_DOCUMENTS",
+    family: "BUSINESS",
+    label: "Downloads / Documents",
+    publicEditingEnabled: false
+  },
+  {
+    type: "MENU_OFFERS",
+    family: "BUSINESS",
+    label: "Menu / Offers",
     publicEditingEnabled: false
   }
 ] as const satisfies readonly CircleCardContentBlockDefinition[];

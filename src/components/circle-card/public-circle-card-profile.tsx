@@ -1631,6 +1631,90 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderBusinessHighlightsSection() {
+    const highlights = [
+      card.role
+        ? {
+            label: "Primary service",
+            value: card.role,
+            href: null as string | null,
+            anchorProps: undefined
+          }
+        : null,
+      card.location
+        ? {
+            label: "Service area",
+            value: card.location,
+            href: mapsHref(card.location),
+            anchorProps: getExternalLinkProps(mapsHref(card.location))
+          }
+        : null,
+      card.websiteUrl
+        ? {
+            label: "Website / enquiry",
+            value: displayHost(card.websiteUrl),
+            href: card.websiteUrl,
+            anchorProps: getExternalLinkProps(card.websiteUrl)
+          }
+        : null
+    ].filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    if (!highlights.length) {
+      return null;
+    }
+
+    return (
+      <section
+        aria-labelledby="business-highlights-title"
+        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.82),rgba(4,10,24,0.94))] p-5 shadow-panel-soft"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Business highlights</p>
+            <h2 id="business-highlights-title" className="mt-1 font-display text-2xl text-foreground">
+              What this business does
+            </h2>
+          </div>
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+            <BriefcaseBusiness size={18} />
+          </span>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {highlights.map((highlight) => {
+            const content = (
+              <>
+                <span className="block text-[11px] uppercase tracking-[0.08em] text-muted">
+                  {highlight.label}
+                </span>
+                <span className="mt-1 block break-words text-sm font-semibold text-foreground">
+                  {highlight.value}
+                </span>
+              </>
+            );
+
+            return highlight.href ? (
+              <a
+                key={highlight.label}
+                href={highlight.href}
+                {...highlight.anchorProps}
+                className="rounded-2xl border border-silver/14 bg-white/[0.04] p-4 transition-colors hover:border-gold/28 hover:bg-white/[0.06]"
+              >
+                {content}
+              </a>
+            ) : (
+              <div
+                key={highlight.label}
+                className="rounded-2xl border border-silver/14 bg-white/[0.04] p-4"
+              >
+                {content}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
   function renderShareQrSection({
     className,
     id = "circle-card-share",
@@ -2353,6 +2437,7 @@ export function PublicCircleCardProfile({
             </section>
 
             {renderAboutSection({ id: "business-about" })}
+            {renderBusinessHighlightsSection()}
             {renderQuickConnectSection({
               id: "business-quick-connect",
               heading: "Direct routes back"
