@@ -117,6 +117,7 @@ import {
   CircleCardPlatformOwnerSandboxToggle,
   CircleCardPlatformOwnerSessionDebug
 } from "@/components/circle-card/circle-card-platform-owner-preview-switcher";
+import { CircleCardCurrentCardSelector } from "@/components/circle-card/circle-card-current-card-selector";
 import { CircleCardReferralNudges } from "@/components/circle-card/circle-card-referral-nudges";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -139,6 +140,7 @@ import {
 import {
   CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
   CIRCLE_CARD_CONTROL_CENTRE_ROADMAP,
+  CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_LABELS,
   buildCircleCardPlatformOwnerLaunchChecklist,
   buildCircleCardPlatformOwnerPerformanceInspector,
   resolveCircleCardPlatformOwnerCardTypePreviewMode,
@@ -532,46 +534,52 @@ function circleCardSetupNextActionCopy(item: CircleCardSetupChecklistItem | null
 }
 
 function buildCircleCardSetupChecklist(input: {
+  cardId?: string | null;
   profileImageUrl?: string | null;
   about?: string | null;
   activeFeaturedLinkCount: number;
   location?: string | null;
   shareCount: number;
 }): CircleCardSetupChecklistItem[] {
+  const cardHref = (section: CircleCardAppSection, hash: string) =>
+    input.cardId
+      ? circleCardManageHref({ cardId: input.cardId, section, hash })
+      : circleCardSectionHref(section, hash);
+
   return [
     {
       id: "profile-image",
       label: "Add profile image",
       complete: hasSetupText(input.profileImageUrl),
-      href: circleCardSectionHref("my-card", "card-images"),
+      href: cardHref("my-card", "card-images"),
       actionLabel: "Edit images"
     },
     {
       id: "about",
       label: "Add bio/about",
       complete: hasSetupText(input.about),
-      href: circleCardSectionHref("my-card", "card-identity"),
+      href: cardHref("my-card", "card-identity"),
       actionLabel: "Edit profile"
     },
     {
       id: "featured-link",
       label: "Add first featured link",
       complete: input.activeFeaturedLinkCount > 0,
-      href: circleCardSectionHref("my-card", "custom-links"),
+      href: cardHref("my-card", "custom-links"),
       actionLabel: "Add link"
     },
     {
       id: "location",
       label: "Add location",
       complete: hasSetupText(input.location),
-      href: circleCardSectionHref("my-card", "card-contact-details"),
+      href: cardHref("my-card", "card-contact-details"),
       actionLabel: "Edit contact/location"
     },
     {
       id: "share",
       label: "Share your card",
       complete: input.shareCount > 0,
-      href: circleCardSectionHref("share", "share-assets"),
+      href: cardHref("share", "share-assets"),
       actionLabel: "Share card"
     }
   ];
@@ -595,7 +603,8 @@ function CircleCardSetupChecklistPanel({
   const completeCount = setupItems.filter((item) => item.complete).length;
   const progress = Math.round((completeCount / CIRCLE_CARD_SETUP_TOTAL_STEPS) * 100);
   const nextItem = setupItems.find((item) => !item.complete) ?? null;
-  const nextActionHref = nextItem?.href ?? circleCardSectionHref("share", "share-assets");
+  const nextActionHref =
+    nextItem?.href ?? circleCardManageHref({ cardId, section: "share", hash: "share-assets" });
   const nextActionLabel = nextItem?.actionLabel ?? "Share card";
   const nextActionCopy = circleCardSetupNextActionCopy(nextItem);
 
@@ -626,6 +635,9 @@ function CircleCardSetupChecklistPanel({
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
             Your card is live. A few small steps will make it stronger.
+          </p>
+          <p className="mt-2 text-xs font-medium uppercase tracking-[0.08em] text-gold">
+            Completing: {fullName}
           </p>
 
           <div className="mt-4 rounded-xl border border-silver/14 bg-background/24 p-3">
@@ -753,6 +765,7 @@ function businessBuilderBlockIcon(type: string) {
 function BusinessCardBuilderFoundation({
   access,
   previewLabel,
+  cardId,
   businessName,
   businessDescription,
   primaryService,
@@ -763,6 +776,7 @@ function BusinessCardBuilderFoundation({
 }: {
   access: BusinessCardBuilderAccess;
   previewLabel: string;
+  cardId: string;
   businessName?: string | null;
   businessDescription?: string | null;
   primaryService?: string | null;
@@ -779,31 +793,31 @@ function BusinessCardBuilderFoundation({
     {
       label: "Business description",
       value: businessDescription,
-      href: circleCardSectionHref("my-card", "card-identity"),
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" }),
       action: "Edit profile"
     },
     {
       label: "Primary service",
       value: primaryService,
-      href: circleCardSectionHref("my-card", "card-identity"),
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" }),
       action: "Edit role/service"
     },
     {
       label: "Business category",
       value: businessCategory || businessName,
-      href: circleCardSectionHref("my-card", "card-identity"),
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" }),
       action: "Edit identity"
     },
     {
       label: "Service area",
       value: serviceArea,
-      href: circleCardSectionHref("my-card", "card-contact-details"),
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" }),
       action: "Edit location"
     },
     {
       label: "Website",
       value: websiteUrl,
-      href: circleCardSectionHref("my-card", "card-contact-details"),
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" }),
       action: "Edit website"
     },
     {
@@ -815,7 +829,7 @@ function BusinessCardBuilderFoundation({
     {
       label: "Enquiry CTA link",
       value: websiteUrl,
-      href: circleCardSectionHref("my-card", "card-contact-details"),
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" }),
       action: websiteUrl ? "Uses website" : "Coming next"
     }
   ];
@@ -864,6 +878,9 @@ function BusinessCardBuilderFoundation({
       ) : (
         <div className="space-y-4">
           <div className="rounded-2xl border border-gold/20 bg-gold/8 p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+              Builder for: {businessName || "Selected Business Card"}
+            </p>
             <p className="text-sm font-semibold text-foreground">
               Business card = services, products, enquiry and trust.
             </p>
@@ -2943,6 +2960,24 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     {}
   );
   const publicUrl = card ? absoluteUrl(`/card/${card.slug}`) : null;
+  const currentCardTypeMeta = card ? circleCardHubTypeMeta(card.cardType) : null;
+  const currentCardDisplayName = card?.businessName || card?.fullName || "this Circle Card";
+  const currentCardContextLabel = card
+    ? `${currentCardDisplayName} - ${currentCardTypeMeta?.label ?? "Circle"} Card`
+    : "No Circle Card selected";
+  const currentCardSelectorOptions = cards.map((ownedCard) => {
+    const typeMeta = circleCardHubTypeMeta(ownedCard.cardType);
+    const statusMeta = circleCardHubStatusMeta({ isPublished: ownedCard.isPublished });
+
+    return {
+      id: ownedCard.id,
+      label: ownedCard.businessName || ownedCard.fullName,
+      detail: [ownedCard.fullName, ownedCard.role].filter(Boolean).join(" / "),
+      typeLabel: typeMeta.label,
+      statusLabel: statusMeta.label,
+      isDefault: ownedCard.isDefaultCard
+    };
+  });
   const referralPath = referralCentre?.identity.code
     ? buildCircleCardReferralPath(referralCentre.identity.code)
     : "";
@@ -2978,6 +3013,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     shareCount
   );
   const setupChecklistItems = buildCircleCardSetupChecklist({
+    cardId: card?.id,
     profileImageUrl: card?.profileImageUrl,
     about: card?.about,
     activeFeaturedLinkCount: activeCustomLinkCount,
@@ -3418,10 +3454,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     }
   ];
   const recentHomeActivity = visibleActivityItems.slice(0, 3);
-  const businessBuilderPreviewingBusiness =
-    isPlatformOwner && selectedOwnerCardTypePreviewMode === "business";
-  const showBusinessCardBuilder =
-    Boolean(card?.cardType === "BUSINESS") || businessBuilderPreviewingBusiness;
+  const showBusinessCardBuilder = Boolean(card?.cardType === "BUSINESS");
   const businessBuilderAccess: BusinessCardBuilderAccess = isPlatformOwner
     ? "platform-preview"
     : isCircleCardFree
@@ -3904,6 +3937,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </div>
       </section>
 
+      {card ? (
+        <CircleCardCurrentCardSelector
+          cards={currentCardSelectorOptions}
+          selectedCardId={card.id}
+          hasExplicitSelection={Boolean(selectedCardId)}
+          currentSection={activeSection}
+          isPlatformOwner={isPlatformOwner}
+          previewCardTypeLabel={
+            isPlatformOwner
+              ? CIRCLE_CARD_PLATFORM_OWNER_CARD_TYPE_PREVIEW_LABELS[selectedOwnerCardTypePreviewMode]
+              : undefined
+          }
+        />
+      ) : null}
+
       {!isPlatformOwner && card && publicUrl ? (
         <CircleCardSetupChecklistPanel
           cardId={card.id}
@@ -4320,7 +4368,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       {card && !card.accountType ? (
         <CircleCardIdentityBanner
           cardId={card.id}
-          returnPath={circleCardSectionHref("my-card", "card-identity")}
+          returnPath={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "card-identity" })}
           accountType={card.accountType}
           identityTags={card.identityTags}
         />
@@ -4357,7 +4405,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       Public Card
                     </Button>
                   </Link>
-                  <Link href={circleCardSectionHref("share", "share-assets-qr")}>
+                  <Link href={circleCardManageHref({ cardId: card.id, section: "share", hash: "share-assets-qr" })}>
                     <Button type="button" variant="outline" className="h-12 w-full gap-2">
                       <QrCode size={16} />
                       My QR
@@ -5897,7 +5945,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     <Share2 size={16} />
                     Add people through Connect Hub
                   </Link>
-                  <Link href={circleCardSectionHref("share", "share-assets")} className={cn(buttonVariants(), "gap-2")}>
+                  <Link href={card ? circleCardManageHref({ cardId: card.id, section: "share", hash: "share-assets" }) : circleCardSectionHref("share", "share-assets")} className={cn(buttonVariants(), "gap-2")}>
                     <QrCode size={16} />
                     Share your card
                   </Link>
@@ -6342,12 +6390,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         hideStatus
                         buttonClassName="h-10"
                       />
-                      <Link href={circleCardSectionHref("share", "share-assets-qr")} className={cn(buttonVariants({ variant: "outline" }), "h-10 gap-2")}>
+                      <Link href={circleCardManageHref({ cardId: card.id, section: "share", hash: "share-assets-qr" })} className={cn(buttonVariants({ variant: "outline" }), "h-10 gap-2")}>
                         <QrCode size={16} />
                         QR
                       </Link>
                       <Link
-                        href={circleCardSectionHref("share", "share-assets")}
+                        href={circleCardManageHref({ cardId: card.id, section: "share", hash: "share-assets" })}
                         className={cn(
                           buttonVariants({ variant: "outline" }),
                           "h-auto min-h-10 gap-2 px-2 text-center text-xs leading-tight sm:text-sm"
@@ -6660,15 +6708,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         defaultOpen={Boolean(card)}
       >
         {card && publicUrl && qrUrl && nfcUrl && eventUrl ? (
-          <CircleCardShareAssetsPanel
-            cardId={card.id}
-            fullName={card.fullName}
-            slug={card.slug}
-            publicUrl={publicUrl}
-            qrUrl={qrUrl}
-            nfcUrl={nfcUrl}
-            eventUrl={eventUrl}
-          />
+          <div className="space-y-4">
+            <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+              Share tools for: {currentCardDisplayName}
+            </p>
+            <CircleCardShareAssetsPanel
+              cardId={card.id}
+              fullName={card.fullName}
+              slug={card.slug}
+              publicUrl={publicUrl}
+              qrUrl={qrUrl}
+              nfcUrl={nfcUrl}
+              eventUrl={eventUrl}
+            />
+          </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
             Create and publish your Circle Card before generating share assets.
@@ -6865,6 +6918,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 summary={card?.fullName || "Name, role, slug, tagline and about text"}
                 defaultOpen
               >
+                <p className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                  Editing: {currentCardContextLabel}
+                </p>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="fullName">Full name</Label>
@@ -6948,6 +7004,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 title="Images"
                 summary={card?.profileImageUrl || card?.businessLogoUrl ? "Profile photo and logo set" : "Profile photo, business logo and crop controls"}
               >
+                <p className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                  Images for: {currentCardDisplayName}
+                </p>
                 <div className="grid gap-4 md:grid-cols-2">
                   <CircleCardImageUploadField
                     id="profileImageUrl"
@@ -6989,6 +7048,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 title="Profile Colours"
                 summary="Primary, accent and button colours for your public profile"
               >
+                <p className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                  Styling: {currentCardDisplayName}
+                </p>
                 <CircleCardThemeFields
                   themePrimaryColor={card?.themePrimaryColor}
                   themeAccentColor={card?.themeAccentColor}
@@ -7004,6 +7066,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 title="Contact details"
                 summary={[card?.websiteUrl, card?.email, card?.phone, card?.location].filter(Boolean).length ? "Website, email, phone and location" : "Add direct ways for people to reach you"}
               >
+                <p className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                  Contact details for: {currentCardDisplayName}
+                </p>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="websiteUrl">Website</Label>
@@ -7039,6 +7104,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 title="Social profiles"
                 summary={`${activeSocialLinkCount} active social link${activeSocialLinkCount === 1 ? "" : "s"} connected`}
               >
+                <p className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                  Social links for: {currentCardDisplayName}
+                </p>
                 <CircleCardSocialLinkEditor cardId={card?.id} initialLinks={socialLinkItems} />
               </CircleCardDashboardSection>
 
@@ -7056,7 +7124,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 <span>
                   Published
                   <span className="mt-1 block text-xs text-muted">
-                    Public cards are available at their /card link.
+                    Public cards are available at their /card link. Applies to {currentCardDisplayName}.
                   </span>
                 </span>
               </label>
@@ -7111,6 +7179,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             <div className="space-y-4">
               {publicUrl && card ? (
                 <>
+                  <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                    QR / Share for: {currentCardDisplayName}
+                  </p>
                   <CircleCardQrPanel publicUrl={publicUrl} slug={card.slug} />
                   <Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">
                     <Button type="button" variant="outline" className="w-full gap-2">
@@ -7164,7 +7235,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   Analytics
                 </CardTitle>
                 <CardDescription>
-                  {card?.viewCount ?? 0} public view{(card?.viewCount ?? 0) === 1 ? "" : "s"} recorded.
+                  Analytics for {currentCardDisplayName}: {card?.viewCount ?? 0} public view{(card?.viewCount ?? 0) === 1 ? "" : "s"} recorded.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -7218,6 +7289,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         <BusinessCardBuilderFoundation
           access={businessBuilderAccess}
           previewLabel={businessBuilderPreviewLabel}
+          cardId={card.id}
           businessName={card.businessName}
           businessDescription={card.about}
           primaryService={card.role}
@@ -7238,7 +7310,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         >
           <CircleCardSmartProfileImportPanel
             cardId={card.id}
-            returnPath={circleCardSectionHref("my-card", "smart-profile-import")}
+            returnPath={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "smart-profile-import" })}
             isCreatorLayout={card.profileLayout === "CREATOR"}
             existingTagline={card.tagline}
             existingProfileImageUrl={card.profileImageUrl}
@@ -7265,6 +7337,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         }
       >
         <div className="space-y-5">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+            Links for: {currentCardDisplayName}
+          </p>
 
         {card ? (
           <>
@@ -7378,7 +7453,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
                             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap md:justify-end">
                               <form action={moveCircleCardLinkAction}>
-                                <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
+                                <input type="hidden" name="returnPath" value={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "custom-links" })} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <input type="hidden" name="direction" value="up" />
@@ -7400,7 +7475,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 </CircleCardSubmitButton>
                               </form>
                               <form action={moveCircleCardLinkAction}>
-                                <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
+                                <input type="hidden" name="returnPath" value={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "custom-links" })} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <input type="hidden" name="direction" value="down" />
@@ -7422,7 +7497,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 </CircleCardSubmitButton>
                               </form>
                               <form action={toggleCircleCardLinkAction}>
-                                <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
+                                <input type="hidden" name="returnPath" value={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "custom-links" })} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <CircleCardSubmitButton
@@ -7435,7 +7510,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                                 </CircleCardSubmitButton>
                               </form>
                               <form action={deleteCircleCardLinkAction}>
-                                <input type="hidden" name="returnPath" value={circleCardSectionHref("my-card", "custom-links")} />
+                                <input type="hidden" name="returnPath" value={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "custom-links" })} />
                                 <input type="hidden" name="cardId" value={card.id} />
                                 <input type="hidden" name="linkId" value={customLink.id} />
                                 <CircleCardSubmitButton
@@ -7597,6 +7672,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         }
       >
         <div className="space-y-5">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+            Analytics for: {currentCardDisplayName}
+          </p>
 
         {card ? (
           <>
@@ -9336,12 +9414,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     <input type="hidden" name="location" value={card.location ?? ""} />
                     <input type="hidden" name="socialLinksJson" value={JSON.stringify(socialLinkItems)} />
 
+                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+                      Settings for: {currentCardDisplayName}
+                    </p>
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px_220px_260px]">
                       <div className="space-y-2">
                         <Label htmlFor="settings-slug">Public slug</Label>
                         <Input id="settings-slug" name="slug" defaultValue={card.slug} placeholder="your-name" />
                         <p className="break-all text-xs text-muted">
-                          {publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
+                          Public URL for {currentCardDisplayName}: {publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
                         </p>
                       </div>
                       <div className="space-y-2">
@@ -9427,7 +9508,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         <Save size={16} />
                         Save Settings
                       </CircleCardSubmitButton>
-                      <Link href={circleCardSectionHref("my-card", "card-identity")} className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+                      <Link href={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "card-identity" })} className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
                         Edit Full Card
                         <ArrowUpRight size={16} />
                       </Link>
@@ -9460,7 +9541,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   Community Standards
                   <ArrowUpRight size={16} />
                 </Link>
-                <Link href={circleCardSectionHref("share", "share-assets")} className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}>
+                <Link href={card ? circleCardManageHref({ cardId: card.id, section: "share", hash: "share-assets" }) : circleCardSectionHref("share", "share-assets")} className={cn(buttonVariants({ variant: "outline" }), "h-11 gap-2")}>
                   Share Controls
                   <Share2 size={16} />
                 </Link>
