@@ -21,6 +21,7 @@ import {
   Crown,
   Download,
   Eye,
+  EyeOff,
   Filter,
   Gauge,
   Link as LinkIcon,
@@ -102,7 +103,9 @@ import {
   CircleCardSmartLinkManager,
   CircleCardTrackedLink,
   CircleCardSmartLinkFields,
-  CircleCardThemeFields
+  CircleCardThemeFields,
+  CircleCardVisibilityCheckbox,
+  CircleCardVisibilityToggle
 } from "@/components/circle-card";
 import {
   CircleCardPlatformOwnerCardTypePreviewBadge,
@@ -484,7 +487,7 @@ function circleCardHubStatusMeta(input: { isPublished: boolean }) {
   }
 
   return {
-    label: "Hidden (future)",
+    label: "Hidden",
     className: "border-silver/18 bg-silver/8 text-silver"
   };
 }
@@ -1097,6 +1100,10 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "card-default-updated": "Default Circle Card updated.",
   "card-order-updated": "Public card order updated.",
   "card-order-unchanged": "That card is already in that position.",
+  "card-set-live": "Circle Card is now live.",
+  "card-hidden": "Circle Card hidden from public view.",
+  "card-already-live": "That Circle Card is already live.",
+  "card-already-hidden": "That Circle Card is already hidden.",
   "card-archived": "Circle Card archived.",
   "card-saved": "Contact saved to your Circle Wallet.",
   "card-already-saved": "That card is already in your Circle Wallet.",
@@ -1152,6 +1159,7 @@ const NOTICE_MESSAGES: Record<string, string> = {
 const ERROR_MESSAGES: Record<string, string> = {
   "invalid-card": "Check the card fields and try again.",
   "card-not-found": "That Circle Card could not be found.",
+  "card-hidden-default": "Set the Circle Card live before making it your public default.",
   "card-limit": "You have reached the Circle Card limit for your current access.",
   "slug-taken": "That public card link is already taken.",
   "card-save-failed": "The Circle Card could not be saved.",
@@ -2446,6 +2454,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     : actualCircleCardEntitlement;
   const featureAccess = getCircleCardFeatureAccess(circleCardEntitlement.accessLevel);
   const cardCount = cards.length;
+  const liveCardCount = cards.filter((ownedCard) => ownedCard.isPublished).length;
   const canCreateAdditionalCard = canCreateCircleCard({
     accessLevel: circleCardEntitlement.accessLevel,
     existingCardCount: cardCount
@@ -3745,35 +3754,36 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     </div>
 
                     <div className="mt-4 rounded-xl border border-silver/12 bg-card/36 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Public URL</p>
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted">
+                        {ownedCard.isPublished ? "Public URL" : "Reserved public URL"}
+                      </p>
                       <p className="mt-1 break-all text-sm font-medium text-foreground">{ownedPublicUrl}</p>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                      <span className="inline-flex items-center rounded-full border border-emerald-400/24 bg-emerald-400/10 px-2 py-0.5 font-medium text-emerald-200">
-                        Live
-                      </span>
-                      <span className="inline-flex items-center rounded-full border border-silver/14 bg-card/32 px-2 py-0.5 text-muted">
-                        Draft - future
-                      </span>
-                      <span className="inline-flex items-center rounded-full border border-silver/14 bg-card/32 px-2 py-0.5 text-muted">
-                        Archived - future
-                      </span>
-                      <span className="inline-flex items-center rounded-full border border-silver/14 bg-card/32 px-2 py-0.5 text-muted">
-                        Hidden - future
-                      </span>
-                    </div>
+                    {!ownedCard.isPublished ? (
+                      <p className="mt-3 inline-flex items-center gap-2 text-xs text-muted">
+                        <EyeOff size={14} className="text-silver" />
+                        Hidden from public switcher
+                      </p>
+                    ) : null}
 
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      <Link
-                        href={`/card/${ownedCard.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 justify-center gap-2")}
-                      >
-                        <Eye size={15} />
-                        View Public Card
-                      </Link>
+                      {ownedCard.isPublished ? (
+                        <Link
+                          href={`/card/${ownedCard.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 justify-center gap-2")}
+                        >
+                          <Eye size={15} />
+                          View Public Card
+                        </Link>
+                      ) : (
+                        <div className="flex h-10 items-center justify-center gap-2 rounded-md border border-silver/14 bg-background/18 px-3 text-xs text-muted">
+                          <EyeOff size={15} />
+                          Public view hidden
+                        </div>
+                      )}
                       <Link
                         href={circleCardManageHref({
                           cardId: ownedCard.id,
@@ -3785,27 +3795,31 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         <ContactRound size={15} />
                         {selected ? "Editing Card" : "Edit Card"}
                       </Link>
-                      <CircleCardCopyLinkButton
-                        publicUrl={ownedPublicUrl}
-                        label="Copy Public Link"
-                        size="sm"
-                        className="h-10 w-full justify-center"
-                        analytics={{
-                          cardId: ownedCard.id,
-                          source: "my_circle_cards_hub"
-                        }}
-                      />
-                      <Link
-                        href={circleCardManageHref({
-                          cardId: ownedCard.id,
-                          section: "share",
-                          hash: "share-assets-qr"
-                        })}
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 justify-center gap-2")}
-                      >
-                        <QrCode size={15} />
-                        Download QR
-                      </Link>
+                      {ownedCard.isPublished ? (
+                        <>
+                          <CircleCardCopyLinkButton
+                            publicUrl={ownedPublicUrl}
+                            label="Copy Public Link"
+                            size="sm"
+                            className="h-10 w-full justify-center"
+                            analytics={{
+                              cardId: ownedCard.id,
+                              source: "my_circle_cards_hub"
+                            }}
+                          />
+                          <Link
+                            href={circleCardManageHref({
+                              cardId: ownedCard.id,
+                              section: "share",
+                              hash: "share-assets-qr"
+                            })}
+                            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 justify-center gap-2")}
+                          >
+                            <QrCode size={15} />
+                            Download QR
+                          </Link>
+                        </>
+                      ) : null}
                       <Link
                         href={circleCardManageHref({
                           cardId: ownedCard.id,
@@ -3828,21 +3842,30 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         <Wrench size={15} />
                         Settings
                       </Link>
-                      <div className="sm:col-span-2">
-                        <CircleCardShareButton
-                          title={cardTitle}
-                          publicUrl={ownedPublicUrl}
-                          cardId={ownedCard.id}
-                          analyticsSource="my_circle_cards_hub"
-                          label="Share"
-                          size="sm"
-                          hideStatus
-                          buttonClassName="h-10"
-                        />
-                      </div>
+                      {ownedCard.isPublished ? (
+                        <div className="sm:col-span-2">
+                          <CircleCardShareButton
+                            title={cardTitle}
+                            publicUrl={ownedPublicUrl}
+                            cardId={ownedCard.id}
+                            analyticsSource="my_circle_cards_hub"
+                            label="Share"
+                            size="sm"
+                            hideStatus
+                            buttonClassName="h-10"
+                          />
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <CircleCardVisibilityToggle
+                        cardId={ownedCard.id}
+                        isPublished={ownedCard.isPublished}
+                        isDefaultCard={Boolean(ownedCard.isDefaultCard || ownedCard.isPrimary)}
+                        isOnlyLiveCard={ownedCard.isPublished && liveCardCount === 1}
+                        returnPath={manageReturnPath}
+                      />
                       <form action={setDefaultCircleCardAction}>
                         <input type="hidden" name="cardId" value={ownedCard.id} />
                         <input type="hidden" name="returnPath" value={manageReturnPath} />
@@ -3851,10 +3874,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           variant="outline"
                           size="sm"
                           className="h-10 w-full gap-2"
-                          disabled={ownedCard.isDefaultCard}
+                          disabled={ownedCard.isDefaultCard || !ownedCard.isPublished}
                         >
                           <Star size={15} />
-                          {ownedCard.isDefaultCard ? "Default Public Card" : "Make Default Public"}
+                          {ownedCard.isDefaultCard
+                            ? "Default Public Card"
+                            : ownedCard.isPublished
+                              ? "Make Default Public"
+                              : "Set Live to Make Default"}
                         </Button>
                       </form>
                       <Button type="button" variant="outline" size="sm" className="h-10 w-full gap-2" disabled>
@@ -3917,7 +3944,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </div>
             <div className="grid gap-2 text-xs">
               <div className="rounded-lg border border-silver/12 bg-card/42 p-2 text-muted">
-                Live is active now. Draft, Archived and Hidden are reserved future states.
+                Live cards are public and appear in the switcher. Hidden cards remain editable here.
               </div>
               {canPreviewFutureCircleCardFoundation ? (
                 <>
@@ -7114,17 +7141,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 htmlFor="isPublished"
                 className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
               >
-                <input
+                <CircleCardVisibilityCheckbox
                   id="isPublished"
-                  name="isPublished"
-                  type="checkbox"
                   defaultChecked={card?.isPublished ?? true}
-                  className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                  isDefaultCard={Boolean(card?.isDefaultCard || card?.isPrimary)}
+                  isOnlyLiveCard={Boolean(card?.isPublished && liveCardCount === 1)}
                 />
                 <span>
-                  Published
+                  Live
                   <span className="mt-1 block text-xs text-muted">
-                    Public cards are available at their /card link. Applies to {currentCardDisplayName}.
+                    Live cards are available at their /card link and public card switcher. Applies
+                    to {currentCardDisplayName}.
                   </span>
                 </span>
               </label>
@@ -9446,18 +9473,16 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         htmlFor="settings-isPublished"
                         className="flex min-h-11 items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
                       >
-                        <input
+                        <CircleCardVisibilityCheckbox
                           id="settings-isPublished"
-                          name="isPublished"
-                          type="checkbox"
-                          value="on"
                           defaultChecked={card.isPublished}
-                          className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
+                          isDefaultCard={Boolean(card.isDefaultCard || card.isPrimary)}
+                          isOnlyLiveCard={card.isPublished && liveCardCount === 1}
                         />
                         <span>
-                          Published
+                          Live
                           <span className="mt-1 block text-xs text-muted">
-                            Unpublished cards are not available at their public /card link.
+                            Hidden cards are not available at their public /card link or switcher.
                           </span>
                         </span>
                       </label>

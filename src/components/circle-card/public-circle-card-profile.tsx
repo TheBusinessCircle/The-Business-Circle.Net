@@ -1132,45 +1132,28 @@ export function PublicCircleCardProfile({
     return (
       <nav
         aria-label={`${card.fullName} Circle Cards`}
-        className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-2 shadow-inner-surface backdrop-blur"
+        className="mt-3 flex flex-wrap items-center gap-2"
       >
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 px-2 py-1">
-            <p className="truncate text-sm font-semibold text-foreground">{card.fullName}</p>
-            <p className="text-xs text-muted">Choose a Circle Card</p>
-          </div>
-          <div className="grid gap-2 sm:flex sm:min-w-0 sm:flex-wrap sm:justify-end">
-            {card.ownerCards.map((ownerCard) => {
-              const selected = ownerCard.id === card.id;
-              const label = getCircleCardTypeLabel(ownerCard.cardType) ?? ownerCard.cardType;
-              const subtitle = ownerCard.isDefaultCard
-                ? "Default"
-                : ownerCard.businessName ?? ownerCard.tagline ?? ownerCard.fullName;
+        {card.ownerCards.map((ownerCard) => {
+          const selected = ownerCard.id === card.id;
+          const label = getCircleCardTypeLabel(ownerCard.cardType) ?? ownerCard.cardType;
 
-              return (
-                <Link
-                  key={ownerCard.id}
-                  href={publicCardPath(ownerCard.slug, source)}
-                  aria-current={selected ? "page" : undefined}
-                  data-active={selected ? "true" : "false"}
-                  className={cn(
-                    "flex min-h-12 min-w-0 items-center justify-between gap-3 rounded-xl border border-silver/12 bg-background/22 px-3 py-2 text-left transition-colors hover:border-gold/32 hover:text-foreground sm:min-w-[148px]",
-                    "data-[active=true]:border-gold/42 data-[active=true]:bg-gold/14"
-                  )}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-foreground">{label}</span>
-                    <span className="block truncate text-xs text-muted">{subtitle}</span>
-                  </span>
-                  <ChevronRight
-                    size={16}
-                    className={cn("shrink-0 text-silver", selected && "text-gold")}
-                  />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+          return (
+            <Link
+              key={ownerCard.id}
+              href={publicCardPath(ownerCard.slug, source)}
+              aria-current={selected ? "page" : undefined}
+              data-active={selected ? "true" : "false"}
+              className={cn(
+                "inline-flex min-h-11 items-center justify-center rounded-full border border-silver/16 bg-background/30 px-4 py-2 text-sm font-semibold text-silver shadow-inner-surface backdrop-blur transition-colors hover:border-gold/36 hover:text-foreground",
+                "data-[active=true]:border-gold/48 data-[active=true]:bg-gold/16 data-[active=true]:text-gold"
+              )}
+            >
+              {label}
+              {ownerCard.isDefaultCard ? <span className="sr-only"> (default)</span> : null}
+            </Link>
+          );
+        })}
       </nav>
     );
   }

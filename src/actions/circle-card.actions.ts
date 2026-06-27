@@ -276,6 +276,7 @@ const CIRCLE_CARD_OPPORTUNITY_STATUS_FIELDS = [
 const CIRCLE_CARD_NOTIFICATION_ID_FIELDS = ["notificationId", "returnPath"] as const;
 const CIRCLE_CARD_NOTIFICATION_MARK_ALL_FIELDS = ["returnPath"] as const;
 const CIRCLE_CARD_MANAGEMENT_FIELDS = ["cardId", "returnPath"] as const;
+const CIRCLE_CARD_VISIBILITY_FIELDS = ["cardId", "visibility", "returnPath"] as const;
 const CIRCLE_CARD_ORDER_FIELDS = ["cardId", "direction", "returnPath"] as const;
 
 const CIRCLE_CARD_CUSTOM_LINK_TOTAL_LIMIT = CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT;
@@ -491,6 +492,12 @@ function readCircleCardNotificationMarkAllFormData(formData: FormData) {
 function readCircleCardManagementFormData(formData: FormData) {
   return Object.fromEntries(
     CIRCLE_CARD_MANAGEMENT_FIELDS.map((field) => [field, formData.get(field) ?? ""])
+  );
+}
+
+function readCircleCardVisibilityFormData(formData: FormData) {
+  return Object.fromEntries(
+    CIRCLE_CARD_VISIBILITY_FIELDS.map((field) => [field, formData.get(field) ?? ""])
   );
 }
 
@@ -1438,6 +1445,9 @@ export async function upsertCircleCardAction(
         select: {
           id: true,
           slug: true,
+          isPublished: true,
+          isDefaultCard: true,
+          isPrimary: true,
           showInDiscover: true,
           discoverOptedInAt: true,
           archivedAt: true
@@ -1552,10 +1562,81 @@ export async function upsertCircleCardAction(
 
   try {
     if (cardId) {
-      await prisma.circleCard.update({
-        where: { id: cardId },
-        data
-      });
+      const publicationChanged =
+        typeof existingCard?.isPublished === "boolean" &&
+        existingCard.isPublished !== data.isPublished;
+      const needsDefaultReassignment =
+        !data.isPublished && Boolean(existingCard?.isDefaultCard || existingCard?.isPrimary);
+
+      if (publicationChanged || needsDefaultReassignment) {
+        await prisma.$transaction(async (tx) => {
+          await tx.circleCard.update({
+            where: { id: cardId },
+            data: {
+              ...data,
+              ...(!data.isPublished
+                ? {
+                    isDefaultCard: false,
+                    isPrimary: false,
+                    showInDiscover: false,
+                    discoverOptedInAt: null
+                  }
+                : {})
+            }
+          });
+
+          if (needsDefaultReassignment) {
+            const nextDefaultCard = await tx.circleCard.findFirst({
+              where: {
+                userId: user.id,
+                id: { not: cardId },
+                archivedAt: null,
+                isPublished: true
+              },
+              orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+              select: { id: true }
+            });
+
+            await tx.circleCard.updateMany({
+              where: { userId: user.id, archivedAt: null },
+              data: { isDefaultCard: false, isPrimary: false }
+            });
+
+            if (nextDefaultCard) {
+              await tx.circleCard.update({
+                where: { id: nextDefaultCard.id },
+                data: { isDefaultCard: true, isPrimary: true }
+              });
+            }
+          } else if (data.isPublished && existingCard?.isPublished === false) {
+            const currentLiveDefault = await tx.circleCard.findFirst({
+              where: {
+                userId: user.id,
+                archivedAt: null,
+                isPublished: true,
+                OR: [{ isDefaultCard: true }, { isPrimary: true }]
+              },
+              select: { id: true }
+            });
+
+            if (!currentLiveDefault) {
+              await tx.circleCard.updateMany({
+                where: { userId: user.id, archivedAt: null },
+                data: { isDefaultCard: false, isPrimary: false }
+              });
+              await tx.circleCard.update({
+                where: { id: cardId },
+                data: { isDefaultCard: true, isPrimary: true }
+              });
+            }
+          }
+        });
+      } else {
+        await prisma.circleCard.update({
+          where: { id: cardId },
+          data
+        });
+      }
 
       await createCircleCardActivity({
         userId: user.id,
@@ -1569,6 +1650,15 @@ export async function upsertCircleCardAction(
 
       revalidateCircleCardPaths(existingCard?.slug);
       revalidateCircleCardPaths(slug);
+      if (publicationChanged) {
+        const ownerCardSlugs = await prisma.circleCard.findMany({
+          where: { userId: user.id, archivedAt: null },
+          select: { slug: true }
+        });
+        for (const ownerCard of ownerCardSlugs) {
+          revalidateCircleCardPublicPaths(ownerCard.slug);
+        }
+      }
       return circleCardSaveSuccess({ cardId, slug });
     }
 
@@ -1578,12 +1668,23 @@ export async function upsertCircleCardAction(
         archivedAt: null
       }
     });
+    const currentLiveDefault = data.isPublished
+      ? await prisma.circleCard.findFirst({
+          where: {
+            userId: user.id,
+            archivedAt: null,
+            isPublished: true,
+            OR: [{ isDefaultCard: true }, { isPrimary: true }]
+          },
+          select: { id: true }
+        })
+      : null;
     const card = await prisma.circleCard.create({
       data: {
         ...data,
         userId: user.id,
-        isPrimary: cardCount === 0,
-        isDefaultCard: cardCount === 0,
+        isPrimary: data.isPublished && !currentLiveDefault,
+        isDefaultCard: data.isPublished && !currentLiveDefault,
         displayOrder: cardCount,
         contentBlocks: createEmptyCircleCardContentBlocks() as Prisma.InputJsonValue
       },
@@ -1641,12 +1742,17 @@ export async function setDefaultCircleCardAction(formData: FormData) {
     },
     select: {
       id: true,
-      slug: true
+      slug: true,
+      isPublished: true
     }
   });
 
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
+  }
+
+  if (!card.isPublished) {
+    redirectWithError(returnPath, "card-hidden-default");
   }
 
   await prisma.$transaction([
@@ -1697,6 +1803,137 @@ export async function setDefaultCircleCardAction(formData: FormData) {
     revalidateCircleCardPublicPaths(activeCard.slug);
   }
   redirectWithNotice(returnPath, "card-default-updated");
+}
+
+export async function setCircleCardVisibilityAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const values = readCircleCardVisibilityFormData(formData);
+  const returnPath = resolveReturnPath(values.returnPath, "/dashboard/circle-card");
+  const cardId = typeof values.cardId === "string" ? values.cardId : "";
+  const visibility =
+    values.visibility === "live" ? "live" : values.visibility === "hidden" ? "hidden" : null;
+
+  if (!cardId || !visibility) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: {
+      id: cardId,
+      userId: user.id,
+      archivedAt: null
+    },
+    select: {
+      id: true,
+      slug: true,
+      fullName: true,
+      isPublished: true,
+      isDefaultCard: true,
+      isPrimary: true
+    }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  const makeLive = visibility === "live";
+
+  if (card.isPublished === makeLive) {
+    redirectWithNotice(returnPath, makeLive ? "card-already-live" : "card-already-hidden");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.circleCard.update({
+      where: { id: card.id },
+      data: makeLive
+        ? { isPublished: true }
+        : {
+            isPublished: false,
+            showInDiscover: false,
+            discoverOptedInAt: null,
+            isDefaultCard: false,
+            isPrimary: false
+          }
+    });
+
+    if (!makeLive && (card.isDefaultCard || card.isPrimary)) {
+      const nextDefaultCard = await tx.circleCard.findFirst({
+        where: {
+          userId: user.id,
+          id: { not: card.id },
+          archivedAt: null,
+          isPublished: true
+        },
+        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+        select: { id: true }
+      });
+
+      await tx.circleCard.updateMany({
+        where: { userId: user.id, archivedAt: null },
+        data: { isDefaultCard: false, isPrimary: false }
+      });
+
+      if (nextDefaultCard) {
+        await tx.circleCard.update({
+          where: { id: nextDefaultCard.id },
+          data: { isDefaultCard: true, isPrimary: true }
+        });
+      }
+    }
+
+    if (makeLive) {
+      const currentLiveDefault = await tx.circleCard.findFirst({
+        where: {
+          userId: user.id,
+          archivedAt: null,
+          isPublished: true,
+          OR: [{ isDefaultCard: true }, { isPrimary: true }]
+        },
+        select: { id: true }
+      });
+
+      if (!currentLiveDefault) {
+        await tx.circleCard.updateMany({
+          where: { userId: user.id, archivedAt: null },
+          data: { isDefaultCard: false, isPrimary: false }
+        });
+        await tx.circleCard.update({
+          where: { id: card.id },
+          data: { isDefaultCard: true, isPrimary: true }
+        });
+      }
+    }
+  });
+
+  await createCircleCardActivity({
+    userId: user.id,
+    circleCardId: card.id,
+    type: "CARD_UPDATED",
+    title: makeLive ? "Circle Card set live" : "Circle Card hidden",
+    message: makeLive
+      ? `${card.fullName}'s Circle Card is now publicly available.`
+      : `${card.fullName}'s Circle Card was hidden from public view.`,
+    entityType: "CIRCLE_CARD",
+    entityId: card.id,
+    metadata: {
+      source: "circle_card_visibility_control",
+      visibility
+    }
+  });
+
+  const ownerCardSlugs = await prisma.circleCard.findMany({
+    where: { userId: user.id, archivedAt: null },
+    select: { slug: true }
+  });
+
+  revalidatePath("/dashboard/circle-card");
+  revalidatePath("/circle-card");
+  for (const ownerCard of ownerCardSlugs) {
+    revalidateCircleCardPublicPaths(ownerCard.slug);
+  }
+
+  redirectWithNotice(returnPath, makeLive ? "card-set-live" : "card-hidden");
 }
 
 export async function moveCircleCardDisplayOrderAction(formData: FormData) {
