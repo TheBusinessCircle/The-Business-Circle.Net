@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { BackToTopButton } from "@/components/ui/back-to-top-button";
 import {
   CIRCLE_CARD_ACCOUNT_TYPE_COPY,
   getCircleCardAccountTypeLabel
@@ -1030,6 +1031,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
         />
         <MetricGrid metrics={scannerMetrics} />
       </section>
+      <BackToTopButton />
     </div>
   );
 }

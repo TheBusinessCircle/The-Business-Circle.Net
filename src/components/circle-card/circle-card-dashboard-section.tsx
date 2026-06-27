@@ -38,7 +38,13 @@ export function CircleCardDashboardSection({
     } catch {
       // Local UI memory should never block the dashboard.
     }
-  }, [storageKey]);
+
+    const targetId = window.location.hash ? decodeURIComponent(window.location.hash.slice(1)) : "";
+    const target = targetId ? document.getElementById(targetId) : null;
+    if (targetId === id || (target && sectionRef.current?.contains(target))) {
+      setOpen(true);
+    }
+  }, [id, storageKey]);
 
   useEffect(() => {
     function openForTarget(event: Event) {
@@ -87,28 +93,28 @@ export function CircleCardDashboardSection({
     >
       <button
         type="button"
-        className="flex w-full items-start justify-between gap-4 px-4 py-4 text-left transition-colors hover:bg-background/18 sm:px-5"
+        className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-background/18 sm:gap-4 sm:px-5 sm:py-4"
         aria-expanded={open}
         aria-controls={`${id}-content`}
         onClick={toggleOpen}
       >
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="font-display text-xl font-semibold text-foreground">{title}</span>
+            <span className="font-display text-lg font-semibold text-foreground sm:text-xl">{title}</span>
             {badge}
           </span>
           <span className="mt-1 block text-sm leading-relaxed text-muted">{summary}</span>
         </span>
         <span
           className={cn(
-            "mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/18 bg-gold/10 text-gold transition-transform",
+            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/18 bg-gold/10 text-gold transition-transform sm:mt-1 sm:h-9 sm:w-9 sm:rounded-xl",
             open ? "rotate-180" : ""
           )}
         >
           <ChevronDown size={16} />
         </span>
       </button>
-      <div id={`${id}-content`} hidden={!open} className="border-t border-silver/12 px-4 py-5 sm:px-5">
+      <div id={`${id}-content`} hidden={!open} className="min-w-0 border-t border-silver/12 px-3 py-4 sm:px-5 sm:py-5">
         {children}
       </div>
     </section>

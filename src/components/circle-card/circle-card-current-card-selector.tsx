@@ -5,6 +5,7 @@ import { ContactRound, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { CircleCardDashboardSection } from "@/components/circle-card/circle-card-dashboard-section";
 
 const CURRENT_CARD_STORAGE_KEY = "circle-card.dashboard.current-card-id";
 
@@ -80,19 +81,25 @@ export function CircleCardCurrentCardSelector({
   }
 
   return (
-    <section
+    <CircleCardDashboardSection
       id="current-card"
-      className="scroll-mt-24 rounded-2xl border border-silver/14 bg-card/64 p-4 shadow-inner-surface sm:p-5"
+      title="Current Card"
+      summary={[selectedCard.label, selectedCard.detail].filter(Boolean).join(" — ")}
+      defaultOpen
+      badge={
+        <Badge variant="outline" className="border-emerald-400/24 text-emerald-200">
+          {selectedCard.statusLabel}
+        </Badge>
+      }
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Current Card</p>
-          <div className="mt-2 flex min-w-0 items-start gap-3">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gold/18 bg-gold/10 text-gold">
-              <ContactRound size={20} />
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/18 bg-gold/10 text-gold">
+              <ContactRound size={18} />
             </span>
             <div className="min-w-0">
-              <h2 className="truncate font-display text-2xl text-foreground">{selectedCard.label}</h2>
+              <h2 className="truncate font-display text-xl text-foreground">{selectedCard.label}</h2>
               {selectedCard.detail ? (
                 <p className="mt-1 truncate text-sm text-muted">{selectedCard.detail}</p>
               ) : null}
@@ -137,6 +144,6 @@ export function CircleCardCurrentCardSelector({
           </Button>
         </div>
       </div>
-    </section>
+    </CircleCardDashboardSection>
   );
 }
