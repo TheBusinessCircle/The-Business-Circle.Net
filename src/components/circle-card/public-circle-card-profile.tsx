@@ -1698,6 +1698,70 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderServicesSection({ id = "business-services" }: { id?: string } = {}) {
+    if (card.cardType !== "BUSINESS" || !card.services.length) {
+      return null;
+    }
+
+    return (
+      <section
+        id={id}
+        aria-labelledby={`${id}-title`}
+        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Services</p>
+            <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">
+              What we can help with
+            </h2>
+          </div>
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+            <BriefcaseBusiness size={18} />
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {card.services.map((service) => (
+            <article
+              key={service.id}
+              className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]"
+            >
+              {service.imageUrl ? (
+                <CircleCardFramedImage
+                  src={service.imageUrl}
+                  alt={service.title}
+                  className="aspect-[16/9] w-full border-b border-silver/12 bg-background/40"
+                  imageClassName="h-full w-full object-cover"
+                />
+              ) : null}
+              <div className="flex flex-1 flex-col p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3 className="min-w-0 text-base font-semibold text-foreground">{service.title}</h3>
+                  {service.startingPrice ? (
+                    <span className="shrink-0 rounded-full border border-gold/20 bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold">
+                      {service.startingPrice}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{service.description}</p>
+                {service.ctaLabel && service.ctaUrl ? (
+                  <a
+                    {...getExternalLinkProps(service.ctaUrl)}
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 h-10 w-full gap-2 sm:w-fit")}
+                  >
+                    {service.ctaLabel}
+                    <ChevronRight size={14} />
+                  </a>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   function renderShareQrSection({
     className,
     id = "circle-card-share",
@@ -1880,6 +1944,7 @@ export function PublicCircleCardProfile({
             </section>
 
             {renderAboutSection({ id: "classic-about" })}
+            {renderServicesSection({ id: "classic-services" })}
             {renderQuickConnectSection({
               id: "classic-quick-connect",
               heading: "Ways to connect"
@@ -2114,6 +2179,7 @@ export function PublicCircleCardProfile({
             ) : null}
 
             {renderAboutSection({ id: "creator-about" })}
+            {renderServicesSection({ id: "creator-services" })}
             {renderQuickConnectSection({
               id: "creator-quick-connect",
               heading: "Contact and socials"
@@ -2421,6 +2487,7 @@ export function PublicCircleCardProfile({
 
             {renderAboutSection({ id: "business-about" })}
             {renderBusinessHighlightsSection()}
+            {renderServicesSection()}
             {renderQuickConnectSection({
               id: "business-quick-connect",
               heading: "Direct routes back"

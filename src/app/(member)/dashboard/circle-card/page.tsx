@@ -57,6 +57,7 @@ import {
   createCircleCardOpportunityAction,
   createCircleCardReferralAction,
   createCircleCardIntroductionAction,
+  deleteCircleCardServiceAction,
   deleteCircleCardLinkAction,
   declineCircleCardConnectionRequestAction,
   declineCircleCardIntroductionAction,
@@ -71,6 +72,7 @@ import {
   setDefaultCircleCardAction,
   toggleCircleWalletFavouriteAction,
   toggleCircleCardLinkAction,
+  toggleCircleCardServiceAction,
   updateCircleCardOpportunityAction,
   updateCircleCardOpportunityStatusAction,
   updateCircleCardRecommendationStatusAction,
@@ -78,6 +80,7 @@ import {
   updateCircleWalletContactDetailsAction,
   upsertCircleCardRecommendationAction,
   upsertCircleCardAction,
+  upsertCircleCardServiceAction,
   upsertCircleCardLinkAction
 } from "@/actions/circle-card.actions";
 import {
@@ -181,8 +184,13 @@ import {
 } from "@/lib/circle-card/card-types";
 import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
+  CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
-  CIRCLE_CARD_CREATOR_BLOCK_TYPES
+  CIRCLE_CARD_CREATOR_BLOCK_TYPES,
+  readCircleCardServices,
+  resolveCircleCardServicesBuilderMode,
+  type CircleCardServiceItem,
+  type CircleCardServicesBuilderMode
 } from "@/lib/circle-card/content-blocks";
 import { circleCardIntroductionStatusLabel } from "@/lib/circle-card/introductions";
 import {
@@ -730,6 +738,246 @@ function CircleCardSetupChecklistPanel({
 
 type BusinessCardBuilderAccess = "locked" | "available" | "platform-preview";
 
+function CircleCardServiceFields({
+  idPrefix,
+  service
+}: {
+  idPrefix: string;
+  service?: CircleCardServiceItem;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="space-y-2 sm:col-span-2">
+        <Label htmlFor={`${idPrefix}-title`}>Service title</Label>
+        <Input
+          id={`${idPrefix}-title`}
+          name="title"
+          defaultValue={service?.title ?? ""}
+          maxLength={80}
+          placeholder="Strategy session"
+          required
+        />
+      </div>
+      <div className="space-y-2 sm:col-span-2">
+        <Label htmlFor={`${idPrefix}-description`}>Short description</Label>
+        <Textarea
+          id={`${idPrefix}-description`}
+          name="description"
+          defaultValue={service?.description ?? ""}
+          rows={3}
+          maxLength={280}
+          placeholder="A focused session to clarify priorities and next steps."
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-price`}>Starting price (optional)</Label>
+        <Input
+          id={`${idPrefix}-price`}
+          name="startingPrice"
+          defaultValue={service?.startingPrice ?? ""}
+          maxLength={60}
+          placeholder="From £250"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-image`}>Image URL (optional)</Label>
+        <Input
+          id={`${idPrefix}-image`}
+          name="imageUrl"
+          type="url"
+          defaultValue={service?.imageUrl ?? ""}
+          placeholder="https://..."
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-cta-label`}>Enquiry CTA label (optional)</Label>
+        <Input
+          id={`${idPrefix}-cta-label`}
+          name="ctaLabel"
+          defaultValue={service?.ctaLabel ?? ""}
+          maxLength={40}
+          placeholder="Enquire now"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-cta-url`}>Enquiry CTA link (optional)</Label>
+        <Input
+          id={`${idPrefix}-cta-url`}
+          name="ctaUrl"
+          type="url"
+          defaultValue={service?.ctaUrl ?? ""}
+          placeholder="https://..."
+        />
+      </div>
+      <label
+        htmlFor={`${idPrefix}-active`}
+        className="flex items-start gap-3 rounded-xl border border-silver/14 bg-background/22 p-3 text-sm text-foreground sm:col-span-2"
+      >
+        <input
+          id={`${idPrefix}-active`}
+          name="isActive"
+          type="checkbox"
+          defaultChecked={service?.isActive ?? true}
+          className="mt-0.5 h-4 w-4 rounded border-border bg-background accent-primary"
+        />
+        <span>
+          Active on public Business Card
+          <span className="mt-1 block text-xs text-muted">Hidden services remain editable here.</span>
+        </span>
+      </label>
+    </div>
+  );
+}
+
+function CircleCardServicesBuilder({
+  mode,
+  cardId,
+  cardName,
+  services
+}: {
+  mode: CircleCardServicesBuilderMode;
+  cardId?: string;
+  cardName: string;
+  services: CircleCardServiceItem[];
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-services" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Services are included with Pro.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Add services to your Business Card with Pro.
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit border-gold/28 text-gold">Pro</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview" || !cardId) {
+    return (
+      <div id="business-card-services" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">Business preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Services Builder preview</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Select or create a Business Card to add services. Personal Card content is never used for this block.
+        </p>
+      </div>
+    );
+  }
+
+  const returnPath = circleCardManageHref({
+    cardId,
+    section: "my-card",
+    hash: "business-card-services"
+  });
+  const activeCount = services.filter((service) => service.isActive).length;
+
+  return (
+    <section id="business-card-services" className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-3 sm:p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-display text-xl font-semibold text-foreground">Services</h3>
+            <Badge variant="outline" className="border-gold/28 text-gold">Pro</Badge>
+            <Badge variant="muted">{activeCount} active</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted">Add the services people most often ask you about.</p>
+          <p className="mt-1 text-xs text-silver">Show services, prices and enquiry links on your Business Card.</p>
+          <p className="mt-2 text-[11px] uppercase tracking-[0.08em] text-gold">Card: {cardName}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {services.map((service) => (
+          <details key={service.id} className="group rounded-xl border border-silver/14 bg-background/20">
+            <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0">
+                <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+                  <span className="truncate">{service.title}</span>
+                  <Badge variant={service.isActive ? "outline" : "muted"} className={service.isActive ? "border-emerald-400/26 text-emerald-200" : undefined}>
+                    {service.isActive ? "Active" : "Hidden"}
+                  </Badge>
+                  {service.startingPrice ? <Badge variant="muted">{service.startingPrice}</Badge> : null}
+                </span>
+                <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-muted">{service.description}</span>
+              </span>
+              <ChevronDown size={15} className="mt-1 shrink-0 text-silver transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="border-t border-silver/12 p-3">
+              <form action={upsertCircleCardServiceAction} className="space-y-3">
+                <input type="hidden" name="cardId" value={cardId} />
+                <input type="hidden" name="serviceId" value={service.id} />
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <CircleCardServiceFields idPrefix={`service-${service.id}`} service={service} />
+                <Button type="submit" size="sm" className="h-9 gap-2">
+                  <Save size={14} />
+                  Save service
+                </Button>
+              </form>
+              <div className="mt-3 grid gap-2 border-t border-silver/12 pt-3 sm:grid-cols-3">
+                <form action={toggleCircleCardServiceAction}>
+                  <input type="hidden" name="cardId" value={cardId} />
+                  <input type="hidden" name="serviceId" value={service.id} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full gap-2">
+                    {service.isActive ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {service.isActive ? "Hide" : "Show"}
+                  </Button>
+                </form>
+                <Button type="button" variant="outline" size="sm" className="h-9 w-full gap-2" disabled>
+                  <ArrowDown size={14} />
+                  Reorder — Coming Soon
+                </Button>
+                <form action={deleteCircleCardServiceAction}>
+                  <input type="hidden" name="cardId" value={cardId} />
+                  <input type="hidden" name="serviceId" value={service.id} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full gap-2 text-destructive">
+                    <Trash2 size={14} />
+                    Delete
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </details>
+        ))}
+        {!services.length ? (
+          <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
+            No services added yet. Add the first service people should see.
+          </p>
+        ) : null}
+      </div>
+
+      <details className="group mt-3 rounded-xl border border-gold/20 bg-background/20" open={!services.length}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+          <span>Add service</span>
+          <span className="flex items-center gap-2 text-xs font-normal text-muted">
+            {services.length}/{CIRCLE_CARD_SERVICE_LIMIT}
+            <ChevronDown size={15} className="text-silver transition-transform group-open:rotate-180" />
+          </span>
+        </summary>
+        <form action={upsertCircleCardServiceAction} className="space-y-3 border-t border-silver/12 p-3">
+          <input type="hidden" name="cardId" value={cardId} />
+          <input type="hidden" name="returnPath" value={returnPath} />
+          <CircleCardServiceFields idPrefix={`service-new-${cardId}`} />
+          <Button type="submit" size="sm" className="h-9 gap-2" disabled={services.length >= CIRCLE_CARD_SERVICE_LIMIT}>
+            <ShoppingBag size={14} />
+            Add service
+          </Button>
+        </form>
+      </details>
+    </section>
+  );
+}
+
 const BUSINESS_CARD_BUILDER_BLOCK_DESCRIPTIONS: Record<string, string> = {
   SERVICES: "Explain the main services your business provides.",
   PRODUCTS: "Prepare a simple product showcase without checkout.",
@@ -771,6 +1019,8 @@ function BusinessCardBuilderFoundation({
   access,
   previewLabel,
   cardId,
+  servicesMode,
+  services,
   businessName,
   businessDescription,
   primaryService,
@@ -782,6 +1032,8 @@ function BusinessCardBuilderFoundation({
   access: BusinessCardBuilderAccess;
   previewLabel: string;
   cardId: string;
+  servicesMode: CircleCardServicesBuilderMode;
+  services: CircleCardServiceItem[];
   businessName?: string | null;
   businessDescription?: string | null;
   primaryService?: string | null;
@@ -863,6 +1115,7 @@ function BusinessCardBuilderFoundation({
       }
     >
       {locked ? (
+        <div className="space-y-3">
         <div className="rounded-2xl border border-gold/24 bg-gold/10 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
@@ -880,6 +1133,13 @@ function BusinessCardBuilderFoundation({
             </Link>
           </div>
         </div>
+        <CircleCardServicesBuilder
+          mode={servicesMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          services={services}
+        />
+        </div>
       ) : (
         <div className="space-y-4">
           <div className="rounded-2xl border border-gold/20 bg-gold/8 p-4">
@@ -894,6 +1154,13 @@ function BusinessCardBuilderFoundation({
               are not active in this phase.
             </p>
           </div>
+
+          <CircleCardServicesBuilder
+            mode={servicesMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            services={services}
+          />
 
           <details className="group rounded-xl border border-silver/14 bg-background/18">
             <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
@@ -1153,6 +1420,11 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "custom-link-enabled": "Custom link enabled.",
   "custom-link-disabled": "Custom link paused.",
   "custom-link-reordered": "Custom links reordered.",
+  "service-created": "Service added to this Business Card.",
+  "service-updated": "Service updated.",
+  "service-shown": "Service is now visible on the public Business Card.",
+  "service-hidden": "Service hidden from the public Business Card.",
+  "service-deleted": "Service deleted from this Business Card.",
   "identity-updated": "Circle Card identity updated.",
   "smart-import-applied": "Smart Profile Import suggestions applied.",
   "own-card": "This is already your Circle Card."
@@ -1171,6 +1443,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   "custom-link-access-code-required": "Generate a 4-digit access code before saving a private link.",
   "custom-link-active-limit": `Free Circle Cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links in this phase.`,
   "custom-link-total-limit": "This Circle Card already has the maximum number of saved custom links.",
+  "service-invalid": "Check the service fields and try again.",
+  "service-not-found": "That service could not be found on this Business Card.",
+  "service-limit": `This Business Card can keep up to ${CIRCLE_CARD_SERVICE_LIMIT} services.`,
+  "services-locked": "Add services to your Business Card with Pro.",
+  "services-business-card-required": "Services can only be added to a Business Card.",
   "connection-invalid": "Check the connection request and try again.",
   "connection-card-not-found": "That Circle Card could not be found.",
   "connection-primary-card-required": "Create your own Circle Card before sending requests.",
@@ -3465,7 +3742,16 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     }
   ];
   const recentHomeActivity = visibleActivityItems.slice(0, 3);
-  const showBusinessCardBuilder = Boolean(card?.cardType === "BUSINESS");
+  const servicesBuilderMode = resolveCircleCardServicesBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const selectedCardServices = card?.cardType === "BUSINESS"
+    ? readCircleCardServices(card.contentBlocks)
+    : [];
+  const showBusinessCardBuilder = servicesBuilderMode !== "hidden";
   const businessBuilderAccess: BusinessCardBuilderAccess = isPlatformOwner
     ? "platform-preview"
     : isCircleCardFree
@@ -7343,6 +7629,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           access={businessBuilderAccess}
           previewLabel={businessBuilderPreviewLabel}
           cardId={card.id}
+          servicesMode={servicesBuilderMode}
+          services={selectedCardServices}
           businessName={card.businessName}
           businessDescription={card.about}
           primaryService={card.role}

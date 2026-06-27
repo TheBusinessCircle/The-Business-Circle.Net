@@ -45,7 +45,14 @@ import {
   resolveCircleWalletLastInteractionDate
 } from "@/lib/circle-card/schema";
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
-import { createEmptyCircleCardContentBlocks } from "@/lib/circle-card/content-blocks";
+import {
+  CIRCLE_CARD_SERVICE_LIMIT,
+  circleCardServiceFormSchema,
+  circleCardServiceIdSchema,
+  createEmptyCircleCardContentBlocks,
+  readCircleCardServices,
+  writeCircleCardServices
+} from "@/lib/circle-card/content-blocks";
 import {
   buildCircleCardThemeMetadata,
   buildCircleCardThemeStorage
@@ -2444,6 +2451,169 @@ export async function deleteCircleCardLinkAction(formData: FormData) {
 
   revalidateCircleCardPaths(link.card.slug);
   redirectWithNotice(returnPath, "custom-link-deleted");
+}
+
+function canManageCircleCardServices(user: CircleCardActionUser) {
+  return resolveCircleCardAccessLevel({
+    role: user.role,
+    membershipTier: user.membershipTier,
+    hasActiveSubscription: user.hasActiveSubscription
+  }) !== "FREE";
+}
+
+async function getOwnedCircleCardForServices(cardId: string, userId: string) {
+  return prisma.circleCard.findFirst({
+    where: { id: cardId, userId, archivedAt: null },
+    select: {
+      id: true,
+      slug: true,
+      cardType: true,
+      contentBlocks: true
+    }
+  });
+}
+
+export async function upsertCircleCardServiceAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardServiceFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    serviceId: formData.get("serviceId") ?? "",
+    title: formData.get("title"),
+    description: formData.get("description"),
+    startingPrice: formData.get("startingPrice") ?? "",
+    imageUrl: formData.get("imageUrl") ?? "",
+    ctaLabel: formData.get("ctaLabel") ?? "",
+    ctaUrl: formData.get("ctaUrl") ?? "",
+    isActive: formData.get("isActive")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "service-invalid");
+  }
+
+  if (!canManageCircleCardServices(user)) {
+    redirectWithError(returnPath, "services-locked");
+  }
+
+  const card = await getOwnedCircleCardForServices(parsed.data.cardId, user.id);
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+  if (card.cardType !== "BUSINESS") {
+    redirectWithError(returnPath, "services-business-card-required");
+  }
+
+  const services = readCircleCardServices(card.contentBlocks);
+  const existingIndex = parsed.data.serviceId
+    ? services.findIndex((service) => service.id === parsed.data.serviceId)
+    : -1;
+
+  if (parsed.data.serviceId && existingIndex < 0) {
+    redirectWithError(returnPath, "service-not-found");
+  }
+  if (existingIndex < 0 && services.length >= CIRCLE_CARD_SERVICE_LIMIT) {
+    redirectWithError(returnPath, "service-limit");
+  }
+
+  const service = {
+    id: existingIndex >= 0 ? services[existingIndex].id : randomBytes(12).toString("hex"),
+    title: parsed.data.title,
+    description: parsed.data.description,
+    startingPrice: parsed.data.startingPrice || null,
+    imageUrl: parsed.data.imageUrl || null,
+    ctaLabel: parsed.data.ctaLabel || null,
+    ctaUrl: parsed.data.ctaUrl || null,
+    isActive: parsed.data.isActive,
+    sortOrder: existingIndex >= 0 ? services[existingIndex].sortOrder : services.length
+  };
+  const nextServices = [...services];
+
+  if (existingIndex >= 0) {
+    nextServices[existingIndex] = service;
+  } else {
+    nextServices.push(service);
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardServices(card.contentBlocks, nextServices) }
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, existingIndex >= 0 ? "service-updated" : "service-created");
+}
+
+export async function toggleCircleCardServiceAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardServiceIdSchema.safeParse({
+    cardId: formData.get("cardId"),
+    serviceId: formData.get("serviceId")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "service-invalid");
+  }
+  if (!canManageCircleCardServices(user)) {
+    redirectWithError(returnPath, "services-locked");
+  }
+
+  const card = await getOwnedCircleCardForServices(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    redirectWithError(returnPath, card ? "services-business-card-required" : "card-not-found");
+  }
+
+  const services = readCircleCardServices(card.contentBlocks);
+  const serviceIndex = services.findIndex((service) => service.id === parsed.data.serviceId);
+  if (serviceIndex < 0) {
+    redirectWithError(returnPath, "service-not-found");
+  }
+
+  const wasActive = services[serviceIndex].isActive;
+  services[serviceIndex] = { ...services[serviceIndex], isActive: !wasActive };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardServices(card.contentBlocks, services) }
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, wasActive ? "service-hidden" : "service-shown");
+}
+
+export async function deleteCircleCardServiceAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardServiceIdSchema.safeParse({
+    cardId: formData.get("cardId"),
+    serviceId: formData.get("serviceId")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "service-invalid");
+  }
+  if (!canManageCircleCardServices(user)) {
+    redirectWithError(returnPath, "services-locked");
+  }
+
+  const card = await getOwnedCircleCardForServices(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    redirectWithError(returnPath, card ? "services-business-card-required" : "card-not-found");
+  }
+
+  const services = readCircleCardServices(card.contentBlocks);
+  const nextServices = services.filter((service) => service.id !== parsed.data.serviceId);
+  if (nextServices.length === services.length) {
+    redirectWithError(returnPath, "service-not-found");
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardServices(card.contentBlocks, nextServices) }
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, "service-deleted");
 }
 
 export async function moveCircleCardLinkAction(formData: FormData) {

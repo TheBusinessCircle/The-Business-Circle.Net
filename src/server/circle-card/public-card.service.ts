@@ -9,6 +9,10 @@ import type {
 } from "@prisma/client";
 import { SITE_CONFIG } from "@/config/site";
 import {
+  visibleCircleCardServices,
+  type CircleCardServiceItem
+} from "@/lib/circle-card/content-blocks";
+import {
   readCircleCardSocialLinks,
   type CircleCardCustomLinkIcon,
   type CircleCardLinkVisibility,
@@ -98,6 +102,7 @@ export type PublicCircleCard = {
   phone: string | null;
   location: string | null;
   socialLinks: CircleCardSocialLinks;
+  services: CircleCardServiceItem[];
   customLinks: PublicCircleCardLink[];
   ownerCards: PublicCircleCardSwitcherItem[];
   recommendations: PublicCircleCardRecommendation[];
@@ -153,6 +158,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     facebook: SITE_CONFIG.social.facebook,
     youtube: SITE_CONFIG.social.youtube
   } as Prisma.JsonObject),
+  services: [],
   customLinks: [
     {
       id: "demo-book-call",
@@ -254,6 +260,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       phone: true,
       location: true,
       socialLinks: true,
+      contentBlocks: true,
       customLinks: {
         where: {
           isActive: true
@@ -382,9 +389,20 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       };
     })
   );
+  const services = await Promise.all(
+    visibleCircleCardServices({
+      cardType: card.cardType,
+      contentBlocks: card.contentBlocks
+    }).map(async (service) => ({
+      ...service,
+      imageUrl: await resolvePublicUploadImageUrl(service.imageUrl, SITE_CONFIG.url)
+    }))
+  );
+  const { contentBlocks, ...publicCard } = card;
+  void contentBlocks;
 
   return {
-    ...card,
+    ...publicCard,
     user: {
       role: card.user.role,
       membershipTier: card.user.membershipTier,
@@ -395,6 +413,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           : hasEntitledSubscription(card.user.subscription?.status ?? null)
     },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
+    services,
     recommendations: card.recommendationsReceived,
     successfulReferralCount: card._count.referralsReceived,
     ownerCards,
