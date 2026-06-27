@@ -67,6 +67,7 @@ import {
   moveCircleCardLinkAction,
   removeCircleWalletContactAction,
   resolveCircleCardLinkAction,
+  saveCircleCardOpeningHoursAction,
   saveCircleWalletContactAction,
   sendCircleCardConnectionRequestAction,
   setDefaultCircleCardAction,
@@ -184,11 +185,19 @@ import {
 } from "@/lib/circle-card/card-types";
 import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
+  CIRCLE_CARD_OPENING_HOURS_PRESETS,
   CIRCLE_CARD_SERVICE_LIMIT,
+  CIRCLE_CARD_WEEKDAYS,
   CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
   CIRCLE_CARD_CREATOR_BLOCK_TYPES,
+  circleCardOpeningHoursDayLabel,
+  readCircleCardOpeningHours,
   readCircleCardServices,
+  resolveCircleCardOpeningHoursBuilderMode,
   resolveCircleCardServicesBuilderMode,
+  type CircleCardOpeningHours,
+  type CircleCardOpeningHoursBuilderMode,
+  type CircleCardOpeningHoursPreset,
   type CircleCardServiceItem,
   type CircleCardServicesBuilderMode
 } from "@/lib/circle-card/content-blocks";
@@ -978,6 +987,172 @@ function CircleCardServicesBuilder({
   );
 }
 
+const OPENING_HOURS_PRESET_LABELS: Record<CircleCardOpeningHoursPreset, string> = {
+  "weekdays-9-5": "Monday to Friday 9–5",
+  "open-7-days": "Open 7 days",
+  "weekends-closed": "Weekends closed",
+  "appointment-only": "Appointment only"
+};
+
+function CircleCardOpeningHoursBuilder({
+  mode,
+  cardId,
+  cardName,
+  openingHours
+}: {
+  mode: CircleCardOpeningHoursBuilderMode;
+  cardId?: string;
+  cardName: string;
+  openingHours: CircleCardOpeningHours | null;
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-opening-hours" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Opening hours are included with Pro.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Add opening hours to your Business Card with Pro.
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit border-gold/28 text-gold">Pro</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview" || !cardId) {
+    return (
+      <div id="business-card-opening-hours" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">Business preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Opening Hours Builder preview</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Select or create a Business Card to save its weekly opening hours.
+        </p>
+      </div>
+    );
+  }
+
+  const returnPath = circleCardManageHref({
+    cardId,
+    section: "my-card",
+    hash: "business-card-opening-hours"
+  });
+  const openDayCount = openingHours
+    ? CIRCLE_CARD_WEEKDAYS.filter(({ key }) => openingHours.days[key].isOpen).length
+    : 0;
+
+  return (
+    <section id="business-card-opening-hours" className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-3 sm:p-4">
+      <details className="group" open={!openingHours}>
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="font-display text-xl font-semibold text-foreground">Opening Hours</span>
+              <Badge variant="outline" className="border-gold/28 text-gold">Pro</Badge>
+              {openingHours ? <Badge variant="muted">{openDayCount} open days</Badge> : null}
+            </span>
+            <span className="mt-1 block text-sm text-muted">Let people know when you’re open or available.</span>
+            <span className="mt-2 block text-[11px] uppercase tracking-[0.08em] text-gold">Card: {cardName}</span>
+          </span>
+          <ChevronDown size={16} className="mt-1 shrink-0 text-silver transition-transform group-open:rotate-180" />
+        </summary>
+
+        <div className="mt-4 border-t border-silver/12 pt-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.08em] text-silver">Quick presets</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {CIRCLE_CARD_OPENING_HOURS_PRESETS.map((preset) => (
+                <form key={preset} action={saveCircleCardOpeningHoursAction}>
+                  <input type="hidden" name="cardId" value={cardId} />
+                  <input type="hidden" name="preset" value={preset} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full px-2">
+                    {OPENING_HOURS_PRESET_LABELS[preset]}
+                  </Button>
+                </form>
+              ))}
+            </div>
+          </div>
+
+          <form action={saveCircleCardOpeningHoursAction} className="mt-4 space-y-3">
+            <input type="hidden" name="cardId" value={cardId} />
+            <input type="hidden" name="returnPath" value={returnPath} />
+            <div className="grid gap-2">
+              {CIRCLE_CARD_WEEKDAYS.map(({ key, label }) => {
+                const day = openingHours?.days[key] ?? {
+                  isOpen: false,
+                  openingTime: null,
+                  closingTime: null,
+                  note: null
+                };
+
+                return (
+                  <fieldset key={key} className="rounded-xl border border-silver/14 bg-background/20 p-3">
+                    <legend className="sr-only">{label}</legend>
+                    <div className="grid gap-3 sm:grid-cols-[130px_120px_120px_minmax(0,1fr)] sm:items-end">
+                      <label htmlFor={`${key}-is-open`} className="flex min-h-10 items-center gap-2 text-sm font-semibold text-foreground">
+                        <input
+                          id={`${key}-is-open`}
+                          name={`${key}.isOpen`}
+                          type="checkbox"
+                          defaultChecked={day.isOpen}
+                          className="h-4 w-4 rounded border-border bg-background accent-primary"
+                        />
+                        {label}
+                      </label>
+                      <div className="space-y-1">
+                        <Label htmlFor={`${key}-opening`} className="text-xs">Opens</Label>
+                        <Input
+                          id={`${key}-opening`}
+                          name={`${key}.openingTime`}
+                          type="time"
+                          defaultValue={day.openingTime ?? ""}
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={`${key}-closing`} className="text-xs">Closes</Label>
+                        <Input
+                          id={`${key}-closing`}
+                          name={`${key}.closingTime`}
+                          type="time"
+                          defaultValue={day.closingTime ?? ""}
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={`${key}-note`} className="text-xs">Note (optional)</Label>
+                        <Input
+                          id={`${key}-note`}
+                          name={`${key}.note`}
+                          defaultValue={day.note ?? ""}
+                          maxLength={120}
+                          placeholder="By appointment only"
+                          className="h-10"
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-muted">Current: {circleCardOpeningHoursDayLabel(day)}</p>
+                  </fieldset>
+                );
+              })}
+            </div>
+            <Button type="submit" size="sm" className="h-9 gap-2">
+              <Save size={14} />
+              Save opening hours
+            </Button>
+          </form>
+        </div>
+      </details>
+    </section>
+  );
+}
+
 const BUSINESS_CARD_BUILDER_BLOCK_DESCRIPTIONS: Record<string, string> = {
   SERVICES: "Explain the main services your business provides.",
   PRODUCTS: "Prepare a simple product showcase without checkout.",
@@ -1021,6 +1196,8 @@ function BusinessCardBuilderFoundation({
   cardId,
   servicesMode,
   services,
+  openingHoursMode,
+  openingHours,
   businessName,
   businessDescription,
   primaryService,
@@ -1034,6 +1211,8 @@ function BusinessCardBuilderFoundation({
   cardId: string;
   servicesMode: CircleCardServicesBuilderMode;
   services: CircleCardServiceItem[];
+  openingHoursMode: CircleCardOpeningHoursBuilderMode;
+  openingHours: CircleCardOpeningHours | null;
   businessName?: string | null;
   businessDescription?: string | null;
   primaryService?: string | null;
@@ -1139,6 +1318,12 @@ function BusinessCardBuilderFoundation({
           cardName={businessName || "Selected Business Card"}
           services={services}
         />
+        <CircleCardOpeningHoursBuilder
+          mode={openingHoursMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          openingHours={openingHours}
+        />
         </div>
       ) : (
         <div className="space-y-4">
@@ -1160,6 +1345,13 @@ function BusinessCardBuilderFoundation({
             cardId={cardId}
             cardName={businessName || "Selected Business Card"}
             services={services}
+          />
+
+          <CircleCardOpeningHoursBuilder
+            mode={openingHoursMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            openingHours={openingHours}
           />
 
           <details className="group rounded-xl border border-silver/14 bg-background/18">
@@ -1425,6 +1617,8 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "service-shown": "Service is now visible on the public Business Card.",
   "service-hidden": "Service hidden from the public Business Card.",
   "service-deleted": "Service deleted from this Business Card.",
+  "opening-hours-saved": "Opening hours saved to this Business Card.",
+  "opening-hours-preset-applied": "Opening hours preset applied to this Business Card.",
   "identity-updated": "Circle Card identity updated.",
   "smart-import-applied": "Smart Profile Import suggestions applied.",
   "own-card": "This is already your Circle Card."
@@ -1448,6 +1642,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   "service-limit": `This Business Card can keep up to ${CIRCLE_CARD_SERVICE_LIMIT} services.`,
   "services-locked": "Add services to your Business Card with Pro.",
   "services-business-card-required": "Services can only be added to a Business Card.",
+  "opening-hours-invalid": "Check the opening hours and try again.",
+  "opening-hours-locked": "Add opening hours to your Business Card with Pro.",
+  "opening-hours-business-card-required": "Opening hours can only be added to a Business Card.",
   "connection-invalid": "Check the connection request and try again.",
   "connection-card-not-found": "That Circle Card could not be found.",
   "connection-primary-card-required": "Create your own Circle Card before sending requests.",
@@ -3748,10 +3945,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isPlatformOwner,
     platformPreviewCardType: selectedOwnerCardTypePreviewMode
   });
+  const openingHoursBuilderMode = resolveCircleCardOpeningHoursBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
   const selectedCardServices = card?.cardType === "BUSINESS"
     ? readCircleCardServices(card.contentBlocks)
     : [];
-  const showBusinessCardBuilder = servicesBuilderMode !== "hidden";
+  const selectedCardOpeningHours = card?.cardType === "BUSINESS"
+    ? readCircleCardOpeningHours(card.contentBlocks)
+    : null;
+  const showBusinessCardBuilder =
+    servicesBuilderMode !== "hidden" || openingHoursBuilderMode !== "hidden";
   const businessBuilderAccess: BusinessCardBuilderAccess = isPlatformOwner
     ? "platform-preview"
     : isCircleCardFree
@@ -7631,6 +7838,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           cardId={card.id}
           servicesMode={servicesBuilderMode}
           services={selectedCardServices}
+          openingHoursMode={openingHoursBuilderMode}
+          openingHours={selectedCardOpeningHours}
           businessName={card.businessName}
           businessDescription={card.about}
           primaryService={card.role}

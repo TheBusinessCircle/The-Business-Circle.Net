@@ -172,6 +172,7 @@ export const CIRCLE_CARD_CONTROL_CENTRE_ROADMAP: CircleCardControlCentreRoadmapI
   { id: "creator-builder", label: "Creator Builder", status: "pending" },
   { id: "products", label: "Products", status: "pending" },
   { id: "services", label: "Services", status: "completed" },
+  { id: "opening-hours", label: "Opening Hours", status: "completed" },
   { id: "bookings", label: "Bookings", status: "pending" },
   { id: "verification", label: "Verification", status: "pending" },
   { id: "teams", label: "Teams", status: "pending" },

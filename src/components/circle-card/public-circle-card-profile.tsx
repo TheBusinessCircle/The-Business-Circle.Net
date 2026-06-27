@@ -29,6 +29,10 @@ import {
   getCircleCardAccountTypeLabel,
   getCircleCardIdentityTagLabel
 } from "@/lib/circle-card/identity";
+import {
+  CIRCLE_CARD_WEEKDAYS,
+  circleCardOpeningHoursDayLabel
+} from "@/lib/circle-card/content-blocks";
 import { getCircleCardTypeLabel } from "@/lib/circle-card/card-types";
 import {
   buildCircleCardFileActionLabel,
@@ -1762,6 +1766,65 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderOpeningHoursSection({ id = "business-opening-hours" }: { id?: string } = {}) {
+    if (card.cardType !== "BUSINESS" || !card.openingHours) {
+      return null;
+    }
+
+    return (
+      <section
+        id={id}
+        aria-labelledby={`${id}-title`}
+        className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Availability</p>
+            <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">
+              Opening Hours
+            </h2>
+          </div>
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+            <CalendarDays size={18} />
+          </span>
+        </div>
+
+        <details className="group mt-4 rounded-2xl border border-silver/14 bg-background/22" open>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Weekly hours</span>
+            <ChevronRight size={15} className="text-silver transition-transform group-open:rotate-90" />
+          </summary>
+          <dl className="grid gap-1 border-t border-silver/12 p-3">
+            {CIRCLE_CARD_WEEKDAYS.map(({ key, label }) => {
+              const day = card.openingHours?.days[key];
+              if (!day) {
+                return null;
+              }
+
+              const hoursLabel = circleCardOpeningHoursDayLabel(day);
+              const showSeparateNote = Boolean(day.note && day.note !== hoursLabel);
+
+              return (
+                <div
+                  key={key}
+                  className="grid gap-1 rounded-xl px-3 py-2 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-start"
+                >
+                  <dt className="text-sm font-medium text-foreground">{label}</dt>
+                  <dd className={cn("text-sm sm:text-right", day.isOpen ? "text-silver" : "text-muted")}>
+                    <span className="font-medium">{hoursLabel}</span>
+                    {showSeparateNote ? (
+                      <span className="mt-0.5 block text-xs leading-relaxed text-muted">{day.note}</span>
+                    ) : null}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        </details>
+      </section>
+    );
+  }
+
   function renderShareQrSection({
     className,
     id = "circle-card-share",
@@ -1945,6 +2008,7 @@ export function PublicCircleCardProfile({
 
             {renderAboutSection({ id: "classic-about" })}
             {renderServicesSection({ id: "classic-services" })}
+            {renderOpeningHoursSection({ id: "classic-opening-hours" })}
             {renderQuickConnectSection({
               id: "classic-quick-connect",
               heading: "Ways to connect"
@@ -2180,6 +2244,7 @@ export function PublicCircleCardProfile({
 
             {renderAboutSection({ id: "creator-about" })}
             {renderServicesSection({ id: "creator-services" })}
+            {renderOpeningHoursSection({ id: "creator-opening-hours" })}
             {renderQuickConnectSection({
               id: "creator-quick-connect",
               heading: "Contact and socials"
@@ -2488,6 +2553,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "business-about" })}
             {renderBusinessHighlightsSection()}
             {renderServicesSection()}
+            {renderOpeningHoursSection()}
             {renderQuickConnectSection({
               id: "business-quick-connect",
               heading: "Direct routes back"

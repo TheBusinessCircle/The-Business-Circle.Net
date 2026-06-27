@@ -47,10 +47,17 @@ import {
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
 import {
   CIRCLE_CARD_SERVICE_LIMIT,
+  CIRCLE_CARD_WEEKDAYS,
+  circleCardOpeningHoursFormSchema,
+  circleCardOpeningHoursPresetSchema,
   circleCardServiceFormSchema,
   circleCardServiceIdSchema,
+  createCircleCardOpeningHoursPreset,
   createEmptyCircleCardContentBlocks,
+  readCircleCardOpeningHours,
   readCircleCardServices,
+  writeCircleCardOpeningHours,
+  type CircleCardOpeningHours,
   writeCircleCardServices
 } from "@/lib/circle-card/content-blocks";
 import {
@@ -2453,7 +2460,7 @@ export async function deleteCircleCardLinkAction(formData: FormData) {
   redirectWithNotice(returnPath, "custom-link-deleted");
 }
 
-function canManageCircleCardServices(user: CircleCardActionUser) {
+function canManageCircleCardBusinessBlocks(user: CircleCardActionUser) {
   return resolveCircleCardAccessLevel({
     role: user.role,
     membershipTier: user.membershipTier,
@@ -2461,7 +2468,7 @@ function canManageCircleCardServices(user: CircleCardActionUser) {
   }) !== "FREE";
 }
 
-async function getOwnedCircleCardForServices(cardId: string, userId: string) {
+async function getOwnedCircleCardForBusinessBlocks(cardId: string, userId: string) {
   return prisma.circleCard.findFirst({
     where: { id: cardId, userId, archivedAt: null },
     select: {
@@ -2492,11 +2499,11 @@ export async function upsertCircleCardServiceAction(formData: FormData) {
     redirectWithError(returnPath, "service-invalid");
   }
 
-  if (!canManageCircleCardServices(user)) {
+  if (!canManageCircleCardBusinessBlocks(user)) {
     redirectWithError(returnPath, "services-locked");
   }
 
-  const card = await getOwnedCircleCardForServices(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
   }
@@ -2555,11 +2562,11 @@ export async function toggleCircleCardServiceAction(formData: FormData) {
   if (!parsed.success) {
     redirectWithError(returnPath, "service-invalid");
   }
-  if (!canManageCircleCardServices(user)) {
+  if (!canManageCircleCardBusinessBlocks(user)) {
     redirectWithError(returnPath, "services-locked");
   }
 
-  const card = await getOwnedCircleCardForServices(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
   if (!card || card.cardType !== "BUSINESS") {
     redirectWithError(returnPath, card ? "services-business-card-required" : "card-not-found");
   }
@@ -2592,11 +2599,11 @@ export async function deleteCircleCardServiceAction(formData: FormData) {
   if (!parsed.success) {
     redirectWithError(returnPath, "service-invalid");
   }
-  if (!canManageCircleCardServices(user)) {
+  if (!canManageCircleCardBusinessBlocks(user)) {
     redirectWithError(returnPath, "services-locked");
   }
 
-  const card = await getOwnedCircleCardForServices(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
   if (!card || card.cardType !== "BUSINESS") {
     redirectWithError(returnPath, card ? "services-business-card-required" : "card-not-found");
   }
@@ -2614,6 +2621,81 @@ export async function deleteCircleCardServiceAction(formData: FormData) {
 
   revalidateCircleCardPaths(card.slug);
   redirectWithNotice(returnPath, "service-deleted");
+}
+
+export async function saveCircleCardOpeningHoursAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const cardId = formData.get("cardId");
+  const presetValue = formData.get("preset");
+  const presetParsed = presetValue
+    ? circleCardOpeningHoursPresetSchema.safeParse({ cardId, preset: presetValue })
+    : null;
+  const hoursParsed = presetValue
+    ? null
+    : circleCardOpeningHoursFormSchema.safeParse({
+        cardId,
+        days: Object.fromEntries(
+          CIRCLE_CARD_WEEKDAYS.map(({ key }) => [
+            key,
+            {
+              isOpen: formData.get(`${key}.isOpen`),
+              openingTime: formData.get(`${key}.openingTime`) ?? "",
+              closingTime: formData.get(`${key}.closingTime`) ?? "",
+              note: formData.get(`${key}.note`) ?? ""
+            }
+          ])
+        )
+      });
+
+  if ((presetParsed && !presetParsed.success) || (hoursParsed && !hoursParsed.success) || (!presetParsed && !hoursParsed)) {
+    redirectWithError(returnPath, "opening-hours-invalid");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    redirectWithError(returnPath, "opening-hours-locked");
+  }
+
+  const validCardId = presetParsed?.success
+    ? presetParsed.data.cardId
+    : hoursParsed?.success
+      ? hoursParsed.data.cardId
+      : "";
+  const card = await getOwnedCircleCardForBusinessBlocks(validCardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    redirectWithError(returnPath, card ? "opening-hours-business-card-required" : "card-not-found");
+  }
+
+  let openingHours: CircleCardOpeningHours;
+  if (presetParsed?.success) {
+    openingHours = createCircleCardOpeningHoursPreset(
+      presetParsed.data.preset,
+      readCircleCardOpeningHours(card.contentBlocks)
+    );
+  } else if (hoursParsed?.success) {
+    openingHours = {
+      days: Object.fromEntries(
+        CIRCLE_CARD_WEEKDAYS.map(({ key }) => {
+          const day = hoursParsed.data.days[key];
+          return [key, {
+            isOpen: day.isOpen,
+            openingTime: day.isOpen ? day.openingTime || null : null,
+            closingTime: day.isOpen ? day.closingTime || null : null,
+            note: day.note || null
+          }];
+        })
+      ) as CircleCardOpeningHours["days"]
+    };
+  } else {
+    redirectWithError(returnPath, "opening-hours-invalid");
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardOpeningHours(card.contentBlocks, openingHours) }
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, presetParsed?.success ? "opening-hours-preset-applied" : "opening-hours-saved");
 }
 
 export async function moveCircleCardLinkAction(formData: FormData) {

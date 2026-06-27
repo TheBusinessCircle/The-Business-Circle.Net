@@ -92,7 +92,7 @@ export const CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS = [
     type: "OPENING_HOURS",
     family: "BUSINESS",
     label: "Opening Hours",
-    publicEditingEnabled: false
+    publicEditingEnabled: true
   },
   {
     type: "GALLERY_PORTFOLIO",
@@ -149,6 +149,39 @@ export type CircleCardServiceItem = {
 };
 
 export const CIRCLE_CARD_SERVICE_LIMIT = 12;
+
+export const CIRCLE_CARD_WEEKDAYS = [
+  { key: "monday", label: "Monday" },
+  { key: "tuesday", label: "Tuesday" },
+  { key: "wednesday", label: "Wednesday" },
+  { key: "thursday", label: "Thursday" },
+  { key: "friday", label: "Friday" },
+  { key: "saturday", label: "Saturday" },
+  { key: "sunday", label: "Sunday" }
+] as const;
+
+export type CircleCardWeekday = (typeof CIRCLE_CARD_WEEKDAYS)[number]["key"];
+
+export type CircleCardOpeningHoursDay = {
+  isOpen: boolean;
+  openingTime: string | null;
+  closingTime: string | null;
+  note: string | null;
+};
+
+export type CircleCardOpeningHours = {
+  days: Record<CircleCardWeekday, CircleCardOpeningHoursDay>;
+};
+
+export const CIRCLE_CARD_OPENING_HOURS_PRESETS = [
+  "weekdays-9-5",
+  "open-7-days",
+  "weekends-closed",
+  "appointment-only"
+] as const;
+
+export type CircleCardOpeningHoursPreset =
+  (typeof CIRCLE_CARD_OPENING_HOURS_PRESETS)[number];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -209,6 +242,191 @@ export const circleCardServiceIdSchema = z.object({
   cardId: z.string().cuid(),
   serviceId: z.string().trim().min(1).max(64)
 });
+
+const openingHoursTimeSchema = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""))
+  .refine((value) => !value || /^([01]\d|2[0-3]):[0-5]\d$/.test(value), {
+    message: "Use a valid 24-hour time."
+  });
+
+const openingHoursDayFormSchema = z.object({
+  isOpen: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  ),
+  openingTime: openingHoursTimeSchema,
+  closingTime: openingHoursTimeSchema,
+  note: z.string().trim().max(120).optional().or(z.literal(""))
+}).superRefine((value, context) => {
+  if (!value.isOpen) {
+    return;
+  }
+
+  if (Boolean(value.openingTime) !== Boolean(value.closingTime)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [value.openingTime ? "closingTime" : "openingTime"],
+      message: "Add both opening and closing times, or leave both blank."
+    });
+  }
+
+  if (value.openingTime && value.closingTime && value.openingTime >= value.closingTime) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["closingTime"],
+      message: "Closing time must be after opening time."
+    });
+  }
+});
+
+export const circleCardOpeningHoursFormSchema = z.object({
+  cardId: z.string().cuid(),
+  days: z.object({
+    monday: openingHoursDayFormSchema,
+    tuesday: openingHoursDayFormSchema,
+    wednesday: openingHoursDayFormSchema,
+    thursday: openingHoursDayFormSchema,
+    friday: openingHoursDayFormSchema,
+    saturday: openingHoursDayFormSchema,
+    sunday: openingHoursDayFormSchema
+  })
+});
+
+export const circleCardOpeningHoursPresetSchema = z.object({
+  cardId: z.string().cuid(),
+  preset: z.enum(CIRCLE_CARD_OPENING_HOURS_PRESETS)
+});
+
+function closedOpeningHoursDay(): CircleCardOpeningHoursDay {
+  return { isOpen: false, openingTime: null, closingTime: null, note: null };
+}
+
+function timedOpeningHoursDay(): CircleCardOpeningHoursDay {
+  return { isOpen: true, openingTime: "09:00", closingTime: "17:00", note: null };
+}
+
+function buildOpeningHoursDays(
+  resolveDay: (day: CircleCardWeekday) => CircleCardOpeningHoursDay
+): Record<CircleCardWeekday, CircleCardOpeningHoursDay> {
+  return Object.fromEntries(
+    CIRCLE_CARD_WEEKDAYS.map(({ key }) => [key, resolveDay(key)])
+  ) as Record<CircleCardWeekday, CircleCardOpeningHoursDay>;
+}
+
+export function createCircleCardOpeningHoursPreset(
+  preset: CircleCardOpeningHoursPreset,
+  current?: CircleCardOpeningHours | null
+): CircleCardOpeningHours {
+  if (preset === "open-7-days") {
+    return { days: buildOpeningHoursDays(() => timedOpeningHoursDay()) };
+  }
+
+  if (preset === "appointment-only") {
+    return {
+      days: buildOpeningHoursDays(() => ({
+        isOpen: true,
+        openingTime: null,
+        closingTime: null,
+        note: "By appointment only"
+      }))
+    };
+  }
+
+  if (preset === "weekends-closed" && current) {
+    return {
+      days: {
+        ...current.days,
+        saturday: closedOpeningHoursDay(),
+        sunday: closedOpeningHoursDay()
+      }
+    };
+  }
+
+  return {
+    days: buildOpeningHoursDays((day) =>
+      day === "saturday" || day === "sunday"
+        ? closedOpeningHoursDay()
+        : timedOpeningHoursDay()
+    )
+  };
+}
+
+function readOpeningHoursTime(value: unknown) {
+  return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim())
+    ? value.trim()
+    : null;
+}
+
+export function readCircleCardOpeningHours(value: unknown): CircleCardOpeningHours | null {
+  if (!isRecord(value) || !isRecord(value.business) || !isRecord(value.business.OPENING_HOURS)) {
+    return null;
+  }
+
+  const rawDays = value.business.OPENING_HOURS.days;
+  if (!isRecord(rawDays) || !CIRCLE_CARD_WEEKDAYS.some(({ key }) => isRecord(rawDays[key]))) {
+    return null;
+  }
+
+  return {
+    days: buildOpeningHoursDays((day) => {
+      const rawDay = isRecord(rawDays[day]) ? rawDays[day] : {};
+      const isOpen = rawDay.isOpen === true;
+      return {
+        isOpen,
+        openingTime: isOpen ? readOpeningHoursTime(rawDay.openingTime) : null,
+        closingTime: isOpen ? readOpeningHoursTime(rawDay.closingTime) : null,
+        note:
+          typeof rawDay.note === "string" && rawDay.note.trim()
+            ? rawDay.note.trim().slice(0, 120)
+            : null
+      };
+    })
+  };
+}
+
+export function writeCircleCardOpeningHours(
+  value: Prisma.JsonValue | null | undefined,
+  openingHours: CircleCardOpeningHours
+): Prisma.InputJsonObject {
+  const root = isRecord(value) ? value : {};
+  const business = isRecord(root.business) ? root.business : {};
+  const currentHours = isRecord(business.OPENING_HOURS) ? business.OPENING_HOURS : {};
+
+  return {
+    ...root,
+    business: {
+      ...business,
+      OPENING_HOURS: {
+        ...currentHours,
+        days: openingHours.days
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardOpeningHours(input: {
+  cardType: string;
+  contentBlocks: unknown;
+}) {
+  return input.cardType === "BUSINESS"
+    ? readCircleCardOpeningHours(input.contentBlocks)
+    : null;
+}
+
+export function circleCardOpeningHoursDayLabel(day: CircleCardOpeningHoursDay) {
+  if (!day.isOpen) {
+    return "Closed";
+  }
+
+  if (day.openingTime && day.closingTime) {
+    return `${day.openingTime} – ${day.closingTime}`;
+  }
+
+  return day.note || "Open";
+}
 
 export function readCircleCardServices(value: unknown): CircleCardServiceItem[] {
   if (!isRecord(value) || !isRecord(value.business) || !isRecord(value.business.SERVICES)) {
@@ -290,6 +508,8 @@ export function visibleCircleCardServices(input: {
 
 export type CircleCardServicesBuilderMode = "hidden" | "locked" | "enabled" | "preview";
 
+export type CircleCardOpeningHoursBuilderMode = CircleCardServicesBuilderMode;
+
 export function resolveCircleCardServicesBuilderMode(input: {
   cardType?: string | null;
   hasProAccess: boolean;
@@ -303,6 +523,15 @@ export function resolveCircleCardServicesBuilderMode(input: {
   return input.isPlatformOwner && input.platformPreviewCardType === "business"
     ? "preview"
     : "hidden";
+}
+
+export function resolveCircleCardOpeningHoursBuilderMode(input: {
+  cardType?: string | null;
+  hasProAccess: boolean;
+  isPlatformOwner?: boolean;
+  platformPreviewCardType?: string | null;
+}): CircleCardOpeningHoursBuilderMode {
+  return resolveCircleCardServicesBuilderMode(input);
 }
 
 export function createEmptyCircleCardContentBlocks(): CircleCardContentBlocksState {

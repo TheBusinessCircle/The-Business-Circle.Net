@@ -9,7 +9,9 @@ import type {
 } from "@prisma/client";
 import { SITE_CONFIG } from "@/config/site";
 import {
+  visibleCircleCardOpeningHours,
   visibleCircleCardServices,
+  type CircleCardOpeningHours,
   type CircleCardServiceItem
 } from "@/lib/circle-card/content-blocks";
 import {
@@ -103,6 +105,7 @@ export type PublicCircleCard = {
   location: string | null;
   socialLinks: CircleCardSocialLinks;
   services: CircleCardServiceItem[];
+  openingHours: CircleCardOpeningHours | null;
   customLinks: PublicCircleCardLink[];
   ownerCards: PublicCircleCardSwitcherItem[];
   recommendations: PublicCircleCardRecommendation[];
@@ -159,6 +162,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     youtube: SITE_CONFIG.social.youtube
   } as Prisma.JsonObject),
   services: [],
+  openingHours: null,
   customLinks: [
     {
       id: "demo-book-call",
@@ -398,6 +402,10 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       imageUrl: await resolvePublicUploadImageUrl(service.imageUrl, SITE_CONFIG.url)
     }))
   );
+  const openingHours = visibleCircleCardOpeningHours({
+    cardType: card.cardType,
+    contentBlocks: card.contentBlocks
+  });
   const { contentBlocks, ...publicCard } = card;
   void contentBlocks;
 
@@ -414,6 +422,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     services,
+    openingHours,
     recommendations: card.recommendationsReceived,
     successfulReferralCount: card._count.referralsReceived,
     ownerCards,
