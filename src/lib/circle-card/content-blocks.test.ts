@@ -2,15 +2,38 @@ import { describe, expect, it } from "vitest";
 import {
   circleCardOpeningHoursDayLabel,
   createCircleCardOpeningHoursPreset,
+  readCircleCardGalleryItems,
   readCircleCardServices,
+  resolveCircleCardGalleryBuilderMode,
   resolveCircleCardOpeningHoursBuilderMode,
   resolveCircleCardServicesBuilderMode,
   visibleCircleCardOpeningHours,
+  visibleCircleCardGalleryItems,
   visibleCircleCardServices,
   writeCircleCardOpeningHours,
+  writeCircleCardGalleryItems,
   writeCircleCardServices,
+  type CircleCardGalleryItem,
   type CircleCardServiceItem
 } from "@/lib/circle-card/content-blocks";
+
+const activeGalleryItem: CircleCardGalleryItem = {
+  id: "gallery-active",
+  imageUrl: "/uploads/circle-card/work.jpg",
+  title: "Completed project",
+  description: "A finished client project.",
+  category: "Branding",
+  isActive: true,
+  sortOrder: 0
+};
+
+const hiddenGalleryItem: CircleCardGalleryItem = {
+  ...activeGalleryItem,
+  id: "gallery-hidden",
+  title: "Hidden project",
+  isActive: false,
+  sortOrder: 1
+};
 
 const activeService: CircleCardServiceItem = {
   id: "service-active",
@@ -109,5 +132,34 @@ describe("Circle Card opening hours content block", () => {
     const contentBlocks = writeCircleCardOpeningHours(withServices, weekdayHours);
 
     expect(readCircleCardServices(contentBlocks)).toEqual([activeService]);
+  });
+});
+
+describe("Circle Card gallery content block", () => {
+  it("enables the gallery builder for entitled Business Cards only", () => {
+    expect(resolveCircleCardGalleryBuilderMode({ cardType: "BUSINESS", hasProAccess: true })).toBe("enabled");
+    expect(resolveCircleCardGalleryBuilderMode({ cardType: "PERSONAL", hasProAccess: true })).toBe("hidden");
+    expect(resolveCircleCardGalleryBuilderMode({ cardType: "CREATOR", hasProAccess: true })).toBe("hidden");
+  });
+
+  it("shows the Pro lock for a Free Business Card", () => {
+    expect(resolveCircleCardGalleryBuilderMode({ cardType: "BUSINESS", hasProAccess: false })).toBe("locked");
+  });
+
+  it("exposes active gallery items only on public Business Cards", () => {
+    const contentBlocks = writeCircleCardGalleryItems({}, [activeGalleryItem, hiddenGalleryItem]);
+
+    expect(visibleCircleCardGalleryItems({ cardType: "BUSINESS", contentBlocks })).toEqual([activeGalleryItem]);
+    expect(visibleCircleCardGalleryItems({ cardType: "PERSONAL", contentBlocks })).toEqual([]);
+    expect(visibleCircleCardGalleryItems({ cardType: "CREATOR", contentBlocks })).toEqual([]);
+    expect(readCircleCardGalleryItems(contentBlocks)).toHaveLength(2);
+  });
+
+  it("preserves existing business blocks when gallery items are written", () => {
+    const withServices = writeCircleCardServices({}, [activeService]);
+    const contentBlocks = writeCircleCardGalleryItems(withServices, [activeGalleryItem]);
+
+    expect(readCircleCardServices(contentBlocks)).toEqual([activeService]);
+    expect(readCircleCardGalleryItems(contentBlocks)).toEqual([activeGalleryItem]);
   });
 });

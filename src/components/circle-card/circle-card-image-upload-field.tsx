@@ -25,7 +25,7 @@ type ImageAdjustmentValues = {
 type CircleCardImageUploadFieldProps = {
   id: string;
   label: string;
-  uploadKind: "profile-photo" | "business-logo" | "link-image";
+  uploadKind: "profile-photo" | "business-logo" | "gallery-image" | "link-image";
   name?: string;
   defaultValue?: string;
   value?: string;

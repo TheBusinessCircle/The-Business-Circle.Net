@@ -12,6 +12,7 @@ export type CircleCardImageUploadKind =
   | "profile-photo"
   | "business-logo"
   | "business-card-scan"
+  | "gallery-image"
   | "link-image";
 export type CircleCardLinkFileUploadKind = "link-file";
 export type CircleCardUploadKind = CircleCardImageUploadKind | CircleCardLinkFileUploadKind;
@@ -27,6 +28,7 @@ const CIRCLE_CARD_UPLOAD_KINDS = new Set<CircleCardImageUploadKind>([
   "profile-photo",
   "business-logo",
   "business-card-scan",
+  "gallery-image",
   "link-image"
 ]);
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);

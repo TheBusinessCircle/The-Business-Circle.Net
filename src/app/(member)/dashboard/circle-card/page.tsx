@@ -57,6 +57,7 @@ import {
   createCircleCardOpportunityAction,
   createCircleCardReferralAction,
   createCircleCardIntroductionAction,
+  deleteCircleCardGalleryItemAction,
   deleteCircleCardServiceAction,
   deleteCircleCardLinkAction,
   declineCircleCardConnectionRequestAction,
@@ -73,6 +74,7 @@ import {
   setDefaultCircleCardAction,
   toggleCircleWalletFavouriteAction,
   toggleCircleCardLinkAction,
+  toggleCircleCardGalleryItemAction,
   toggleCircleCardServiceAction,
   updateCircleCardOpportunityAction,
   updateCircleCardOpportunityStatusAction,
@@ -81,6 +83,7 @@ import {
   updateCircleWalletContactDetailsAction,
   upsertCircleCardRecommendationAction,
   upsertCircleCardAction,
+  upsertCircleCardGalleryItemAction,
   upsertCircleCardServiceAction,
   upsertCircleCardLinkAction
 } from "@/actions/circle-card.actions";
@@ -185,19 +188,24 @@ import {
 } from "@/lib/circle-card/card-types";
 import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
+  CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_OPENING_HOURS_PRESETS,
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
   CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
   CIRCLE_CARD_CREATOR_BLOCK_TYPES,
   circleCardOpeningHoursDayLabel,
+  readCircleCardGalleryItems,
   readCircleCardOpeningHours,
   readCircleCardServices,
   resolveCircleCardOpeningHoursBuilderMode,
+  resolveCircleCardGalleryBuilderMode,
   resolveCircleCardServicesBuilderMode,
   type CircleCardOpeningHours,
   type CircleCardOpeningHoursBuilderMode,
   type CircleCardOpeningHoursPreset,
+  type CircleCardGalleryBuilderMode,
+  type CircleCardGalleryItem,
   type CircleCardServiceItem,
   type CircleCardServicesBuilderMode
 } from "@/lib/circle-card/content-blocks";
@@ -987,6 +995,235 @@ function CircleCardServicesBuilder({
   );
 }
 
+function CircleCardGalleryFields({
+  idPrefix,
+  item
+}: {
+  idPrefix: string;
+  item?: CircleCardGalleryItem;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <CircleCardImageUploadField
+          id={`${idPrefix}-image`}
+          name="imageUrl"
+          label="Gallery image"
+          uploadKind="gallery-image"
+          defaultValue={item?.imageUrl ?? ""}
+          previewAlt={item?.title ?? "Gallery image preview"}
+          helperText="JPG, PNG or WebP, up to 5MB. The upload is reused when you save this item."
+          saveReminder="Upload the image, then save the gallery item below."
+          uploadSuccessMessage="Image uploaded. Save the gallery item below."
+          previewClassName="rounded-xl"
+          showAdjustments={false}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-title`}>Title</Label>
+        <Input
+          id={`${idPrefix}-title`}
+          name="title"
+          defaultValue={item?.title ?? ""}
+          maxLength={100}
+          placeholder="Completed brand identity"
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-category`}>Category (optional)</Label>
+        <Input
+          id={`${idPrefix}-category`}
+          name="category"
+          defaultValue={item?.category ?? ""}
+          maxLength={60}
+          placeholder="Branding"
+        />
+      </div>
+      <div className="space-y-2 sm:col-span-2">
+        <Label htmlFor={`${idPrefix}-description`}>Description (optional)</Label>
+        <Textarea
+          id={`${idPrefix}-description`}
+          name="description"
+          defaultValue={item?.description ?? ""}
+          rows={3}
+          maxLength={500}
+          placeholder="A short note about the work, result or project."
+        />
+      </div>
+      <label className="flex items-start gap-2 rounded-xl border border-silver/14 bg-background/22 p-3 text-sm text-foreground sm:col-span-2">
+        <input
+          name="isActive"
+          type="checkbox"
+          value="on"
+          defaultChecked={item?.isActive ?? true}
+          className="mt-0.5 h-4 w-4 rounded border-border bg-background accent-primary"
+        />
+        <span>
+          Active on public Business Card
+          <span className="mt-1 block text-xs text-muted">Hidden images remain editable here and are never loaded publicly.</span>
+        </span>
+      </label>
+    </div>
+  );
+}
+
+function CircleCardGalleryBuilder({
+  mode,
+  cardId,
+  cardName,
+  galleryItems
+}: {
+  mode: CircleCardGalleryBuilderMode;
+  cardId?: string;
+  cardName: string;
+  galleryItems: CircleCardGalleryItem[];
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-gallery" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Gallery is included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">Show your work with Circle Card Pro.</p>
+          </div>
+          <Badge variant="outline" className="w-fit border-gold/28 text-gold">Pro</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview" || !cardId) {
+    return (
+      <div id="business-card-gallery" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">Business preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Gallery / Portfolio preview</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Select or create a Business Card to showcase its work. Personal and Creator Cards never use this gallery.
+        </p>
+      </div>
+    );
+  }
+
+  const returnPath = circleCardManageHref({
+    cardId,
+    section: "my-card",
+    hash: "business-card-gallery"
+  });
+  const activeCount = galleryItems.filter((item) => item.isActive).length;
+
+  return (
+    <section id="business-card-gallery" className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-3 sm:p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-display text-xl font-semibold text-foreground">Gallery / Portfolio</h3>
+            <Badge variant="outline" className="border-gold/28 text-gold">Pro</Badge>
+            <Badge variant="muted">{activeCount} active</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted">Show people your best work.</p>
+          <p className="mt-1 text-xs text-silver">Display a professional portfolio directly on your Business Card.</p>
+          <p className="mt-2 text-[11px] uppercase tracking-[0.08em] text-gold">Card: {cardName}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {galleryItems.map((item) => (
+          <details key={item.id} className="group rounded-xl border border-silver/14 bg-background/20">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-silver/14 bg-background/40">
+                  <img
+                    src={item.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                </span>
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+                    <span className="truncate">{item.title}</span>
+                    <Badge variant={item.isActive ? "outline" : "muted"} className={item.isActive ? "border-emerald-400/26 text-emerald-200" : undefined}>
+                      {item.isActive ? "Active" : "Hidden"}
+                    </Badge>
+                    {item.category ? <Badge variant="muted">{item.category}</Badge> : null}
+                  </span>
+                  {item.description ? <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-muted">{item.description}</span> : null}
+                </span>
+              </span>
+              <ChevronDown size={15} className="shrink-0 text-silver transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="border-t border-silver/12 p-3">
+              <form action={upsertCircleCardGalleryItemAction} className="space-y-3">
+                <input type="hidden" name="cardId" value={cardId} />
+                <input type="hidden" name="galleryItemId" value={item.id} />
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <CircleCardGalleryFields idPrefix={`gallery-${item.id}`} item={item} />
+                <Button type="submit" size="sm" className="h-9 gap-2">
+                  <Save size={14} />
+                  Save item
+                </Button>
+              </form>
+              <div className="mt-3 grid gap-2 border-t border-silver/12 pt-3 sm:grid-cols-3">
+                <form action={toggleCircleCardGalleryItemAction}>
+                  <input type="hidden" name="cardId" value={cardId} />
+                  <input type="hidden" name="galleryItemId" value={item.id} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full gap-2">
+                    {item.isActive ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {item.isActive ? "Hide" : "Show"}
+                  </Button>
+                </form>
+                <Button type="button" variant="outline" size="sm" className="h-9 w-full gap-2" disabled>
+                  <ArrowDown size={14} />
+                  Reorder — Coming Soon
+                </Button>
+                <form action={deleteCircleCardGalleryItemAction}>
+                  <input type="hidden" name="cardId" value={cardId} />
+                  <input type="hidden" name="galleryItemId" value={item.id} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full gap-2 text-destructive">
+                    <Trash2 size={14} />
+                    Delete
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </details>
+        ))}
+        {!galleryItems.length ? (
+          <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
+            No portfolio images yet. Add real work when you are ready to showcase it.
+          </p>
+        ) : null}
+      </div>
+
+      <details className="group mt-3 rounded-xl border border-gold/20 bg-background/20" open={!galleryItems.length}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+          <span>Add gallery item</span>
+          <span className="flex items-center gap-2 text-xs font-normal text-muted">
+            {galleryItems.length}/{CIRCLE_CARD_GALLERY_PRO_LIMIT}
+            <ChevronDown size={15} className="text-silver transition-transform group-open:rotate-180" />
+          </span>
+        </summary>
+        <form action={upsertCircleCardGalleryItemAction} className="space-y-3 border-t border-silver/12 p-3">
+          <input type="hidden" name="cardId" value={cardId} />
+          <input type="hidden" name="returnPath" value={returnPath} />
+          <CircleCardGalleryFields idPrefix={`gallery-new-${cardId}`} />
+          <Button type="submit" size="sm" className="h-9 gap-2" disabled={galleryItems.length >= CIRCLE_CARD_GALLERY_PRO_LIMIT}>
+            <Camera size={14} />
+            Add gallery item
+          </Button>
+        </form>
+      </details>
+    </section>
+  );
+}
+
 const OPENING_HOURS_PRESET_LABELS: Record<CircleCardOpeningHoursPreset, string> = {
   "weekdays-9-5": "Monday to Friday 9–5",
   "open-7-days": "Open 7 days",
@@ -1048,7 +1285,7 @@ function CircleCardOpeningHoursBuilder({
 
   return (
     <section id="business-card-opening-hours" className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-3 sm:p-4">
-      <details className="group" open={!openingHours}>
+      <details data-circle-card-module-details className="group" open={!openingHours}>
         <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
           <span className="min-w-0">
             <span className="flex flex-wrap items-center gap-2">
@@ -1196,6 +1433,8 @@ function BusinessCardBuilderFoundation({
   cardId,
   servicesMode,
   services,
+  galleryMode,
+  galleryItems,
   openingHoursMode,
   openingHours,
   businessName,
@@ -1211,6 +1450,8 @@ function BusinessCardBuilderFoundation({
   cardId: string;
   servicesMode: CircleCardServicesBuilderMode;
   services: CircleCardServiceItem[];
+  galleryMode: CircleCardGalleryBuilderMode;
+  galleryItems: CircleCardGalleryItem[];
   openingHoursMode: CircleCardOpeningHoursBuilderMode;
   openingHours: CircleCardOpeningHours | null;
   businessName?: string | null;
@@ -1223,7 +1464,7 @@ function BusinessCardBuilderFoundation({
 }) {
   const locked = access === "locked";
   const blockDefinitions = CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS.filter(
-    (definition) => definition.family === "BUSINESS"
+    (definition) => definition.family === "BUSINESS" && !definition.publicEditingEnabled
   );
   const detailItems = [
     {
@@ -1269,6 +1510,41 @@ function BusinessCardBuilderFoundation({
       action: websiteUrl ? "Uses website" : "Coming next"
     }
   ];
+  const activeServiceCount = services.filter((service) => service.isActive).length;
+  const activeGalleryCount = galleryItems.filter((item) => item.isActive).length;
+  const moduleHrefs = {
+    services: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-services" }),
+    gallery: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-gallery" }),
+    openingHours: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-opening-hours" })
+  };
+  const activeModules = [
+    {
+      type: "SERVICES",
+      label: "Services",
+      description: "Present your core services, prices and enquiry routes.",
+      status: services.length ? `${activeServiceCount} active` : "0 services",
+      action: services.length ? "Manage Services" : "Add your first service",
+      href: moduleHrefs.services
+    },
+    {
+      type: "GALLERY_PORTFOLIO",
+      label: "Gallery / Portfolio",
+      description: "Showcase selected work directly on this Business Card.",
+      status: galleryItems.length
+        ? `${galleryItems.length} image${galleryItems.length === 1 ? "" : "s"}${activeGalleryCount < galleryItems.length ? ` · ${activeGalleryCount} active` : ""}`
+        : "0 images",
+      action: galleryItems.length ? "Manage Gallery" : "Add your first gallery image",
+      href: moduleHrefs.gallery
+    },
+    {
+      type: "OPENING_HOURS",
+      label: "Opening Hours",
+      description: "Tell people when the business is open or available.",
+      status: openingHours ? "Set up" : "Not set",
+      action: openingHours ? "Edit Opening Hours" : "Set your opening hours",
+      href: moduleHrefs.openingHours
+    }
+  ] as const;
 
   return (
     <CircleCardDashboardSection
@@ -1318,6 +1594,12 @@ function BusinessCardBuilderFoundation({
           cardName={businessName || "Selected Business Card"}
           services={services}
         />
+        <CircleCardGalleryBuilder
+          mode={galleryMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          galleryItems={galleryItems}
+        />
         <CircleCardOpeningHoursBuilder
           mode={openingHoursMode}
           cardId={cardId}
@@ -1332,19 +1614,110 @@ function BusinessCardBuilderFoundation({
               Builder for: {businessName || "Selected Business Card"}
             </p>
             <p className="text-sm font-semibold text-foreground">
-              Business card = services, products, enquiry and trust.
+              Your business apps, all in one workspace.
             </p>
             <p className="mt-1 text-sm leading-relaxed text-muted">
-              This foundation uses your existing card details now. Products, payments, checkout and booking engines
-              are not active in this phase.
+              Launch an active module below to manage what appears on this selected Business Card.
             </p>
           </div>
+
+          <nav aria-label="Business Card setup" className="grid grid-cols-3 gap-2">
+            <Link
+              href={moduleHrefs.services}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Services</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{Math.min(activeServiceCount, 3)} / 3</span>
+            </Link>
+            <Link
+              href={moduleHrefs.openingHours}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Hours</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{openingHours ? "Set" : "Not set"}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.gallery}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Gallery</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{galleryItems.length} / {CIRCLE_CARD_GALLERY_PRO_LIMIT}</span>
+            </Link>
+          </nav>
+
+          <section aria-labelledby="business-builder-modules-title" className="rounded-2xl border border-silver/14 bg-background/18 p-3 sm:p-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Business apps</p>
+              <h3 id="business-builder-modules-title" className="mt-1 font-display text-lg font-semibold text-foreground sm:text-xl">
+                Open a module
+              </h3>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {activeModules.map((module) => {
+                const Icon = businessBuilderBlockIcon(module.type);
+
+                return (
+                  <Link
+                    key={module.type}
+                    href={module.href}
+                    className="group flex min-h-32 min-w-0 flex-col rounded-xl border border-gold/20 bg-card/52 p-3 transition-colors hover:border-gold/40 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+                  >
+                    <span className="flex items-start justify-between gap-3">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gold/20 bg-gold/10 text-gold">
+                        <Icon size={16} aria-hidden="true" />
+                      </span>
+                      <Badge variant="outline" className="max-w-full border-emerald-400/24 text-emerald-200">
+                        {module.status}
+                      </Badge>
+                    </span>
+                    <span className="mt-3 text-sm font-semibold text-foreground">{module.label}</span>
+                    <span className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">{module.description}</span>
+                    <span className="mt-auto flex items-center gap-1.5 pt-3 text-xs font-semibold text-gold">
+                      {module.action}
+                      <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3">
+              {blockDefinitions.map((definition) => {
+                const Icon = businessBuilderBlockIcon(definition.type);
+
+                return (
+                  <div key={definition.type} className="min-w-0 rounded-xl border border-silver/12 bg-card/36 p-3">
+                    <div className="flex items-start gap-2.5">
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-silver/14 bg-background/30 text-silver">
+                        <Icon size={14} aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold leading-snug text-foreground sm:text-sm">{definition.label}</p>
+                        <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted">
+                          {BUSINESS_CARD_BUILDER_BLOCK_DESCRIPTIONS[definition.type] ?? "Prepared for a future business profile block."}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="muted" className="mt-2.5">Coming Soon</Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
 
           <CircleCardServicesBuilder
             mode={servicesMode}
             cardId={cardId}
             cardName={businessName || "Selected Business Card"}
             services={services}
+          />
+
+          <CircleCardGalleryBuilder
+            mode={galleryMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            galleryItems={galleryItems}
           />
 
           <CircleCardOpeningHoursBuilder
@@ -1385,41 +1758,6 @@ function BusinessCardBuilderFoundation({
             </div>
           </details>
 
-          <details className="group rounded-xl border border-silver/14 bg-background/18">
-            <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
-              <span>
-                <span className="text-sm font-semibold text-foreground">Business profile blocks</span>
-                <span className="mt-1 block text-xs leading-relaxed text-muted">
-                  Reserved structure for business-focused public sections.
-                </span>
-              </span>
-              <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2 xl:grid-cols-3">
-              {blockDefinitions.map((definition) => {
-                const Icon = businessBuilderBlockIcon(definition.type);
-
-                return (
-                  <div key={definition.type} className="rounded-xl border border-silver/12 bg-card/42 p-3">
-                    <div className="flex items-start gap-3">
-                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gold/18 bg-gold/10 text-gold">
-                        <Icon size={16} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground">{definition.label}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-muted">
-                          {BUSINESS_CARD_BUILDER_BLOCK_DESCRIPTIONS[definition.type] ?? "Prepared for a future business profile block."}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant="muted" className="mt-3">
-                      Foundation only
-                    </Badge>
-                  </div>
-                );
-              })}
-            </div>
-          </details>
         </div>
       )}
     </CircleCardDashboardSection>
@@ -1617,6 +1955,11 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "service-shown": "Service is now visible on the public Business Card.",
   "service-hidden": "Service hidden from the public Business Card.",
   "service-deleted": "Service deleted from this Business Card.",
+  "gallery-item-created": "Gallery item added to this Business Card.",
+  "gallery-item-updated": "Gallery item updated.",
+  "gallery-item-shown": "Gallery item is now visible on the public Business Card.",
+  "gallery-item-hidden": "Gallery item hidden from the public Business Card.",
+  "gallery-item-deleted": "Gallery item deleted from this Business Card.",
   "opening-hours-saved": "Opening hours saved to this Business Card.",
   "opening-hours-preset-applied": "Opening hours preset applied to this Business Card.",
   "identity-updated": "Circle Card identity updated.",
@@ -1642,6 +1985,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   "service-limit": `This Business Card can keep up to ${CIRCLE_CARD_SERVICE_LIMIT} services.`,
   "services-locked": "Add services to your Business Card with Pro.",
   "services-business-card-required": "Services can only be added to a Business Card.",
+  "gallery-item-invalid": "Upload an image and check the gallery item fields.",
+  "gallery-item-not-found": "That gallery item could not be found on this Business Card.",
+  "gallery-limit": `Circle Card Pro can keep up to ${CIRCLE_CARD_GALLERY_PRO_LIMIT} gallery images.`,
+  "gallery-locked": "Gallery is included with Circle Card Pro.",
+  "gallery-business-card-required": "Gallery can only be added to a Business Card.",
   "opening-hours-invalid": "Check the opening hours and try again.",
   "opening-hours-locked": "Add opening hours to your Business Card with Pro.",
   "opening-hours-business-card-required": "Opening hours can only be added to a Business Card.",
@@ -3951,14 +4299,25 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isPlatformOwner,
     platformPreviewCardType: selectedOwnerCardTypePreviewMode
   });
+  const galleryBuilderMode = resolveCircleCardGalleryBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
   const selectedCardServices = card?.cardType === "BUSINESS"
     ? readCircleCardServices(card.contentBlocks)
+    : [];
+  const selectedCardGalleryItems = card?.cardType === "BUSINESS"
+    ? readCircleCardGalleryItems(card.contentBlocks)
     : [];
   const selectedCardOpeningHours = card?.cardType === "BUSINESS"
     ? readCircleCardOpeningHours(card.contentBlocks)
     : null;
   const showBusinessCardBuilder =
-    servicesBuilderMode !== "hidden" || openingHoursBuilderMode !== "hidden";
+    servicesBuilderMode !== "hidden" ||
+    galleryBuilderMode !== "hidden" ||
+    openingHoursBuilderMode !== "hidden";
   const businessBuilderAccess: BusinessCardBuilderAccess = isPlatformOwner
     ? "platform-preview"
     : isCircleCardFree
@@ -7838,6 +8197,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           cardId={card.id}
           servicesMode={servicesBuilderMode}
           services={selectedCardServices}
+          galleryMode={galleryBuilderMode}
+          galleryItems={selectedCardGalleryItems}
           openingHoursMode={openingHoursBuilderMode}
           openingHours={selectedCardOpeningHours}
           businessName={card.businessName}

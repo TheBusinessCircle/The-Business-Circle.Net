@@ -13,6 +13,7 @@ import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-ab
 import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
 import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-install-prompt";
 import { CircleCardPrivateLinkAction } from "@/components/circle-card/circle-card-private-link-action";
+import { PublicCircleCardGallery } from "@/components/circle-card/public-circle-card-gallery";
 import { CircleCardQrPanel } from "@/components/circle-card/circle-card-qr-panel";
 import { CircleCardReportForm } from "@/components/circle-card/circle-card-report-form";
 import { CircleCardShareButton } from "@/components/circle-card/circle-card-share-button";
@@ -1825,6 +1826,14 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderGallerySection({ id = "business-gallery" }: { id?: string } = {}) {
+    if (card.cardType !== "BUSINESS" || !card.galleryItems.length) {
+      return null;
+    }
+
+    return <PublicCircleCardGallery id={id} items={card.galleryItems} />;
+  }
+
   function renderShareQrSection({
     className,
     id = "circle-card-share",
@@ -2008,6 +2017,7 @@ export function PublicCircleCardProfile({
 
             {renderAboutSection({ id: "classic-about" })}
             {renderServicesSection({ id: "classic-services" })}
+            {renderGallerySection({ id: "classic-gallery" })}
             {renderOpeningHoursSection({ id: "classic-opening-hours" })}
             {renderQuickConnectSection({
               id: "classic-quick-connect",
@@ -2244,6 +2254,7 @@ export function PublicCircleCardProfile({
 
             {renderAboutSection({ id: "creator-about" })}
             {renderServicesSection({ id: "creator-services" })}
+            {renderGallerySection({ id: "creator-gallery" })}
             {renderOpeningHoursSection({ id: "creator-opening-hours" })}
             {renderQuickConnectSection({
               id: "creator-quick-connect",
@@ -2553,6 +2564,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "business-about" })}
             {renderBusinessHighlightsSection()}
             {renderServicesSection()}
+            {renderGallerySection()}
             {renderOpeningHoursSection()}
             {renderQuickConnectSection({
               id: "business-quick-connect",

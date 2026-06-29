@@ -98,7 +98,7 @@ export const CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS = [
     type: "GALLERY_PORTFOLIO",
     family: "BUSINESS",
     label: "Gallery / Portfolio",
-    publicEditingEnabled: false
+    publicEditingEnabled: true
   },
   {
     type: "REVIEWS_TESTIMONIALS",
@@ -149,6 +149,19 @@ export type CircleCardServiceItem = {
 };
 
 export const CIRCLE_CARD_SERVICE_LIMIT = 12;
+
+export type CircleCardGalleryItem = {
+  id: string;
+  imageUrl: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+export const CIRCLE_CARD_GALLERY_PRO_LIMIT = 20;
+export const CIRCLE_CARD_GALLERY_TEAMS_LIMIT = 100;
 
 export const CIRCLE_CARD_WEEKDAYS = [
   { key: "monday", label: "Monday" },
@@ -241,6 +254,34 @@ export const circleCardServiceFormSchema = z.object({
 export const circleCardServiceIdSchema = z.object({
   cardId: z.string().cuid(),
   serviceId: z.string().trim().min(1).max(64)
+});
+
+const galleryImageUrlSchema = z
+  .string()
+  .trim()
+  .min(1, "Upload a gallery image.")
+  .max(2048)
+  .refine(
+    (value) => value.startsWith("/uploads/") || /^https?:\/\//i.test(value),
+    "Upload an image or use a valid image web address."
+  );
+
+export const circleCardGalleryItemFormSchema = z.object({
+  cardId: z.string().cuid(),
+  galleryItemId: z.string().trim().max(64).optional().or(z.literal("")),
+  imageUrl: galleryImageUrlSchema,
+  title: z.string().trim().min(1, "Add an image title.").max(100),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+  category: z.string().trim().max(60).optional().or(z.literal("")),
+  isActive: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  )
+});
+
+export const circleCardGalleryItemIdSchema = z.object({
+  cardId: z.string().cuid(),
+  galleryItemId: z.string().trim().min(1).max(64)
 });
 
 const openingHoursTimeSchema = z
@@ -388,10 +429,10 @@ export function readCircleCardOpeningHours(value: unknown): CircleCardOpeningHou
 }
 
 export function writeCircleCardOpeningHours(
-  value: Prisma.JsonValue | null | undefined,
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
   openingHours: CircleCardOpeningHours
 ): Prisma.InputJsonObject {
-  const root = isRecord(value) ? value : {};
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
   const business = isRecord(root.business) ? root.business : {};
   const currentHours = isRecord(business.OPENING_HOURS) ? business.OPENING_HOURS : {};
 
@@ -475,10 +516,10 @@ export function readCircleCardServices(value: unknown): CircleCardServiceItem[] 
 }
 
 export function writeCircleCardServices(
-  value: Prisma.JsonValue | null | undefined,
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
   services: CircleCardServiceItem[]
 ): Prisma.InputJsonObject {
-  const root = isRecord(value) ? value : {};
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
   const business = isRecord(root.business) ? root.business : {};
   const currentServices = isRecord(business.SERVICES) ? business.SERVICES : {};
 
@@ -506,9 +547,102 @@ export function visibleCircleCardServices(input: {
     : [];
 }
 
+function readSafeGalleryImageUrl(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const imageUrl = value.trim();
+  return imageUrl.startsWith("/uploads/") || /^https?:\/\//i.test(imageUrl)
+    ? imageUrl
+    : null;
+}
+
+export function readCircleCardGalleryItems(value: unknown): CircleCardGalleryItem[] {
+  if (!isRecord(value) || !isRecord(value.business) || !isRecord(value.business.GALLERY_PORTFOLIO)) {
+    return [];
+  }
+
+  const items = value.business.GALLERY_PORTFOLIO.items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .flatMap((item, index) => {
+      if (!isRecord(item)) {
+        return [];
+      }
+
+      const id = typeof item.id === "string" ? item.id.trim() : "";
+      const imageUrl = readSafeGalleryImageUrl(item.imageUrl);
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+
+      if (!id || !imageUrl || !title) {
+        return [];
+      }
+
+      return [{
+        id,
+        imageUrl,
+        title: title.slice(0, 100),
+        description:
+          typeof item.description === "string" && item.description.trim()
+            ? item.description.trim().slice(0, 500)
+            : null,
+        category:
+          typeof item.category === "string" && item.category.trim()
+            ? item.category.trim().slice(0, 60)
+            : null,
+        isActive: item.isActive !== false,
+        sortOrder:
+          typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+            ? item.sortOrder
+            : index
+      } satisfies CircleCardGalleryItem];
+    })
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .slice(0, CIRCLE_CARD_GALLERY_TEAMS_LIMIT);
+}
+
+export function writeCircleCardGalleryItems(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  galleryItems: CircleCardGalleryItem[]
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const business = isRecord(root.business) ? root.business : {};
+  const currentGallery = isRecord(business.GALLERY_PORTFOLIO)
+    ? business.GALLERY_PORTFOLIO
+    : {};
+
+  return {
+    ...root,
+    business: {
+      ...business,
+      GALLERY_PORTFOLIO: {
+        ...currentGallery,
+        items: galleryItems.map((item, index) => ({
+          ...item,
+          sortOrder: index
+        }))
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardGalleryItems(input: {
+  cardType: string;
+  contentBlocks: unknown;
+}) {
+  return input.cardType === "BUSINESS"
+    ? readCircleCardGalleryItems(input.contentBlocks).filter((item) => item.isActive)
+    : [];
+}
+
 export type CircleCardServicesBuilderMode = "hidden" | "locked" | "enabled" | "preview";
 
 export type CircleCardOpeningHoursBuilderMode = CircleCardServicesBuilderMode;
+export type CircleCardGalleryBuilderMode = CircleCardServicesBuilderMode;
 
 export function resolveCircleCardServicesBuilderMode(input: {
   cardType?: string | null;
@@ -531,6 +665,15 @@ export function resolveCircleCardOpeningHoursBuilderMode(input: {
   isPlatformOwner?: boolean;
   platformPreviewCardType?: string | null;
 }): CircleCardOpeningHoursBuilderMode {
+  return resolveCircleCardServicesBuilderMode(input);
+}
+
+export function resolveCircleCardGalleryBuilderMode(input: {
+  cardType?: string | null;
+  hasProAccess: boolean;
+  isPlatformOwner?: boolean;
+  platformPreviewCardType?: string | null;
+}): CircleCardGalleryBuilderMode {
   return resolveCircleCardServicesBuilderMode(input);
 }
 

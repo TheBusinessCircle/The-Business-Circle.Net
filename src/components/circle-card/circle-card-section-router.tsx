@@ -27,7 +27,15 @@ function scrollToSection(section: string, targetId: string | null) {
         ? document.getElementById(targetId)
         : document.querySelector<HTMLElement>(`[data-circle-card-section="${section}"]`);
 
-      target?.scrollIntoView({ block: "start" });
+      const moduleDetails = target?.querySelector<HTMLDetailsElement>("[data-circle-card-module-details]");
+      if (moduleDetails) {
+        moduleDetails.open = true;
+      }
+
+      target?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start"
+      });
     });
   });
 }

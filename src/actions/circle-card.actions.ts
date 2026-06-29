@@ -46,16 +46,21 @@ import {
 } from "@/lib/circle-card/schema";
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
 import {
+  CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
+  circleCardGalleryItemFormSchema,
+  circleCardGalleryItemIdSchema,
   circleCardOpeningHoursFormSchema,
   circleCardOpeningHoursPresetSchema,
   circleCardServiceFormSchema,
   circleCardServiceIdSchema,
   createCircleCardOpeningHoursPreset,
   createEmptyCircleCardContentBlocks,
+  readCircleCardGalleryItems,
   readCircleCardOpeningHours,
   readCircleCardServices,
+  writeCircleCardGalleryItems,
   writeCircleCardOpeningHours,
   type CircleCardOpeningHours,
   writeCircleCardServices
@@ -2621,6 +2626,148 @@ export async function deleteCircleCardServiceAction(formData: FormData) {
 
   revalidateCircleCardPaths(card.slug);
   redirectWithNotice(returnPath, "service-deleted");
+}
+
+export async function upsertCircleCardGalleryItemAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardGalleryItemFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    galleryItemId: formData.get("galleryItemId") ?? "",
+    imageUrl: formData.get("imageUrl"),
+    title: formData.get("title"),
+    description: formData.get("description") ?? "",
+    category: formData.get("category") ?? "",
+    isActive: formData.get("isActive")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "gallery-item-invalid");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    redirectWithError(returnPath, "gallery-locked");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+  if (card.cardType !== "BUSINESS") {
+    redirectWithError(returnPath, "gallery-business-card-required");
+  }
+
+  const galleryItems = readCircleCardGalleryItems(card.contentBlocks);
+  const existingIndex = parsed.data.galleryItemId
+    ? galleryItems.findIndex((item) => item.id === parsed.data.galleryItemId)
+    : -1;
+
+  if (parsed.data.galleryItemId && existingIndex < 0) {
+    redirectWithError(returnPath, "gallery-item-not-found");
+  }
+  if (existingIndex < 0 && galleryItems.length >= CIRCLE_CARD_GALLERY_PRO_LIMIT) {
+    redirectWithError(returnPath, "gallery-limit");
+  }
+
+  const galleryItem = {
+    id: existingIndex >= 0 ? galleryItems[existingIndex].id : randomBytes(12).toString("hex"),
+    imageUrl: parsed.data.imageUrl,
+    title: parsed.data.title,
+    description: parsed.data.description || null,
+    category: parsed.data.category || null,
+    isActive: parsed.data.isActive,
+    sortOrder: existingIndex >= 0 ? galleryItems[existingIndex].sortOrder : galleryItems.length
+  };
+  const nextGalleryItems = [...galleryItems];
+
+  if (existingIndex >= 0) {
+    nextGalleryItems[existingIndex] = galleryItem;
+  } else {
+    nextGalleryItems.push(galleryItem);
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardGalleryItems(card.contentBlocks, nextGalleryItems) }
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, existingIndex >= 0 ? "gallery-item-updated" : "gallery-item-created");
+}
+
+export async function toggleCircleCardGalleryItemAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardGalleryItemIdSchema.safeParse({
+    cardId: formData.get("cardId"),
+    galleryItemId: formData.get("galleryItemId")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "gallery-item-invalid");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    redirectWithError(returnPath, "gallery-locked");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    redirectWithError(returnPath, card ? "gallery-business-card-required" : "card-not-found");
+  }
+
+  const galleryItems = readCircleCardGalleryItems(card.contentBlocks);
+  const galleryItemIndex = galleryItems.findIndex((item) => item.id === parsed.data.galleryItemId);
+  if (galleryItemIndex < 0) {
+    redirectWithError(returnPath, "gallery-item-not-found");
+  }
+
+  const wasActive = galleryItems[galleryItemIndex].isActive;
+  galleryItems[galleryItemIndex] = {
+    ...galleryItems[galleryItemIndex],
+    isActive: !wasActive
+  };
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardGalleryItems(card.contentBlocks, galleryItems) }
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, wasActive ? "gallery-item-hidden" : "gallery-item-shown");
+}
+
+export async function deleteCircleCardGalleryItemAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card");
+  const parsed = circleCardGalleryItemIdSchema.safeParse({
+    cardId: formData.get("cardId"),
+    galleryItemId: formData.get("galleryItemId")
+  });
+
+  if (!parsed.success) {
+    redirectWithError(returnPath, "gallery-item-invalid");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    redirectWithError(returnPath, "gallery-locked");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    redirectWithError(returnPath, card ? "gallery-business-card-required" : "card-not-found");
+  }
+
+  const galleryItems = readCircleCardGalleryItems(card.contentBlocks);
+  const nextGalleryItems = galleryItems.filter((item) => item.id !== parsed.data.galleryItemId);
+  if (nextGalleryItems.length === galleryItems.length) {
+    redirectWithError(returnPath, "gallery-item-not-found");
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardGalleryItems(card.contentBlocks, nextGalleryItems) }
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, "gallery-item-deleted");
 }
 
 export async function saveCircleCardOpeningHoursAction(formData: FormData) {
