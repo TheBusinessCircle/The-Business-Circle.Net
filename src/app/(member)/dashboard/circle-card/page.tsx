@@ -57,7 +57,6 @@ import {
   createCircleCardOpportunityAction,
   createCircleCardReferralAction,
   createCircleCardIntroductionAction,
-  deleteCircleCardGalleryItemAction,
   deleteCircleCardServiceAction,
   deleteCircleCardLinkAction,
   declineCircleCardConnectionRequestAction,
@@ -74,7 +73,6 @@ import {
   setDefaultCircleCardAction,
   toggleCircleWalletFavouriteAction,
   toggleCircleCardLinkAction,
-  toggleCircleCardGalleryItemAction,
   toggleCircleCardServiceAction,
   updateCircleCardOpportunityAction,
   updateCircleCardOpportunityStatusAction,
@@ -83,7 +81,6 @@ import {
   updateCircleWalletContactDetailsAction,
   upsertCircleCardRecommendationAction,
   upsertCircleCardAction,
-  upsertCircleCardGalleryItemAction,
   upsertCircleCardServiceAction,
   upsertCircleCardLinkAction
 } from "@/actions/circle-card.actions";
@@ -93,6 +90,7 @@ import {
   CircleCardCopyLinkButton,
   CircleCardDashboardSection,
   CircleCardFirstCardFormHelper,
+  CircleCardGalleryManager,
   CircleCardIdentityBanner,
   CircleCardIdentityFields,
   CircleCardImageUploadField,
@@ -995,79 +993,6 @@ function CircleCardServicesBuilder({
   );
 }
 
-function CircleCardGalleryFields({
-  idPrefix,
-  item
-}: {
-  idPrefix: string;
-  item?: CircleCardGalleryItem;
-}) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className="sm:col-span-2">
-        <CircleCardImageUploadField
-          id={`${idPrefix}-image`}
-          name="imageUrl"
-          label="Gallery image"
-          uploadKind="gallery-image"
-          defaultValue={item?.imageUrl ?? ""}
-          previewAlt={item?.title ?? "Gallery image preview"}
-          helperText="JPG, PNG or WebP, up to 5MB. The upload is reused when you save this item."
-          saveReminder="Upload the image, then save the gallery item below."
-          uploadSuccessMessage="Image uploaded. Save the gallery item below."
-          previewClassName="rounded-xl"
-          showAdjustments={false}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${idPrefix}-title`}>Title</Label>
-        <Input
-          id={`${idPrefix}-title`}
-          name="title"
-          defaultValue={item?.title ?? ""}
-          maxLength={100}
-          placeholder="Completed brand identity"
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${idPrefix}-category`}>Category (optional)</Label>
-        <Input
-          id={`${idPrefix}-category`}
-          name="category"
-          defaultValue={item?.category ?? ""}
-          maxLength={60}
-          placeholder="Branding"
-        />
-      </div>
-      <div className="space-y-2 sm:col-span-2">
-        <Label htmlFor={`${idPrefix}-description`}>Description (optional)</Label>
-        <Textarea
-          id={`${idPrefix}-description`}
-          name="description"
-          defaultValue={item?.description ?? ""}
-          rows={3}
-          maxLength={500}
-          placeholder="A short note about the work, result or project."
-        />
-      </div>
-      <label className="flex items-start gap-2 rounded-xl border border-silver/14 bg-background/22 p-3 text-sm text-foreground sm:col-span-2">
-        <input
-          name="isActive"
-          type="checkbox"
-          value="on"
-          defaultChecked={item?.isActive ?? true}
-          className="mt-0.5 h-4 w-4 rounded border-border bg-background accent-primary"
-        />
-        <span>
-          Active on public Business Card
-          <span className="mt-1 block text-xs text-muted">Hidden images remain editable here and are never loaded publicly.</span>
-        </span>
-      </label>
-    </div>
-  );
-}
-
 function CircleCardGalleryBuilder({
   mode,
   cardId,
@@ -1109,119 +1034,7 @@ function CircleCardGalleryBuilder({
     );
   }
 
-  const returnPath = circleCardManageHref({
-    cardId,
-    section: "my-card",
-    hash: "business-card-gallery"
-  });
-  const activeCount = galleryItems.filter((item) => item.isActive).length;
-
-  return (
-    <section id="business-card-gallery" className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-3 sm:p-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-display text-xl font-semibold text-foreground">Gallery / Portfolio</h3>
-            <Badge variant="outline" className="border-gold/28 text-gold">Pro</Badge>
-            <Badge variant="muted">{activeCount} active</Badge>
-          </div>
-          <p className="mt-1 text-sm text-muted">Show people your best work.</p>
-          <p className="mt-1 text-xs text-silver">Display a professional portfolio directly on your Business Card.</p>
-          <p className="mt-2 text-[11px] uppercase tracking-[0.08em] text-gold">Card: {cardName}</p>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-2">
-        {galleryItems.map((item) => (
-          <details key={item.id} className="group rounded-xl border border-silver/14 bg-background/20">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-silver/14 bg-background/40">
-                  <img
-                    src={item.imageUrl}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                </span>
-                <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
-                    <span className="truncate">{item.title}</span>
-                    <Badge variant={item.isActive ? "outline" : "muted"} className={item.isActive ? "border-emerald-400/26 text-emerald-200" : undefined}>
-                      {item.isActive ? "Active" : "Hidden"}
-                    </Badge>
-                    {item.category ? <Badge variant="muted">{item.category}</Badge> : null}
-                  </span>
-                  {item.description ? <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-muted">{item.description}</span> : null}
-                </span>
-              </span>
-              <ChevronDown size={15} className="shrink-0 text-silver transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="border-t border-silver/12 p-3">
-              <form action={upsertCircleCardGalleryItemAction} className="space-y-3">
-                <input type="hidden" name="cardId" value={cardId} />
-                <input type="hidden" name="galleryItemId" value={item.id} />
-                <input type="hidden" name="returnPath" value={returnPath} />
-                <CircleCardGalleryFields idPrefix={`gallery-${item.id}`} item={item} />
-                <Button type="submit" size="sm" className="h-9 gap-2">
-                  <Save size={14} />
-                  Save item
-                </Button>
-              </form>
-              <div className="mt-3 grid gap-2 border-t border-silver/12 pt-3 sm:grid-cols-3">
-                <form action={toggleCircleCardGalleryItemAction}>
-                  <input type="hidden" name="cardId" value={cardId} />
-                  <input type="hidden" name="galleryItemId" value={item.id} />
-                  <input type="hidden" name="returnPath" value={returnPath} />
-                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full gap-2">
-                    {item.isActive ? <EyeOff size={14} /> : <Eye size={14} />}
-                    {item.isActive ? "Hide" : "Show"}
-                  </Button>
-                </form>
-                <Button type="button" variant="outline" size="sm" className="h-9 w-full gap-2" disabled>
-                  <ArrowDown size={14} />
-                  Reorder — Coming Soon
-                </Button>
-                <form action={deleteCircleCardGalleryItemAction}>
-                  <input type="hidden" name="cardId" value={cardId} />
-                  <input type="hidden" name="galleryItemId" value={item.id} />
-                  <input type="hidden" name="returnPath" value={returnPath} />
-                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full gap-2 text-destructive">
-                    <Trash2 size={14} />
-                    Delete
-                  </Button>
-                </form>
-              </div>
-            </div>
-          </details>
-        ))}
-        {!galleryItems.length ? (
-          <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
-            No portfolio images yet. Add real work when you are ready to showcase it.
-          </p>
-        ) : null}
-      </div>
-
-      <details className="group mt-3 rounded-xl border border-gold/20 bg-background/20" open={!galleryItems.length}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-          <span>Add gallery item</span>
-          <span className="flex items-center gap-2 text-xs font-normal text-muted">
-            {galleryItems.length}/{CIRCLE_CARD_GALLERY_PRO_LIMIT}
-            <ChevronDown size={15} className="text-silver transition-transform group-open:rotate-180" />
-          </span>
-        </summary>
-        <form action={upsertCircleCardGalleryItemAction} className="space-y-3 border-t border-silver/12 p-3">
-          <input type="hidden" name="cardId" value={cardId} />
-          <input type="hidden" name="returnPath" value={returnPath} />
-          <CircleCardGalleryFields idPrefix={`gallery-new-${cardId}`} />
-          <Button type="submit" size="sm" className="h-9 gap-2" disabled={galleryItems.length >= CIRCLE_CARD_GALLERY_PRO_LIMIT}>
-            <Camera size={14} />
-            Add gallery item
-          </Button>
-        </form>
-      </details>
-    </section>
-  );
+  return <CircleCardGalleryManager cardId={cardId} cardName={cardName} initialItems={galleryItems} />;
 }
 
 const OPENING_HOURS_PRESET_LABELS: Record<CircleCardOpeningHoursPreset, string> = {
@@ -7655,6 +7468,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             <CircleCardSaveForm
               id={isFirstCardCreateFlow ? "circle-card-first-card-form" : "circle-card-edit-form"}
               action={upsertCircleCardAction}
+              existingCardId={card?.id}
               className="space-y-5 pb-24 sm:pb-0"
               noValidate={!isFirstCardCreateFlow}
             >
@@ -10288,6 +10102,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   <CircleCardSaveForm
                     id="circle-card-settings-form"
                     action={upsertCircleCardAction}
+                    existingCardId={card.id}
                     className="space-y-4"
                     noValidate
                   >

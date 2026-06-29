@@ -14,6 +14,7 @@ type CircleCardSaveFormProps = {
   id?: string;
   className?: string;
   noValidate?: boolean;
+  existingCardId?: string;
   action: (
     previousState: CircleCardSaveActionState,
     formData: FormData
@@ -33,6 +34,7 @@ export function CircleCardSaveForm({
   id,
   className,
   noValidate,
+  existingCardId,
   action,
   children
 }: CircleCardSaveFormProps) {
@@ -53,8 +55,20 @@ export function CircleCardSaveForm({
         }
       })
     );
-    router.refresh();
-  }, [router, state.cardId, state.slug, state.success, state.submittedAt]);
+
+    if (!existingCardId && state.cardId) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("cardId", state.cardId);
+      url.searchParams.delete("newCard");
+      url.searchParams.delete("notice");
+      url.searchParams.delete("error");
+      url.searchParams.delete("created");
+      if (!url.searchParams.get("section")) {
+        url.searchParams.set("section", "my-card");
+      }
+      router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false });
+    }
+  }, [existingCardId, router, state.cardId, state.slug, state.success, state.submittedAt]);
 
   useEffect(() => {
     if (state.success || !state.submittedAt || !firstInvalidField) {

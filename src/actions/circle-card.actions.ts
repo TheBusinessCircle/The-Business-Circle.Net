@@ -62,6 +62,7 @@ import {
   readCircleCardServices,
   writeCircleCardGalleryItems,
   writeCircleCardOpeningHours,
+  type CircleCardGalleryItem,
   type CircleCardOpeningHours,
   writeCircleCardServices
 } from "@/lib/circle-card/content-blocks";
@@ -981,6 +982,18 @@ export type CircleCardInlineActionResult =
       message: string;
     };
 
+export type CircleCardGalleryInlineActionResult =
+  | {
+      ok: true;
+      notice: string;
+      item?: CircleCardGalleryItem;
+    }
+  | {
+      ok: false;
+      error: string;
+      message: string;
+    };
+
 function serializeCircleCardDashboardLink(
   link: CircleCardDashboardLinkRecord
 ): CircleCardDashboardLinkPayload {
@@ -1025,6 +1038,13 @@ function inlineCircleCardError(error: string, message: string): CircleCardInline
     error,
     message
   };
+}
+
+function inlineCircleCardGalleryError(
+  error: string,
+  message: string
+): CircleCardGalleryInlineActionResult {
+  return { ok: false, error, message };
 }
 
 function circleCardSaveSuccess(input: { cardId: string; slug: string }): CircleCardSaveActionState {
@@ -2768,6 +2788,181 @@ export async function deleteCircleCardGalleryItemAction(formData: FormData) {
 
   revalidateCircleCardPaths(card.slug);
   redirectWithNotice(returnPath, "gallery-item-deleted");
+}
+
+export async function upsertCircleCardGalleryItemInlineAction(
+  formData: FormData
+): Promise<CircleCardGalleryInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardGalleryItemFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    galleryItemId: formData.get("galleryItemId") ?? "",
+    imageUrl: formData.get("imageUrl"),
+    title: formData.get("title"),
+    description: formData.get("description") ?? "",
+    category: formData.get("category") ?? "",
+    isActive: formData.get("isActive")
+  });
+
+  if (!parsed.success) {
+    return inlineCircleCardGalleryError(
+      "gallery-item-invalid",
+      "Upload an image and check the gallery item fields."
+    );
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardGalleryError("gallery-locked", "Gallery is included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card) {
+    return inlineCircleCardGalleryError("card-not-found", "That Circle Card could not be found.");
+  }
+  if (card.cardType !== "BUSINESS") {
+    return inlineCircleCardGalleryError(
+      "gallery-business-card-required",
+      "Gallery can only be added to a Business Card."
+    );
+  }
+
+  const galleryItems = readCircleCardGalleryItems(card.contentBlocks);
+  const existingIndex = parsed.data.galleryItemId
+    ? galleryItems.findIndex((item) => item.id === parsed.data.galleryItemId)
+    : -1;
+
+  if (parsed.data.galleryItemId && existingIndex < 0) {
+    return inlineCircleCardGalleryError(
+      "gallery-item-not-found",
+      "That gallery item could not be found on this Business Card."
+    );
+  }
+  if (existingIndex < 0 && galleryItems.length >= CIRCLE_CARD_GALLERY_PRO_LIMIT) {
+    return inlineCircleCardGalleryError(
+      "gallery-limit",
+      `Circle Card Pro can keep up to ${CIRCLE_CARD_GALLERY_PRO_LIMIT} gallery images.`
+    );
+  }
+
+  const galleryItem: CircleCardGalleryItem = {
+    id: existingIndex >= 0 ? galleryItems[existingIndex].id : randomBytes(12).toString("hex"),
+    imageUrl: parsed.data.imageUrl,
+    title: parsed.data.title,
+    description: parsed.data.description || null,
+    category: parsed.data.category || null,
+    isActive: parsed.data.isActive,
+    sortOrder: existingIndex >= 0 ? galleryItems[existingIndex].sortOrder : galleryItems.length
+  };
+  const nextGalleryItems = [...galleryItems];
+
+  if (existingIndex >= 0) {
+    nextGalleryItems[existingIndex] = galleryItem;
+  } else {
+    nextGalleryItems.push(galleryItem);
+  }
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardGalleryItems(card.contentBlocks, nextGalleryItems) }
+    });
+
+    revalidateCircleCardPaths(card.slug);
+    return {
+      ok: true,
+      notice: "Gallery image saved",
+      item: galleryItem
+    };
+  } catch {
+    return inlineCircleCardGalleryError(
+      "gallery-save-failed",
+      "The gallery image could not be saved. Your current image is still shown."
+    );
+  }
+}
+
+export async function toggleCircleCardGalleryItemInlineAction(input: {
+  cardId: string;
+  galleryItemId: string;
+}): Promise<CircleCardGalleryInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardGalleryItemIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardGalleryError("gallery-item-invalid", "Check the gallery item and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardGalleryError("gallery-locked", "Gallery is included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardGalleryError(
+      card ? "gallery-business-card-required" : "card-not-found",
+      card ? "Gallery can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const galleryItems = readCircleCardGalleryItems(card.contentBlocks);
+  const itemIndex = galleryItems.findIndex((item) => item.id === parsed.data.galleryItemId);
+  if (itemIndex < 0) {
+    return inlineCircleCardGalleryError(
+      "gallery-item-not-found",
+      "That gallery item could not be found on this Business Card."
+    );
+  }
+
+  galleryItems[itemIndex] = { ...galleryItems[itemIndex], isActive: !galleryItems[itemIndex].isActive };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardGalleryItems(card.contentBlocks, galleryItems) }
+  });
+  revalidateCircleCardPaths(card.slug);
+
+  return {
+    ok: true,
+    notice: galleryItems[itemIndex].isActive ? "Gallery image shown" : "Gallery image hidden",
+    item: galleryItems[itemIndex]
+  };
+}
+
+export async function deleteCircleCardGalleryItemInlineAction(input: {
+  cardId: string;
+  galleryItemId: string;
+}): Promise<CircleCardGalleryInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardGalleryItemIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardGalleryError("gallery-item-invalid", "Check the gallery item and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardGalleryError("gallery-locked", "Gallery is included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardGalleryError(
+      card ? "gallery-business-card-required" : "card-not-found",
+      card ? "Gallery can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const galleryItems = readCircleCardGalleryItems(card.contentBlocks);
+  const nextGalleryItems = galleryItems.filter((item) => item.id !== parsed.data.galleryItemId);
+  if (nextGalleryItems.length === galleryItems.length) {
+    return inlineCircleCardGalleryError(
+      "gallery-item-not-found",
+      "That gallery item could not be found on this Business Card."
+    );
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardGalleryItems(card.contentBlocks, nextGalleryItems) }
+  });
+  revalidateCircleCardPaths(card.slug);
+
+  return { ok: true, notice: "Gallery image deleted" };
 }
 
 export async function saveCircleCardOpeningHoursAction(formData: FormData) {

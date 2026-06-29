@@ -109,6 +109,30 @@ function uploadFailedNotice(error?: string) {
     : "Failed. Your existing image has not changed.";
 }
 
+function preloadUploadedImage(imageUrl: string) {
+  return new Promise<void>((resolve) => {
+    const image = new Image();
+    let settled = false;
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve();
+    };
+
+    image.onload = finish;
+    image.onerror = finish;
+    image.src = imageUrl;
+
+    if (image.complete) {
+      finish();
+    } else {
+      window.setTimeout(finish, 2000);
+    }
+  });
+}
+
 export function CircleCardImageUploadField({
   id,
   label,
@@ -150,6 +174,7 @@ export function CircleCardImageUploadField({
     positionY: normalizePosition(positionY ?? defaultPositionY),
     scale: normalizeScale(scale ?? defaultScale)
   }));
+  const previousAdjustmentsRef = useRef(adjustments);
   const previewUrl = selectedPreviewUrl ?? imageUrl;
   const hasImageToAdjust = Boolean(previewUrl);
   const fallbackImageSrc = fallbackSrc ?? (uploadKind === "business-logo" ? CIRCLE_CARD_LOGO_SRC : undefined);
@@ -226,12 +251,14 @@ export function CircleCardImageUploadField({
     if (!file) {
       setSelectedFile(null);
       setSelectedPreviewUrl(null);
+      commitAdjustments(previousAdjustmentsRef.current);
       return;
     }
 
     if (file.size > MAX_IMAGE_BYTES) {
       setSelectedFile(null);
       setSelectedPreviewUrl(null);
+      commitAdjustments(previousAdjustmentsRef.current);
       setNotice({ tone: "error", message: "Image must be 5MB or smaller." });
       return;
     }
@@ -239,10 +266,14 @@ export function CircleCardImageUploadField({
     if (!isSupportedImage(file)) {
       setSelectedFile(null);
       setSelectedPreviewUrl(null);
+      commitAdjustments(previousAdjustmentsRef.current);
       setNotice({ tone: "error", message: "Upload a JPG, PNG or WebP image." });
       return;
     }
 
+    if (!selectedFile) {
+      previousAdjustmentsRef.current = adjustments;
+    }
     setSelectedFile(file);
     setSelectedPreviewUrl(URL.createObjectURL(file));
     commitAdjustments(DEFAULT_ADJUSTMENTS);
@@ -273,10 +304,13 @@ export function CircleCardImageUploadField({
       const uploadedImageUrl = readUploadedImageUrl(data);
 
       if (!response.ok || !uploadedImageUrl) {
+        setSelectedPreviewUrl(null);
+        commitAdjustments(previousAdjustmentsRef.current);
         setNotice({ tone: "error", message: uploadFailedNotice(data.error) });
         return;
       }
 
+      await preloadUploadedImage(uploadedImageUrl);
       commitImageUrl(uploadedImageUrl);
       setLastUploadedUrl(uploadedImageUrl);
       setSelectedFile(null);
@@ -287,6 +321,8 @@ export function CircleCardImageUploadField({
         fileInputRef.current.value = "";
       }
     } catch {
+      setSelectedPreviewUrl(null);
+      commitAdjustments(previousAdjustmentsRef.current);
       setNotice({ tone: "error", message: uploadFailedNotice() });
     } finally {
       setUploading(false);
@@ -337,6 +373,12 @@ export function CircleCardImageUploadField({
             ) : (
               <ImagePlus size={22} aria-hidden="true" />
             )}
+            {uploading ? (
+              <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/72 text-[10px] font-medium text-foreground backdrop-blur-[1px]">
+                <Loader2 size={16} className="animate-spin text-gold" aria-hidden="true" />
+                Uploading...
+              </span>
+            ) : null}
           </div>
 
           <div className="min-w-0 space-y-2">
