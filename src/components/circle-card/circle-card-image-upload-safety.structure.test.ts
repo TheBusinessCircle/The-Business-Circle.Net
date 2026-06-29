@@ -24,6 +24,10 @@ const dashboard = readFileSync(
   "utf8"
 );
 const actions = readFileSync(join(root, "src/actions/circle-card.actions.ts"), "utf8");
+const publicGallery = readFileSync(
+  join(root, "src/components/circle-card/public-circle-card-gallery.tsx"),
+  "utf8"
+);
 
 describe("Circle Card image upload safety", () => {
   it("uploads through fetch with non-submit controls", () => {
@@ -50,5 +54,13 @@ describe("Circle Card image upload safety", () => {
     expect(actions).toContain('notice: "Gallery image saved"');
     expect(smartLinkManager).toContain("event.preventDefault()");
     expect(smartLinkManager).toContain("upsertCircleCardLinkInlineAction");
+  });
+
+  it("blocks missing gallery images and removes failed public images", () => {
+    expect(galleryManager).toContain('disabled={saving || !imageReady}');
+    expect(galleryManager).toContain("Upload a valid gallery image before saving.");
+    expect(galleryManager).toContain("Image missing - edit or remove");
+    expect(publicGallery).toContain("isValidCircleCardGalleryImageUrl(item.imageUrl)");
+    expect(publicGallery).toContain("onError={() => markFailed(item.id)}");
   });
 });

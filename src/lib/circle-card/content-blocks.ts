@@ -256,14 +256,36 @@ export const circleCardServiceIdSchema = z.object({
   serviceId: z.string().trim().min(1).max(64)
 });
 
+export function isValidCircleCardGalleryImageUrl(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const imageUrl = value.trim();
+  if (/^\/uploads\/circle-card\/[^?#]+\.(?:jpe?g|png|webp)(?:[?#].*)?$/i.test(imageUrl)) {
+    return true;
+  }
+
+  try {
+    const url = new URL(imageUrl);
+    return (
+      url.protocol === "https:" &&
+      url.hostname.toLowerCase() === "res.cloudinary.com" &&
+      url.pathname.includes("/image/upload/")
+    );
+  } catch {
+    return false;
+  }
+}
+
 const galleryImageUrlSchema = z
   .string()
   .trim()
   .min(1, "Upload a gallery image.")
   .max(2048)
   .refine(
-    (value) => value.startsWith("/uploads/") || /^https?:\/\//i.test(value),
-    "Upload an image or use a valid image web address."
+    isValidCircleCardGalleryImageUrl,
+    "Upload the gallery image successfully before saving."
   );
 
 export const circleCardGalleryItemFormSchema = z.object({
@@ -548,14 +570,7 @@ export function visibleCircleCardServices(input: {
 }
 
 function readSafeGalleryImageUrl(value: unknown) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const imageUrl = value.trim();
-  return imageUrl.startsWith("/uploads/") || /^https?:\/\//i.test(imageUrl)
-    ? imageUrl
-    : null;
+  return isValidCircleCardGalleryImageUrl(value) ? value.trim() : null;
 }
 
 export function readCircleCardGalleryItems(value: unknown): CircleCardGalleryItem[] {
@@ -578,13 +593,13 @@ export function readCircleCardGalleryItems(value: unknown): CircleCardGalleryIte
       const imageUrl = readSafeGalleryImageUrl(item.imageUrl);
       const title = typeof item.title === "string" ? item.title.trim() : "";
 
-      if (!id || !imageUrl || !title) {
+      if (!id || !title) {
         return [];
       }
 
       return [{
         id,
-        imageUrl,
+        imageUrl: imageUrl ?? "",
         title: title.slice(0, 100),
         description:
           typeof item.description === "string" && item.description.trim()
@@ -635,7 +650,9 @@ export function visibleCircleCardGalleryItems(input: {
   contentBlocks: unknown;
 }) {
   return input.cardType === "BUSINESS"
-    ? readCircleCardGalleryItems(input.contentBlocks).filter((item) => item.isActive)
+    ? readCircleCardGalleryItems(input.contentBlocks).filter(
+        (item) => item.isActive && isValidCircleCardGalleryImageUrl(item.imageUrl)
+      )
     : [];
 }
 

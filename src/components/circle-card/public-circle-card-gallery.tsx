@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Images, X } from "lucide-react";
-import type { CircleCardGalleryItem } from "@/lib/circle-card/content-blocks";
+import {
+  isValidCircleCardGalleryImageUrl,
+  type CircleCardGalleryItem
+} from "@/lib/circle-card/content-blocks";
 
 type PublicCircleCardGalleryProps = {
   items: CircleCardGalleryItem[];
@@ -14,6 +17,20 @@ export function PublicCircleCardGallery({
   id = "business-gallery"
 }: PublicCircleCardGalleryProps) {
   const [selectedItem, setSelectedItem] = useState<CircleCardGalleryItem | null>(null);
+  const [failedItemIds, setFailedItemIds] = useState<Set<string>>(() => new Set());
+  const [loadedItemIds, setLoadedItemIds] = useState<Set<string>>(() => new Set());
+  const visibleItems = items.filter(
+    (item) => isValidCircleCardGalleryImageUrl(item.imageUrl) && !failedItemIds.has(item.id)
+  );
+
+  function markFailed(itemId: string) {
+    setFailedItemIds((current) => new Set(current).add(itemId));
+    setSelectedItem((current) => (current?.id === itemId ? null : current));
+  }
+
+  function markLoaded(itemId: string) {
+    setLoadedItemIds((current) => new Set(current).add(itemId));
+  }
 
   useEffect(() => {
     if (!selectedItem) {
@@ -36,7 +53,7 @@ export function PublicCircleCardGallery({
     };
   }, [selectedItem]);
 
-  if (!items.length) {
+  if (!visibleItems.length) {
     return null;
   }
 
@@ -60,8 +77,11 @@ export function PublicCircleCardGallery({
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
-          {items.map((item) => (
-            <article key={item.id} className="min-w-0 overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]">
+          {visibleItems.map((item) => (
+            <article
+              key={item.id}
+              className={`min-w-0 overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04] transition-opacity ${loadedItemIds.has(item.id) ? "visible opacity-100" : "invisible opacity-0"}`}
+            >
               <button
                 type="button"
                 className="group block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
@@ -75,6 +95,8 @@ export function PublicCircleCardGallery({
                     loading="lazy"
                     decoding="async"
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    onLoad={() => markLoaded(item.id)}
+                    onError={() => markFailed(item.id)}
                   />
                 </span>
               </button>
@@ -123,6 +145,7 @@ export function PublicCircleCardGallery({
                 loading="lazy"
                 decoding="async"
                 className="max-h-[75vh] w-full object-contain"
+                onError={() => markFailed(selectedItem.id)}
               />
             </div>
             <div className="p-4 sm:p-5">

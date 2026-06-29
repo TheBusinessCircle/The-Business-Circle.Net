@@ -97,7 +97,7 @@ function isSupportedImage(file: File) {
 }
 
 function readUploadedImageUrl(data: UploadResponse) {
-  const candidate = data.imageUrl ?? data.url ?? data.secureUrl ?? "";
+  const candidate = data.secureUrl ?? data.imageUrl ?? data.url ?? "";
   return typeof candidate === "string" ? candidate.trim() : "";
 }
 

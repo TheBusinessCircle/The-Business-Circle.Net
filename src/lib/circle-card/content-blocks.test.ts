@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   circleCardOpeningHoursDayLabel,
+  circleCardGalleryItemFormSchema,
   createCircleCardOpeningHoursPreset,
+  isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
   readCircleCardServices,
   resolveCircleCardGalleryBuilderMode,
@@ -136,6 +138,23 @@ describe("Circle Card opening hours content block", () => {
 });
 
 describe("Circle Card gallery content block", () => {
+  it("accepts managed local and Cloudinary images but rejects empty or arbitrary URLs", () => {
+    expect(isValidCircleCardGalleryImageUrl("/uploads/circle-card/user-gallery-image.jpg")).toBe(true);
+    expect(isValidCircleCardGalleryImageUrl("https://res.cloudinary.com/demo/image/upload/v1/work.webp")).toBe(true);
+    expect(isValidCircleCardGalleryImageUrl("")).toBe(false);
+    expect(isValidCircleCardGalleryImageUrl("https://example.com/missing.jpg")).toBe(false);
+
+    expect(circleCardGalleryItemFormSchema.safeParse({
+      cardId: "cm12345678901234567890123",
+      galleryItemId: "",
+      imageUrl: "",
+      title: "Missing image",
+      description: "",
+      category: "",
+      isActive: true
+    }).success).toBe(false);
+  });
+
   it("enables the gallery builder for entitled Business Cards only", () => {
     expect(resolveCircleCardGalleryBuilderMode({ cardType: "BUSINESS", hasProAccess: true })).toBe("enabled");
     expect(resolveCircleCardGalleryBuilderMode({ cardType: "PERSONAL", hasProAccess: true })).toBe("hidden");
@@ -161,5 +180,26 @@ describe("Circle Card gallery content block", () => {
 
     expect(readCircleCardServices(contentBlocks)).toEqual([activeService]);
     expect(readCircleCardGalleryItems(contentBlocks)).toEqual([activeGalleryItem]);
+  });
+
+  it("retains broken legacy items for dashboard repair but excludes them publicly", () => {
+    const contentBlocks = {
+      business: {
+        GALLERY_PORTFOLIO: {
+          items: [{
+            id: "legacy-broken",
+            imageUrl: "https://example.com/missing.jpg",
+            title: "Legacy item",
+            isActive: true,
+            sortOrder: 0
+          }]
+        }
+      }
+    };
+
+    expect(readCircleCardGalleryItems(contentBlocks)).toEqual([
+      expect.objectContaining({ id: "legacy-broken", imageUrl: "" })
+    ]);
+    expect(visibleCircleCardGalleryItems({ cardType: "BUSINESS", contentBlocks })).toEqual([]);
   });
 });

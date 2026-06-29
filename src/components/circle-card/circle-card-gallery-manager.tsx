@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
+  isValidCircleCardGalleryImageUrl,
   type CircleCardGalleryItem
 } from "@/lib/circle-card/content-blocks";
 
@@ -39,11 +40,49 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
   const [formKey, setFormKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? "");
+  const [imageReady, setImageReady] = useState(false);
   const idPrefix = item ? `gallery-${item.id}` : `gallery-new-${cardId}-${formKey}`;
+
+  useEffect(() => {
+    setImageReady(false);
+    if (!isValidCircleCardGalleryImageUrl(imageUrl)) {
+      return;
+    }
+
+    let active = true;
+    const image = new Image();
+    const markReady = () => {
+      if (active) {
+        setImageReady(true);
+      }
+    };
+    const markBroken = () => {
+      if (active) {
+        setImageReady(false);
+      }
+    };
+
+    image.onload = markReady;
+    image.onerror = markBroken;
+    image.src = imageUrl;
+    if (image.complete && image.naturalWidth > 0) {
+      markReady();
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [imageUrl]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) {
+      return;
+    }
+
+    if (!imageReady) {
+      setError("Upload a valid gallery image before saving.");
       return;
     }
 
@@ -57,6 +96,8 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
         onNotice(result.notice);
         if (!item) {
           formRef.current?.reset();
+          setImageUrl("");
+          setImageReady(false);
           setFormKey((current) => current + 1);
         }
       } else if (!result.ok) {
@@ -81,6 +122,11 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
             label="Gallery image"
             uploadKind="gallery-image"
             defaultValue={item?.imageUrl ?? ""}
+            value={imageUrl}
+            onValueChange={(nextValue) => {
+              setImageUrl(nextValue);
+              setError("");
+            }}
             previewAlt={item?.title ?? "Gallery image preview"}
             helperText="JPG, PNG or WebP, up to 5MB. Uploading stays in this Gallery workspace."
             saveReminder="Upload the image, then save this gallery item."
@@ -142,11 +188,45 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
         </p>
       ) : null}
 
-      <Button type="submit" size="sm" className="h-9 gap-2" disabled={saving}>
+      {!imageReady ? (
+        <p className="text-xs font-medium text-amber-200">
+          A successfully loaded gallery image is required before this item can be saved.
+        </p>
+      ) : null}
+
+      <Button type="submit" size="sm" className="h-9 gap-2" disabled={saving || !imageReady}>
         {saving ? <Loader2 size={14} className="animate-spin" /> : item ? <Save size={14} /> : <Camera size={14} />}
         {saving ? "Saving..." : item ? "Save item" : "Add gallery item"}
       </Button>
     </form>
+  );
+}
+
+function GalleryThumbnail({ item }: { item: CircleCardGalleryItem }) {
+  const [broken, setBroken] = useState(!isValidCircleCardGalleryImageUrl(item.imageUrl));
+
+  useEffect(() => {
+    setBroken(!isValidCircleCardGalleryImageUrl(item.imageUrl));
+  }, [item.imageUrl]);
+
+  if (broken) {
+    return (
+      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-amber-300/28 bg-amber-300/10 p-1.5 text-center text-[9px] font-semibold leading-tight text-amber-100">
+        Image missing - edit or remove
+      </span>
+    );
+  }
+
+  return (
+    <span className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-silver/14 bg-background/40">
+      <img
+        src={item.imageUrl}
+        alt=""
+        loading="lazy"
+        className="h-full w-full object-cover"
+        onError={() => setBroken(true)}
+      />
+    </span>
   );
 }
 
@@ -219,7 +299,9 @@ export function CircleCardGalleryManager({
     }
   }
 
-  const activeCount = items.filter((item) => item.isActive).length;
+  const activeCount = items.filter(
+    (item) => item.isActive && isValidCircleCardGalleryImageUrl(item.imageUrl)
+  ).length;
 
   return (
     <section id="business-card-gallery" className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-3 sm:p-4">
@@ -254,9 +336,7 @@ export function CircleCardGalleryManager({
             <details key={item.id} className="group rounded-xl border border-silver/14 bg-background/20">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-silver/14 bg-background/40">
-                    <img src={item.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  </span>
+                  <GalleryThumbnail item={item} />
                   <span className="min-w-0">
                     <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
                       <span className="truncate">{item.title}</span>
