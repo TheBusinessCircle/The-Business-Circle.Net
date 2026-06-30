@@ -207,6 +207,18 @@ function pendingKey(linkId: string, action: PendingAction) {
   return `${linkId}:${action}`;
 }
 
+function featuredLinkImageDraftKey(cardId: string, linkId: string) {
+  return `circle-card:featured-link-image-draft:${cardId}:${linkId}`;
+}
+
+function clearFeaturedLinkImageDraft(key: string) {
+  try {
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // A successful server save is authoritative even if storage is unavailable.
+  }
+}
+
 export function CircleCardSmartLinkCreateForm({
   cardId,
   sortOrder,
@@ -220,6 +232,7 @@ export function CircleCardSmartLinkCreateForm({
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const imageDraftKey = featuredLinkImageDraftKey(cardId, "new");
 
   useEffect(() => {
     setNextSortOrder(sortOrder);
@@ -235,6 +248,7 @@ export function CircleCardSmartLinkCreateForm({
     if (result.ok && result.link) {
       const createdLink = result.link;
       setNotice("Saved");
+      clearFeaturedLinkImageDraft(imageDraftKey);
       formRef.current?.reset();
       setFormKey((current) => current + 1);
       setNextSortOrder((current) => Math.max(current + 1, createdLink.sortOrder + 1));
@@ -275,7 +289,11 @@ export function CircleCardSmartLinkCreateForm({
           <input type="hidden" name="cardId" value={cardId} />
           <input type="hidden" name="sortOrder" value={nextSortOrder} />
 
-          <CircleCardSmartLinkFields key={formKey} idPrefix={`customLinkNew-${formKey}`} />
+          <CircleCardSmartLinkFields
+            key={formKey}
+            idPrefix={`customLinkNew-${formKey}`}
+            imageDraftKey={imageDraftKey}
+          />
 
           <label
             htmlFor={`customLinkIsActive-${formKey}`}
@@ -467,6 +485,7 @@ export function CircleCardSmartLinkManager({
     const result = await upsertCircleCardLinkInlineAction(formData);
 
     if (result.ok && result.link) {
+      clearFeaturedLinkImageDraft(featuredLinkImageDraftKey(cardId, link.id));
       setLinks((current) =>
         sortLinks(current.map((item) => (item.id === result.link!.id ? result.link! : item)))
       );
@@ -668,6 +687,7 @@ export function CircleCardSmartLinkManager({
                     defaultVisibility={customLink.visibility}
                     defaultAccessCodeHint={customLink.accessCodeHint}
                     hasAccessCode={customLink.hasAccessCode}
+                    imageDraftKey={featuredLinkImageDraftKey(cardId, customLink.id)}
                   />
 
                   <label

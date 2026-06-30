@@ -21,6 +21,13 @@ describe("public upload image URL resolution", () => {
     ).resolves.toBe("https://res.cloudinary.com/demo/image/upload/card.jpg");
   });
 
+  it.each(["javascript:alert(1)", "http://example.com/card.jpg", "/uploads/other/card.jpg"])(
+    "removes unsafe public image URL %s",
+    async (value) => {
+      await expect(resolvePublicUploadImageUrl(value, SITE_URL)).resolves.toBeNull();
+    }
+  );
+
   it("keeps relative public upload URLs when the file exists", async () => {
     await mkdir(resolve(process.cwd(), "public", "uploads", "circle-card"), { recursive: true });
     await writeFile(TEST_UPLOAD_FILE, Buffer.from("not really an image"));

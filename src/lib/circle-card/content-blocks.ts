@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import { normalizeCircleCardUrl } from "@/lib/circle-card/schema";
 
 export const CIRCLE_CARD_CREATOR_BLOCK_TYPES = [
@@ -257,33 +258,7 @@ export const circleCardServiceIdSchema = z.object({
 });
 
 export function isValidCircleCardGalleryImageUrl(value: unknown): value is string {
-  if (typeof value !== "string") {
-    return false;
-  }
-
-  const imageUrl = value.trim();
-  const localUploadMatch = imageUrl.match(
-    /^\/uploads\/circle-card\/([^?#]+\.(?:jpe?g|png|webp))(?:[?#].*)?$/i
-  );
-
-  if (localUploadMatch) {
-    try {
-      const decodedPath = decodeURIComponent(localUploadMatch[1]);
-      return (
-        !decodedPath.includes("\\") &&
-        decodedPath.split("/").every((segment) => Boolean(segment) && segment !== "." && segment !== "..")
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  try {
-    const url = new URL(imageUrl);
-    return url.protocol === "https:" && Boolean(url.hostname) && !url.username && !url.password;
-  } catch {
-    return false;
-  }
+  return isSafeCircleCardImageUrl(value);
 }
 
 const galleryImageUrlSchema = z

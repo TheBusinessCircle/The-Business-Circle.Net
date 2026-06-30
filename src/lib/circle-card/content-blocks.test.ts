@@ -140,6 +140,8 @@ describe("Circle Card opening hours content block", () => {
 describe("Circle Card gallery content block", () => {
   it("accepts safe local and HTTPS images but rejects empty, malformed, and unsafe URLs", () => {
     expect(isValidCircleCardGalleryImageUrl("/uploads/circle-card/user-gallery-image.jpg")).toBe(true);
+    expect(isValidCircleCardGalleryImageUrl("/uploads/profiles/member-avatar.png")).toBe(true);
+    expect(isValidCircleCardGalleryImageUrl("/uploads/links/featured-link.webp")).toBe(true);
     expect(isValidCircleCardGalleryImageUrl("https://res.cloudinary.com/demo/image/upload/v1/work.webp")).toBe(true);
     expect(isValidCircleCardGalleryImageUrl("https://cdn.example.com/work.png")).toBe(true);
     expect(isValidCircleCardGalleryImageUrl("")).toBe(false);

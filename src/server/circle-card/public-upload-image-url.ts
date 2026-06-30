@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises";
 import { resolve, sep } from "node:path";
+import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 
 type PublicUploadImageUrlCheck = {
   imageUrl: string;
@@ -50,7 +51,7 @@ export function parsePublicUploadImageUrl(
 ): PublicUploadImageUrlCheck | null {
   const imageUrl = value?.trim();
 
-  if (!imageUrl) {
+  if (!imageUrl || !isSafeCircleCardImageUrl(imageUrl)) {
     return null;
   }
 

@@ -140,6 +140,45 @@ describe("upsertCircleCardAction", () => {
     expect(prismaMock.circleCard.update).toHaveBeenCalled();
   });
 
+  it("preserves uploaded profile and logo URLs on the selected card update", async () => {
+    prismaMock.circleCard.findFirst
+      .mockResolvedValueOnce({
+        id: "clx0000000000000000000004",
+        slug: "old-asha-founder",
+        isPublished: true,
+        isDefaultCard: true,
+        isPrimary: true,
+        showInDiscover: false,
+        discoverOptedInAt: null,
+        archivedAt: null
+      })
+      .mockResolvedValueOnce(null);
+    prismaMock.circleCard.update.mockResolvedValue({});
+
+    const result = await upsertCircleCardAction(
+      initialCircleCardSaveActionState,
+      validCircleCardForm({
+        cardId: "clx0000000000000000000004",
+        profileImageUrl: "/uploads/circle-card/profile.png",
+        businessLogoUrl: "https://res.cloudinary.com/demo/image/upload/logo.webp"
+      })
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      cardId: "clx0000000000000000000004"
+    });
+    expect(prismaMock.circleCard.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "clx0000000000000000000004" },
+        data: expect.objectContaining({
+          profileImageUrl: "/uploads/circle-card/profile.png",
+          businessLogoUrl: "https://res.cloudinary.com/demo/image/upload/logo.webp"
+        })
+      })
+    );
+  });
+
   it("returns success for a successful create", async () => {
     prismaMock.circleCard.count.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
     prismaMock.circleCard.findFirst.mockResolvedValueOnce(null);

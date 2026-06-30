@@ -352,7 +352,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     return null;
   }
 
-  const ownerCards = await prisma.circleCard.findMany({
+  const rawOwnerCards = await prisma.circleCard.findMany({
     where: {
       userId: card.userId,
       isPublished: true,
@@ -374,6 +374,13 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       isDefaultCard: true
     }
   });
+
+  const ownerCards = await Promise.all(
+    rawOwnerCards.map(async (ownerCard) => ({
+      ...ownerCard,
+      profileImageUrl: await resolvePublicUploadImageUrl(ownerCard.profileImageUrl, SITE_CONFIG.url)
+    }))
+  );
 
   const customLinks = await Promise.all(
     card.customLinks.map(async (link) => {
@@ -419,9 +426,15 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
   });
   const { contentBlocks, ...publicCard } = card;
   void contentBlocks;
+  const [profileImageUrl, businessLogoUrl] = await Promise.all([
+    resolvePublicUploadImageUrl(card.profileImageUrl, SITE_CONFIG.url),
+    resolvePublicUploadImageUrl(card.businessLogoUrl, SITE_CONFIG.url)
+  ]);
 
   return {
     ...publicCard,
+    profileImageUrl,
+    businessLogoUrl,
     user: {
       role: card.user.role,
       membershipTier: card.user.membershipTier,

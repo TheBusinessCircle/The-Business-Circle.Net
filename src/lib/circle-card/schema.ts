@@ -20,6 +20,7 @@ import {
 } from "@/lib/circle-card/theme";
 import { normalizeExternalHref } from "@/lib/links";
 import { slugify } from "@/lib/utils";
+import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import {
   CIRCLE_CARD_TYPES,
   DEFAULT_CIRCLE_CARD_TYPE
@@ -290,13 +291,7 @@ const optionalImageUrl = z
   .or(z.literal(""))
   .transform((value) => normalizeCircleCardImageUrl(value))
   .refine(
-    (value) => {
-      if (!value) {
-        return true;
-      }
-
-      return value.startsWith("/uploads/") || isHttpUrl(value);
-    },
+    (value) => !value || isSafeCircleCardImageUrl(value),
     {
       message: "Image must be an uploaded image path or a valid web address."
     }

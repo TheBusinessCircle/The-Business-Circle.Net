@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CircleCardImageUploadField } from "@/components/circle-card/circle-card-image-upload-field";
 import { CircleCardLinkFileUploadField } from "@/components/circle-card/circle-card-link-file-upload-field";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ type CircleCardSmartLinkFieldsProps = {
   defaultVisibility?: string | null;
   defaultAccessCodeHint?: string | null;
   hasAccessCode?: boolean;
+  imageDraftKey?: string;
 };
 
 const LINK_TYPE_LABELS: Record<CircleCardLinkType, string> = {
@@ -157,7 +158,8 @@ export function CircleCardSmartLinkFields({
   defaultActionMode,
   defaultVisibility,
   defaultAccessCodeHint = "",
-  hasAccessCode = false
+  hasAccessCode = false,
+  imageDraftKey
 }: CircleCardSmartLinkFieldsProps) {
   const [type, setType] = useState<CircleCardLinkType>(() => resolveLinkType(defaultType));
   const [visibility, setVisibility] = useState<CircleCardLinkVisibility>(() =>
@@ -173,6 +175,8 @@ export function CircleCardSmartLinkFields({
   });
   const [generatedCode, setGeneratedCode] = useState("");
   const [copyNotice, setCopyNotice] = useState("");
+  const [imageUrl, setImageUrl] = useState(defaultImageUrl ?? "");
+  const [imageDraftRestored, setImageDraftRestored] = useState(!imageDraftKey);
   const supportsFile = useMemo(
     () => CIRCLE_CARD_FILE_LINK_TYPES.includes(type as (typeof CIRCLE_CARD_FILE_LINK_TYPES)[number]),
     [type]
@@ -182,6 +186,39 @@ export function CircleCardSmartLinkFields({
   const isPrivate = supportsFile && visibility === "PRIVATE_CODE";
   const detectedFileKind = detectCircleCardFileKind(fileMetadata);
   const recommendedAction = recommendedCircleCardFileAction(fileMetadata);
+
+  useEffect(() => {
+    if (!imageDraftKey) {
+      return;
+    }
+
+    try {
+      const draftImageUrl = window.sessionStorage.getItem(imageDraftKey);
+      if (draftImageUrl) {
+        setImageUrl(draftImageUrl);
+      }
+    } catch {
+      // Draft recovery is optional; the link form still works without storage.
+    } finally {
+      setImageDraftRestored(true);
+    }
+  }, [imageDraftKey]);
+
+  useEffect(() => {
+    if (!imageDraftKey || !imageDraftRestored) {
+      return;
+    }
+
+    try {
+      if (imageUrl) {
+        window.sessionStorage.setItem(imageDraftKey, imageUrl);
+      } else {
+        window.sessionStorage.removeItem(imageDraftKey);
+      }
+    } catch {
+      // Saving remains authoritative when browser storage is unavailable.
+    }
+  }, [imageDraftKey, imageDraftRestored, imageUrl]);
 
   function handleTypeChange(value: string) {
     const nextType = resolveLinkType(value);
@@ -409,6 +446,8 @@ export function CircleCardSmartLinkFields({
             label="Link image / thumbnail"
             uploadKind="link-image"
             defaultValue={defaultImageUrl ?? ""}
+            value={imageUrl}
+            onValueChange={setImageUrl}
             previewAlt="Smart link image preview"
             helperText="Optional. Upload a JPG, PNG or WebP thumbnail for Creator profile visual cards."
             saveReminder="Save this smart link to keep the thumbnail."

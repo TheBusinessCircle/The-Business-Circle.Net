@@ -19,6 +19,10 @@ const smartLinkManager = readFileSync(
   join(root, "src/components/circle-card/circle-card-smart-link-manager.tsx"),
   "utf8"
 );
+const smartLinkFields = readFileSync(
+  join(root, "src/components/circle-card/circle-card-smart-link-fields.tsx"),
+  "utf8"
+);
 const dashboard = readFileSync(
   join(root, "src/app/(member)/dashboard/circle-card/page.tsx"),
   "utf8"
@@ -58,6 +62,16 @@ describe("Circle Card image upload safety", () => {
     expect(actions).toContain('notice: "Gallery image saved"');
     expect(smartLinkManager).toContain("event.preventDefault()");
     expect(smartLinkManager).toContain("upsertCircleCardLinkInlineAction");
+  });
+
+  it("keeps independent featured-link image state and clears drafts only after save", () => {
+    expect(smartLinkFields).toContain('name="imageUrl"');
+    expect(smartLinkFields).toContain("value={imageUrl}");
+    expect(smartLinkFields).toContain("onValueChange={setImageUrl}");
+    expect(smartLinkFields).toContain("window.sessionStorage.setItem(imageDraftKey, imageUrl)");
+    expect(smartLinkManager).toContain('featuredLinkImageDraftKey(cardId, "new")');
+    expect(smartLinkManager).toContain("featuredLinkImageDraftKey(cardId, customLink.id)");
+    expect(smartLinkManager).toContain("clearFeaturedLinkImageDraft(imageDraftKey)");
   });
 
   it("synchronizes a gallery upload directly into the save field", () => {

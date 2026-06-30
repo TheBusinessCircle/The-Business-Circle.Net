@@ -14,6 +14,7 @@ import { CircleCardFramedImage } from "@/components/circle-card/circle-card-fram
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import { cn } from "@/lib/utils";
 
 type ImageAdjustmentValues = {
@@ -98,7 +99,7 @@ function isSupportedImage(file: File) {
 
 function readUploadedImageUrl(data: UploadResponse) {
   const candidate = data.secureUrl ?? data.imageUrl ?? data.url ?? "";
-  return typeof candidate === "string" ? candidate.trim() : "";
+  return isSafeCircleCardImageUrl(candidate) ? candidate.trim() : "";
 }
 
 function uploadFailedNotice(error?: string) {
