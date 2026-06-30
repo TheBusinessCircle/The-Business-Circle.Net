@@ -60,8 +60,25 @@ describe("Circle Card image upload safety", () => {
     expect(smartLinkManager).toContain("upsertCircleCardLinkInlineAction");
   });
 
+  it("synchronizes a gallery upload directly into the save field", () => {
+    expect(uploadField).toContain("commitImageUrl(uploadedImageUrl);");
+    expect(galleryManager).toContain('name="imageUrl"');
+    expect(galleryManager).toContain("new FormData(event.currentTarget)");
+    expect(actions).toContain('imageUrl: formData.get("imageUrl")');
+    expect(actions).toContain("imageUrl: parsed.data.imageUrl");
+  });
+
+  it("enables valid uploaded URLs without waiting for image onLoad and restores new-item drafts", () => {
+    expect(galleryManager).toContain("const hasValidImageUrl = isValidCircleCardGalleryImageUrl(imageUrl)");
+    expect(galleryManager).toContain('disabled={saving || !hasValidImageUrl}');
+    expect(galleryManager).not.toContain("imageReady");
+    expect(galleryManager).toContain("window.sessionStorage.setItem(draftKey");
+    expect(galleryManager).toContain("window.sessionStorage.getItem(draftKey)");
+    expect(galleryManager).toContain("window.sessionStorage.removeItem(draftKey)");
+  });
+
   it("blocks missing gallery images and removes failed public images", () => {
-    expect(galleryManager).toContain('disabled={saving || !imageReady}');
+    expect(galleryManager).toContain('disabled={saving || !hasValidImageUrl}');
     expect(galleryManager).toContain("Upload a valid gallery image before saving.");
     expect(galleryManager).toContain("Image missing or invalid");
     expect(publicGallery).toContain("isValidCircleCardGalleryImageUrl(item.imageUrl)");

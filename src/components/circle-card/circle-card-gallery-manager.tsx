@@ -35,45 +35,85 @@ type GalleryItemFormProps = {
   onNotice: (message: string) => void;
 };
 
+type GalleryItemDraft = {
+  imageUrl: string;
+  title: string;
+  category: string;
+  description: string;
+  isActive: boolean;
+};
+
+function galleryDraftStorageKey(cardId: string) {
+  return `circle-card:gallery-draft:${cardId}`;
+}
+
 function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [formKey, setFormKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? "");
-  const [imageReady, setImageReady] = useState(false);
+  const [title, setTitle] = useState(item?.title ?? "");
+  const [category, setCategory] = useState(item?.category ?? "");
+  const [description, setDescription] = useState(item?.description ?? "");
+  const [isActive, setIsActive] = useState(item?.isActive ?? true);
+  const [draftRestored, setDraftRestored] = useState(Boolean(item));
+  const hasValidImageUrl = isValidCircleCardGalleryImageUrl(imageUrl);
+  const draftKey = galleryDraftStorageKey(cardId);
   const idPrefix = item ? `gallery-${item.id}` : `gallery-new-${cardId}-${formKey}`;
 
   useEffect(() => {
-    setImageReady(false);
-    if (!isValidCircleCardGalleryImageUrl(imageUrl)) {
+    if (!item) {
       return;
     }
 
-    let active = true;
-    const image = new Image();
-    const markReady = () => {
-      if (active) {
-        setImageReady(true);
-      }
-    };
-    const markBroken = () => {
-      if (active) {
-        setImageReady(false);
-      }
-    };
+    setImageUrl(item.imageUrl);
+    setTitle(item.title);
+    setCategory(item.category ?? "");
+    setDescription(item.description ?? "");
+    setIsActive(item.isActive);
+  }, [item]);
 
-    image.onload = markReady;
-    image.onerror = markBroken;
-    image.src = imageUrl;
-    if (image.complete && image.naturalWidth > 0) {
-      markReady();
+  useEffect(() => {
+    if (item) {
+      return;
     }
 
-    return () => {
-      active = false;
-    };
-  }, [imageUrl]);
+    try {
+      const storedDraft = window.sessionStorage.getItem(draftKey);
+      const draft = storedDraft ? (JSON.parse(storedDraft) as Partial<GalleryItemDraft>) : null;
+
+      if (draft) {
+        setImageUrl(typeof draft.imageUrl === "string" ? draft.imageUrl : "");
+        setTitle(typeof draft.title === "string" ? draft.title : "");
+        setCategory(typeof draft.category === "string" ? draft.category : "");
+        setDescription(typeof draft.description === "string" ? draft.description : "");
+        setIsActive(typeof draft.isActive === "boolean" ? draft.isActive : true);
+      }
+    } catch {
+      // Draft recovery is a convenience; invalid or unavailable storage is ignored.
+    } finally {
+      setDraftRestored(true);
+    }
+  }, [draftKey, item]);
+
+  useEffect(() => {
+    if (item || !draftRestored) {
+      return;
+    }
+
+    const draft: GalleryItemDraft = { imageUrl, title, category, description, isActive };
+
+    try {
+      if (imageUrl || title || category || description || !isActive) {
+        window.sessionStorage.setItem(draftKey, JSON.stringify(draft));
+      } else {
+        window.sessionStorage.removeItem(draftKey);
+      }
+    } catch {
+      // Saving still works when browser storage is unavailable.
+    }
+  }, [category, description, draftKey, draftRestored, imageUrl, isActive, item, title]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -81,7 +121,7 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
       return;
     }
 
-    if (!imageReady) {
+    if (!hasValidImageUrl) {
       setError("Upload a valid gallery image before saving.");
       return;
     }
@@ -95,9 +135,17 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
         onSaved(result.item, !item);
         onNotice(result.notice);
         if (!item) {
+          try {
+            window.sessionStorage.removeItem(draftKey);
+          } catch {
+            // The saved item is authoritative even if draft storage is unavailable.
+          }
           formRef.current?.reset();
           setImageUrl("");
-          setImageReady(false);
+          setTitle("");
+          setCategory("");
+          setDescription("");
+          setIsActive(true);
           setFormKey((current) => current + 1);
         }
       } else if (!result.ok) {
@@ -140,7 +188,8 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
           <Input
             id={`${idPrefix}-title`}
             name="title"
-            defaultValue={item?.title ?? ""}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
             maxLength={100}
             placeholder="Completed brand identity"
             required
@@ -151,7 +200,8 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
           <Input
             id={`${idPrefix}-category`}
             name="category"
-            defaultValue={item?.category ?? ""}
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
             maxLength={60}
             placeholder="Branding"
           />
@@ -161,7 +211,8 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
           <Textarea
             id={`${idPrefix}-description`}
             name="description"
-            defaultValue={item?.description ?? ""}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
             rows={3}
             maxLength={500}
             placeholder="A short note about the work, result or project."
@@ -172,7 +223,8 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
             name="isActive"
             type="checkbox"
             value="on"
-            defaultChecked={item?.isActive ?? true}
+            checked={isActive}
+            onChange={(event) => setIsActive(event.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-border bg-background accent-primary"
           />
           <span>
@@ -188,13 +240,13 @@ function GalleryItemForm({ cardId, item, onSaved, onNotice }: GalleryItemFormPro
         </p>
       ) : null}
 
-      {!imageReady ? (
+      {!hasValidImageUrl ? (
         <p className="text-xs font-medium text-amber-200">
-          A successfully loaded gallery image is required before this item can be saved.
+          Upload a valid gallery image before saving this item.
         </p>
       ) : null}
 
-      <Button type="submit" size="sm" className="h-9 gap-2" disabled={saving || !imageReady}>
+      <Button type="submit" size="sm" className="h-9 gap-2" disabled={saving || !hasValidImageUrl}>
         {saving ? <Loader2 size={14} className="animate-spin" /> : item ? <Save size={14} /> : <Camera size={14} />}
         {saving ? "Saving..." : item ? "Save item" : "Add gallery item"}
       </Button>

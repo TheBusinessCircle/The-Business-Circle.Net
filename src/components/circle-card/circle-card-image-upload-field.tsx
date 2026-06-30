@@ -110,25 +110,25 @@ function uploadFailedNotice(error?: string) {
 }
 
 function preloadUploadedImage(imageUrl: string) {
-  return new Promise<void>((resolve) => {
+  return new Promise<boolean>((resolve) => {
     const image = new Image();
     let settled = false;
-    const finish = () => {
+    const finish = (loaded: boolean) => {
       if (settled) {
         return;
       }
       settled = true;
-      resolve();
+      resolve(loaded);
     };
 
-    image.onload = finish;
-    image.onerror = finish;
+    image.onload = () => finish(true);
+    image.onerror = () => finish(false);
     image.src = imageUrl;
 
     if (image.complete) {
-      finish();
+      finish(image.naturalWidth > 0);
     } else {
-      window.setTimeout(finish, 2000);
+      window.setTimeout(() => finish(false), 2000);
     }
   });
 }
@@ -163,6 +163,7 @@ export function CircleCardImageUploadField({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const defaultValueRef = useRef(defaultValue);
   const [imageUrl, setImageUrl] = useState(value ?? defaultValue);
+  const latestImageUrlRef = useRef(value ?? defaultValue);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPreviewUrl, setSelectedPreviewUrl] = useState<string | null>(null);
   const [notice, setNotice] = useState<UploadNotice | null>(null);
@@ -182,6 +183,7 @@ export function CircleCardImageUploadField({
 
   useEffect(() => {
     if (value !== undefined) {
+      latestImageUrlRef.current = value;
       setImageUrl(value);
     }
   }, [value]);
@@ -197,6 +199,7 @@ export function CircleCardImageUploadField({
     }
 
     defaultValueRef.current = defaultValue;
+    latestImageUrlRef.current = defaultValue;
     setImageUrl(defaultValue);
     setSelectedPreviewUrl(null);
     setLastUploadedUrl(null);
@@ -223,6 +226,7 @@ export function CircleCardImageUploadField({
   }, [selectedPreviewUrl]);
 
   function commitImageUrl(nextValue: string) {
+    latestImageUrlRef.current = nextValue;
     setImageUrl(nextValue);
     onValueChange?.(nextValue);
   }
@@ -310,7 +314,8 @@ export function CircleCardImageUploadField({
         return;
       }
 
-      await preloadUploadedImage(uploadedImageUrl);
+      // Commit the returned URL first so controlled forms can save immediately.
+      // Preview loading is diagnostic only and must never discard a successful upload.
       commitImageUrl(uploadedImageUrl);
       setLastUploadedUrl(uploadedImageUrl);
       setSelectedFile(null);
@@ -319,6 +324,15 @@ export function CircleCardImageUploadField({
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
+      }
+
+      setUploading(false);
+      const previewLoaded = await preloadUploadedImage(uploadedImageUrl);
+      if (!previewLoaded && latestImageUrlRef.current === uploadedImageUrl) {
+        setNotice({
+          tone: "error",
+          message: "Image uploaded, but its preview could not be loaded. The URL is kept; save it or use Clear."
+        });
       }
     } catch {
       setSelectedPreviewUrl(null);
