@@ -95,6 +95,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (error instanceof Error && error.message === "circle-card-image-write-failed") {
+      return NextResponse.json(
+        { error: "The uploaded image could not be verified on storage." },
+        { status: 500, headers }
+      );
+    }
+
     if (error instanceof Error && error.message === "circle-card-link-file-too-large") {
       return NextResponse.json(
         { error: "Circle Card link files must be 10MB or smaller." },

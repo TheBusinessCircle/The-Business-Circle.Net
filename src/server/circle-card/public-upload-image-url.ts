@@ -1,4 +1,5 @@
-import { stat } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, stat } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 
@@ -82,5 +83,12 @@ export async function resolvePublicUploadImageUrl(
   }
 
   const file = await stat(absolutePath).catch(() => null);
-  return file?.isFile() ? parsed.imageUrl : null;
+  if (!file?.isFile()) {
+    return null;
+  }
+
+  const readable = await access(absolutePath, constants.R_OK)
+    .then(() => true)
+    .catch(() => false);
+  return readable ? parsed.imageUrl : null;
 }

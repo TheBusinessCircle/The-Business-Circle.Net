@@ -36,6 +36,11 @@ const publicCardService = readFileSync(
   join(root, "src/server/circle-card/public-card.service.ts"),
   "utf8"
 );
+const nextConfig = readFileSync(join(root, "next.config.ts"), "utf8");
+const publicImageRoute = readFileSync(
+  join(root, "src/app/api/circle-card/public-image/[...path]/route.ts"),
+  "utf8"
+);
 
 describe("Circle Card image upload safety", () => {
   it("uploads through fetch with non-submit controls", () => {
@@ -98,9 +103,18 @@ describe("Circle Card image upload safety", () => {
     expect(publicGallery).toContain("isValidCircleCardGalleryImageUrl(item.imageUrl)");
     expect(publicGallery).toContain("onError={() => markFailed(item.id)}");
     expect(publicGallery).not.toContain("invisible opacity-0");
-    expect(publicCardService).toContain("const galleryItems = visibleCircleCardGalleryItems({");
-    expect(publicCardService).not.toContain(
-      "imageUrl: await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url)"
+    expect(publicCardService).toContain(
+      "const imageUrl = await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url)"
     );
+    expect(publicCardService).toContain(
+      ").filter((item): item is CircleCardGalleryItem => Boolean(item))"
+    );
+  });
+
+  it("serves runtime local uploads behind the saved public URL", () => {
+    expect(nextConfig).toContain('source: "/uploads/circle-card/:path*"');
+    expect(nextConfig).toContain('destination: "/api/circle-card/public-image/:path*"');
+    expect(publicImageRoute).toContain("readCircleCardImage(filename)");
+    expect(publicImageRoute).toContain('"Content-Type": image.mimeType');
   });
 });

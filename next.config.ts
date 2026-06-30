@@ -182,6 +182,18 @@ const nextConfig: NextConfig = {
         permanent: true
       }
     ];
+  },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: "/uploads/circle-card/:path*",
+          destination: "/api/circle-card/public-image/:path*"
+        }
+      ],
+      afterFiles: [],
+      fallback: []
+    };
   }
 };
 

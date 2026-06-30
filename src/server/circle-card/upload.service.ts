@@ -19,6 +19,8 @@ export type CircleCardUploadKind = CircleCardImageUploadKind | CircleCardLinkFil
 
 const CIRCLE_CARD_UPLOAD_DIR = join(process.cwd(), "public", "uploads", "circle-card");
 const CIRCLE_CARD_LINK_FILE_UPLOAD_DIR = join(process.cwd(), ".uploads", "circle-card-link-files");
+const CIRCLE_CARD_IMAGE_FILE_NAME_PATTERN =
+  /^[a-z0-9_-]+-(?:profile-photo|business-logo|business-card-scan|gallery-image|link-image)-[0-9]+-[a-f0-9]{8}\.(?:jpg|png|webp)$/i;
 const CIRCLE_CARD_LINK_FILE_NAME_PATTERN = /^[0-9]+-[a-f0-9]{16}\.(pdf|html?|jpg|png|webp|zip)$/i;
 export const MAX_CIRCLE_CARD_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_CIRCLE_CARD_LINK_FILE_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -109,13 +111,22 @@ async function persistUploadedImageLocally(input: {
 }) {
   await mkdir(CIRCLE_CARD_UPLOAD_DIR, { recursive: true });
   const extension = imageExtension(input.file);
-  const filename = `${input.userId}-${input.kind}-${Date.now()}-${randomUUID().slice(
+  const ownerPrefix = input.userId.replace(/[^a-z0-9_-]/gi, "").slice(0, 80) || "user";
+  const filename = `${ownerPrefix}-${input.kind}-${Date.now()}-${randomUUID().slice(
     0,
     8
   )}${extension}`;
   const absolutePath = join(CIRCLE_CARD_UPLOAD_DIR, filename);
   const bytes = Buffer.from(await input.file.arrayBuffer());
   await writeFile(absolutePath, bytes);
+
+  // Next's production public asset manifest is created at build time. Verify the
+  // runtime file itself is readable before returning the URL served by our route.
+  const persistedBytes = await readFile(absolutePath).catch(() => null);
+  if (!persistedBytes || persistedBytes.length !== bytes.length) {
+    throw new Error("circle-card-image-write-failed");
+  }
+
   return `/uploads/circle-card/${filename}`;
 }
 
@@ -176,6 +187,54 @@ export async function persistCircleCardLinkFileUpload(input: {
 
 export function isCircleCardLinkFileName(filename: string) {
   return CIRCLE_CARD_LINK_FILE_NAME_PATTERN.test(filename);
+}
+
+export function circleCardImageUploadDirectory() {
+  return resolve(CIRCLE_CARD_UPLOAD_DIR);
+}
+
+export function isCircleCardImageFileName(filename: string) {
+  return CIRCLE_CARD_IMAGE_FILE_NAME_PATTERN.test(filename);
+}
+
+export function resolveCircleCardImageFilePath(filename: string) {
+  if (!isCircleCardImageFileName(filename)) {
+    return null;
+  }
+
+  const storageRoot = circleCardImageUploadDirectory();
+  const absolutePath = resolve(storageRoot, filename);
+  const relativePath = relative(storageRoot, absolutePath);
+
+  if (!relativePath || relativePath.startsWith("..") || isAbsolute(relativePath)) {
+    return null;
+  }
+
+  return absolutePath;
+}
+
+export async function readCircleCardImage(filename: string) {
+  const absolutePath = resolveCircleCardImageFilePath(filename);
+
+  if (!absolutePath) {
+    return null;
+  }
+
+  const bytes = await readFile(absolutePath).catch(() => null);
+  if (!bytes) {
+    return null;
+  }
+
+  const mimeTypes: Record<string, string> = {
+    ".jpg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp"
+  };
+
+  return {
+    bytes,
+    mimeType: mimeTypes[extname(filename).toLowerCase()] ?? "application/octet-stream"
+  };
 }
 
 function resolveCircleCardLinkFilePath(filename: string) {
