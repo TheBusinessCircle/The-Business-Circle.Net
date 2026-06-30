@@ -1840,7 +1840,13 @@ export function PublicCircleCardProfile({
       return null;
     }
 
-    return <PublicCircleCardReviews id={id} items={card.reviews} />;
+    return (
+      <PublicCircleCardReviews
+        id={id}
+        items={card.reviews}
+        trustedConnectionCount={card.approvedWalletTestimonialCount}
+      />
+    );
   }
 
   function renderShareQrSection({

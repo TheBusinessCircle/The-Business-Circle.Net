@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowDown, ChevronDown, Eye, EyeOff, Loader2, Save, Star, Trash2 } from "lucide-react";
 import {
+  approveCircleCardWalletTestimonialAction,
   deleteCircleCardReviewItemInlineAction,
+  deleteCircleCardWalletTestimonialAction,
+  rejectCircleCardWalletTestimonialAction,
   toggleCircleCardReviewItemInlineAction,
   upsertCircleCardReviewItemInlineAction
 } from "@/actions/circle-card.actions";
@@ -18,6 +21,17 @@ import {
   isValidCircleCardReviewItem,
   type CircleCardReviewItem
 } from "@/lib/circle-card/content-blocks";
+import { circleCardWalletTestimonialRelationshipLabel } from "@/lib/circle-card/wallet-testimonials";
+
+export type CircleCardPendingWalletTestimonial = {
+  id: string;
+  reviewerName: string;
+  reviewerRoleOrCompany: string | null;
+  testimonialText: string;
+  rating: number | null;
+  relationship: string | null;
+  createdAt: string;
+};
 
 function ReviewFields({
   idPrefix,
@@ -175,18 +189,22 @@ function RatingStars({ rating }: { rating: number | null }) {
 export function CircleCardReviewsManager({
   cardId,
   cardName,
-  initialItems
+  initialItems,
+  pendingWalletTestimonials = []
 }: {
   cardId: string;
   cardName: string;
   initialItems: CircleCardReviewItem[];
+  pendingWalletTestimonials?: CircleCardPendingWalletTestimonial[];
 }) {
   const [items, setItems] = useState(initialItems);
   const [pendingItemId, setPendingItemId] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [pendingTestimonials, setPendingTestimonials] = useState(pendingWalletTestimonials);
 
   useEffect(() => setItems(initialItems), [initialItems]);
+  useEffect(() => setPendingTestimonials(pendingWalletTestimonials), [pendingWalletTestimonials]);
 
   function saveItem(item: CircleCardReviewItem) {
     setItems((current) =>
@@ -235,6 +253,34 @@ export function CircleCardReviewsManager({
     }
   }
 
+  async function moderateWalletTestimonial(
+    testimonialId: string,
+    action: "approve" | "reject" | "delete"
+  ) {
+    setPendingItemId(testimonialId);
+    setError("");
+    try {
+      const input = { testimonialId, targetCardId: cardId };
+      const result =
+        action === "approve"
+          ? await approveCircleCardWalletTestimonialAction(input)
+          : action === "reject"
+            ? await rejectCircleCardWalletTestimonialAction(input)
+            : await deleteCircleCardWalletTestimonialAction(input);
+
+      if (result.ok) {
+        setPendingTestimonials((current) => current.filter((item) => item.id !== testimonialId));
+        showNotice(result.message);
+      } else {
+        setError(result.message);
+      }
+    } catch {
+      setError("The wallet testimonial could not be updated.");
+    } finally {
+      setPendingItemId("");
+    }
+  }
+
   const activeCount = items.filter((item) => item.isActive && isValidCircleCardReviewItem(item)).length;
 
   return (
@@ -245,6 +291,7 @@ export function CircleCardReviewsManager({
             <h3 className="font-display text-xl font-semibold text-foreground">Reviews / Testimonials</h3>
             <Badge variant="outline" className="border-gold/28 text-gold">Pro</Badge>
             <Badge variant="muted">{activeCount} active</Badge>
+            {pendingTestimonials.length ? <Badge variant="muted">{pendingTestimonials.length} pending</Badge> : null}
           </div>
           <p className="mt-1 text-sm text-muted">Show proof that people trust your work.</p>
           <p className="mt-2 text-[11px] uppercase tracking-[0.08em] text-gold">Card: {cardName}</p>
@@ -253,6 +300,44 @@ export function CircleCardReviewsManager({
 
       {notice ? <p role="status" className="mt-3 text-sm text-emerald-200">{notice}</p> : null}
       {error ? <p role="alert" className="mt-3 text-sm text-destructive">{error}</p> : null}
+
+      <div className="mt-4 rounded-xl border border-gold/18 bg-background/20 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Pending wallet testimonials</p>
+            <p className="mt-1 text-xs text-muted">Approve connection proof before it appears publicly.</p>
+          </div>
+          <Badge variant="outline" className="border-gold/24 text-gold">{pendingTestimonials.length}</Badge>
+        </div>
+        <div className="mt-3 grid gap-2">
+          {pendingTestimonials.length ? pendingTestimonials.map((testimonial) => {
+            const relationship = circleCardWalletTestimonialRelationshipLabel(testimonial.relationship);
+            const pending = pendingItemId === testimonial.id;
+            return (
+              <article key={testimonial.id} className="rounded-xl border border-silver/14 bg-card/44 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{testimonial.reviewerName}</p>
+                    {testimonial.reviewerRoleOrCompany ? <p className="text-xs text-muted">{testimonial.reviewerRoleOrCompany}</p> : null}
+                  </div>
+                  {testimonial.rating ? <RatingStars rating={testimonial.rating} /> : null}
+                </div>
+                <p className="mt-3 text-sm leading-relaxed text-muted">“{testimonial.testimonialText}”</p>
+                {relationship ? <Badge variant="outline" className="mt-3 border-silver/18 text-silver">{relationship}</Badge> : null}
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <Button type="button" size="sm" disabled={pending} onClick={() => moderateWalletTestimonial(testimonial.id, "approve")}>
+                    {pending ? <Loader2 size={14} className="animate-spin" /> : "Approve"}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => moderateWalletTestimonial(testimonial.id, "reject")}>Reject</Button>
+                  <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => moderateWalletTestimonial(testimonial.id, "delete")} className="text-destructive">Delete</Button>
+                </div>
+              </article>
+            );
+          }) : (
+            <p className="text-xs text-muted">No testimonials are waiting for approval.</p>
+          )}
+        </div>
+      </div>
 
       <div className="mt-4 grid gap-2">
         {items.map((item) => {

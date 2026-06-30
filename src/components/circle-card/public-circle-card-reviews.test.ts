@@ -37,4 +37,17 @@ describe("public Circle Card reviews", () => {
     expect(renderReviews([{ ...review, reviewText: "" }])).toBe("");
     expect(renderReviews([{ ...review, sourceUrl: "javascript:alert(1)" }])).toBe("");
   });
+
+  it("labels approved wallet testimonials as verified connection proof", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PublicCircleCardReviews, {
+        items: [{ ...review, id: "wallet-review", verifiedConnection: true, relationship: "COLLABORATED" }],
+        trustedConnectionCount: 1
+      })
+    );
+
+    expect(markup).toContain("Verified connection testimonial");
+    expect(markup).toContain("Trusted by 1 connection");
+    expect(markup).toContain("Collaborated");
+  });
 });

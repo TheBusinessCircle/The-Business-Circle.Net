@@ -114,6 +114,8 @@ model User {
   circleCardConnectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestsReceived")
   circleCardRecommendationsGiven       CircleCardRecommendation[] @relation("CircleCardRecommendationRecommender")
   circleCardRecommendationsReceived    CircleCardRecommendation[] @relation("CircleCardRecommendationRecommendedUser")
+  circleCardWalletTestimonialsGiven    CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialReviewer")
+  circleCardWalletTestimonialsReceived CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialTargetOwner")
   circleCardIntroductionsMade          CircleCardIntroduction[] @relation("CircleCardIntroductionIntroducer")
   circleCardIntroductionsAsPersonA     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonA")
   circleCardIntroductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonB")
@@ -456,6 +458,8 @@ model CircleCard {
   connectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRecipientCard")
   recommendationsGiven       CircleCardRecommendation[] @relation("CircleCardRecommendationRecommenderCard")
   recommendationsReceived    CircleCardRecommendation[] @relation("CircleCardRecommendationRecommendedCard")
+  walletTestimonialsGiven    CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialReviewerCard")
+  walletTestimonialsReceived CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialTargetCard")
   introductionsMade          CircleCardIntroduction[] @relation("CircleCardIntroductionIntroducerCard")
   introductionsAsPersonA     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonACard")
   introductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonBCard")
@@ -562,6 +566,7 @@ model CircleWalletContact {
   user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   card                CircleCard? @relation(fields: [cardId], references: [id], onDelete: Cascade)
   recommendations     CircleCardRecommendation[]
+  walletTestimonials  CircleCardWalletTestimonial[]
   opportunities       Opportunity[]
 
   @@unique([userId, cardId])
@@ -606,6 +611,38 @@ model CircleCardRecommendation {
   @@index([walletContactId])
   @@index([recommendedCardId, visibility, status, createdAt])
   @@index([recommenderCardId, recommendedCardId, category, visibility, status])
+}
+
+model CircleCardWalletTestimonial {
+  id                    String                                  @id @default(cuid())
+  reviewerUserId        String
+  reviewerCardId        String?
+  reviewerName          String                                  @db.VarChar(120)
+  reviewerRoleOrCompany String?                                 @db.VarChar(160)
+  targetCardId          String
+  targetOwnerId         String
+  walletContactId       String?
+  testimonialText       String                                  @db.Text
+  rating                Int?
+  relationship          CircleCardWalletTestimonialRelationship?
+  status                CircleCardWalletTestimonialStatus       @default(PENDING)
+  walletVerifiedAt      DateTime                                @default(now())
+  approvedAt            DateTime?
+  rejectedAt            DateTime?
+  createdAt             DateTime                                @default(now())
+  updatedAt             DateTime                                @updatedAt
+  reviewerUser          User                                    @relation("CircleCardWalletTestimonialReviewer", fields: [reviewerUserId], references: [id], onDelete: Cascade)
+  reviewerCard          CircleCard?                             @relation("CircleCardWalletTestimonialReviewerCard", fields: [reviewerCardId], references: [id], onDelete: SetNull)
+  targetCard            CircleCard                              @relation("CircleCardWalletTestimonialTargetCard", fields: [targetCardId], references: [id], onDelete: Cascade)
+  targetOwner           User                                    @relation("CircleCardWalletTestimonialTargetOwner", fields: [targetOwnerId], references: [id], onDelete: Cascade)
+  walletContact         CircleWalletContact?                    @relation(fields: [walletContactId], references: [id], onDelete: SetNull)
+
+  @@index([reviewerUserId])
+  @@index([reviewerCardId])
+  @@index([targetCardId, status, createdAt])
+  @@index([targetOwnerId, status, createdAt])
+  @@index([walletContactId])
+  @@index([status])
 }
 
 model CircleCardIntroduction {
@@ -2620,6 +2657,20 @@ enum CircleWalletContactSource {
   CIRCLE_CARD
   BUSINESS_CARD_SCAN
   LINK_IMPORT
+}
+
+enum CircleCardWalletTestimonialStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CircleCardWalletTestimonialRelationship {
+  WORKED_WITH
+  BOUGHT_FROM
+  MET_AT_EVENT
+  COLLABORATED
+  OTHER
 }
 
 enum CircleCardConnectionRequestStatus {

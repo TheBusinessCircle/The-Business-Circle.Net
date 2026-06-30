@@ -46,6 +46,11 @@ import {
 } from "@/lib/circle-card/schema";
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
 import {
+  circleCardWalletTestimonialModerationSchema,
+  circleCardWalletTestimonialSubmitSchema,
+  type CircleCardWalletTestimonialStatus
+} from "@/lib/circle-card/wallet-testimonials";
+import {
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_REVIEW_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
@@ -3163,6 +3168,236 @@ export async function deleteCircleCardReviewItemInlineAction(input: {
   revalidateCircleCardPaths(card.slug);
 
   return { ok: true, notice: "Testimonial deleted" };
+}
+
+export type CircleCardWalletTestimonialSubmitResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string; message: string };
+
+export type CircleCardWalletTestimonialModerationResult =
+  | { ok: true; testimonialId: string; status: CircleCardWalletTestimonialStatus | "DELETED"; message: string }
+  | { ok: false; error: string; message: string };
+
+export async function submitCircleCardWalletTestimonialAction(
+  formData: FormData
+): Promise<CircleCardWalletTestimonialSubmitResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardWalletTestimonialSubmitSchema.safeParse({
+    targetCardId: formData.get("targetCardId"),
+    testimonialText: formData.get("testimonialText"),
+    rating: formData.get("rating") ?? "",
+    relationship: formData.get("relationship") ?? ""
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "wallet-testimonial-invalid",
+      message: parsed.error.issues[0]?.message ?? "Check the testimonial and try again."
+    };
+  }
+
+  const rateLimit = await consumeRateLimit({
+    key: `circle-card:wallet-testimonial:${user.id}`,
+    limit: 10,
+    windowMs: CIRCLE_CARD_RELATIONSHIP_RATE_LIMIT_WINDOW_MS
+  });
+  if (!rateLimit.allowed) {
+    return {
+      ok: false,
+      error: "wallet-testimonial-rate-limited",
+      message: "Please wait before sending another testimonial."
+    };
+  }
+
+  const walletContact = await prisma.circleWalletContact.findFirst({
+    where: {
+      userId: user.id,
+      cardId: parsed.data.targetCardId,
+      card: {
+        userId: { not: user.id },
+        cardType: "BUSINESS",
+        isPublished: true,
+        archivedAt: null,
+        user: { suspended: false }
+      }
+    },
+    select: {
+      id: true,
+      card: {
+        select: {
+          id: true,
+          userId: true,
+          slug: true
+        }
+      }
+    }
+  });
+
+  if (!walletContact?.card) {
+    return {
+      ok: false,
+      error: "wallet-testimonial-target-ineligible",
+      message: "Choose a live Business Circle Card saved in your Wallet."
+    };
+  }
+
+  const existingPending = await prisma.circleCardWalletTestimonial.findFirst({
+    where: {
+      reviewerUserId: user.id,
+      targetCardId: walletContact.card.id,
+      status: "PENDING"
+    },
+    select: { id: true }
+  });
+  if (existingPending) {
+    return {
+      ok: false,
+      error: "wallet-testimonial-pending-exists",
+      message: "You already have a testimonial awaiting approval for this card."
+    };
+  }
+
+  const [reviewerCard, reviewerAccount] = await Promise.all([
+    getPrimaryCircleCardForUser(user.id),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { name: true, email: true }
+    })
+  ]);
+  const reviewerName =
+    reviewerCard?.fullName || reviewerAccount?.name || reviewerAccount?.email?.split("@")[0] || "Circle Card member";
+  const reviewerRoleOrCompany = reviewerCard?.businessName || null;
+
+  try {
+    await prisma.circleCardWalletTestimonial.create({
+      data: {
+        reviewerUserId: user.id,
+        reviewerCardId: reviewerCard?.id ?? null,
+        reviewerName,
+        reviewerRoleOrCompany,
+        targetCardId: walletContact.card.id,
+        targetOwnerId: walletContact.card.userId,
+        walletContactId: walletContact.id,
+        testimonialText: parsed.data.testimonialText,
+        rating: parsed.data.rating ?? null,
+        relationship: parsed.data.relationship || null,
+        status: "PENDING"
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return {
+        ok: false,
+        error: "wallet-testimonial-pending-exists",
+        message: "You already have a testimonial awaiting approval for this card."
+      };
+    }
+
+    return {
+      ok: false,
+      error: "wallet-testimonial-save-failed",
+      message: "The testimonial could not be sent."
+    };
+  }
+
+  revalidatePath("/dashboard/circle-card");
+  return { ok: true, message: "Testimonial sent for approval." };
+}
+
+async function moderateCircleCardWalletTestimonial(input: {
+  testimonialId: string;
+  targetCardId: string;
+  status: "APPROVED" | "REJECTED";
+}): Promise<CircleCardWalletTestimonialModerationResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardWalletTestimonialModerationSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "wallet-testimonial-invalid", message: "Check the testimonial and try again." };
+  }
+
+  const testimonial = await prisma.circleCardWalletTestimonial.findFirst({
+    where: {
+      id: parsed.data.testimonialId,
+      targetCardId: parsed.data.targetCardId,
+      targetOwnerId: user.id,
+      targetCard: { archivedAt: null }
+    },
+    select: {
+      id: true,
+      status: true,
+      targetCard: { select: { slug: true, cardType: true } }
+    }
+  });
+
+  if (!testimonial || testimonial.targetCard.cardType !== "BUSINESS") {
+    return { ok: false, error: "wallet-testimonial-not-found", message: "That testimonial could not be found." };
+  }
+  if (testimonial.status !== "PENDING") {
+    return { ok: false, error: "wallet-testimonial-not-pending", message: "That testimonial has already been reviewed." };
+  }
+
+  const now = new Date();
+  const updated = await prisma.circleCardWalletTestimonial.updateMany({
+    where: { id: testimonial.id, status: "PENDING", targetOwnerId: user.id },
+    data: {
+      status: input.status,
+      approvedAt: input.status === "APPROVED" ? now : null,
+      rejectedAt: input.status === "REJECTED" ? now : null
+    }
+  });
+  if (!updated.count) {
+    return { ok: false, error: "wallet-testimonial-not-pending", message: "That testimonial has already been reviewed." };
+  }
+
+  revalidateCircleCardPaths(testimonial.targetCard.slug);
+  return {
+    ok: true,
+    testimonialId: testimonial.id,
+    status: input.status,
+    message: input.status === "APPROVED" ? "Testimonial approved." : "Testimonial rejected."
+  };
+}
+
+export async function approveCircleCardWalletTestimonialAction(input: {
+  testimonialId: string;
+  targetCardId: string;
+}) {
+  return moderateCircleCardWalletTestimonial({ ...input, status: "APPROVED" });
+}
+
+export async function rejectCircleCardWalletTestimonialAction(input: {
+  testimonialId: string;
+  targetCardId: string;
+}) {
+  return moderateCircleCardWalletTestimonial({ ...input, status: "REJECTED" });
+}
+
+export async function deleteCircleCardWalletTestimonialAction(input: {
+  testimonialId: string;
+  targetCardId: string;
+}): Promise<CircleCardWalletTestimonialModerationResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardWalletTestimonialModerationSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "wallet-testimonial-invalid", message: "Check the testimonial and try again." };
+  }
+
+  const testimonial = await prisma.circleCardWalletTestimonial.findFirst({
+    where: {
+      id: parsed.data.testimonialId,
+      targetCardId: parsed.data.targetCardId,
+      targetOwnerId: user.id
+    },
+    select: { id: true, targetCard: { select: { slug: true } } }
+  });
+  if (!testimonial) {
+    return { ok: false, error: "wallet-testimonial-not-found", message: "That testimonial could not be found." };
+  }
+
+  await prisma.circleCardWalletTestimonial.delete({ where: { id: testimonial.id } });
+  revalidateCircleCardPaths(testimonial.targetCard.slug);
+  return { ok: true, testimonialId: testimonial.id, status: "DELETED", message: "Testimonial deleted." };
 }
 
 export async function saveCircleCardOpeningHoursAction(formData: FormData) {

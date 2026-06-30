@@ -1,15 +1,19 @@
 import { ExternalLink, Quote, Star } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   isValidCircleCardReviewItem,
   type CircleCardReviewItem
 } from "@/lib/circle-card/content-blocks";
+import { circleCardWalletTestimonialRelationshipLabel } from "@/lib/circle-card/wallet-testimonials";
 
 export function PublicCircleCardReviews({
   items,
-  id = "business-reviews"
+  id = "business-reviews",
+  trustedConnectionCount = 0
 }: {
   items: CircleCardReviewItem[];
   id?: string;
+  trustedConnectionCount?: number;
 }) {
   const visibleItems = items.filter(
     (item) => item.isActive && isValidCircleCardReviewItem(item)
@@ -31,6 +35,11 @@ export function PublicCircleCardReviews({
           <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">
             Trusted by clients
           </h2>
+          {trustedConnectionCount > 0 ? (
+            <p className="mt-2 text-xs font-medium text-silver">
+              Trusted by {trustedConnectionCount} connection{trustedConnectionCount === 1 ? "" : "s"}
+            </p>
+          ) : null}
         </div>
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
           <Quote size={18} aria-hidden="true" />
@@ -40,6 +49,11 @@ export function PublicCircleCardReviews({
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         {visibleItems.map((item) => (
           <article key={item.id} className="rounded-2xl border border-silver/14 bg-white/[0.04] p-4 sm:p-5">
+            {item.verifiedConnection ? (
+              <Badge variant="outline" className="mb-3 border-emerald-400/24 text-emerald-200">
+                Verified connection testimonial
+              </Badge>
+            ) : null}
             {item.rating ? (
               <div className="flex text-gold" aria-label={`${item.rating} out of 5 stars`}>
                 {Array.from({ length: item.rating }, (_, index) => (
@@ -54,6 +68,11 @@ export function PublicCircleCardReviews({
               <p className="text-sm font-semibold text-foreground">{item.reviewerName}</p>
               {item.reviewerRoleOrCompany ? (
                 <p className="mt-0.5 text-xs text-muted">{item.reviewerRoleOrCompany}</p>
+              ) : null}
+              {item.relationship ? (
+                <p className="mt-2 text-xs text-muted">
+                  {circleCardWalletTestimonialRelationshipLabel(item.relationship)}
+                </p>
               ) : null}
               {item.source || item.sourceUrl ? (
                 item.sourceUrl ? (

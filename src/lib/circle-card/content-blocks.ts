@@ -174,6 +174,8 @@ export type CircleCardReviewItem = {
   sourceUrl: string | null;
   isActive: boolean;
   sortOrder: number;
+  verifiedConnection?: boolean;
+  relationship?: string | null;
 };
 
 export const CIRCLE_CARD_REVIEW_PRO_LIMIT = 20;

@@ -111,6 +111,8 @@ export type PublicCircleCard = {
   services: CircleCardServiceItem[];
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
+  approvedWalletTestimonialCount: number;
+  trustScore: number;
   openingHours: CircleCardOpeningHours | null;
   customLinks: PublicCircleCardLink[];
   ownerCards: PublicCircleCardSwitcherItem[];
@@ -170,6 +172,8 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   services: [],
   galleryItems: [],
   reviews: [],
+  approvedWalletTestimonialCount: 0,
+  trustScore: 0,
   openingHours: null,
   customLinks: [
     {
@@ -296,6 +300,19 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           accessCodeHint: true,
           accessCodeHash: true,
           sortOrder: true
+        }
+      },
+      walletTestimonialsReceived: {
+        where: { status: "APPROVED" },
+        orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }],
+        select: {
+          id: true,
+          reviewerName: true,
+          reviewerRoleOrCompany: true,
+          testimonialText: true,
+          rating: true,
+          relationship: true,
+          walletVerifiedAt: true
         }
       },
       recommendationsReceived: {
@@ -432,12 +449,31 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
   });
-  const reviews = visibleCircleCardReviewItems({
+  const manualReviews = visibleCircleCardReviewItems({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
   });
-  const { contentBlocks, ...publicCard } = card;
+  const walletReviews: CircleCardReviewItem[] = card.walletTestimonialsReceived.map(
+    (testimonial, index) => ({
+      id: `wallet-${testimonial.id}`,
+      reviewerName: testimonial.reviewerName,
+      reviewerRoleOrCompany: testimonial.reviewerRoleOrCompany,
+      reviewText: testimonial.testimonialText,
+      rating: testimonial.rating,
+      source: null,
+      sourceUrl: null,
+      isActive: true,
+      sortOrder: manualReviews.length + index,
+      verifiedConnection: Boolean(testimonial.walletVerifiedAt),
+      relationship: testimonial.relationship
+    })
+  );
+  const reviews = [...manualReviews, ...walletReviews];
+  const approvedWalletTestimonialCount = walletReviews.length;
+  const trustScore = approvedWalletTestimonialCount;
+  const { contentBlocks, walletTestimonialsReceived, ...publicCard } = card;
   void contentBlocks;
+  void walletTestimonialsReceived;
   const [profileImageUrl, businessLogoUrl] = await Promise.all([
     resolvePublicUploadImageUrl(card.profileImageUrl, SITE_CONFIG.url),
     resolvePublicUploadImageUrl(card.businessLogoUrl, SITE_CONFIG.url)
@@ -460,6 +496,8 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     services,
     galleryItems,
     reviews,
+    approvedWalletTestimonialCount,
+    trustScore,
     openingHours,
     recommendations: card.recommendationsReceived,
     successfulReferralCount: card._count.referralsReceived,

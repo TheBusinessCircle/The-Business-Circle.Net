@@ -111,7 +111,9 @@ import {
   CircleCardSmartLinkFields,
   CircleCardThemeFields,
   CircleCardVisibilityCheckbox,
-  CircleCardVisibilityToggle
+  CircleCardVisibilityToggle,
+  CircleCardWalletTestimonialForm,
+  type CircleCardPendingWalletTestimonial
 } from "@/components/circle-card";
 import {
   CircleCardPlatformOwnerCardTypePreviewBadge,
@@ -215,6 +217,7 @@ import {
   type CircleCardServicesBuilderMode
 } from "@/lib/circle-card/content-blocks";
 import { circleCardIntroductionStatusLabel } from "@/lib/circle-card/introductions";
+import { isEligibleCircleCardWalletTestimonialTarget } from "@/lib/circle-card/wallet-testimonials";
 import {
   CIRCLE_CARD_REFERRAL_OPEN_STATUSES,
   circleCardReferralStatusLabel,
@@ -1048,12 +1051,14 @@ function CircleCardReviewsBuilder({
   mode,
   cardId,
   cardName,
-  reviews
+  reviews,
+  pendingWalletTestimonials
 }: {
   mode: CircleCardReviewsBuilderMode;
   cardId?: string;
   cardName: string;
   reviews: CircleCardReviewItem[];
+  pendingWalletTestimonials: CircleCardPendingWalletTestimonial[];
 }) {
   if (mode === "hidden") {
     return null;
@@ -1087,7 +1092,14 @@ function CircleCardReviewsBuilder({
     );
   }
 
-  return <CircleCardReviewsManager cardId={cardId} cardName={cardName} initialItems={reviews} />;
+  return (
+    <CircleCardReviewsManager
+      cardId={cardId}
+      cardName={cardName}
+      initialItems={reviews}
+      pendingWalletTestimonials={pendingWalletTestimonials}
+    />
+  );
 }
 
 const OPENING_HOURS_PRESET_LABELS: Record<CircleCardOpeningHoursPreset, string> = {
@@ -1303,6 +1315,7 @@ function BusinessCardBuilderFoundation({
   galleryItems,
   reviewsMode,
   reviews,
+  pendingWalletTestimonials,
   openingHoursMode,
   openingHours,
   businessName,
@@ -1322,6 +1335,7 @@ function BusinessCardBuilderFoundation({
   galleryItems: CircleCardGalleryItem[];
   reviewsMode: CircleCardReviewsBuilderMode;
   reviews: CircleCardReviewItem[];
+  pendingWalletTestimonials: CircleCardPendingWalletTestimonial[];
   openingHoursMode: CircleCardOpeningHoursBuilderMode;
   openingHours: CircleCardOpeningHours | null;
   businessName?: string | null;
@@ -1487,6 +1501,7 @@ function BusinessCardBuilderFoundation({
           cardId={cardId}
           cardName={businessName || "Selected Business Card"}
           reviews={reviews}
+          pendingWalletTestimonials={pendingWalletTestimonials}
         />
         <CircleCardOpeningHoursBuilder
           mode={openingHoursMode}
@@ -1620,6 +1635,7 @@ function BusinessCardBuilderFoundation({
             cardId={cardId}
             cardName={businessName || "Selected Business Card"}
             reviews={reviews}
+            pendingWalletTestimonials={pendingWalletTestimonials}
           />
 
           <CircleCardOpeningHoursBuilder
@@ -2700,6 +2716,19 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       include: {
         customLinks: {
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+        },
+        walletTestimonialsReceived: {
+          where: { status: "PENDING" },
+          orderBy: [{ createdAt: "desc" }],
+          select: {
+            id: true,
+            reviewerName: true,
+            reviewerRoleOrCompany: true,
+            testimonialText: true,
+            rating: true,
+            relationship: true,
+            createdAt: true
+          }
         }
       }
     }),
@@ -2770,6 +2799,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           select: {
             id: true,
             userId: true,
+            cardType: true,
             slug: true,
             fullName: true,
             businessName: true,
@@ -2781,8 +2811,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             websiteUrl: true,
             email: true,
             phone: true,
-            isPublished: true
+            isPublished: true,
+            archivedAt: true,
+            user: { select: { suspended: true } }
           }
+        },
+        walletTestimonials: {
+          where: {
+            reviewerUserId: session.user.id,
+            status: "PENDING"
+          },
+          select: { id: true }
         },
         recommendations: {
           where: {
@@ -3225,6 +3264,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       display
     };
   });
+  const walletTestimonialContacts = normalizedWalletContacts
+    .filter(
+      (contact) => isEligibleCircleCardWalletTestimonialTarget(contact.card, session.user.id)
+    )
+    .map((contact) => ({
+      walletContactId: contact.id,
+      targetCardId: contact.card!.id,
+      fullName: contact.card!.fullName,
+      businessName: contact.card!.businessName,
+      cardType: contact.card!.cardType,
+      profileImageUrl: contact.card!.profileImageUrl,
+      businessLogoUrl: contact.card!.businessLogoUrl,
+      hasPendingTestimonial: contact.walletTestimonials.length > 0
+    }));
   const pendingIncomingRequests = connectionRequests.filter(
     (request) => request.status === "PENDING" && request.recipientId === session.user.id
   );
@@ -4222,6 +4275,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardReviews = card?.cardType === "BUSINESS"
     ? readCircleCardReviewItems(card.contentBlocks)
     : [];
+  const selectedCardPendingWalletTestimonials: CircleCardPendingWalletTestimonial[] =
+    card?.cardType === "BUSINESS"
+      ? card.walletTestimonialsReceived.map((testimonial) => ({
+          ...testimonial,
+          relationship: testimonial.relationship,
+          createdAt: testimonial.createdAt.toISOString()
+        }))
+      : [];
   const selectedCardOpeningHours = card?.cardType === "BUSINESS"
     ? readCircleCardOpeningHours(card.contentBlocks)
     : null;
@@ -8114,6 +8175,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           galleryItems={selectedCardGalleryItems}
           reviewsMode={reviewsBuilderMode}
           reviews={selectedCardReviews}
+          pendingWalletTestimonials={selectedCardPendingWalletTestimonials}
           openingHoursMode={openingHoursBuilderMode}
           openingHours={selectedCardOpeningHours}
           businessName={card.businessName}
@@ -8680,6 +8742,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 </Link>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card id="leave-wallet-testimonial" className="scroll-mt-24 border-gold/18 bg-gold/8">
+          <CardHeader>
+            <CardTitle className="inline-flex items-center gap-2">
+              <Star size={18} className="text-gold" />
+              Leave a testimonial
+            </CardTitle>
+            <CardDescription>
+              Send trusted feedback to a live Business Circle Card saved in your Wallet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CircleCardWalletTestimonialForm contacts={walletTestimonialContacts} />
           </CardContent>
         </Card>
 
