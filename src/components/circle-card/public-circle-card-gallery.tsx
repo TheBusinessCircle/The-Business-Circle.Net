@@ -18,18 +18,16 @@ export function PublicCircleCardGallery({
 }: PublicCircleCardGalleryProps) {
   const [selectedItem, setSelectedItem] = useState<CircleCardGalleryItem | null>(null);
   const [failedItemIds, setFailedItemIds] = useState<Set<string>>(() => new Set());
-  const [loadedItemIds, setLoadedItemIds] = useState<Set<string>>(() => new Set());
   const visibleItems = items.filter(
-    (item) => isValidCircleCardGalleryImageUrl(item.imageUrl) && !failedItemIds.has(item.id)
+    (item) =>
+      item.isActive &&
+      isValidCircleCardGalleryImageUrl(item.imageUrl) &&
+      !failedItemIds.has(item.id)
   );
 
   function markFailed(itemId: string) {
     setFailedItemIds((current) => new Set(current).add(itemId));
     setSelectedItem((current) => (current?.id === itemId ? null : current));
-  }
-
-  function markLoaded(itemId: string) {
-    setLoadedItemIds((current) => new Set(current).add(itemId));
   }
 
   useEffect(() => {
@@ -80,22 +78,21 @@ export function PublicCircleCardGallery({
           {visibleItems.map((item) => (
             <article
               key={item.id}
-              className={`min-w-0 overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04] transition-opacity ${loadedItemIds.has(item.id) ? "visible opacity-100" : "invisible opacity-0"}`}
+              className="min-w-0 overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]"
             >
               <button
                 type="button"
                 className="group block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
                 onClick={() => setSelectedItem(item)}
-                aria-label={`Enlarge ${item.title}`}
+                aria-label={`Enlarge ${item.title || "portfolio image"}`}
               >
                 <span className="block aspect-square overflow-hidden bg-background/40 sm:aspect-[4/3]">
                   <img
                     src={item.imageUrl}
-                    alt={item.title}
+                    alt={item.title || "Portfolio image"}
                     loading="lazy"
                     decoding="async"
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    onLoad={() => markLoaded(item.id)}
                     onError={() => markFailed(item.id)}
                   />
                 </span>
@@ -141,7 +138,7 @@ export function PublicCircleCardGallery({
             <div className="flex min-h-0 items-center justify-center bg-black/30">
               <img
                 src={selectedItem.imageUrl}
-                alt={selectedItem.title}
+                alt={selectedItem.title || "Portfolio image"}
                 loading="lazy"
                 decoding="async"
                 className="max-h-[75vh] w-full object-contain"

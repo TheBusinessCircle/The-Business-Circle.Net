@@ -138,11 +138,16 @@ describe("Circle Card opening hours content block", () => {
 });
 
 describe("Circle Card gallery content block", () => {
-  it("accepts managed local and Cloudinary images but rejects empty or arbitrary URLs", () => {
+  it("accepts safe local and HTTPS images but rejects empty, malformed, and unsafe URLs", () => {
     expect(isValidCircleCardGalleryImageUrl("/uploads/circle-card/user-gallery-image.jpg")).toBe(true);
     expect(isValidCircleCardGalleryImageUrl("https://res.cloudinary.com/demo/image/upload/v1/work.webp")).toBe(true);
+    expect(isValidCircleCardGalleryImageUrl("https://cdn.example.com/work.png")).toBe(true);
     expect(isValidCircleCardGalleryImageUrl("")).toBe(false);
-    expect(isValidCircleCardGalleryImageUrl("https://example.com/missing.jpg")).toBe(false);
+    expect(isValidCircleCardGalleryImageUrl("   ")).toBe(false);
+    expect(isValidCircleCardGalleryImageUrl("javascript:alert(1)")).toBe(false);
+    expect(isValidCircleCardGalleryImageUrl("http://example.com/work.jpg")).toBe(false);
+    expect(isValidCircleCardGalleryImageUrl("not a URL")).toBe(false);
+    expect(isValidCircleCardGalleryImageUrl("/uploads/circle-card/../private.png")).toBe(false);
 
     expect(circleCardGalleryItemFormSchema.safeParse({
       cardId: "cm12345678901234567890123",
@@ -188,7 +193,7 @@ describe("Circle Card gallery content block", () => {
         GALLERY_PORTFOLIO: {
           items: [{
             id: "legacy-broken",
-            imageUrl: "https://example.com/missing.jpg",
+            imageUrl: "javascript:alert(1)",
             title: "Legacy item",
             isActive: true,
             sortOrder: 0

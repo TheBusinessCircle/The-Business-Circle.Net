@@ -212,7 +212,7 @@ function GalleryThumbnail({ item }: { item: CircleCardGalleryItem }) {
   if (broken) {
     return (
       <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-amber-300/28 bg-amber-300/10 p-1.5 text-center text-[9px] font-semibold leading-tight text-amber-100">
-        Image missing - edit or remove
+        Image missing or invalid
       </span>
     );
   }

@@ -406,15 +406,13 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       imageUrl: await resolvePublicUploadImageUrl(service.imageUrl, SITE_CONFIG.url)
     }))
   );
-  const galleryItems = await Promise.all(
-    visibleCircleCardGalleryItems({
-      cardType: card.cardType,
-      contentBlocks: card.contentBlocks
-    }).map(async (item) => ({
-      ...item,
-      imageUrl: await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url)
-    }))
-  ).then((items) => items.filter((item): item is CircleCardGalleryItem => Boolean(item.imageUrl)));
+  // Gallery URLs have already passed the gallery-specific allowlist. Keep managed
+  // root-relative uploads as URLs rather than coupling public visibility to the
+  // filesystem of whichever server happens to render this request.
+  const galleryItems = visibleCircleCardGalleryItems({
+    cardType: card.cardType,
+    contentBlocks: card.contentBlocks
+  });
   const openingHours = visibleCircleCardOpeningHours({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks

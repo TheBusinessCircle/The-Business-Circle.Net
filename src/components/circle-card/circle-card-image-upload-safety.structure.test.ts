@@ -28,6 +28,10 @@ const publicGallery = readFileSync(
   join(root, "src/components/circle-card/public-circle-card-gallery.tsx"),
   "utf8"
 );
+const publicCardService = readFileSync(
+  join(root, "src/server/circle-card/public-card.service.ts"),
+  "utf8"
+);
 
 describe("Circle Card image upload safety", () => {
   it("uploads through fetch with non-submit controls", () => {
@@ -59,8 +63,13 @@ describe("Circle Card image upload safety", () => {
   it("blocks missing gallery images and removes failed public images", () => {
     expect(galleryManager).toContain('disabled={saving || !imageReady}');
     expect(galleryManager).toContain("Upload a valid gallery image before saving.");
-    expect(galleryManager).toContain("Image missing - edit or remove");
+    expect(galleryManager).toContain("Image missing or invalid");
     expect(publicGallery).toContain("isValidCircleCardGalleryImageUrl(item.imageUrl)");
     expect(publicGallery).toContain("onError={() => markFailed(item.id)}");
+    expect(publicGallery).not.toContain("invisible opacity-0");
+    expect(publicCardService).toContain("const galleryItems = visibleCircleCardGalleryItems({");
+    expect(publicCardService).not.toContain(
+      "imageUrl: await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url)"
+    );
   });
 });

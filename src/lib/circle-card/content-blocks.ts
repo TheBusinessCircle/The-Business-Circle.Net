@@ -262,17 +262,25 @@ export function isValidCircleCardGalleryImageUrl(value: unknown): value is strin
   }
 
   const imageUrl = value.trim();
-  if (/^\/uploads\/circle-card\/[^?#]+\.(?:jpe?g|png|webp)(?:[?#].*)?$/i.test(imageUrl)) {
-    return true;
+  const localUploadMatch = imageUrl.match(
+    /^\/uploads\/circle-card\/([^?#]+\.(?:jpe?g|png|webp))(?:[?#].*)?$/i
+  );
+
+  if (localUploadMatch) {
+    try {
+      const decodedPath = decodeURIComponent(localUploadMatch[1]);
+      return (
+        !decodedPath.includes("\\") &&
+        decodedPath.split("/").every((segment) => Boolean(segment) && segment !== "." && segment !== "..")
+      );
+    } catch {
+      return false;
+    }
   }
 
   try {
     const url = new URL(imageUrl);
-    return (
-      url.protocol === "https:" &&
-      url.hostname.toLowerCase() === "res.cloudinary.com" &&
-      url.pathname.includes("/image/upload/")
-    );
+    return url.protocol === "https:" && Boolean(url.hostname) && !url.username && !url.password;
   } catch {
     return false;
   }
