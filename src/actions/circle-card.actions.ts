@@ -47,10 +47,13 @@ import {
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
 import {
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
+  CIRCLE_CARD_REVIEW_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
   circleCardGalleryItemFormSchema,
   circleCardGalleryItemIdSchema,
+  circleCardReviewItemFormSchema,
+  circleCardReviewItemIdSchema,
   circleCardOpeningHoursFormSchema,
   circleCardOpeningHoursPresetSchema,
   circleCardServiceFormSchema,
@@ -59,11 +62,14 @@ import {
   createEmptyCircleCardContentBlocks,
   readCircleCardGalleryItems,
   readCircleCardOpeningHours,
+  readCircleCardReviewItems,
   readCircleCardServices,
   writeCircleCardGalleryItems,
   writeCircleCardOpeningHours,
   type CircleCardGalleryItem,
   type CircleCardOpeningHours,
+  type CircleCardReviewItem,
+  writeCircleCardReviewItems,
   writeCircleCardServices
 } from "@/lib/circle-card/content-blocks";
 import {
@@ -994,6 +1000,18 @@ export type CircleCardGalleryInlineActionResult =
       message: string;
     };
 
+export type CircleCardReviewInlineActionResult =
+  | {
+      ok: true;
+      notice: string;
+      item?: CircleCardReviewItem;
+    }
+  | {
+      ok: false;
+      error: string;
+      message: string;
+    };
+
 function serializeCircleCardDashboardLink(
   link: CircleCardDashboardLinkRecord
 ): CircleCardDashboardLinkPayload {
@@ -1044,6 +1062,13 @@ function inlineCircleCardGalleryError(
   error: string,
   message: string
 ): CircleCardGalleryInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardReviewError(
+  error: string,
+  message: string
+): CircleCardReviewInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -2963,6 +2988,181 @@ export async function deleteCircleCardGalleryItemInlineAction(input: {
   revalidateCircleCardPaths(card.slug);
 
   return { ok: true, notice: "Gallery image deleted" };
+}
+
+export async function upsertCircleCardReviewItemInlineAction(
+  formData: FormData
+): Promise<CircleCardReviewInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardReviewItemFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    reviewItemId: formData.get("reviewItemId") ?? "",
+    reviewerName: formData.get("reviewerName"),
+    reviewerRoleOrCompany: formData.get("reviewerRoleOrCompany") ?? "",
+    reviewText: formData.get("reviewText"),
+    rating: formData.get("rating") ?? "",
+    source: formData.get("source") ?? "",
+    sourceUrl: formData.get("sourceUrl") ?? "",
+    isActive: formData.get("isActive")
+  });
+
+  if (!parsed.success) {
+    return inlineCircleCardReviewError(
+      "review-invalid",
+      parsed.error.issues[0]?.message ?? "Check the testimonial fields and try again."
+    );
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardReviewError(
+      "reviews-locked",
+      "Reviews are included with Circle Card Pro."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card) {
+    return inlineCircleCardReviewError("card-not-found", "That Circle Card could not be found.");
+  }
+  if (card.cardType !== "BUSINESS") {
+    return inlineCircleCardReviewError(
+      "reviews-business-card-required",
+      "Reviews can only be added to a Business Card."
+    );
+  }
+
+  const reviews = readCircleCardReviewItems(card.contentBlocks);
+  const existingIndex = parsed.data.reviewItemId
+    ? reviews.findIndex((item) => item.id === parsed.data.reviewItemId)
+    : -1;
+
+  if (parsed.data.reviewItemId && existingIndex < 0) {
+    return inlineCircleCardReviewError(
+      "review-not-found",
+      "That testimonial could not be found on this Business Card."
+    );
+  }
+  if (existingIndex < 0 && reviews.length >= CIRCLE_CARD_REVIEW_PRO_LIMIT) {
+    return inlineCircleCardReviewError(
+      "review-limit",
+      `Circle Card Pro can keep up to ${CIRCLE_CARD_REVIEW_PRO_LIMIT} testimonials.`
+    );
+  }
+
+  const review: CircleCardReviewItem = {
+    id: existingIndex >= 0 ? reviews[existingIndex].id : randomBytes(12).toString("hex"),
+    reviewerName: parsed.data.reviewerName,
+    reviewerRoleOrCompany: parsed.data.reviewerRoleOrCompany || null,
+    reviewText: parsed.data.reviewText,
+    rating: parsed.data.rating ?? null,
+    source: parsed.data.source || null,
+    sourceUrl: parsed.data.sourceUrl || null,
+    isActive: parsed.data.isActive,
+    sortOrder: existingIndex >= 0 ? reviews[existingIndex].sortOrder : reviews.length
+  };
+  const nextReviews = [...reviews];
+
+  if (existingIndex >= 0) {
+    nextReviews[existingIndex] = review;
+  } else {
+    nextReviews.push(review);
+  }
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardReviewItems(card.contentBlocks, nextReviews) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return {
+      ok: true,
+      notice: existingIndex >= 0 ? "Testimonial updated" : "Testimonial added",
+      item: review
+    };
+  } catch {
+    return inlineCircleCardReviewError(
+      "review-save-failed",
+      "The testimonial could not be saved."
+    );
+  }
+}
+
+export async function toggleCircleCardReviewItemInlineAction(input: {
+  cardId: string;
+  reviewItemId: string;
+}): Promise<CircleCardReviewInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardReviewItemIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardReviewError("review-invalid", "Check the testimonial and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardReviewError("reviews-locked", "Reviews are included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardReviewError(
+      card ? "reviews-business-card-required" : "card-not-found",
+      card ? "Reviews can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const reviews = readCircleCardReviewItems(card.contentBlocks);
+  const itemIndex = reviews.findIndex((item) => item.id === parsed.data.reviewItemId);
+  if (itemIndex < 0) {
+    return inlineCircleCardReviewError("review-not-found", "That testimonial could not be found.");
+  }
+
+  reviews[itemIndex] = { ...reviews[itemIndex], isActive: !reviews[itemIndex].isActive };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardReviewItems(card.contentBlocks, reviews) }
+  });
+  revalidateCircleCardPaths(card.slug);
+
+  return {
+    ok: true,
+    notice: reviews[itemIndex].isActive ? "Testimonial shown" : "Testimonial hidden",
+    item: reviews[itemIndex]
+  };
+}
+
+export async function deleteCircleCardReviewItemInlineAction(input: {
+  cardId: string;
+  reviewItemId: string;
+}): Promise<CircleCardReviewInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardReviewItemIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardReviewError("review-invalid", "Check the testimonial and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardReviewError("reviews-locked", "Reviews are included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardReviewError(
+      card ? "reviews-business-card-required" : "card-not-found",
+      card ? "Reviews can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const reviews = readCircleCardReviewItems(card.contentBlocks);
+  const nextReviews = reviews.filter((item) => item.id !== parsed.data.reviewItemId);
+  if (nextReviews.length === reviews.length) {
+    return inlineCircleCardReviewError("review-not-found", "That testimonial could not be found.");
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardReviewItems(card.contentBlocks, nextReviews) }
+  });
+  revalidateCircleCardPaths(card.slug);
+
+  return { ok: true, notice: "Testimonial deleted" };
 }
 
 export async function saveCircleCardOpeningHoursAction(formData: FormData) {

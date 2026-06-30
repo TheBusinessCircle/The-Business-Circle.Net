@@ -14,6 +14,7 @@ import { CircleCardFramedImage } from "@/components/circle-card/circle-card-fram
 import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-install-prompt";
 import { CircleCardPrivateLinkAction } from "@/components/circle-card/circle-card-private-link-action";
 import { PublicCircleCardGallery } from "@/components/circle-card/public-circle-card-gallery";
+import { PublicCircleCardReviews } from "@/components/circle-card/public-circle-card-reviews";
 import { CircleCardQrPanel } from "@/components/circle-card/circle-card-qr-panel";
 import { CircleCardReportForm } from "@/components/circle-card/circle-card-report-form";
 import { CircleCardShareButton } from "@/components/circle-card/circle-card-share-button";
@@ -1834,6 +1835,14 @@ export function PublicCircleCardProfile({
     return <PublicCircleCardGallery id={id} items={card.galleryItems} />;
   }
 
+  function renderReviewsSection({ id = "business-reviews" }: { id?: string } = {}) {
+    if (card.cardType !== "BUSINESS" || !card.reviews.length) {
+      return null;
+    }
+
+    return <PublicCircleCardReviews id={id} items={card.reviews} />;
+  }
+
   function renderShareQrSection({
     className,
     id = "circle-card-share",
@@ -2018,6 +2027,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "classic-about" })}
             {renderServicesSection({ id: "classic-services" })}
             {renderGallerySection({ id: "classic-gallery" })}
+            {renderReviewsSection({ id: "classic-reviews" })}
             {renderOpeningHoursSection({ id: "classic-opening-hours" })}
             {renderQuickConnectSection({
               id: "classic-quick-connect",
@@ -2255,6 +2265,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "creator-about" })}
             {renderServicesSection({ id: "creator-services" })}
             {renderGallerySection({ id: "creator-gallery" })}
+            {renderReviewsSection({ id: "creator-reviews" })}
             {renderOpeningHoursSection({ id: "creator-opening-hours" })}
             {renderQuickConnectSection({
               id: "creator-quick-connect",
@@ -2565,6 +2576,7 @@ export function PublicCircleCardProfile({
             {renderBusinessHighlightsSection()}
             {renderServicesSection()}
             {renderGallerySection()}
+            {renderReviewsSection()}
             {renderOpeningHoursSection()}
             {renderQuickConnectSection({
               id: "business-quick-connect",

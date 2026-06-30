@@ -18,9 +18,13 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).toContain('hash: "business-card-services"');
     expect(dashboard).toContain('hash: "business-card-gallery"');
     expect(dashboard).toContain('hash: "business-card-opening-hours"');
+    expect(dashboard).toContain('hash: "business-card-reviews"');
     expect(dashboard).toContain("Add your first service");
     expect(dashboard).toContain("Add your first gallery image");
     expect(dashboard).toContain("Set your opening hours");
+    expect(dashboard).toContain("Add first review");
+    expect(dashboard).toContain("Manage Reviews");
+    expect(dashboard).toContain("Reviews are included with Circle Card Pro.");
   });
 
   it("keeps future business modules visible and inactive", () => {

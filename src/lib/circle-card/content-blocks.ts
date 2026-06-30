@@ -105,7 +105,7 @@ export const CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS = [
     type: "REVIEWS_TESTIMONIALS",
     family: "BUSINESS",
     label: "Reviews / Testimonials",
-    publicEditingEnabled: false
+    publicEditingEnabled: true
   },
   {
     type: "BOOKING_ENQUIRY_LINK",
@@ -163,6 +163,21 @@ export type CircleCardGalleryItem = {
 
 export const CIRCLE_CARD_GALLERY_PRO_LIMIT = 20;
 export const CIRCLE_CARD_GALLERY_TEAMS_LIMIT = 100;
+
+export type CircleCardReviewItem = {
+  id: string;
+  reviewerName: string;
+  reviewerRoleOrCompany: string | null;
+  reviewText: string;
+  rating: number | null;
+  source: string | null;
+  sourceUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+export const CIRCLE_CARD_REVIEW_PRO_LIMIT = 20;
+export const CIRCLE_CARD_REVIEW_TEAMS_LIMIT = 100;
 
 export const CIRCLE_CARD_WEEKDAYS = [
   { key: "monday", label: "Monday" },
@@ -287,6 +302,66 @@ export const circleCardGalleryItemFormSchema = z.object({
 export const circleCardGalleryItemIdSchema = z.object({
   cardId: z.string().cuid(),
   galleryItemId: z.string().trim().min(1).max(64)
+});
+
+export function isSafeCircleCardReviewSourceUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value.trim());
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
+}
+
+const optionalReviewRating = z.preprocess(
+  (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return undefined;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : value;
+  },
+  z.number().int().min(1, "Rating must be between 1 and 5.").max(5, "Rating must be between 1 and 5.").optional()
+);
+
+const optionalReviewSourceUrl = z
+  .string()
+  .trim()
+  .max(2048)
+  .optional()
+  .or(z.literal(""))
+  .refine((value) => !value || isSafeCircleCardReviewSourceUrl(value), {
+    message: "Use a safe http or https source URL."
+  });
+
+export const circleCardReviewItemFormSchema = z.object({
+  cardId: z.string().cuid(),
+  reviewItemId: z.string().trim().max(64).optional().or(z.literal("")),
+  reviewerName: z.string().trim().min(1, "Add the reviewer name.").max(100),
+  reviewerRoleOrCompany: z.string().trim().max(120).optional().or(z.literal("")),
+  reviewText: z.string().trim().min(1, "Add the testimonial.").max(1200),
+  rating: optionalReviewRating,
+  source: z.string().trim().max(80).optional().or(z.literal("")),
+  sourceUrl: optionalReviewSourceUrl,
+  isActive: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  )
+});
+
+export const circleCardReviewItemIdSchema = z.object({
+  cardId: z.string().cuid(),
+  reviewItemId: z.string().trim().min(1).max(64)
 });
 
 const openingHoursTimeSchema = z
@@ -639,10 +714,123 @@ export function visibleCircleCardGalleryItems(input: {
     : [];
 }
 
+export function isValidCircleCardReviewItem(value: unknown): value is CircleCardReviewItem {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const rating = value.rating;
+  const sourceUrl = value.sourceUrl;
+
+  return (
+    typeof value.id === "string" &&
+    Boolean(value.id.trim()) &&
+    typeof value.reviewerName === "string" &&
+    Boolean(value.reviewerName.trim()) &&
+    typeof value.reviewText === "string" &&
+    Boolean(value.reviewText.trim()) &&
+    (rating === null || rating === undefined || (Number.isInteger(rating) && Number(rating) >= 1 && Number(rating) <= 5)) &&
+    (sourceUrl === null || sourceUrl === undefined || sourceUrl === "" || isSafeCircleCardReviewSourceUrl(sourceUrl))
+  );
+}
+
+export function readCircleCardReviewItems(value: unknown): CircleCardReviewItem[] {
+  if (!isRecord(value) || !isRecord(value.business) || !isRecord(value.business.REVIEWS_TESTIMONIALS)) {
+    return [];
+  }
+
+  const items = value.business.REVIEWS_TESTIMONIALS.items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .flatMap((item, index) => {
+      if (!isRecord(item)) {
+        return [];
+      }
+
+      const id = typeof item.id === "string" ? item.id.trim() : "";
+      if (!id) {
+        return [];
+      }
+
+      const rating =
+        typeof item.rating === "number" && Number.isInteger(item.rating) && item.rating >= 1 && item.rating <= 5
+          ? item.rating
+          : null;
+      const sourceUrl = isSafeCircleCardReviewSourceUrl(item.sourceUrl)
+        ? item.sourceUrl.trim()
+        : null;
+
+      return [{
+        id,
+        reviewerName:
+          typeof item.reviewerName === "string" ? item.reviewerName.trim().slice(0, 100) : "",
+        reviewerRoleOrCompany:
+          typeof item.reviewerRoleOrCompany === "string" && item.reviewerRoleOrCompany.trim()
+            ? item.reviewerRoleOrCompany.trim().slice(0, 120)
+            : null,
+        reviewText:
+          typeof item.reviewText === "string" ? item.reviewText.trim().slice(0, 1200) : "",
+        rating,
+        source:
+          typeof item.source === "string" && item.source.trim()
+            ? item.source.trim().slice(0, 80)
+            : null,
+        sourceUrl,
+        isActive: item.isActive !== false,
+        sortOrder:
+          typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+            ? item.sortOrder
+            : index
+      } satisfies CircleCardReviewItem];
+    })
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .slice(0, CIRCLE_CARD_REVIEW_TEAMS_LIMIT);
+}
+
+export function writeCircleCardReviewItems(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  reviews: CircleCardReviewItem[]
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const business = isRecord(root.business) ? root.business : {};
+  const currentReviews = isRecord(business.REVIEWS_TESTIMONIALS)
+    ? business.REVIEWS_TESTIMONIALS
+    : {};
+
+  return {
+    ...root,
+    business: {
+      ...business,
+      REVIEWS_TESTIMONIALS: {
+        ...currentReviews,
+        items: reviews.map((review, index) => ({
+          ...review,
+          sortOrder: index
+        }))
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardReviewItems(input: {
+  cardType: string;
+  contentBlocks: unknown;
+}) {
+  return input.cardType === "BUSINESS"
+    ? readCircleCardReviewItems(input.contentBlocks).filter(
+        (item) => item.isActive && isValidCircleCardReviewItem(item)
+      )
+    : [];
+}
+
 export type CircleCardServicesBuilderMode = "hidden" | "locked" | "enabled" | "preview";
 
 export type CircleCardOpeningHoursBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardGalleryBuilderMode = CircleCardServicesBuilderMode;
+export type CircleCardReviewsBuilderMode = CircleCardServicesBuilderMode;
 
 export function resolveCircleCardServicesBuilderMode(input: {
   cardType?: string | null;
@@ -674,6 +862,15 @@ export function resolveCircleCardGalleryBuilderMode(input: {
   isPlatformOwner?: boolean;
   platformPreviewCardType?: string | null;
 }): CircleCardGalleryBuilderMode {
+  return resolveCircleCardServicesBuilderMode(input);
+}
+
+export function resolveCircleCardReviewsBuilderMode(input: {
+  cardType?: string | null;
+  hasProAccess: boolean;
+  isPlatformOwner?: boolean;
+  platformPreviewCardType?: string | null;
+}): CircleCardReviewsBuilderMode {
   return resolveCircleCardServicesBuilderMode(input);
 }
 

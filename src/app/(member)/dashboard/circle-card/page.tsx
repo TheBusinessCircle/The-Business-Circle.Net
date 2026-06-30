@@ -97,6 +97,7 @@ import {
   CircleCardInstallPrompt,
   CircleCardPlanPanel,
   CircleCardQrPanel,
+  CircleCardReviewsManager,
   CircleCardSaveForm,
   CircleCardSectionRouter,
   CircleCardShareAssetsPanel,
@@ -188,20 +189,26 @@ import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_OPENING_HOURS_PRESETS,
+  CIRCLE_CARD_REVIEW_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
   CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
   CIRCLE_CARD_CREATOR_BLOCK_TYPES,
   circleCardOpeningHoursDayLabel,
+  isValidCircleCardReviewItem,
   readCircleCardGalleryItems,
   readCircleCardOpeningHours,
+  readCircleCardReviewItems,
   readCircleCardServices,
   resolveCircleCardOpeningHoursBuilderMode,
   resolveCircleCardGalleryBuilderMode,
+  resolveCircleCardReviewsBuilderMode,
   resolveCircleCardServicesBuilderMode,
   type CircleCardOpeningHours,
   type CircleCardOpeningHoursBuilderMode,
   type CircleCardOpeningHoursPreset,
+  type CircleCardReviewsBuilderMode,
+  type CircleCardReviewItem,
   type CircleCardGalleryBuilderMode,
   type CircleCardGalleryItem,
   type CircleCardServiceItem,
@@ -1037,6 +1044,52 @@ function CircleCardGalleryBuilder({
   return <CircleCardGalleryManager cardId={cardId} cardName={cardName} initialItems={galleryItems} />;
 }
 
+function CircleCardReviewsBuilder({
+  mode,
+  cardId,
+  cardName,
+  reviews
+}: {
+  mode: CircleCardReviewsBuilderMode;
+  cardId?: string;
+  cardName: string;
+  reviews: CircleCardReviewItem[];
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-reviews" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Reviews are included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Collect and display testimonials with Circle Card Pro.
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit border-gold/28 text-gold">Pro</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview" || !cardId) {
+    return (
+      <div id="business-card-reviews" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">Business preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Reviews / Testimonials preview</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Select or create a Business Card to display client proof directly on it.
+        </p>
+      </div>
+    );
+  }
+
+  return <CircleCardReviewsManager cardId={cardId} cardName={cardName} initialItems={reviews} />;
+}
+
 const OPENING_HOURS_PRESET_LABELS: Record<CircleCardOpeningHoursPreset, string> = {
   "weekdays-9-5": "Monday to Friday 9–5",
   "open-7-days": "Open 7 days",
@@ -1248,6 +1301,8 @@ function BusinessCardBuilderFoundation({
   services,
   galleryMode,
   galleryItems,
+  reviewsMode,
+  reviews,
   openingHoursMode,
   openingHours,
   businessName,
@@ -1265,6 +1320,8 @@ function BusinessCardBuilderFoundation({
   services: CircleCardServiceItem[];
   galleryMode: CircleCardGalleryBuilderMode;
   galleryItems: CircleCardGalleryItem[];
+  reviewsMode: CircleCardReviewsBuilderMode;
+  reviews: CircleCardReviewItem[];
   openingHoursMode: CircleCardOpeningHoursBuilderMode;
   openingHours: CircleCardOpeningHours | null;
   businessName?: string | null;
@@ -1325,9 +1382,13 @@ function BusinessCardBuilderFoundation({
   ];
   const activeServiceCount = services.filter((service) => service.isActive).length;
   const activeGalleryCount = galleryItems.filter((item) => item.isActive).length;
+  const activeReviewCount = reviews.filter(
+    (item) => item.isActive && isValidCircleCardReviewItem(item)
+  ).length;
   const moduleHrefs = {
     services: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-services" }),
     gallery: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-gallery" }),
+    reviews: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-reviews" }),
     openingHours: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-opening-hours" })
   };
   const activeModules = [
@@ -1356,6 +1417,14 @@ function BusinessCardBuilderFoundation({
       status: openingHours ? "Set up" : "Not set",
       action: openingHours ? "Edit Opening Hours" : "Set your opening hours",
       href: moduleHrefs.openingHours
+    },
+    {
+      type: "REVIEWS_TESTIMONIALS",
+      label: "Reviews / Testimonials",
+      description: "Display client proof directly on your Business Card.",
+      status: reviews.length ? `${activeReviewCount} active` : "0 reviews",
+      action: reviews.length ? "Manage Reviews" : "Add first review",
+      href: moduleHrefs.reviews
     }
   ] as const;
 
@@ -1413,6 +1482,12 @@ function BusinessCardBuilderFoundation({
           cardName={businessName || "Selected Business Card"}
           galleryItems={galleryItems}
         />
+        <CircleCardReviewsBuilder
+          mode={reviewsMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          reviews={reviews}
+        />
         <CircleCardOpeningHoursBuilder
           mode={openingHoursMode}
           cardId={cardId}
@@ -1434,7 +1509,7 @@ function BusinessCardBuilderFoundation({
             </p>
           </div>
 
-          <nav aria-label="Business Card setup" className="grid grid-cols-3 gap-2">
+          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Link
               href={moduleHrefs.services}
               className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
@@ -1456,6 +1531,13 @@ function BusinessCardBuilderFoundation({
               <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Gallery</span>
               <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{galleryItems.length} / {CIRCLE_CARD_GALLERY_PRO_LIMIT}</span>
             </Link>
+            <Link
+              href={moduleHrefs.reviews}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Reviews</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{reviews.length} / {CIRCLE_CARD_REVIEW_PRO_LIMIT}</span>
+            </Link>
           </nav>
 
           <section aria-labelledby="business-builder-modules-title" className="rounded-2xl border border-silver/14 bg-background/18 p-3 sm:p-4">
@@ -1466,7 +1548,7 @@ function BusinessCardBuilderFoundation({
               </h3>
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               {activeModules.map((module) => {
                 const Icon = businessBuilderBlockIcon(module.type);
 
@@ -1531,6 +1613,13 @@ function BusinessCardBuilderFoundation({
             cardId={cardId}
             cardName={businessName || "Selected Business Card"}
             galleryItems={galleryItems}
+          />
+
+          <CircleCardReviewsBuilder
+            mode={reviewsMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            reviews={reviews}
           />
 
           <CircleCardOpeningHoursBuilder
@@ -4118,11 +4207,20 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isPlatformOwner,
     platformPreviewCardType: selectedOwnerCardTypePreviewMode
   });
+  const reviewsBuilderMode = resolveCircleCardReviewsBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
   const selectedCardServices = card?.cardType === "BUSINESS"
     ? readCircleCardServices(card.contentBlocks)
     : [];
   const selectedCardGalleryItems = card?.cardType === "BUSINESS"
     ? readCircleCardGalleryItems(card.contentBlocks)
+    : [];
+  const selectedCardReviews = card?.cardType === "BUSINESS"
+    ? readCircleCardReviewItems(card.contentBlocks)
     : [];
   const selectedCardOpeningHours = card?.cardType === "BUSINESS"
     ? readCircleCardOpeningHours(card.contentBlocks)
@@ -4130,6 +4228,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const showBusinessCardBuilder =
     servicesBuilderMode !== "hidden" ||
     galleryBuilderMode !== "hidden" ||
+    reviewsBuilderMode !== "hidden" ||
     openingHoursBuilderMode !== "hidden";
   const businessBuilderAccess: BusinessCardBuilderAccess = isPlatformOwner
     ? "platform-preview"
@@ -8013,6 +8112,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           services={selectedCardServices}
           galleryMode={galleryBuilderMode}
           galleryItems={selectedCardGalleryItems}
+          reviewsMode={reviewsBuilderMode}
+          reviews={selectedCardReviews}
           openingHoursMode={openingHoursBuilderMode}
           openingHours={selectedCardOpeningHours}
           businessName={card.businessName}

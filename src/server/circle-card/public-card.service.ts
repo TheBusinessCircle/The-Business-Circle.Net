@@ -11,9 +11,11 @@ import { SITE_CONFIG } from "@/config/site";
 import {
   visibleCircleCardGalleryItems,
   visibleCircleCardOpeningHours,
+  visibleCircleCardReviewItems,
   visibleCircleCardServices,
   type CircleCardGalleryItem,
   type CircleCardOpeningHours,
+  type CircleCardReviewItem,
   type CircleCardServiceItem
 } from "@/lib/circle-card/content-blocks";
 import {
@@ -108,6 +110,7 @@ export type PublicCircleCard = {
   socialLinks: CircleCardSocialLinks;
   services: CircleCardServiceItem[];
   galleryItems: CircleCardGalleryItem[];
+  reviews: CircleCardReviewItem[];
   openingHours: CircleCardOpeningHours | null;
   customLinks: PublicCircleCardLink[];
   ownerCards: PublicCircleCardSwitcherItem[];
@@ -166,6 +169,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   } as Prisma.JsonObject),
   services: [],
   galleryItems: [],
+  reviews: [],
   openingHours: null,
   customLinks: [
     {
@@ -428,6 +432,10 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
   });
+  const reviews = visibleCircleCardReviewItems({
+    cardType: card.cardType,
+    contentBlocks: card.contentBlocks
+  });
   const { contentBlocks, ...publicCard } = card;
   void contentBlocks;
   const [profileImageUrl, businessLogoUrl] = await Promise.all([
@@ -451,6 +459,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     services,
     galleryItems,
+    reviews,
     openingHours,
     recommendations: card.recommendationsReceived,
     successfulReferralCount: card._count.referralsReceived,

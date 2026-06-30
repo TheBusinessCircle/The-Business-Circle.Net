@@ -2,21 +2,27 @@ import { describe, expect, it } from "vitest";
 import {
   circleCardOpeningHoursDayLabel,
   circleCardGalleryItemFormSchema,
+  circleCardReviewItemFormSchema,
   createCircleCardOpeningHoursPreset,
   isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
   readCircleCardServices,
+  readCircleCardReviewItems,
   resolveCircleCardGalleryBuilderMode,
   resolveCircleCardOpeningHoursBuilderMode,
   resolveCircleCardServicesBuilderMode,
+  resolveCircleCardReviewsBuilderMode,
   visibleCircleCardOpeningHours,
   visibleCircleCardGalleryItems,
   visibleCircleCardServices,
+  visibleCircleCardReviewItems,
   writeCircleCardOpeningHours,
   writeCircleCardGalleryItems,
   writeCircleCardServices,
+  writeCircleCardReviewItems,
   type CircleCardGalleryItem,
-  type CircleCardServiceItem
+  type CircleCardServiceItem,
+  type CircleCardReviewItem
 } from "@/lib/circle-card/content-blocks";
 
 const activeGalleryItem: CircleCardGalleryItem = {
@@ -53,6 +59,26 @@ const hiddenService: CircleCardServiceItem = {
   ...activeService,
   id: "service-hidden",
   title: "Hidden service",
+  isActive: false,
+  sortOrder: 1
+};
+
+const activeReview: CircleCardReviewItem = {
+  id: "review-active",
+  reviewerName: "Alex Morgan",
+  reviewerRoleOrCompany: "Founder, North Studio",
+  reviewText: "Thoughtful, reliable and excellent to work with.",
+  rating: 5,
+  source: "Google Review",
+  sourceUrl: "https://example.com/reviews/alex",
+  isActive: true,
+  sortOrder: 0
+};
+
+const hiddenReview: CircleCardReviewItem = {
+  ...activeReview,
+  id: "review-hidden",
+  reviewerName: "Sam Taylor",
   isActive: false,
   sortOrder: 1
 };
@@ -208,5 +234,56 @@ describe("Circle Card gallery content block", () => {
       expect.objectContaining({ id: "legacy-broken", imageUrl: "" })
     ]);
     expect(visibleCircleCardGalleryItems({ cardType: "BUSINESS", contentBlocks })).toEqual([]);
+  });
+});
+
+describe("Circle Card reviews content block", () => {
+  it("stores reviews under business.REVIEWS_TESTIMONIALS.items", () => {
+    const contentBlocks = writeCircleCardReviewItems({}, [activeReview]);
+
+    expect(contentBlocks).toMatchObject({
+      business: {
+        REVIEWS_TESTIMONIALS: {
+          items: [activeReview]
+        }
+      }
+    });
+    expect(readCircleCardReviewItems(contentBlocks)).toEqual([activeReview]);
+  });
+
+  it("rejects empty reviews, invalid ratings, and unsafe source URLs", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      reviewItemId: "",
+      reviewerName: "Alex Morgan",
+      reviewerRoleOrCompany: "",
+      reviewText: "Excellent work.",
+      rating: "5",
+      source: "Google",
+      sourceUrl: "https://example.com/review",
+      isActive: "on"
+    };
+
+    expect(circleCardReviewItemFormSchema.safeParse(base).success).toBe(true);
+    expect(circleCardReviewItemFormSchema.safeParse({ ...base, reviewerName: "" }).success).toBe(false);
+    expect(circleCardReviewItemFormSchema.safeParse({ ...base, reviewText: "" }).success).toBe(false);
+    expect(circleCardReviewItemFormSchema.safeParse({ ...base, rating: "0" }).success).toBe(false);
+    expect(circleCardReviewItemFormSchema.safeParse({ ...base, rating: "6" }).success).toBe(false);
+    expect(circleCardReviewItemFormSchema.safeParse({ ...base, sourceUrl: "javascript:alert(1)" }).success).toBe(false);
+    expect(circleCardReviewItemFormSchema.safeParse({ ...base, sourceUrl: "ftp://example.com/review" }).success).toBe(false);
+  });
+
+  it("exposes only active valid reviews on Business Cards", () => {
+    const contentBlocks = writeCircleCardReviewItems({}, [activeReview, hiddenReview]);
+
+    expect(visibleCircleCardReviewItems({ cardType: "BUSINESS", contentBlocks })).toEqual([activeReview]);
+    expect(visibleCircleCardReviewItems({ cardType: "PERSONAL", contentBlocks })).toEqual([]);
+    expect(visibleCircleCardReviewItems({ cardType: "CREATOR", contentBlocks })).toEqual([]);
+  });
+
+  it("uses the shared Business Card Pro access mode", () => {
+    expect(resolveCircleCardReviewsBuilderMode({ cardType: "BUSINESS", hasProAccess: true })).toBe("enabled");
+    expect(resolveCircleCardReviewsBuilderMode({ cardType: "BUSINESS", hasProAccess: false })).toBe("locked");
+    expect(resolveCircleCardReviewsBuilderMode({ cardType: "PERSONAL", hasProAccess: true })).toBe("hidden");
   });
 });
