@@ -23,6 +23,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { from, errorCode, errorDetailCode, initialNotice } = parseLoginSearchParams(params);
   const isCircleCardLogin =
     from?.startsWith("/dashboard/circle-card") === true || from?.startsWith("/card/") === true;
+  const circleCardRegisterHref = from
+    ? `/register?source=circle-card&returnTo=${encodeURIComponent(from)}`
+    : "/register?source=circle-card";
 
   return (
     <div className="grid w-full min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
@@ -43,7 +46,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </p>
               <p>
                 New here?{" "}
-                <Link href="/register?source=circle-card" className="text-primary hover:underline">
+                <Link href={circleCardRegisterHref} className="text-primary hover:underline">
                   Create a free Circle Card
                 </Link>
                 .

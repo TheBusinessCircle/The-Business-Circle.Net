@@ -1866,9 +1866,7 @@ export function PublicCircleCardProfile({
         : "#circle-card-trust"
       : !isAuthenticated
         ? testimonialLoginHref
-        : savedContact
-          ? testimonialFlowHref
-          : "#circle-card-testimonial";
+        : testimonialFlowHref;
 
     return (
       <section
@@ -1927,29 +1925,16 @@ export function PublicCircleCardProfile({
               Leave a testimonial
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              {isAuthenticated && !savedContact
-                ? "Save this Circle Card to your wallet before leaving a testimonial."
-                : "Already connected? Share your experience."}
+              Already connected? Share your experience.
             </p>
           </div>
-          {isAuthenticated && !savedContact ? (
-            <form action={saveCircleWalletContactAction} className="shrink-0">
-              <input type="hidden" name="cardId" value={card.id} />
-              <input type="hidden" name="returnPath" value={testimonialFlowHref} />
-              <Button type="submit" className="w-full gap-2 sm:w-auto">
-                <WalletCards size={16} />
-                Save to Wallet
-              </Button>
-            </form>
-          ) : (
-            <Link
-              href={isAuthenticated ? testimonialFlowHref : testimonialLoginHref}
-              className={cn(buttonVariants(), "shrink-0 gap-2")}
-            >
-              <Star size={16} />
-              Leave a testimonial
-            </Link>
-          )}
+          <Link
+            href={isAuthenticated ? testimonialFlowHref : testimonialLoginHref}
+            className={cn(buttonVariants(), "shrink-0 gap-2")}
+          >
+            <Star size={16} />
+            Leave a testimonial
+          </Link>
         </div>
       </section>
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { CheckCircle2, Loader2, Search, Send, Star } from "lucide-react";
 import { submitCircleCardWalletTestimonialAction } from "@/actions/circle-card.actions";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ export function CircleCardWalletTestimonialForm({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const testimonialTextRef = useRef<HTMLTextAreaElement>(null);
   const selected = contacts.find((contact) => contact.targetCardId === selectedCardId) ?? null;
   const matches = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -50,6 +51,12 @@ export function CircleCardWalletTestimonialForm({
       )
       .slice(0, 8);
   }, [contacts, query]);
+
+  useEffect(() => {
+    if (initialTarget && !initialTarget.hasPendingTestimonial) {
+      testimonialTextRef.current?.focus({ preventScroll: true });
+    }
+  }, [initialTarget]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -148,7 +155,7 @@ export function CircleCardWalletTestimonialForm({
       {selected ? (
         selected.hasPendingTestimonial ? (
           <p role="status" className="flex items-center gap-2 rounded-xl border border-gold/24 bg-gold/10 p-3 text-sm text-gold">
-            <CheckCircle2 size={15} /> You already have a testimonial awaiting approval for this card.
+            <CheckCircle2 size={15} /> You’ve already sent a testimonial for approval.
           </p>
         ) : message ? (
           <p role="status" className="flex items-center gap-2 rounded-xl border border-emerald-400/24 bg-emerald-400/10 p-3 text-sm text-emerald-100">
@@ -160,7 +167,14 @@ export function CircleCardWalletTestimonialForm({
             <p className="text-xs font-medium text-gold">For {selected.fullName}</p>
             <div className="space-y-2">
               <Label htmlFor="wallet-testimonial-text">Testimonial</Label>
-              <Textarea id="wallet-testimonial-text" name="testimonialText" rows={4} maxLength={1200} required />
+              <Textarea
+                ref={testimonialTextRef}
+                id="wallet-testimonial-text"
+                name="testimonialText"
+                rows={4}
+                maxLength={1200}
+                required
+              />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">

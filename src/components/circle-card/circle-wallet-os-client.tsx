@@ -36,6 +36,10 @@ import {
   upsertCircleCardRecommendationAction
 } from "@/actions/circle-card.actions";
 import { CircleCardFramedImage, CircleCardShareButton } from "@/components/circle-card";
+import {
+  CircleCardWalletTestimonialForm,
+  type CircleCardWalletTestimonialContact
+} from "@/components/circle-card/circle-card-wallet-testimonial-form";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -185,6 +189,7 @@ type CircleWalletOsClientProps = {
   siteBaseUrl: string;
   publicUrl?: string | null;
   contacts: CircleWalletOsContact[];
+  testimonialContacts: CircleCardWalletTestimonialContact[];
   opportunities: CircleWalletOsOpportunity[];
   introductions: CircleWalletOsIntroduction[];
   referrals: CircleWalletOsReferral[];
@@ -500,6 +505,7 @@ export function CircleWalletOsClient({
   siteBaseUrl,
   publicUrl,
   contacts,
+  testimonialContacts,
   opportunities,
   introductions,
   referrals,
@@ -795,6 +801,20 @@ export function CircleWalletOsClient({
             ) : null}
           </div>
         ) : null}
+
+        <section className="mt-4 rounded-[1.5rem] border border-gold/32 bg-gold/8 p-4 shadow-[0_20px_64px_rgba(212,175,95,0.1)] ring-1 ring-gold/10 sm:p-5">
+          <div className="mb-4 flex items-start gap-3">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gold/25 bg-gold/10 text-gold">
+              <Star size={18} />
+            </span>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Trust network</p>
+              <h2 className="mt-1 font-display text-2xl font-semibold text-foreground">Leave a testimonial</h2>
+              <p className="mt-1 text-sm text-muted">Search your wallet to leave a testimonial.</p>
+            </div>
+          </div>
+          <CircleCardWalletTestimonialForm contacts={testimonialContacts} />
+        </section>
 
         <main className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(300px,420px)_minmax(0,1fr)] xl:items-start">
           <section

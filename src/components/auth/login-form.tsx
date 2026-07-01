@@ -71,7 +71,7 @@ export function LoginForm({
     }
 
     return safeFrom.startsWith("/dashboard/circle-card")
-      ? "/register?source=circle-card"
+      ? `/register?source=circle-card&returnTo=${encodeURIComponent(safeFrom)}`
       : withFrom("/membership", from);
   }, [from]);
   const circleCardRegistrationLabel =

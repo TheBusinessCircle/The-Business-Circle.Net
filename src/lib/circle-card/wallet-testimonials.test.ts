@@ -20,7 +20,7 @@ describe("Circle Card wallet testimonial validation", () => {
     expect(circleCardTrustSummary(1)).toBe("Trusted by 1 connection");
     expect(circleCardTrustSummary(5)).toBe("Trusted by 5 connections");
     expect(circleCardTestimonialFlowHref("cm12345678901234567890123")).toBe(
-      "/dashboard/circle-card?section=wallet&testimonialFor=cm12345678901234567890123#leave-wallet-testimonial"
+      "/dashboard/circle-card/testimonial?cardId=cm12345678901234567890123"
     );
   });
 

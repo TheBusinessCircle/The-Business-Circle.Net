@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import { CircleWalletOsClient } from "@/components/circle-card/circle-wallet-os-client";
+import type { CircleCardWalletTestimonialContact } from "@/components/circle-card/circle-card-wallet-testimonial-form";
 import { CIRCLE_CARD_RECOMMENDATION_CATEGORIES } from "@/lib/circle-card/recommendations";
 import {
   CIRCLE_WALLET_CATEGORY_OPTIONS,
@@ -13,6 +14,7 @@ import {
   resolveCircleCardTheme
 } from "@/lib/circle-card/theme";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
+import { isEligibleCircleCardWalletTestimonialTarget } from "@/lib/circle-card/wallet-testimonials";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
 import { absoluteUrl } from "@/lib/utils";
@@ -199,6 +201,7 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
             select: {
               id: true,
               userId: true,
+              cardType: true,
               slug: true,
               fullName: true,
               businessName: true,
@@ -210,8 +213,14 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
               websiteUrl: true,
               email: true,
               phone: true,
-              isPublished: true
+              isPublished: true,
+              archivedAt: true,
+              user: { select: { suspended: true } }
             }
+          },
+          walletTestimonials: {
+            where: { reviewerUserId: session.user.id, status: "PENDING" },
+            select: { id: true }
           },
           recommendations: {
             where: {
@@ -391,6 +400,20 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
       ].filter((item): item is string => Boolean(item?.trim()))
     )
   );
+  const walletTestimonialContacts: CircleCardWalletTestimonialContact[] = walletContacts
+    .filter((contact) =>
+      isEligibleCircleCardWalletTestimonialTarget(contact.card, session.user.id)
+    )
+    .map((contact) => ({
+      walletContactId: contact.id,
+      targetCardId: contact.card!.id,
+      fullName: contact.card!.fullName,
+      businessName: contact.card!.businessName,
+      cardType: contact.card!.cardType,
+      profileImageUrl: contact.card!.profileImageUrl,
+      businessLogoUrl: contact.card!.businessLogoUrl,
+      hasPendingTestimonial: contact.walletTestimonials.length > 0
+    }));
   const validInitialContactId =
     selectedContactId && normalizedContacts.some((contact) => contact.id === selectedContactId)
       ? selectedContactId
@@ -416,6 +439,7 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
       siteBaseUrl={siteBaseUrl}
       publicUrl={publicUrl}
       contacts={normalizedContacts}
+      testimonialContacts={walletTestimonialContacts}
       opportunities={opportunities.map((opportunity) => ({
         id: opportunity.id,
         walletContactId: opportunity.walletContactId,

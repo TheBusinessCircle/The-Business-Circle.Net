@@ -57,7 +57,8 @@ function setActiveSection(section: string) {
 }
 
 function activateFromUrl(url: URL, updateHistory: boolean) {
-  const section = url.searchParams.get("section");
+  const requestedSection = url.searchParams.get("section");
+  const section = requestedSection === "wallet" ? "network" : requestedSection;
 
   if (!section || !CIRCLE_CARD_SECTIONS.has(section)) {
     return false;

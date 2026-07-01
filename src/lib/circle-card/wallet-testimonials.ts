@@ -85,9 +85,5 @@ export function circleCardTrustSummary(approvedConnectionCount: number) {
 }
 
 export function circleCardTestimonialFlowHref(targetCardId: string) {
-  const params = new URLSearchParams({
-    section: "wallet",
-    testimonialFor: targetCardId
-  });
-  return `/dashboard/circle-card?${params.toString()}#leave-wallet-testimonial`;
+  return `/dashboard/circle-card/testimonial?cardId=${encodeURIComponent(targetCardId)}`;
 }

@@ -3282,6 +3282,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       businessLogoUrl: contact.card!.businessLogoUrl,
       hasPendingTestimonial: contact.walletTestimonials.length > 0
     }));
+  const requestedWalletTestimonialContact = walletTestimonialContacts.find(
+    (contact) => contact.targetCardId === testimonialForCardId
+  );
   const pendingIncomingRequests = connectionRequests.filter(
     (request) => request.status === "PENDING" && request.recipientId === session.user.id
   );
@@ -8749,14 +8752,24 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </CardContent>
         </Card>
 
-        <Card id="leave-wallet-testimonial" className="scroll-mt-24 border-gold/18 bg-gold/8">
+        <Card
+          id="leave-wallet-testimonial"
+          className={cn(
+            "scroll-mt-24 border-gold/18 bg-gold/8",
+            testimonialForCardId && "border-gold/45 ring-2 ring-gold/20"
+          )}
+        >
           <CardHeader>
             <CardTitle className="inline-flex items-center gap-2">
               <Star size={18} className="text-gold" />
-              Leave a testimonial
+              {requestedWalletTestimonialContact
+                ? `Leave a testimonial for ${requestedWalletTestimonialContact.fullName}`
+                : "Leave a testimonial"}
             </CardTitle>
             <CardDescription>
-              Send trusted feedback to a live Business Circle Card saved in your Wallet.
+              {testimonialForCardId
+                ? "Your selected Circle Card is ready below."
+                : "Search your wallet to leave a testimonial."}
             </CardDescription>
           </CardHeader>
           <CardContent>
