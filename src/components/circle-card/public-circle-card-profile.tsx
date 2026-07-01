@@ -42,6 +42,7 @@ import {
   circleCardOpeningHoursDayLabel
 } from "@/lib/circle-card/content-blocks";
 import { getCircleCardTypeLabel } from "@/lib/circle-card/card-types";
+import { resolvePublicCircleCardLayout } from "@/lib/circle-card/profile-layout";
 import {
   buildCircleCardFileActionLabel,
   circleCardFileActionLabel,
@@ -1032,6 +1033,7 @@ export function PublicCircleCardProfile({
   const successfulReferralCount = card.successfulReferralCount;
   const accountTypeLabel = getCircleCardAccountTypeLabel(card.accountType);
   const identityTagLabels = card.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2);
+  const publicLayout = resolvePublicCircleCardLayout(card.cardType);
   const circleCardTheme = resolveCircleCardTheme(card);
   const circleCardThemeStyle = buildCircleCardThemeStyle(circleCardTheme) as CSSProperties;
   const circleCardThemeSurface = circleCardTheme.surfaceStyle.toLowerCase();
@@ -1444,7 +1446,7 @@ export function PublicCircleCardProfile({
             eventType="CUSTOM_LINK_CLICK"
             metadata={{
               source,
-              layout: card.profileLayout,
+              layout: publicLayout,
               linkId: link.id,
               label: link.label,
               type: link.type,
@@ -1473,7 +1475,7 @@ export function PublicCircleCardProfile({
           eventType="WEBSITE_CLICK"
           metadata={{
             source,
-            layout: card.profileLayout,
+            layout: publicLayout,
             url: analyticsUrlValue(website.href)
           }}
           className={cn(buttonVariants(), primaryActionClassName, "min-w-0 gap-2 px-4", className)}
@@ -1622,7 +1624,7 @@ export function PublicCircleCardProfile({
               key={link.id}
               link={link}
               analyticsCardId={analyticsCardId}
-              layout={card.profileLayout}
+              layout={publicLayout}
               source={source}
             />
           ))}
@@ -2217,7 +2219,7 @@ export function PublicCircleCardProfile({
     );
   }
 
-  if (card.profileLayout === "CLASSIC") {
+  if (publicLayout === "CLASSIC") {
     return (
       <div
         className="circle-card-public-theme relative overflow-hidden pb-12"
@@ -2378,7 +2380,7 @@ export function PublicCircleCardProfile({
     );
   }
 
-  if (card.profileLayout === "CREATOR") {
+  if (publicLayout === "CREATOR") {
     const creatorSocialRows = [
       ...socialContactRows,
       ...(websiteContactRow ? [websiteContactRow] : [])

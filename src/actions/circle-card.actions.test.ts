@@ -172,6 +172,9 @@ describe("upsertCircleCardAction", () => {
           data: expect.objectContaining({ cardType })
         })
       );
+      expect(revalidatePathMock).toHaveBeenCalledWith("/dashboard/circle-card");
+      expect(revalidatePathMock).toHaveBeenCalledWith("/card/old-asha-founder");
+      expect(revalidatePathMock).toHaveBeenCalledWith("/card/asha-founder");
     }
   );
 

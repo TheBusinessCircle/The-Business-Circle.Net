@@ -1,4 +1,4 @@
-import type { CircleCardProfileLayout, Prisma } from "@prisma/client";
+import type { CircleCardProfileLayout, CircleCardType, Prisma } from "@prisma/client";
 
 export const CIRCLE_CARD_PROFILE_LAYOUTS = [
   "CLASSIC",
@@ -7,6 +7,18 @@ export const CIRCLE_CARD_PROFILE_LAYOUTS = [
 ] as const satisfies readonly CircleCardProfileLayout[];
 
 export const DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT: CircleCardProfileLayout = "BUSINESS";
+
+const PUBLIC_CIRCLE_CARD_LAYOUT_BY_TYPE: Record<CircleCardType, CircleCardProfileLayout> = {
+  PERSONAL: "CLASSIC",
+  BUSINESS: "BUSINESS",
+  CREATOR: "CREATOR"
+};
+
+export function resolvePublicCircleCardLayout(
+  cardType: CircleCardType
+): CircleCardProfileLayout {
+  return PUBLIC_CIRCLE_CARD_LAYOUT_BY_TYPE[cardType];
+}
 
 export const CIRCLE_CARD_PROFILE_LAYOUT_COPY: Record<
   CircleCardProfileLayout,

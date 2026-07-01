@@ -8486,7 +8486,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           <CircleCardSmartProfileImportPanel
             cardId={card.id}
             returnPath={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "smart-profile-import" })}
-            isCreatorLayout={card.profileLayout === "CREATOR"}
+            isCreatorLayout={card.cardType === "CREATOR"}
             existingTagline={card.tagline}
             existingProfileImageUrl={card.profileImageUrl}
             existingWebsiteUrl={card.websiteUrl}
