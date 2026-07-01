@@ -451,6 +451,9 @@ function circleCardPerformanceStatusDotClass(status: CircleCardPlatformOwnerPerf
 }
 
 function resolveCircleCardAppSection(value: string | undefined): CircleCardAppSection {
+  if (value === "wallet") {
+    return "network";
+  }
   return CIRCLE_CARD_APP_SECTIONS.includes(value as CircleCardAppSection)
     ? (value as CircleCardAppSection)
     : "home";
@@ -2667,6 +2670,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const walletCategory = (firstValue(params.walletCategory) ?? "").trim();
   const walletFollowUp = resolveWalletFollowUpFilter(firstValue(params.walletFollowUp));
   const selectedContactId = firstValue(params.contactId);
+  const testimonialForCardId = firstValue(params.testimonialFor) ?? "";
   const connectCardSlug = resolveCircleCardLookupSlug(firstValue(params.connectCard));
   const discoverQuery = (firstValue(params.discoverQuery) ?? "").trim();
   const discoverCategory = (firstValue(params.discoverCategory) ?? "").trim();
@@ -8756,7 +8760,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <CircleCardWalletTestimonialForm contacts={walletTestimonialContacts} />
+            <CircleCardWalletTestimonialForm
+              contacts={walletTestimonialContacts}
+              initialTargetCardId={testimonialForCardId}
+            />
           </CardContent>
         </Card>
 

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  circleCardTestimonialFlowHref,
+  circleCardTrustSummary,
   circleCardWalletTestimonialSubmitSchema,
   isEligibleCircleCardWalletTestimonialTarget
 } from "@/lib/circle-card/wallet-testimonials";
@@ -13,6 +15,15 @@ const liveBusinessCard = {
 };
 
 describe("Circle Card wallet testimonial validation", () => {
+  it("uses honest public trust copy and a target-preserving dashboard route", () => {
+    expect(circleCardTrustSummary(0)).toBe("Building trust");
+    expect(circleCardTrustSummary(1)).toBe("Trusted by 1 connection");
+    expect(circleCardTrustSummary(5)).toBe("Trusted by 5 connections");
+    expect(circleCardTestimonialFlowHref("cm12345678901234567890123")).toBe(
+      "/dashboard/circle-card?section=wallet&testimonialFor=cm12345678901234567890123#leave-wallet-testimonial"
+    );
+  });
+
   it("accepts valid testimonial input and optional relationship context", () => {
     const result = circleCardWalletTestimonialSubmitSchema.parse({
       targetCardId: "cm12345678901234567890123",

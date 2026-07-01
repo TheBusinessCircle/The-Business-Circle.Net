@@ -77,3 +77,17 @@ export function isEligibleCircleCardWalletTestimonialTarget(
       !card.user.suspended
   );
 }
+
+export function circleCardTrustSummary(approvedConnectionCount: number) {
+  return approvedConnectionCount > 0
+    ? `Trusted by ${approvedConnectionCount} connection${approvedConnectionCount === 1 ? "" : "s"}`
+    : "Building trust";
+}
+
+export function circleCardTestimonialFlowHref(targetCardId: string) {
+  const params = new URLSearchParams({
+    section: "wallet",
+    testimonialFor: targetCardId
+  });
+  return `/dashboard/circle-card?${params.toString()}#leave-wallet-testimonial`;
+}

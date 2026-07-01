@@ -3302,7 +3302,7 @@ export async function submitCircleCardWalletTestimonialAction(
   }
 
   revalidatePath("/dashboard/circle-card");
-  return { ok: true, message: "Testimonial sent for approval." };
+  return { ok: true, message: "Sent for approval." };
 }
 
 async function moderateCircleCardWalletTestimonial(input: {

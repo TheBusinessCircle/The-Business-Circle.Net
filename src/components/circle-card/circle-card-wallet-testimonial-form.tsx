@@ -26,12 +26,15 @@ export type CircleCardWalletTestimonialContact = {
 };
 
 export function CircleCardWalletTestimonialForm({
-  contacts
+  contacts,
+  initialTargetCardId = ""
 }: {
   contacts: CircleCardWalletTestimonialContact[];
+  initialTargetCardId?: string;
 }) {
-  const [query, setQuery] = useState("");
-  const [selectedCardId, setSelectedCardId] = useState("");
+  const initialTarget = contacts.find((contact) => contact.targetCardId === initialTargetCardId) ?? null;
+  const [query, setQuery] = useState(initialTarget?.fullName ?? "");
+  const [selectedCardId, setSelectedCardId] = useState(initialTarget?.targetCardId ?? "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -143,7 +146,11 @@ export function CircleCardWalletTestimonialForm({
       </div>
 
       {selected ? (
-        message ? (
+        selected.hasPendingTestimonial ? (
+          <p role="status" className="flex items-center gap-2 rounded-xl border border-gold/24 bg-gold/10 p-3 text-sm text-gold">
+            <CheckCircle2 size={15} /> You already have a testimonial awaiting approval for this card.
+          </p>
+        ) : message ? (
           <p role="status" className="flex items-center gap-2 rounded-xl border border-emerald-400/24 bg-emerald-400/10 p-3 text-sm text-emerald-100">
             <CheckCircle2 size={15} /> {message}
           </p>

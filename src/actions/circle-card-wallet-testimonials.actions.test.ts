@@ -85,7 +85,7 @@ describe("wallet testimonial actions", () => {
 
     const result = await submitCircleCardWalletTestimonialAction(testimonialForm());
 
-    expect(result).toEqual({ ok: true, message: "Testimonial sent for approval." });
+    expect(result).toEqual({ ok: true, message: "Sent for approval." });
     expect(prismaMock.circleCardWalletTestimonial.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         reviewerUserId,
@@ -109,6 +109,18 @@ describe("wallet testimonial actions", () => {
     const result = await submitCircleCardWalletTestimonialAction(testimonialForm());
 
     expect(result).toMatchObject({ ok: false, error: "wallet-testimonial-pending-exists" });
+    expect(prismaMock.circleCardWalletTestimonial.create).not.toHaveBeenCalled();
+  });
+
+  it("blocks testimonials when the target is not a saved eligible wallet contact", async () => {
+    prismaMock.circleWalletContact.findFirst.mockResolvedValue(null);
+
+    const result = await submitCircleCardWalletTestimonialAction(testimonialForm());
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: "wallet-testimonial-target-ineligible"
+    });
     expect(prismaMock.circleCardWalletTestimonial.create).not.toHaveBeenCalled();
   });
 

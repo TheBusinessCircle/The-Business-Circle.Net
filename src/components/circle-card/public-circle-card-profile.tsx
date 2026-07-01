@@ -28,6 +28,10 @@ import { Textarea } from "@/components/ui/textarea";
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
 import type { CircleCardShareSource } from "@/lib/circle-card/share-sources";
 import {
+  circleCardTestimonialFlowHref,
+  circleCardTrustSummary
+} from "@/lib/circle-card/wallet-testimonials";
+import {
   getCircleCardAccountTypeLabel,
   getCircleCardIdentityTagLabel
 } from "@/lib/circle-card/identity";
@@ -1035,6 +1039,8 @@ export function PublicCircleCardProfile({
   });
   const circleCardRegistrationHref = `/register?${circleCardRegistrationParams.toString()}`;
   const publicCardLoginHref = `/login?from=${encodeURIComponent(currentPublicCardPath)}`;
+  const testimonialFlowHref = circleCardTestimonialFlowHref(card.id);
+  const testimonialLoginHref = `/login?from=${encodeURIComponent(testimonialFlowHref)}`;
   const spinToConnectProps = {
     cardId: card.id,
     analyticsCardId,
@@ -1849,6 +1855,106 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderTrustScoreCard({ reviewsId = "business-reviews" }: { reviewsId?: string } = {}) {
+    const manualTestimonialCount = Math.max(
+      0,
+      card.reviews.length - card.approvedWalletTestimonialCount
+    );
+    const trustHref = viewerIsOwner || card.cardType !== "BUSINESS"
+      ? card.reviews.length
+        ? `#${reviewsId}`
+        : "#circle-card-trust"
+      : !isAuthenticated
+        ? testimonialLoginHref
+        : savedContact
+          ? testimonialFlowHref
+          : "#circle-card-testimonial";
+
+    return (
+      <section
+        id="circle-card-trust"
+        aria-labelledby="circle-card-trust-title"
+        className="scroll-mt-24 rounded-[1.75rem] border border-gold/22 bg-[linear-gradient(145deg,rgba(12,25,32,0.9),rgba(4,10,24,0.97))] p-5 shadow-panel-soft sm:p-6"
+      >
+        <Link
+          href={trustHref}
+          className="group flex items-start justify-between gap-4 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Trust Score</p>
+            <h2 id="circle-card-trust-title" className="mt-1 font-display text-2xl text-foreground">
+              {circleCardTrustSummary(card.approvedWalletTestimonialCount)}
+            </h2>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+              {card.approvedWalletTestimonialCount > 0 ? (
+                <span>
+                  {card.approvedWalletTestimonialCount} verified connection testimonial{card.approvedWalletTestimonialCount === 1 ? "" : "s"}
+                </span>
+              ) : (
+                <span>No verified connection testimonials yet</span>
+              )}
+              {card.averageWalletTestimonialRating !== null ? (
+                <span>{card.averageWalletTestimonialRating.toFixed(1)} average rating</span>
+              ) : null}
+              {manualTestimonialCount > 0 ? (
+                <span>{manualTestimonialCount} owner-managed testimonial{manualTestimonialCount === 1 ? "" : "s"}</span>
+              ) : null}
+            </div>
+          </div>
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold transition group-hover:border-gold/45 group-hover:bg-gold/16">
+            <ShieldCheck size={19} aria-hidden="true" />
+          </span>
+        </Link>
+      </section>
+    );
+  }
+
+  function renderTestimonialCta() {
+    if (card.isDemo || card.cardType !== "BUSINESS" || viewerIsOwner) {
+      return null;
+    }
+
+    return (
+      <section
+        id="circle-card-testimonial"
+        aria-labelledby="circle-card-testimonial-title"
+        className="scroll-mt-24 rounded-[1.75rem] border border-gold/20 bg-gold/8 p-5 shadow-panel-soft sm:p-6"
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Circle Card trust network</p>
+            <h2 id="circle-card-testimonial-title" className="mt-1 font-display text-2xl text-foreground">
+              Leave a testimonial
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              {isAuthenticated && !savedContact
+                ? "Save this Circle Card to your wallet before leaving a testimonial."
+                : "Already connected? Share your experience."}
+            </p>
+          </div>
+          {isAuthenticated && !savedContact ? (
+            <form action={saveCircleWalletContactAction} className="shrink-0">
+              <input type="hidden" name="cardId" value={card.id} />
+              <input type="hidden" name="returnPath" value={testimonialFlowHref} />
+              <Button type="submit" className="w-full gap-2 sm:w-auto">
+                <WalletCards size={16} />
+                Save to Wallet
+              </Button>
+            </form>
+          ) : (
+            <Link
+              href={isAuthenticated ? testimonialFlowHref : testimonialLoginHref}
+              className={cn(buttonVariants(), "shrink-0 gap-2")}
+            >
+              <Star size={16} />
+              Leave a testimonial
+            </Link>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   function renderShareQrSection({
     className,
     id = "circle-card-share",
@@ -2030,6 +2136,7 @@ export function PublicCircleCardProfile({
               ) : null}
             </section>
 
+            {renderTrustScoreCard({ reviewsId: "classic-reviews" })}
             {renderAboutSection({ id: "classic-about" })}
             {renderServicesSection({ id: "classic-services" })}
             {renderGallerySection({ id: "classic-gallery" })}
@@ -2044,6 +2151,7 @@ export function PublicCircleCardProfile({
               heading: "Featured links",
               description: "Useful routes, offers and resources from this Circle Card."
             })}
+            {renderTestimonialCta()}
             {renderShareQrSection({
               id: "classic-share"
             })}
@@ -2268,6 +2376,7 @@ export function PublicCircleCardProfile({
               </div>
             ) : null}
 
+            {renderTrustScoreCard({ reviewsId: "creator-reviews" })}
             {renderAboutSection({ id: "creator-about" })}
             {renderServicesSection({ id: "creator-services" })}
             {renderGallerySection({ id: "creator-gallery" })}
@@ -2283,6 +2392,7 @@ export function PublicCircleCardProfile({
               description: "Current places to watch, book, buy, download or follow.",
               source: "creator_featured_card"
             })}
+            {renderTestimonialCta()}
             {renderShareQrSection({
               id: "creator-share",
               qrLabel: "Scan to save this creator",
@@ -2578,6 +2688,7 @@ export function PublicCircleCardProfile({
               ) : null}
             </section>
 
+            {renderTrustScoreCard()}
             {renderAboutSection({ id: "business-about" })}
             {renderBusinessHighlightsSection()}
             {renderServicesSection()}
@@ -2593,6 +2704,7 @@ export function PublicCircleCardProfile({
               heading: "Featured links",
               description: "Offers, bookings, files and proof links from this Circle Card."
             })}
+            {renderTestimonialCta()}
             {renderShareQrSection({
               id: "business-share"
             })}

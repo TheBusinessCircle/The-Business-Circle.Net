@@ -112,6 +112,7 @@ export type PublicCircleCard = {
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
   approvedWalletTestimonialCount: number;
+  averageWalletTestimonialRating: number | null;
   trustScore: number;
   openingHours: CircleCardOpeningHours | null;
   customLinks: PublicCircleCardLink[];
@@ -173,6 +174,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   galleryItems: [],
   reviews: [],
   approvedWalletTestimonialCount: 0,
+  averageWalletTestimonialRating: null,
   trustScore: 0,
   openingHours: null,
   customLinks: [
@@ -470,6 +472,12 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
   );
   const reviews = [...manualReviews, ...walletReviews];
   const approvedWalletTestimonialCount = walletReviews.length;
+  const walletRatings = walletReviews
+    .map((review) => review.rating)
+    .filter((rating): rating is number => typeof rating === "number");
+  const averageWalletTestimonialRating = walletRatings.length
+    ? Math.round((walletRatings.reduce((total, rating) => total + rating, 0) / walletRatings.length) * 10) / 10
+    : null;
   const trustScore = approvedWalletTestimonialCount;
   const { contentBlocks, walletTestimonialsReceived, ...publicCard } = card;
   void contentBlocks;
@@ -497,6 +505,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     galleryItems,
     reviews,
     approvedWalletTestimonialCount,
+    averageWalletTestimonialRating,
     trustScore,
     openingHours,
     recommendations: card.recommendationsReceived,
