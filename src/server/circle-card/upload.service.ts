@@ -21,7 +21,8 @@ const CIRCLE_CARD_UPLOAD_DIR = join(process.cwd(), "public", "uploads", "circle-
 const CIRCLE_CARD_LINK_FILE_UPLOAD_DIR = join(process.cwd(), ".uploads", "circle-card-link-files");
 const CIRCLE_CARD_IMAGE_FILE_NAME_PATTERN =
   /^[a-z0-9_-]+-(?:profile-photo|business-logo|business-card-scan|gallery-image|link-image)-[0-9]+-[a-f0-9]{8}\.(?:jpg|png|webp)$/i;
-const CIRCLE_CARD_LINK_FILE_NAME_PATTERN = /^[0-9]+-[a-f0-9]{16}\.(pdf|html?|jpg|png|webp|zip)$/i;
+const CIRCLE_CARD_LINK_FILE_NAME_PATTERN =
+  /^[0-9]+-[a-f0-9]{16}\.(pdf|html?|docx?|xlsx?|csv|txt|jpg|png|webp|zip)$/i;
 export const MAX_CIRCLE_CARD_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_CIRCLE_CARD_LINK_FILE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const CLOUDINARY_CIRCLE_CARD_FOLDER =
@@ -88,6 +89,12 @@ function linkFileExtension(file: File) {
   const typeMap: Record<string, string> = {
     "application/pdf": ".pdf",
     "text/html": ".html",
+    "text/plain": ".txt",
+    "text/csv": ".csv",
+    "application/msword": ".doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.ms-excel": ".xls",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
     "image/jpeg": ".jpg",
     "image/png": ".png",
     "image/webp": ".webp"
@@ -237,12 +244,16 @@ export async function readCircleCardImage(filename: string) {
   };
 }
 
-function resolveCircleCardLinkFilePath(filename: string) {
+export function circleCardLinkFileUploadDirectory() {
+  return resolve(CIRCLE_CARD_LINK_FILE_UPLOAD_DIR);
+}
+
+export function resolveCircleCardLinkFilePath(filename: string) {
   if (!isCircleCardLinkFileName(filename)) {
     return null;
   }
 
-  const storageRoot = resolve(CIRCLE_CARD_LINK_FILE_UPLOAD_DIR);
+  const storageRoot = circleCardLinkFileUploadDirectory();
   const absolutePath = resolve(storageRoot, filename);
   const relativePath = relative(storageRoot, absolutePath);
 

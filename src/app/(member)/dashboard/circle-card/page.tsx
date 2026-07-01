@@ -89,6 +89,7 @@ import {
   CircleCardBcnDiscoveryPanel,
   CircleCardCopyLinkButton,
   CircleCardDashboardSection,
+  CircleCardDocumentsManager,
   CircleCardFirstCardFormHelper,
   CircleCardGalleryManager,
   CircleCardIdentityBanner,
@@ -190,6 +191,7 @@ import {
 } from "@/lib/circle-card/card-types";
 import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
+  CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_OPENING_HOURS_PRESETS,
   CIRCLE_CARD_PRODUCT_PRO_LIMIT,
@@ -201,16 +203,20 @@ import {
   circleCardOpeningHoursDayLabel,
   isValidCircleCardReviewItem,
   readCircleCardGalleryItems,
+  readCircleCardDocumentItems,
   readCircleCardOpeningHours,
   readCircleCardProductItems,
   readCircleCardReviewItems,
   readCircleCardServices,
   resolveCircleCardOpeningHoursBuilderMode,
+  resolveCircleCardDocumentsBuilderMode,
   resolveCircleCardProductsBuilderMode,
   resolveCircleCardGalleryBuilderMode,
   resolveCircleCardReviewsBuilderMode,
   resolveCircleCardServicesBuilderMode,
   type CircleCardOpeningHours,
+  type CircleCardDocumentsBuilderMode,
+  type CircleCardDocumentItem,
   type CircleCardOpeningHoursBuilderMode,
   type CircleCardOpeningHoursPreset,
   type CircleCardProductsBuilderMode,
@@ -1054,6 +1060,48 @@ function CircleCardProductsBuilder({
   return <CircleCardProductsManager cardId={cardId} cardName={cardName} initialItems={products} />;
 }
 
+function CircleCardDocumentsBuilder({
+  mode,
+  cardId,
+  cardName,
+  documents
+}: {
+  mode: CircleCardDocumentsBuilderMode;
+  cardId: string;
+  cardName: string;
+  documents: CircleCardDocumentItem[];
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-downloads" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Downloads are included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add useful files to this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview") {
+    return (
+      <div id="business-card-downloads" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Downloads / Documents Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add documents. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+
+  return <CircleCardDocumentsManager cardId={cardId} cardName={cardName} initialItems={documents} />;
+}
+
 function CircleCardGalleryBuilder({
   mode,
   cardId,
@@ -1364,6 +1412,8 @@ function BusinessCardBuilderFoundation({
   services,
   productsMode,
   products,
+  documentsMode,
+  documents,
   galleryMode,
   galleryItems,
   reviewsMode,
@@ -1386,6 +1436,8 @@ function BusinessCardBuilderFoundation({
   services: CircleCardServiceItem[];
   productsMode: CircleCardProductsBuilderMode;
   products: CircleCardProductItem[];
+  documentsMode: CircleCardDocumentsBuilderMode;
+  documents: CircleCardDocumentItem[];
   galleryMode: CircleCardGalleryBuilderMode;
   galleryItems: CircleCardGalleryItem[];
   reviewsMode: CircleCardReviewsBuilderMode;
@@ -1451,6 +1503,7 @@ function BusinessCardBuilderFoundation({
   ];
   const activeServiceCount = services.filter((service) => service.isActive).length;
   const activeProductCount = products.filter((product) => product.isActive).length;
+  const activeDocumentCount = documents.filter((document) => document.isActive).length;
   const activeGalleryCount = galleryItems.filter((item) => item.isActive).length;
   const activeReviewCount = reviews.filter(
     (item) => item.isActive && isValidCircleCardReviewItem(item)
@@ -1458,6 +1511,7 @@ function BusinessCardBuilderFoundation({
   const moduleHrefs = {
     services: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-services" }),
     products: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-products" }),
+    documents: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-downloads" }),
     gallery: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-gallery" }),
     reviews: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-reviews" }),
     openingHours: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-opening-hours" })
@@ -1478,6 +1532,14 @@ function BusinessCardBuilderFoundation({
       status: products.length ? `${activeProductCount} active` : "0 products",
       action: products.length ? "Manage Products" : "Add first product",
       href: moduleHrefs.products
+    },
+    {
+      type: "DOWNLOADS_DOCUMENTS",
+      label: "Downloads / Documents",
+      description: "Share brochures, menus, forms, guides and other useful files.",
+      status: documents.length ? `${activeDocumentCount} active` : "0 documents",
+      action: documents.length ? "Manage Documents" : "Add first document",
+      href: moduleHrefs.documents
     },
     {
       type: "GALLERY_PORTFOLIO",
@@ -1561,6 +1623,12 @@ function BusinessCardBuilderFoundation({
           cardName={businessName || "Selected Business Card"}
           products={products}
         />
+        <CircleCardDocumentsBuilder
+          mode={documentsMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          documents={documents}
+        />
         <CircleCardGalleryBuilder
           mode={galleryMode}
           cardId={cardId}
@@ -1595,7 +1663,7 @@ function BusinessCardBuilderFoundation({
             </p>
           </div>
 
-          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
             <Link
               href={moduleHrefs.services}
               className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
@@ -1609,6 +1677,13 @@ function BusinessCardBuilderFoundation({
             >
               <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Products</span>
               <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{products.length} / {CIRCLE_CARD_PRODUCT_PRO_LIMIT}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.documents}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Downloads</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{documents.length} / {CIRCLE_CARD_DOCUMENT_PRO_LIMIT}</span>
             </Link>
             <Link
               href={moduleHrefs.openingHours}
@@ -1706,6 +1781,13 @@ function BusinessCardBuilderFoundation({
             cardId={cardId}
             cardName={businessName || "Selected Business Card"}
             products={products}
+          />
+
+          <CircleCardDocumentsBuilder
+            mode={documentsMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            documents={documents}
           />
 
           <CircleCardGalleryBuilder
@@ -4343,6 +4425,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isPlatformOwner,
     platformPreviewCardType: selectedOwnerCardTypePreviewMode
   });
+  const documentsBuilderMode = resolveCircleCardDocumentsBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
   const openingHoursBuilderMode = resolveCircleCardOpeningHoursBuilderMode({
     cardType: card?.cardType,
     hasProAccess: !isCircleCardFree,
@@ -4367,6 +4455,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardProducts = card?.cardType === "BUSINESS"
     ? readCircleCardProductItems(card.contentBlocks)
     : [];
+  const selectedCardDocuments = card?.cardType === "BUSINESS"
+    ? readCircleCardDocumentItems(card.contentBlocks)
+    : [];
   const selectedCardGalleryItems = card?.cardType === "BUSINESS"
     ? readCircleCardGalleryItems(card.contentBlocks)
     : [];
@@ -4387,6 +4478,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const showBusinessCardBuilder =
     servicesBuilderMode !== "hidden" ||
     productsBuilderMode !== "hidden" ||
+    documentsBuilderMode !== "hidden" ||
     galleryBuilderMode !== "hidden" ||
     reviewsBuilderMode !== "hidden" ||
     openingHoursBuilderMode !== "hidden";
@@ -8272,6 +8364,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           services={selectedCardServices}
           productsMode={productsBuilderMode}
           products={selectedCardProducts}
+          documentsMode={documentsBuilderMode}
+          documents={selectedCardDocuments}
           galleryMode={galleryBuilderMode}
           galleryItems={selectedCardGalleryItems}
           reviewsMode={reviewsBuilderMode}

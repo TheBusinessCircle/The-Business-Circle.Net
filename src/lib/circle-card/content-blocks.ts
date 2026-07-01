@@ -117,7 +117,7 @@ export const CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS = [
     type: "DOWNLOADS_DOCUMENTS",
     family: "BUSINESS",
     label: "Downloads / Documents",
-    publicEditingEnabled: false
+    publicEditingEnabled: true
   },
   {
     type: "MENU_OFFERS",
@@ -167,6 +167,22 @@ export type CircleCardProductItem = {
 };
 
 export const CIRCLE_CARD_PRODUCT_PRO_LIMIT = 100;
+
+export type CircleCardDocumentItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  fileUrl: string;
+  fileName: string | null;
+  fileType: string | null;
+  category: string | null;
+  ctaLabel: string | null;
+  isActive: boolean;
+  isFeatured: boolean;
+  sortOrder: number;
+};
+
+export const CIRCLE_CARD_DOCUMENT_PRO_LIMIT = 50;
 
 export type CircleCardGalleryItem = {
   id: string;
@@ -335,6 +351,69 @@ export const circleCardProductItemFormSchema = z.object({
 export const circleCardProductItemIdSchema = z.object({
   cardId: z.string().cuid(),
   productItemId: z.string().trim().min(1).max(64)
+});
+
+const CIRCLE_CARD_DOCUMENT_LOCAL_FILE_PATTERN =
+  /^\/api\/circle-card\/link-file\/[0-9]+-[a-f0-9]{16}\.(pdf|docx?|xlsx?|csv|txt|jpg|png|webp)$/i;
+
+export function isSafeCircleCardDocumentFileUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) {
+    return false;
+  }
+
+  const candidate = value.trim();
+  if (CIRCLE_CARD_DOCUMENT_LOCAL_FILE_PATTERN.test(candidate)) {
+    return true;
+  }
+
+  try {
+    const url = new URL(candidate);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
+}
+
+const documentFileUrlSchema = z
+  .string()
+  .trim()
+  .min(1, "Upload a file or add an external file URL.")
+  .max(2048)
+  .transform((value) =>
+    value.startsWith("/api/circle-card/link-file/") ? value : normalizeCircleCardUrl(value)
+  )
+  .refine(isSafeCircleCardDocumentFileUrl, {
+    message: "Use a supported Circle Card file or safe external URL."
+  });
+
+export const circleCardDocumentItemFormSchema = z.object({
+  cardId: z.string().cuid(),
+  documentItemId: z.string().trim().max(64).optional().or(z.literal("")),
+  title: z.string().trim().min(1, "Add a document title.").max(100),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+  fileUrl: documentFileUrlSchema,
+  fileName: z.string().trim().max(160).optional().or(z.literal("")),
+  fileType: z.string().trim().max(120).optional().or(z.literal("")),
+  category: z.string().trim().max(60).optional().or(z.literal("")),
+  ctaLabel: z.string().trim().max(40).optional().or(z.literal("")),
+  isFeatured: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  ),
+  isActive: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  )
+});
+
+export const circleCardDocumentItemIdSchema = z.object({
+  cardId: z.string().cuid(),
+  documentItemId: z.string().trim().min(1).max(64)
 });
 
 export function isValidCircleCardGalleryImageUrl(value: unknown): value is string {
@@ -786,6 +865,103 @@ export function visibleCircleCardProductItems(input: {
     : [];
 }
 
+export function readCircleCardDocumentItems(value: unknown): CircleCardDocumentItem[] {
+  if (!isRecord(value) || !isRecord(value.business) || !isRecord(value.business.DOWNLOADS_DOCUMENTS)) {
+    return [];
+  }
+
+  const items = value.business.DOWNLOADS_DOCUMENTS.items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .flatMap((item, index) => {
+      if (!isRecord(item)) {
+        return [];
+      }
+
+      const id = typeof item.id === "string" ? item.id.trim() : "";
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+      const fileUrl = typeof item.fileUrl === "string" ? item.fileUrl.trim() : "";
+
+      if (!id || !title || !isSafeCircleCardDocumentFileUrl(fileUrl)) {
+        return [];
+      }
+
+      return [{
+        id,
+        title: title.slice(0, 100),
+        description:
+          typeof item.description === "string" && item.description.trim()
+            ? item.description.trim().slice(0, 500)
+            : null,
+        fileUrl,
+        fileName:
+          typeof item.fileName === "string" && item.fileName.trim()
+            ? item.fileName.trim().slice(0, 160)
+            : null,
+        fileType:
+          typeof item.fileType === "string" && item.fileType.trim()
+            ? item.fileType.trim().slice(0, 120)
+            : null,
+        category:
+          typeof item.category === "string" && item.category.trim()
+            ? item.category.trim().slice(0, 60)
+            : null,
+        ctaLabel:
+          typeof item.ctaLabel === "string" && item.ctaLabel.trim()
+            ? item.ctaLabel.trim().slice(0, 40)
+            : null,
+        isActive: item.isActive !== false,
+        isFeatured: item.isFeatured === true,
+        sortOrder:
+          typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+            ? item.sortOrder
+            : index
+      } satisfies CircleCardDocumentItem];
+    })
+    .sort((left, right) => left.sortOrder - right.sortOrder);
+}
+
+export function writeCircleCardDocumentItems(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  documents: CircleCardDocumentItem[]
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const business = isRecord(root.business) ? root.business : {};
+  const currentDocuments = isRecord(business.DOWNLOADS_DOCUMENTS)
+    ? business.DOWNLOADS_DOCUMENTS
+    : {};
+
+  return {
+    ...root,
+    business: {
+      ...business,
+      DOWNLOADS_DOCUMENTS: {
+        ...currentDocuments,
+        items: documents.map((document, index) => ({
+          ...document,
+          sortOrder: index
+        }))
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardDocumentItems(input: {
+  cardType: string;
+  contentBlocks: unknown;
+}) {
+  return input.cardType === "BUSINESS"
+    ? readCircleCardDocumentItems(input.contentBlocks)
+        .filter((document) => document.isActive)
+        .sort((left, right) =>
+          Number(right.isFeatured) - Number(left.isFeatured) || left.sortOrder - right.sortOrder
+        )
+    : [];
+}
+
 function readSafeGalleryImageUrl(value: unknown) {
   return isValidCircleCardGalleryImageUrl(value) ? value.trim() : null;
 }
@@ -991,6 +1167,7 @@ export type CircleCardOpeningHoursBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardGalleryBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardReviewsBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardProductsBuilderMode = CircleCardServicesBuilderMode;
+export type CircleCardDocumentsBuilderMode = CircleCardServicesBuilderMode;
 
 export function resolveCircleCardServicesBuilderMode(input: {
   cardType?: string | null;
@@ -1040,6 +1217,15 @@ export function resolveCircleCardProductsBuilderMode(input: {
   isPlatformOwner?: boolean;
   platformPreviewCardType?: string | null;
 }): CircleCardProductsBuilderMode {
+  return resolveCircleCardServicesBuilderMode(input);
+}
+
+export function resolveCircleCardDocumentsBuilderMode(input: {
+  cardType?: string | null;
+  hasProAccess: boolean;
+  isPlatformOwner?: boolean;
+  platformPreviewCardType?: string | null;
+}): CircleCardDocumentsBuilderMode {
   return resolveCircleCardServicesBuilderMode(input);
 }
 

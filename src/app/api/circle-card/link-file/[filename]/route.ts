@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readCircleCardDocumentItems } from "@/lib/circle-card/content-blocks";
 import { prisma } from "@/lib/prisma";
 import { buildCircleCardFileResponse } from "@/server/circle-card/file-response.service";
 import {
@@ -39,7 +40,28 @@ export async function GET(_request: Request, { params }: RouteProps) {
     }
   });
 
-  if (!publicLink) {
+  const documentCard = publicLink
+    ? null
+    : await prisma.circleCard.findFirst({
+        where: {
+          cardType: "BUSINESS",
+          isPublished: true,
+          archivedAt: null,
+          user: { suspended: false },
+          contentBlocks: {
+            path: ["business", "DOWNLOADS_DOCUMENTS", "items"],
+            array_contains: [{ fileUrl }]
+          }
+        },
+        select: { contentBlocks: true }
+      });
+  const publicDocument = documentCard
+    ? readCircleCardDocumentItems(documentCard.contentBlocks).find(
+        (document) => document.fileUrl === fileUrl && document.isActive
+      ) ?? null
+    : null;
+
+  if (!publicLink && !publicDocument) {
     const privateLink = await prisma.circleCardLink.findFirst({
       where: {
         fileUrl,
@@ -74,10 +96,10 @@ export async function GET(_request: Request, { params }: RouteProps) {
     bytes: file.bytes,
     mimeType: file.mimeType,
     fallbackFilename: file.originalFilename,
-    fileName: publicLink.fileName,
-    fileMimeType: publicLink.fileMimeType,
+    fileName: publicLink?.fileName ?? publicDocument?.fileName,
+    fileMimeType: publicLink?.fileMimeType ?? publicDocument?.fileType,
     fileUrl,
-    actionMode: publicLink.actionMode,
+    actionMode: publicLink?.actionMode,
     cacheControl: "public, max-age=31536000, immutable"
   }).response;
 }

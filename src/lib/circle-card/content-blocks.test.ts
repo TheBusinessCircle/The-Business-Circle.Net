@@ -2,30 +2,36 @@ import { describe, expect, it } from "vitest";
 import {
   circleCardOpeningHoursDayLabel,
   circleCardGalleryItemFormSchema,
+  circleCardDocumentItemFormSchema,
   circleCardReviewItemFormSchema,
   circleCardProductItemFormSchema,
   createCircleCardOpeningHoursPreset,
   isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
+  readCircleCardDocumentItems,
   readCircleCardProductItems,
   readCircleCardServices,
   readCircleCardReviewItems,
   resolveCircleCardGalleryBuilderMode,
+  resolveCircleCardDocumentsBuilderMode,
   resolveCircleCardOpeningHoursBuilderMode,
   resolveCircleCardProductsBuilderMode,
   resolveCircleCardServicesBuilderMode,
   resolveCircleCardReviewsBuilderMode,
   visibleCircleCardOpeningHours,
+  visibleCircleCardDocumentItems,
   visibleCircleCardProductItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardServices,
   visibleCircleCardReviewItems,
   writeCircleCardOpeningHours,
+  writeCircleCardDocumentItems,
   writeCircleCardProductItems,
   writeCircleCardGalleryItems,
   writeCircleCardServices,
   writeCircleCardReviewItems,
   type CircleCardGalleryItem,
+  type CircleCardDocumentItem,
   type CircleCardProductItem,
   type CircleCardServiceItem,
   type CircleCardReviewItem
@@ -96,6 +102,37 @@ const hiddenProduct: CircleCardProductItem = {
   ...activeProduct,
   id: "product-hidden",
   title: "Hidden toolkit",
+  isActive: false,
+  sortOrder: 2
+};
+
+const activeDocument: CircleCardDocumentItem = {
+  id: "document-active",
+  title: "Business brochure",
+  description: "Our current services and approach.",
+  fileUrl: "/api/circle-card/link-file/1700000000000-deadbeefdeadbeef.pdf",
+  fileName: "business-brochure.pdf",
+  fileType: "application/pdf",
+  category: "Brochures",
+  ctaLabel: "View Brochure",
+  isActive: true,
+  isFeatured: false,
+  sortOrder: 0
+};
+
+const featuredDocument: CircleCardDocumentItem = {
+  ...activeDocument,
+  id: "document-featured",
+  title: "Featured menu",
+  fileUrl: "https://example.com/menu.pdf",
+  isFeatured: true,
+  sortOrder: 1
+};
+
+const hiddenDocument: CircleCardDocumentItem = {
+  ...activeDocument,
+  id: "document-hidden",
+  title: "Hidden form",
   isActive: false,
   sortOrder: 2
 };
@@ -213,6 +250,58 @@ describe("Circle Card products content block", () => {
     expect(circleCardProductItemFormSchema.safeParse({ ...base, price: "" }).success).toBe(false);
     expect(circleCardProductItemFormSchema.safeParse({ ...base, ctaUrl: "/checkout" }).success).toBe(false);
     expect(circleCardProductItemFormSchema.safeParse({ ...base, ctaUrl: "javascript:alert(1)" }).success).toBe(false);
+  });
+});
+
+describe("Circle Card downloads and documents content block", () => {
+  it("stores documents under business.DOWNLOADS_DOCUMENTS.items and preserves products", () => {
+    const withProducts = writeCircleCardProductItems({}, [activeProduct]);
+    const contentBlocks = writeCircleCardDocumentItems(withProducts, [activeDocument]);
+
+    expect(contentBlocks).toMatchObject({
+      business: { DOWNLOADS_DOCUMENTS: { items: [activeDocument] } }
+    });
+    expect(readCircleCardProductItems(contentBlocks)).toEqual([activeProduct]);
+    expect(readCircleCardDocumentItems(contentBlocks)).toEqual([activeDocument]);
+  });
+
+  it("renders active featured documents first on Business Cards only", () => {
+    const contentBlocks = writeCircleCardDocumentItems({}, [activeDocument, featuredDocument, hiddenDocument]);
+
+    expect(visibleCircleCardDocumentItems({ cardType: "BUSINESS", contentBlocks })).toEqual([
+      featuredDocument,
+      activeDocument
+    ]);
+    expect(visibleCircleCardDocumentItems({ cardType: "PERSONAL", contentBlocks })).toEqual([]);
+    expect(visibleCircleCardDocumentItems({ cardType: "CREATOR", contentBlocks })).toEqual([]);
+  });
+
+  it("uses the shared Business Card Pro access mode", () => {
+    expect(resolveCircleCardDocumentsBuilderMode({ cardType: "BUSINESS", hasProAccess: true })).toBe("enabled");
+    expect(resolveCircleCardDocumentsBuilderMode({ cardType: "BUSINESS", hasProAccess: false })).toBe("locked");
+    expect(resolveCircleCardDocumentsBuilderMode({ cardType: "PERSONAL", hasProAccess: true })).toBe("hidden");
+    expect(resolveCircleCardDocumentsBuilderMode({ cardType: "CREATOR", hasProAccess: true })).toBe("hidden");
+  });
+
+  it("accepts supported local files and safe external URLs", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      documentItemId: "",
+      title: "Business brochure",
+      description: "",
+      fileUrl: activeDocument.fileUrl,
+      fileName: "business-brochure.pdf",
+      fileType: "application/pdf",
+      category: "Brochures",
+      ctaLabel: "View Brochure",
+      isFeatured: true,
+      isActive: true
+    };
+
+    expect(circleCardDocumentItemFormSchema.safeParse(base).success).toBe(true);
+    expect(circleCardDocumentItemFormSchema.safeParse({ ...base, fileUrl: "https://example.com/form.docx" }).success).toBe(true);
+    expect(circleCardDocumentItemFormSchema.safeParse({ ...base, fileUrl: "/api/circle-card/link-file/1700000000000-deadbeefdeadbeef.zip" }).success).toBe(false);
+    expect(circleCardDocumentItemFormSchema.safeParse({ ...base, fileUrl: "javascript:alert(1)" }).success).toBe(false);
   });
 });
 

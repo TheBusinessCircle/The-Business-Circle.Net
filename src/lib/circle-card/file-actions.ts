@@ -2,11 +2,30 @@ export const CIRCLE_CARD_LINK_ACTION_MODES = ["AUTO", "VIEW", "DOWNLOAD"] as con
 
 export type CircleCardLinkActionMode = (typeof CIRCLE_CARD_LINK_ACTION_MODES)[number];
 export type CircleCardResolvedFileAction = "VIEW" | "DOWNLOAD";
-export type CircleCardDetectedFileKind = "PDF" | "HTML" | "JPG" | "PNG" | "WEBP" | "ZIP" | "UNKNOWN";
+export type CircleCardDetectedFileKind =
+  | "PDF"
+  | "HTML"
+  | "DOC"
+  | "DOCX"
+  | "XLS"
+  | "XLSX"
+  | "CSV"
+  | "TXT"
+  | "JPG"
+  | "PNG"
+  | "WEBP"
+  | "ZIP"
+  | "UNKNOWN";
 
 export const CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES = [
   "application/pdf",
   "text/html",
+  "text/plain",
+  "text/csv",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -18,6 +37,12 @@ export const CIRCLE_CARD_SUPPORTED_LINK_FILE_EXTENSIONS = [
   ".pdf",
   ".html",
   ".htm",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".csv",
+  ".txt",
   ".jpg",
   ".jpeg",
   ".png",
@@ -29,6 +54,12 @@ export const CIRCLE_CARD_LINK_FILE_MIME_BY_EXTENSION: Record<string, string> = {
   ".pdf": "application/pdf",
   ".html": "text/html",
   ".htm": "text/html",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".csv": "text/csv",
+  ".txt": "text/plain",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
@@ -81,6 +112,30 @@ export function detectCircleCardFileKind(input: CircleCardFileDetectionInput): C
     return "HTML";
   }
 
+  if (mimeType === "application/msword") {
+    return "DOC";
+  }
+
+  if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    return "DOCX";
+  }
+
+  if (mimeType === "application/vnd.ms-excel") {
+    return "XLS";
+  }
+
+  if (mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+    return "XLSX";
+  }
+
+  if (mimeType === "text/csv") {
+    return "CSV";
+  }
+
+  if (mimeType === "text/plain") {
+    return "TXT";
+  }
+
   if (mimeType === "image/jpeg") {
     return "JPG";
   }
@@ -105,6 +160,18 @@ export function detectCircleCardFileKind(input: CircleCardFileDetectionInput): C
     case ".html":
     case ".htm":
       return "HTML";
+    case ".doc":
+      return "DOC";
+    case ".docx":
+      return "DOCX";
+    case ".xls":
+      return "XLS";
+    case ".xlsx":
+      return "XLSX";
+    case ".csv":
+      return "CSV";
+    case ".txt":
+      return "TXT";
     case ".jpg":
     case ".jpeg":
       return "JPG";

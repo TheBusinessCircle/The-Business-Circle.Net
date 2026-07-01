@@ -12,8 +12,12 @@ import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import { resolvePublicUploadImageUrl } from "@/server/circle-card/public-upload-image-url";
 import {
   circleCardImageUploadDirectory,
+  circleCardLinkFileUploadDirectory,
   persistCircleCardImageUpload,
+  persistCircleCardLinkFileUpload,
   readCircleCardImage,
+  readCircleCardLinkFile,
+  resolveCircleCardLinkFilePath,
   resolveCircleCardImageFilePath
 } from "@/server/circle-card/upload.service";
 
@@ -67,5 +71,35 @@ describe("Circle Card local image storage", () => {
 
     expect(missing.status).toBe(404);
     expect(invalid.status).toBe(404);
+  });
+});
+
+describe("Circle Card link-file document storage", () => {
+  it("stores and reads a 10MB-safe office document through the existing file infrastructure", async () => {
+    const sourceBytes = new Uint8Array([80, 75, 3, 4]);
+    const uploaded = await persistCircleCardLinkFileUpload({
+      file: new File([sourceBytes], "application-form.docx", {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      })
+    });
+    const filename = uploaded.fileUrl.split("/").at(-1) ?? "";
+    const absolutePath = resolveCircleCardLinkFilePath(filename);
+
+    expect(circleCardLinkFileUploadDirectory()).toBe(
+      resolve(process.cwd(), ".uploads", "circle-card-link-files")
+    );
+    expect(absolutePath).toBeTruthy();
+    createdFiles.push(absolutePath!);
+    expect(uploaded).toMatchObject({
+      fileUrl: expect.stringMatching(/^\/api\/circle-card\/link-file\/.+\.docx$/),
+      fileName: "application-form.docx",
+      fileMimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    });
+
+    const stored = await readCircleCardLinkFile(filename);
+    expect(stored?.bytes).toEqual(Buffer.from(sourceBytes));
+    expect(stored?.mimeType).toBe(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
   });
 });

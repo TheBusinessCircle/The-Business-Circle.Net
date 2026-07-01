@@ -23,24 +23,46 @@ type CircleCardLinkFileUploadFieldProps = {
     fileName: string;
     fileMimeType: string;
   }) => void;
+  label?: string;
+  helperText?: string;
+  uploadSuccessMessage?: string;
+  documentOnly?: boolean;
 };
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const SUPPORTED_FILE_TYPES = new Set<string>(CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES);
+const DOCUMENT_FILE_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/csv",
+  "text/plain",
+  "image/jpeg",
+  "image/png",
+  "image/webp"
+]);
 
-function isSupportedFile(file: File) {
+function isSupportedFile(file: File, documentOnly: boolean) {
   if (file.type) {
-    return SUPPORTED_FILE_TYPES.has(file.type);
+    return (documentOnly ? DOCUMENT_FILE_TYPES : SUPPORTED_FILE_TYPES).has(file.type);
   }
 
-  return /\.(pdf|html?|jpe?g|png|webp|zip)$/i.test(file.name);
+  return documentOnly
+    ? /\.(pdf|docx?|xlsx?|csv|txt|jpe?g|png|webp)$/i.test(file.name)
+    : /\.(pdf|html?|docx?|xlsx?|csv|txt|jpe?g|png|webp|zip)$/i.test(file.name);
 }
 
 export function CircleCardLinkFileUploadField({
   defaultFileUrl = "",
   defaultFileName = "",
   defaultFileMimeType = "",
-  onFileMetadataChange
+  onFileMetadataChange,
+  label = "File upload",
+  helperText = "PDF, HTML, DOC, DOCX, XLS, XLSX, CSV, TXT, JPG, PNG, WebP or ZIP",
+  uploadSuccessMessage = "Uploaded. Save the link below.",
+  documentOnly = false
 }: CircleCardLinkFileUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileUrl, setFileUrl] = useState(defaultFileUrl ?? "");
@@ -63,8 +85,12 @@ export function CircleCardLinkFileUploadField({
       return;
     }
 
-    if (!isSupportedFile(file)) {
-      setNotice("Upload a PDF, HTML, JPG, PNG, WebP or ZIP file.");
+    if (!isSupportedFile(file, documentOnly)) {
+      setNotice(
+        documentOnly
+          ? "Upload a PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, JPG, PNG or WebP file."
+          : "Upload a supported document, image or archive file."
+      );
       return;
     }
 
@@ -105,7 +131,7 @@ export function CircleCardLinkFileUploadField({
         fileMimeType: data.fileMimeType ?? selectedFile.type
       });
       setSelectedFile(null);
-      setNotice("Uploaded. Save the link below.");
+      setNotice(uploadSuccessMessage);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -142,16 +168,18 @@ export function CircleCardLinkFileUploadField({
       <input
         ref={fileInputRef}
         type="file"
-        accept="application/pdf,text/html,image/jpeg,image/png,image/webp,application/zip,.zip"
+        accept={documentOnly
+          ? "application/pdf,text/plain,text/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/webp,.doc,.docx,.xls,.xlsx,.csv,.txt"
+          : "application/pdf,text/html,text/plain,text/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/webp,application/zip,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip"}
         className="sr-only"
         onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">File upload</p>
+          <p className="text-sm font-medium text-foreground">{label}</p>
           <p className="mt-1 truncate text-xs text-muted">
-            {selectedFile?.name || fileName || "PDF, HTML, JPG, PNG, WebP or ZIP"}
+            {selectedFile?.name || fileName || helperText}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

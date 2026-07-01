@@ -9,11 +9,13 @@ import type {
 } from "@prisma/client";
 import { SITE_CONFIG } from "@/config/site";
 import {
+  visibleCircleCardDocumentItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardOpeningHours,
   visibleCircleCardProductItems,
   visibleCircleCardReviewItems,
   visibleCircleCardServices,
+  type CircleCardDocumentItem,
   type CircleCardGalleryItem,
   type CircleCardOpeningHours,
   type CircleCardProductItem,
@@ -112,6 +114,7 @@ export type PublicCircleCard = {
   socialLinks: CircleCardSocialLinks;
   services: CircleCardServiceItem[];
   products: CircleCardProductItem[];
+  documents: CircleCardDocumentItem[];
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
   approvedWalletTestimonialCount: number;
@@ -175,6 +178,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   } as Prisma.JsonObject),
   services: [],
   products: [],
+  documents: [],
   galleryItems: [],
   reviews: [],
   approvedWalletTestimonialCount: 0,
@@ -449,6 +453,10 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       imageUrl: await resolvePublicUploadImageUrl(product.imageUrl, SITE_CONFIG.url)
     }))
   );
+  const documents = visibleCircleCardDocumentItems({
+    cardType: card.cardType,
+    contentBlocks: card.contentBlocks
+  });
   const galleryItems = (
     await Promise.all(
       visibleCircleCardGalleryItems({
@@ -516,6 +524,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     services,
     products,
+    documents,
     galleryItems,
     reviews,
     approvedWalletTestimonialCount,

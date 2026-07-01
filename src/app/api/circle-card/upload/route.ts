@@ -111,7 +111,7 @@ export async function POST(request: Request) {
 
     if (error instanceof Error && error.message === "invalid-circle-card-link-file") {
       return NextResponse.json(
-        { error: "Upload a PDF, HTML, JPG, PNG, WebP or ZIP file." },
+        { error: "Upload a supported document, image or archive file." },
         { status: 400, headers }
       );
     }

@@ -43,6 +43,8 @@ import { getCircleCardTypeLabel } from "@/lib/circle-card/card-types";
 import {
   buildCircleCardFileActionLabel,
   circleCardFileActionLabel,
+  circleCardFileKindLabel,
+  detectCircleCardFileKind,
   resolveCircleCardFileAction
 } from "@/lib/circle-card/file-actions";
 import { getExternalLinkProps } from "@/lib/links";
@@ -65,6 +67,7 @@ import {
   Download,
   Handshake,
   Facebook,
+  FileText,
   Globe2,
   Instagram,
   LinkIcon,
@@ -1849,6 +1852,81 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderDocumentsSection({ id = "business-downloads" }: { id?: string } = {}) {
+    if (card.cardType !== "BUSINESS" || !card.documents.length) {
+      return null;
+    }
+
+    return (
+      <section
+        id={id}
+        aria-labelledby={`${id}-title`}
+        className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Resources</p>
+            <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">
+              Downloads / Documents
+            </h2>
+          </div>
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+            <FileText size={18} />
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {card.documents.map((document) => {
+            const fileKind = detectCircleCardFileKind({
+              fileMimeType: document.fileType,
+              fileName: document.fileName,
+              fileUrl: document.fileUrl
+            });
+            const action = resolveCircleCardFileAction({
+              fileMimeType: document.fileType,
+              fileName: document.fileName,
+              fileUrl: document.fileUrl
+            });
+
+            return (
+              <article key={document.id} className="flex min-w-0 flex-col rounded-2xl border border-silver/14 bg-background/22 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-silver/14 bg-white/[0.04] text-gold">
+                    <FileText size={17} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground">{document.title}</h3>
+                      <span className="rounded-full border border-silver/14 bg-white/[0.04] px-2 py-0.5 text-[11px] font-semibold text-silver">
+                        {circleCardFileKindLabel(fileKind)}
+                      </span>
+                      {document.isFeatured ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-gold/20 bg-gold/10 px-2 py-0.5 text-[11px] font-semibold text-gold">
+                          <Star size={10} /> Featured
+                        </span>
+                      ) : null}
+                    </div>
+                    {document.category ? <p className="mt-1 text-xs font-medium text-gold">{document.category}</p> : null}
+                  </div>
+                </div>
+                {document.description ? <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted">{document.description}</p> : null}
+                <a
+                  href={document.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 h-10 w-full gap-2 sm:w-fit")}
+                >
+                  {document.ctaLabel || circleCardFileActionLabel(action)}
+                  <Download size={14} />
+                </a>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
   function renderOpeningHoursSection({ id = "business-opening-hours" }: { id?: string } = {}) {
     if (card.cardType !== "BUSINESS" || !card.openingHours) {
       return null;
@@ -2200,6 +2278,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "classic-about" })}
             {renderServicesSection({ id: "classic-services" })}
             {renderProductsSection({ id: "classic-products" })}
+            {renderDocumentsSection({ id: "classic-downloads" })}
             {renderGallerySection({ id: "classic-gallery" })}
             {renderReviewsSection({ id: "classic-reviews" })}
             {renderOpeningHoursSection({ id: "classic-opening-hours" })}
@@ -2441,6 +2520,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "creator-about" })}
             {renderServicesSection({ id: "creator-services" })}
             {renderProductsSection({ id: "creator-products" })}
+            {renderDocumentsSection({ id: "creator-downloads" })}
             {renderGallerySection({ id: "creator-gallery" })}
             {renderReviewsSection({ id: "creator-reviews" })}
             {renderOpeningHoursSection({ id: "creator-opening-hours" })}
@@ -2755,6 +2835,7 @@ export function PublicCircleCardProfile({
             {renderBusinessHighlightsSection()}
             {renderServicesSection()}
             {renderProductsSection()}
+            {renderDocumentsSection()}
             {renderGallerySection()}
             {renderReviewsSection()}
             {renderOpeningHoursSection()}

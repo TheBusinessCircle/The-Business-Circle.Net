@@ -15,8 +15,16 @@ const productsManager = readFileSync(
   join(root, "src/components/circle-card/circle-card-products-manager.tsx"),
   "utf8"
 );
+const documentsManager = readFileSync(
+  join(root, "src/components/circle-card/circle-card-documents-manager.tsx"),
+  "utf8"
+);
 const publicProfile = readFileSync(
   join(root, "src/components/circle-card/public-circle-card-profile.tsx"),
+  "utf8"
+);
+const linkFileRoute = readFileSync(
+  join(root, "src/app/api/circle-card/link-file/[filename]/route.ts"),
   "utf8"
 );
 
@@ -25,6 +33,7 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).not.toContain("Foundation only");
     expect(dashboard).toContain('hash: "business-card-services"');
     expect(dashboard).toContain('hash: "business-card-products"');
+    expect(dashboard).toContain('hash: "business-card-downloads"');
     expect(dashboard).toContain('hash: "business-card-gallery"');
     expect(dashboard).toContain('hash: "business-card-opening-hours"');
     expect(dashboard).toContain('hash: "business-card-reviews"');
@@ -36,6 +45,7 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).toContain("Manage Reviews");
     expect(dashboard).toContain("Reviews are included with Circle Card Pro.");
     expect(dashboard).toContain("Products are included with Circle Card Pro.");
+    expect(dashboard).toContain("Downloads are included with Circle Card Pro.");
   });
 
   it("keeps future business modules visible and inactive", () => {
@@ -62,5 +72,23 @@ describe("Business Builder module launcher", () => {
     expect(publicProfile).toContain('loading="lazy"');
     expect(publicProfile).toContain("getExternalLinkProps(product.ctaUrl)");
     expect(publicProfile).toContain("product.salePrice");
+  });
+
+  it("keeps document management inline inside the downloads module", () => {
+    expect(documentsManager).toContain('id="business-card-downloads"');
+    expect(documentsManager).toContain("upsertCircleCardDocumentItemInlineAction");
+    expect(documentsManager).toContain("CircleCardLinkFileUploadField");
+    expect(documentsManager).toContain("Reorder");
+    expect(documentsManager).toContain("Coming Soon");
+  });
+
+  it("renders document links only for Business Cards", () => {
+    expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.documents.length');
+    expect(publicProfile).toContain('href={document.fileUrl}');
+    expect(publicProfile).toContain('target="_blank"');
+    expect(publicProfile).toContain("document.isFeatured");
+    expect(linkFileRoute).toContain("DOWNLOADS_DOCUMENTS");
+    expect(linkFileRoute).toContain("readCircleCardDocumentItems");
+    expect(linkFileRoute).toContain("document.isActive");
   });
 });

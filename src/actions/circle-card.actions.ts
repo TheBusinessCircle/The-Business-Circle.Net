@@ -51,6 +51,7 @@ import {
   type CircleCardWalletTestimonialStatus
 } from "@/lib/circle-card/wallet-testimonials";
 import {
+  CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_PRODUCT_PRO_LIMIT,
   CIRCLE_CARD_REVIEW_PRO_LIMIT,
@@ -58,6 +59,8 @@ import {
   CIRCLE_CARD_WEEKDAYS,
   circleCardGalleryItemFormSchema,
   circleCardGalleryItemIdSchema,
+  circleCardDocumentItemFormSchema,
+  circleCardDocumentItemIdSchema,
   circleCardReviewItemFormSchema,
   circleCardReviewItemIdSchema,
   circleCardOpeningHoursFormSchema,
@@ -69,14 +72,17 @@ import {
   createCircleCardOpeningHoursPreset,
   createEmptyCircleCardContentBlocks,
   readCircleCardGalleryItems,
+  readCircleCardDocumentItems,
   readCircleCardOpeningHours,
   readCircleCardProductItems,
   readCircleCardReviewItems,
   readCircleCardServices,
   writeCircleCardGalleryItems,
+  writeCircleCardDocumentItems,
   writeCircleCardOpeningHours,
   writeCircleCardProductItems,
   type CircleCardGalleryItem,
+  type CircleCardDocumentItem,
   type CircleCardOpeningHours,
   type CircleCardProductItem,
   type CircleCardReviewItem,
@@ -1011,6 +1017,18 @@ export type CircleCardGalleryInlineActionResult =
       message: string;
     };
 
+export type CircleCardDocumentInlineActionResult =
+  | {
+      ok: true;
+      notice: string;
+      item?: CircleCardDocumentItem;
+    }
+  | {
+      ok: false;
+      error: string;
+      message: string;
+    };
+
 export type CircleCardProductInlineActionResult =
   | {
       ok: true;
@@ -1085,6 +1103,13 @@ function inlineCircleCardGalleryError(
   error: string,
   message: string
 ): CircleCardGalleryInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardDocumentError(
+  error: string,
+  message: string
+): CircleCardDocumentInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -3018,6 +3043,189 @@ export async function deleteCircleCardGalleryItemInlineAction(input: {
   revalidateCircleCardPaths(card.slug);
 
   return { ok: true, notice: "Gallery image deleted" };
+}
+
+export async function upsertCircleCardDocumentItemInlineAction(
+  formData: FormData
+): Promise<CircleCardDocumentInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const uploadedFileUrl = String(formData.get("fileUrl") ?? "").trim();
+  const externalFileUrl = String(formData.get("externalFileUrl") ?? "").trim();
+  const parsed = circleCardDocumentItemFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    documentItemId: formData.get("documentItemId") ?? "",
+    title: formData.get("title"),
+    description: formData.get("description") ?? "",
+    fileUrl: uploadedFileUrl || externalFileUrl,
+    fileName: formData.get("fileName") ?? "",
+    fileType: formData.get("fileMimeType") ?? formData.get("fileType") ?? "",
+    category: formData.get("category") ?? "",
+    ctaLabel: formData.get("ctaLabel") ?? "",
+    isFeatured: formData.get("isFeatured"),
+    isActive: formData.get("isActive")
+  });
+
+  if (!parsed.success) {
+    return inlineCircleCardDocumentError(
+      "document-invalid",
+      parsed.error.issues[0]?.message ?? "Check the document fields and try again."
+    );
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardDocumentError(
+      "documents-locked",
+      "Downloads are included with Circle Card Pro."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card) {
+    return inlineCircleCardDocumentError("card-not-found", "That Circle Card could not be found.");
+  }
+  if (card.cardType !== "BUSINESS") {
+    return inlineCircleCardDocumentError(
+      "documents-business-card-required",
+      "Downloads can only be added to a Business Card."
+    );
+  }
+
+  const documents = readCircleCardDocumentItems(card.contentBlocks);
+  const existingIndex = parsed.data.documentItemId
+    ? documents.findIndex((document) => document.id === parsed.data.documentItemId)
+    : -1;
+
+  if (parsed.data.documentItemId && existingIndex < 0) {
+    return inlineCircleCardDocumentError(
+      "document-not-found",
+      "That document could not be found on this Business Card."
+    );
+  }
+  if (existingIndex < 0 && documents.length >= CIRCLE_CARD_DOCUMENT_PRO_LIMIT) {
+    return inlineCircleCardDocumentError(
+      "document-limit",
+      `Circle Card Pro can keep up to ${CIRCLE_CARD_DOCUMENT_PRO_LIMIT} documents.`
+    );
+  }
+
+  const document: CircleCardDocumentItem = {
+    id: existingIndex >= 0 ? documents[existingIndex].id : randomBytes(12).toString("hex"),
+    title: parsed.data.title,
+    description: parsed.data.description || null,
+    fileUrl: parsed.data.fileUrl,
+    fileName: parsed.data.fileName || null,
+    fileType: parsed.data.fileType || null,
+    category: parsed.data.category || null,
+    ctaLabel: parsed.data.ctaLabel || null,
+    isFeatured: parsed.data.isFeatured,
+    isActive: parsed.data.isActive,
+    sortOrder: existingIndex >= 0 ? documents[existingIndex].sortOrder : documents.length
+  };
+  const nextDocuments = [...documents];
+
+  if (existingIndex >= 0) {
+    nextDocuments[existingIndex] = document;
+  } else {
+    nextDocuments.push(document);
+  }
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardDocumentItems(card.contentBlocks, nextDocuments) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return { ok: true, notice: "Document saved", item: document };
+  } catch {
+    return inlineCircleCardDocumentError(
+      "document-save-failed",
+      "The document could not be saved. Your current document is still shown."
+    );
+  }
+}
+
+export async function toggleCircleCardDocumentItemInlineAction(input: {
+  cardId: string;
+  documentItemId: string;
+}): Promise<CircleCardDocumentInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardDocumentItemIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardDocumentError("document-invalid", "Check the document and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardDocumentError("documents-locked", "Downloads are included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardDocumentError(
+      card ? "documents-business-card-required" : "card-not-found",
+      card ? "Downloads can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const documents = readCircleCardDocumentItems(card.contentBlocks);
+  const itemIndex = documents.findIndex((document) => document.id === parsed.data.documentItemId);
+  if (itemIndex < 0) {
+    return inlineCircleCardDocumentError(
+      "document-not-found",
+      "That document could not be found on this Business Card."
+    );
+  }
+
+  documents[itemIndex] = { ...documents[itemIndex], isActive: !documents[itemIndex].isActive };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardDocumentItems(card.contentBlocks, documents) }
+  });
+  revalidateCircleCardPaths(card.slug);
+
+  return {
+    ok: true,
+    notice: documents[itemIndex].isActive ? "Document shown" : "Document hidden",
+    item: documents[itemIndex]
+  };
+}
+
+export async function deleteCircleCardDocumentItemInlineAction(input: {
+  cardId: string;
+  documentItemId: string;
+}): Promise<CircleCardDocumentInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardDocumentItemIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardDocumentError("document-invalid", "Check the document and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardDocumentError("documents-locked", "Downloads are included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardDocumentError(
+      card ? "documents-business-card-required" : "card-not-found",
+      card ? "Downloads can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const documents = readCircleCardDocumentItems(card.contentBlocks);
+  const nextDocuments = documents.filter((document) => document.id !== parsed.data.documentItemId);
+  if (nextDocuments.length === documents.length) {
+    return inlineCircleCardDocumentError(
+      "document-not-found",
+      "That document could not be found on this Business Card."
+    );
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardDocumentItems(card.contentBlocks, nextDocuments) }
+  });
+  revalidateCircleCardPaths(card.slug);
+
+  return { ok: true, notice: "Document deleted" };
 }
 
 export async function upsertCircleCardProductItemInlineAction(
