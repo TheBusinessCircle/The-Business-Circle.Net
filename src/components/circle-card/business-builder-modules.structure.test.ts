@@ -15,6 +15,10 @@ const productsManager = readFileSync(
   join(root, "src/components/circle-card/circle-card-products-manager.tsx"),
   "utf8"
 );
+const bookingManager = readFileSync(
+  join(root, "src/components/circle-card/circle-card-booking-manager.tsx"),
+  "utf8"
+);
 const documentsManager = readFileSync(
   join(root, "src/components/circle-card/circle-card-documents-manager.tsx"),
   "utf8"
@@ -33,6 +37,7 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).not.toContain("Foundation only");
     expect(dashboard).toContain('hash: "business-card-services"');
     expect(dashboard).toContain('hash: "business-card-products"');
+    expect(dashboard).toContain('hash: "business-card-booking"');
     expect(dashboard).toContain('hash: "business-card-downloads"');
     expect(dashboard).toContain('hash: "business-card-gallery"');
     expect(dashboard).toContain('hash: "business-card-opening-hours"');
@@ -46,6 +51,7 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).toContain("Reviews are included with Circle Card Pro.");
     expect(dashboard).toContain("Products are included with Circle Card Pro.");
     expect(dashboard).toContain("Downloads are included with Circle Card Pro.");
+    expect(dashboard).toContain("Booking / Enquiry is included with Circle Card Pro.");
   });
 
   it("keeps future business modules visible and inactive", () => {
@@ -90,5 +96,20 @@ describe("Business Builder module launcher", () => {
     expect(linkFileRoute).toContain("DOWNLOADS_DOCUMENTS");
     expect(linkFileRoute).toContain("readCircleCardDocumentItems");
     expect(linkFileRoute).toContain("document.isActive");
+  });
+
+  it("keeps booking management inline inside the booking module", () => {
+    expect(bookingManager).toContain('id="business-card-booking"');
+    expect(bookingManager).toContain("upsertCircleCardBookingEnquiryInlineAction");
+    expect(bookingManager).toContain("Visible on public card");
+    expect(bookingManager).toContain("Add booking link");
+  });
+
+  it("renders safe public booking contact actions for Business Cards", () => {
+    expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !booking');
+    expect(publicProfile).toContain("circleCardBookingPhoneHref");
+    expect(publicProfile).toContain("circleCardBookingWhatsAppHref");
+    expect(publicProfile).toContain('href={`mailto:${booking.enquiryEmail}`}');
+    expect(publicProfile).toContain("getExternalLinkProps(booking.primaryCtaUrl)");
   });
 });

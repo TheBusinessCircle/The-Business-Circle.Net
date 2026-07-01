@@ -1,6 +1,7 @@
 export * from "@/components/circle-card/circle-card-bcn-discovery-panel";
 export * from "@/components/circle-card/circle-card-about-expander";
 export * from "@/components/circle-card/business-card-scanner";
+export * from "@/components/circle-card/circle-card-booking-manager";
 export * from "@/components/circle-card/circle-card-install-prompt";
 export * from "@/components/circle-card/circle-card-notification-orb";
 export * from "@/components/circle-card/circle-card-copy-link-button";

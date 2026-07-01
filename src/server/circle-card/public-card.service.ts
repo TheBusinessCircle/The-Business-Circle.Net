@@ -9,12 +9,14 @@ import type {
 } from "@prisma/client";
 import { SITE_CONFIG } from "@/config/site";
 import {
+  visibleCircleCardBookingEnquiry,
   visibleCircleCardDocumentItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardOpeningHours,
   visibleCircleCardProductItems,
   visibleCircleCardReviewItems,
   visibleCircleCardServices,
+  type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardGalleryItem,
   type CircleCardOpeningHours,
@@ -115,6 +117,7 @@ export type PublicCircleCard = {
   services: CircleCardServiceItem[];
   products: CircleCardProductItem[];
   documents: CircleCardDocumentItem[];
+  bookingEnquiry: CircleCardBookingEnquiry | null;
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
   approvedWalletTestimonialCount: number;
@@ -179,6 +182,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   services: [],
   products: [],
   documents: [],
+  bookingEnquiry: null,
   galleryItems: [],
   reviews: [],
   approvedWalletTestimonialCount: 0,
@@ -457,6 +461,10 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
   });
+  const bookingEnquiry = visibleCircleCardBookingEnquiry({
+    cardType: card.cardType,
+    contentBlocks: card.contentBlocks
+  });
   const galleryItems = (
     await Promise.all(
       visibleCircleCardGalleryItems({
@@ -525,6 +533,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     services,
     products,
     documents,
+    bookingEnquiry,
     galleryItems,
     reviews,
     approvedWalletTestimonialCount,

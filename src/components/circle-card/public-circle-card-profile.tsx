@@ -37,6 +37,8 @@ import {
 } from "@/lib/circle-card/identity";
 import {
   CIRCLE_CARD_WEEKDAYS,
+  circleCardBookingPhoneHref,
+  circleCardBookingWhatsAppHref,
   circleCardOpeningHoursDayLabel
 } from "@/lib/circle-card/content-blocks";
 import { getCircleCardTypeLabel } from "@/lib/circle-card/card-types";
@@ -1927,6 +1929,76 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderBookingSection({ id = "business-booking" }: { id?: string } = {}) {
+    const booking = card.bookingEnquiry;
+    if (card.cardType !== "BUSINESS" || !booking) {
+      return null;
+    }
+
+    const callHref = circleCardBookingPhoneHref(booking.phoneNumber);
+    const whatsappHref = circleCardBookingWhatsAppHref(booking.whatsappNumber);
+
+    return (
+      <section
+        id={id}
+        aria-labelledby={`${id}-title`}
+        className="relative overflow-hidden rounded-[1.75rem] border border-gold/28 bg-[linear-gradient(145deg,rgba(24,38,45,0.96),rgba(5,12,27,0.98))] p-5 shadow-[0_22px_58px_rgba(0,0,0,0.34)] sm:p-7"
+      >
+        <div aria-hidden="true" className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-gold/65 to-transparent" />
+        <div className="relative">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Booking / Enquiry</p>
+              <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">
+                {booking.heading}
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
+                {booking.description}
+              </p>
+            </div>
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/24 bg-gold/12 text-gold">
+              <CalendarDays size={18} />
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap">
+            <a
+              {...getExternalLinkProps(booking.primaryCtaUrl)}
+              className={cn(buttonVariants(), "h-12 w-full gap-2 rounded-xl px-5 lg:w-auto")}
+            >
+              {booking.primaryCtaLabel}
+              <ChevronRight size={15} />
+            </a>
+            {booking.secondaryCtaLabel && booking.secondaryCtaUrl ? (
+              <a
+                {...getExternalLinkProps(booking.secondaryCtaUrl)}
+                className={cn(buttonVariants({ variant: "outline" }), "h-12 w-full gap-2 rounded-xl px-5 lg:w-auto")}
+              >
+                {booking.secondaryCtaLabel}
+                <ChevronRight size={15} />
+              </a>
+            ) : null}
+            {booking.enquiryEmail ? (
+              <a href={`mailto:${booking.enquiryEmail}`} className={cn(buttonVariants({ variant: "outline" }), "h-12 w-full gap-2 rounded-xl px-5 lg:w-auto")}>
+                <Mail size={15} /> Email
+              </a>
+            ) : null}
+            {callHref ? (
+              <a href={callHref} className={cn(buttonVariants({ variant: "outline" }), "h-12 w-full gap-2 rounded-xl px-5 lg:w-auto")}>
+                <Phone size={15} /> Call
+              </a>
+            ) : null}
+            {whatsappHref ? (
+              <a {...getExternalLinkProps(whatsappHref)} className={cn(buttonVariants({ variant: "outline" }), "h-12 w-full gap-2 rounded-xl px-5 lg:w-auto")}>
+                <MessageCircle size={15} /> WhatsApp
+              </a>
+            ) : null}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   function renderOpeningHoursSection({ id = "business-opening-hours" }: { id?: string } = {}) {
     if (card.cardType !== "BUSINESS" || !card.openingHours) {
       return null;
@@ -2279,6 +2351,7 @@ export function PublicCircleCardProfile({
             {renderServicesSection({ id: "classic-services" })}
             {renderProductsSection({ id: "classic-products" })}
             {renderDocumentsSection({ id: "classic-downloads" })}
+            {renderBookingSection({ id: "classic-booking" })}
             {renderGallerySection({ id: "classic-gallery" })}
             {renderReviewsSection({ id: "classic-reviews" })}
             {renderOpeningHoursSection({ id: "classic-opening-hours" })}
@@ -2521,6 +2594,7 @@ export function PublicCircleCardProfile({
             {renderServicesSection({ id: "creator-services" })}
             {renderProductsSection({ id: "creator-products" })}
             {renderDocumentsSection({ id: "creator-downloads" })}
+            {renderBookingSection({ id: "creator-booking" })}
             {renderGallerySection({ id: "creator-gallery" })}
             {renderReviewsSection({ id: "creator-reviews" })}
             {renderOpeningHoursSection({ id: "creator-opening-hours" })}
@@ -2836,6 +2910,7 @@ export function PublicCircleCardProfile({
             {renderServicesSection()}
             {renderProductsSection()}
             {renderDocumentsSection()}
+            {renderBookingSection()}
             {renderGallerySection()}
             {renderReviewsSection()}
             {renderOpeningHoursSection()}

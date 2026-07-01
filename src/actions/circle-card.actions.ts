@@ -57,6 +57,7 @@ import {
   CIRCLE_CARD_REVIEW_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
+  circleCardBookingEnquiryFormSchema,
   circleCardGalleryItemFormSchema,
   circleCardGalleryItemIdSchema,
   circleCardDocumentItemFormSchema,
@@ -72,16 +73,19 @@ import {
   createCircleCardOpeningHoursPreset,
   createEmptyCircleCardContentBlocks,
   readCircleCardGalleryItems,
+  readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
   readCircleCardProductItems,
   readCircleCardReviewItems,
   readCircleCardServices,
   writeCircleCardGalleryItems,
+  writeCircleCardBookingEnquiry,
   writeCircleCardDocumentItems,
   writeCircleCardOpeningHours,
   writeCircleCardProductItems,
   type CircleCardGalleryItem,
+  type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardOpeningHours,
   type CircleCardProductItem,
@@ -1017,6 +1021,18 @@ export type CircleCardGalleryInlineActionResult =
       message: string;
     };
 
+export type CircleCardBookingInlineActionResult =
+  | {
+      ok: true;
+      notice: string;
+      booking?: CircleCardBookingEnquiry;
+    }
+  | {
+      ok: false;
+      error: string;
+      message: string;
+    };
+
 export type CircleCardDocumentInlineActionResult =
   | {
       ok: true;
@@ -1103,6 +1119,13 @@ function inlineCircleCardGalleryError(
   error: string,
   message: string
 ): CircleCardGalleryInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardBookingError(
+  error: string,
+  message: string
+): CircleCardBookingInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -3043,6 +3066,80 @@ export async function deleteCircleCardGalleryItemInlineAction(input: {
   revalidateCircleCardPaths(card.slug);
 
   return { ok: true, notice: "Gallery image deleted" };
+}
+
+export async function upsertCircleCardBookingEnquiryInlineAction(
+  formData: FormData
+): Promise<CircleCardBookingInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardBookingEnquiryFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    heading: formData.get("heading"),
+    description: formData.get("description"),
+    primaryCtaLabel: formData.get("primaryCtaLabel"),
+    primaryCtaUrl: formData.get("primaryCtaUrl"),
+    secondaryCtaLabel: formData.get("secondaryCtaLabel") ?? "",
+    secondaryCtaUrl: formData.get("secondaryCtaUrl") ?? "",
+    enquiryEmail: formData.get("enquiryEmail") ?? "",
+    phoneNumber: formData.get("phoneNumber") ?? "",
+    whatsappNumber: formData.get("whatsappNumber") ?? "",
+    isActive: formData.get("isActive"),
+    showOnPublicCard: formData.get("showOnPublicCard")
+  });
+
+  if (!parsed.success) {
+    return inlineCircleCardBookingError(
+      "booking-invalid",
+      parsed.error.issues[0]?.message ?? "Check the booking and enquiry fields."
+    );
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardBookingError(
+      "booking-locked",
+      "Booking / Enquiry is included with Circle Card Pro."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card) {
+    return inlineCircleCardBookingError("card-not-found", "That Circle Card could not be found.");
+  }
+  if (card.cardType !== "BUSINESS") {
+    return inlineCircleCardBookingError(
+      "booking-business-card-required",
+      "Booking / Enquiry can only be added to a Business Card."
+    );
+  }
+
+  const current = readCircleCardBookingEnquiry(card.contentBlocks);
+  const booking: CircleCardBookingEnquiry = {
+    heading: parsed.data.heading,
+    description: parsed.data.description,
+    primaryCtaLabel: parsed.data.primaryCtaLabel,
+    primaryCtaUrl: parsed.data.primaryCtaUrl,
+    secondaryCtaLabel: parsed.data.secondaryCtaLabel || null,
+    secondaryCtaUrl: parsed.data.secondaryCtaUrl || null,
+    enquiryEmail: parsed.data.enquiryEmail || null,
+    phoneNumber: parsed.data.phoneNumber || null,
+    whatsappNumber: parsed.data.whatsappNumber || null,
+    isActive: parsed.data.isActive,
+    showOnPublicCard: parsed.data.showOnPublicCard,
+    sortOrder: current?.sortOrder ?? 0
+  };
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardBookingEnquiry(card.contentBlocks, booking) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return { ok: true, notice: "Booking / Enquiry saved", booking };
+  } catch {
+    return inlineCircleCardBookingError(
+      "booking-save-failed",
+      "Booking / Enquiry could not be saved. Your current settings are still shown."
+    );
+  }
 }
 
 export async function upsertCircleCardDocumentItemInlineAction(

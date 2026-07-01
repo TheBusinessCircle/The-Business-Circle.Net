@@ -87,6 +87,7 @@ import {
 import {
   BusinessCardScanner,
   CircleCardBcnDiscoveryPanel,
+  CircleCardBookingManager,
   CircleCardCopyLinkButton,
   CircleCardDashboardSection,
   CircleCardDocumentsManager,
@@ -203,18 +204,22 @@ import {
   circleCardOpeningHoursDayLabel,
   isValidCircleCardReviewItem,
   readCircleCardGalleryItems,
+  readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
   readCircleCardProductItems,
   readCircleCardReviewItems,
   readCircleCardServices,
   resolveCircleCardOpeningHoursBuilderMode,
+  resolveCircleCardBookingBuilderMode,
   resolveCircleCardDocumentsBuilderMode,
   resolveCircleCardProductsBuilderMode,
   resolveCircleCardGalleryBuilderMode,
   resolveCircleCardReviewsBuilderMode,
   resolveCircleCardServicesBuilderMode,
   type CircleCardOpeningHours,
+  type CircleCardBookingBuilderMode,
+  type CircleCardBookingEnquiry,
   type CircleCardDocumentsBuilderMode,
   type CircleCardDocumentItem,
   type CircleCardOpeningHoursBuilderMode,
@@ -1060,6 +1065,48 @@ function CircleCardProductsBuilder({
   return <CircleCardProductsManager cardId={cardId} cardName={cardName} initialItems={products} />;
 }
 
+function CircleCardBookingBuilder({
+  mode,
+  cardId,
+  cardName,
+  booking
+}: {
+  mode: CircleCardBookingBuilderMode;
+  cardId: string;
+  cardName: string;
+  booking: CircleCardBookingEnquiry | null;
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-booking" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Booking / Enquiry is included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add booking, quote and enquiry routes to this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview") {
+    return (
+      <div id="business-card-booking" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Booking / Enquiry Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add conversion routes. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+
+  return <CircleCardBookingManager cardId={cardId} cardName={cardName} initialBooking={booking} />;
+}
+
 function CircleCardDocumentsBuilder({
   mode,
   cardId,
@@ -1412,6 +1459,8 @@ function BusinessCardBuilderFoundation({
   services,
   productsMode,
   products,
+  bookingMode,
+  booking,
   documentsMode,
   documents,
   galleryMode,
@@ -1436,6 +1485,8 @@ function BusinessCardBuilderFoundation({
   services: CircleCardServiceItem[];
   productsMode: CircleCardProductsBuilderMode;
   products: CircleCardProductItem[];
+  bookingMode: CircleCardBookingBuilderMode;
+  booking: CircleCardBookingEnquiry | null;
   documentsMode: CircleCardDocumentsBuilderMode;
   documents: CircleCardDocumentItem[];
   galleryMode: CircleCardGalleryBuilderMode;
@@ -1511,6 +1562,7 @@ function BusinessCardBuilderFoundation({
   const moduleHrefs = {
     services: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-services" }),
     products: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-products" }),
+    booking: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-booking" }),
     documents: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-downloads" }),
     gallery: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-gallery" }),
     reviews: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-reviews" }),
@@ -1532,6 +1584,14 @@ function BusinessCardBuilderFoundation({
       status: products.length ? `${activeProductCount} active` : "0 products",
       action: products.length ? "Manage Products" : "Add first product",
       href: moduleHrefs.products
+    },
+    {
+      type: "BOOKING_ENQUIRY_LINK",
+      label: "Booking / Enquiry",
+      description: "Give visitors a clear route to book, call, message or enquire.",
+      status: booking?.isActive && booking.showOnPublicCard ? "Active" : booking ? "Hidden" : "Not set",
+      action: booking ? "Manage Booking" : "Add booking link",
+      href: moduleHrefs.booking
     },
     {
       type: "DOWNLOADS_DOCUMENTS",
@@ -1623,6 +1683,12 @@ function BusinessCardBuilderFoundation({
           cardName={businessName || "Selected Business Card"}
           products={products}
         />
+        <CircleCardBookingBuilder
+          mode={bookingMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          booking={booking}
+        />
         <CircleCardDocumentsBuilder
           mode={documentsMode}
           cardId={cardId}
@@ -1663,7 +1729,7 @@ function BusinessCardBuilderFoundation({
             </p>
           </div>
 
-          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
             <Link
               href={moduleHrefs.services}
               className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
@@ -1677,6 +1743,13 @@ function BusinessCardBuilderFoundation({
             >
               <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Products</span>
               <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{products.length} / {CIRCLE_CARD_PRODUCT_PRO_LIMIT}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.booking}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Booking</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{booking?.isActive && booking.showOnPublicCard ? "Active" : booking ? "Hidden" : "Not set"}</span>
             </Link>
             <Link
               href={moduleHrefs.documents}
@@ -1781,6 +1854,13 @@ function BusinessCardBuilderFoundation({
             cardId={cardId}
             cardName={businessName || "Selected Business Card"}
             products={products}
+          />
+
+          <CircleCardBookingBuilder
+            mode={bookingMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            booking={booking}
           />
 
           <CircleCardDocumentsBuilder
@@ -4425,6 +4505,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isPlatformOwner,
     platformPreviewCardType: selectedOwnerCardTypePreviewMode
   });
+  const bookingBuilderMode = resolveCircleCardBookingBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
   const documentsBuilderMode = resolveCircleCardDocumentsBuilderMode({
     cardType: card?.cardType,
     hasProAccess: !isCircleCardFree,
@@ -4455,6 +4541,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardProducts = card?.cardType === "BUSINESS"
     ? readCircleCardProductItems(card.contentBlocks)
     : [];
+  const selectedCardBooking = card?.cardType === "BUSINESS"
+    ? readCircleCardBookingEnquiry(card.contentBlocks)
+    : null;
   const selectedCardDocuments = card?.cardType === "BUSINESS"
     ? readCircleCardDocumentItems(card.contentBlocks)
     : [];
@@ -4478,6 +4567,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const showBusinessCardBuilder =
     servicesBuilderMode !== "hidden" ||
     productsBuilderMode !== "hidden" ||
+    bookingBuilderMode !== "hidden" ||
     documentsBuilderMode !== "hidden" ||
     galleryBuilderMode !== "hidden" ||
     reviewsBuilderMode !== "hidden" ||
@@ -8364,6 +8454,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           services={selectedCardServices}
           productsMode={productsBuilderMode}
           products={selectedCardProducts}
+          bookingMode={bookingBuilderMode}
+          booking={selectedCardBooking}
           documentsMode={documentsBuilderMode}
           documents={selectedCardDocuments}
           galleryMode={galleryBuilderMode}

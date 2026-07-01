@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   circleCardOpeningHoursDayLabel,
+  circleCardBookingEnquiryFormSchema,
+  circleCardBookingPhoneHref,
+  circleCardBookingWhatsAppHref,
   circleCardGalleryItemFormSchema,
   circleCardDocumentItemFormSchema,
   circleCardReviewItemFormSchema,
@@ -8,29 +11,34 @@ import {
   createCircleCardOpeningHoursPreset,
   isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
+  readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardProductItems,
   readCircleCardServices,
   readCircleCardReviewItems,
   resolveCircleCardGalleryBuilderMode,
+  resolveCircleCardBookingBuilderMode,
   resolveCircleCardDocumentsBuilderMode,
   resolveCircleCardOpeningHoursBuilderMode,
   resolveCircleCardProductsBuilderMode,
   resolveCircleCardServicesBuilderMode,
   resolveCircleCardReviewsBuilderMode,
   visibleCircleCardOpeningHours,
+  visibleCircleCardBookingEnquiry,
   visibleCircleCardDocumentItems,
   visibleCircleCardProductItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardServices,
   visibleCircleCardReviewItems,
   writeCircleCardOpeningHours,
+  writeCircleCardBookingEnquiry,
   writeCircleCardDocumentItems,
   writeCircleCardProductItems,
   writeCircleCardGalleryItems,
   writeCircleCardServices,
   writeCircleCardReviewItems,
   type CircleCardGalleryItem,
+  type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardProductItem,
   type CircleCardServiceItem,
@@ -135,6 +143,21 @@ const hiddenDocument: CircleCardDocumentItem = {
   title: "Hidden form",
   isActive: false,
   sortOrder: 2
+};
+
+const activeBooking: CircleCardBookingEnquiry = {
+  heading: "Ready to take the next step?",
+  description: "Book a call or contact our team.",
+  primaryCtaLabel: "Book a Call",
+  primaryCtaUrl: "https://example.com/book",
+  secondaryCtaLabel: "Request a Quote",
+  secondaryCtaUrl: "https://example.com/quote",
+  enquiryEmail: "hello@example.com",
+  phoneNumber: "+44 20 1234 5678",
+  whatsappNumber: "+44 7700 900123",
+  isActive: true,
+  showOnPublicCard: true,
+  sortOrder: 0
 };
 
 const activeReview: CircleCardReviewItem = {
@@ -250,6 +273,59 @@ describe("Circle Card products content block", () => {
     expect(circleCardProductItemFormSchema.safeParse({ ...base, price: "" }).success).toBe(false);
     expect(circleCardProductItemFormSchema.safeParse({ ...base, ctaUrl: "/checkout" }).success).toBe(false);
     expect(circleCardProductItemFormSchema.safeParse({ ...base, ctaUrl: "javascript:alert(1)" }).success).toBe(false);
+  });
+});
+
+describe("Circle Card booking and enquiry content block", () => {
+  it("stores booking settings under business.BOOKING_ENQUIRY_LINK and preserves products", () => {
+    const withProducts = writeCircleCardProductItems({}, [activeProduct]);
+    const contentBlocks = writeCircleCardBookingEnquiry(withProducts, activeBooking);
+
+    expect(contentBlocks).toMatchObject({
+      business: { BOOKING_ENQUIRY_LINK: activeBooking }
+    });
+    expect(readCircleCardProductItems(contentBlocks)).toEqual([activeProduct]);
+    expect(readCircleCardBookingEnquiry(contentBlocks)).toEqual(activeBooking);
+  });
+
+  it("renders active visible booking settings on Business Cards only", () => {
+    const contentBlocks = writeCircleCardBookingEnquiry({}, activeBooking);
+    const hiddenBlocks = writeCircleCardBookingEnquiry({}, { ...activeBooking, showOnPublicCard: false });
+    const inactiveBlocks = writeCircleCardBookingEnquiry({}, { ...activeBooking, isActive: false });
+
+    expect(visibleCircleCardBookingEnquiry({ cardType: "BUSINESS", contentBlocks })).toEqual(activeBooking);
+    expect(visibleCircleCardBookingEnquiry({ cardType: "BUSINESS", contentBlocks: hiddenBlocks })).toBeNull();
+    expect(visibleCircleCardBookingEnquiry({ cardType: "BUSINESS", contentBlocks: inactiveBlocks })).toBeNull();
+    expect(visibleCircleCardBookingEnquiry({ cardType: "PERSONAL", contentBlocks })).toBeNull();
+    expect(visibleCircleCardBookingEnquiry({ cardType: "CREATOR", contentBlocks })).toBeNull();
+  });
+
+  it("uses the shared Business Card Pro access mode", () => {
+    expect(resolveCircleCardBookingBuilderMode({ cardType: "BUSINESS", hasProAccess: true })).toBe("enabled");
+    expect(resolveCircleCardBookingBuilderMode({ cardType: "BUSINESS", hasProAccess: false })).toBe("locked");
+    expect(resolveCircleCardBookingBuilderMode({ cardType: "PERSONAL", hasProAccess: true })).toBe("hidden");
+    expect(resolveCircleCardBookingBuilderMode({ cardType: "CREATOR", hasProAccess: true })).toBe("hidden");
+  });
+
+  it("rejects unsafe URLs, malformed emails and unsafe phone values", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      ...activeBooking
+    };
+
+    expect(circleCardBookingEnquiryFormSchema.safeParse(base).success).toBe(true);
+    expect(circleCardBookingEnquiryFormSchema.safeParse({ ...base, primaryCtaUrl: "javascript:alert(1)" }).success).toBe(false);
+    expect(circleCardBookingEnquiryFormSchema.safeParse({ ...base, secondaryCtaUrl: "data:text/html,test" }).success).toBe(false);
+    expect(circleCardBookingEnquiryFormSchema.safeParse({ ...base, enquiryEmail: "not-an-email" }).success).toBe(false);
+    expect(circleCardBookingEnquiryFormSchema.safeParse({ ...base, phoneNumber: "tel:+441234567890" }).success).toBe(false);
+    expect(circleCardBookingEnquiryFormSchema.safeParse({ ...base, whatsappNumber: "hello" }).success).toBe(false);
+  });
+
+  it("builds safe call and WhatsApp contact links", () => {
+    expect(circleCardBookingPhoneHref("+44 20 1234 5678")).toBe("tel:+442012345678");
+    expect(circleCardBookingWhatsAppHref("+44 7700 900123")).toBe("https://wa.me/447700900123");
+    expect(circleCardBookingPhoneHref("javascript:alert(1)")).toBeNull();
+    expect(circleCardBookingWhatsAppHref("data:text/plain,1")).toBeNull();
   });
 });
 

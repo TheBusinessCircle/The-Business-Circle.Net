@@ -111,7 +111,7 @@ export const CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS = [
     type: "BOOKING_ENQUIRY_LINK",
     family: "BUSINESS",
     label: "Booking / Enquiry Link",
-    publicEditingEnabled: false
+    publicEditingEnabled: true
   },
   {
     type: "DOWNLOADS_DOCUMENTS",
@@ -183,6 +183,21 @@ export type CircleCardDocumentItem = {
 };
 
 export const CIRCLE_CARD_DOCUMENT_PRO_LIMIT = 50;
+
+export type CircleCardBookingEnquiry = {
+  heading: string;
+  description: string;
+  primaryCtaLabel: string;
+  primaryCtaUrl: string;
+  secondaryCtaLabel: string | null;
+  secondaryCtaUrl: string | null;
+  enquiryEmail: string | null;
+  phoneNumber: string | null;
+  whatsappNumber: string | null;
+  isActive: boolean;
+  showOnPublicCard: boolean;
+  sortOrder: number;
+};
 
 export type CircleCardGalleryItem = {
   id: string;
@@ -414,6 +429,115 @@ export const circleCardDocumentItemFormSchema = z.object({
 export const circleCardDocumentItemIdSchema = z.object({
   cardId: z.string().cuid(),
   documentItemId: z.string().trim().min(1).max(64)
+});
+
+export function normalizeCircleCardContactNumber(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const candidate = value.trim();
+  if (!candidate || candidate.length > 40 || !/^\+?[0-9][0-9 ()\-.]*$/.test(candidate)) {
+    return null;
+  }
+
+  const digits = candidate.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) {
+    return null;
+  }
+
+  return candidate;
+}
+
+export function circleCardBookingPhoneHref(value: string | null | undefined) {
+  const normalized = normalizeCircleCardContactNumber(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const hasLeadingPlus = normalized.startsWith("+");
+  const digits = normalized.replace(/\D/g, "");
+  return `tel:${hasLeadingPlus ? "+" : ""}${digits}`;
+}
+
+export function circleCardBookingWhatsAppHref(value: string | null | undefined) {
+  const normalized = normalizeCircleCardContactNumber(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const digits = normalized.replace(/\D/g, "").replace(/^00/, "");
+  return digits ? `https://wa.me/${digits}` : null;
+}
+
+function safeBookingUrl(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const normalized = normalizeCircleCardUrl(value);
+  try {
+    const url = new URL(normalized);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password
+    ) ? normalized : null;
+  } catch {
+    return null;
+  }
+}
+
+function bookingUrlSchema(required: boolean) {
+  const schema = z.string().trim().max(2048);
+  return (required ? schema.min(1, "Add a CTA URL.") : schema.optional().or(z.literal("")))
+    .transform((value) => value ? normalizeCircleCardUrl(value) : "")
+    .refine((value) => !value || Boolean(safeBookingUrl(value)), {
+      message: "Use a safe http or https URL."
+    });
+}
+
+const optionalBookingPhoneSchema = z
+  .string()
+  .trim()
+  .max(40)
+  .optional()
+  .or(z.literal(""))
+  .refine((value) => !value || Boolean(normalizeCircleCardContactNumber(value)), {
+    message: "Use a safe phone number with 7 to 15 digits."
+  });
+
+export const circleCardBookingEnquiryFormSchema = z.object({
+  cardId: z.string().cuid(),
+  heading: z.string().trim().min(1, "Add a heading.").max(100),
+  description: z.string().trim().min(1, "Add a short description.").max(500),
+  primaryCtaLabel: z.string().trim().min(1, "Add primary CTA text.").max(40),
+  primaryCtaUrl: bookingUrlSchema(true),
+  secondaryCtaLabel: z.string().trim().max(40).optional().or(z.literal("")),
+  secondaryCtaUrl: bookingUrlSchema(false),
+  enquiryEmail: z.string().trim().toLowerCase().max(254).optional().or(z.literal(""))
+    .refine((value) => !value || z.string().email().safeParse(value).success, {
+      message: "Use a valid enquiry email."
+    }),
+  phoneNumber: optionalBookingPhoneSchema,
+  whatsappNumber: optionalBookingPhoneSchema,
+  isActive: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  ),
+  showOnPublicCard: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  )
+}).superRefine((value, context) => {
+  if (Boolean(value.secondaryCtaLabel) !== Boolean(value.secondaryCtaUrl)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [value.secondaryCtaLabel ? "secondaryCtaUrl" : "secondaryCtaLabel"],
+      message: "Add both secondary CTA text and URL, or leave both blank."
+    });
+  }
 });
 
 export function isValidCircleCardGalleryImageUrl(value: unknown): value is string {
@@ -962,6 +1086,94 @@ export function visibleCircleCardDocumentItems(input: {
     : [];
 }
 
+export function readCircleCardBookingEnquiry(value: unknown): CircleCardBookingEnquiry | null {
+  if (!isRecord(value) || !isRecord(value.business) || !isRecord(value.business.BOOKING_ENQUIRY_LINK)) {
+    return null;
+  }
+
+  const raw = value.business.BOOKING_ENQUIRY_LINK;
+  const heading = typeof raw.heading === "string" ? raw.heading.trim() : "";
+  const description = typeof raw.description === "string" ? raw.description.trim() : "";
+  const primaryCtaLabel = typeof raw.primaryCtaLabel === "string" ? raw.primaryCtaLabel.trim() : "";
+  const primaryCtaUrl = safeBookingUrl(raw.primaryCtaUrl);
+
+  if (!heading || !description || !primaryCtaLabel || !primaryCtaUrl) {
+    return null;
+  }
+
+  const secondaryCtaLabel =
+    typeof raw.secondaryCtaLabel === "string" && raw.secondaryCtaLabel.trim()
+      ? raw.secondaryCtaLabel.trim().slice(0, 40)
+      : null;
+  const secondaryCtaUrl = safeBookingUrl(raw.secondaryCtaUrl);
+  const enquiryEmail =
+    typeof raw.enquiryEmail === "string" && z.string().email().safeParse(raw.enquiryEmail.trim()).success
+      ? raw.enquiryEmail.trim().toLowerCase().slice(0, 254)
+      : null;
+
+  return {
+    heading: heading.slice(0, 100),
+    description: description.slice(0, 500),
+    primaryCtaLabel: primaryCtaLabel.slice(0, 40),
+    primaryCtaUrl,
+    secondaryCtaLabel: secondaryCtaLabel && secondaryCtaUrl ? secondaryCtaLabel : null,
+    secondaryCtaUrl: secondaryCtaLabel && secondaryCtaUrl ? secondaryCtaUrl : null,
+    enquiryEmail,
+    phoneNumber: normalizeCircleCardContactNumber(raw.phoneNumber),
+    whatsappNumber: normalizeCircleCardContactNumber(raw.whatsappNumber),
+    isActive: raw.isActive !== false,
+    showOnPublicCard: raw.showOnPublicCard !== false,
+    sortOrder:
+      typeof raw.sortOrder === "number" && Number.isFinite(raw.sortOrder) ? raw.sortOrder : 0
+  };
+}
+
+export function writeCircleCardBookingEnquiry(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  booking: CircleCardBookingEnquiry
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const business = isRecord(root.business) ? root.business : {};
+  const currentBooking = isRecord(business.BOOKING_ENQUIRY_LINK)
+    ? business.BOOKING_ENQUIRY_LINK
+    : {};
+
+  return {
+    ...root,
+    business: {
+      ...business,
+      BOOKING_ENQUIRY_LINK: {
+        ...currentBooking,
+        ...booking
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardBookingEnquiry(input: {
+  cardType: string;
+  contentBlocks: unknown;
+}) {
+  if (input.cardType !== "BUSINESS") {
+    return null;
+  }
+
+  const booking = readCircleCardBookingEnquiry(input.contentBlocks);
+  if (!booking || !booking.isActive || !booking.showOnPublicCard) {
+    return null;
+  }
+
+  const hasAction = Boolean(
+    booking.primaryCtaUrl ||
+    booking.secondaryCtaUrl ||
+    booking.enquiryEmail ||
+    circleCardBookingPhoneHref(booking.phoneNumber) ||
+    circleCardBookingWhatsAppHref(booking.whatsappNumber)
+  );
+
+  return hasAction ? booking : null;
+}
+
 function readSafeGalleryImageUrl(value: unknown) {
   return isValidCircleCardGalleryImageUrl(value) ? value.trim() : null;
 }
@@ -1168,6 +1380,7 @@ export type CircleCardGalleryBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardReviewsBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardProductsBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardDocumentsBuilderMode = CircleCardServicesBuilderMode;
+export type CircleCardBookingBuilderMode = CircleCardServicesBuilderMode;
 
 export function resolveCircleCardServicesBuilderMode(input: {
   cardType?: string | null;
@@ -1226,6 +1439,15 @@ export function resolveCircleCardDocumentsBuilderMode(input: {
   isPlatformOwner?: boolean;
   platformPreviewCardType?: string | null;
 }): CircleCardDocumentsBuilderMode {
+  return resolveCircleCardServicesBuilderMode(input);
+}
+
+export function resolveCircleCardBookingBuilderMode(input: {
+  cardType?: string | null;
+  hasProAccess: boolean;
+  isPlatformOwner?: boolean;
+  platformPreviewCardType?: string | null;
+}): CircleCardBookingBuilderMode {
   return resolveCircleCardServicesBuilderMode(input);
 }
 
