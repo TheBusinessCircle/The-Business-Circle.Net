@@ -52,6 +52,7 @@ import {
 } from "@/lib/circle-card/wallet-testimonials";
 import {
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
+  CIRCLE_CARD_PRODUCT_PRO_LIMIT,
   CIRCLE_CARD_REVIEW_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
@@ -61,18 +62,23 @@ import {
   circleCardReviewItemIdSchema,
   circleCardOpeningHoursFormSchema,
   circleCardOpeningHoursPresetSchema,
+  circleCardProductItemFormSchema,
+  circleCardProductItemIdSchema,
   circleCardServiceFormSchema,
   circleCardServiceIdSchema,
   createCircleCardOpeningHoursPreset,
   createEmptyCircleCardContentBlocks,
   readCircleCardGalleryItems,
   readCircleCardOpeningHours,
+  readCircleCardProductItems,
   readCircleCardReviewItems,
   readCircleCardServices,
   writeCircleCardGalleryItems,
   writeCircleCardOpeningHours,
+  writeCircleCardProductItems,
   type CircleCardGalleryItem,
   type CircleCardOpeningHours,
+  type CircleCardProductItem,
   type CircleCardReviewItem,
   writeCircleCardReviewItems,
   writeCircleCardServices
@@ -1005,6 +1011,18 @@ export type CircleCardGalleryInlineActionResult =
       message: string;
     };
 
+export type CircleCardProductInlineActionResult =
+  | {
+      ok: true;
+      notice: string;
+      item?: CircleCardProductItem;
+    }
+  | {
+      ok: false;
+      error: string;
+      message: string;
+    };
+
 export type CircleCardReviewInlineActionResult =
   | {
       ok: true;
@@ -1067,6 +1085,13 @@ function inlineCircleCardGalleryError(
   error: string,
   message: string
 ): CircleCardGalleryInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardProductError(
+  error: string,
+  message: string
+): CircleCardProductInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -2993,6 +3018,195 @@ export async function deleteCircleCardGalleryItemInlineAction(input: {
   revalidateCircleCardPaths(card.slug);
 
   return { ok: true, notice: "Gallery image deleted" };
+}
+
+export async function upsertCircleCardProductItemInlineAction(
+  formData: FormData
+): Promise<CircleCardProductInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardProductItemFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    productItemId: formData.get("productItemId") ?? "",
+    title: formData.get("title"),
+    description: formData.get("description"),
+    price: formData.get("price"),
+    salePrice: formData.get("salePrice") ?? "",
+    imageUrl: formData.get("imageUrl") ?? "",
+    category: formData.get("category") ?? "",
+    ctaLabel: formData.get("ctaLabel"),
+    ctaUrl: formData.get("ctaUrl"),
+    isFeatured: formData.get("isFeatured"),
+    isActive: formData.get("isActive")
+  });
+
+  if (!parsed.success) {
+    return inlineCircleCardProductError(
+      "product-invalid",
+      parsed.error.issues[0]?.message ?? "Check the product fields and try again."
+    );
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardProductError(
+      "products-locked",
+      "Products are included with Circle Card Pro."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card) {
+    return inlineCircleCardProductError("card-not-found", "That Circle Card could not be found.");
+  }
+  if (card.cardType !== "BUSINESS") {
+    return inlineCircleCardProductError(
+      "products-business-card-required",
+      "Products can only be added to a Business Card."
+    );
+  }
+
+  const products = readCircleCardProductItems(card.contentBlocks);
+  const existingIndex = parsed.data.productItemId
+    ? products.findIndex((product) => product.id === parsed.data.productItemId)
+    : -1;
+
+  if (parsed.data.productItemId && existingIndex < 0) {
+    return inlineCircleCardProductError(
+      "product-not-found",
+      "That product could not be found on this Business Card."
+    );
+  }
+  if (existingIndex < 0 && products.length >= CIRCLE_CARD_PRODUCT_PRO_LIMIT) {
+    return inlineCircleCardProductError(
+      "product-limit",
+      `Circle Card Pro can keep up to ${CIRCLE_CARD_PRODUCT_PRO_LIMIT} products.`
+    );
+  }
+
+  const product: CircleCardProductItem = {
+    id: existingIndex >= 0 ? products[existingIndex].id : randomBytes(12).toString("hex"),
+    title: parsed.data.title,
+    description: parsed.data.description,
+    price: parsed.data.price,
+    salePrice: parsed.data.salePrice || null,
+    imageUrl: parsed.data.imageUrl || null,
+    category: parsed.data.category || null,
+    ctaLabel: parsed.data.ctaLabel,
+    ctaUrl: parsed.data.ctaUrl,
+    isFeatured: parsed.data.isFeatured,
+    isActive: parsed.data.isActive,
+    sortOrder: existingIndex >= 0 ? products[existingIndex].sortOrder : products.length
+  };
+  const nextProducts = [...products];
+
+  if (existingIndex >= 0) {
+    nextProducts[existingIndex] = product;
+  } else {
+    nextProducts.push(product);
+  }
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardProductItems(card.contentBlocks, nextProducts) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return { ok: true, notice: "Product saved", item: product };
+  } catch {
+    return inlineCircleCardProductError(
+      "product-save-failed",
+      "The product could not be saved. Your current product is still shown."
+    );
+  }
+}
+
+export async function toggleCircleCardProductItemInlineAction(input: {
+  cardId: string;
+  productItemId: string;
+}): Promise<CircleCardProductInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardProductItemIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardProductError("product-invalid", "Check the product and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardProductError(
+      "products-locked",
+      "Products are included with Circle Card Pro."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardProductError(
+      card ? "products-business-card-required" : "card-not-found",
+      card ? "Products can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const products = readCircleCardProductItems(card.contentBlocks);
+  const itemIndex = products.findIndex((product) => product.id === parsed.data.productItemId);
+  if (itemIndex < 0) {
+    return inlineCircleCardProductError(
+      "product-not-found",
+      "That product could not be found on this Business Card."
+    );
+  }
+
+  products[itemIndex] = { ...products[itemIndex], isActive: !products[itemIndex].isActive };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardProductItems(card.contentBlocks, products) }
+  });
+  revalidateCircleCardPaths(card.slug);
+
+  return {
+    ok: true,
+    notice: products[itemIndex].isActive ? "Product shown" : "Product hidden",
+    item: products[itemIndex]
+  };
+}
+
+export async function deleteCircleCardProductItemInlineAction(input: {
+  cardId: string;
+  productItemId: string;
+}): Promise<CircleCardProductInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardProductItemIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return inlineCircleCardProductError("product-invalid", "Check the product and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardProductError(
+      "products-locked",
+      "Products are included with Circle Card Pro."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardProductError(
+      card ? "products-business-card-required" : "card-not-found",
+      card ? "Products can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const products = readCircleCardProductItems(card.contentBlocks);
+  const nextProducts = products.filter((product) => product.id !== parsed.data.productItemId);
+  if (nextProducts.length === products.length) {
+    return inlineCircleCardProductError(
+      "product-not-found",
+      "That product could not be found on this Business Card."
+    );
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardProductItems(card.contentBlocks, nextProducts) }
+  });
+  revalidateCircleCardPaths(card.slug);
+
+  return { ok: true, notice: "Product deleted" };
 }
 
 export async function upsertCircleCardReviewItemInlineAction(

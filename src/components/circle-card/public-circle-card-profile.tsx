@@ -1774,6 +1774,81 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderProductsSection({ id = "business-products" }: { id?: string } = {}) {
+    if (card.cardType !== "BUSINESS" || !card.products.length) {
+      return null;
+    }
+
+    return (
+      <section
+        id={id}
+        aria-labelledby={`${id}-title`}
+        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Products</p>
+            <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">
+              Explore our products
+            </h2>
+          </div>
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+            <ShoppingBag size={18} />
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {card.products.map((product) => (
+            <article
+              key={product.id}
+              className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]"
+            >
+              {product.imageUrl ? (
+                <img
+                  src={product.imageUrl}
+                  alt={product.title}
+                  loading="lazy"
+                  className="aspect-[4/3] h-auto w-full border-b border-silver/12 bg-background/40 object-cover"
+                />
+              ) : null}
+              <div className="flex flex-1 flex-col p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    {product.category ? <p className="text-xs font-medium text-gold">{product.category}</p> : null}
+                    <h3 className="mt-1 text-base font-semibold text-foreground">{product.title}</h3>
+                  </div>
+                  {product.isFeatured ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-gold/20 bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold">
+                      <Star size={11} /> Featured
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-3 flex flex-wrap items-baseline gap-2">
+                  {product.salePrice ? (
+                    <>
+                      <span className="text-lg font-semibold text-gold">{product.salePrice}</span>
+                      <span className="text-sm text-muted line-through">{product.price}</span>
+                    </>
+                  ) : (
+                    <span className="text-lg font-semibold text-gold">{product.price}</span>
+                  )}
+                </div>
+                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">{product.description}</p>
+                <a
+                  {...getExternalLinkProps(product.ctaUrl)}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 h-10 w-full gap-2 sm:w-fit")}
+                >
+                  {product.ctaLabel}
+                  <ChevronRight size={14} />
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   function renderOpeningHoursSection({ id = "business-opening-hours" }: { id?: string } = {}) {
     if (card.cardType !== "BUSINESS" || !card.openingHours) {
       return null;
@@ -2124,6 +2199,7 @@ export function PublicCircleCardProfile({
             {renderTrustScoreCard({ reviewsId: "classic-reviews" })}
             {renderAboutSection({ id: "classic-about" })}
             {renderServicesSection({ id: "classic-services" })}
+            {renderProductsSection({ id: "classic-products" })}
             {renderGallerySection({ id: "classic-gallery" })}
             {renderReviewsSection({ id: "classic-reviews" })}
             {renderOpeningHoursSection({ id: "classic-opening-hours" })}
@@ -2364,6 +2440,7 @@ export function PublicCircleCardProfile({
             {renderTrustScoreCard({ reviewsId: "creator-reviews" })}
             {renderAboutSection({ id: "creator-about" })}
             {renderServicesSection({ id: "creator-services" })}
+            {renderProductsSection({ id: "creator-products" })}
             {renderGallerySection({ id: "creator-gallery" })}
             {renderReviewsSection({ id: "creator-reviews" })}
             {renderOpeningHoursSection({ id: "creator-opening-hours" })}
@@ -2677,6 +2754,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "business-about" })}
             {renderBusinessHighlightsSection()}
             {renderServicesSection()}
+            {renderProductsSection()}
             {renderGallerySection()}
             {renderReviewsSection()}
             {renderOpeningHoursSection()}

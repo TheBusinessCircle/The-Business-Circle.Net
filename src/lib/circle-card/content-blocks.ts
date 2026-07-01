@@ -81,7 +81,7 @@ export const CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS = [
     type: "PRODUCTS",
     family: "BUSINESS",
     label: "Products",
-    publicEditingEnabled: false
+    publicEditingEnabled: true
   },
   {
     type: "PRICE_LIST",
@@ -150,6 +150,23 @@ export type CircleCardServiceItem = {
 };
 
 export const CIRCLE_CARD_SERVICE_LIMIT = 12;
+
+export type CircleCardProductItem = {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  salePrice: string | null;
+  imageUrl: string | null;
+  category: string | null;
+  ctaLabel: string;
+  ctaUrl: string;
+  isActive: boolean;
+  isFeatured: boolean;
+  sortOrder: number;
+};
+
+export const CIRCLE_CARD_PRODUCT_PRO_LIMIT = 100;
 
 export type CircleCardGalleryItem = {
   id: string;
@@ -272,6 +289,52 @@ export const circleCardServiceFormSchema = z.object({
 export const circleCardServiceIdSchema = z.object({
   cardId: z.string().cuid(),
   serviceId: z.string().trim().min(1).max(64)
+});
+
+const productImageUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .optional()
+  .or(z.literal(""))
+  .refine((value) => !value || isSafeCircleCardImageUrl(value), {
+    message: "Upload a valid product image."
+  });
+
+const productExternalUrlSchema = z
+  .string()
+  .trim()
+  .min(1, "Add a CTA URL.")
+  .max(2048)
+  .transform((value) => normalizeCircleCardUrl(value))
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: "Use an external http or https URL."
+  });
+
+export const circleCardProductItemFormSchema = z.object({
+  cardId: z.string().cuid(),
+  productItemId: z.string().trim().max(64).optional().or(z.literal("")),
+  title: z.string().trim().min(1, "Add a product title.").max(100),
+  description: z.string().trim().min(1, "Add a short description.").max(500),
+  price: z.string().trim().min(1, "Add a price.").max(60),
+  salePrice: z.string().trim().max(60).optional().or(z.literal("")),
+  imageUrl: productImageUrlSchema,
+  category: z.string().trim().max(60).optional().or(z.literal("")),
+  ctaLabel: z.string().trim().min(1, "Add CTA button text.").max(40),
+  ctaUrl: productExternalUrlSchema,
+  isFeatured: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  ),
+  isActive: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  )
+});
+
+export const circleCardProductItemIdSchema = z.object({
+  cardId: z.string().cuid(),
+  productItemId: z.string().trim().min(1).max(64)
 });
 
 export function isValidCircleCardGalleryImageUrl(value: unknown): value is string {
@@ -629,6 +692,100 @@ export function visibleCircleCardServices(input: {
     : [];
 }
 
+function readSafeProductImageUrl(value: unknown) {
+  return isSafeCircleCardImageUrl(value) ? value.trim() : null;
+}
+
+export function readCircleCardProductItems(value: unknown): CircleCardProductItem[] {
+  if (!isRecord(value) || !isRecord(value.business) || !isRecord(value.business.PRODUCTS)) {
+    return [];
+  }
+
+  const items = value.business.PRODUCTS.items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .flatMap((item, index) => {
+      if (!isRecord(item)) {
+        return [];
+      }
+
+      const id = typeof item.id === "string" ? item.id.trim() : "";
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+      const description = typeof item.description === "string" ? item.description.trim() : "";
+      const price = typeof item.price === "string" ? item.price.trim() : "";
+      const ctaLabel = typeof item.ctaLabel === "string" ? item.ctaLabel.trim() : "";
+      const ctaUrl = readSafeServiceUrl(item.ctaUrl);
+
+      if (!id || !title || !description || !price || !ctaLabel || !ctaUrl) {
+        return [];
+      }
+
+      return [{
+        id,
+        title: title.slice(0, 100),
+        description: description.slice(0, 500),
+        price: price.slice(0, 60),
+        salePrice:
+          typeof item.salePrice === "string" && item.salePrice.trim()
+            ? item.salePrice.trim().slice(0, 60)
+            : null,
+        imageUrl: readSafeProductImageUrl(item.imageUrl),
+        category:
+          typeof item.category === "string" && item.category.trim()
+            ? item.category.trim().slice(0, 60)
+            : null,
+        ctaLabel: ctaLabel.slice(0, 40),
+        ctaUrl,
+        isActive: item.isActive !== false,
+        isFeatured: item.isFeatured === true,
+        sortOrder:
+          typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+            ? item.sortOrder
+            : index
+      } satisfies CircleCardProductItem];
+    })
+    .sort((left, right) => left.sortOrder - right.sortOrder);
+}
+
+export function writeCircleCardProductItems(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  products: CircleCardProductItem[]
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const business = isRecord(root.business) ? root.business : {};
+  const currentProducts = isRecord(business.PRODUCTS) ? business.PRODUCTS : {};
+
+  return {
+    ...root,
+    business: {
+      ...business,
+      PRODUCTS: {
+        ...currentProducts,
+        items: products.map((product, index) => ({
+          ...product,
+          sortOrder: index
+        }))
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardProductItems(input: {
+  cardType: string;
+  contentBlocks: unknown;
+}) {
+  return input.cardType === "BUSINESS"
+    ? readCircleCardProductItems(input.contentBlocks)
+        .filter((product) => product.isActive)
+        .sort((left, right) =>
+          Number(right.isFeatured) - Number(left.isFeatured) || left.sortOrder - right.sortOrder
+        )
+    : [];
+}
+
 function readSafeGalleryImageUrl(value: unknown) {
   return isValidCircleCardGalleryImageUrl(value) ? value.trim() : null;
 }
@@ -833,6 +990,7 @@ export type CircleCardServicesBuilderMode = "hidden" | "locked" | "enabled" | "p
 export type CircleCardOpeningHoursBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardGalleryBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardReviewsBuilderMode = CircleCardServicesBuilderMode;
+export type CircleCardProductsBuilderMode = CircleCardServicesBuilderMode;
 
 export function resolveCircleCardServicesBuilderMode(input: {
   cardType?: string | null;
@@ -873,6 +1031,15 @@ export function resolveCircleCardReviewsBuilderMode(input: {
   isPlatformOwner?: boolean;
   platformPreviewCardType?: string | null;
 }): CircleCardReviewsBuilderMode {
+  return resolveCircleCardServicesBuilderMode(input);
+}
+
+export function resolveCircleCardProductsBuilderMode(input: {
+  cardType?: string | null;
+  hasProAccess: boolean;
+  isPlatformOwner?: boolean;
+  platformPreviewCardType?: string | null;
+}): CircleCardProductsBuilderMode {
   return resolveCircleCardServicesBuilderMode(input);
 }
 

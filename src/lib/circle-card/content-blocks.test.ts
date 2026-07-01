@@ -3,24 +3,30 @@ import {
   circleCardOpeningHoursDayLabel,
   circleCardGalleryItemFormSchema,
   circleCardReviewItemFormSchema,
+  circleCardProductItemFormSchema,
   createCircleCardOpeningHoursPreset,
   isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
+  readCircleCardProductItems,
   readCircleCardServices,
   readCircleCardReviewItems,
   resolveCircleCardGalleryBuilderMode,
   resolveCircleCardOpeningHoursBuilderMode,
+  resolveCircleCardProductsBuilderMode,
   resolveCircleCardServicesBuilderMode,
   resolveCircleCardReviewsBuilderMode,
   visibleCircleCardOpeningHours,
+  visibleCircleCardProductItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardServices,
   visibleCircleCardReviewItems,
   writeCircleCardOpeningHours,
+  writeCircleCardProductItems,
   writeCircleCardGalleryItems,
   writeCircleCardServices,
   writeCircleCardReviewItems,
   type CircleCardGalleryItem,
+  type CircleCardProductItem,
   type CircleCardServiceItem,
   type CircleCardReviewItem
 } from "@/lib/circle-card/content-blocks";
@@ -61,6 +67,37 @@ const hiddenService: CircleCardServiceItem = {
   title: "Hidden service",
   isActive: false,
   sortOrder: 1
+};
+
+const activeProduct: CircleCardProductItem = {
+  id: "product-active",
+  title: "Business toolkit",
+  description: "A practical toolkit for business owners.",
+  price: "£49",
+  salePrice: "£39",
+  imageUrl: "/uploads/circle-card/toolkit.webp",
+  category: "Digital products",
+  ctaLabel: "Buy Now",
+  ctaUrl: "https://example.com/toolkit",
+  isActive: true,
+  isFeatured: false,
+  sortOrder: 0
+};
+
+const featuredProduct: CircleCardProductItem = {
+  ...activeProduct,
+  id: "product-featured",
+  title: "Featured toolkit",
+  isFeatured: true,
+  sortOrder: 1
+};
+
+const hiddenProduct: CircleCardProductItem = {
+  ...activeProduct,
+  id: "product-hidden",
+  title: "Hidden toolkit",
+  isActive: false,
+  sortOrder: 2
 };
 
 const activeReview: CircleCardReviewItem = {
@@ -123,6 +160,59 @@ describe("Circle Card services content block", () => {
 
     expect(contentBlocks.creator).toEqual({ CURRENT_OFFER: { title: "Existing offer" } });
     expect(contentBlocks.business).toMatchObject({ PRODUCTS: { items: [{ id: "product-1" }] } });
+  });
+});
+
+describe("Circle Card products content block", () => {
+  it("stores products under business.PRODUCTS.items and preserves other blocks", () => {
+    const withServices = writeCircleCardServices({}, [activeService]);
+    const contentBlocks = writeCircleCardProductItems(withServices, [activeProduct]);
+
+    expect(contentBlocks).toMatchObject({
+      business: { PRODUCTS: { items: [activeProduct] } }
+    });
+    expect(readCircleCardServices(contentBlocks)).toEqual([activeService]);
+    expect(readCircleCardProductItems(contentBlocks)).toEqual([activeProduct]);
+  });
+
+  it("renders active featured products first on Business Cards only", () => {
+    const contentBlocks = writeCircleCardProductItems({}, [activeProduct, featuredProduct, hiddenProduct]);
+
+    expect(visibleCircleCardProductItems({ cardType: "BUSINESS", contentBlocks })).toEqual([
+      featuredProduct,
+      activeProduct
+    ]);
+    expect(visibleCircleCardProductItems({ cardType: "PERSONAL", contentBlocks })).toEqual([]);
+    expect(visibleCircleCardProductItems({ cardType: "CREATOR", contentBlocks })).toEqual([]);
+  });
+
+  it("uses the shared Business Card Pro access mode", () => {
+    expect(resolveCircleCardProductsBuilderMode({ cardType: "BUSINESS", hasProAccess: true })).toBe("enabled");
+    expect(resolveCircleCardProductsBuilderMode({ cardType: "BUSINESS", hasProAccess: false })).toBe("locked");
+    expect(resolveCircleCardProductsBuilderMode({ cardType: "PERSONAL", hasProAccess: true })).toBe("hidden");
+    expect(resolveCircleCardProductsBuilderMode({ cardType: "CREATOR", hasProAccess: true })).toBe("hidden");
+  });
+
+  it("requires product content and an external CTA URL", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      productItemId: "",
+      title: "Business toolkit",
+      description: "A practical toolkit.",
+      price: "£49",
+      salePrice: "£39",
+      imageUrl: "/uploads/circle-card/toolkit.webp",
+      category: "Digital",
+      ctaLabel: "Buy Now",
+      ctaUrl: "https://example.com/toolkit",
+      isFeatured: true,
+      isActive: true
+    };
+
+    expect(circleCardProductItemFormSchema.safeParse(base).success).toBe(true);
+    expect(circleCardProductItemFormSchema.safeParse({ ...base, price: "" }).success).toBe(false);
+    expect(circleCardProductItemFormSchema.safeParse({ ...base, ctaUrl: "/checkout" }).success).toBe(false);
+    expect(circleCardProductItemFormSchema.safeParse({ ...base, ctaUrl: "javascript:alert(1)" }).success).toBe(false);
   });
 });
 

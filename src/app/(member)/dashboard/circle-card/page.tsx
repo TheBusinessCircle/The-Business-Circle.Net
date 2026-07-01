@@ -96,6 +96,7 @@ import {
   CircleCardImageUploadField,
   CircleCardInstallPrompt,
   CircleCardPlanPanel,
+  CircleCardProductsManager,
   CircleCardQrPanel,
   CircleCardReviewsManager,
   CircleCardSaveForm,
@@ -191,6 +192,7 @@ import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_OPENING_HOURS_PRESETS,
+  CIRCLE_CARD_PRODUCT_PRO_LIMIT,
   CIRCLE_CARD_REVIEW_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
@@ -200,15 +202,19 @@ import {
   isValidCircleCardReviewItem,
   readCircleCardGalleryItems,
   readCircleCardOpeningHours,
+  readCircleCardProductItems,
   readCircleCardReviewItems,
   readCircleCardServices,
   resolveCircleCardOpeningHoursBuilderMode,
+  resolveCircleCardProductsBuilderMode,
   resolveCircleCardGalleryBuilderMode,
   resolveCircleCardReviewsBuilderMode,
   resolveCircleCardServicesBuilderMode,
   type CircleCardOpeningHours,
   type CircleCardOpeningHoursBuilderMode,
   type CircleCardOpeningHoursPreset,
+  type CircleCardProductsBuilderMode,
+  type CircleCardProductItem,
   type CircleCardReviewsBuilderMode,
   type CircleCardReviewItem,
   type CircleCardGalleryBuilderMode,
@@ -1006,6 +1012,48 @@ function CircleCardServicesBuilder({
   );
 }
 
+function CircleCardProductsBuilder({
+  mode,
+  cardId,
+  cardName,
+  products
+}: {
+  mode: CircleCardProductsBuilderMode;
+  cardId: string;
+  cardName: string;
+  products: CircleCardProductItem[];
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-products" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Products are included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add and manage products on this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview") {
+    return (
+      <div id="business-card-products" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Products Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add products. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+
+  return <CircleCardProductsManager cardId={cardId} cardName={cardName} initialItems={products} />;
+}
+
 function CircleCardGalleryBuilder({
   mode,
   cardId,
@@ -1314,6 +1362,8 @@ function BusinessCardBuilderFoundation({
   cardId,
   servicesMode,
   services,
+  productsMode,
+  products,
   galleryMode,
   galleryItems,
   reviewsMode,
@@ -1334,6 +1384,8 @@ function BusinessCardBuilderFoundation({
   cardId: string;
   servicesMode: CircleCardServicesBuilderMode;
   services: CircleCardServiceItem[];
+  productsMode: CircleCardProductsBuilderMode;
+  products: CircleCardProductItem[];
   galleryMode: CircleCardGalleryBuilderMode;
   galleryItems: CircleCardGalleryItem[];
   reviewsMode: CircleCardReviewsBuilderMode;
@@ -1398,12 +1450,14 @@ function BusinessCardBuilderFoundation({
     }
   ];
   const activeServiceCount = services.filter((service) => service.isActive).length;
+  const activeProductCount = products.filter((product) => product.isActive).length;
   const activeGalleryCount = galleryItems.filter((item) => item.isActive).length;
   const activeReviewCount = reviews.filter(
     (item) => item.isActive && isValidCircleCardReviewItem(item)
   ).length;
   const moduleHrefs = {
     services: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-services" }),
+    products: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-products" }),
     gallery: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-gallery" }),
     reviews: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-reviews" }),
     openingHours: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-opening-hours" })
@@ -1416,6 +1470,14 @@ function BusinessCardBuilderFoundation({
       status: services.length ? `${activeServiceCount} active` : "0 services",
       action: services.length ? "Manage Services" : "Add your first service",
       href: moduleHrefs.services
+    },
+    {
+      type: "PRODUCTS",
+      label: "Products",
+      description: "Show products, prices and external buying or enquiry routes.",
+      status: products.length ? `${activeProductCount} active` : "0 products",
+      action: products.length ? "Manage Products" : "Add first product",
+      href: moduleHrefs.products
     },
     {
       type: "GALLERY_PORTFOLIO",
@@ -1493,6 +1555,12 @@ function BusinessCardBuilderFoundation({
           cardName={businessName || "Selected Business Card"}
           services={services}
         />
+        <CircleCardProductsBuilder
+          mode={productsMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          products={products}
+        />
         <CircleCardGalleryBuilder
           mode={galleryMode}
           cardId={cardId}
@@ -1527,13 +1595,20 @@ function BusinessCardBuilderFoundation({
             </p>
           </div>
 
-          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <Link
               href={moduleHrefs.services}
               className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
             >
               <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Services</span>
               <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{Math.min(activeServiceCount, 3)} / 3</span>
+            </Link>
+            <Link
+              href={moduleHrefs.products}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Products</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{products.length} / {CIRCLE_CARD_PRODUCT_PRO_LIMIT}</span>
             </Link>
             <Link
               href={moduleHrefs.openingHours}
@@ -1624,6 +1699,13 @@ function BusinessCardBuilderFoundation({
             cardId={cardId}
             cardName={businessName || "Selected Business Card"}
             services={services}
+          />
+
+          <CircleCardProductsBuilder
+            mode={productsMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            products={products}
           />
 
           <CircleCardGalleryBuilder
@@ -4255,6 +4337,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isPlatformOwner,
     platformPreviewCardType: selectedOwnerCardTypePreviewMode
   });
+  const productsBuilderMode = resolveCircleCardProductsBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
   const openingHoursBuilderMode = resolveCircleCardOpeningHoursBuilderMode({
     cardType: card?.cardType,
     hasProAccess: !isCircleCardFree,
@@ -4276,6 +4364,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardServices = card?.cardType === "BUSINESS"
     ? readCircleCardServices(card.contentBlocks)
     : [];
+  const selectedCardProducts = card?.cardType === "BUSINESS"
+    ? readCircleCardProductItems(card.contentBlocks)
+    : [];
   const selectedCardGalleryItems = card?.cardType === "BUSINESS"
     ? readCircleCardGalleryItems(card.contentBlocks)
     : [];
@@ -4295,6 +4386,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     : null;
   const showBusinessCardBuilder =
     servicesBuilderMode !== "hidden" ||
+    productsBuilderMode !== "hidden" ||
     galleryBuilderMode !== "hidden" ||
     reviewsBuilderMode !== "hidden" ||
     openingHoursBuilderMode !== "hidden";
@@ -8178,6 +8270,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           cardId={card.id}
           servicesMode={servicesBuilderMode}
           services={selectedCardServices}
+          productsMode={productsBuilderMode}
+          products={selectedCardProducts}
           galleryMode={galleryBuilderMode}
           galleryItems={selectedCardGalleryItems}
           reviewsMode={reviewsBuilderMode}

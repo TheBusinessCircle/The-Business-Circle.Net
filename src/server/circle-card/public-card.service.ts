@@ -11,10 +11,12 @@ import { SITE_CONFIG } from "@/config/site";
 import {
   visibleCircleCardGalleryItems,
   visibleCircleCardOpeningHours,
+  visibleCircleCardProductItems,
   visibleCircleCardReviewItems,
   visibleCircleCardServices,
   type CircleCardGalleryItem,
   type CircleCardOpeningHours,
+  type CircleCardProductItem,
   type CircleCardReviewItem,
   type CircleCardServiceItem
 } from "@/lib/circle-card/content-blocks";
@@ -109,6 +111,7 @@ export type PublicCircleCard = {
   location: string | null;
   socialLinks: CircleCardSocialLinks;
   services: CircleCardServiceItem[];
+  products: CircleCardProductItem[];
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
   approvedWalletTestimonialCount: number;
@@ -171,6 +174,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     youtube: SITE_CONFIG.social.youtube
   } as Prisma.JsonObject),
   services: [],
+  products: [],
   galleryItems: [],
   reviews: [],
   approvedWalletTestimonialCount: 0,
@@ -436,6 +440,15 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       imageUrl: await resolvePublicUploadImageUrl(service.imageUrl, SITE_CONFIG.url)
     }))
   );
+  const products = await Promise.all(
+    visibleCircleCardProductItems({
+      cardType: card.cardType,
+      contentBlocks: card.contentBlocks
+    }).map(async (product) => ({
+      ...product,
+      imageUrl: await resolvePublicUploadImageUrl(product.imageUrl, SITE_CONFIG.url)
+    }))
+  );
   const galleryItems = (
     await Promise.all(
       visibleCircleCardGalleryItems({
@@ -502,6 +515,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     services,
+    products,
     galleryItems,
     reviews,
     approvedWalletTestimonialCount,
