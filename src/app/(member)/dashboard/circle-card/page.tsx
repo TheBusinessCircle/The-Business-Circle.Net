@@ -99,6 +99,7 @@ import {
   CircleCardInstallPrompt,
   CircleCardPlanPanel,
   CircleCardProductsManager,
+  CircleCardPriceListManager,
   CircleCardQrPanel,
   CircleCardReviewsManager,
   CircleCardSaveForm,
@@ -208,12 +209,14 @@ import {
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
   readCircleCardProductItems,
+  readCircleCardPriceListItems,
   readCircleCardReviewItems,
   readCircleCardServices,
   resolveCircleCardOpeningHoursBuilderMode,
   resolveCircleCardBookingBuilderMode,
   resolveCircleCardDocumentsBuilderMode,
   resolveCircleCardProductsBuilderMode,
+  resolveCircleCardPriceListBuilderMode,
   resolveCircleCardGalleryBuilderMode,
   resolveCircleCardReviewsBuilderMode,
   resolveCircleCardServicesBuilderMode,
@@ -226,6 +229,8 @@ import {
   type CircleCardOpeningHoursPreset,
   type CircleCardProductsBuilderMode,
   type CircleCardProductItem,
+  type CircleCardPriceListBuilderMode,
+  type CircleCardPriceListItem,
   type CircleCardReviewsBuilderMode,
   type CircleCardReviewItem,
   type CircleCardGalleryBuilderMode,
@@ -1065,6 +1070,43 @@ function CircleCardProductsBuilder({
   return <CircleCardProductsManager cardId={cardId} cardName={cardName} initialItems={products} />;
 }
 
+function CircleCardPriceListBuilder({
+  mode,
+  cardId,
+  cardName,
+  priceItems
+}: {
+  mode: CircleCardPriceListBuilderMode;
+  cardId: string;
+  cardName: string;
+  priceItems: CircleCardPriceListItem[];
+}) {
+  if (mode === "hidden") return null;
+  if (mode === "locked") {
+    return (
+      <div id="business-card-price-list" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Price List is included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add and manage prices on this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (mode === "preview") {
+    return (
+      <div id="business-card-price-list" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Price List Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add prices. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+  return <CircleCardPriceListManager cardId={cardId} cardName={cardName} initialItems={priceItems} />;
+}
+
 function CircleCardBookingBuilder({
   mode,
   cardId,
@@ -1459,6 +1501,8 @@ function BusinessCardBuilderFoundation({
   services,
   productsMode,
   products,
+  priceListMode,
+  priceItems,
   bookingMode,
   booking,
   documentsMode,
@@ -1485,6 +1529,8 @@ function BusinessCardBuilderFoundation({
   services: CircleCardServiceItem[];
   productsMode: CircleCardProductsBuilderMode;
   products: CircleCardProductItem[];
+  priceListMode: CircleCardPriceListBuilderMode;
+  priceItems: CircleCardPriceListItem[];
   bookingMode: CircleCardBookingBuilderMode;
   booking: CircleCardBookingEnquiry | null;
   documentsMode: CircleCardDocumentsBuilderMode;
@@ -1554,6 +1600,7 @@ function BusinessCardBuilderFoundation({
   ];
   const activeServiceCount = services.filter((service) => service.isActive).length;
   const activeProductCount = products.filter((product) => product.isActive).length;
+  const activePriceCount = priceItems.filter((item) => item.isActive).length;
   const activeDocumentCount = documents.filter((document) => document.isActive).length;
   const activeGalleryCount = galleryItems.filter((item) => item.isActive).length;
   const activeReviewCount = reviews.filter(
@@ -1562,6 +1609,7 @@ function BusinessCardBuilderFoundation({
   const moduleHrefs = {
     services: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-services" }),
     products: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-products" }),
+    priceList: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-price-list" }),
     booking: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-booking" }),
     documents: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-downloads" }),
     gallery: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-gallery" }),
@@ -1584,6 +1632,14 @@ function BusinessCardBuilderFoundation({
       status: products.length ? `${activeProductCount} active` : "0 products",
       action: products.length ? "Manage Products" : "Add first product",
       href: moduleHrefs.products
+    },
+    {
+      type: "PRICE_LIST",
+      label: "Price List",
+      description: "Share service, package, session and starting-price guidance.",
+      status: priceItems.length ? `${activePriceCount} active` : "0 prices",
+      action: priceItems.length ? "Manage Price List" : "Add first price",
+      href: moduleHrefs.priceList
     },
     {
       type: "BOOKING_ENQUIRY_LINK",
@@ -1683,6 +1739,12 @@ function BusinessCardBuilderFoundation({
           cardName={businessName || "Selected Business Card"}
           products={products}
         />
+        <CircleCardPriceListBuilder
+          mode={priceListMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          priceItems={priceItems}
+        />
         <CircleCardBookingBuilder
           mode={bookingMode}
           cardId={cardId}
@@ -1729,7 +1791,7 @@ function BusinessCardBuilderFoundation({
             </p>
           </div>
 
-          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
+          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
             <Link
               href={moduleHrefs.services}
               className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
@@ -1750,6 +1812,13 @@ function BusinessCardBuilderFoundation({
             >
               <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Booking</span>
               <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{booking?.isActive && booking.showOnPublicCard ? "Active" : booking ? "Hidden" : "Not set"}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.priceList}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Prices</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{activePriceCount} active</span>
             </Link>
             <Link
               href={moduleHrefs.documents}
@@ -1854,6 +1923,13 @@ function BusinessCardBuilderFoundation({
             cardId={cardId}
             cardName={businessName || "Selected Business Card"}
             products={products}
+          />
+
+          <CircleCardPriceListBuilder
+            mode={priceListMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            priceItems={priceItems}
           />
 
           <CircleCardBookingBuilder
@@ -4505,6 +4581,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isPlatformOwner,
     platformPreviewCardType: selectedOwnerCardTypePreviewMode
   });
+  const priceListBuilderMode = resolveCircleCardPriceListBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
   const bookingBuilderMode = resolveCircleCardBookingBuilderMode({
     cardType: card?.cardType,
     hasProAccess: !isCircleCardFree,
@@ -4541,6 +4623,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardProducts = card?.cardType === "BUSINESS"
     ? readCircleCardProductItems(card.contentBlocks)
     : [];
+  const selectedCardPriceItems = card?.cardType === "BUSINESS"
+    ? readCircleCardPriceListItems(card.contentBlocks)
+    : [];
   const selectedCardBooking = card?.cardType === "BUSINESS"
     ? readCircleCardBookingEnquiry(card.contentBlocks)
     : null;
@@ -4567,6 +4652,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const showBusinessCardBuilder =
     servicesBuilderMode !== "hidden" ||
     productsBuilderMode !== "hidden" ||
+    priceListBuilderMode !== "hidden" ||
     bookingBuilderMode !== "hidden" ||
     documentsBuilderMode !== "hidden" ||
     galleryBuilderMode !== "hidden" ||
@@ -8454,6 +8540,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           services={selectedCardServices}
           productsMode={productsBuilderMode}
           products={selectedCardProducts}
+          priceListMode={priceListBuilderMode}
+          priceItems={selectedCardPriceItems}
           bookingMode={bookingBuilderMode}
           booking={selectedCardBooking}
           documentsMode={documentsBuilderMode}

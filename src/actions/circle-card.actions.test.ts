@@ -60,7 +60,10 @@ vi.mock("@/server/circle-card/smart-profile-import.service", () => ({
   scanCircleCardSmartImportUrls: vi.fn()
 }));
 
-import { upsertCircleCardAction } from "@/actions/circle-card.actions";
+import {
+  upsertCircleCardAction,
+  upsertCircleCardPriceListItemInlineAction
+} from "@/actions/circle-card.actions";
 import { initialCircleCardSaveActionState } from "@/lib/circle-card/save-action-state";
 
 function validCircleCardForm(overrides: Record<string, string> = {}) {
@@ -315,5 +318,73 @@ describe("upsertCircleCardAction", () => {
     });
     expect(result.fieldErrors?.slug).toEqual(["That public card link is already taken."]);
     expect(prismaMock.circleCard.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("Price List inline actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSignedInUser();
+  });
+
+  function validPriceListForm() {
+    const formData = new FormData();
+    formData.set("cardId", "clx0000000000000000000020");
+    formData.set("title", "Website Audit");
+    formData.set("description", "A focused website review.");
+    formData.set("price", "£249");
+    formData.set("priceNote", "One-off fixed price");
+    formData.set("category", "Audits");
+    formData.set("ctaLabel", "Get Started");
+    formData.set("ctaUrl", "https://example.com/pricing");
+    formData.set("isFeatured", "on");
+    formData.set("isActive", "on");
+    return formData;
+  }
+
+  it("saves a price item for an entitled Business Card", async () => {
+    prismaMock.circleCard.findFirst.mockResolvedValue({
+      id: "clx0000000000000000000020",
+      slug: "asha-business",
+      cardType: "BUSINESS",
+      contentBlocks: { business: { PRODUCTS: { items: [] } } }
+    });
+    prismaMock.circleCard.update.mockResolvedValue({});
+
+    const result = await upsertCircleCardPriceListItemInlineAction(validPriceListForm());
+
+    expect(result).toMatchObject({ ok: true, notice: "Price saved" });
+    expect(prismaMock.circleCard.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "clx0000000000000000000020" },
+        data: expect.objectContaining({
+          contentBlocks: expect.objectContaining({
+            business: expect.objectContaining({
+              PRICE_LIST: expect.objectContaining({ items: [expect.objectContaining({ title: "Website Audit", price: "£249" })] })
+            })
+          })
+        })
+      })
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/card/asha-business");
+  });
+
+  it("locks Price List editing for Circle Card Free", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user_123",
+      role: "MEMBER",
+      membershipTier: "FOUNDATION",
+      suspended: false,
+      subscription: null
+    });
+
+    const result = await upsertCircleCardPriceListItemInlineAction(validPriceListForm());
+
+    expect(result).toEqual({
+      ok: false,
+      error: "price-list-locked",
+      message: "Price List is included with Circle Card Pro."
+    });
+    expect(prismaMock.circleCard.update).not.toHaveBeenCalled();
   });
 });

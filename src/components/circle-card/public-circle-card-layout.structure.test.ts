@@ -33,6 +33,7 @@ describe("public Circle Card layout wiring", () => {
   it("keeps Business-only sections gated by persisted Business cardType", () => {
     expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.services.length');
     expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.products.length');
+    expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.priceItems.length');
     expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.documents.length');
     expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !booking');
     expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.openingHours');

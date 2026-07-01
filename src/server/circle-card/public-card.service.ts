@@ -14,6 +14,7 @@ import {
   visibleCircleCardGalleryItems,
   visibleCircleCardOpeningHours,
   visibleCircleCardProductItems,
+  visibleCircleCardPriceListItems,
   visibleCircleCardReviewItems,
   visibleCircleCardServices,
   type CircleCardBookingEnquiry,
@@ -21,6 +22,7 @@ import {
   type CircleCardGalleryItem,
   type CircleCardOpeningHours,
   type CircleCardProductItem,
+  type CircleCardPriceListItem,
   type CircleCardReviewItem,
   type CircleCardServiceItem
 } from "@/lib/circle-card/content-blocks";
@@ -116,6 +118,7 @@ export type PublicCircleCard = {
   socialLinks: CircleCardSocialLinks;
   services: CircleCardServiceItem[];
   products: CircleCardProductItem[];
+  priceItems: CircleCardPriceListItem[];
   documents: CircleCardDocumentItem[];
   bookingEnquiry: CircleCardBookingEnquiry | null;
   galleryItems: CircleCardGalleryItem[];
@@ -181,6 +184,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   } as Prisma.JsonObject),
   services: [],
   products: [],
+  priceItems: [],
   documents: [],
   bookingEnquiry: null,
   galleryItems: [],
@@ -457,6 +461,10 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       imageUrl: await resolvePublicUploadImageUrl(product.imageUrl, SITE_CONFIG.url)
     }))
   );
+  const priceItems = visibleCircleCardPriceListItems({
+    cardType: card.cardType,
+    contentBlocks: card.contentBlocks
+  });
   const documents = visibleCircleCardDocumentItems({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
@@ -532,6 +540,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     services,
     products,
+    priceItems,
     documents,
     bookingEnquiry,
     galleryItems,

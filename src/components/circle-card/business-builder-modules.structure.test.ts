@@ -15,6 +15,10 @@ const productsManager = readFileSync(
   join(root, "src/components/circle-card/circle-card-products-manager.tsx"),
   "utf8"
 );
+const priceListManager = readFileSync(
+  join(root, "src/components/circle-card/circle-card-price-list-manager.tsx"),
+  "utf8"
+);
 const bookingManager = readFileSync(
   join(root, "src/components/circle-card/circle-card-booking-manager.tsx"),
   "utf8"
@@ -37,6 +41,7 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).not.toContain("Foundation only");
     expect(dashboard).toContain('hash: "business-card-services"');
     expect(dashboard).toContain('hash: "business-card-products"');
+    expect(dashboard).toContain('hash: "business-card-price-list"');
     expect(dashboard).toContain('hash: "business-card-booking"');
     expect(dashboard).toContain('hash: "business-card-downloads"');
     expect(dashboard).toContain('hash: "business-card-gallery"');
@@ -50,6 +55,7 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).toContain("Manage Reviews");
     expect(dashboard).toContain("Reviews are included with Circle Card Pro.");
     expect(dashboard).toContain("Products are included with Circle Card Pro.");
+    expect(dashboard).toContain("Price List is included with Circle Card Pro.");
     expect(dashboard).toContain("Downloads are included with Circle Card Pro.");
     expect(dashboard).toContain("Booking / Enquiry is included with Circle Card Pro.");
   });
@@ -78,6 +84,15 @@ describe("Business Builder module launcher", () => {
     expect(publicProfile).toContain('loading="lazy"');
     expect(publicProfile).toContain("getExternalLinkProps(product.ctaUrl)");
     expect(publicProfile).toContain("product.salePrice");
+  });
+
+  it("manages and renders a Business-only Price List inline", () => {
+    expect(priceListManager).toContain('id="business-card-price-list"');
+    expect(priceListManager).toContain("upsertCircleCardPriceListItemInlineAction");
+    expect(priceListManager).toContain("Featured prices appear first publicly.");
+    expect(priceListManager).toContain("Reorder — Coming Soon");
+    expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.priceItems.length');
+    expect(publicProfile).toContain("getExternalLinkProps(item.ctaUrl)");
   });
 
   it("keeps document management inline inside the downloads module", () => {

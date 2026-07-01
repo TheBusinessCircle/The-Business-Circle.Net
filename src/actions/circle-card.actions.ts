@@ -68,6 +68,8 @@ import {
   circleCardOpeningHoursPresetSchema,
   circleCardProductItemFormSchema,
   circleCardProductItemIdSchema,
+  circleCardPriceListItemFormSchema,
+  circleCardPriceListItemIdSchema,
   circleCardServiceFormSchema,
   circleCardServiceIdSchema,
   createCircleCardOpeningHoursPreset,
@@ -77,6 +79,7 @@ import {
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
   readCircleCardProductItems,
+  readCircleCardPriceListItems,
   readCircleCardReviewItems,
   readCircleCardServices,
   writeCircleCardGalleryItems,
@@ -84,11 +87,13 @@ import {
   writeCircleCardDocumentItems,
   writeCircleCardOpeningHours,
   writeCircleCardProductItems,
+  writeCircleCardPriceListItems,
   type CircleCardGalleryItem,
   type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardOpeningHours,
   type CircleCardProductItem,
+  type CircleCardPriceListItem,
   type CircleCardReviewItem,
   writeCircleCardReviewItems,
   writeCircleCardServices
@@ -1057,6 +1062,18 @@ export type CircleCardProductInlineActionResult =
       message: string;
     };
 
+export type CircleCardPriceListInlineActionResult =
+  | {
+      ok: true;
+      notice: string;
+      item?: CircleCardPriceListItem;
+    }
+  | {
+      ok: false;
+      error: string;
+      message: string;
+    };
+
 export type CircleCardReviewInlineActionResult =
   | {
       ok: true;
@@ -1140,6 +1157,13 @@ function inlineCircleCardProductError(
   error: string,
   message: string
 ): CircleCardProductInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardPriceListError(
+  error: string,
+  message: string
+): CircleCardPriceListInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -3512,6 +3536,164 @@ export async function deleteCircleCardProductItemInlineAction(input: {
   revalidateCircleCardPaths(card.slug);
 
   return { ok: true, notice: "Product deleted" };
+}
+
+export async function upsertCircleCardPriceListItemInlineAction(
+  formData: FormData
+): Promise<CircleCardPriceListInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardPriceListItemFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    priceListItemId: formData.get("priceListItemId") ?? "",
+    title: formData.get("title"),
+    description: formData.get("description") ?? "",
+    price: formData.get("price"),
+    priceNote: formData.get("priceNote") ?? "",
+    category: formData.get("category") ?? "",
+    ctaLabel: formData.get("ctaLabel") ?? "",
+    ctaUrl: formData.get("ctaUrl") ?? "",
+    isFeatured: formData.get("isFeatured"),
+    isActive: formData.get("isActive")
+  });
+
+  if (!parsed.success) {
+    return inlineCircleCardPriceListError(
+      "price-list-invalid",
+      parsed.error.issues[0]?.message ?? "Check the price fields and try again."
+    );
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardPriceListError(
+      "price-list-locked",
+      "Price List is included with Circle Card Pro."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardPriceListError(
+      card ? "price-list-business-card-required" : "card-not-found",
+      card ? "Price List can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const priceItems = readCircleCardPriceListItems(card.contentBlocks);
+  const existingIndex = parsed.data.priceListItemId
+    ? priceItems.findIndex((item) => item.id === parsed.data.priceListItemId)
+    : -1;
+  if (parsed.data.priceListItemId && existingIndex < 0) {
+    return inlineCircleCardPriceListError(
+      "price-list-item-not-found",
+      "That price could not be found on this Business Card."
+    );
+  }
+
+  const priceItem: CircleCardPriceListItem = {
+    id: existingIndex >= 0 ? priceItems[existingIndex].id : randomBytes(12).toString("hex"),
+    title: parsed.data.title,
+    description: parsed.data.description || null,
+    price: parsed.data.price,
+    priceNote: parsed.data.priceNote || null,
+    category: parsed.data.category || null,
+    ctaLabel: parsed.data.ctaLabel || null,
+    ctaUrl: parsed.data.ctaUrl || null,
+    isFeatured: parsed.data.isFeatured,
+    isActive: parsed.data.isActive,
+    sortOrder: existingIndex >= 0 ? priceItems[existingIndex].sortOrder : priceItems.length
+  };
+  const nextItems = [...priceItems];
+  if (existingIndex >= 0) {
+    nextItems[existingIndex] = priceItem;
+  } else {
+    nextItems.push(priceItem);
+  }
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardPriceListItems(card.contentBlocks, nextItems) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return { ok: true, notice: "Price saved", item: priceItem };
+  } catch {
+    return inlineCircleCardPriceListError(
+      "price-list-save-failed",
+      "The price could not be saved. Your current price is still shown."
+    );
+  }
+}
+
+export async function toggleCircleCardPriceListItemInlineAction(input: {
+  cardId: string;
+  priceListItemId: string;
+}): Promise<CircleCardPriceListInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardPriceListItemIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardPriceListError("price-list-invalid", "Check the price and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardPriceListError("price-list-locked", "Price List is included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardPriceListError(
+      card ? "price-list-business-card-required" : "card-not-found",
+      card ? "Price List can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+  const priceItems = readCircleCardPriceListItems(card.contentBlocks);
+  const itemIndex = priceItems.findIndex((item) => item.id === parsed.data.priceListItemId);
+  if (itemIndex < 0) {
+    return inlineCircleCardPriceListError("price-list-item-not-found", "That price could not be found on this Business Card.");
+  }
+
+  priceItems[itemIndex] = { ...priceItems[itemIndex], isActive: !priceItems[itemIndex].isActive };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardPriceListItems(card.contentBlocks, priceItems) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return {
+    ok: true,
+    notice: priceItems[itemIndex].isActive ? "Price shown" : "Price hidden",
+    item: priceItems[itemIndex]
+  };
+}
+
+export async function deleteCircleCardPriceListItemInlineAction(input: {
+  cardId: string;
+  priceListItemId: string;
+}): Promise<CircleCardPriceListInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardPriceListItemIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardPriceListError("price-list-invalid", "Check the price and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardPriceListError("price-list-locked", "Price List is included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardPriceListError(
+      card ? "price-list-business-card-required" : "card-not-found",
+      card ? "Price List can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+  const priceItems = readCircleCardPriceListItems(card.contentBlocks);
+  const nextItems = priceItems.filter((item) => item.id !== parsed.data.priceListItemId);
+  if (nextItems.length === priceItems.length) {
+    return inlineCircleCardPriceListError("price-list-item-not-found", "That price could not be found on this Business Card.");
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardPriceListItems(card.contentBlocks, nextItems) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return { ok: true, notice: "Price deleted" };
 }
 
 export async function upsertCircleCardReviewItemInlineAction(

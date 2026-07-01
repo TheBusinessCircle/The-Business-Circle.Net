@@ -88,6 +88,7 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  Tag,
   Trash2,
   Twitch,
   UserCheck,
@@ -1856,6 +1857,54 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderPriceListSection({ id = "business-price-list" }: { id?: string } = {}) {
+    if (card.cardType !== "BUSINESS" || !card.priceItems.length) {
+      return null;
+    }
+
+    return (
+      <section
+        id={id}
+        aria-labelledby={`${id}-title`}
+        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Pricing</p>
+            <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">Price List</h2>
+          </div>
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+            <Tag size={18} />
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {card.priceItems.map((item) => (
+            <article key={item.id} className="flex min-w-0 flex-col rounded-2xl border border-silver/14 bg-white/[0.04] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  {item.category ? <p className="text-xs font-medium text-gold">{item.category}</p> : null}
+                  <h3 className="mt-1 text-base font-semibold text-foreground">{item.title}</h3>
+                </div>
+                {item.isFeatured ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-gold/20 bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold"><Star size={11} /> Featured</span>
+                ) : null}
+              </div>
+              <p className="mt-4 break-words font-display text-3xl font-semibold text-gold">{item.price}</p>
+              {item.priceNote ? <p className="mt-1 text-xs font-medium text-silver">{item.priceNote}</p> : null}
+              {item.description ? <p className="mt-3 text-sm leading-relaxed text-muted">{item.description}</p> : null}
+              {item.ctaLabel && item.ctaUrl ? (
+                <a {...getExternalLinkProps(item.ctaUrl)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 h-11 w-full gap-2 sm:w-fit")}>
+                  {item.ctaLabel}<ChevronRight size={14} />
+                </a>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   function renderDocumentsSection({ id = "business-downloads" }: { id?: string } = {}) {
     if (card.cardType !== "BUSINESS" || !card.documents.length) {
       return null;
@@ -2910,6 +2959,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "business-about" })}
             {renderBusinessHighlightsSection()}
             {renderServicesSection()}
+            {renderPriceListSection()}
             {renderProductsSection()}
             {renderDocumentsSection()}
             {renderBookingSection()}

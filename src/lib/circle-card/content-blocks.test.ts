@@ -8,12 +8,14 @@ import {
   circleCardDocumentItemFormSchema,
   circleCardReviewItemFormSchema,
   circleCardProductItemFormSchema,
+  circleCardPriceListItemFormSchema,
   createCircleCardOpeningHoursPreset,
   isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
   readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardProductItems,
+  readCircleCardPriceListItems,
   readCircleCardServices,
   readCircleCardReviewItems,
   resolveCircleCardGalleryBuilderMode,
@@ -21,12 +23,14 @@ import {
   resolveCircleCardDocumentsBuilderMode,
   resolveCircleCardOpeningHoursBuilderMode,
   resolveCircleCardProductsBuilderMode,
+  resolveCircleCardPriceListBuilderMode,
   resolveCircleCardServicesBuilderMode,
   resolveCircleCardReviewsBuilderMode,
   visibleCircleCardOpeningHours,
   visibleCircleCardBookingEnquiry,
   visibleCircleCardDocumentItems,
   visibleCircleCardProductItems,
+  visibleCircleCardPriceListItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardServices,
   visibleCircleCardReviewItems,
@@ -34,6 +38,7 @@ import {
   writeCircleCardBookingEnquiry,
   writeCircleCardDocumentItems,
   writeCircleCardProductItems,
+  writeCircleCardPriceListItems,
   writeCircleCardGalleryItems,
   writeCircleCardServices,
   writeCircleCardReviewItems,
@@ -41,6 +46,7 @@ import {
   type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardProductItem,
+  type CircleCardPriceListItem,
   type CircleCardServiceItem,
   type CircleCardReviewItem
 } from "@/lib/circle-card/content-blocks";
@@ -110,6 +116,37 @@ const hiddenProduct: CircleCardProductItem = {
   ...activeProduct,
   id: "product-hidden",
   title: "Hidden toolkit",
+  isActive: false,
+  sortOrder: 2
+};
+
+const activePriceItem: CircleCardPriceListItem = {
+  id: "price-active",
+  title: "Website Audit",
+  description: "A focused review of your website.",
+  price: "£249",
+  priceNote: "One-off fixed price",
+  category: "Audits",
+  ctaLabel: "Get Started",
+  ctaUrl: "https://example.com/pricing",
+  isActive: true,
+  isFeatured: false,
+  sortOrder: 0
+};
+
+const featuredPriceItem: CircleCardPriceListItem = {
+  ...activePriceItem,
+  id: "price-featured",
+  title: "Consultation",
+  price: "Free",
+  isFeatured: true,
+  sortOrder: 1
+};
+
+const hiddenPriceItem: CircleCardPriceListItem = {
+  ...activePriceItem,
+  id: "price-hidden",
+  title: "Hidden price",
   isActive: false,
   sortOrder: 2
 };
@@ -273,6 +310,65 @@ describe("Circle Card products content block", () => {
     expect(circleCardProductItemFormSchema.safeParse({ ...base, price: "" }).success).toBe(false);
     expect(circleCardProductItemFormSchema.safeParse({ ...base, ctaUrl: "/checkout" }).success).toBe(false);
     expect(circleCardProductItemFormSchema.safeParse({ ...base, ctaUrl: "javascript:alert(1)" }).success).toBe(false);
+  });
+});
+
+describe("Circle Card Price List content block", () => {
+  it("stores prices under business.PRICE_LIST.items and preserves other blocks", () => {
+    const withProducts = writeCircleCardProductItems({}, [activeProduct]);
+    const contentBlocks = writeCircleCardPriceListItems(withProducts, [activePriceItem]);
+
+    expect(contentBlocks).toMatchObject({
+      business: { PRICE_LIST: { items: [activePriceItem] } }
+    });
+    expect(readCircleCardProductItems(contentBlocks)).toEqual([activeProduct]);
+    expect(readCircleCardPriceListItems(contentBlocks)).toEqual([activePriceItem]);
+  });
+
+  it("shows active featured prices first on Business Cards only", () => {
+    const contentBlocks = writeCircleCardPriceListItems({}, [
+      activePriceItem,
+      featuredPriceItem,
+      hiddenPriceItem
+    ]);
+
+    expect(visibleCircleCardPriceListItems({ cardType: "BUSINESS", contentBlocks })).toEqual([
+      featuredPriceItem,
+      activePriceItem
+    ]);
+    expect(visibleCircleCardPriceListItems({ cardType: "PERSONAL", contentBlocks })).toEqual([]);
+    expect(visibleCircleCardPriceListItems({ cardType: "CREATOR", contentBlocks })).toEqual([]);
+  });
+
+  it("uses the shared Business Card Pro access mode", () => {
+    expect(resolveCircleCardPriceListBuilderMode({ cardType: "BUSINESS", hasProAccess: true })).toBe("enabled");
+    expect(resolveCircleCardPriceListBuilderMode({ cardType: "BUSINESS", hasProAccess: false })).toBe("locked");
+    expect(resolveCircleCardPriceListBuilderMode({ cardType: "PERSONAL", hasProAccess: true })).toBe("hidden");
+    expect(resolveCircleCardPriceListBuilderMode({ cardType: "CREATOR", hasProAccess: true })).toBe("hidden");
+  });
+
+  it("rejects unsafe, credentialed and incomplete optional CTA links", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      priceListItemId: "",
+      title: "Website Audit",
+      description: "A focused review.",
+      price: "£249",
+      priceNote: "Fixed price",
+      category: "Audits",
+      ctaLabel: "Get Started",
+      ctaUrl: "https://example.com/pricing",
+      isFeatured: true,
+      isActive: true
+    };
+
+    expect(circleCardPriceListItemFormSchema.safeParse(base).success).toBe(true);
+    expect(circleCardPriceListItemFormSchema.safeParse({ ...base, ctaLabel: "", ctaUrl: "" }).success).toBe(true);
+    expect(circleCardPriceListItemFormSchema.safeParse({ ...base, ctaUrl: "javascript:alert(1)" }).success).toBe(false);
+    expect(circleCardPriceListItemFormSchema.safeParse({ ...base, ctaUrl: "data:text/html,test" }).success).toBe(false);
+    expect(circleCardPriceListItemFormSchema.safeParse({ ...base, ctaUrl: "https://user:secret@example.com" }).success).toBe(false);
+    expect(circleCardPriceListItemFormSchema.safeParse({ ...base, ctaUrl: "/pricing" }).success).toBe(false);
+    expect(circleCardPriceListItemFormSchema.safeParse({ ...base, ctaUrl: "" }).success).toBe(false);
   });
 });
 

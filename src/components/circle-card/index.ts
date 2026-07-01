@@ -15,6 +15,7 @@ export * from "@/components/circle-card/circle-card-image-upload-field";
 export * from "@/components/circle-card/circle-card-link-file-upload-field";
 export * from "@/components/circle-card/circle-card-plan-panel";
 export * from "@/components/circle-card/circle-card-products-manager";
+export * from "@/components/circle-card/circle-card-price-list-manager";
 export * from "@/components/circle-card/circle-card-private-link-action";
 export * from "@/components/circle-card/circle-card-qr-panel";
 export * from "@/components/circle-card/circle-card-reviews-manager";
