@@ -21,10 +21,7 @@ import {
 import { normalizeExternalHref } from "@/lib/links";
 import { slugify } from "@/lib/utils";
 import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
-import {
-  CIRCLE_CARD_TYPES,
-  DEFAULT_CIRCLE_CARD_TYPE
-} from "@/lib/circle-card/card-types";
+import { CIRCLE_CARD_TYPES } from "@/lib/circle-card/card-types";
 
 export const CIRCLE_CARD_SOCIAL_PLATFORMS = [
   "tiktok",
@@ -218,10 +215,7 @@ const optionalCircleCardAccountType = z.preprocess(
   z.enum(CIRCLE_CARD_ACCOUNT_TYPES).optional()
 );
 const circleCardTypeInput = z.preprocess(
-  (value) =>
-    typeof value === "string" && value.trim()
-      ? value.trim().toUpperCase()
-      : DEFAULT_CIRCLE_CARD_TYPE,
+  (value) => (typeof value === "string" ? value.trim().toUpperCase() : value),
   z.enum(CIRCLE_CARD_TYPES)
 );
 const requiredCircleCardAccountType = z.preprocess(
