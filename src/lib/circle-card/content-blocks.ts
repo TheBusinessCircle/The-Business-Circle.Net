@@ -254,6 +254,7 @@ export type CircleCardMediaKitWorkType = (typeof CIRCLE_CARD_MEDIA_KIT_WORK_TYPE
 export type CircleCardMediaKit = {
   creatorName: string | null;
   creatorTagline: string | null;
+  whatICreate: string[];
   primaryNiche: string | null;
   secondaryNiche: string | null;
   location: string | null;
@@ -708,6 +709,7 @@ export const circleCardMediaKitFormSchema = z.object({
   cardId: z.string().cuid(),
   creatorName: optionalMediaKitText(120),
   creatorTagline: optionalMediaKitText(240),
+  whatICreate: optionalMediaKitText(600),
   primaryNiche: optionalMediaKitText(80),
   secondaryNiche: optionalMediaKitText(80),
   location: optionalMediaKitText(120),
@@ -2233,6 +2235,12 @@ export function readCircleCardMediaKit(value: unknown): CircleCardMediaKit | nul
         return parsed ? [parsed] : [];
       }).slice(0, 12)
     : [];
+  const whatICreate = Array.isArray(mediaKit.whatICreate)
+    ? mediaKit.whatICreate.flatMap((contentType) => {
+        const parsed = readMediaKitText(contentType, 80);
+        return parsed ? [parsed] : [];
+      }).slice(0, 16)
+    : [];
   const rawAvailableFor = Array.isArray(mediaKit.availableFor) ? mediaKit.availableFor : [];
   const availableFor = rawAvailableFor.length
     ? CIRCLE_CARD_MEDIA_KIT_WORK_TYPES.filter((workType) => rawAvailableFor.includes(workType))
@@ -2253,6 +2261,7 @@ export function readCircleCardMediaKit(value: unknown): CircleCardMediaKit | nul
   const result: CircleCardMediaKit = {
     creatorName: readMediaKitText(mediaKit.creatorName, 120),
     creatorTagline: readMediaKitText(mediaKit.creatorTagline, 240),
+    whatICreate,
     primaryNiche: readMediaKitText(mediaKit.primaryNiche, 80),
     secondaryNiche: readMediaKitText(mediaKit.secondaryNiche, 80),
     location: readMediaKitText(mediaKit.location, 120),
@@ -2299,7 +2308,7 @@ export function writeCircleCardMediaKit(
 export function circleCardMediaKitStatus(mediaKit: CircleCardMediaKit | null): CircleCardMediaKitStatus {
   if (!mediaKit) return "Not Started";
   const hasContent = Boolean(
-    mediaKit.creatorName || mediaKit.creatorTagline || mediaKit.primaryNiche ||
+    mediaKit.creatorName || mediaKit.creatorTagline || mediaKit.whatICreate.length || mediaKit.primaryNiche ||
     mediaKit.secondaryNiche || mediaKit.location || mediaKit.languages.length ||
     mediaKit.availableWorldwide || mediaKit.creatorEmail || mediaKit.businessEnquiriesEmail ||
     mediaKit.websiteUrl || mediaKit.communityUrl || mediaKit.yearsCreating !== null ||

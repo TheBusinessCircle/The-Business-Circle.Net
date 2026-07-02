@@ -19,7 +19,7 @@ describe("Creator Pro Studio foundation", () => {
     expect(dashboard).toContain("Showcase your content, grow collaborations, and build your Circle Trust.");
     for (const moduleName of [
       "Featured Content",
-      "Media Kit",
+      "Live Media Kit",
       "Brand Partnerships",
       "Audience Snapshot",
       "Creator Offers",
@@ -31,7 +31,8 @@ describe("Creator Pro Studio foundation", () => {
   });
 
   it("shows completion, next actions and Free/Pro positioning", () => {
-    expect(dashboard).toContain("Creator Profile Completion");
+    expect(dashboard).toContain("Creator Profile Strength");
+    expect(dashboard).toContain("Complete your creator profile to improve brand opportunities and build your Circle Trust.");
     expect(dashboard).toContain("Next best action");
     expect(dashboard).toContain('label: "Add your creator bio"');
     expect(dashboard).toContain('label: "Add your best social platform"');

@@ -2120,9 +2120,10 @@ export function PublicCircleCardProfile({
       <section id={id} aria-labelledby={`${id}-title`} className="overflow-hidden rounded-[1.75rem] border border-cyan-300/18 bg-[linear-gradient(145deg,rgba(10,29,42,0.9),rgba(4,10,24,0.97))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.25)] sm:p-6 lg:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Creator Media Kit</p>
-            <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">{mediaKit.creatorName || "Media Kit"}</h2>
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Live Media Kit</p>
+            <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">{mediaKit.creatorName || card.fullName}</h2>
             {mediaKit.creatorTagline ? <p className="mt-3 max-w-3xl text-base leading-relaxed text-silver sm:text-lg">{mediaKit.creatorTagline}</p> : null}
+            <p className="mt-2 text-xs text-muted">Always up to date · Built into this Circle Card</p>
           </div>
           <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><BriefcaseBusiness size={20} /></span>
         </div>
@@ -2138,11 +2139,20 @@ export function PublicCircleCardProfile({
           </div>
         ) : null}
 
+        {mediaKit.whatICreate.length ? (
+          <div className="mt-5 rounded-2xl border border-cyan-300/16 bg-cyan-400/[0.045] p-4 sm:p-5">
+            <h3 className="text-sm font-semibold text-foreground">What I Create</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {mediaKit.whatICreate.map((contentType) => <span key={contentType} className="rounded-full border border-cyan-300/20 bg-cyan-400/[0.07] px-3 py-1.5 text-xs font-medium text-cyan-100">{contentType}</span>)}
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           {mediaKit.availableFor.length ? (
             <div className="rounded-2xl border border-silver/14 bg-white/[0.035] p-4 sm:p-5">
               <h3 className="text-sm font-semibold text-foreground">Available for Collaborations</h3>
-              <div className="mt-3 flex flex-wrap gap-2">{mediaKit.availableFor.map((workType) => <span key={workType} className="rounded-full border border-gold/20 bg-gold/8 px-3 py-1.5 text-xs font-medium text-gold">{workType}</span>)}</div>
+              <div className="mt-3 flex flex-wrap gap-2">{mediaKit.availableFor.map((workType) => <span key={workType} className="rounded-full border border-gold/24 bg-[linear-gradient(135deg,rgba(212,175,95,0.14),rgba(34,211,238,0.05))] px-3 py-1.5 text-xs font-medium text-gold shadow-inner-surface">{workType === "Sponsored Posts" ? "Sponsored Content" : workType}</span>)}</div>
             </div>
           ) : null}
           {audience.length ? (
@@ -2156,6 +2166,7 @@ export function PublicCircleCardProfile({
         {(contactEmail || mediaKit.websiteUrl || mediaKit.communityUrl || mediaKit.mediaKitFileUrl || mediaKit.externalMediaKitUrl) ? (
           <div className="mt-5 rounded-2xl border border-cyan-300/16 bg-cyan-400/[0.045] p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-foreground">Let&apos;s Work Together</h3>
+            <p className="mt-1 text-sm text-muted">Interested in collaborating? Use the contact options below.</p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {contactEmail ? <a href={`mailto:${contactEmail}`} className={cn(buttonVariants({ size: "sm" }), "h-11 gap-2")}><Mail size={14} />Brand Enquiries</a> : null}
               {mediaKit.websiteUrl ? <a {...getExternalLinkProps(mediaKit.websiteUrl)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 gap-2")}><Globe2 size={14} />Website</a> : null}

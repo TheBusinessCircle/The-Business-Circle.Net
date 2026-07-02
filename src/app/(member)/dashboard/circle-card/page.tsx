@@ -2356,23 +2356,23 @@ function CreatorProStudio({
   const modules = [
     {
       name: "Featured Content",
-      benefit: "Show your best videos, posts or content pieces.",
+      benefit: "Showcase your best videos, posts and content.",
       status: featuredContentCount > 0 ? "Active" : "Not Started",
       action: featuredContentCount > 0 ? "Manage" : "Set up",
       href: featuredContentHref,
       icon: Star
     },
     {
-      name: "Media Kit",
-      benefit: "Give brands a quick overview of who you are.",
+      name: "Live Media Kit",
+      benefit: "Give brands a clear, up-to-date overview.",
       status: mediaKitStatus,
-      action: mediaKitStatus === "Not Started" ? "Set up" : "Manage Media Kit",
+      action: mediaKitStatus === "Not Started" ? "Set up" : "Manage Live Media Kit",
       href: mediaKitHref,
       icon: Download
     },
     {
       name: "Brand Partnerships",
-      benefit: "Help brands contact you for collaborations.",
+      benefit: "Make it easy for brands to work with you.",
       status: hasBrandContact ? "Active" : "Not Started",
       action: hasBrandContact ? "Manage" : "Set up",
       href: contactHref,
@@ -2380,7 +2380,7 @@ function CreatorProStudio({
     },
     {
       name: "Audience Snapshot",
-      benefit: "Show your platforms, audience and creator niche.",
+      benefit: "Show your audience at a glance.",
       status: activeSocialProfileCount > 0 ? "Active" : "Not Started",
       action: activeSocialProfileCount > 0 ? "Manage" : "Set up",
       href: socialProfilesHref,
@@ -2388,7 +2388,7 @@ function CreatorProStudio({
     },
     {
       name: "Creator Offers",
-      benefit: "Promote paid content, affiliate offers, merch or community links.",
+      benefit: "Promote affiliates, merch, communities or paid content.",
       status: creatorOfferCount > 0 ? "Active" : "Not Started",
       action: creatorOfferCount > 0 ? "Manage" : "Set up",
       href: featuredLinksHref,
@@ -2396,7 +2396,7 @@ function CreatorProStudio({
     },
     {
       name: "Press / Proof",
-      benefit: "Show press mentions, achievements and proof.",
+      benefit: "Show credibility, mentions and achievements.",
       status: proofCount > 0 ? "Active" : "Not Started",
       action: proofCount > 0 ? "Manage" : "Set up",
       href: featuredLinksHref,
@@ -2434,13 +2434,14 @@ function CreatorProStudio({
             <div className="flex items-end justify-between gap-3">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.08em] text-cyan-200">Creator profile</p>
-                <h3 id="creator-completion-title" className="mt-1 text-sm font-semibold text-foreground sm:text-base">Creator Profile Completion</h3>
+                <h3 id="creator-completion-title" className="mt-1 text-sm font-semibold text-foreground sm:text-base">Creator Profile Strength</h3>
               </div>
               <p className="font-display text-3xl font-semibold text-cyan-100">{completion.score}%</p>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/60">
               <div className="h-full rounded-full bg-gradient-to-r from-cyan-400/70 via-gold/70 to-gold" style={{ width: `${completion.score}%` }} />
             </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted">Complete your creator profile to improve brand opportunities and build your Circle Trust.</p>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
                 ["Profile", "profile-image"],

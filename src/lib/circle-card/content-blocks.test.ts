@@ -163,6 +163,7 @@ describe("Circle Card Creator Media Kit", () => {
   const mediaKit: CircleCardMediaKit = {
     creatorName: "Alex Creator",
     creatorTagline: "Thoughtful travel stories for curious audiences.",
+    whatICreate: ["Travel guides", "Behind the scenes", "Short-form videos"],
     primaryNiche: "Travel",
     secondaryNiche: "Food",
     location: "London",
@@ -205,6 +206,7 @@ describe("Circle Card Creator Media Kit", () => {
       cardId: "cm12345678901234567890123",
       creatorName: "Alex",
       creatorTagline: "",
+      whatICreate: "Tutorials, Reviews",
       primaryNiche: "Travel",
       secondaryNiche: "",
       location: "",

@@ -13,7 +13,7 @@ describe("Creator Media Kit structure", () => {
     expect(dashboard).toContain("<CircleCardMediaKitManager");
     expect(manager).toContain('id="creator-media-kit"');
     expect(manager).toContain("saveCircleCardMediaKitInlineAction");
-    expect(manager).toContain("Media Kit is included with Creator Pro.");
+    expect(manager).toContain("Live Media Kit is included with Creator Pro.");
   });
 
   it("reuses managed uploads for PDF or external URL", () => {
@@ -28,5 +28,6 @@ describe("Creator Media Kit structure", () => {
     expect(publicProfile).toContain("Audience Snapshot");
     expect(publicProfile).toContain("Download Media Kit");
     expect(publicProfile).toContain("View Media Kit");
+    expect(publicProfile).toContain("What I Create");
   });
 });

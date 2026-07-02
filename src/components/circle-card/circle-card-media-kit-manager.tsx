@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS,
   CIRCLE_CARD_MEDIA_KIT_WORK_TYPES,
@@ -42,6 +43,10 @@ function PlatformSelect({ label, name, defaultValue }: { label: string; name: st
       </select>
     </div>
   );
+}
+
+function collaborationLabel(value: string) {
+  return value === "Sponsored Posts" ? "Sponsored Content" : value;
 }
 
 export function CircleCardMediaKitManager({
@@ -98,7 +103,7 @@ export function CircleCardMediaKitManager({
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
           <span className="min-w-0">
             <span className="flex flex-wrap items-center gap-2">
-              <span className="font-display text-xl font-semibold text-foreground">Media Kit</span>
+              <span className="font-display text-xl font-semibold text-foreground">Live Media Kit</span>
               <Badge variant={locked ? "muted" : "premium"}>{locked ? "Locked" : "Creator Pro"}</Badge>
               {!locked ? <Badge variant="outline" className="border-cyan-300/24 text-cyan-100">{status}</Badge> : null}
             </span>
@@ -111,8 +116,8 @@ export function CircleCardMediaKitManager({
           {locked ? (
             <div className="flex flex-col gap-3 rounded-xl border border-gold/22 bg-gold/8 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><Lock size={15} />Media Kit is included with Creator Pro.</p>
-                <p className="mt-1 text-sm text-muted">Give brands your creator niche, audience snapshot and collaboration details in one place.</p>
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><Lock size={15} />Live Media Kit is included with Creator Pro.</p>
+                <p className="mt-1 text-sm text-muted">Your always up-to-date creator profile for brands, built into your Circle Card.</p>
               </div>
               <Link href="/circle-card/pro" className={`${buttonVariants({ variant: "outline" })} h-11 w-full sm:w-auto`}>Explore Creator Pro</Link>
             </div>
@@ -121,8 +126,8 @@ export function CircleCardMediaKitManager({
               <input type="hidden" name="cardId" value={cardId} />
               <div>
                 <p className="text-[11px] uppercase tracking-[0.08em] text-cyan-200">Creator profile: {cardName}</p>
-                <h3 className="mt-2 text-lg font-semibold text-foreground">Professional creator details</h3>
-                <p className="mt-1 text-sm text-muted">Only populated fields appear on your public Creator Card.</p>
+                <h3 className="mt-2 text-lg font-semibold text-foreground">Your creator profile for brands</h3>
+                <p className="mt-1 text-sm text-muted">Always up to date and built into your Circle Card. Only populated fields appear publicly.</p>
               </div>
 
               {notice ? <p role="status" className="rounded-xl border border-emerald-400/24 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-100">{notice}</p> : null}
@@ -131,6 +136,11 @@ export function CircleCardMediaKitManager({
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Creator Name" name="creatorName" defaultValue={mediaKit?.creatorName} />
                 <Field label="Creator Tagline" name="creatorTagline" defaultValue={mediaKit?.creatorTagline} maxLength={240} />
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="media-kit-what-i-create">What do you create?</Label>
+                  <Textarea id="media-kit-what-i-create" name="whatICreate" defaultValue={mediaKit?.whatICreate.join(", ") ?? ""} rows={3} maxLength={600} placeholder="Tutorials, reviews, behind the scenes, short-form videos" />
+                  <p className="text-xs text-muted">Tell brands and followers what type of content you are known for. Separate items with commas or new lines.</p>
+                </div>
                 <Field label="Primary Niche" name="primaryNiche" defaultValue={mediaKit?.primaryNiche} placeholder="Food, gaming, finance..." />
                 <Field label="Secondary Niche" name="secondaryNiche" defaultValue={mediaKit?.secondaryNiche} />
                 <Field label="Location" name="location" defaultValue={mediaKit?.location} />
@@ -152,7 +162,7 @@ export function CircleCardMediaKitManager({
                   {CIRCLE_CARD_MEDIA_KIT_WORK_TYPES.map((workType) => (
                     <label key={workType} className="flex min-h-11 items-center gap-2 rounded-xl border border-silver/12 bg-card/36 px-3 py-2 text-sm text-foreground">
                       <input name="availableFor" type="checkbox" value={workType} defaultChecked={mediaKit?.availableFor.includes(workType) ?? false} className="h-4 w-4 rounded border-border bg-background accent-primary" />
-                      {workType}
+                      {collaborationLabel(workType)}
                     </label>
                   ))}
                 </div>
@@ -172,8 +182,8 @@ export function CircleCardMediaKitManager({
               </div>
 
               <div className="rounded-xl border border-silver/14 bg-background/18 p-3 sm:p-4">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><Download size={15} className="text-cyan-200" />Media Kit download</h3>
-                <p className="mt-1 text-xs text-muted">Upload an existing PDF or provide one safe external HTTPS URL. PDF generation comes later.</p>
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><Download size={15} className="text-cyan-200" />Optional downloadable Media Kit</h3>
+                <p className="mt-1 text-xs text-muted">Your live profile is the main Media Kit. You can also attach an existing PDF or safe external HTTPS version.</p>
                 <div className="mt-3">
                   <CircleCardLinkFileUploadField
                     defaultFileUrl={mediaKit?.mediaKitFileUrl ?? ""}
@@ -198,7 +208,7 @@ export function CircleCardMediaKitManager({
 
               <Button type="submit" className="h-11 w-full gap-2 sm:w-auto" disabled={saving}>
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                {saving ? "Saving..." : "Save Media Kit"}
+                {saving ? "Saving..." : "Save Live Media Kit"}
               </Button>
             </form>
           )}

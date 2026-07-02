@@ -4080,6 +4080,7 @@ export async function saveCircleCardMediaKitInlineAction(
     cardId: formData.get("cardId"),
     creatorName: formData.get("creatorName") ?? "",
     creatorTagline: formData.get("creatorTagline") ?? "",
+    whatICreate: formData.get("whatICreate") ?? "",
     primaryNiche: formData.get("primaryNiche") ?? "",
     secondaryNiche: formData.get("secondaryNiche") ?? "",
     location: formData.get("location") ?? "",
@@ -4123,9 +4124,13 @@ export async function saveCircleCardMediaKitInlineAction(
   const languages = [...new Set(parsed.data.languages.split(",").map((language) => language.trim()).filter(Boolean))]
     .slice(0, 12)
     .map((language) => language.slice(0, 60));
+  const whatICreate = [...new Set(
+    parsed.data.whatICreate.split(/[\n,]+/).map((contentType) => contentType.trim()).filter(Boolean)
+  )].slice(0, 16).map((contentType) => contentType.slice(0, 80));
   const mediaKit: CircleCardMediaKit = {
     creatorName: parsed.data.creatorName || null,
     creatorTagline: parsed.data.creatorTagline || null,
+    whatICreate,
     primaryNiche: parsed.data.primaryNiche || null,
     secondaryNiche: parsed.data.secondaryNiche || null,
     location: parsed.data.location || null,
