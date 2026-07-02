@@ -10,6 +10,7 @@ import type {
 import { SITE_CONFIG } from "@/config/site";
 import {
   visibleCircleCardBookingEnquiry,
+  visibleCircleCardAudienceSnapshot,
   visibleCircleCardDocumentItems,
   visibleCircleCardFeaturedContentItems,
   visibleCircleCardGalleryItems,
@@ -21,6 +22,7 @@ import {
   visibleCircleCardReviewItems,
   visibleCircleCardServices,
   type CircleCardBookingEnquiry,
+  type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardFeaturedContentItem,
   type CircleCardGalleryItem,
@@ -132,6 +134,7 @@ export type PublicCircleCard = {
   documents: CircleCardDocumentItem[];
   featuredContentItems: CircleCardFeaturedContentItem[];
   bookingEnquiry: CircleCardBookingEnquiry | null;
+  audienceSnapshot: CircleCardAudienceSnapshot | null;
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
   approvedWalletTestimonialCount: number;
@@ -201,6 +204,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   documents: [],
   featuredContentItems: [],
   bookingEnquiry: null,
+  audienceSnapshot: null,
   galleryItems: [],
   reviews: [],
   approvedWalletTestimonialCount: 0,
@@ -516,6 +520,10 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
   });
+  const audienceSnapshot = visibleCircleCardAudienceSnapshot({
+    cardType: card.cardType,
+    contentBlocks: card.contentBlocks
+  });
   const galleryItems = (
     await Promise.all(
       visibleCircleCardGalleryItems({
@@ -589,6 +597,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     documents,
     featuredContentItems,
     bookingEnquiry,
+    audienceSnapshot,
     galleryItems,
     reviews,
     approvedWalletTestimonialCount,

@@ -87,6 +87,7 @@ import {
 import {
   BusinessCardScanner,
   CircleCardBcnDiscoveryPanel,
+  CircleCardAudienceSnapshotManager,
   CircleCardBookingManager,
   CircleCardCopyLinkButton,
   CircleCardDashboardSection,
@@ -218,10 +219,12 @@ import {
   CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
   CIRCLE_CARD_CREATOR_BLOCK_TYPES,
   circleCardOpeningHoursDayLabel,
+  circleCardAudienceSnapshotStatus,
   circleCardMediaKitStatus,
   circleCardCreatorBlockHasContent,
   isValidCircleCardReviewItem,
   readCircleCardGalleryItems,
+  readCircleCardAudienceSnapshot,
   readCircleCardFeaturedContentItems,
   readCircleCardCreatorBlocks,
   readCircleCardBookingEnquiry,
@@ -2280,6 +2283,7 @@ function CreatorProStudio({
   creatorBlocks,
   featuredContentItems,
   mediaKit,
+  audienceSnapshot,
   publicUrl,
   className
 }: {
@@ -2299,6 +2303,7 @@ function CreatorProStudio({
   creatorBlocks: ReturnType<typeof readCircleCardCreatorBlocks>;
   featuredContentItems: ReturnType<typeof readCircleCardFeaturedContentItems>;
   mediaKit: ReturnType<typeof readCircleCardMediaKit>;
+  audienceSnapshot: ReturnType<typeof readCircleCardAudienceSnapshot>;
   publicUrl: string;
   className?: string;
 }) {
@@ -2310,6 +2315,7 @@ function CreatorProStudio({
   const featuredLinksHref = cardHref("custom-links");
   const featuredContentHref = cardHref("creator-featured-content");
   const mediaKitHref = cardHref("creator-media-kit");
+  const audienceHref = cardHref("creator-audience");
   const socialProfilesHref = cardHref("card-social-profiles");
   const contactHref = cardHref("card-contact-details");
   const identityHref = cardHref("card-identity");
@@ -2318,6 +2324,7 @@ function CreatorProStudio({
   const linkTypeSet = new Set(activeLinkTypes);
   const featuredContentCount = featuredContentItems.filter((item) => item.isActive).length;
   const mediaKitStatus = circleCardMediaKitStatus(mediaKit);
+  const audienceStatus = circleCardAudienceSnapshotStatus(audienceSnapshot);
   const creatorOfferCount = activeLinkTypes.filter((type) =>
     ["LATEST_OFFER", "SHOP", "COMMUNITY"].includes(type)
   ).length;
@@ -2381,9 +2388,9 @@ function CreatorProStudio({
     {
       name: "Audience Snapshot",
       benefit: "Show your audience at a glance.",
-      status: activeSocialProfileCount > 0 ? "Active" : "Not Started",
-      action: activeSocialProfileCount > 0 ? "Manage" : "Set up",
-      href: socialProfilesHref,
+      status: audienceStatus,
+      action: audienceStatus === "Not Started" ? "Set up" : "Manage Audience Snapshot",
+      href: audienceHref,
       icon: BarChart3
     },
     {
@@ -2534,6 +2541,15 @@ function CreatorProStudio({
             cardId={cardId}
             cardName={fullName}
             initialMediaKit={mediaKit}
+            locked={locked}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardAudienceSnapshotManager
+            cardId={cardId}
+            cardName={fullName}
+            initialSnapshot={audienceSnapshot}
             locked={locked}
           />
         ) : null}
@@ -5230,6 +5246,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     : [];
   const selectedCardMediaKit = card?.cardType === "CREATOR"
     ? readCircleCardMediaKit(card.contentBlocks)
+    : null;
+  const selectedCardAudienceSnapshot = card?.cardType === "CREATOR"
+    ? readCircleCardAudienceSnapshot(card.contentBlocks)
     : null;
   const selectedCardCreatorTrustSignalCount = card?.cardType === "CREATOR"
     ? card.recommendationsReceived.length + card.walletTestimonialsReceived.filter(
@@ -9178,6 +9197,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           creatorBlocks={selectedCardCreatorBlocks}
           featuredContentItems={selectedCardFeaturedContentItems}
           mediaKit={selectedCardMediaKit}
+          audienceSnapshot={selectedCardAudienceSnapshot}
           publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
           className={activeSection === "my-card" ? undefined : "hidden"}
         />

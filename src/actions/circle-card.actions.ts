@@ -61,6 +61,7 @@ import {
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
   circleCardBookingEnquiryFormSchema,
+  circleCardAudienceSnapshotFormSchema,
   circleCardFeaturedContentItemFormSchema,
   circleCardFeaturedContentItemIdSchema,
   circleCardGalleryItemFormSchema,
@@ -86,6 +87,7 @@ import {
   readCircleCardMediaKit,
   readCircleCardFeaturedContentItems,
   readCircleCardBookingEnquiry,
+  readCircleCardAudienceSnapshot,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
   readCircleCardMenuOfferItems,
@@ -97,6 +99,7 @@ import {
   writeCircleCardMediaKit,
   writeCircleCardFeaturedContentItems,
   writeCircleCardBookingEnquiry,
+  writeCircleCardAudienceSnapshot,
   writeCircleCardDocumentItems,
   writeCircleCardOpeningHours,
   writeCircleCardMenuOfferItems,
@@ -106,6 +109,7 @@ import {
   type CircleCardMediaKit,
   type CircleCardFeaturedContentItem,
   type CircleCardBookingEnquiry,
+  type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardOpeningHours,
   type CircleCardMenuOfferItem,
@@ -1111,6 +1115,10 @@ export type CircleCardMediaKitInlineActionResult =
   | { ok: true; notice: string; mediaKit: CircleCardMediaKit | null }
   | { ok: false; error: string; message: string };
 
+export type CircleCardAudienceSnapshotInlineActionResult =
+  | { ok: true; notice: string; snapshot: CircleCardAudienceSnapshot | null }
+  | { ok: false; error: string; message: string };
+
 export type CircleCardReviewInlineActionResult =
   | {
       ok: true;
@@ -1219,6 +1227,13 @@ function inlineCircleCardFeaturedContentError(
 }
 
 function inlineCircleCardMediaKitError(error: string, message: string): CircleCardMediaKitInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardAudienceSnapshotError(
+  error: string,
+  message: string
+): CircleCardAudienceSnapshotInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -4167,6 +4182,89 @@ export async function saveCircleCardMediaKitInlineAction(
     return inlineCircleCardMediaKitError(
       "media-kit-save-failed",
       "The Media Kit could not be saved. Your current details are still shown."
+    );
+  }
+}
+
+export async function saveCircleCardAudienceSnapshotInlineAction(
+  formData: FormData
+): Promise<CircleCardAudienceSnapshotInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardAudienceSnapshotFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    primaryPlatform: formData.get("primaryPlatform") ?? "",
+    secondaryPlatform: formData.get("secondaryPlatform") ?? "",
+    primaryContentType: formData.get("primaryContentType") ?? "",
+    primaryAudience: formData.get("primaryAudience") ?? "",
+    audienceAge: formData.get("audienceAge") ?? "",
+    audienceGender: formData.get("audienceGender") ?? "",
+    topCountry: formData.get("topCountry") ?? "",
+    additionalCountries: formData.get("additionalCountries") ?? "",
+    averageMonthlyReach: formData.get("averageMonthlyReach") ?? "",
+    averageMonthlyViews: formData.get("averageMonthlyViews") ?? "",
+    followers: formData.get("followers") ?? "",
+    subscribers: formData.get("subscribers") ?? "",
+    postingFrequency: formData.get("postingFrequency") ?? "",
+    bestPerformingContent: formData.get("bestPerformingContent") ?? "",
+    audienceInterests: formData.get("audienceInterests") ?? "",
+    creatorNotes: formData.get("creatorNotes") ?? ""
+  });
+  if (!parsed.success) {
+    return inlineCircleCardAudienceSnapshotError(
+      "audience-snapshot-invalid",
+      parsed.error.issues[0]?.message ?? "Check the audience details and try again."
+    );
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardAudienceSnapshotError(
+      "audience-snapshot-locked",
+      "Audience Snapshot is included with Creator Pro."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardAudienceSnapshotError(
+      card ? "audience-snapshot-creator-card-required" : "card-not-found",
+      card ? "Audience Snapshot can only be added to a Creator Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const parseList = (value: string, limit: number) => [...new Set(
+    value.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean)
+  )].slice(0, limit).map((item) => item.slice(0, 100));
+  const snapshot: CircleCardAudienceSnapshot = {
+    primaryPlatform: parsed.data.primaryPlatform || null,
+    secondaryPlatform: parsed.data.secondaryPlatform || null,
+    primaryContentType: parsed.data.primaryContentType || null,
+    primaryAudience: parsed.data.primaryAudience || null,
+    audienceAge: parsed.data.audienceAge || null,
+    audienceGender: parsed.data.audienceGender || null,
+    topCountry: parsed.data.topCountry || null,
+    additionalCountries: parseList(parsed.data.additionalCountries, 12),
+    averageMonthlyReach: parsed.data.averageMonthlyReach || null,
+    averageMonthlyViews: parsed.data.averageMonthlyViews || null,
+    followers: parsed.data.followers || null,
+    subscribers: parsed.data.subscribers || null,
+    postingFrequency: parsed.data.postingFrequency || null,
+    bestPerformingContent: parsed.data.bestPerformingContent || null,
+    audienceInterests: parseList(parsed.data.audienceInterests, 16),
+    creatorNotes: parsed.data.creatorNotes || null
+  };
+
+  try {
+    const contentBlocks = writeCircleCardAudienceSnapshot(card.contentBlocks, snapshot);
+    await prisma.circleCard.update({ where: { id: card.id }, data: { contentBlocks } });
+    revalidateCircleCardPaths(card.slug);
+    return {
+      ok: true,
+      notice: "Audience Snapshot saved",
+      snapshot: readCircleCardAudienceSnapshot(contentBlocks)
+    };
+  } catch {
+    return inlineCircleCardAudienceSnapshotError(
+      "audience-snapshot-save-failed",
+      "The Audience Snapshot could not be saved. Your current details are still shown."
     );
   }
 }

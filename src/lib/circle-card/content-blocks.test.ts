@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   circleCardOpeningHoursDayLabel,
   circleCardBookingEnquiryFormSchema,
+  circleCardAudienceSnapshotFormSchema,
+  circleCardAudienceSnapshotStatus,
   circleCardBookingPhoneHref,
   circleCardBookingWhatsAppHref,
   circleCardGalleryItemFormSchema,
@@ -20,6 +22,7 @@ import {
   readCircleCardFeaturedContentItems,
   readCircleCardMediaKit,
   readCircleCardBookingEnquiry,
+  readCircleCardAudienceSnapshot,
   readCircleCardDocumentItems,
   readCircleCardProductItems,
   readCircleCardPriceListItems,
@@ -38,6 +41,7 @@ import {
   resolveCircleCardReviewsBuilderMode,
   visibleCircleCardOpeningHours,
   visibleCircleCardBookingEnquiry,
+  visibleCircleCardAudienceSnapshot,
   visibleCircleCardDocumentItems,
   visibleCircleCardProductItems,
   visibleCircleCardPriceListItems,
@@ -49,6 +53,7 @@ import {
   visibleCircleCardReviewItems,
   writeCircleCardOpeningHours,
   writeCircleCardBookingEnquiry,
+  writeCircleCardAudienceSnapshot,
   writeCircleCardDocumentItems,
   writeCircleCardProductItems,
   writeCircleCardPriceListItems,
@@ -62,6 +67,7 @@ import {
   type CircleCardFeaturedContentItem,
   type CircleCardMediaKit,
   type CircleCardBookingEnquiry,
+  type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardProductItem,
   type CircleCardPriceListItem,
@@ -244,6 +250,68 @@ describe("Circle Card Creator Media Kit", () => {
       fileName: "media-kit.pdf",
       fileMimeType: "application/pdf"
     }).success).toBe(false);
+  });
+});
+
+describe("Circle Card Creator Audience Snapshot", () => {
+  const snapshot: CircleCardAudienceSnapshot = {
+    primaryPlatform: "YouTube",
+    secondaryPlatform: "Instagram",
+    primaryContentType: "Technology",
+    primaryAudience: "Developers",
+    audienceAge: "18–34",
+    audienceGender: "Mixed",
+    topCountry: "United Kingdom",
+    additionalCountries: ["United States", "Canada"],
+    averageMonthlyReach: "850K",
+    averageMonthlyViews: "2.4M",
+    followers: "120K",
+    subscribers: "65K",
+    postingFrequency: "Weekly",
+    bestPerformingContent: "Practical product tutorials.",
+    audienceInterests: ["Technology", "Productivity"],
+    creatorNotes: "Audience values detailed, honest explanations."
+  };
+
+  it("stores the snapshot separately under creator.AUDIENCE_SNAPSHOT", () => {
+    const stored = writeCircleCardAudienceSnapshot({
+      creator: { MEDIA_KIT: { creatorName: "Alex" } },
+      business: { PRODUCTS: { items: [] } }
+    }, snapshot);
+    expect(readCircleCardAudienceSnapshot(stored)).toEqual(snapshot);
+    expect(circleCardAudienceSnapshotStatus(readCircleCardAudienceSnapshot(stored))).toBe("Complete");
+    expect(stored.creator).toMatchObject({ MEDIA_KIT: { creatorName: "Alex" } });
+    expect(stored.business).toEqual({ PRODUCTS: { items: [] } });
+  });
+
+  it("only exposes populated snapshots on Creator Cards", () => {
+    const stored = writeCircleCardAudienceSnapshot({}, snapshot);
+    expect(visibleCircleCardAudienceSnapshot({ cardType: "CREATOR", contentBlocks: stored })?.followers).toBe("120K");
+    expect(visibleCircleCardAudienceSnapshot({ cardType: "BUSINESS", contentBlocks: stored })).toBeNull();
+    expect(visibleCircleCardAudienceSnapshot({ cardType: "PERSONAL", contentBlocks: stored })).toBeNull();
+  });
+
+  it("accepts creator-entered values without analytics or API fields", () => {
+    const result = circleCardAudienceSnapshotFormSchema.safeParse({
+      cardId: "cm12345678901234567890123",
+      primaryPlatform: "YouTube",
+      secondaryPlatform: "",
+      primaryContentType: "Education",
+      primaryAudience: "Students",
+      audienceAge: "18–24",
+      audienceGender: "Mixed",
+      topCountry: "United Kingdom",
+      additionalCountries: "United States, Canada",
+      averageMonthlyReach: "500K",
+      averageMonthlyViews: "1.5M",
+      followers: "90K",
+      subscribers: "45K",
+      postingFrequency: "Weekly",
+      bestPerformingContent: "Step-by-step tutorials",
+      audienceInterests: "Education, technology",
+      creatorNotes: "All figures are creator supplied."
+    });
+    expect(result.success).toBe(true);
   });
 });
 

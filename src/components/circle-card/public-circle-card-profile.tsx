@@ -72,6 +72,7 @@ import {
   ChevronRight,
   Crown,
   Download,
+  Eye,
   Handshake,
   Facebook,
   FileText,
@@ -2180,6 +2181,84 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderCreatorAudienceSnapshotSection({ id = "creator-audience" }: { id?: string } = {}) {
+    const snapshot = card.audienceSnapshot;
+    if (card.cardType !== "CREATOR" || !snapshot) return null;
+
+    const stats = [
+      snapshot.primaryPlatform ? { label: "Primary Platform", value: snapshot.primaryPlatform, icon: Globe2 } : null,
+      snapshot.primaryContentType ? { label: "Content Style", value: snapshot.primaryContentType, icon: Sparkles } : null,
+      snapshot.primaryAudience ? { label: "Primary Audience", value: snapshot.primaryAudience, icon: Users } : null,
+      snapshot.averageMonthlyReach ? { label: "Monthly Reach", value: snapshot.averageMonthlyReach, icon: BarChart3 } : null,
+      snapshot.averageMonthlyViews ? { label: "Monthly Views", value: snapshot.averageMonthlyViews, icon: Eye } : null,
+      snapshot.followers ? { label: "Followers", value: snapshot.followers, icon: UserPlus } : null,
+      snapshot.subscribers ? { label: "Subscribers", value: snapshot.subscribers, icon: Users } : null
+    ].filter((item): item is { label: string; value: string; icon: LucideIcon } => Boolean(item));
+    const countries = [snapshot.topCountry, ...snapshot.additionalCountries].filter(
+      (country): country is string => Boolean(country)
+    );
+
+    return (
+      <section id={id} aria-labelledby={`${id}-title`} className="rounded-[1.75rem] border border-cyan-300/16 bg-white/[0.035] p-5 shadow-[0_22px_64px_rgba(0,0,0,0.22)] sm:p-6 lg:p-7">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Audience Snapshot</p>
+            <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Who Watches My Content</h2>
+          </div>
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><BarChart3 size={20} /></span>
+        </div>
+
+        {stats.length ? (
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {stats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <article key={stat.label} className="min-w-0 rounded-2xl border border-silver/14 bg-[linear-gradient(145deg,rgba(255,255,255,0.055),rgba(34,211,238,0.025))] p-4 shadow-inner-surface">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-300/18 bg-cyan-400/[0.06] text-cyan-100"><Icon size={15} /></span>
+                  <p className="mt-4 break-words font-display text-2xl font-semibold text-foreground">{stat.value}</p>
+                  <p className="mt-1 text-xs text-muted">{stat.label}</p>
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {(snapshot.secondaryPlatform || snapshot.audienceAge || snapshot.audienceGender || countries.length || snapshot.postingFrequency) ? (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {snapshot.secondaryPlatform ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">Also on {snapshot.secondaryPlatform}</span> : null}
+            {snapshot.audienceAge ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">Age {snapshot.audienceAge}</span> : null}
+            {snapshot.audienceGender ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">{snapshot.audienceGender}</span> : null}
+            {countries.map((country, index) => <span key={`${country}-${index}`} className="inline-flex items-center gap-1.5 rounded-full border border-gold/20 bg-gold/8 px-3 py-1.5 text-xs text-gold"><MapPin size={11} />{country}</span>)}
+            {snapshot.postingFrequency ? <span className="rounded-full border border-cyan-300/18 bg-cyan-400/[0.05] px-3 py-1.5 text-xs text-cyan-100">Posts {snapshot.postingFrequency.toLowerCase()}</span> : null}
+          </div>
+        ) : null}
+
+        {(snapshot.audienceInterests.length || snapshot.bestPerformingContent || snapshot.creatorNotes) ? (
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {snapshot.audienceInterests.length ? (
+              <div className="rounded-2xl border border-silver/14 bg-background/22 p-4 sm:p-5">
+                <h3 className="text-sm font-semibold text-foreground">Audience Interests</h3>
+                <div className="mt-3 flex flex-wrap gap-2">{snapshot.audienceInterests.map((interest) => <span key={interest} className="rounded-full border border-cyan-300/18 bg-cyan-400/[0.055] px-3 py-1.5 text-xs text-cyan-100">{interest}</span>)}</div>
+              </div>
+            ) : null}
+            {snapshot.bestPerformingContent ? (
+              <div className="rounded-2xl border border-silver/14 bg-background/22 p-4 sm:p-5">
+                <h3 className="text-sm font-semibold text-foreground">Best Performing Content</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{snapshot.bestPerformingContent}</p>
+              </div>
+            ) : null}
+            {snapshot.creatorNotes ? (
+              <div className="rounded-2xl border border-silver/14 bg-background/22 p-4 sm:col-span-2 sm:p-5">
+                <h3 className="text-sm font-semibold text-foreground">Creator Notes</h3>
+                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted">{snapshot.creatorNotes}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
   function renderBookingSection({ id = "business-booking" }: { id?: string } = {}) {
     const booking = card.bookingEnquiry;
     if (card.cardType !== "BUSINESS" || !booking) {
@@ -2854,6 +2933,7 @@ export function PublicCircleCardProfile({
               </section>
             ) : null}
             {renderCreatorMediaKitSection()}
+            {renderCreatorAudienceSnapshotSection()}
 
             {card.approvedWalletTestimonialCount > 0 || card.reviews.length > 0
               ? renderTrustScoreCard({ reviewsId: "creator-reviews" })

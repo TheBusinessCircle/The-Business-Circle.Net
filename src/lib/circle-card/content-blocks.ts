@@ -280,6 +280,46 @@ export type CircleCardMediaKit = {
 
 export type CircleCardMediaKitStatus = "Not Started" | "Active" | "Complete";
 
+export const CIRCLE_CARD_AUDIENCE_CONTENT_TYPES = [
+  "Education", "Comedy", "Gaming", "Business", "Technology", "Lifestyle", "Fitness",
+  "Food", "Travel", "Fashion", "Beauty", "Music", "Parenting", "Finance", "DIY",
+  "Reviews", "Other"
+] as const;
+
+export const CIRCLE_CARD_PRIMARY_AUDIENCES = [
+  "Business Owners", "Parents", "Students", "Creators", "Developers", "Gamers",
+  "Professionals", "Small Businesses", "Women", "Men", "General Public", "Other"
+] as const;
+
+export const CIRCLE_CARD_POSTING_FREQUENCIES = [
+  "Daily", "Several Times Per Week", "Weekly", "Fortnightly", "Monthly"
+] as const;
+
+export type CircleCardAudienceContentType = (typeof CIRCLE_CARD_AUDIENCE_CONTENT_TYPES)[number];
+export type CircleCardPrimaryAudience = (typeof CIRCLE_CARD_PRIMARY_AUDIENCES)[number];
+export type CircleCardPostingFrequency = (typeof CIRCLE_CARD_POSTING_FREQUENCIES)[number];
+
+export type CircleCardAudienceSnapshot = {
+  primaryPlatform: CircleCardFeaturedContentPlatform | null;
+  secondaryPlatform: CircleCardFeaturedContentPlatform | null;
+  primaryContentType: CircleCardAudienceContentType | null;
+  primaryAudience: CircleCardPrimaryAudience | null;
+  audienceAge: string | null;
+  audienceGender: string | null;
+  topCountry: string | null;
+  additionalCountries: string[];
+  averageMonthlyReach: string | null;
+  averageMonthlyViews: string | null;
+  followers: string | null;
+  subscribers: string | null;
+  postingFrequency: CircleCardPostingFrequency | null;
+  bestPerformingContent: string | null;
+  audienceInterests: string[];
+  creatorNotes: string | null;
+};
+
+export type CircleCardAudienceSnapshotStatus = "Not Started" | "Active" | "Complete";
+
 export type CircleCardProductItem = {
   id: string;
   title: string;
@@ -758,6 +798,26 @@ export const circleCardMediaKitFormSchema = z.object({
       message: "Upload a PDF media kit."
     });
   }
+});
+
+export const circleCardAudienceSnapshotFormSchema = z.object({
+  cardId: z.string().cuid(),
+  primaryPlatform: z.enum(CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS).or(z.literal("")),
+  secondaryPlatform: z.enum(CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS).or(z.literal("")),
+  primaryContentType: z.enum(CIRCLE_CARD_AUDIENCE_CONTENT_TYPES).or(z.literal("")),
+  primaryAudience: z.enum(CIRCLE_CARD_PRIMARY_AUDIENCES).or(z.literal("")),
+  audienceAge: optionalMediaKitText(80),
+  audienceGender: optionalMediaKitText(80),
+  topCountry: optionalMediaKitText(100),
+  additionalCountries: optionalMediaKitText(400),
+  averageMonthlyReach: optionalMediaKitText(60),
+  averageMonthlyViews: optionalMediaKitText(60),
+  followers: optionalMediaKitText(60),
+  subscribers: optionalMediaKitText(60),
+  postingFrequency: z.enum(CIRCLE_CARD_POSTING_FREQUENCIES).or(z.literal("")),
+  bestPerformingContent: optionalMediaKitText(300),
+  audienceInterests: optionalMediaKitText(500),
+  creatorNotes: optionalMediaKitText(800)
 });
 
 export const circleCardMenuOfferItemFormSchema = z
@@ -2327,6 +2387,76 @@ export function circleCardMediaKitStatus(mediaKit: CircleCardMediaKit | null): C
 
 export function visibleCircleCardMediaKit(input: { cardType: string; contentBlocks: unknown }) {
   return input.cardType === "CREATOR" ? readCircleCardMediaKit(input.contentBlocks) : null;
+}
+
+function readAudienceList(value: unknown, maximumItems: number) {
+  return Array.isArray(value)
+    ? value.flatMap((item) => {
+        const parsed = readMediaKitText(item, 100);
+        return parsed ? [parsed] : [];
+      }).slice(0, maximumItems)
+    : [];
+}
+
+export function readCircleCardAudienceSnapshot(value: unknown): CircleCardAudienceSnapshot | null {
+  if (!isRecord(value) || !isRecord(value.creator) || !isRecord(value.creator.AUDIENCE_SNAPSHOT)) {
+    return null;
+  }
+  const snapshot = value.creator.AUDIENCE_SNAPSHOT;
+  const result: CircleCardAudienceSnapshot = {
+    primaryPlatform: CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS.find((item) => item === snapshot.primaryPlatform) ?? null,
+    secondaryPlatform: CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS.find((item) => item === snapshot.secondaryPlatform) ?? null,
+    primaryContentType: CIRCLE_CARD_AUDIENCE_CONTENT_TYPES.find((item) => item === snapshot.primaryContentType) ?? null,
+    primaryAudience: CIRCLE_CARD_PRIMARY_AUDIENCES.find((item) => item === snapshot.primaryAudience) ?? null,
+    audienceAge: readMediaKitText(snapshot.audienceAge, 80),
+    audienceGender: readMediaKitText(snapshot.audienceGender, 80),
+    topCountry: readMediaKitText(snapshot.topCountry, 100),
+    additionalCountries: readAudienceList(snapshot.additionalCountries, 12),
+    averageMonthlyReach: readMediaKitText(snapshot.averageMonthlyReach, 60),
+    averageMonthlyViews: readMediaKitText(snapshot.averageMonthlyViews, 60),
+    followers: readMediaKitText(snapshot.followers, 60),
+    subscribers: readMediaKitText(snapshot.subscribers, 60),
+    postingFrequency: CIRCLE_CARD_POSTING_FREQUENCIES.find((item) => item === snapshot.postingFrequency) ?? null,
+    bestPerformingContent: readMediaKitText(snapshot.bestPerformingContent, 300),
+    audienceInterests: readAudienceList(snapshot.audienceInterests, 16),
+    creatorNotes: readMediaKitText(snapshot.creatorNotes, 800)
+  };
+  return circleCardAudienceSnapshotStatus(result) === "Not Started" ? null : result;
+}
+
+export function writeCircleCardAudienceSnapshot(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  snapshot: CircleCardAudienceSnapshot
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const creator = isRecord(root.creator) ? root.creator : {};
+  return {
+    ...root,
+    creator: {
+      ...creator,
+      AUDIENCE_SNAPSHOT: snapshot
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function circleCardAudienceSnapshotStatus(
+  snapshot: CircleCardAudienceSnapshot | null
+): CircleCardAudienceSnapshotStatus {
+  if (!snapshot) return "Not Started";
+  const hasContent = Object.values(snapshot).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value)
+  );
+  if (!hasContent) return "Not Started";
+  const hasAudienceSize = Boolean(
+    snapshot.followers || snapshot.subscribers || snapshot.averageMonthlyReach || snapshot.averageMonthlyViews
+  );
+  return snapshot.primaryPlatform && snapshot.primaryContentType && snapshot.primaryAudience && hasAudienceSize
+    ? "Complete"
+    : "Active";
+}
+
+export function visibleCircleCardAudienceSnapshot(input: { cardType: string; contentBlocks: unknown }) {
+  return input.cardType === "CREATOR" ? readCircleCardAudienceSnapshot(input.contentBlocks) : null;
 }
 
 export function circleCardFeaturedContentPreviewImage(item: CircleCardFeaturedContentItem) {
