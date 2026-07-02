@@ -6,6 +6,8 @@ import {
   circleCardBookingWhatsAppHref,
   circleCardGalleryItemFormSchema,
   circleCardFeaturedContentItemFormSchema,
+  circleCardMediaKitFormSchema,
+  circleCardMediaKitStatus,
   circleCardDocumentItemFormSchema,
   circleCardReviewItemFormSchema,
   circleCardProductItemFormSchema,
@@ -16,6 +18,7 @@ import {
   isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
   readCircleCardFeaturedContentItems,
+  readCircleCardMediaKit,
   readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardProductItems,
@@ -41,6 +44,7 @@ import {
   visibleCircleCardMenuOfferItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardFeaturedContentItems,
+  visibleCircleCardMediaKit,
   visibleCircleCardServices,
   visibleCircleCardReviewItems,
   writeCircleCardOpeningHours,
@@ -51,10 +55,12 @@ import {
   writeCircleCardMenuOfferItems,
   writeCircleCardGalleryItems,
   writeCircleCardFeaturedContentItems,
+  writeCircleCardMediaKit,
   writeCircleCardServices,
   writeCircleCardReviewItems,
   type CircleCardGalleryItem,
   type CircleCardFeaturedContentItem,
+  type CircleCardMediaKit,
   type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardProductItem,
@@ -150,6 +156,92 @@ describe("Circle Card Featured Content", () => {
     for (const url of ["javascript:alert(1)", "data:text/plain,test", "ftp://example.com/file", "https://user:pass@example.com/post", "not a url"]) {
       expect(circleCardFeaturedContentItemFormSchema.safeParse({ ...base, url }).success).toBe(false);
     }
+  });
+});
+
+describe("Circle Card Creator Media Kit", () => {
+  const mediaKit: CircleCardMediaKit = {
+    creatorName: "Alex Creator",
+    creatorTagline: "Thoughtful travel stories for curious audiences.",
+    primaryNiche: "Travel",
+    secondaryNiche: "Food",
+    location: "London",
+    languages: ["English", "Spanish"],
+    availableWorldwide: true,
+    creatorEmail: "alex@example.com",
+    businessEnquiriesEmail: "brands@example.com",
+    websiteUrl: "https://example.com",
+    communityUrl: "https://example.com/community",
+    yearsCreating: 6,
+    availableFor: ["Sponsored Posts", "Podcast Guest"],
+    primaryPlatform: "YouTube",
+    secondaryPlatform: "Instagram",
+    followers: "125K",
+    subscribers: "80K",
+    monthlyViews: "1.2M",
+    averageReach: "90K",
+    mediaKitFileUrl: "/api/circle-card/link-file/media-kit.pdf",
+    mediaKitFileName: "Alex Media Kit.pdf",
+    mediaKitFileMimeType: "application/pdf",
+    externalMediaKitUrl: null
+  };
+
+  it("stores the profile under creator.MEDIA_KIT and reports completion", () => {
+    const stored = writeCircleCardMediaKit({ business: { PRODUCTS: { items: [] } } }, mediaKit);
+    expect(readCircleCardMediaKit(stored)).toEqual(mediaKit);
+    expect(circleCardMediaKitStatus(readCircleCardMediaKit(stored))).toBe("Complete");
+    expect(stored.business).toEqual({ PRODUCTS: { items: [] } });
+  });
+
+  it("only exposes populated Media Kits on Creator Cards", () => {
+    const stored = writeCircleCardMediaKit({}, mediaKit);
+    expect(visibleCircleCardMediaKit({ cardType: "CREATOR", contentBlocks: stored })?.creatorName).toBe("Alex Creator");
+    expect(visibleCircleCardMediaKit({ cardType: "BUSINESS", contentBlocks: stored })).toBeNull();
+    expect(visibleCircleCardMediaKit({ cardType: "PERSONAL", contentBlocks: stored })).toBeNull();
+  });
+
+  it("accepts a managed PDF or safe external URL and rejects unsafe combinations", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      creatorName: "Alex",
+      creatorTagline: "",
+      primaryNiche: "Travel",
+      secondaryNiche: "",
+      location: "",
+      languages: "English",
+      availableWorldwide: true,
+      creatorEmail: "alex@example.com",
+      businessEnquiriesEmail: "",
+      websiteUrl: "https://example.com",
+      communityUrl: "",
+      yearsCreating: "5",
+      availableFor: ["UGC"],
+      primaryPlatform: "YouTube",
+      secondaryPlatform: "",
+      followers: "100K",
+      subscribers: "",
+      monthlyViews: "",
+      averageReach: "",
+      fileUrl: "",
+      fileName: "",
+      fileMimeType: "",
+      externalMediaKitUrl: "https://example.com/media-kit"
+    };
+    expect(circleCardMediaKitFormSchema.safeParse(base).success).toBe(true);
+    expect(circleCardMediaKitFormSchema.safeParse({ ...base, externalMediaKitUrl: "javascript:alert(1)" }).success).toBe(false);
+    expect(circleCardMediaKitFormSchema.safeParse({
+      ...base,
+      fileUrl: "/api/circle-card/link-file/media-kit.docx",
+      fileName: "media-kit.docx",
+      fileMimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      externalMediaKitUrl: ""
+    }).success).toBe(false);
+    expect(circleCardMediaKitFormSchema.safeParse({
+      ...base,
+      fileUrl: "/api/circle-card/link-file/media-kit.pdf",
+      fileName: "media-kit.pdf",
+      fileMimeType: "application/pdf"
+    }).success).toBe(false);
   });
 });
 

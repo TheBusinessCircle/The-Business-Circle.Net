@@ -64,6 +64,7 @@ import {
   circleCardFeaturedContentItemFormSchema,
   circleCardFeaturedContentItemIdSchema,
   circleCardGalleryItemFormSchema,
+  circleCardMediaKitFormSchema,
   circleCardGalleryItemIdSchema,
   circleCardDocumentItemFormSchema,
   circleCardDocumentItemIdSchema,
@@ -82,6 +83,7 @@ import {
   createCircleCardOpeningHoursPreset,
   createEmptyCircleCardContentBlocks,
   readCircleCardGalleryItems,
+  readCircleCardMediaKit,
   readCircleCardFeaturedContentItems,
   readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
@@ -92,6 +94,7 @@ import {
   readCircleCardReviewItems,
   readCircleCardServices,
   writeCircleCardGalleryItems,
+  writeCircleCardMediaKit,
   writeCircleCardFeaturedContentItems,
   writeCircleCardBookingEnquiry,
   writeCircleCardDocumentItems,
@@ -100,6 +103,7 @@ import {
   writeCircleCardProductItems,
   writeCircleCardPriceListItems,
   type CircleCardGalleryItem,
+  type CircleCardMediaKit,
   type CircleCardFeaturedContentItem,
   type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
@@ -1103,6 +1107,10 @@ export type CircleCardFeaturedContentInlineActionResult =
   | { ok: true; notice: string; item?: CircleCardFeaturedContentItem }
   | { ok: false; error: string; message: string };
 
+export type CircleCardMediaKitInlineActionResult =
+  | { ok: true; notice: string; mediaKit: CircleCardMediaKit | null }
+  | { ok: false; error: string; message: string };
+
 export type CircleCardReviewInlineActionResult =
   | {
       ok: true;
@@ -1207,6 +1215,10 @@ function inlineCircleCardFeaturedContentError(
   error: string,
   message: string
 ): CircleCardFeaturedContentInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardMediaKitError(error: string, message: string): CircleCardMediaKitInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -4058,6 +4070,100 @@ export async function deleteCircleCardFeaturedContentItemInlineAction(input: {
   });
   revalidateCircleCardPaths(card.slug);
   return { ok: true, notice: "Featured Content deleted" };
+}
+
+export async function saveCircleCardMediaKitInlineAction(
+  formData: FormData
+): Promise<CircleCardMediaKitInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardMediaKitFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    creatorName: formData.get("creatorName") ?? "",
+    creatorTagline: formData.get("creatorTagline") ?? "",
+    primaryNiche: formData.get("primaryNiche") ?? "",
+    secondaryNiche: formData.get("secondaryNiche") ?? "",
+    location: formData.get("location") ?? "",
+    languages: formData.get("languages") ?? "",
+    availableWorldwide: formData.get("availableWorldwide"),
+    creatorEmail: formData.get("creatorEmail") ?? "",
+    businessEnquiriesEmail: formData.get("businessEnquiriesEmail") ?? "",
+    websiteUrl: formData.get("websiteUrl") ?? "",
+    communityUrl: formData.get("communityUrl") ?? "",
+    yearsCreating: formData.get("yearsCreating") ?? "",
+    availableFor: formData.getAll("availableFor"),
+    primaryPlatform: formData.get("primaryPlatform") ?? "",
+    secondaryPlatform: formData.get("secondaryPlatform") ?? "",
+    followers: formData.get("followers") ?? "",
+    subscribers: formData.get("subscribers") ?? "",
+    monthlyViews: formData.get("monthlyViews") ?? "",
+    averageReach: formData.get("averageReach") ?? "",
+    fileUrl: formData.get("fileUrl") ?? "",
+    fileName: formData.get("fileName") ?? "",
+    fileMimeType: formData.get("fileMimeType") ?? "",
+    externalMediaKitUrl: formData.get("externalMediaKitUrl") ?? ""
+  });
+  if (!parsed.success) {
+    return inlineCircleCardMediaKitError(
+      "media-kit-invalid",
+      parsed.error.issues[0]?.message ?? "Check the Media Kit details and try again."
+    );
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardMediaKitError("media-kit-locked", "Media Kit is included with Creator Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardMediaKitError(
+      card ? "media-kit-creator-card-required" : "card-not-found",
+      card ? "Media Kit can only be added to a Creator Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const languages = [...new Set(parsed.data.languages.split(",").map((language) => language.trim()).filter(Boolean))]
+    .slice(0, 12)
+    .map((language) => language.slice(0, 60));
+  const mediaKit: CircleCardMediaKit = {
+    creatorName: parsed.data.creatorName || null,
+    creatorTagline: parsed.data.creatorTagline || null,
+    primaryNiche: parsed.data.primaryNiche || null,
+    secondaryNiche: parsed.data.secondaryNiche || null,
+    location: parsed.data.location || null,
+    languages,
+    availableWorldwide: parsed.data.availableWorldwide,
+    creatorEmail: parsed.data.creatorEmail || null,
+    businessEnquiriesEmail: parsed.data.businessEnquiriesEmail || null,
+    websiteUrl: parsed.data.websiteUrl || null,
+    communityUrl: parsed.data.communityUrl || null,
+    yearsCreating: parsed.data.yearsCreating,
+    availableFor: parsed.data.availableFor,
+    primaryPlatform: parsed.data.primaryPlatform || null,
+    secondaryPlatform: parsed.data.secondaryPlatform || null,
+    followers: parsed.data.followers || null,
+    subscribers: parsed.data.subscribers || null,
+    monthlyViews: parsed.data.monthlyViews || null,
+    averageReach: parsed.data.averageReach || null,
+    mediaKitFileUrl: parsed.data.fileUrl || null,
+    mediaKitFileName: parsed.data.fileUrl ? parsed.data.fileName || "Media Kit.pdf" : null,
+    mediaKitFileMimeType: parsed.data.fileUrl ? "application/pdf" : null,
+    externalMediaKitUrl: parsed.data.externalMediaKitUrl || null
+  };
+
+  try {
+    const contentBlocks = writeCircleCardMediaKit(card.contentBlocks, mediaKit);
+    await prisma.circleCard.update({ where: { id: card.id }, data: { contentBlocks } });
+    revalidateCircleCardPaths(card.slug);
+    return {
+      ok: true,
+      notice: "Media Kit saved",
+      mediaKit: readCircleCardMediaKit(contentBlocks)
+    };
+  } catch {
+    return inlineCircleCardMediaKitError(
+      "media-kit-save-failed",
+      "The Media Kit could not be saved. Your current details are still shown."
+    );
+  }
 }
 
 export async function upsertCircleCardReviewItemInlineAction(

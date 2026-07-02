@@ -99,6 +99,7 @@ import {
   CircleCardImageUploadField,
   CircleCardInstallPrompt,
   CircleCardMenuOffersManager,
+  CircleCardMediaKitManager,
   CircleCardPlanPanel,
   CircleCardProductsManager,
   CircleCardPriceListManager,
@@ -217,6 +218,7 @@ import {
   CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
   CIRCLE_CARD_CREATOR_BLOCK_TYPES,
   circleCardOpeningHoursDayLabel,
+  circleCardMediaKitStatus,
   circleCardCreatorBlockHasContent,
   isValidCircleCardReviewItem,
   readCircleCardGalleryItems,
@@ -226,6 +228,7 @@ import {
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
   readCircleCardMenuOfferItems,
+  readCircleCardMediaKit,
   readCircleCardProductItems,
   readCircleCardPriceListItems,
   readCircleCardReviewItems,
@@ -2276,6 +2279,7 @@ function CreatorProStudio({
   creatorTrustSignalCount,
   creatorBlocks,
   featuredContentItems,
+  mediaKit,
   publicUrl,
   className
 }: {
@@ -2294,6 +2298,7 @@ function CreatorProStudio({
   creatorTrustSignalCount: number;
   creatorBlocks: ReturnType<typeof readCircleCardCreatorBlocks>;
   featuredContentItems: ReturnType<typeof readCircleCardFeaturedContentItems>;
+  mediaKit: ReturnType<typeof readCircleCardMediaKit>;
   publicUrl: string;
   className?: string;
 }) {
@@ -2304,6 +2309,7 @@ function CreatorProStudio({
   const cardHref = (hash: string) => circleCardManageHref({ cardId, section: "my-card", hash });
   const featuredLinksHref = cardHref("custom-links");
   const featuredContentHref = cardHref("creator-featured-content");
+  const mediaKitHref = cardHref("creator-media-kit");
   const socialProfilesHref = cardHref("card-social-profiles");
   const contactHref = cardHref("card-contact-details");
   const identityHref = cardHref("card-identity");
@@ -2311,6 +2317,7 @@ function CreatorProStudio({
   const shareHref = circleCardManageHref({ cardId, section: "share", hash: "share-assets" });
   const linkTypeSet = new Set(activeLinkTypes);
   const featuredContentCount = featuredContentItems.filter((item) => item.isActive).length;
+  const mediaKitStatus = circleCardMediaKitStatus(mediaKit);
   const creatorOfferCount = activeLinkTypes.filter((type) =>
     ["LATEST_OFFER", "SHOP", "COMMUNITY"].includes(type)
   ).length;
@@ -2358,9 +2365,9 @@ function CreatorProStudio({
     {
       name: "Media Kit",
       benefit: "Give brands a quick overview of who you are.",
-      status: "Coming Soon",
-      action: "Coming Soon",
-      href: null,
+      status: mediaKitStatus,
+      action: mediaKitStatus === "Not Started" ? "Set up" : "Manage Media Kit",
+      href: mediaKitHref,
       icon: Download
     },
     {
@@ -2498,7 +2505,7 @@ function CreatorProStudio({
                   <span className="mt-4 text-[10px] font-medium uppercase tracking-[0.1em] text-silver">Studio {String(index + 1).padStart(2, "0")}</span>
                   <span className="mt-1 text-base font-semibold text-foreground">{module.name}</span>
                   <span className="mt-1 text-sm leading-relaxed text-muted">{module.benefit}</span>
-                  <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && module.action !== "Coming Soon" && module.name !== "Featured Content" ? "Unlock with Pro" : module.action}{module.href && (!locked || module.name === "Featured Content") ? <ArrowUpRight size={13} /> : null}</span>
+                  <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && module.name !== "Featured Content" ? "Unlock with Pro" : module.action}{module.href && (!locked || module.name === "Featured Content") ? <ArrowUpRight size={13} /> : null}</span>
                 </>
               );
 
@@ -2518,6 +2525,15 @@ function CreatorProStudio({
             initialItems={featuredContentItems}
             itemLimit={locked ? CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT : CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT}
             hasProAccess={!locked}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardMediaKitManager
+            cardId={cardId}
+            cardName={fullName}
+            initialMediaKit={mediaKit}
+            locked={locked}
           />
         ) : null}
 
@@ -5211,6 +5227,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardFeaturedContentItems = card?.cardType === "CREATOR"
     ? readCircleCardFeaturedContentItems(card.contentBlocks)
     : [];
+  const selectedCardMediaKit = card?.cardType === "CREATOR"
+    ? readCircleCardMediaKit(card.contentBlocks)
+    : null;
   const selectedCardCreatorTrustSignalCount = card?.cardType === "CREATOR"
     ? card.recommendationsReceived.length + card.walletTestimonialsReceived.filter(
         (testimonial) => testimonial.status === "APPROVED"
@@ -9157,6 +9176,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           creatorTrustSignalCount={selectedCardCreatorTrustSignalCount}
           creatorBlocks={selectedCardCreatorBlocks}
           featuredContentItems={selectedCardFeaturedContentItems}
+          mediaKit={selectedCardMediaKit}
           publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
           className={activeSection === "my-card" ? undefined : "hidden"}
         />

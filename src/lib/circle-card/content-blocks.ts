@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import {
   isSafeCircleCardExternalUrl,
+  isSafeCircleCardLinkDestination,
   normalizeCircleCardUrl
 } from "@/lib/circle-card/schema";
 
@@ -234,6 +235,49 @@ export type CircleCardFeaturedContentItem = {
 
 export const CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT = 3;
 export const CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT = 100;
+
+export const CIRCLE_CARD_MEDIA_KIT_WORK_TYPES = [
+  "Sponsored Posts",
+  "UGC",
+  "Affiliate Campaigns",
+  "Events",
+  "Public Speaking",
+  "Podcast Guest",
+  "Brand Ambassador",
+  "Long-term Partnerships",
+  "Digital Products",
+  "Consulting"
+] as const;
+
+export type CircleCardMediaKitWorkType = (typeof CIRCLE_CARD_MEDIA_KIT_WORK_TYPES)[number];
+
+export type CircleCardMediaKit = {
+  creatorName: string | null;
+  creatorTagline: string | null;
+  primaryNiche: string | null;
+  secondaryNiche: string | null;
+  location: string | null;
+  languages: string[];
+  availableWorldwide: boolean;
+  creatorEmail: string | null;
+  businessEnquiriesEmail: string | null;
+  websiteUrl: string | null;
+  communityUrl: string | null;
+  yearsCreating: number | null;
+  availableFor: CircleCardMediaKitWorkType[];
+  primaryPlatform: CircleCardFeaturedContentPlatform | null;
+  secondaryPlatform: CircleCardFeaturedContentPlatform | null;
+  followers: string | null;
+  subscribers: string | null;
+  monthlyViews: string | null;
+  averageReach: string | null;
+  mediaKitFileUrl: string | null;
+  mediaKitFileName: string | null;
+  mediaKitFileMimeType: string | null;
+  externalMediaKitUrl: string | null;
+};
+
+export type CircleCardMediaKitStatus = "Not Started" | "Active" | "Complete";
 
 export type CircleCardProductItem = {
   id: string;
@@ -635,6 +679,83 @@ export const circleCardFeaturedContentItemFormSchema = z.object({
 export const circleCardFeaturedContentItemIdSchema = z.object({
   cardId: z.string().cuid(),
   featuredContentItemId: z.string().trim().min(1).max(64)
+});
+
+const optionalMediaKitText = (maximum: number) =>
+  z.string().trim().max(maximum);
+
+const optionalMediaKitEmail = z.string().trim().max(254).refine(
+  (value) => !value || z.string().email().safeParse(value).success,
+  "Enter a valid email address."
+);
+
+const optionalSafeMediaKitUrl = z.string().trim().max(2048).transform(
+  (value, context) => {
+    if (!value) return "";
+    const safeUrl = normalizeSafeFeaturedContentUrl(value);
+    if (!safeUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Use a safe https:// URL without credentials."
+      });
+      return z.NEVER;
+    }
+    return safeUrl;
+  }
+);
+
+export const circleCardMediaKitFormSchema = z.object({
+  cardId: z.string().cuid(),
+  creatorName: optionalMediaKitText(120),
+  creatorTagline: optionalMediaKitText(240),
+  primaryNiche: optionalMediaKitText(80),
+  secondaryNiche: optionalMediaKitText(80),
+  location: optionalMediaKitText(120),
+  languages: optionalMediaKitText(300),
+  availableWorldwide: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  ),
+  creatorEmail: optionalMediaKitEmail,
+  businessEnquiriesEmail: optionalMediaKitEmail,
+  websiteUrl: optionalSafeMediaKitUrl,
+  communityUrl: optionalSafeMediaKitUrl,
+  yearsCreating: z.preprocess(
+    (value) => value === "" || value === null || value === undefined ? null : Number(value),
+    z.number().int().min(0).max(80).nullable()
+  ),
+  availableFor: z.array(z.enum(CIRCLE_CARD_MEDIA_KIT_WORK_TYPES)).max(CIRCLE_CARD_MEDIA_KIT_WORK_TYPES.length),
+  primaryPlatform: z.enum(CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS).or(z.literal("")),
+  secondaryPlatform: z.enum(CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS).or(z.literal("")),
+  followers: optionalMediaKitText(40),
+  subscribers: optionalMediaKitText(40),
+  monthlyViews: optionalMediaKitText(40),
+  averageReach: optionalMediaKitText(40),
+  fileUrl: z.string().trim().max(2048),
+  fileName: optionalMediaKitText(255),
+  fileMimeType: optionalMediaKitText(120),
+  externalMediaKitUrl: optionalSafeMediaKitUrl
+}).superRefine((value, context) => {
+  if (value.fileUrl && value.externalMediaKitUrl) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["externalMediaKitUrl"],
+      message: "Use either an uploaded PDF or an external Media Kit URL."
+    });
+  }
+  if (!value.fileUrl) return;
+  if (
+    !value.fileUrl.startsWith("/api/circle-card/link-file/") ||
+    !value.fileUrl.toLowerCase().endsWith(".pdf") ||
+    !isSafeCircleCardLinkDestination(value.fileUrl) ||
+    value.fileMimeType !== "application/pdf"
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["fileUrl"],
+      message: "Upload a PDF media kit."
+    });
+  }
 });
 
 export const circleCardMenuOfferItemFormSchema = z
@@ -2086,6 +2207,117 @@ export function visibleCircleCardFeaturedContentItems(input: {
           Number(right.isFeatured) - Number(left.isFeatured) || left.sortOrder - right.sortOrder
         )
     : [];
+}
+
+function readMediaKitText(value: unknown, maximum: number) {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, maximum) : null;
+}
+
+function readMediaKitEmail(value: unknown) {
+  const email = readMediaKitText(value, 254);
+  return email && z.string().email().safeParse(email).success ? email : null;
+}
+
+function readMediaKitUrl(value: unknown) {
+  return normalizeSafeFeaturedContentUrl(value);
+}
+
+export function readCircleCardMediaKit(value: unknown): CircleCardMediaKit | null {
+  if (!isRecord(value) || !isRecord(value.creator) || !isRecord(value.creator.MEDIA_KIT)) {
+    return null;
+  }
+  const mediaKit = value.creator.MEDIA_KIT;
+  const languages = Array.isArray(mediaKit.languages)
+    ? mediaKit.languages.flatMap((language) => {
+        const parsed = readMediaKitText(language, 60);
+        return parsed ? [parsed] : [];
+      }).slice(0, 12)
+    : [];
+  const rawAvailableFor = Array.isArray(mediaKit.availableFor) ? mediaKit.availableFor : [];
+  const availableFor = rawAvailableFor.length
+    ? CIRCLE_CARD_MEDIA_KIT_WORK_TYPES.filter((workType) => rawAvailableFor.includes(workType))
+    : [];
+  const primaryPlatform = CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS.find(
+    (platform) => platform === mediaKit.primaryPlatform
+  ) ?? null;
+  const secondaryPlatform = CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS.find(
+    (platform) => platform === mediaKit.secondaryPlatform
+  ) ?? null;
+  const rawFileUrl = readMediaKitText(mediaKit.mediaKitFileUrl, 2048);
+  const rawFileMimeType = readMediaKitText(mediaKit.mediaKitFileMimeType, 120);
+  const mediaKitFileUrl = rawFileUrl && rawFileUrl.startsWith("/api/circle-card/link-file/") &&
+    rawFileUrl.toLowerCase().endsWith(".pdf") && rawFileMimeType === "application/pdf" &&
+    isSafeCircleCardLinkDestination(rawFileUrl)
+      ? rawFileUrl
+      : null;
+  const result: CircleCardMediaKit = {
+    creatorName: readMediaKitText(mediaKit.creatorName, 120),
+    creatorTagline: readMediaKitText(mediaKit.creatorTagline, 240),
+    primaryNiche: readMediaKitText(mediaKit.primaryNiche, 80),
+    secondaryNiche: readMediaKitText(mediaKit.secondaryNiche, 80),
+    location: readMediaKitText(mediaKit.location, 120),
+    languages,
+    availableWorldwide: mediaKit.availableWorldwide === true,
+    creatorEmail: readMediaKitEmail(mediaKit.creatorEmail),
+    businessEnquiriesEmail: readMediaKitEmail(mediaKit.businessEnquiriesEmail),
+    websiteUrl: readMediaKitUrl(mediaKit.websiteUrl),
+    communityUrl: readMediaKitUrl(mediaKit.communityUrl),
+    yearsCreating: typeof mediaKit.yearsCreating === "number" && Number.isInteger(mediaKit.yearsCreating) && mediaKit.yearsCreating >= 0 && mediaKit.yearsCreating <= 80
+      ? mediaKit.yearsCreating
+      : null,
+    availableFor,
+    primaryPlatform,
+    secondaryPlatform,
+    followers: readMediaKitText(mediaKit.followers, 40),
+    subscribers: readMediaKitText(mediaKit.subscribers, 40),
+    monthlyViews: readMediaKitText(mediaKit.monthlyViews, 40),
+    averageReach: readMediaKitText(mediaKit.averageReach, 40),
+    mediaKitFileUrl,
+    mediaKitFileName: mediaKitFileUrl ? readMediaKitText(mediaKit.mediaKitFileName, 255) : null,
+    mediaKitFileMimeType: mediaKitFileUrl ? "application/pdf" : null,
+    externalMediaKitUrl: readMediaKitUrl(mediaKit.externalMediaKitUrl)
+  };
+
+  return circleCardMediaKitStatus(result) === "Not Started" ? null : result;
+}
+
+export function writeCircleCardMediaKit(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  mediaKit: CircleCardMediaKit
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const creator = isRecord(root.creator) ? root.creator : {};
+  return {
+    ...root,
+    creator: {
+      ...creator,
+      MEDIA_KIT: mediaKit
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function circleCardMediaKitStatus(mediaKit: CircleCardMediaKit | null): CircleCardMediaKitStatus {
+  if (!mediaKit) return "Not Started";
+  const hasContent = Boolean(
+    mediaKit.creatorName || mediaKit.creatorTagline || mediaKit.primaryNiche ||
+    mediaKit.secondaryNiche || mediaKit.location || mediaKit.languages.length ||
+    mediaKit.availableWorldwide || mediaKit.creatorEmail || mediaKit.businessEnquiriesEmail ||
+    mediaKit.websiteUrl || mediaKit.communityUrl || mediaKit.yearsCreating !== null ||
+    mediaKit.availableFor.length || mediaKit.primaryPlatform || mediaKit.secondaryPlatform ||
+    mediaKit.followers || mediaKit.subscribers || mediaKit.monthlyViews || mediaKit.averageReach ||
+    mediaKit.mediaKitFileUrl || mediaKit.externalMediaKitUrl
+  );
+  if (!hasContent) return "Not Started";
+  const complete = Boolean(
+    mediaKit.creatorName && mediaKit.creatorTagline && mediaKit.primaryNiche &&
+    (mediaKit.businessEnquiriesEmail || mediaKit.creatorEmail) &&
+    mediaKit.availableFor.length && mediaKit.primaryPlatform
+  );
+  return complete ? "Complete" : "Active";
+}
+
+export function visibleCircleCardMediaKit(input: { cardType: string; contentBlocks: unknown }) {
+  return input.cardType === "CREATOR" ? readCircleCardMediaKit(input.contentBlocks) : null;
 }
 
 export function circleCardFeaturedContentPreviewImage(item: CircleCardFeaturedContentItem) {

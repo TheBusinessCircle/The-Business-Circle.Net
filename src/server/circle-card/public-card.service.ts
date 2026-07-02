@@ -14,6 +14,7 @@ import {
   visibleCircleCardFeaturedContentItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardMenuOfferItems,
+  visibleCircleCardMediaKit,
   visibleCircleCardOpeningHours,
   visibleCircleCardProductItems,
   visibleCircleCardPriceListItems,
@@ -24,6 +25,7 @@ import {
   type CircleCardFeaturedContentItem,
   type CircleCardGalleryItem,
   type CircleCardMenuOfferItem,
+  type CircleCardMediaKit,
   type CircleCardOpeningHours,
   type CircleCardProductItem,
   type CircleCardPriceListItem,
@@ -126,6 +128,7 @@ export type PublicCircleCard = {
   products: CircleCardProductItem[];
   priceItems: CircleCardPriceListItem[];
   menuOfferItems: CircleCardMenuOfferItem[];
+  mediaKit: CircleCardMediaKit | null;
   documents: CircleCardDocumentItem[];
   featuredContentItems: CircleCardFeaturedContentItem[];
   bookingEnquiry: CircleCardBookingEnquiry | null;
@@ -194,6 +197,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   products: [],
   priceItems: [],
   menuOfferItems: [],
+  mediaKit: null,
   documents: [],
   featuredContentItems: [],
   bookingEnquiry: null,
@@ -491,6 +495,10 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       imageUrl: await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url)
     }))
   );
+  const mediaKit = visibleCircleCardMediaKit({
+    cardType: card.cardType,
+    contentBlocks: card.contentBlocks
+  });
   const documents = visibleCircleCardDocumentItems({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
@@ -577,6 +585,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     products,
     priceItems,
     menuOfferItems,
+    mediaKit,
     documents,
     featuredContentItems,
     bookingEnquiry,

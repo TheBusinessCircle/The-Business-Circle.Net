@@ -2102,6 +2102,73 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderCreatorMediaKitSection({ id = "creator-media-kit" }: { id?: string } = {}) {
+    const mediaKit = card.mediaKit;
+    if (card.cardType !== "CREATOR" || !mediaKit) return null;
+
+    const audience = [
+      mediaKit.primaryPlatform ? { label: "Primary platform", value: mediaKit.primaryPlatform } : null,
+      mediaKit.secondaryPlatform ? { label: "Secondary platform", value: mediaKit.secondaryPlatform } : null,
+      mediaKit.followers ? { label: "Followers", value: mediaKit.followers } : null,
+      mediaKit.subscribers ? { label: "Subscribers", value: mediaKit.subscribers } : null,
+      mediaKit.monthlyViews ? { label: "Monthly views", value: mediaKit.monthlyViews } : null,
+      mediaKit.averageReach ? { label: "Average reach", value: mediaKit.averageReach } : null
+    ].filter((item): item is { label: string; value: string } => Boolean(item));
+    const contactEmail = mediaKit.businessEnquiriesEmail || mediaKit.creatorEmail;
+
+    return (
+      <section id={id} aria-labelledby={`${id}-title`} className="overflow-hidden rounded-[1.75rem] border border-cyan-300/18 bg-[linear-gradient(145deg,rgba(10,29,42,0.9),rgba(4,10,24,0.97))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.25)] sm:p-6 lg:p-7">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Creator Media Kit</p>
+            <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">{mediaKit.creatorName || "Media Kit"}</h2>
+            {mediaKit.creatorTagline ? <p className="mt-3 max-w-3xl text-base leading-relaxed text-silver sm:text-lg">{mediaKit.creatorTagline}</p> : null}
+          </div>
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><BriefcaseBusiness size={20} /></span>
+        </div>
+
+        {(mediaKit.primaryNiche || mediaKit.secondaryNiche || mediaKit.location || mediaKit.languages.length || mediaKit.availableWorldwide || mediaKit.yearsCreating !== null) ? (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {mediaKit.primaryNiche ? <span className="rounded-full border border-cyan-300/20 bg-cyan-400/[0.07] px-3 py-1.5 text-xs font-medium text-cyan-100">{mediaKit.primaryNiche}</span> : null}
+            {mediaKit.secondaryNiche ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">{mediaKit.secondaryNiche}</span> : null}
+            {mediaKit.location ? <span className="inline-flex items-center gap-1.5 rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver"><MapPin size={12} />{mediaKit.location}</span> : null}
+            {mediaKit.languages.length ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">{mediaKit.languages.join(" · ")}</span> : null}
+            {mediaKit.availableWorldwide ? <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/22 bg-gold/8 px-3 py-1.5 text-xs text-gold"><Globe2 size={12} />Available worldwide</span> : null}
+            {mediaKit.yearsCreating !== null ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">{mediaKit.yearsCreating} year{mediaKit.yearsCreating === 1 ? "" : "s"} creating</span> : null}
+          </div>
+        ) : null}
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {mediaKit.availableFor.length ? (
+            <div className="rounded-2xl border border-silver/14 bg-white/[0.035] p-4 sm:p-5">
+              <h3 className="text-sm font-semibold text-foreground">Available for Collaborations</h3>
+              <div className="mt-3 flex flex-wrap gap-2">{mediaKit.availableFor.map((workType) => <span key={workType} className="rounded-full border border-gold/20 bg-gold/8 px-3 py-1.5 text-xs font-medium text-gold">{workType}</span>)}</div>
+            </div>
+          ) : null}
+          {audience.length ? (
+            <div className="rounded-2xl border border-silver/14 bg-white/[0.035] p-4 sm:p-5">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><BarChart3 size={15} className="text-cyan-200" />Audience Snapshot</h3>
+              <div className="mt-3 grid grid-cols-2 gap-2">{audience.map((item) => <div key={item.label} className="min-w-0 rounded-xl border border-silver/12 bg-background/22 p-3"><p className="text-[11px] text-muted">{item.label}</p><p className="mt-1 truncate text-sm font-semibold text-foreground">{item.value}</p></div>)}</div>
+            </div>
+          ) : null}
+        </div>
+
+        {(contactEmail || mediaKit.websiteUrl || mediaKit.communityUrl || mediaKit.mediaKitFileUrl || mediaKit.externalMediaKitUrl) ? (
+          <div className="mt-5 rounded-2xl border border-cyan-300/16 bg-cyan-400/[0.045] p-4 sm:p-5">
+            <h3 className="text-sm font-semibold text-foreground">Let&apos;s Work Together</h3>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {contactEmail ? <a href={`mailto:${contactEmail}`} className={cn(buttonVariants({ size: "sm" }), "h-11 gap-2")}><Mail size={14} />Brand Enquiries</a> : null}
+              {mediaKit.websiteUrl ? <a {...getExternalLinkProps(mediaKit.websiteUrl)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 gap-2")}><Globe2 size={14} />Website</a> : null}
+              {mediaKit.communityUrl ? <a {...getExternalLinkProps(mediaKit.communityUrl)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 gap-2")}><Users size={14} />Community</a> : null}
+              {mediaKit.mediaKitFileUrl ? <a href={mediaKit.mediaKitFileUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 gap-2")}><Download size={14} />Download Media Kit</a> : null}
+              {mediaKit.externalMediaKitUrl ? <a {...getExternalLinkProps(mediaKit.externalMediaKitUrl)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 gap-2")}><ChevronRight size={14} />View Media Kit</a> : null}
+            </div>
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
   function renderBookingSection({ id = "business-booking" }: { id?: string } = {}) {
     const booking = card.bookingEnquiry;
     if (card.cardType !== "BUSINESS" || !booking) {
@@ -2775,6 +2842,7 @@ export function PublicCircleCardProfile({
                 </div>
               </section>
             ) : null}
+            {renderCreatorMediaKitSection()}
 
             {card.approvedWalletTestimonialCount > 0 || card.reviews.length > 0
               ? renderTrustScoreCard({ reviewsId: "creator-reviews" })
