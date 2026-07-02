@@ -91,6 +91,7 @@ import {
   CircleCardBookingManager,
   CircleCardBrandPartnershipsManager,
   CircleCardCopyLinkButton,
+  CircleCardCreatorOffersManager,
   CircleCardDashboardSection,
   CircleCardDocumentsManager,
   CircleCardFeaturedContentManager,
@@ -213,6 +214,8 @@ import {
   CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT,
+  CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT,
+  CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_MENU_OFFER_PRO_LIMIT,
   CIRCLE_CARD_OPENING_HOURS_PRESETS,
@@ -223,6 +226,7 @@ import {
   CIRCLE_CARD_CREATOR_BLOCK_TYPES,
   circleCardOpeningHoursDayLabel,
   circleCardBrandPartnershipStatus,
+  circleCardCreatorOfferStatus,
   circleCardAudienceSnapshotStatus,
   circleCardMediaKitStatus,
   circleCardCreatorBlockHasContent,
@@ -231,6 +235,7 @@ import {
   readCircleCardAudienceSnapshot,
   readCircleCardFeaturedContentItems,
   readCircleCardCreatorBlocks,
+  readCircleCardCreatorOffers,
   readCircleCardBookingEnquiry,
   readCircleCardBrandPartnerships,
   readCircleCardDocumentItems,
@@ -2289,6 +2294,7 @@ function CreatorProStudio({
   mediaKit,
   audienceSnapshot,
   brandPartnerships,
+  creatorOffers,
   publicUrl,
   className
 }: {
@@ -2309,6 +2315,7 @@ function CreatorProStudio({
   mediaKit: ReturnType<typeof readCircleCardMediaKit>;
   audienceSnapshot: ReturnType<typeof readCircleCardAudienceSnapshot>;
   brandPartnerships: ReturnType<typeof readCircleCardBrandPartnerships>;
+  creatorOffers: ReturnType<typeof readCircleCardCreatorOffers>;
   publicUrl: string;
   className?: string;
 }) {
@@ -2322,6 +2329,7 @@ function CreatorProStudio({
   const mediaKitHref = cardHref("creator-media-kit");
   const audienceHref = cardHref("creator-audience");
   const brandPartnershipsHref = cardHref("creator-brand-partnerships");
+  const creatorOffersHref = cardHref("creator-offers");
   const socialProfilesHref = cardHref("card-social-profiles");
   const identityHref = cardHref("card-identity");
   const imagesHref = cardHref("card-images");
@@ -2331,9 +2339,8 @@ function CreatorProStudio({
   const mediaKitStatus = circleCardMediaKitStatus(mediaKit);
   const audienceStatus = circleCardAudienceSnapshotStatus(audienceSnapshot);
   const brandPartnershipStatus = circleCardBrandPartnershipStatus(brandPartnerships);
-  const creatorOfferCount = activeLinkTypes.filter((type) =>
-    ["LATEST_OFFER", "SHOP", "COMMUNITY"].includes(type)
-  ).length;
+  const creatorOfferStatus = circleCardCreatorOfferStatus(creatorOffers);
+  const creatorOfferCount = creatorOffers.filter((item) => item.active).length;
   const proofCount = activeLinkTypes.filter((type) =>
     ["PORTFOLIO", "CASE_STUDY", "REVIEW"].includes(type)
   ).length;
@@ -2401,9 +2408,9 @@ function CreatorProStudio({
     {
       name: "Creator Offers",
       benefit: "Promote affiliates, merch, communities or paid content.",
-      status: creatorOfferCount > 0 ? "Active" : "Not Started",
-      action: creatorOfferCount > 0 ? "Manage" : "Set up",
-      href: featuredLinksHref,
+      status: creatorOfferStatus,
+      action: creatorOfferCount > 0 ? "Manage Creator Offers" : "Set up",
+      href: creatorOffersHref,
       icon: ShoppingBag
     },
     {
@@ -2509,7 +2516,7 @@ function CreatorProStudio({
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {modules.map((module, index) => {
               const Icon = module.icon;
-              const availableOnFree = module.name === "Featured Content" || module.name === "Brand Partnerships";
+              const availableOnFree = module.name === "Featured Content" || module.name === "Brand Partnerships" || module.name === "Creator Offers";
               const content = (
                 <>
                   <span className="flex items-start justify-between gap-3">
@@ -2538,6 +2545,16 @@ function CreatorProStudio({
             cardName={fullName}
             initialItems={featuredContentItems}
             itemLimit={locked ? CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT : CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT}
+            hasProAccess={!locked}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardCreatorOffersManager
+            cardId={cardId}
+            cardName={fullName}
+            initialItems={creatorOffers}
+            itemLimit={locked ? CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT : CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT}
             hasProAccess={!locked}
           />
         ) : null}
@@ -5259,6 +5276,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     : {};
   const selectedCardFeaturedContentItems = card?.cardType === "CREATOR"
     ? readCircleCardFeaturedContentItems(card.contentBlocks)
+    : [];
+  const selectedCardCreatorOffers = card?.cardType === "CREATOR"
+    ? readCircleCardCreatorOffers(card.contentBlocks)
     : [];
   const selectedCardMediaKit = card?.cardType === "CREATOR"
     ? readCircleCardMediaKit(card.contentBlocks)
@@ -9214,6 +9234,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           creatorTrustSignalCount={selectedCardCreatorTrustSignalCount}
           creatorBlocks={selectedCardCreatorBlocks}
           featuredContentItems={selectedCardFeaturedContentItems}
+          creatorOffers={selectedCardCreatorOffers}
           mediaKit={selectedCardMediaKit}
           audienceSnapshot={selectedCardAudienceSnapshot}
           brandPartnerships={selectedCardBrandPartnerships}

@@ -271,6 +271,46 @@ export const CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT = 2;
 export const CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT = 100;
 export type CircleCardBrandPartnershipStatus = "Not Started" | "Active" | "Complete";
 
+export const CIRCLE_CARD_CREATOR_OFFER_TYPES = [
+  "Affiliate",
+  "Merch",
+  "Course",
+  "Template",
+  "Preset",
+  "Digital Download",
+  "Paid Community",
+  "Coaching",
+  "Membership",
+  "Support",
+  "Newsletter",
+  "Sponsorship",
+  "Bundle",
+  "Other"
+] as const;
+
+export type CircleCardCreatorOfferType = (typeof CIRCLE_CARD_CREATOR_OFFER_TYPES)[number];
+
+export type CircleCardCreatorOffer = {
+  id: string;
+  title: string;
+  description: string;
+  offerType: CircleCardCreatorOfferType;
+  image: string;
+  price: string | null;
+  previousPrice: string | null;
+  badge: string | null;
+  ctaLabel: string;
+  ctaUrl: string;
+  featured: boolean;
+  active: boolean;
+  expiryDate: string | null;
+  sortOrder: number;
+};
+
+export const CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT = 2;
+export const CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT = 100;
+export type CircleCardCreatorOfferStatus = "Not Started" | "Active" | "Complete";
+
 export const CIRCLE_CARD_MEDIA_KIT_WORK_TYPES = [
   "Sponsored Posts",
   "UGC",
@@ -792,6 +832,60 @@ export const circleCardBrandPartnershipFormSchema = z.object({
 export const circleCardBrandPartnershipIdSchema = z.object({
   cardId: z.string().cuid(),
   partnershipId: z.string().trim().min(1).max(64)
+});
+
+export const circleCardCreatorOfferFormSchema = z
+  .object({
+    cardId: z.string().cuid(),
+    creatorOfferId: z.string().trim().max(64).optional().or(z.literal("")),
+    title: z.string().trim().min(1, "Add an offer title.").max(120),
+    description: z.string().trim().min(1, "Add a short description.").max(700),
+    offerType: z.enum(CIRCLE_CARD_CREATOR_OFFER_TYPES),
+    image: z.string().trim().min(1, "Upload an offer image.").max(2048).refine(
+      isSafeCircleCardImageUrl,
+      "Upload a valid offer image."
+    ),
+    price: z.string().trim().max(60).optional().or(z.literal("")),
+    previousPrice: z.string().trim().max(60).optional().or(z.literal("")),
+    badge: z.string().trim().max(40).optional().or(z.literal("")),
+    ctaLabel: z.string().trim().min(1, "Add CTA button text.").max(40),
+    ctaUrl: z.string().trim().min(1, "Add a CTA URL.").max(2048).transform((value, context) => {
+      const safeUrl = normalizeSafeFeaturedContentUrl(value);
+      if (!safeUrl) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Use a safe https:// URL without credentials."
+        });
+        return z.NEVER;
+      }
+      return safeUrl;
+    }),
+    featured: z.preprocess(
+      (value) => value === true || value === "true" || value === "on" || value === "1",
+      z.boolean()
+    ),
+    active: z.preprocess(
+      (value) => value === true || value === "true" || value === "on" || value === "1",
+      z.boolean()
+    ),
+    expiryDate: z.string().trim().optional().or(z.literal("")).refine(
+      (value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value) && isValidCalendarDate(value),
+      "Choose a valid expiry date."
+    )
+  })
+  .superRefine((value, context) => {
+    if (value.previousPrice && !value.price) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["price"],
+        message: "Add the current price when using a previous price."
+      });
+    }
+  });
+
+export const circleCardCreatorOfferIdSchema = z.object({
+  cardId: z.string().cuid(),
+  creatorOfferId: z.string().trim().min(1).max(64)
 });
 
 const optionalMediaKitText = (maximum: number) =>
@@ -2341,6 +2435,96 @@ export function visibleCircleCardFeaturedContentItems(input: {
           Number(right.isFeatured) - Number(left.isFeatured) || left.sortOrder - right.sortOrder
         )
     : [];
+}
+
+export function readCircleCardCreatorOffers(value: unknown): CircleCardCreatorOffer[] {
+  if (!isRecord(value) || !isRecord(value.creator) || !isRecord(value.creator.CREATOR_OFFERS)) {
+    return [];
+  }
+  const items = value.creator.CREATOR_OFFERS.items;
+  if (!Array.isArray(items)) return [];
+
+  return items.flatMap((item, index) => {
+    if (!isRecord(item)) return [];
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const title = typeof item.title === "string" ? item.title.trim() : "";
+    const description = typeof item.description === "string" ? item.description.trim() : "";
+    const offerType = CIRCLE_CARD_CREATOR_OFFER_TYPES.find((candidate) => candidate === item.offerType);
+    const image = readSafeProductImageUrl(item.image);
+    const ctaLabel = typeof item.ctaLabel === "string" ? item.ctaLabel.trim() : "";
+    const ctaUrl = normalizeSafeFeaturedContentUrl(item.ctaUrl);
+    if (!id || !title || !description || !offerType || !image || !ctaLabel || !ctaUrl) return [];
+
+    const rawExpiryDate = typeof item.expiryDate === "string" ? item.expiryDate.trim() : "";
+    const expiryDate = /^\d{4}-\d{2}-\d{2}$/.test(rawExpiryDate) && isValidCalendarDate(rawExpiryDate)
+      ? rawExpiryDate
+      : null;
+
+    return [{
+      id,
+      title: title.slice(0, 120),
+      description: description.slice(0, 700),
+      offerType,
+      image,
+      price: typeof item.price === "string" && item.price.trim()
+        ? item.price.trim().slice(0, 60)
+        : null,
+      previousPrice: typeof item.previousPrice === "string" && item.previousPrice.trim()
+        ? item.previousPrice.trim().slice(0, 60)
+        : null,
+      badge: typeof item.badge === "string" && item.badge.trim()
+        ? item.badge.trim().slice(0, 40)
+        : null,
+      ctaLabel: ctaLabel.slice(0, 40),
+      ctaUrl,
+      featured: item.featured === true,
+      active: item.active !== false,
+      expiryDate,
+      sortOrder: typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+        ? item.sortOrder
+        : index
+    } satisfies CircleCardCreatorOffer];
+  }).sort((left, right) => left.sortOrder - right.sortOrder);
+}
+
+export function writeCircleCardCreatorOffers(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  offers: CircleCardCreatorOffer[]
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const creator = isRecord(root.creator) ? root.creator : {};
+  const current = isRecord(creator.CREATOR_OFFERS) ? creator.CREATOR_OFFERS : {};
+  return {
+    ...root,
+    creator: {
+      ...creator,
+      CREATOR_OFFERS: {
+        ...current,
+        items: offers.map((item, index) => ({ ...item, sortOrder: index }))
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardCreatorOffers(input: {
+  cardType: string;
+  contentBlocks: unknown;
+  now?: Date;
+}) {
+  if (input.cardType !== "CREATOR") return [];
+  const today = (input.now ?? new Date()).toISOString().slice(0, 10);
+  return readCircleCardCreatorOffers(input.contentBlocks)
+    .filter((item) => item.active && (!item.expiryDate || item.expiryDate >= today))
+    .sort((left, right) =>
+      Number(right.featured) - Number(left.featured) || left.sortOrder - right.sortOrder
+    );
+}
+
+export function circleCardCreatorOfferStatus(
+  offers: CircleCardCreatorOffer[]
+): CircleCardCreatorOfferStatus {
+  if (!offers.length) return "Not Started";
+  return offers.some((item) => item.active) ? "Complete" : "Active";
 }
 
 export function readCircleCardBrandPartnerships(value: unknown): CircleCardBrandPartnership[] {

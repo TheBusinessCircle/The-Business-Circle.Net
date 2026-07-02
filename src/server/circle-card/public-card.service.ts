@@ -11,6 +11,7 @@ import { SITE_CONFIG } from "@/config/site";
 import {
   visibleCircleCardBookingEnquiry,
   visibleCircleCardBrandPartnerships,
+  visibleCircleCardCreatorOffers,
   visibleCircleCardAudienceSnapshot,
   visibleCircleCardDocumentItems,
   visibleCircleCardFeaturedContentItems,
@@ -24,6 +25,7 @@ import {
   visibleCircleCardServices,
   type CircleCardBookingEnquiry,
   type CircleCardBrandPartnership,
+  type CircleCardCreatorOffer,
   type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardFeaturedContentItem,
@@ -137,6 +139,7 @@ export type PublicCircleCard = {
   featuredContentItems: CircleCardFeaturedContentItem[];
   bookingEnquiry: CircleCardBookingEnquiry | null;
   brandPartnerships: CircleCardBrandPartnership[];
+  creatorOffers: CircleCardCreatorOffer[];
   audienceSnapshot: CircleCardAudienceSnapshot | null;
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
@@ -208,6 +211,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   featuredContentItems: [],
   bookingEnquiry: null,
   brandPartnerships: [],
+  creatorOffers: [],
   audienceSnapshot: null,
   galleryItems: [],
   reviews: [],
@@ -529,6 +533,17 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       brandLogo: await resolvePublicUploadImageUrl(item.brandLogo, SITE_CONFIG.url)
     }))
   );
+  const creatorOffers = (
+    await Promise.all(
+      visibleCircleCardCreatorOffers({
+        cardType: card.cardType,
+        contentBlocks: card.contentBlocks
+      }).map(async (item) => {
+        const image = await resolvePublicUploadImageUrl(item.image, SITE_CONFIG.url);
+        return image ? { ...item, image } : null;
+      })
+    )
+  ).filter((item): item is CircleCardCreatorOffer => Boolean(item));
   const bookingEnquiry = visibleCircleCardBookingEnquiry({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
@@ -610,6 +625,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     documents,
     featuredContentItems,
     brandPartnerships,
+    creatorOffers,
     bookingEnquiry,
     audienceSnapshot,
     galleryItems,

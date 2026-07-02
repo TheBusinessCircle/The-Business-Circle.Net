@@ -928,6 +928,47 @@ function CreatorFeaturedContentCard({
   );
 }
 
+function CreatorOfferCard({
+  item,
+  analyticsCardId
+}: {
+  item: PublicCircleCard["creatorOffers"][number];
+  analyticsCardId?: string;
+}) {
+  return (
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-[1.6rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(25,35,42,0.94),rgba(6,13,28,0.98))] shadow-[0_22px_60px_rgba(0,0,0,0.28)]">
+      <div className="relative aspect-[1.55] overflow-hidden border-b border-silver/12 bg-[image:var(--cc-theme-media-bg)]">
+        <img src={item.image} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgba(3,8,19,0.82))]" />
+        <div className="absolute left-3 right-3 top-3 flex flex-wrap items-start justify-between gap-2">
+          <span className="rounded-full border border-white/16 bg-black/38 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">{item.offerType}</span>
+          {item.badge ? <span className="rounded-full border border-gold/28 bg-gold/16 px-3 py-1.5 text-xs font-semibold text-gold backdrop-blur">{item.badge}</span> : null}
+        </div>
+        {item.featured ? <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full border border-gold/28 bg-black/42 px-3 py-1.5 text-xs font-medium text-gold backdrop-blur"><Star size={11} />Featured</span> : null}
+      </div>
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
+        <h3 className="break-words text-xl font-semibold leading-tight text-foreground">{item.title}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted">{item.description}</p>
+        {item.price ? (
+          <div className="mt-4 flex flex-wrap items-baseline gap-2">
+            <span className="font-display text-2xl font-semibold text-gold">{item.price}</span>
+            {item.previousPrice ? <span className="text-sm text-muted line-through">{item.previousPrice}</span> : null}
+          </div>
+        ) : null}
+        <CircleCardTrackedLink
+          {...getExternalLinkProps(item.ctaUrl)}
+          cardId={analyticsCardId ?? ""}
+          eventType="CUSTOM_LINK_CLICK"
+          metadata={{ source: "creator_offer", itemId: item.id, offerType: item.offerType, url: analyticsUrlValue(item.ctaUrl) }}
+          className={cn(buttonVariants(), "mt-auto min-h-12 w-full gap-2")}
+        >
+          {item.ctaLabel}<ChevronRight size={15} />
+        </CircleCardTrackedLink>
+      </div>
+    </article>
+  );
+}
+
 type TrustAreaProps = {
   card: PublicCircleCard;
   ownerAccountLabel: string;
@@ -2993,6 +3034,21 @@ export function PublicCircleCardProfile({
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {card.featuredContentItems.map((item) => <CreatorFeaturedContentCard key={item.id} item={item} analyticsCardId={analyticsCardId} />)}
+                </div>
+              </section>
+            ) : null}
+            {card.cardType === "CREATOR" && card.creatorOffers.length ? (
+              <section id="creator-offers" aria-labelledby="creator-offers-title" className="min-w-0 overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.09),transparent_35%),rgba(255,255,255,0.035)] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.24)] sm:p-5 lg:p-6">
+                <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-gold">Creator Offers</p>
+                    <h2 id="creator-offers-title" className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Support My Work</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Courses, downloads, communities and creator favourites, all in one place.</p>
+                  </div>
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold"><ShoppingBag size={20} /></span>
+                </div>
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {card.creatorOffers.map((item) => <CreatorOfferCard key={item.id} item={item} analyticsCardId={analyticsCardId} />)}
                 </div>
               </section>
             ) : null}

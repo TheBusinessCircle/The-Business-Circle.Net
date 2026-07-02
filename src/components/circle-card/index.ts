@@ -7,6 +7,7 @@ export * from "@/components/circle-card/circle-card-brand-partnerships-manager";
 export * from "@/components/circle-card/circle-card-install-prompt";
 export * from "@/components/circle-card/circle-card-notification-orb";
 export * from "@/components/circle-card/circle-card-copy-link-button";
+export * from "@/components/circle-card/circle-card-creator-offers-manager";
 export * from "@/components/circle-card/circle-card-dashboard-section";
 export * from "@/components/circle-card/circle-card-documents-manager";
 export * from "@/components/circle-card/circle-card-framed-image";

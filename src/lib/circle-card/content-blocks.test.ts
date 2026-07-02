@@ -4,6 +4,8 @@ import {
   circleCardBookingEnquiryFormSchema,
   circleCardBrandPartnershipFormSchema,
   circleCardBrandPartnershipStatus,
+  circleCardCreatorOfferFormSchema,
+  circleCardCreatorOfferStatus,
   circleCardAudienceSnapshotFormSchema,
   circleCardAudienceSnapshotStatus,
   circleCardBookingPhoneHref,
@@ -31,6 +33,7 @@ import {
   readCircleCardPriceListItems,
   readCircleCardMenuOfferItems,
   readCircleCardCreatorBlocks,
+  readCircleCardCreatorOffers,
   readCircleCardServices,
   readCircleCardReviewItems,
   resolveCircleCardGalleryBuilderMode,
@@ -45,6 +48,7 @@ import {
   visibleCircleCardOpeningHours,
   visibleCircleCardBookingEnquiry,
   visibleCircleCardBrandPartnerships,
+  visibleCircleCardCreatorOffers,
   visibleCircleCardAudienceSnapshot,
   visibleCircleCardDocumentItems,
   visibleCircleCardProductItems,
@@ -58,6 +62,7 @@ import {
   writeCircleCardOpeningHours,
   writeCircleCardBookingEnquiry,
   writeCircleCardBrandPartnerships,
+  writeCircleCardCreatorOffers,
   writeCircleCardAudienceSnapshot,
   writeCircleCardDocumentItems,
   writeCircleCardProductItems,
@@ -73,6 +78,7 @@ import {
   type CircleCardMediaKit,
   type CircleCardBookingEnquiry,
   type CircleCardBrandPartnership,
+  type CircleCardCreatorOffer,
   type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardProductItem,
@@ -237,6 +243,91 @@ describe("Circle Card Creator Brand Partnerships", () => {
     expect(circleCardBrandPartnershipFormSchema.safeParse({ ...base, campaignUrl: "https://example.com/work" }).success).toBe(true);
     for (const campaignUrl of ["javascript:alert(1)", "data:text/plain,test", "ftp://example.com/file", "https://user:pass@example.com/work", "not a url"]) {
       expect(circleCardBrandPartnershipFormSchema.safeParse({ ...base, campaignUrl }).success).toBe(false);
+    }
+  });
+});
+
+describe("Circle Card Creator Offers", () => {
+  const standard: CircleCardCreatorOffer = {
+    id: "offer-standard",
+    title: "Creator template pack",
+    description: "A practical collection of creator planning templates.",
+    offerType: "Template",
+    image: "/uploads/circle-card/template-pack.webp",
+    price: "£19",
+    previousPrice: "£29",
+    badge: "Launch offer",
+    ctaLabel: "Get Template",
+    ctaUrl: "https://example.com/template",
+    featured: false,
+    active: true,
+    expiryDate: null,
+    sortOrder: 0
+  };
+  const featured: CircleCardCreatorOffer = {
+    ...standard,
+    id: "offer-featured",
+    title: "Creator community",
+    offerType: "Paid Community",
+    ctaLabel: "Join Community",
+    ctaUrl: "https://example.com/community",
+    featured: true,
+    sortOrder: 1
+  };
+  const hidden: CircleCardCreatorOffer = {
+    ...standard,
+    id: "offer-hidden",
+    active: false,
+    sortOrder: 2
+  };
+  const expired: CircleCardCreatorOffer = {
+    ...standard,
+    id: "offer-expired",
+    expiryDate: "2026-06-30",
+    sortOrder: 3
+  };
+
+  it("stores offers under creator.CREATOR_OFFERS without changing sibling or business blocks", () => {
+    const stored = writeCircleCardCreatorOffers({
+      creator: { MEDIA_KIT: { creatorName: "Alex" } },
+      business: { PRODUCTS: { items: [{ id: "product-1" }] } }
+    }, [standard, featured]);
+    expect(readCircleCardCreatorOffers(stored)).toHaveLength(2);
+    expect(stored.creator).toMatchObject({ MEDIA_KIT: { creatorName: "Alex" } });
+    expect(stored.business).toEqual({ PRODUCTS: { items: [{ id: "product-1" }] } });
+    expect(circleCardCreatorOfferStatus(readCircleCardCreatorOffers(stored))).toBe("Complete");
+  });
+
+  it("renders Creator offers only, hides inactive and expired offers, and puts featured first", () => {
+    const stored = writeCircleCardCreatorOffers({}, [standard, featured, hidden, expired]);
+    expect(visibleCircleCardCreatorOffers({
+      cardType: "CREATOR",
+      contentBlocks: stored,
+      now: new Date("2026-07-02T10:00:00.000Z")
+    }).map((item) => item.id)).toEqual(["offer-featured", "offer-standard"]);
+    expect(visibleCircleCardCreatorOffers({ cardType: "BUSINESS", contentBlocks: stored })).toEqual([]);
+    expect(visibleCircleCardCreatorOffers({ cardType: "PERSONAL", contentBlocks: stored })).toEqual([]);
+  });
+
+  it("accepts safe HTTPS CTA links and rejects unsafe destinations", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      creatorOfferId: "",
+      title: "Template pack",
+      description: "A practical creator template pack.",
+      offerType: "Template",
+      image: "/uploads/circle-card/template-pack.webp",
+      price: "£19",
+      previousPrice: "£29",
+      badge: "Popular",
+      ctaLabel: "Get Template",
+      featured: true,
+      active: true,
+      expiryDate: ""
+    };
+    expect(circleCardCreatorOfferFormSchema.safeParse({ ...base, ctaUrl: "https://example.com/template" }).success).toBe(true);
+    for (const ctaUrl of ["javascript:alert(1)", "data:text/plain,test", "ftp://example.com/file", "https://user:pass@example.com/template", "not a url"]) {
+      expect(circleCardCreatorOfferFormSchema.safeParse({ ...base, ctaUrl }).success).toBe(false);
     }
   });
 });

@@ -54,6 +54,8 @@ import {
   CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
   CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT,
   CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT,
+  CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT,
+  CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
@@ -65,6 +67,8 @@ import {
   circleCardBookingEnquiryFormSchema,
   circleCardBrandPartnershipFormSchema,
   circleCardBrandPartnershipIdSchema,
+  circleCardCreatorOfferFormSchema,
+  circleCardCreatorOfferIdSchema,
   circleCardAudienceSnapshotFormSchema,
   circleCardFeaturedContentItemFormSchema,
   circleCardFeaturedContentItemIdSchema,
@@ -92,6 +96,7 @@ import {
   readCircleCardFeaturedContentItems,
   readCircleCardBookingEnquiry,
   readCircleCardBrandPartnerships,
+  readCircleCardCreatorOffers,
   readCircleCardAudienceSnapshot,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
@@ -105,6 +110,7 @@ import {
   writeCircleCardFeaturedContentItems,
   writeCircleCardBookingEnquiry,
   writeCircleCardBrandPartnerships,
+  writeCircleCardCreatorOffers,
   writeCircleCardAudienceSnapshot,
   writeCircleCardDocumentItems,
   writeCircleCardOpeningHours,
@@ -116,6 +122,7 @@ import {
   type CircleCardFeaturedContentItem,
   type CircleCardBookingEnquiry,
   type CircleCardBrandPartnership,
+  type CircleCardCreatorOffer,
   type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardOpeningHours,
@@ -1122,6 +1129,10 @@ export type CircleCardBrandPartnershipInlineActionResult =
   | { ok: true; notice: string; item?: CircleCardBrandPartnership }
   | { ok: false; error: string; message: string };
 
+export type CircleCardCreatorOfferInlineActionResult =
+  | { ok: true; notice: string; item?: CircleCardCreatorOffer }
+  | { ok: false; error: string; message: string };
+
 export type CircleCardMediaKitInlineActionResult =
   | { ok: true; notice: string; mediaKit: CircleCardMediaKit | null }
   | { ok: false; error: string; message: string };
@@ -1241,6 +1252,13 @@ function inlineCircleCardBrandPartnershipError(
   error: string,
   message: string
 ): CircleCardBrandPartnershipInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardCreatorOfferError(
+  error: string,
+  message: string
+): CircleCardCreatorOfferInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -4103,6 +4121,171 @@ export async function deleteCircleCardFeaturedContentItemInlineAction(input: {
   });
   revalidateCircleCardPaths(card.slug);
   return { ok: true, notice: "Featured Content deleted" };
+}
+
+export async function upsertCircleCardCreatorOfferInlineAction(
+  formData: FormData
+): Promise<CircleCardCreatorOfferInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardCreatorOfferFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    creatorOfferId: formData.get("creatorOfferId") ?? "",
+    title: formData.get("title"),
+    description: formData.get("description"),
+    offerType: formData.get("offerType"),
+    image: formData.get("image") ?? "",
+    price: formData.get("price") ?? "",
+    previousPrice: formData.get("previousPrice") ?? "",
+    badge: formData.get("badge") ?? "",
+    ctaLabel: formData.get("ctaLabel"),
+    ctaUrl: formData.get("ctaUrl"),
+    featured: formData.get("featured"),
+    active: formData.get("active"),
+    expiryDate: formData.get("expiryDate") ?? ""
+  });
+  if (!parsed.success) {
+    return inlineCircleCardCreatorOfferError(
+      "creator-offer-invalid",
+      parsed.error.issues[0]?.message ?? "Check the offer details and try again."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardCreatorOfferError(
+      card ? "creator-offer-creator-card-required" : "card-not-found",
+      card ? "Creator Offers can only be added to a Creator Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const offers = readCircleCardCreatorOffers(card.contentBlocks);
+  const existingIndex = parsed.data.creatorOfferId
+    ? offers.findIndex((item) => item.id === parsed.data.creatorOfferId)
+    : -1;
+  if (parsed.data.creatorOfferId && existingIndex < 0) {
+    return inlineCircleCardCreatorOfferError(
+      "creator-offer-not-found",
+      "That offer could not be found on this Creator Card."
+    );
+  }
+
+  const hasProAccess = resolveCircleCardAccessLevel({
+    role: user.role,
+    membershipTier: user.membershipTier,
+    hasActiveSubscription: user.hasActiveSubscription
+  }) !== "FREE";
+  const itemLimit = hasProAccess
+    ? CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT
+    : CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT;
+  if (existingIndex < 0 && offers.length >= itemLimit) {
+    return inlineCircleCardCreatorOfferError(
+      "creator-offer-limit",
+      hasProAccess
+        ? `Creator Pro can keep up to ${itemLimit} Creator Offers.`
+        : "Unlock unlimited Creator Offers with Creator Pro."
+    );
+  }
+
+  const item: CircleCardCreatorOffer = {
+    id: existingIndex >= 0 ? offers[existingIndex].id : randomBytes(12).toString("hex"),
+    title: parsed.data.title,
+    description: parsed.data.description,
+    offerType: parsed.data.offerType,
+    image: parsed.data.image,
+    price: parsed.data.price || null,
+    previousPrice: parsed.data.previousPrice || null,
+    badge: parsed.data.badge || null,
+    ctaLabel: parsed.data.ctaLabel,
+    ctaUrl: parsed.data.ctaUrl,
+    featured: parsed.data.featured,
+    active: parsed.data.active,
+    expiryDate: parsed.data.expiryDate || null,
+    sortOrder: existingIndex >= 0 ? offers[existingIndex].sortOrder : offers.length
+  };
+  const nextItems = [...offers];
+  if (existingIndex >= 0) nextItems[existingIndex] = item;
+  else nextItems.push(item);
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardCreatorOffers(card.contentBlocks, nextItems) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return {
+      ok: true,
+      notice: existingIndex >= 0 ? "Creator Offer updated" : "Creator Offer added",
+      item
+    };
+  } catch {
+    return inlineCircleCardCreatorOfferError(
+      "creator-offer-save-failed",
+      "The offer could not be saved. Your current details are still shown."
+    );
+  }
+}
+
+export async function toggleCircleCardCreatorOfferInlineAction(input: {
+  cardId: string;
+  creatorOfferId: string;
+}): Promise<CircleCardCreatorOfferInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardCreatorOfferIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardCreatorOfferError("creator-offer-invalid", "Check the offer and try again.");
+  }
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardCreatorOfferError(
+      card ? "creator-offer-creator-card-required" : "card-not-found",
+      card ? "Creator Offers are only available on Creator Cards." : "That Circle Card could not be found."
+    );
+  }
+  const offers = readCircleCardCreatorOffers(card.contentBlocks);
+  const itemIndex = offers.findIndex((item) => item.id === parsed.data.creatorOfferId);
+  if (itemIndex < 0) {
+    return inlineCircleCardCreatorOfferError("creator-offer-not-found", "That offer could not be found.");
+  }
+  offers[itemIndex] = { ...offers[itemIndex], active: !offers[itemIndex].active };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardCreatorOffers(card.contentBlocks, offers) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return {
+    ok: true,
+    notice: offers[itemIndex].active ? "Offer shown" : "Offer hidden",
+    item: offers[itemIndex]
+  };
+}
+
+export async function deleteCircleCardCreatorOfferInlineAction(input: {
+  cardId: string;
+  creatorOfferId: string;
+}): Promise<CircleCardCreatorOfferInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardCreatorOfferIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardCreatorOfferError("creator-offer-invalid", "Check the offer and try again.");
+  }
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardCreatorOfferError(
+      card ? "creator-offer-creator-card-required" : "card-not-found",
+      card ? "Creator Offers are only available on Creator Cards." : "That Circle Card could not be found."
+    );
+  }
+  const offers = readCircleCardCreatorOffers(card.contentBlocks);
+  const nextItems = offers.filter((item) => item.id !== parsed.data.creatorOfferId);
+  if (nextItems.length === offers.length) {
+    return inlineCircleCardCreatorOfferError("creator-offer-not-found", "That offer could not be found.");
+  }
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardCreatorOffers(card.contentBlocks, nextItems) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return { ok: true, notice: "Creator Offer deleted" };
 }
 
 export async function upsertCircleCardBrandPartnershipInlineAction(
