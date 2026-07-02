@@ -65,6 +65,7 @@ import type { PublicCircleCard } from "@/server/circle-card";
 import type { LucideIcon } from "lucide-react";
 import {
   AtSign,
+  Award,
   BarChart3,
   BookOpen,
   BriefcaseBusiness,
@@ -964,6 +965,55 @@ function CreatorOfferCard({
         >
           {item.ctaLabel}<ChevronRight size={15} />
         </CircleCardTrackedLink>
+      </div>
+    </article>
+  );
+}
+
+function CreatorPressProofCard({
+  item,
+  analyticsCardId
+}: {
+  item: PublicCircleCard["pressProofItems"][number];
+  analyticsCardId?: string;
+}) {
+  const dateLabel = item.date
+    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" })
+        .format(new Date(`${item.date}T00:00:00.000Z`))
+    : null;
+
+  return (
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-[1.6rem] border border-cyan-300/18 bg-[linear-gradient(145deg,rgba(15,35,48,0.94),rgba(5,12,27,0.98))] shadow-[0_22px_60px_rgba(0,0,0,0.28)]">
+      <div className="relative aspect-[1.55] overflow-hidden border-b border-silver/12 bg-[image:var(--cc-theme-media-bg)]">
+        <img src={item.image} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_42%,rgba(3,8,19,0.84))]" />
+        <div className="absolute left-3 right-3 top-3 flex flex-wrap items-start justify-between gap-2">
+          <span className="rounded-full border border-cyan-300/24 bg-black/40 px-3 py-1.5 text-xs font-medium text-cyan-100 backdrop-blur">{item.proofType}</span>
+          {item.badge ? <span className="rounded-full border border-gold/28 bg-gold/16 px-3 py-1.5 text-xs font-semibold text-gold backdrop-blur">{item.badge}</span> : null}
+        </div>
+        {item.featured ? <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full border border-gold/28 bg-black/42 px-3 py-1.5 text-xs font-medium text-gold backdrop-blur"><Star size={11} />Featured</span> : null}
+      </div>
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
+        <h3 className="break-words text-xl font-semibold leading-tight text-foreground">{item.title}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted">{item.description}</p>
+        {(item.sourceName || dateLabel) ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-silver">
+            {item.sourceName ? <span className="font-semibold text-cyan-100">{item.sourceName}</span> : null}
+            {item.sourceName && dateLabel ? <span aria-hidden="true">·</span> : null}
+            {dateLabel ? <time dateTime={item.date ?? undefined}>{dateLabel}</time> : null}
+          </div>
+        ) : null}
+        {item.sourceUrl ? (
+          <CircleCardTrackedLink
+            {...getExternalLinkProps(item.sourceUrl)}
+            cardId={analyticsCardId ?? ""}
+            eventType="CUSTOM_LINK_CLICK"
+            metadata={{ source: "creator_press_proof", itemId: item.id, proofType: item.proofType, url: analyticsUrlValue(item.sourceUrl) }}
+            className={cn(buttonVariants({ variant: "outline" }), "mt-auto min-h-12 w-full gap-2")}
+          >
+            View Source<ChevronRight size={15} />
+          </CircleCardTrackedLink>
+        ) : null}
       </div>
     </article>
   );
@@ -3049,6 +3099,21 @@ export function PublicCircleCardProfile({
                 </div>
                 <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {card.creatorOffers.map((item) => <CreatorOfferCard key={item.id} item={item} analyticsCardId={analyticsCardId} />)}
+                </div>
+              </section>
+            ) : null}
+            {card.cardType === "CREATOR" && card.pressProofItems.length ? (
+              <section id="creator-press-proof" aria-labelledby="creator-press-proof-title" className="min-w-0 overflow-hidden rounded-[1.75rem] border border-cyan-300/18 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_36%),rgba(255,255,255,0.035)] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.24)] sm:p-5 lg:p-6">
+                <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Press &amp; Proof</p>
+                    <h2 id="creator-press-proof-title" className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Featured In</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Proof of work, creator milestones and credibility signals that show the story behind the results.</p>
+                  </div>
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><Award size={20} /></span>
+                </div>
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {card.pressProofItems.map((item) => <CreatorPressProofCard key={item.id} item={item} analyticsCardId={analyticsCardId} />)}
                 </div>
               </section>
             ) : null}

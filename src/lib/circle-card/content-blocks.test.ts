@@ -6,6 +6,8 @@ import {
   circleCardBrandPartnershipStatus,
   circleCardCreatorOfferFormSchema,
   circleCardCreatorOfferStatus,
+  circleCardPressProofItemFormSchema,
+  circleCardPressProofStatus,
   circleCardAudienceSnapshotFormSchema,
   circleCardAudienceSnapshotStatus,
   circleCardBookingPhoneHref,
@@ -34,6 +36,7 @@ import {
   readCircleCardMenuOfferItems,
   readCircleCardCreatorBlocks,
   readCircleCardCreatorOffers,
+  readCircleCardPressProofItems,
   readCircleCardServices,
   readCircleCardReviewItems,
   resolveCircleCardGalleryBuilderMode,
@@ -49,6 +52,7 @@ import {
   visibleCircleCardBookingEnquiry,
   visibleCircleCardBrandPartnerships,
   visibleCircleCardCreatorOffers,
+  visibleCircleCardPressProofItems,
   visibleCircleCardAudienceSnapshot,
   visibleCircleCardDocumentItems,
   visibleCircleCardProductItems,
@@ -63,6 +67,7 @@ import {
   writeCircleCardBookingEnquiry,
   writeCircleCardBrandPartnerships,
   writeCircleCardCreatorOffers,
+  writeCircleCardPressProofItems,
   writeCircleCardAudienceSnapshot,
   writeCircleCardDocumentItems,
   writeCircleCardProductItems,
@@ -79,6 +84,7 @@ import {
   type CircleCardBookingEnquiry,
   type CircleCardBrandPartnership,
   type CircleCardCreatorOffer,
+  type CircleCardPressProofItem,
   type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardProductItem,
@@ -328,6 +334,81 @@ describe("Circle Card Creator Offers", () => {
     expect(circleCardCreatorOfferFormSchema.safeParse({ ...base, ctaUrl: "https://example.com/template" }).success).toBe(true);
     for (const ctaUrl of ["javascript:alert(1)", "data:text/plain,test", "ftp://example.com/file", "https://user:pass@example.com/template", "not a url"]) {
       expect(circleCardCreatorOfferFormSchema.safeParse({ ...base, ctaUrl }).success).toBe(false);
+    }
+  });
+});
+
+describe("Circle Card Press & Proof", () => {
+  const standard: CircleCardPressProofItem = {
+    id: "proof-standard",
+    title: "Featured creator interview",
+    description: "A conversation about building a trusted creator community.",
+    proofType: "Interview",
+    image: "/uploads/circle-card/creator-interview.webp",
+    sourceName: "Creator Weekly",
+    sourceUrl: "https://example.com/interview",
+    date: "2026-06-12",
+    badge: "Featured In",
+    featured: false,
+    active: true,
+    sortOrder: 0
+  };
+  const featured: CircleCardPressProofItem = {
+    ...standard,
+    id: "proof-featured",
+    title: "Creator award winner",
+    proofType: "Award",
+    sourceName: "Creator Awards",
+    sourceUrl: "https://example.com/awards",
+    badge: "Award Winner",
+    featured: true,
+    sortOrder: 1
+  };
+  const hidden: CircleCardPressProofItem = {
+    ...standard,
+    id: "proof-hidden",
+    title: "Unpublished milestone",
+    active: false,
+    sortOrder: 2
+  };
+
+  it("stores proof under creator.PRESS_PROOF without changing sibling or business blocks", () => {
+    const stored = writeCircleCardPressProofItems({
+      creator: { CREATOR_OFFERS: { items: [{ id: "offer-1" }] } },
+      business: { PRODUCTS: { items: [{ id: "product-1" }] } }
+    }, [standard, featured]);
+    expect(readCircleCardPressProofItems(stored)).toHaveLength(2);
+    expect(stored.creator).toMatchObject({ CREATOR_OFFERS: { items: [{ id: "offer-1" }] } });
+    expect(stored.business).toEqual({ PRODUCTS: { items: [{ id: "product-1" }] } });
+    expect(circleCardPressProofStatus(readCircleCardPressProofItems(stored))).toBe("Complete");
+  });
+
+  it("renders Creator proof only, hides inactive items, and puts featured proof first", () => {
+    const stored = writeCircleCardPressProofItems({}, [standard, featured, hidden]);
+    expect(visibleCircleCardPressProofItems({ cardType: "CREATOR", contentBlocks: stored })
+      .map((item) => item.id)).toEqual(["proof-featured", "proof-standard"]);
+    expect(visibleCircleCardPressProofItems({ cardType: "BUSINESS", contentBlocks: stored })).toEqual([]);
+    expect(visibleCircleCardPressProofItems({ cardType: "PERSONAL", contentBlocks: stored })).toEqual([]);
+  });
+
+  it("accepts safe optional HTTPS source links and rejects unsafe destinations", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      pressProofItemId: "",
+      title: "Creator interview",
+      description: "A useful interview about creator work.",
+      proofType: "Interview",
+      image: "/uploads/circle-card/creator-interview.webp",
+      sourceName: "Creator Weekly",
+      date: "2026-06-12",
+      badge: "Featured In",
+      featured: true,
+      active: true
+    };
+    expect(circleCardPressProofItemFormSchema.safeParse({ ...base, sourceUrl: "" }).success).toBe(true);
+    expect(circleCardPressProofItemFormSchema.safeParse({ ...base, sourceUrl: "https://example.com/interview" }).success).toBe(true);
+    for (const sourceUrl of ["javascript:alert(1)", "data:text/plain,test", "ftp://example.com/file", "https://user:pass@example.com/interview", "not a url"]) {
+      expect(circleCardPressProofItemFormSchema.safeParse({ ...base, sourceUrl }).success).toBe(false);
     }
   });
 });

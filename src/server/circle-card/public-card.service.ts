@@ -12,6 +12,7 @@ import {
   visibleCircleCardBookingEnquiry,
   visibleCircleCardBrandPartnerships,
   visibleCircleCardCreatorOffers,
+  visibleCircleCardPressProofItems,
   visibleCircleCardAudienceSnapshot,
   visibleCircleCardDocumentItems,
   visibleCircleCardFeaturedContentItems,
@@ -26,6 +27,7 @@ import {
   type CircleCardBookingEnquiry,
   type CircleCardBrandPartnership,
   type CircleCardCreatorOffer,
+  type CircleCardPressProofItem,
   type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardFeaturedContentItem,
@@ -140,6 +142,7 @@ export type PublicCircleCard = {
   bookingEnquiry: CircleCardBookingEnquiry | null;
   brandPartnerships: CircleCardBrandPartnership[];
   creatorOffers: CircleCardCreatorOffer[];
+  pressProofItems: CircleCardPressProofItem[];
   audienceSnapshot: CircleCardAudienceSnapshot | null;
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
@@ -212,6 +215,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   bookingEnquiry: null,
   brandPartnerships: [],
   creatorOffers: [],
+  pressProofItems: [],
   audienceSnapshot: null,
   galleryItems: [],
   reviews: [],
@@ -544,6 +548,17 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       })
     )
   ).filter((item): item is CircleCardCreatorOffer => Boolean(item));
+  const pressProofItems = (
+    await Promise.all(
+      visibleCircleCardPressProofItems({
+        cardType: card.cardType,
+        contentBlocks: card.contentBlocks
+      }).map(async (item) => {
+        const image = await resolvePublicUploadImageUrl(item.image, SITE_CONFIG.url);
+        return image ? { ...item, image } : null;
+      })
+    )
+  ).filter((item): item is CircleCardPressProofItem => Boolean(item));
   const bookingEnquiry = visibleCircleCardBookingEnquiry({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
@@ -626,6 +641,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     featuredContentItems,
     brandPartnerships,
     creatorOffers,
+    pressProofItems,
     bookingEnquiry,
     audienceSnapshot,
     galleryItems,

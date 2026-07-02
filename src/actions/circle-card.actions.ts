@@ -56,6 +56,8 @@ import {
   CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT,
   CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT,
   CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT,
+  CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT,
+  CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
@@ -69,6 +71,8 @@ import {
   circleCardBrandPartnershipIdSchema,
   circleCardCreatorOfferFormSchema,
   circleCardCreatorOfferIdSchema,
+  circleCardPressProofItemFormSchema,
+  circleCardPressProofItemIdSchema,
   circleCardAudienceSnapshotFormSchema,
   circleCardFeaturedContentItemFormSchema,
   circleCardFeaturedContentItemIdSchema,
@@ -97,6 +101,7 @@ import {
   readCircleCardBookingEnquiry,
   readCircleCardBrandPartnerships,
   readCircleCardCreatorOffers,
+  readCircleCardPressProofItems,
   readCircleCardAudienceSnapshot,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
@@ -111,6 +116,7 @@ import {
   writeCircleCardBookingEnquiry,
   writeCircleCardBrandPartnerships,
   writeCircleCardCreatorOffers,
+  writeCircleCardPressProofItems,
   writeCircleCardAudienceSnapshot,
   writeCircleCardDocumentItems,
   writeCircleCardOpeningHours,
@@ -123,6 +129,7 @@ import {
   type CircleCardBookingEnquiry,
   type CircleCardBrandPartnership,
   type CircleCardCreatorOffer,
+  type CircleCardPressProofItem,
   type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardOpeningHours,
@@ -1133,6 +1140,10 @@ export type CircleCardCreatorOfferInlineActionResult =
   | { ok: true; notice: string; item?: CircleCardCreatorOffer }
   | { ok: false; error: string; message: string };
 
+export type CircleCardPressProofInlineActionResult =
+  | { ok: true; notice: string; item?: CircleCardPressProofItem }
+  | { ok: false; error: string; message: string };
+
 export type CircleCardMediaKitInlineActionResult =
   | { ok: true; notice: string; mediaKit: CircleCardMediaKit | null }
   | { ok: false; error: string; message: string };
@@ -1259,6 +1270,13 @@ function inlineCircleCardCreatorOfferError(
   error: string,
   message: string
 ): CircleCardCreatorOfferInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardPressProofError(
+  error: string,
+  message: string
+): CircleCardPressProofInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -4286,6 +4304,167 @@ export async function deleteCircleCardCreatorOfferInlineAction(input: {
   });
   revalidateCircleCardPaths(card.slug);
   return { ok: true, notice: "Creator Offer deleted" };
+}
+
+export async function upsertCircleCardPressProofItemInlineAction(
+  formData: FormData
+): Promise<CircleCardPressProofInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardPressProofItemFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    pressProofItemId: formData.get("pressProofItemId") ?? "",
+    title: formData.get("title"),
+    description: formData.get("description"),
+    proofType: formData.get("proofType"),
+    image: formData.get("image") ?? "",
+    sourceName: formData.get("sourceName") ?? "",
+    sourceUrl: formData.get("sourceUrl") ?? "",
+    date: formData.get("date") ?? "",
+    badge: formData.get("badge") ?? "",
+    featured: formData.get("featured"),
+    active: formData.get("active")
+  });
+  if (!parsed.success) {
+    return inlineCircleCardPressProofError(
+      "press-proof-invalid",
+      parsed.error.issues[0]?.message ?? "Check the proof details and try again."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardPressProofError(
+      card ? "press-proof-creator-card-required" : "card-not-found",
+      card ? "Press & Proof can only be added to a Creator Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const items = readCircleCardPressProofItems(card.contentBlocks);
+  const existingIndex = parsed.data.pressProofItemId
+    ? items.findIndex((item) => item.id === parsed.data.pressProofItemId)
+    : -1;
+  if (parsed.data.pressProofItemId && existingIndex < 0) {
+    return inlineCircleCardPressProofError(
+      "press-proof-not-found",
+      "That proof item could not be found on this Creator Card."
+    );
+  }
+
+  const hasProAccess = resolveCircleCardAccessLevel({
+    role: user.role,
+    membershipTier: user.membershipTier,
+    hasActiveSubscription: user.hasActiveSubscription
+  }) !== "FREE";
+  const itemLimit = hasProAccess
+    ? CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT
+    : CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT;
+  if (existingIndex < 0 && items.length >= itemLimit) {
+    return inlineCircleCardPressProofError(
+      "press-proof-limit",
+      hasProAccess
+        ? `Creator Pro can keep up to ${itemLimit} Press & Proof items.`
+        : "Unlock unlimited Press & Proof with Creator Pro."
+    );
+  }
+
+  const item: CircleCardPressProofItem = {
+    id: existingIndex >= 0 ? items[existingIndex].id : randomBytes(12).toString("hex"),
+    title: parsed.data.title,
+    description: parsed.data.description,
+    proofType: parsed.data.proofType,
+    image: parsed.data.image,
+    sourceName: parsed.data.sourceName || null,
+    sourceUrl: parsed.data.sourceUrl || null,
+    date: parsed.data.date || null,
+    badge: parsed.data.badge || null,
+    featured: parsed.data.featured,
+    active: parsed.data.active,
+    sortOrder: existingIndex >= 0 ? items[existingIndex].sortOrder : items.length
+  };
+  const nextItems = [...items];
+  if (existingIndex >= 0) nextItems[existingIndex] = item;
+  else nextItems.push(item);
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardPressProofItems(card.contentBlocks, nextItems) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return {
+      ok: true,
+      notice: existingIndex >= 0 ? "Press & Proof updated" : "Press & Proof added",
+      item
+    };
+  } catch {
+    return inlineCircleCardPressProofError(
+      "press-proof-save-failed",
+      "The proof item could not be saved. Your current details are still shown."
+    );
+  }
+}
+
+export async function toggleCircleCardPressProofItemInlineAction(input: {
+  cardId: string;
+  pressProofItemId: string;
+}): Promise<CircleCardPressProofInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardPressProofItemIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardPressProofError("press-proof-invalid", "Check the proof item and try again.");
+  }
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardPressProofError(
+      card ? "press-proof-creator-card-required" : "card-not-found",
+      card ? "Press & Proof is only available on Creator Cards." : "That Circle Card could not be found."
+    );
+  }
+  const items = readCircleCardPressProofItems(card.contentBlocks);
+  const itemIndex = items.findIndex((item) => item.id === parsed.data.pressProofItemId);
+  if (itemIndex < 0) {
+    return inlineCircleCardPressProofError("press-proof-not-found", "That proof item could not be found.");
+  }
+  items[itemIndex] = { ...items[itemIndex], active: !items[itemIndex].active };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardPressProofItems(card.contentBlocks, items) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return {
+    ok: true,
+    notice: items[itemIndex].active ? "Proof shown" : "Proof hidden",
+    item: items[itemIndex]
+  };
+}
+
+export async function deleteCircleCardPressProofItemInlineAction(input: {
+  cardId: string;
+  pressProofItemId: string;
+}): Promise<CircleCardPressProofInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardPressProofItemIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardPressProofError("press-proof-invalid", "Check the proof item and try again.");
+  }
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardPressProofError(
+      card ? "press-proof-creator-card-required" : "card-not-found",
+      card ? "Press & Proof is only available on Creator Cards." : "That Circle Card could not be found."
+    );
+  }
+  const items = readCircleCardPressProofItems(card.contentBlocks);
+  const nextItems = items.filter((item) => item.id !== parsed.data.pressProofItemId);
+  if (nextItems.length === items.length) {
+    return inlineCircleCardPressProofError("press-proof-not-found", "That proof item could not be found.");
+  }
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardPressProofItems(card.contentBlocks, nextItems) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return { ok: true, notice: "Press & Proof deleted" };
 }
 
 export async function upsertCircleCardBrandPartnershipInlineAction(

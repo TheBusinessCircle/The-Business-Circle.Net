@@ -311,6 +311,43 @@ export const CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT = 2;
 export const CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT = 100;
 export type CircleCardCreatorOfferStatus = "Not Started" | "Active" | "Complete";
 
+export const CIRCLE_CARD_PRESS_PROOF_TYPES = [
+  "Press Mention",
+  "Podcast Appearance",
+  "Interview",
+  "Award",
+  "Certification",
+  "Viral Post",
+  "Featured Article",
+  "Screenshot",
+  "Speaking Appearance",
+  "Case Study",
+  "Milestone",
+  "Brand Quote",
+  "Other"
+] as const;
+
+export type CircleCardPressProofType = (typeof CIRCLE_CARD_PRESS_PROOF_TYPES)[number];
+
+export type CircleCardPressProofItem = {
+  id: string;
+  title: string;
+  description: string;
+  proofType: CircleCardPressProofType;
+  image: string;
+  sourceName: string | null;
+  sourceUrl: string | null;
+  date: string | null;
+  badge: string | null;
+  featured: boolean;
+  active: boolean;
+  sortOrder: number;
+};
+
+export const CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT = 2;
+export const CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT = 100;
+export type CircleCardPressProofStatus = "Not Started" | "Active" | "Complete";
+
 export const CIRCLE_CARD_MEDIA_KIT_WORK_TYPES = [
   "Sponsored Posts",
   "UGC",
@@ -886,6 +923,51 @@ export const circleCardCreatorOfferFormSchema = z
 export const circleCardCreatorOfferIdSchema = z.object({
   cardId: z.string().cuid(),
   creatorOfferId: z.string().trim().min(1).max(64)
+});
+
+export const circleCardPressProofItemFormSchema = z.object({
+  cardId: z.string().cuid(),
+  pressProofItemId: z.string().trim().max(64).optional().or(z.literal("")),
+  title: z.string().trim().min(1, "Add a proof title.").max(140),
+  description: z.string().trim().min(1, "Add a short description.").max(700),
+  proofType: z.enum(CIRCLE_CARD_PRESS_PROOF_TYPES),
+  image: z.string().trim().min(1, "Upload a proof image.").max(2048).refine(
+    isSafeCircleCardImageUrl,
+    "Upload a valid proof image."
+  ),
+  sourceName: z.string().trim().max(120).optional().or(z.literal("")),
+  sourceUrl: z.string().trim().max(2048).optional().or(z.literal("")).transform(
+    (value, context) => {
+      if (!value) return "";
+      const safeUrl = normalizeSafeFeaturedContentUrl(value);
+      if (!safeUrl) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Use a safe https:// URL without credentials."
+        });
+        return z.NEVER;
+      }
+      return safeUrl;
+    }
+  ),
+  date: z.string().trim().optional().or(z.literal("")).refine(
+    (value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value) && isValidCalendarDate(value),
+    "Choose a valid proof date."
+  ),
+  badge: z.string().trim().max(40).optional().or(z.literal("")),
+  featured: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  ),
+  active: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  )
+});
+
+export const circleCardPressProofItemIdSchema = z.object({
+  cardId: z.string().cuid(),
+  pressProofItemId: z.string().trim().min(1).max(64)
 });
 
 const optionalMediaKitText = (maximum: number) =>
@@ -2525,6 +2607,89 @@ export function circleCardCreatorOfferStatus(
 ): CircleCardCreatorOfferStatus {
   if (!offers.length) return "Not Started";
   return offers.some((item) => item.active) ? "Complete" : "Active";
+}
+
+export function readCircleCardPressProofItems(value: unknown): CircleCardPressProofItem[] {
+  if (!isRecord(value) || !isRecord(value.creator) || !isRecord(value.creator.PRESS_PROOF)) {
+    return [];
+  }
+  const items = value.creator.PRESS_PROOF.items;
+  if (!Array.isArray(items)) return [];
+
+  return items.flatMap((item, index) => {
+    if (!isRecord(item)) return [];
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const title = typeof item.title === "string" ? item.title.trim() : "";
+    const description = typeof item.description === "string" ? item.description.trim() : "";
+    const proofType = CIRCLE_CARD_PRESS_PROOF_TYPES.find((candidate) => candidate === item.proofType);
+    const image = readSafeProductImageUrl(item.image);
+    if (!id || !title || !description || !proofType || !image) return [];
+
+    const rawDate = typeof item.date === "string" ? item.date.trim() : "";
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && isValidCalendarDate(rawDate)
+      ? rawDate
+      : null;
+
+    return [{
+      id,
+      title: title.slice(0, 140),
+      description: description.slice(0, 700),
+      proofType,
+      image,
+      sourceName: typeof item.sourceName === "string" && item.sourceName.trim()
+        ? item.sourceName.trim().slice(0, 120)
+        : null,
+      sourceUrl: normalizeSafeFeaturedContentUrl(item.sourceUrl),
+      date,
+      badge: typeof item.badge === "string" && item.badge.trim()
+        ? item.badge.trim().slice(0, 40)
+        : null,
+      featured: item.featured === true,
+      active: item.active !== false,
+      sortOrder: typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+        ? item.sortOrder
+        : index
+    } satisfies CircleCardPressProofItem];
+  }).sort((left, right) => left.sortOrder - right.sortOrder);
+}
+
+export function writeCircleCardPressProofItems(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  items: CircleCardPressProofItem[]
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const creator = isRecord(root.creator) ? root.creator : {};
+  const current = isRecord(creator.PRESS_PROOF) ? creator.PRESS_PROOF : {};
+  return {
+    ...root,
+    creator: {
+      ...creator,
+      PRESS_PROOF: {
+        ...current,
+        items: items.map((item, index) => ({ ...item, sortOrder: index }))
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardPressProofItems(input: {
+  cardType: string;
+  contentBlocks: unknown;
+}) {
+  return input.cardType === "CREATOR"
+    ? readCircleCardPressProofItems(input.contentBlocks)
+        .filter((item) => item.active)
+        .sort((left, right) =>
+          Number(right.featured) - Number(left.featured) || left.sortOrder - right.sortOrder
+        )
+    : [];
+}
+
+export function circleCardPressProofStatus(
+  items: CircleCardPressProofItem[]
+): CircleCardPressProofStatus {
+  if (!items.length) return "Not Started";
+  return items.some((item) => item.active) ? "Complete" : "Active";
 }
 
 export function readCircleCardBrandPartnerships(value: unknown): CircleCardBrandPartnership[] {

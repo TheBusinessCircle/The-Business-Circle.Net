@@ -23,7 +23,7 @@ describe("Creator Pro Studio foundation", () => {
       "Brand Partnerships",
       "Audience Snapshot",
       "Creator Offers",
-      "Press / Proof",
+      "Press & Proof",
       "Circle Trust"
     ]) {
       expect(dashboard).toContain(`name: "${moduleName}"`);
