@@ -36,15 +36,32 @@ describe("Creator Pro Studio foundation", () => {
     expect(dashboard).toContain("Next best action");
     expect(dashboard).toContain('label: "Add your creator bio"');
     expect(dashboard).toContain('label: "Add your best social platform"');
+    expect(dashboard).toContain('label: "Add your first featured content"');
+    expect(dashboard).toContain('label: "Complete your Live Media Kit"');
+    expect(dashboard).toContain('label: "Add your Audience Snapshot"');
+    expect(dashboard).toContain('label: "Add a Creator Offer"');
+    expect(dashboard).toContain('label: "Add Press & Proof"');
     expect(dashboard).toContain('label: "Start building your Circle Trust"');
     expect(dashboard).toContain("Creator Pro helps you showcase content, attract collaborations and build Circle Trust.");
     expect(dashboard).toContain("entitlementLabel={circleCardEntitlement.label}");
   });
 
+  it("shows module counts, consistent actions and compact public shortcuts", () => {
+    expect(dashboard).toContain('metric: `${featuredContentCount} active`');
+    expect(dashboard).toContain('metric: `${creatorOfferCount} active`');
+    expect(dashboard).toContain('metric: `${proofCount} active`');
+    expect(dashboard).toContain('action: featuredContentCount > 0 ? "Manage Featured Content"');
+    expect(dashboard).toContain('action: creatorOfferCount > 0 ? "Manage Offers"');
+    expect(dashboard).toContain("View public Creator Card");
+    expect(dashboard).toContain("Copy public link");
+    expect(dashboard).toContain("Share Creator Card");
+    expect(dashboard).toContain("Build my Circle Trust");
+  });
+
   it("uses real Creator data and suppresses empty public sections", () => {
     expect(publicProfile).toContain("creatorSocialRows.length");
     expect(publicProfile).toContain('heading: "Creator platforms & community"');
-    expect(publicProfile).toContain('eyebrow: "Featured Content"');
+    expect(publicProfile).toContain('eyebrow: "Work With Me"');
     expect(publicProfile).toContain("<PublicRecommendations recommendations={card.recommendations} />");
     expect(publicProfile).toContain("card.approvedWalletTestimonialCount > 0 || card.reviews.length > 0");
   });

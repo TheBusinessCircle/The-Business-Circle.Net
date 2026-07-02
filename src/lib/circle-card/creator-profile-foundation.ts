@@ -21,7 +21,13 @@ export const CREATOR_PROFILE_COMPLETION_ITEM_IDS = [
   "creator-bio",
   "social-profile",
   "featured-link",
-  "creator-niche",
+  "featured-content",
+  "media-kit",
+  "what-i-create",
+  "audience-snapshot",
+  "brand-partnership",
+  "creator-offer",
+  "press-proof",
   "community-route",
   "creator-trust"
 ] as const;
@@ -35,7 +41,13 @@ export function calculateCreatorProfileCompletion(input: {
   hasBio: boolean;
   activeSocialProfileCount: number;
   activeFeaturedLinkCount: number;
-  identityTagCount: number;
+  hasFeaturedContent: boolean;
+  hasMediaKit: boolean;
+  hasWhatICreate: boolean;
+  hasAudienceSnapshot: boolean;
+  hasBrandPartnershipOrOpenToData: boolean;
+  hasCreatorOffer: boolean;
+  hasPressProof: boolean;
   hasWebsiteOrCommunityLink: boolean;
   creatorTrustSignalCount: number;
 }) {
@@ -45,7 +57,13 @@ export function calculateCreatorProfileCompletion(input: {
     { id: "creator-bio", complete: input.hasBio },
     { id: "social-profile", complete: input.activeSocialProfileCount > 0 },
     { id: "featured-link", complete: input.activeFeaturedLinkCount > 0 },
-    { id: "creator-niche", complete: input.identityTagCount > 0 },
+    { id: "featured-content", complete: input.hasFeaturedContent },
+    { id: "media-kit", complete: input.hasMediaKit },
+    { id: "what-i-create", complete: input.hasWhatICreate },
+    { id: "audience-snapshot", complete: input.hasAudienceSnapshot },
+    { id: "brand-partnership", complete: input.hasBrandPartnershipOrOpenToData },
+    { id: "creator-offer", complete: input.hasCreatorOffer },
+    { id: "press-proof", complete: input.hasPressProof },
     { id: "community-route", complete: input.hasWebsiteOrCommunityLink },
     { id: "creator-trust", complete: input.creatorTrustSignalCount > 0 }
   ];

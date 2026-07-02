@@ -269,7 +269,7 @@ export function CircleCardPressProofManager({
                 </details>
               );
             })}
-            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">Add press mentions, milestones and proof of results that help brands understand your credibility.</p> : null}
+            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">Add proof, mentions, awards or milestones that build credibility.</p> : null}
           </div>
           <details className="group/add mt-3 rounded-xl border border-cyan-300/18 bg-background/20">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden"><span className="inline-flex items-center gap-2"><Award size={15} />{atLimit ? "Proof limit reached" : "Add proof"}</span><span className="flex items-center gap-2 text-xs font-normal text-muted">{activeCount} visible · {items.length}/{itemLimit}<ChevronDown size={15} className="transition-transform group-open/add:rotate-180" /></span></summary>

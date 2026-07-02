@@ -33,7 +33,7 @@ describe("Creator Press & Proof structure", () => {
   it("renders Creator-only public proof with source CTAs and lazy images", () => {
     expect(publicService).toContain("visibleCircleCardPressProofItems({");
     expect(publicProfile).toContain('card.cardType === "CREATOR" && card.pressProofItems.length');
-    expect(publicProfile).toContain("Featured In");
+    expect(publicProfile).toContain("Proof &amp; Milestones");
     expect(publicProfile).toContain("View Source");
     expect(publicProfile).toContain('loading="lazy"');
     expect(publicProfile).toContain('source: "creator_press_proof"');

@@ -126,6 +126,7 @@ export function CircleCardAudienceSnapshotManager({
               </div>
               {notice ? <p role="status" className="rounded-xl border border-emerald-400/24 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-100">{notice}</p> : null}
               {error ? <p role="alert" className="rounded-xl border border-destructive/24 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
+              {status === "Not Started" ? <p className="rounded-xl border border-dashed border-cyan-300/18 bg-cyan-400/[0.04] p-3 text-sm text-muted">Help brands understand who your content reaches.</p> : null}
 
               <div className="rounded-xl border border-silver/14 bg-background/18 p-3 sm:p-4">
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><BarChart3 size={15} className="text-cyan-200" />Content and platforms</h3>

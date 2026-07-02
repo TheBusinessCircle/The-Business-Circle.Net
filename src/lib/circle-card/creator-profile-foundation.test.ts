@@ -40,12 +40,18 @@ describe("Creator Pro foundation", () => {
       hasBio: true,
       activeSocialProfileCount: 2,
       activeFeaturedLinkCount: 1,
-      identityTagCount: 1,
+      hasFeaturedContent: true,
+      hasMediaKit: true,
+      hasWhatICreate: true,
+      hasAudienceSnapshot: true,
+      hasBrandPartnershipOrOpenToData: true,
+      hasCreatorOffer: true,
+      hasPressProof: true,
       hasWebsiteOrCommunityLink: true,
       creatorTrustSignalCount: 0
     });
 
-    expect(result.score).toBe(88);
+    expect(result.score).toBe(93);
     expect(result.nextIncompleteId).toBe("creator-trust");
   });
 
@@ -56,12 +62,41 @@ describe("Creator Pro foundation", () => {
       hasBio: false,
       activeSocialProfileCount: 0,
       activeFeaturedLinkCount: 0,
-      identityTagCount: 0,
+      hasFeaturedContent: false,
+      hasMediaKit: false,
+      hasWhatICreate: false,
+      hasAudienceSnapshot: false,
+      hasBrandPartnershipOrOpenToData: false,
+      hasCreatorOffer: false,
+      hasPressProof: false,
       hasWebsiteOrCommunityLink: false,
       creatorTrustSignalCount: 0
     });
 
     expect(result.nextIncompleteId).toBe("profile-image");
-    expect(result.score).toBe(13);
+    expect(result.score).toBe(7);
+  });
+
+  it("includes every existing Creator Pro module in profile strength", () => {
+    const result = calculateCreatorProfileCompletion({
+      creatorCardSelected: true,
+      hasProfileImage: true,
+      hasBio: true,
+      activeSocialProfileCount: 1,
+      activeFeaturedLinkCount: 1,
+      hasFeaturedContent: true,
+      hasMediaKit: true,
+      hasWhatICreate: true,
+      hasAudienceSnapshot: true,
+      hasBrandPartnershipOrOpenToData: true,
+      hasCreatorOffer: false,
+      hasPressProof: false,
+      hasWebsiteOrCommunityLink: true,
+      creatorTrustSignalCount: 1
+    });
+
+    expect(result.totalCount).toBe(14);
+    expect(result.score).toBe(86);
+    expect(result.nextIncompleteId).toBe("creator-offer");
   });
 });

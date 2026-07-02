@@ -3087,28 +3087,16 @@ export function PublicCircleCardProfile({
                 </div>
               </section>
             ) : null}
-            {card.cardType === "CREATOR" && card.creatorOffers.length ? (
-              <section id="creator-offers" aria-labelledby="creator-offers-title" className="min-w-0 overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.09),transparent_35%),rgba(255,255,255,0.035)] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.24)] sm:p-5 lg:p-6">
-                <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-gold">Creator Offers</p>
-                    <h2 id="creator-offers-title" className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Support My Work</h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Courses, downloads, communities and creator favourites, all in one place.</p>
-                  </div>
-                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold"><ShoppingBag size={20} /></span>
-                </div>
-                <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {card.creatorOffers.map((item) => <CreatorOfferCard key={item.id} item={item} analyticsCardId={analyticsCardId} />)}
-                </div>
-              </section>
-            ) : null}
+            {renderCreatorMediaKitSection()}
+            {renderCreatorAudienceSnapshotSection()}
+            {renderCreatorBrandPartnershipsSection()}
             {card.cardType === "CREATOR" && card.pressProofItems.length ? (
               <section id="creator-press-proof" aria-labelledby="creator-press-proof-title" className="min-w-0 overflow-hidden rounded-[1.75rem] border border-cyan-300/18 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_36%),rgba(255,255,255,0.035)] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.24)] sm:p-5 lg:p-6">
                 <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
                   <div className="min-w-0">
                     <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Press &amp; Proof</p>
-                    <h2 id="creator-press-proof-title" className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Featured In</h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Proof of work, creator milestones and credibility signals that show the story behind the results.</p>
+                    <h2 id="creator-press-proof-title" className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Proof &amp; Milestones</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Press mentions, creator milestones and proof of work that build a clear credibility story.</p>
                   </div>
                   <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><Award size={20} /></span>
                 </div>
@@ -3117,9 +3105,21 @@ export function PublicCircleCardProfile({
                 </div>
               </section>
             ) : null}
-            {renderCreatorMediaKitSection()}
-            {renderCreatorAudienceSnapshotSection()}
-            {renderCreatorBrandPartnershipsSection()}
+            {card.cardType === "CREATOR" && card.creatorOffers.length ? (
+              <section id="creator-offers" aria-labelledby="creator-offers-title" className="min-w-0 overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.09),transparent_35%),rgba(255,255,255,0.035)] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.24)] sm:p-5 lg:p-6">
+                <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-gold">Creator Offers</p>
+                    <h2 id="creator-offers-title" className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Support My Work</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Courses, downloads, communities and creator favourites, with a clear next step.</p>
+                  </div>
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold"><ShoppingBag size={20} /></span>
+                </div>
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {card.creatorOffers.map((item) => <CreatorOfferCard key={item.id} item={item} analyticsCardId={analyticsCardId} />)}
+                </div>
+              </section>
+            ) : null}
 
             {card.approvedWalletTestimonialCount > 0 || card.reviews.length > 0
               ? renderTrustScoreCard({ reviewsId: "creator-reviews" })
@@ -3143,9 +3143,9 @@ export function PublicCircleCardProfile({
               : null}
             {renderFeaturedLinksSection({
               id: "creator-featured-links",
-              eyebrow: "Featured Content",
-              heading: `Latest from ${creatorFirstName}`,
-              description: "Videos, posts, offers and community links selected by this creator.",
+              eyebrow: "Work With Me",
+              heading: `Connect with ${creatorFirstName}`,
+              description: "Explore selected links, communities and ways to work together.",
               source: "creator_featured_card"
             })}
             {renderTestimonialCta()}

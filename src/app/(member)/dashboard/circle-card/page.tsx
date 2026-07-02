@@ -233,12 +233,10 @@ import {
   circleCardPressProofStatus,
   circleCardAudienceSnapshotStatus,
   circleCardMediaKitStatus,
-  circleCardCreatorBlockHasContent,
   isValidCircleCardReviewItem,
   readCircleCardGalleryItems,
   readCircleCardAudienceSnapshot,
   readCircleCardFeaturedContentItems,
-  readCircleCardCreatorBlocks,
   readCircleCardCreatorOffers,
   readCircleCardPressProofItems,
   readCircleCardBookingEnquiry,
@@ -2288,13 +2286,11 @@ function CreatorProStudio({
   fullName,
   profileImageUrl,
   about,
-  identityTagCount,
   websiteUrl,
   activeSocialProfileCount,
   activeFeaturedLinkCount,
   activeLinkTypes,
   creatorTrustSignalCount,
-  creatorBlocks,
   featuredContentItems,
   mediaKit,
   audienceSnapshot,
@@ -2310,13 +2306,11 @@ function CreatorProStudio({
   fullName: string;
   profileImageUrl?: string | null;
   about?: string | null;
-  identityTagCount: number;
   websiteUrl?: string | null;
   activeSocialProfileCount: number;
   activeFeaturedLinkCount: number;
   activeLinkTypes: string[];
   creatorTrustSignalCount: number;
-  creatorBlocks: ReturnType<typeof readCircleCardCreatorBlocks>;
   featuredContentItems: ReturnType<typeof readCircleCardFeaturedContentItems>;
   mediaKit: ReturnType<typeof readCircleCardMediaKit>;
   audienceSnapshot: ReturnType<typeof readCircleCardAudienceSnapshot>;
@@ -2351,6 +2345,15 @@ function CreatorProStudio({
   const creatorOfferCount = creatorOffers.filter((item) => item.active).length;
   const pressProofStatus = circleCardPressProofStatus(pressProofItems);
   const proofCount = pressProofItems.filter((item) => item.active).length;
+  const brandPartnershipCount = brandPartnerships.filter((item) => item.isActive).length;
+  const hasOpenToPartnershipsData = Boolean(
+    mediaKit?.availableFor.length || mediaKit?.primaryNiche || mediaKit?.secondaryNiche || mediaKit?.whatICreate.length
+  );
+  const brandPartnershipCompletion = brandPartnershipCount > 0
+    ? brandPartnershipStatus
+    : hasOpenToPartnershipsData
+      ? "Active"
+      : "Not Started";
   const hasCommunityRoute = Boolean(websiteUrl?.trim()) || linkTypeSet.has("COMMUNITY");
   const completion = calculateCreatorProfileCompletion({
     creatorCardSelected: mode !== "preview",
@@ -2358,7 +2361,13 @@ function CreatorProStudio({
     hasBio: Boolean(about?.trim()),
     activeSocialProfileCount,
     activeFeaturedLinkCount,
-    identityTagCount,
+    hasFeaturedContent: featuredContentCount > 0,
+    hasMediaKit: mediaKitStatus !== "Not Started",
+    hasWhatICreate: Boolean(mediaKit?.whatICreate.length),
+    hasAudienceSnapshot: audienceStatus !== "Not Started",
+    hasBrandPartnershipOrOpenToData: brandPartnershipCount > 0 || hasOpenToPartnershipsData,
+    hasCreatorOffer: creatorOfferCount > 0,
+    hasPressProof: proofCount > 0,
     hasWebsiteOrCommunityLink: hasCommunityRoute,
     creatorTrustSignalCount
   });
@@ -2369,74 +2378,96 @@ function CreatorProStudio({
     "creator-bio": { label: "Add your creator bio", href: identityHref },
     "social-profile": { label: "Add your best social platform", href: socialProfilesHref },
     "featured-link": { label: "Add your first featured link", href: featuredLinksHref },
-    "creator-niche": { label: "Add your creator niche", href: identityHref },
-    "community-route": { label: "Add your community link", href: featuredLinksHref },
+    "featured-content": { label: "Add your first featured content", href: featuredContentHref },
+    "media-kit": { label: "Complete your Live Media Kit", href: mediaKitHref },
+    "what-i-create": { label: "Add what you create", href: mediaKitHref },
+    "audience-snapshot": { label: "Add your Audience Snapshot", href: audienceHref },
+    "brand-partnership": { label: "Add a Brand Partnership", href: brandPartnershipsHref },
+    "creator-offer": { label: "Add a Creator Offer", href: creatorOffersHref },
+    "press-proof": { label: "Add Press & Proof", href: pressProofHref },
+    "community-route": { label: "Add a community or website link", href: featuredLinksHref },
     "creator-trust": { label: "Start building your Circle Trust", href: shareHref }
   };
   const nextAction = completion.nextIncompleteId
     ? completionActions[completion.nextIncompleteId]
-    : { label: "View your Creator profile", href: publicUrl };
-  const preparedCreatorBlockCount = Object.values(creatorBlocks).filter((block) =>
-    circleCardCreatorBlockHasContent(block)
-  ).length;
+    : { label: "View public Creator Card", href: publicUrl };
+  const completionStages = [
+    { label: "Profile", complete: ["creator-card", "profile-image", "creator-bio"].every((id) => completionById.get(id as CreatorProfileCompletionItemId)) },
+    { label: "Social & links", complete: ["social-profile", "featured-link", "community-route"].every((id) => completionById.get(id as CreatorProfileCompletionItemId)) },
+    { label: "Featured Content", complete: Boolean(completionById.get("featured-content")) },
+    { label: "Live Media Kit", complete: ["media-kit", "what-i-create"].every((id) => completionById.get(id as CreatorProfileCompletionItemId)) },
+    { label: "Audience", complete: Boolean(completionById.get("audience-snapshot")) },
+    { label: "Partnerships", complete: Boolean(completionById.get("brand-partnership")) },
+    { label: "Offers", complete: Boolean(completionById.get("creator-offer")) },
+    { label: "Press & Proof", complete: Boolean(completionById.get("press-proof")) },
+    { label: "Circle Trust", complete: Boolean(completionById.get("creator-trust")) }
+  ];
   const modules = [
     {
       name: "Featured Content",
       benefit: "Showcase your best videos, posts and content.",
-      status: featuredContentCount > 0 ? "Active" : "Not Started",
-      action: featuredContentCount > 0 ? "Manage" : "Set up",
+      metric: `${featuredContentCount} active`,
+      completion: featuredContentCount > 0 ? "Complete" : "Not Started",
+      action: featuredContentCount > 0 ? "Manage Featured Content" : "Add Featured Content",
       href: featuredContentHref,
       icon: Star
     },
     {
       name: "Live Media Kit",
-      benefit: "Give brands a clear, up-to-date overview.",
-      status: mediaKitStatus,
-      action: mediaKitStatus === "Not Started" ? "Set up" : "Manage Live Media Kit",
+      benefit: "Give brands a clear, always-up-to-date creator profile.",
+      metric: mediaKitStatus === "Not Started" ? "Not started" : "Active",
+      completion: mediaKitStatus,
+      action: mediaKitStatus === "Not Started" ? "Set up Live Media Kit" : "Manage Media Kit",
       href: mediaKitHref,
       icon: Download
     },
     {
-      name: "Brand Partnerships",
-      benefit: "Make it easy for brands to work with you.",
-      status: brandPartnershipStatus,
-      action: brandPartnershipStatus === "Not Started" ? "Set up" : "Manage Brand Partnerships",
-      href: brandPartnershipsHref,
-      icon: Handshake
-    },
-    {
       name: "Audience Snapshot",
-      benefit: "Show your audience at a glance.",
-      status: audienceStatus,
-      action: audienceStatus === "Not Started" ? "Set up" : "Manage Audience Snapshot",
+      benefit: "Help brands understand who watches your content.",
+      metric: audienceStatus === "Not Started" ? "Not started" : "Active",
+      completion: audienceStatus,
+      action: audienceStatus === "Not Started" ? "Add Audience Snapshot" : "Manage Audience",
       href: audienceHref,
       icon: BarChart3
     },
     {
+      name: "Brand Partnerships",
+      benefit: "Show brands who already trust your work.",
+      metric: brandPartnershipCount > 0 ? `${brandPartnershipCount} active` : hasOpenToPartnershipsData ? "Open to partnerships" : "0 active",
+      completion: brandPartnershipCompletion,
+      action: brandPartnershipCount > 0 || hasOpenToPartnershipsData ? "Manage Partnerships" : "Add Partnership",
+      href: brandPartnershipsHref,
+      icon: Handshake
+    },
+    {
       name: "Creator Offers",
-      benefit: "Promote affiliates, merch, communities or paid content.",
-      status: creatorOfferStatus,
-      action: creatorOfferCount > 0 ? "Manage Creator Offers" : "Set up",
+      benefit: "Promote affiliates, merch, courses or communities.",
+      metric: `${creatorOfferCount} active`,
+      completion: creatorOfferStatus,
+      action: creatorOfferCount > 0 ? "Manage Offers" : "Add Creator Offer",
       href: creatorOffersHref,
       icon: ShoppingBag
     },
     {
       name: "Press & Proof",
-      benefit: "Show credibility, mentions and achievements.",
-      status: pressProofStatus,
-      action: proofCount > 0 ? "Manage Press & Proof" : "Set up",
+      benefit: "Show credibility, mentions and milestones.",
+      metric: `${proofCount} active`,
+      completion: pressProofStatus,
+      action: proofCount > 0 ? "Manage Proof" : "Add Press & Proof",
       href: pressProofHref,
       icon: Sparkles
     },
     {
       name: "Circle Trust",
-      benefit: "Build reputation through real audience and brand signals.",
-      status: creatorTrustSignalCount > 0 ? "Active" : "Not Started",
-      action: creatorTrustSignalCount > 0 ? "View Trust" : "Build my Circle Trust",
-      href: creatorTrustSignalCount > 0 ? publicUrl : shareHref,
+      benefit: "Build reputation through real connections.",
+      metric: `${creatorTrustSignalCount} trust signal${creatorTrustSignalCount === 1 ? "" : "s"}`,
+      completion: creatorTrustSignalCount > 0 ? "Active" : "Not Started",
+      action: "Build my Circle Trust",
+      href: shareHref,
       icon: ShieldCheck
     }
   ] as const;
+  const activeModuleCount = modules.filter((module) => module.completion !== "Not Started").length;
 
   return (
     <CircleCardDashboardSection
@@ -2454,7 +2485,7 @@ function CreatorProStudio({
         </Badge>
       }
     >
-      <div className="space-y-4 pb-16 sm:pb-0">
+      <div className="space-y-4 pb-20 sm:pb-0">
         <section aria-labelledby="creator-completion-title" className="grid gap-3 rounded-2xl border border-cyan-300/18 bg-background/22 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_minmax(230px,0.38fr)]">
           <div className="min-w-0">
             <div className="flex items-end justify-between gap-3">
@@ -2468,19 +2499,10 @@ function CreatorProStudio({
               <div className="h-full rounded-full bg-gradient-to-r from-cyan-400/70 via-gold/70 to-gold" style={{ width: `${completion.score}%` }} />
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted">Complete your creator profile to improve brand opportunities and build your Circle Trust.</p>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[
-                ["Profile", "profile-image"],
-                ["Bio", "creator-bio"],
-                ["Audience", "social-profile"],
-                ["Featured link", "featured-link"],
-                ["Niche", "creator-niche"],
-                ["Community", "community-route"],
-                ["Creator Trust", "creator-trust"]
-              ].map(([label, id]) => {
-                const complete = Boolean(completionById.get(id as CreatorProfileCompletionItemId));
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {completionStages.map(({ label, complete }) => {
                 return (
-                  <span key={id} className={cn("flex min-w-0 items-center gap-1.5 text-xs", complete ? "text-foreground" : "text-muted")}>
+                  <span key={label} className={cn("flex min-w-0 items-center gap-1.5 text-xs", complete ? "text-foreground" : "text-muted")}>
                     {complete ? <CheckCircle2 size={14} className="shrink-0 text-cyan-200" /> : <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-silver/40" />}
                     <span className="truncate">{label}</span>
                   </span>
@@ -2494,7 +2516,7 @@ function CreatorProStudio({
               <p className="mt-2 text-sm font-semibold text-foreground">{nextAction.label}</p>
               <p className="mt-1 text-xs leading-relaxed text-muted">{completion.completedCount} of {completion.totalCount} creator signals complete.</p>
             </div>
-            <Link href={nextAction.href} className={cn(buttonVariants({ size: "sm" }), "mt-3 h-10 w-full gap-2")}>
+            <Link href={nextAction.href} className={cn(buttonVariants({ size: "sm" }), "mt-3 h-11 w-full gap-2")}>
               {nextAction.label}<ArrowUpRight size={14} />
             </Link>
           </div>
@@ -2518,7 +2540,7 @@ function CreatorProStudio({
               <p className="text-xs font-medium uppercase tracking-[0.08em] text-cyan-200">Studio tracks</p>
               <h3 id="creator-studio-modules-title" className="mt-1 font-display text-xl text-foreground">Build your creator presence</h3>
             </div>
-            {preparedCreatorBlockCount ? <Badge variant="muted">{preparedCreatorBlockCount} creator block{preparedCreatorBlockCount === 1 ? "" : "s"} prepared</Badge> : null}
+            <Badge variant="muted">{activeModuleCount} of {modules.length} modules started</Badge>
           </div>
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {modules.map((module, index) => {
@@ -2528,19 +2550,20 @@ function CreatorProStudio({
                 <>
                   <span className="flex items-start justify-between gap-3">
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.07] text-cyan-100"><Icon size={17} /></span>
-                    <Badge variant={module.status === "Active" ? "outline" : "muted"} className={module.status === "Active" ? "border-cyan-300/28 text-cyan-100" : undefined}>{module.status}</Badge>
+                    <Badge variant={module.completion === "Not Started" ? "muted" : "outline"} className={module.completion !== "Not Started" ? "border-cyan-300/28 text-cyan-100" : undefined}>{module.completion}</Badge>
                   </span>
                   <span className="mt-4 text-[10px] font-medium uppercase tracking-[0.1em] text-silver">Studio {String(index + 1).padStart(2, "0")}</span>
                   <span className="mt-1 text-base font-semibold text-foreground">{module.name}</span>
+                  <span className="mt-2 text-xs font-semibold text-silver">{module.metric}</span>
                   <span className="mt-1 text-sm leading-relaxed text-muted">{module.benefit}</span>
                   <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && !availableOnFree ? "Unlock with Pro" : module.action}{module.href && (!locked || availableOnFree) ? <ArrowUpRight size={13} /> : null}</span>
                 </>
               );
 
               return module.href && (!locked || availableOnFree) ? (
-                <Link key={module.name} href={module.href} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="group flex min-h-52 min-w-0 flex-col rounded-2xl border border-silver/14 bg-card/48 p-4 transition hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50">{content}</Link>
+                <Link key={module.name} href={module.href} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="group flex min-h-48 min-w-0 flex-col rounded-2xl border border-silver/14 bg-card/48 p-4 transition hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50 sm:min-h-52">{content}</Link>
               ) : (
-                <div key={module.name} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="flex min-h-52 min-w-0 flex-col rounded-2xl border border-silver/12 bg-card/32 p-4">{content}</div>
+                <div key={module.name} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="flex min-h-48 min-w-0 flex-col rounded-2xl border border-silver/12 bg-card/32 p-4 sm:min-h-52">{content}</div>
               );
             })}
           </div>
@@ -2552,26 +2575,6 @@ function CreatorProStudio({
             cardName={fullName}
             initialItems={featuredContentItems}
             itemLimit={locked ? CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT : CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT}
-            hasProAccess={!locked}
-          />
-        ) : null}
-
-        {!isPreview ? (
-          <CircleCardCreatorOffersManager
-            cardId={cardId}
-            cardName={fullName}
-            initialItems={creatorOffers}
-            itemLimit={locked ? CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT : CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT}
-            hasProAccess={!locked}
-          />
-        ) : null}
-
-        {!isPreview ? (
-          <CircleCardPressProofManager
-            cardId={cardId}
-            cardName={fullName}
-            initialItems={pressProofItems}
-            itemLimit={locked ? CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT : CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT}
             hasProAccess={!locked}
           />
         ) : null}
@@ -2604,11 +2607,31 @@ function CreatorProStudio({
           />
         ) : null}
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Link href={publicUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 min-w-0 gap-2 px-2")}><Eye size={14} /><span className="truncate">View Creator profile</span></Link>
-          <CircleCardCopyLinkButton publicUrl={publicUrl} label="Copy creator link" size="sm" className="h-10 min-w-0 px-2" analytics={{ cardId, source: "creator_studio" }} />
-          <CircleCardShareButton title={`${fullName} | Circle Card`} publicUrl={publicUrl} cardId={cardId} analyticsSource="creator_studio" label="Share Creator Card" size="sm" className="min-w-0" buttonClassName="h-10 min-w-0 px-2" hideStatus />
-          <Link href={shareHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 min-w-0 gap-2 px-2")}><ShieldCheck size={14} /><span className="truncate">Build my Circle Trust</span></Link>
+        {!isPreview ? (
+          <CircleCardCreatorOffersManager
+            cardId={cardId}
+            cardName={fullName}
+            initialItems={creatorOffers}
+            itemLimit={locked ? CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT : CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT}
+            hasProAccess={!locked}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardPressProofManager
+            cardId={cardId}
+            cardName={fullName}
+            initialItems={pressProofItems}
+            itemLimit={locked ? CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT : CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT}
+            hasProAccess={!locked}
+          />
+        ) : null}
+
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <Link href={publicUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 min-w-0 gap-2 px-3")}><Eye size={14} /><span className="truncate">View public Creator Card</span></Link>
+          <CircleCardCopyLinkButton publicUrl={publicUrl} label="Copy public link" size="sm" className="h-11 min-w-0 px-3" analytics={{ cardId, source: "creator_studio" }} />
+          <CircleCardShareButton title={`${fullName} | Circle Card`} publicUrl={publicUrl} cardId={cardId} analyticsSource="creator_studio" label="Share Creator Card" size="sm" className="min-w-0" buttonClassName="h-11 min-w-0 px-3" hideStatus />
+          <Link href={shareHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 min-w-0 gap-2 px-3")}><ShieldCheck size={14} /><span className="truncate">Build my Circle Trust</span></Link>
         </div>
       </div>
     </CircleCardDashboardSection>
@@ -5288,9 +5311,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardOpeningHours = card?.cardType === "BUSINESS"
     ? readCircleCardOpeningHours(card.contentBlocks)
     : null;
-  const selectedCardCreatorBlocks = card?.cardType === "CREATOR" || creatorStudioMode === "preview"
-    ? readCircleCardCreatorBlocks(card?.contentBlocks)
-    : {};
   const selectedCardFeaturedContentItems = card?.cardType === "CREATOR"
     ? readCircleCardFeaturedContentItems(card.contentBlocks)
     : [];
@@ -9246,13 +9266,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           fullName={card.fullName}
           profileImageUrl={card.profileImageUrl}
           about={card.about}
-          identityTagCount={card.identityTags.length}
           websiteUrl={card.websiteUrl}
           activeSocialProfileCount={activeSocialLinkCount}
           activeFeaturedLinkCount={activeCustomLinkCount}
           activeLinkTypes={customLinks.filter((link) => link.isActive).map((link) => link.type)}
           creatorTrustSignalCount={selectedCardCreatorTrustSignalCount}
-          creatorBlocks={selectedCardCreatorBlocks}
           featuredContentItems={selectedCardFeaturedContentItems}
           creatorOffers={selectedCardCreatorOffers}
           pressProofItems={selectedCardPressProofItems}

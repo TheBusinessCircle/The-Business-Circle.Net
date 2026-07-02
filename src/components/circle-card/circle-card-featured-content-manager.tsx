@@ -259,7 +259,7 @@ export function CircleCardFeaturedContentManager({
                 </details>
               );
             })}
-            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">Curate your strongest work so visitors see your portfolio, not just a list of links.</p> : null}
+            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">Add your best video, post or episode so visitors instantly understand your content.</p> : null}
           </div>
           <details className="group/add mt-3 rounded-xl border border-cyan-300/18 bg-background/20">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden"><span>{atLimit ? "Content limit reached" : "Add content"}</span><span className="flex items-center gap-2 text-xs font-normal text-muted">{items.length}/{itemLimit}<ChevronDown size={15} className="transition-transform group-open/add:rotate-180" /></span></summary>

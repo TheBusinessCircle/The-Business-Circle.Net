@@ -4069,7 +4069,7 @@ export async function upsertCircleCardFeaturedContentItemInlineAction(
       data: { contentBlocks: writeCircleCardFeaturedContentItems(card.contentBlocks, nextItems) }
     });
     revalidateCircleCardPaths(card.slug);
-    return { ok: true, notice: "Featured Content saved", item };
+    return { ok: true, notice: existingIndex >= 0 ? "Featured content updated" : "Featured content added", item };
   } catch {
     return inlineCircleCardFeaturedContentError(
       "featured-content-save-failed",
@@ -4232,7 +4232,7 @@ export async function upsertCircleCardCreatorOfferInlineAction(
     revalidateCircleCardPaths(card.slug);
     return {
       ok: true,
-      notice: existingIndex >= 0 ? "Creator Offer updated" : "Creator Offer added",
+      notice: "Creator Offer saved",
       item
     };
   } catch {
@@ -4393,7 +4393,7 @@ export async function upsertCircleCardPressProofItemInlineAction(
     revalidateCircleCardPaths(card.slug);
     return {
       ok: true,
-      notice: existingIndex >= 0 ? "Press & Proof updated" : "Press & Proof added",
+      notice: existingIndex >= 0 ? "Press & Proof updated" : "Press & Proof item added",
       item
     };
   } catch {
@@ -4711,7 +4711,7 @@ export async function saveCircleCardMediaKitInlineAction(
     revalidateCircleCardPaths(card.slug);
     return {
       ok: true,
-      notice: "Media Kit saved",
+      notice: "Live Media Kit updated",
       mediaKit: readCircleCardMediaKit(contentBlocks)
     };
   } catch {

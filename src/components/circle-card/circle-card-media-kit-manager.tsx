@@ -132,6 +132,7 @@ export function CircleCardMediaKitManager({
 
               {notice ? <p role="status" className="rounded-xl border border-emerald-400/24 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-100">{notice}</p> : null}
               {error ? <p role="alert" className="rounded-xl border border-destructive/24 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
+              {status === "Not Started" ? <p className="rounded-xl border border-dashed border-cyan-300/18 bg-cyan-400/[0.04] p-3 text-sm text-muted">Give brands a clear reason to work with you.</p> : null}
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Creator Name" name="creatorName" defaultValue={mediaKit?.creatorName} />

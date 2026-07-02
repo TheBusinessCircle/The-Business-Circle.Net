@@ -246,7 +246,7 @@ export function CircleCardBrandPartnershipsManager({ cardId, cardName, initialIt
                 </details>
               );
             })}
-            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">Show trusted collaborations, campaign work and the brands you have helped.</p> : null}
+            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">Show previous collaborations, or highlight what brands you want to work with.</p> : null}
           </div>
           <details className="group/add mt-3 rounded-xl border border-cyan-300/18 bg-background/20">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden"><span>{atLimit ? "Partnership limit reached" : "Add partnership"}</span><span className="flex items-center gap-2 text-xs font-normal text-muted">{items.length}/{itemLimit}<ChevronDown size={15} className="transition-transform group-open/add:rotate-180" /></span></summary>
