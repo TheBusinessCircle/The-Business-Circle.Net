@@ -10,6 +10,7 @@ import {
   circleCardProductItemFormSchema,
   circleCardPriceListItemFormSchema,
   circleCardMenuOfferItemFormSchema,
+  circleCardCreatorBlockHasContent,
   createCircleCardOpeningHoursPreset,
   isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
@@ -18,6 +19,7 @@ import {
   readCircleCardProductItems,
   readCircleCardPriceListItems,
   readCircleCardMenuOfferItems,
+  readCircleCardCreatorBlocks,
   readCircleCardServices,
   readCircleCardReviewItems,
   resolveCircleCardGalleryBuilderMode,
@@ -56,6 +58,30 @@ import {
   type CircleCardServiceItem,
   type CircleCardReviewItem
 } from "@/lib/circle-card/content-blocks";
+
+describe("Circle Card creator content block foundation", () => {
+  it("normalises a missing creator branch without reading business blocks", () => {
+    expect(readCircleCardCreatorBlocks({ business: { PRODUCTS: { items: [{ id: "product-1" }] } } })).toEqual({});
+  });
+
+  it("reads recognised creator blocks and ignores unknown keys", () => {
+    expect(readCircleCardCreatorBlocks({
+      creator: {
+        FEATURED_CONTENT: { title: "Latest video" },
+        MEDIA_KIT: { headline: "Creator media kit" },
+        UNKNOWN_BLOCK: { value: true }
+      }
+    })).toEqual({
+      FEATURED_CONTENT: { title: "Latest video" },
+      MEDIA_KIT: { headline: "Creator media kit" }
+    });
+  });
+
+  it("only treats meaningful creator block values as prepared content", () => {
+    expect(circleCardCreatorBlockHasContent({ items: [], title: "" })).toBe(false);
+    expect(circleCardCreatorBlockHasContent({ items: [{ title: "Press mention" }] })).toBe(true);
+  });
+});
 
 const activeGalleryItem: CircleCardGalleryItem = {
   id: "gallery-active",

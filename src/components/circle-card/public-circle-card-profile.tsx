@@ -2703,8 +2703,11 @@ export function PublicCircleCardProfile({
               </div>
             ) : null}
 
-            {renderTrustScoreCard({ reviewsId: "creator-reviews" })}
-            {renderAboutSection({ id: "creator-about" })}
+            {card.approvedWalletTestimonialCount > 0 || card.reviews.length > 0
+              ? renderTrustScoreCard({ reviewsId: "creator-reviews" })
+              : null}
+            <PublicRecommendations recommendations={card.recommendations} />
+            {renderAboutSection({ id: "creator-about", heading: "Creator story" })}
             {renderServicesSection({ id: "creator-services" })}
             {renderProductsSection({ id: "creator-products" })}
             {renderMenuOffersSection({ id: "creator-menu-offers" })}
@@ -2713,14 +2716,18 @@ export function PublicCircleCardProfile({
             {renderGallerySection({ id: "creator-gallery" })}
             {renderReviewsSection({ id: "creator-reviews" })}
             {renderOpeningHoursSection({ id: "creator-opening-hours" })}
-            {renderQuickConnectSection({
-              id: "creator-quick-connect",
-              heading: "Contact and socials"
-            })}
+            {creatorSocialRows.length
+              ? renderQuickConnectSection({
+                  rows: creatorSocialRows,
+                  id: "creator-quick-connect",
+                  heading: "Creator platforms & community"
+                })
+              : null}
             {renderFeaturedLinksSection({
               id: "creator-featured-links",
+              eyebrow: "Featured Content",
               heading: `Latest from ${creatorFirstName}`,
-              description: "Current places to watch, book, buy, download or follow.",
+              description: "Videos, posts, offers and community links selected by this creator.",
               source: "creator_featured_card"
             })}
             {renderTestimonialCta()}

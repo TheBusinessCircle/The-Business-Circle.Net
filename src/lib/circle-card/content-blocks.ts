@@ -11,7 +11,13 @@ export const CIRCLE_CARD_CREATOR_BLOCK_TYPES = [
   "FEATURED_CONTENT",
   "CURRENT_PROJECT",
   "CURRENT_OFFER",
-  "LATEST_LAUNCH"
+  "LATEST_LAUNCH",
+  "MEDIA_KIT",
+  "BRAND_PARTNERSHIPS",
+  "AUDIENCE_SNAPSHOT",
+  "CREATOR_OFFERS",
+  "PRESS_PROOF",
+  "CREATOR_TRUST"
 ] as const;
 
 export const CIRCLE_CARD_BUSINESS_BLOCK_TYPES = [
@@ -72,6 +78,42 @@ export const CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS = [
     type: "LATEST_LAUNCH",
     family: "CREATOR",
     label: "Latest launch",
+    publicEditingEnabled: false
+  },
+  {
+    type: "MEDIA_KIT",
+    family: "CREATOR",
+    label: "Media Kit",
+    publicEditingEnabled: false
+  },
+  {
+    type: "BRAND_PARTNERSHIPS",
+    family: "CREATOR",
+    label: "Brand Partnerships",
+    publicEditingEnabled: false
+  },
+  {
+    type: "AUDIENCE_SNAPSHOT",
+    family: "CREATOR",
+    label: "Audience Snapshot",
+    publicEditingEnabled: false
+  },
+  {
+    type: "CREATOR_OFFERS",
+    family: "CREATOR",
+    label: "Creator Offers",
+    publicEditingEnabled: false
+  },
+  {
+    type: "PRESS_PROOF",
+    family: "CREATOR",
+    label: "Press / Proof",
+    publicEditingEnabled: false
+  },
+  {
+    type: "CREATOR_TRUST",
+    family: "CREATOR",
+    label: "Circle Trust",
     publicEditingEnabled: false
   },
   {
@@ -1867,6 +1909,33 @@ export function resolveCircleCardBookingBuilderMode(input: {
   platformPreviewCardType?: string | null;
 }): CircleCardBookingBuilderMode {
   return resolveCircleCardServicesBuilderMode(input);
+}
+
+export function readCircleCardCreatorBlocks(
+  value: unknown
+): NonNullable<CircleCardContentBlocksState["creator"]> {
+  if (!isRecord(value) || !isRecord(value.creator)) {
+    return {};
+  }
+  const creator = value.creator;
+
+  return CIRCLE_CARD_CREATOR_BLOCK_TYPES.reduce<NonNullable<CircleCardContentBlocksState["creator"]>>(
+    (blocks, type) => {
+      if (isRecord(creator[type])) {
+        blocks[type] = creator[type] as Record<string, unknown>;
+      }
+      return blocks;
+    },
+    {}
+  );
+}
+
+export function circleCardCreatorBlockHasContent(value: unknown): boolean {
+  if (typeof value === "string") return Boolean(value.trim());
+  if (typeof value === "number" || typeof value === "boolean") return true;
+  if (Array.isArray(value)) return value.some((item) => circleCardCreatorBlockHasContent(item));
+  if (isRecord(value)) return Object.values(value).some((item) => circleCardCreatorBlockHasContent(item));
+  return false;
 }
 
 export function createEmptyCircleCardContentBlocks(): CircleCardContentBlocksState {

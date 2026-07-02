@@ -187,6 +187,12 @@ import {
   calculateBusinessProfileCompletion,
   type BusinessProfileCompletionItemId
 } from "@/lib/circle-card/business-profile-completion";
+import {
+  calculateCreatorProfileCompletion,
+  resolveCreatorStudioMode,
+  type CreatorProfileCompletionItemId,
+  type CreatorStudioMode
+} from "@/lib/circle-card/creator-profile-foundation";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import {
   CIRCLE_CARD_RECOMMENDATION_CATEGORIES,
@@ -208,8 +214,10 @@ import {
   CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
   CIRCLE_CARD_CREATOR_BLOCK_TYPES,
   circleCardOpeningHoursDayLabel,
+  circleCardCreatorBlockHasContent,
   isValidCircleCardReviewItem,
   readCircleCardGalleryItems,
+  readCircleCardCreatorBlocks,
   readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
@@ -2248,6 +2256,267 @@ function BusinessCardBuilderFoundation({
   );
 }
 
+function CreatorProStudio({
+  mode,
+  entitlementLabel,
+  cardId,
+  fullName,
+  profileImageUrl,
+  about,
+  identityTagCount,
+  websiteUrl,
+  email,
+  activeSocialProfileCount,
+  activeFeaturedLinkCount,
+  activeLinkTypes,
+  creatorTrustSignalCount,
+  creatorBlocks,
+  publicUrl,
+  className
+}: {
+  mode: CreatorStudioMode;
+  entitlementLabel: string;
+  cardId: string;
+  fullName: string;
+  profileImageUrl?: string | null;
+  about?: string | null;
+  identityTagCount: number;
+  websiteUrl?: string | null;
+  email?: string | null;
+  activeSocialProfileCount: number;
+  activeFeaturedLinkCount: number;
+  activeLinkTypes: string[];
+  creatorTrustSignalCount: number;
+  creatorBlocks: ReturnType<typeof readCircleCardCreatorBlocks>;
+  publicUrl: string;
+  className?: string;
+}) {
+  if (mode === "hidden") return null;
+
+  const locked = mode === "locked";
+  const isPreview = mode === "preview";
+  const cardHref = (hash: string) => circleCardManageHref({ cardId, section: "my-card", hash });
+  const featuredLinksHref = cardHref("custom-links");
+  const socialProfilesHref = cardHref("card-social-profiles");
+  const contactHref = cardHref("card-contact-details");
+  const identityHref = cardHref("card-identity");
+  const imagesHref = cardHref("card-images");
+  const shareHref = circleCardManageHref({ cardId, section: "share", hash: "share-assets" });
+  const linkTypeSet = new Set(activeLinkTypes);
+  const featuredContentCount = activeLinkTypes.filter((type) =>
+    ["GENERAL", "DOWNLOAD", "PORTFOLIO", "CASE_STUDY"].includes(type)
+  ).length;
+  const creatorOfferCount = activeLinkTypes.filter((type) =>
+    ["LATEST_OFFER", "SHOP", "COMMUNITY"].includes(type)
+  ).length;
+  const proofCount = activeLinkTypes.filter((type) =>
+    ["PORTFOLIO", "CASE_STUDY", "REVIEW"].includes(type)
+  ).length;
+  const hasCommunityRoute = Boolean(websiteUrl?.trim()) || linkTypeSet.has("COMMUNITY");
+  const hasBrandContact = Boolean(email?.trim() || websiteUrl?.trim()) || linkTypeSet.has("BOOK_CALL");
+  const completion = calculateCreatorProfileCompletion({
+    creatorCardSelected: mode !== "preview",
+    hasProfileImage: Boolean(profileImageUrl?.trim()),
+    hasBio: Boolean(about?.trim()),
+    activeSocialProfileCount,
+    activeFeaturedLinkCount,
+    identityTagCount,
+    hasWebsiteOrCommunityLink: hasCommunityRoute,
+    creatorTrustSignalCount
+  });
+  const completionById = new Map(completion.items.map((item) => [item.id, item.complete]));
+  const completionActions: Record<CreatorProfileCompletionItemId, { label: string; href: string }> = {
+    "creator-card": { label: "Select your Creator Card", href: identityHref },
+    "profile-image": { label: "Add your creator image", href: imagesHref },
+    "creator-bio": { label: "Add your creator bio", href: identityHref },
+    "social-profile": { label: "Add your best social platform", href: socialProfilesHref },
+    "featured-link": { label: "Add your first featured link", href: featuredLinksHref },
+    "creator-niche": { label: "Add your creator niche", href: identityHref },
+    "community-route": { label: "Add your community link", href: featuredLinksHref },
+    "creator-trust": { label: "Start building your Circle Trust", href: shareHref }
+  };
+  const nextAction = completion.nextIncompleteId
+    ? completionActions[completion.nextIncompleteId]
+    : { label: "View your Creator profile", href: publicUrl };
+  const preparedCreatorBlockCount = Object.values(creatorBlocks).filter((block) =>
+    circleCardCreatorBlockHasContent(block)
+  ).length;
+  const modules = [
+    {
+      name: "Featured Content",
+      benefit: "Show your best videos, posts or content pieces.",
+      status: featuredContentCount > 0 ? "Active" : "Not Started",
+      action: featuredContentCount > 0 ? "Manage" : "Set up",
+      href: featuredLinksHref,
+      icon: Star
+    },
+    {
+      name: "Media Kit",
+      benefit: "Give brands a quick overview of who you are.",
+      status: "Coming Soon",
+      action: "Coming Soon",
+      href: null,
+      icon: Download
+    },
+    {
+      name: "Brand Partnerships",
+      benefit: "Help brands contact you for collaborations.",
+      status: hasBrandContact ? "Active" : "Not Started",
+      action: hasBrandContact ? "Manage" : "Set up",
+      href: contactHref,
+      icon: Handshake
+    },
+    {
+      name: "Audience Snapshot",
+      benefit: "Show your platforms, audience and creator niche.",
+      status: activeSocialProfileCount > 0 ? "Active" : "Not Started",
+      action: activeSocialProfileCount > 0 ? "Manage" : "Set up",
+      href: socialProfilesHref,
+      icon: BarChart3
+    },
+    {
+      name: "Creator Offers",
+      benefit: "Promote paid content, affiliate offers, merch or community links.",
+      status: creatorOfferCount > 0 ? "Active" : "Not Started",
+      action: creatorOfferCount > 0 ? "Manage" : "Set up",
+      href: featuredLinksHref,
+      icon: ShoppingBag
+    },
+    {
+      name: "Press / Proof",
+      benefit: "Show press mentions, achievements and proof.",
+      status: proofCount > 0 ? "Active" : "Not Started",
+      action: proofCount > 0 ? "Manage" : "Set up",
+      href: featuredLinksHref,
+      icon: Sparkles
+    },
+    {
+      name: "Circle Trust",
+      benefit: "Build reputation through real audience and brand signals.",
+      status: creatorTrustSignalCount > 0 ? "Active" : "Not Started",
+      action: creatorTrustSignalCount > 0 ? "View Trust" : "Build my Circle Trust",
+      href: creatorTrustSignalCount > 0 ? publicUrl : shareHref,
+      icon: ShieldCheck
+    }
+  ] as const;
+
+  return (
+    <CircleCardDashboardSection
+      id="creator-pro-studio"
+      title="Creator Pro Studio"
+      summary="Showcase your content, grow collaborations, and build your Circle Trust."
+      appSection="my-card"
+      className={cn(
+        "border-cyan-300/18 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_34%),linear-gradient(145deg,hsl(var(--card)/0.76),hsl(var(--background)/0.4))]",
+        className
+      )}
+      badge={
+        <Badge variant={isPreview ? "premium" : "outline"} className={cn(!isPreview && "border-cyan-300/28 text-cyan-100")}>
+          {isPreview ? "Platform Preview" : entitlementLabel}
+        </Badge>
+      }
+    >
+      <div className="space-y-4 pb-16 sm:pb-0">
+        <section aria-labelledby="creator-completion-title" className="grid gap-3 rounded-2xl border border-cyan-300/18 bg-background/22 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_minmax(230px,0.38fr)]">
+          <div className="min-w-0">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.08em] text-cyan-200">Creator profile</p>
+                <h3 id="creator-completion-title" className="mt-1 text-sm font-semibold text-foreground sm:text-base">Creator Profile Completion</h3>
+              </div>
+              <p className="font-display text-3xl font-semibold text-cyan-100">{completion.score}%</p>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/60">
+              <div className="h-full rounded-full bg-gradient-to-r from-cyan-400/70 via-gold/70 to-gold" style={{ width: `${completion.score}%` }} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                ["Profile", "profile-image"],
+                ["Bio", "creator-bio"],
+                ["Audience", "social-profile"],
+                ["Featured link", "featured-link"],
+                ["Niche", "creator-niche"],
+                ["Community", "community-route"],
+                ["Creator Trust", "creator-trust"]
+              ].map(([label, id]) => {
+                const complete = Boolean(completionById.get(id as CreatorProfileCompletionItemId));
+                return (
+                  <span key={id} className={cn("flex min-w-0 items-center gap-1.5 text-xs", complete ? "text-foreground" : "text-muted")}>
+                    {complete ? <CheckCircle2 size={14} className="shrink-0 text-cyan-200" /> : <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-silver/40" />}
+                    <span className="truncate">{label}</span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex flex-col justify-between rounded-xl border border-cyan-300/16 bg-cyan-400/[0.06] p-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.08em] text-cyan-200">Next best action</p>
+              <p className="mt-2 text-sm font-semibold text-foreground">{nextAction.label}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">{completion.completedCount} of {completion.totalCount} creator signals complete.</p>
+            </div>
+            <Link href={nextAction.href} className={cn(buttonVariants({ size: "sm" }), "mt-3 h-10 w-full gap-2")}>
+              {nextAction.label}<ArrowUpRight size={14} />
+            </Link>
+          </div>
+        </section>
+
+        {locked ? (
+          <div className="rounded-2xl border border-gold/22 bg-gold/8 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Creator Pro helps you showcase content, attract collaborations and build Circle Trust.</p>
+                <p className="mt-1 text-sm text-muted">Your Creator Card stays live on Free. Upgrade when you are ready to open the full studio.</p>
+              </div>
+              <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline" }), "h-10 w-full gap-2 sm:w-auto")}>Explore Creator Pro<ArrowUpRight size={15} /></Link>
+            </div>
+          </div>
+        ) : null}
+
+        <section aria-labelledby="creator-studio-modules-title" className="rounded-2xl border border-cyan-300/14 bg-background/18 p-3 sm:p-4">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.08em] text-cyan-200">Studio tracks</p>
+              <h3 id="creator-studio-modules-title" className="mt-1 font-display text-xl text-foreground">Build your creator presence</h3>
+            </div>
+            {preparedCreatorBlockCount ? <Badge variant="muted">{preparedCreatorBlockCount} creator block{preparedCreatorBlockCount === 1 ? "" : "s"} prepared</Badge> : null}
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {modules.map((module, index) => {
+              const Icon = module.icon;
+              const content = (
+                <>
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.07] text-cyan-100"><Icon size={17} /></span>
+                    <Badge variant={module.status === "Active" ? "outline" : "muted"} className={module.status === "Active" ? "border-cyan-300/28 text-cyan-100" : undefined}>{module.status}</Badge>
+                  </span>
+                  <span className="mt-4 text-[10px] font-medium uppercase tracking-[0.1em] text-silver">Studio {String(index + 1).padStart(2, "0")}</span>
+                  <span className="mt-1 text-base font-semibold text-foreground">{module.name}</span>
+                  <span className="mt-1 text-sm leading-relaxed text-muted">{module.benefit}</span>
+                  <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && module.action !== "Coming Soon" ? "Unlock with Pro" : module.action}{module.href && !locked ? <ArrowUpRight size={13} /> : null}</span>
+                </>
+              );
+
+              return module.href && !locked ? (
+                <Link key={module.name} href={module.href} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="group flex min-h-52 min-w-0 flex-col rounded-2xl border border-silver/14 bg-card/48 p-4 transition hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50">{content}</Link>
+              ) : (
+                <div key={module.name} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="flex min-h-52 min-w-0 flex-col rounded-2xl border border-silver/12 bg-card/32 p-4">{content}</div>
+              );
+            })}
+          </div>
+        </section>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Link href={publicUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 min-w-0 gap-2 px-2")}><Eye size={14} /><span className="truncate">View Creator profile</span></Link>
+          <CircleCardCopyLinkButton publicUrl={publicUrl} label="Copy creator link" size="sm" className="h-10 min-w-0 px-2" analytics={{ cardId, source: "creator_studio" }} />
+          <CircleCardShareButton title={`${fullName} | Circle Card`} publicUrl={publicUrl} cardId={cardId} analyticsSource="creator_studio" label="Share Creator Card" size="sm" className="min-w-0" buttonClassName="h-10 min-w-0 px-2" hideStatus />
+          <Link href={shareHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 min-w-0 gap-2 px-2")}><ShieldCheck size={14} /><span className="truncate">Build my Circle Trust</span></Link>
+        </div>
+      </div>
+    </CircleCardDashboardSection>
+  );
+}
+
 function UpgradeTriggerColumn({
   title,
   triggers,
@@ -3297,6 +3566,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             relationship: true,
             createdAt: true
           }
+        },
+        recommendationsReceived: {
+          where: { visibility: "PUBLIC", status: "ACTIVE" },
+          select: { id: true }
         }
       }
     }),
@@ -4867,6 +5140,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isPlatformOwner,
     platformPreviewCardType: selectedOwnerCardTypePreviewMode
   });
+  const creatorStudioMode = resolveCreatorStudioMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
   const selectedCardServices = card?.cardType === "BUSINESS"
     ? readCircleCardServices(card.contentBlocks)
     : [];
@@ -4911,6 +5190,14 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardOpeningHours = card?.cardType === "BUSINESS"
     ? readCircleCardOpeningHours(card.contentBlocks)
     : null;
+  const selectedCardCreatorBlocks = card?.cardType === "CREATOR" || creatorStudioMode === "preview"
+    ? readCircleCardCreatorBlocks(card?.contentBlocks)
+    : {};
+  const selectedCardCreatorTrustSignalCount = card?.cardType === "CREATOR"
+    ? card.recommendationsReceived.length + card.walletTestimonialsReceived.filter(
+        (testimonial) => testimonial.status === "APPROVED"
+      ).length
+    : 0;
   const showBusinessCardBuilder =
     servicesBuilderMode !== "hidden" ||
     productsBuilderMode !== "hidden" ||
@@ -8831,6 +9118,27 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           businessLogoUrl={card.businessLogoUrl}
           email={card.email}
           phone={card.phone}
+          className={activeSection === "my-card" ? undefined : "hidden"}
+        />
+      ) : null}
+
+      {card && creatorStudioMode !== "hidden" ? (
+        <CreatorProStudio
+          mode={creatorStudioMode}
+          entitlementLabel={circleCardEntitlement.label}
+          cardId={card.id}
+          fullName={card.fullName}
+          profileImageUrl={card.profileImageUrl}
+          about={card.about}
+          identityTagCount={card.identityTags.length}
+          websiteUrl={card.websiteUrl}
+          email={card.email}
+          activeSocialProfileCount={activeSocialLinkCount}
+          activeFeaturedLinkCount={activeCustomLinkCount}
+          activeLinkTypes={customLinks.filter((link) => link.isActive).map((link) => link.type)}
+          creatorTrustSignalCount={selectedCardCreatorTrustSignalCount}
+          creatorBlocks={selectedCardCreatorBlocks}
+          publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
           className={activeSection === "my-card" ? undefined : "hidden"}
         />
       ) : null}
