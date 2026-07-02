@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   circleCardOpeningHoursDayLabel,
   circleCardBookingEnquiryFormSchema,
+  circleCardBrandPartnershipFormSchema,
+  circleCardBrandPartnershipStatus,
   circleCardAudienceSnapshotFormSchema,
   circleCardAudienceSnapshotStatus,
   circleCardBookingPhoneHref,
@@ -22,6 +24,7 @@ import {
   readCircleCardFeaturedContentItems,
   readCircleCardMediaKit,
   readCircleCardBookingEnquiry,
+  readCircleCardBrandPartnerships,
   readCircleCardAudienceSnapshot,
   readCircleCardDocumentItems,
   readCircleCardProductItems,
@@ -41,6 +44,7 @@ import {
   resolveCircleCardReviewsBuilderMode,
   visibleCircleCardOpeningHours,
   visibleCircleCardBookingEnquiry,
+  visibleCircleCardBrandPartnerships,
   visibleCircleCardAudienceSnapshot,
   visibleCircleCardDocumentItems,
   visibleCircleCardProductItems,
@@ -53,6 +57,7 @@ import {
   visibleCircleCardReviewItems,
   writeCircleCardOpeningHours,
   writeCircleCardBookingEnquiry,
+  writeCircleCardBrandPartnerships,
   writeCircleCardAudienceSnapshot,
   writeCircleCardDocumentItems,
   writeCircleCardProductItems,
@@ -67,6 +72,7 @@ import {
   type CircleCardFeaturedContentItem,
   type CircleCardMediaKit,
   type CircleCardBookingEnquiry,
+  type CircleCardBrandPartnership,
   type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardProductItem,
@@ -161,6 +167,76 @@ describe("Circle Card Featured Content", () => {
     expect(circleCardFeaturedContentItemFormSchema.safeParse({ ...base, url: "https://example.com/post" }).success).toBe(true);
     for (const url of ["javascript:alert(1)", "data:text/plain,test", "ftp://example.com/file", "https://user:pass@example.com/post", "not a url"]) {
       expect(circleCardFeaturedContentItemFormSchema.safeParse({ ...base, url }).success).toBe(false);
+    }
+  });
+});
+
+describe("Circle Card Creator Brand Partnerships", () => {
+  const featured: CircleCardBrandPartnership = {
+    id: "brand-featured",
+    brandName: "North Studio",
+    brandLogo: "/uploads/circle-card/north-logo.png",
+    campaignTitle: "Creator Launch Series",
+    description: "A three-part launch campaign across video and social content.",
+    partnershipType: "Content Series",
+    campaignDate: "2026-05-12",
+    campaignUrl: "https://example.com/campaign",
+    testimonial: "A thoughtful and reliable creative partner.",
+    isFeatured: true,
+    isActive: true,
+    sortOrder: 1
+  };
+  const standard: CircleCardBrandPartnership = {
+    ...featured,
+    id: "brand-standard",
+    brandName: "Acme",
+    brandLogo: null,
+    campaignTitle: "Product Review",
+    partnershipType: "Product Review",
+    testimonial: null,
+    isFeatured: false,
+    sortOrder: 0
+  };
+  const hidden: CircleCardBrandPartnership = {
+    ...standard,
+    id: "brand-hidden",
+    brandName: "Hidden Brand",
+    isActive: false,
+    sortOrder: 2
+  };
+
+  it("stores partnerships under creator.BRAND_PARTNERSHIPS without touching other blocks", () => {
+    const stored = writeCircleCardBrandPartnerships({ creator: { MEDIA_KIT: { creatorName: "Alex" } } }, [standard, featured]);
+    expect(readCircleCardBrandPartnerships(stored)).toHaveLength(2);
+    expect(stored.creator).toMatchObject({ MEDIA_KIT: { creatorName: "Alex" } });
+    expect(circleCardBrandPartnershipStatus(readCircleCardBrandPartnerships(stored))).toBe("Complete");
+  });
+
+  it("renders Creator partnerships only, hides inactive items and puts featured campaigns first", () => {
+    const stored = writeCircleCardBrandPartnerships({}, [standard, featured, hidden]);
+    expect(visibleCircleCardBrandPartnerships({ cardType: "CREATOR", contentBlocks: stored }).map((item) => item.id))
+      .toEqual(["brand-featured", "brand-standard"]);
+    expect(visibleCircleCardBrandPartnerships({ cardType: "BUSINESS", contentBlocks: stored })).toEqual([]);
+    expect(visibleCircleCardBrandPartnerships({ cardType: "PERSONAL", contentBlocks: stored })).toEqual([]);
+  });
+
+  it("accepts safe HTTPS campaign links and rejects unsafe destinations", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      partnershipId: "",
+      brandName: "North Studio",
+      brandLogo: "",
+      campaignTitle: "Launch Campaign",
+      description: "A collaborative creator campaign.",
+      partnershipType: "Sponsored Content",
+      campaignDate: "2026-05-12",
+      testimonial: "",
+      isFeatured: true,
+      isActive: true
+    };
+    expect(circleCardBrandPartnershipFormSchema.safeParse({ ...base, campaignUrl: "https://example.com/work" }).success).toBe(true);
+    for (const campaignUrl of ["javascript:alert(1)", "data:text/plain,test", "ftp://example.com/file", "https://user:pass@example.com/work", "not a url"]) {
+      expect(circleCardBrandPartnershipFormSchema.safeParse({ ...base, campaignUrl }).success).toBe(false);
     }
   });
 });

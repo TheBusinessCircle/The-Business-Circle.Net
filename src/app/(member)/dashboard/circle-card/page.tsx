@@ -89,6 +89,7 @@ import {
   CircleCardBcnDiscoveryPanel,
   CircleCardAudienceSnapshotManager,
   CircleCardBookingManager,
+  CircleCardBrandPartnershipsManager,
   CircleCardCopyLinkButton,
   CircleCardDashboardSection,
   CircleCardDocumentsManager,
@@ -208,6 +209,8 @@ import {
 import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
   CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
+  CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT,
+  CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
@@ -219,6 +222,7 @@ import {
   CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
   CIRCLE_CARD_CREATOR_BLOCK_TYPES,
   circleCardOpeningHoursDayLabel,
+  circleCardBrandPartnershipStatus,
   circleCardAudienceSnapshotStatus,
   circleCardMediaKitStatus,
   circleCardCreatorBlockHasContent,
@@ -228,6 +232,7 @@ import {
   readCircleCardFeaturedContentItems,
   readCircleCardCreatorBlocks,
   readCircleCardBookingEnquiry,
+  readCircleCardBrandPartnerships,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
   readCircleCardMenuOfferItems,
@@ -2275,7 +2280,6 @@ function CreatorProStudio({
   about,
   identityTagCount,
   websiteUrl,
-  email,
   activeSocialProfileCount,
   activeFeaturedLinkCount,
   activeLinkTypes,
@@ -2284,6 +2288,7 @@ function CreatorProStudio({
   featuredContentItems,
   mediaKit,
   audienceSnapshot,
+  brandPartnerships,
   publicUrl,
   className
 }: {
@@ -2295,7 +2300,6 @@ function CreatorProStudio({
   about?: string | null;
   identityTagCount: number;
   websiteUrl?: string | null;
-  email?: string | null;
   activeSocialProfileCount: number;
   activeFeaturedLinkCount: number;
   activeLinkTypes: string[];
@@ -2304,6 +2308,7 @@ function CreatorProStudio({
   featuredContentItems: ReturnType<typeof readCircleCardFeaturedContentItems>;
   mediaKit: ReturnType<typeof readCircleCardMediaKit>;
   audienceSnapshot: ReturnType<typeof readCircleCardAudienceSnapshot>;
+  brandPartnerships: ReturnType<typeof readCircleCardBrandPartnerships>;
   publicUrl: string;
   className?: string;
 }) {
@@ -2316,8 +2321,8 @@ function CreatorProStudio({
   const featuredContentHref = cardHref("creator-featured-content");
   const mediaKitHref = cardHref("creator-media-kit");
   const audienceHref = cardHref("creator-audience");
+  const brandPartnershipsHref = cardHref("creator-brand-partnerships");
   const socialProfilesHref = cardHref("card-social-profiles");
-  const contactHref = cardHref("card-contact-details");
   const identityHref = cardHref("card-identity");
   const imagesHref = cardHref("card-images");
   const shareHref = circleCardManageHref({ cardId, section: "share", hash: "share-assets" });
@@ -2325,6 +2330,7 @@ function CreatorProStudio({
   const featuredContentCount = featuredContentItems.filter((item) => item.isActive).length;
   const mediaKitStatus = circleCardMediaKitStatus(mediaKit);
   const audienceStatus = circleCardAudienceSnapshotStatus(audienceSnapshot);
+  const brandPartnershipStatus = circleCardBrandPartnershipStatus(brandPartnerships);
   const creatorOfferCount = activeLinkTypes.filter((type) =>
     ["LATEST_OFFER", "SHOP", "COMMUNITY"].includes(type)
   ).length;
@@ -2332,7 +2338,6 @@ function CreatorProStudio({
     ["PORTFOLIO", "CASE_STUDY", "REVIEW"].includes(type)
   ).length;
   const hasCommunityRoute = Boolean(websiteUrl?.trim()) || linkTypeSet.has("COMMUNITY");
-  const hasBrandContact = Boolean(email?.trim() || websiteUrl?.trim()) || linkTypeSet.has("BOOK_CALL");
   const completion = calculateCreatorProfileCompletion({
     creatorCardSelected: mode !== "preview",
     hasProfileImage: Boolean(profileImageUrl?.trim()),
@@ -2380,9 +2385,9 @@ function CreatorProStudio({
     {
       name: "Brand Partnerships",
       benefit: "Make it easy for brands to work with you.",
-      status: hasBrandContact ? "Active" : "Not Started",
-      action: hasBrandContact ? "Manage" : "Set up",
-      href: contactHref,
+      status: brandPartnershipStatus,
+      action: brandPartnershipStatus === "Not Started" ? "Set up" : "Manage Brand Partnerships",
+      href: brandPartnershipsHref,
       icon: Handshake
     },
     {
@@ -2504,6 +2509,7 @@ function CreatorProStudio({
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {modules.map((module, index) => {
               const Icon = module.icon;
+              const availableOnFree = module.name === "Featured Content" || module.name === "Brand Partnerships";
               const content = (
                 <>
                   <span className="flex items-start justify-between gap-3">
@@ -2513,11 +2519,11 @@ function CreatorProStudio({
                   <span className="mt-4 text-[10px] font-medium uppercase tracking-[0.1em] text-silver">Studio {String(index + 1).padStart(2, "0")}</span>
                   <span className="mt-1 text-base font-semibold text-foreground">{module.name}</span>
                   <span className="mt-1 text-sm leading-relaxed text-muted">{module.benefit}</span>
-                  <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && module.name !== "Featured Content" ? "Unlock with Pro" : module.action}{module.href && (!locked || module.name === "Featured Content") ? <ArrowUpRight size={13} /> : null}</span>
+                  <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && !availableOnFree ? "Unlock with Pro" : module.action}{module.href && (!locked || availableOnFree) ? <ArrowUpRight size={13} /> : null}</span>
                 </>
               );
 
-              return module.href && (!locked || module.name === "Featured Content") ? (
+              return module.href && (!locked || availableOnFree) ? (
                 <Link key={module.name} href={module.href} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="group flex min-h-52 min-w-0 flex-col rounded-2xl border border-silver/14 bg-card/48 p-4 transition hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50">{content}</Link>
               ) : (
                 <div key={module.name} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="flex min-h-52 min-w-0 flex-col rounded-2xl border border-silver/12 bg-card/32 p-4">{content}</div>
@@ -2551,6 +2557,16 @@ function CreatorProStudio({
             cardName={fullName}
             initialSnapshot={audienceSnapshot}
             locked={locked}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardBrandPartnershipsManager
+            cardId={cardId}
+            cardName={fullName}
+            initialItems={brandPartnerships}
+            itemLimit={locked ? CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT : CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT}
+            hasProAccess={!locked}
           />
         ) : null}
 
@@ -5250,6 +5266,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardAudienceSnapshot = card?.cardType === "CREATOR"
     ? readCircleCardAudienceSnapshot(card.contentBlocks)
     : null;
+  const selectedCardBrandPartnerships = card?.cardType === "CREATOR"
+    ? readCircleCardBrandPartnerships(card.contentBlocks)
+    : [];
   const selectedCardCreatorTrustSignalCount = card?.cardType === "CREATOR"
     ? card.recommendationsReceived.length + card.walletTestimonialsReceived.filter(
         (testimonial) => testimonial.status === "APPROVED"
@@ -9189,7 +9208,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           about={card.about}
           identityTagCount={card.identityTags.length}
           websiteUrl={card.websiteUrl}
-          email={card.email}
           activeSocialProfileCount={activeSocialLinkCount}
           activeFeaturedLinkCount={activeCustomLinkCount}
           activeLinkTypes={customLinks.filter((link) => link.isActive).map((link) => link.type)}
@@ -9198,6 +9216,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           featuredContentItems={selectedCardFeaturedContentItems}
           mediaKit={selectedCardMediaKit}
           audienceSnapshot={selectedCardAudienceSnapshot}
+          brandPartnerships={selectedCardBrandPartnerships}
           publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
           className={activeSection === "my-card" ? undefined : "hidden"}
         />

@@ -2259,6 +2259,70 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderCreatorBrandPartnershipsSection({ id = "creator-brand-partnerships" }: { id?: string } = {}) {
+    if (card.cardType !== "CREATOR") return null;
+    const partnerships = card.brandPartnerships;
+    const openToInterests = [...new Set([
+      card.mediaKit?.primaryNiche,
+      card.mediaKit?.secondaryNiche,
+      ...(card.mediaKit?.whatICreate ?? [])
+    ].filter((interest): interest is string => Boolean(interest)))].slice(0, 12);
+
+    if (!partnerships.length) {
+      if (!openToInterests.length) return null;
+      return (
+        <section id={id} aria-labelledby={`${id}-title`} className="rounded-[1.75rem] border border-cyan-300/18 bg-[linear-gradient(145deg,rgba(12,31,44,0.9),rgba(4,10,24,0.97))] p-5 shadow-panel-soft sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Open to Partnerships</p>
+              <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Open to Brand Partnerships</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Interested in creating trusted work together? These are the creator&apos;s current content interests.</p>
+            </div>
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><Handshake size={20} /></span>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2">{openToInterests.map((interest) => <span key={interest} className="rounded-full border border-cyan-300/20 bg-cyan-400/[0.07] px-3 py-1.5 text-xs font-medium text-cyan-100">{interest}</span>)}</div>
+        </section>
+      );
+    }
+
+    return (
+      <section id={id} aria-labelledby={`${id}-title`} className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(18,30,38,0.9),rgba(4,10,24,0.97))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.25)] sm:p-6 lg:p-7">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-gold">Trusted By</p>
+            <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Brands I&apos;ve Worked With</h2>
+            <p className="mt-2 text-sm text-muted">Previous collaborations and featured campaigns.</p>
+          </div>
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/22 bg-gold/8 text-gold"><Handshake size={20} /></span>
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {partnerships.map((item) => {
+            const dateLabel = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" })
+              .format(new Date(`${item.campaignDate}T00:00:00.000Z`));
+            return (
+              <article key={item.id} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04] shadow-inner-surface">
+                <div className="flex min-h-32 items-center justify-center border-b border-silver/12 bg-[linear-gradient(145deg,rgba(255,255,255,0.08),rgba(255,255,255,0.025))] p-5">
+                  {item.brandLogo ? <img src={item.brandLogo} alt={`${item.brandName} logo`} loading="lazy" className="max-h-20 w-auto max-w-[75%] object-contain" /> : <span className="font-display text-3xl font-semibold text-cyan-100">{item.brandName.slice(0, 2).toUpperCase()}</span>}
+                </div>
+                <div className="flex flex-1 flex-col p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0"><p className="text-xs font-medium text-gold">{item.partnershipType}</p><h3 className="mt-1 text-base font-semibold text-foreground">{item.brandName}</h3></div>
+                    {item.isFeatured ? <span className="inline-flex items-center gap-1 rounded-full border border-gold/22 bg-gold/8 px-2.5 py-1 text-[11px] font-medium text-gold"><Star size={10} />Featured Campaign</span> : null}
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-silver">{item.campaignTitle}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{item.description}</p>
+                  <p className="mt-3 text-xs text-silver">{dateLabel}</p>
+                  {item.testimonial ? <blockquote className="mt-4 rounded-xl border border-gold/16 bg-gold/[0.055] p-3 text-sm italic leading-relaxed text-silver">“{item.testimonial}”</blockquote> : null}
+                  {item.campaignUrl ? <a {...getExternalLinkProps(item.campaignUrl)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-auto h-11 w-full gap-2 pt-3 sm:w-fit")}>Visit Campaign<ChevronRight size={14} /></a> : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
   function renderBookingSection({ id = "business-booking" }: { id?: string } = {}) {
     const booking = card.bookingEnquiry;
     if (card.cardType !== "BUSINESS" || !booking) {
@@ -2934,6 +2998,7 @@ export function PublicCircleCardProfile({
             ) : null}
             {renderCreatorMediaKitSection()}
             {renderCreatorAudienceSnapshotSection()}
+            {renderCreatorBrandPartnershipsSection()}
 
             {card.approvedWalletTestimonialCount > 0 || card.reviews.length > 0
               ? renderTrustScoreCard({ reviewsId: "creator-reviews" })

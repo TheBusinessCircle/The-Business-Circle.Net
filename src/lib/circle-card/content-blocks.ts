@@ -236,6 +236,41 @@ export type CircleCardFeaturedContentItem = {
 export const CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT = 3;
 export const CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT = 100;
 
+export const CIRCLE_CARD_BRAND_PARTNERSHIP_TYPES = [
+  "Sponsored Content",
+  "UGC",
+  "Affiliate",
+  "Brand Ambassador",
+  "Event",
+  "Podcast Guest",
+  "Product Review",
+  "Product Launch",
+  "Long-term Partnership",
+  "Content Series",
+  "Other"
+] as const;
+
+export type CircleCardBrandPartnershipType = (typeof CIRCLE_CARD_BRAND_PARTNERSHIP_TYPES)[number];
+
+export type CircleCardBrandPartnership = {
+  id: string;
+  brandName: string;
+  brandLogo: string | null;
+  campaignTitle: string;
+  description: string;
+  partnershipType: CircleCardBrandPartnershipType;
+  campaignDate: string;
+  campaignUrl: string | null;
+  testimonial: string | null;
+  isFeatured: boolean;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+export const CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT = 2;
+export const CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT = 100;
+export type CircleCardBrandPartnershipStatus = "Not Started" | "Active" | "Complete";
+
 export const CIRCLE_CARD_MEDIA_KIT_WORK_TYPES = [
   "Sponsored Posts",
   "UGC",
@@ -720,6 +755,43 @@ export const circleCardFeaturedContentItemFormSchema = z.object({
 export const circleCardFeaturedContentItemIdSchema = z.object({
   cardId: z.string().cuid(),
   featuredContentItemId: z.string().trim().min(1).max(64)
+});
+
+export const circleCardBrandPartnershipFormSchema = z.object({
+  cardId: z.string().cuid(),
+  partnershipId: z.string().trim().max(64).optional().or(z.literal("")),
+  brandName: z.string().trim().min(1, "Add the brand name.").max(120),
+  brandLogo: productImageUrlSchema,
+  campaignTitle: z.string().trim().min(1, "Add the campaign title.").max(140),
+  description: z.string().trim().min(1, "Add a short campaign description.").max(700),
+  partnershipType: z.enum(CIRCLE_CARD_BRAND_PARTNERSHIP_TYPES),
+  campaignDate: z.string().trim().refine(
+    (value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && isValidCalendarDate(value),
+    "Choose a valid campaign date."
+  ),
+  campaignUrl: z.string().trim().max(2048).optional().or(z.literal("")).transform((value, context) => {
+    if (!value) return "";
+    const safeUrl = normalizeSafeFeaturedContentUrl(value);
+    if (!safeUrl) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Use a safe https:// URL without credentials." });
+      return z.NEVER;
+    }
+    return safeUrl;
+  }),
+  testimonial: z.string().trim().max(700).optional().or(z.literal("")),
+  isFeatured: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  ),
+  isActive: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  )
+});
+
+export const circleCardBrandPartnershipIdSchema = z.object({
+  cardId: z.string().cuid(),
+  partnershipId: z.string().trim().min(1).max(64)
 });
 
 const optionalMediaKitText = (maximum: number) =>
@@ -2269,6 +2341,88 @@ export function visibleCircleCardFeaturedContentItems(input: {
           Number(right.isFeatured) - Number(left.isFeatured) || left.sortOrder - right.sortOrder
         )
     : [];
+}
+
+export function readCircleCardBrandPartnerships(value: unknown): CircleCardBrandPartnership[] {
+  if (!isRecord(value) || !isRecord(value.creator) || !isRecord(value.creator.BRAND_PARTNERSHIPS)) {
+    return [];
+  }
+  const items = value.creator.BRAND_PARTNERSHIPS.items;
+  if (!Array.isArray(items)) return [];
+
+  return items.flatMap((item, index) => {
+    if (!isRecord(item)) return [];
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const brandName = typeof item.brandName === "string" ? item.brandName.trim() : "";
+    const campaignTitle = typeof item.campaignTitle === "string" ? item.campaignTitle.trim() : "";
+    const description = typeof item.description === "string" ? item.description.trim() : "";
+    const partnershipType = CIRCLE_CARD_BRAND_PARTNERSHIP_TYPES.find(
+      (candidate) => candidate === item.partnershipType
+    );
+    const campaignDate = typeof item.campaignDate === "string" ? item.campaignDate.trim() : "";
+    if (
+      !id || !brandName || !campaignTitle || !description || !partnershipType ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(campaignDate) || !isValidCalendarDate(campaignDate)
+    ) return [];
+
+    return [{
+      id,
+      brandName: brandName.slice(0, 120),
+      brandLogo: readSafeProductImageUrl(item.brandLogo),
+      campaignTitle: campaignTitle.slice(0, 140),
+      description: description.slice(0, 700),
+      partnershipType,
+      campaignDate,
+      campaignUrl: normalizeSafeFeaturedContentUrl(item.campaignUrl),
+      testimonial: typeof item.testimonial === "string" && item.testimonial.trim()
+        ? item.testimonial.trim().slice(0, 700)
+        : null,
+      isFeatured: item.isFeatured === true,
+      isActive: item.isActive !== false,
+      sortOrder: typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+        ? item.sortOrder
+        : index
+    } satisfies CircleCardBrandPartnership];
+  }).sort((left, right) => left.sortOrder - right.sortOrder);
+}
+
+export function writeCircleCardBrandPartnerships(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  partnerships: CircleCardBrandPartnership[]
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const creator = isRecord(root.creator) ? root.creator : {};
+  const current = isRecord(creator.BRAND_PARTNERSHIPS) ? creator.BRAND_PARTNERSHIPS : {};
+  return {
+    ...root,
+    creator: {
+      ...creator,
+      BRAND_PARTNERSHIPS: {
+        ...current,
+        items: partnerships.map((item, index) => ({ ...item, sortOrder: index }))
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardBrandPartnerships(input: {
+  cardType: string;
+  contentBlocks: unknown;
+}) {
+  return input.cardType === "CREATOR"
+    ? readCircleCardBrandPartnerships(input.contentBlocks)
+        .filter((item) => item.isActive)
+        .sort((left, right) =>
+          Number(right.isFeatured) - Number(left.isFeatured) || left.sortOrder - right.sortOrder
+        )
+    : [];
+}
+
+export function circleCardBrandPartnershipStatus(
+  partnerships: CircleCardBrandPartnership[]
+): CircleCardBrandPartnershipStatus {
+  if (!partnerships.length) return "Not Started";
+  return partnerships.some((item) => item.isActive && item.brandLogo) ? "Complete" : "Active";
 }
 
 function readMediaKitText(value: unknown, maximum: number) {

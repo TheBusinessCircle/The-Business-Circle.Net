@@ -52,6 +52,8 @@ import {
 } from "@/lib/circle-card/wallet-testimonials";
 import {
   CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
+  CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT,
+  CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT,
   CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
@@ -61,6 +63,8 @@ import {
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
   circleCardBookingEnquiryFormSchema,
+  circleCardBrandPartnershipFormSchema,
+  circleCardBrandPartnershipIdSchema,
   circleCardAudienceSnapshotFormSchema,
   circleCardFeaturedContentItemFormSchema,
   circleCardFeaturedContentItemIdSchema,
@@ -87,6 +91,7 @@ import {
   readCircleCardMediaKit,
   readCircleCardFeaturedContentItems,
   readCircleCardBookingEnquiry,
+  readCircleCardBrandPartnerships,
   readCircleCardAudienceSnapshot,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
@@ -99,6 +104,7 @@ import {
   writeCircleCardMediaKit,
   writeCircleCardFeaturedContentItems,
   writeCircleCardBookingEnquiry,
+  writeCircleCardBrandPartnerships,
   writeCircleCardAudienceSnapshot,
   writeCircleCardDocumentItems,
   writeCircleCardOpeningHours,
@@ -109,6 +115,7 @@ import {
   type CircleCardMediaKit,
   type CircleCardFeaturedContentItem,
   type CircleCardBookingEnquiry,
+  type CircleCardBrandPartnership,
   type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardOpeningHours,
@@ -1111,6 +1118,10 @@ export type CircleCardFeaturedContentInlineActionResult =
   | { ok: true; notice: string; item?: CircleCardFeaturedContentItem }
   | { ok: false; error: string; message: string };
 
+export type CircleCardBrandPartnershipInlineActionResult =
+  | { ok: true; notice: string; item?: CircleCardBrandPartnership }
+  | { ok: false; error: string; message: string };
+
 export type CircleCardMediaKitInlineActionResult =
   | { ok: true; notice: string; mediaKit: CircleCardMediaKit | null }
   | { ok: false; error: string; message: string };
@@ -1223,6 +1234,13 @@ function inlineCircleCardFeaturedContentError(
   error: string,
   message: string
 ): CircleCardFeaturedContentInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardBrandPartnershipError(
+  error: string,
+  message: string
+): CircleCardBrandPartnershipInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -4085,6 +4103,162 @@ export async function deleteCircleCardFeaturedContentItemInlineAction(input: {
   });
   revalidateCircleCardPaths(card.slug);
   return { ok: true, notice: "Featured Content deleted" };
+}
+
+export async function upsertCircleCardBrandPartnershipInlineAction(
+  formData: FormData
+): Promise<CircleCardBrandPartnershipInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardBrandPartnershipFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    partnershipId: formData.get("partnershipId") ?? "",
+    brandName: formData.get("brandName"),
+    brandLogo: formData.get("brandLogo") ?? "",
+    campaignTitle: formData.get("campaignTitle"),
+    description: formData.get("description"),
+    partnershipType: formData.get("partnershipType"),
+    campaignDate: formData.get("campaignDate"),
+    campaignUrl: formData.get("campaignUrl") ?? "",
+    testimonial: formData.get("testimonial") ?? "",
+    isFeatured: formData.get("isFeatured"),
+    isActive: formData.get("isActive")
+  });
+  if (!parsed.success) {
+    return inlineCircleCardBrandPartnershipError(
+      "brand-partnership-invalid",
+      parsed.error.issues[0]?.message ?? "Check the partnership details and try again."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardBrandPartnershipError(
+      card ? "brand-partnership-creator-card-required" : "card-not-found",
+      card ? "Brand Partnerships can only be added to a Creator Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const partnerships = readCircleCardBrandPartnerships(card.contentBlocks);
+  const existingIndex = parsed.data.partnershipId
+    ? partnerships.findIndex((item) => item.id === parsed.data.partnershipId)
+    : -1;
+  if (parsed.data.partnershipId && existingIndex < 0) {
+    return inlineCircleCardBrandPartnershipError(
+      "brand-partnership-not-found",
+      "That partnership could not be found on this Creator Card."
+    );
+  }
+  const hasProAccess = resolveCircleCardAccessLevel({
+    role: user.role,
+    membershipTier: user.membershipTier,
+    hasActiveSubscription: user.hasActiveSubscription
+  }) !== "FREE";
+  const itemLimit = hasProAccess
+    ? CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT
+    : CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT;
+  if (existingIndex < 0 && partnerships.length >= itemLimit) {
+    return inlineCircleCardBrandPartnershipError(
+      "brand-partnership-limit",
+      hasProAccess
+        ? `Creator Pro can keep up to ${itemLimit} Brand Partnerships.`
+        : "Unlock unlimited Brand Partnerships with Creator Pro."
+    );
+  }
+
+  const item: CircleCardBrandPartnership = {
+    id: existingIndex >= 0 ? partnerships[existingIndex].id : randomBytes(12).toString("hex"),
+    brandName: parsed.data.brandName,
+    brandLogo: parsed.data.brandLogo || null,
+    campaignTitle: parsed.data.campaignTitle,
+    description: parsed.data.description,
+    partnershipType: parsed.data.partnershipType,
+    campaignDate: parsed.data.campaignDate,
+    campaignUrl: parsed.data.campaignUrl || null,
+    testimonial: parsed.data.testimonial || null,
+    isFeatured: parsed.data.isFeatured,
+    isActive: parsed.data.isActive,
+    sortOrder: existingIndex >= 0 ? partnerships[existingIndex].sortOrder : partnerships.length
+  };
+  const nextItems = [...partnerships];
+  if (existingIndex >= 0) nextItems[existingIndex] = item;
+  else nextItems.push(item);
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardBrandPartnerships(card.contentBlocks, nextItems) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return { ok: true, notice: existingIndex >= 0 ? "Brand Partnership updated" : "Brand Partnership added", item };
+  } catch {
+    return inlineCircleCardBrandPartnershipError(
+      "brand-partnership-save-failed",
+      "The partnership could not be saved. Your current details are still shown."
+    );
+  }
+}
+
+export async function toggleCircleCardBrandPartnershipInlineAction(input: {
+  cardId: string;
+  partnershipId: string;
+}): Promise<CircleCardBrandPartnershipInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardBrandPartnershipIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardBrandPartnershipError("brand-partnership-invalid", "Check the partnership and try again.");
+  }
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardBrandPartnershipError(
+      card ? "brand-partnership-creator-card-required" : "card-not-found",
+      card ? "Brand Partnerships are only available on Creator Cards." : "That Circle Card could not be found."
+    );
+  }
+  const partnerships = readCircleCardBrandPartnerships(card.contentBlocks);
+  const itemIndex = partnerships.findIndex((item) => item.id === parsed.data.partnershipId);
+  if (itemIndex < 0) {
+    return inlineCircleCardBrandPartnershipError("brand-partnership-not-found", "That partnership could not be found.");
+  }
+  partnerships[itemIndex] = { ...partnerships[itemIndex], isActive: !partnerships[itemIndex].isActive };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardBrandPartnerships(card.contentBlocks, partnerships) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return {
+    ok: true,
+    notice: partnerships[itemIndex].isActive ? "Partnership shown" : "Partnership hidden",
+    item: partnerships[itemIndex]
+  };
+}
+
+export async function deleteCircleCardBrandPartnershipInlineAction(input: {
+  cardId: string;
+  partnershipId: string;
+}): Promise<CircleCardBrandPartnershipInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardBrandPartnershipIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardBrandPartnershipError("brand-partnership-invalid", "Check the partnership and try again.");
+  }
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardBrandPartnershipError(
+      card ? "brand-partnership-creator-card-required" : "card-not-found",
+      card ? "Brand Partnerships are only available on Creator Cards." : "That Circle Card could not be found."
+    );
+  }
+  const partnerships = readCircleCardBrandPartnerships(card.contentBlocks);
+  const nextItems = partnerships.filter((item) => item.id !== parsed.data.partnershipId);
+  if (nextItems.length === partnerships.length) {
+    return inlineCircleCardBrandPartnershipError("brand-partnership-not-found", "That partnership could not be found.");
+  }
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardBrandPartnerships(card.contentBlocks, nextItems) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return { ok: true, notice: "Brand Partnership deleted" };
 }
 
 export async function saveCircleCardMediaKitInlineAction(

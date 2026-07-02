@@ -10,6 +10,7 @@ import type {
 import { SITE_CONFIG } from "@/config/site";
 import {
   visibleCircleCardBookingEnquiry,
+  visibleCircleCardBrandPartnerships,
   visibleCircleCardAudienceSnapshot,
   visibleCircleCardDocumentItems,
   visibleCircleCardFeaturedContentItems,
@@ -22,6 +23,7 @@ import {
   visibleCircleCardReviewItems,
   visibleCircleCardServices,
   type CircleCardBookingEnquiry,
+  type CircleCardBrandPartnership,
   type CircleCardAudienceSnapshot,
   type CircleCardDocumentItem,
   type CircleCardFeaturedContentItem,
@@ -134,6 +136,7 @@ export type PublicCircleCard = {
   documents: CircleCardDocumentItem[];
   featuredContentItems: CircleCardFeaturedContentItem[];
   bookingEnquiry: CircleCardBookingEnquiry | null;
+  brandPartnerships: CircleCardBrandPartnership[];
   audienceSnapshot: CircleCardAudienceSnapshot | null;
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
@@ -204,6 +207,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   documents: [],
   featuredContentItems: [],
   bookingEnquiry: null,
+  brandPartnerships: [],
   audienceSnapshot: null,
   galleryItems: [],
   reviews: [],
@@ -516,6 +520,15 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       thumbnailUrl: await resolvePublicUploadImageUrl(item.thumbnailUrl, SITE_CONFIG.url)
     }))
   );
+  const brandPartnerships = await Promise.all(
+    visibleCircleCardBrandPartnerships({
+      cardType: card.cardType,
+      contentBlocks: card.contentBlocks
+    }).map(async (item) => ({
+      ...item,
+      brandLogo: await resolvePublicUploadImageUrl(item.brandLogo, SITE_CONFIG.url)
+    }))
+  );
   const bookingEnquiry = visibleCircleCardBookingEnquiry({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
@@ -596,6 +609,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     mediaKit,
     documents,
     featuredContentItems,
+    brandPartnerships,
     bookingEnquiry,
     audienceSnapshot,
     galleryItems,
