@@ -19,6 +19,10 @@ const priceListManager = readFileSync(
   join(root, "src/components/circle-card/circle-card-price-list-manager.tsx"),
   "utf8"
 );
+const menuOffersManager = readFileSync(
+  join(root, "src/components/circle-card/circle-card-menu-offers-manager.tsx"),
+  "utf8"
+);
 const bookingManager = readFileSync(
   join(root, "src/components/circle-card/circle-card-booking-manager.tsx"),
   "utf8"
@@ -42,6 +46,7 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).toContain('hash: "business-card-services"');
     expect(dashboard).toContain('hash: "business-card-products"');
     expect(dashboard).toContain('hash: "business-card-price-list"');
+    expect(dashboard).toContain('hash: "business-card-menu-offers"');
     expect(dashboard).toContain('hash: "business-card-booking"');
     expect(dashboard).toContain('hash: "business-card-downloads"');
     expect(dashboard).toContain('hash: "business-card-gallery"');
@@ -56,6 +61,7 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).toContain("Reviews are included with Circle Card Pro.");
     expect(dashboard).toContain("Products are included with Circle Card Pro.");
     expect(dashboard).toContain("Price List is included with Circle Card Pro.");
+    expect(dashboard).toContain("Menu &amp; Offers are included with Circle Card Pro.");
     expect(dashboard).toContain("Downloads are included with Circle Card Pro.");
     expect(dashboard).toContain("Booking / Enquiry is included with Circle Card Pro.");
   });
@@ -92,6 +98,19 @@ describe("Business Builder module launcher", () => {
     expect(priceListManager).toContain("Featured prices appear first publicly.");
     expect(priceListManager).toContain("Reorder — Coming Soon");
     expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.priceItems.length');
+    expect(publicProfile).toContain("getExternalLinkProps(item.ctaUrl)");
+  });
+
+  it("manages and renders Business-only Menu & Offers inline", () => {
+    expect(menuOffersManager).toContain('id="business-card-menu-offers"');
+    expect(menuOffersManager).toContain("upsertCircleCardMenuOfferItemInlineAction");
+    expect(menuOffersManager).toContain('uploadKind="gallery-image"');
+    expect(menuOffersManager).toContain("Duplicate — Coming Soon");
+    expect(menuOffersManager).toContain("Reorder — Coming Soon");
+    expect(menuOffersManager).toContain("Safe HTTPS links only");
+    expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.menuOfferItems.length');
+    expect(publicProfile).toContain("item.previousPrice");
+    expect(publicProfile).toContain("item.badge");
     expect(publicProfile).toContain("getExternalLinkProps(item.ctaUrl)");
   });
 

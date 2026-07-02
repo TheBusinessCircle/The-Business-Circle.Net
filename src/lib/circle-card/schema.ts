@@ -247,19 +247,59 @@ function optionalHttpUrl(label: string) {
     });
 }
 
+function optionalSmartLinkUrl() {
+  return z
+    .string()
+    .trim()
+    .max(2048)
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => normalizeCircleCardUrl(value));
+}
+
+const MANAGED_CIRCLE_CARD_LINK_FILE_PATH = /^\/api\/circle-card\/link-file\/([^/?#]+)$/;
+
+function isSafeManagedCircleCardLinkFileUrl(value: string) {
+  const match = value.match(MANAGED_CIRCLE_CARD_LINK_FILE_PATH);
+
+  if (!match) {
+    return false;
+  }
+
+  try {
+    const filename = decodeURIComponent(match[1]);
+    return (
+      Boolean(filename) &&
+      filename !== "." &&
+      filename !== ".." &&
+      !filename.includes("/") &&
+      !filename.includes("\\")
+    );
+  } catch {
+    return false;
+  }
+}
+
 const optionalLinkFileUrl = z
   .string()
   .trim()
   .max(2048)
   .optional()
   .or(z.literal(""))
+  .transform((value) => {
+    if (!value || value.startsWith("/")) {
+      return value;
+    }
+
+    return normalizeCircleCardUrl(value);
+  })
   .refine((value) => {
     if (!value) {
       return true;
     }
 
-    return value.startsWith("/api/circle-card/link-file/") || isHttpUrl(value);
-  }, "Uploaded file URL must be a valid Circle Card file or web address.");
+    return isSafeManagedCircleCardLinkFileUrl(value) || isSafeCircleCardExternalUrl(value);
+  }, "Upload a file or enter a valid file link.");
 
 const optionalDate = z.preprocess(
   (value) => {
@@ -524,8 +564,12 @@ export const circleCardLinkFormSchema = z.object({
     (value) => (typeof value === "string" && value.trim() ? value.trim() : "GENERAL"),
     z.enum(CIRCLE_CARD_LINK_TYPES).default("GENERAL")
   ),
-  label: z.string().trim().min(2).max(90),
-  url: optionalHttpUrl("URL"),
+  label: z
+    .string()
+    .trim()
+    .min(2, "Enter a label for this link.")
+    .max(90, "Keep the link label under 90 characters."),
+  url: optionalSmartLinkUrl(),
   description: optionalText(220),
   icon: z.enum(CIRCLE_CARD_CUSTOM_LINK_ICONS).optional().or(z.literal("")),
   imageUrl: optionalImageUrl,
@@ -572,6 +616,20 @@ export const circleCardLinkFormSchema = z.object({
   const hasFile = Boolean(value.fileUrl);
   const isFileBackedType = CIRCLE_CARD_FILE_LINK_TYPE_SET.has(value.type);
 
+  if (hasUrl && !isSafeCircleCardExternalUrl(value.url)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["url"],
+      message:
+        value.type === "COMMUNITY"
+          ? "Enter a valid community link such as Discord, WhatsApp, Telegram, Facebook Group or Skool."
+          : isFileBackedType
+            ? "Upload a file or enter a valid file link."
+            : "Enter a valid https:// link."
+    });
+    return;
+  }
+
   if (value.visibility === "PRIVATE_CODE" && !isFileBackedType) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -585,7 +643,7 @@ export const circleCardLinkFormSchema = z.object({
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["url"],
-        message: "Add a URL or upload a file for this link type."
+        message: "Upload a file or enter a valid file link."
       });
     }
 
@@ -596,7 +654,10 @@ export const circleCardLinkFormSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["url"],
-      message: "URL is required for this link type."
+      message:
+        value.type === "COMMUNITY"
+          ? "Enter a valid community link such as Discord, WhatsApp, Telegram, Facebook Group or Skool."
+          : "Enter a valid https:// link."
     });
   }
 });
@@ -618,6 +679,28 @@ export function normalizeCircleCardUrl(value?: string | null) {
   }
 
   return normalizeExternalHref(trimmed);
+}
+
+/** Credential-free HTTPS destination accepted by Circle Card links. */
+export function isSafeCircleCardExternalUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" && Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+/** Public smart-link destinations may be safe HTTPS URLs or managed Circle Card files. */
+export function isSafeCircleCardLinkDestination(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    (isSafeCircleCardExternalUrl(value) || isSafeManagedCircleCardLinkFileUrl(value))
+  );
 }
 
 function normalizeCircleCardHandle(value?: string | null) {
@@ -854,12 +937,7 @@ function normalizeCircleCardImageUrl(value?: string | null) {
 }
 
 function isHttpUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
+  return isSafeCircleCardExternalUrl(value);
 }
 
 export function nullableText(value?: string | null) {

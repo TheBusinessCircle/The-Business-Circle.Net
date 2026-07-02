@@ -12,6 +12,7 @@ import {
   visibleCircleCardBookingEnquiry,
   visibleCircleCardDocumentItems,
   visibleCircleCardGalleryItems,
+  visibleCircleCardMenuOfferItems,
   visibleCircleCardOpeningHours,
   visibleCircleCardProductItems,
   visibleCircleCardPriceListItems,
@@ -20,6 +21,7 @@ import {
   type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardGalleryItem,
+  type CircleCardMenuOfferItem,
   type CircleCardOpeningHours,
   type CircleCardProductItem,
   type CircleCardPriceListItem,
@@ -27,6 +29,8 @@ import {
   type CircleCardServiceItem
 } from "@/lib/circle-card/content-blocks";
 import {
+  isSafeCircleCardExternalUrl,
+  isSafeCircleCardLinkDestination,
   readCircleCardSocialLinks,
   type CircleCardCustomLinkIcon,
   type CircleCardLinkVisibility,
@@ -119,6 +123,7 @@ export type PublicCircleCard = {
   services: CircleCardServiceItem[];
   products: CircleCardProductItem[];
   priceItems: CircleCardPriceListItem[];
+  menuOfferItems: CircleCardMenuOfferItem[];
   documents: CircleCardDocumentItem[];
   bookingEnquiry: CircleCardBookingEnquiry | null;
   galleryItems: CircleCardGalleryItem[];
@@ -185,6 +190,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   services: [],
   products: [],
   priceItems: [],
+  menuOfferItems: [],
   documents: [],
   bookingEnquiry: null,
   galleryItems: [],
@@ -421,11 +427,18 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     }))
   );
 
-  const customLinks = await Promise.all(
+  const customLinks = (await Promise.all(
     card.customLinks.map(async (link) => {
       const { accessCodeHash, ...publicLink } = link;
       const visibility = (link.visibility || "PUBLIC") as CircleCardLinkVisibility;
       const isPrivate = visibility === "PRIVATE_CODE";
+      const safeUrl = isSafeCircleCardExternalUrl(link.url) ? link.url : null;
+      const safeFileUrl = isSafeCircleCardLinkDestination(link.fileUrl) ? link.fileUrl : null;
+
+      if (!safeUrl && !safeFileUrl) {
+        return null;
+      }
+
       const imageUrl = isPrivate
         ? null
         : await resolvePublicUploadImageUrl(link.imageUrl, SITE_CONFIG.url);
@@ -434,15 +447,15 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
         ...publicLink,
         type: (link.type || "GENERAL") as CircleCardLinkType,
         visibility,
-        url: isPrivate ? null : link.url,
+        url: isPrivate ? null : safeUrl,
         imageUrl,
-        fileUrl: isPrivate ? null : link.fileUrl,
+        fileUrl: isPrivate ? null : safeFileUrl,
         accessCodeHint: isPrivate ? link.accessCodeHint : null,
         hasAccessCode: Boolean(accessCodeHash),
         icon: link.icon as CircleCardCustomLinkIcon | null
       };
     })
-  );
+  )).filter((link): link is NonNullable<typeof link> => Boolean(link));
   const services = await Promise.all(
     visibleCircleCardServices({
       cardType: card.cardType,
@@ -465,6 +478,15 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
   });
+  const menuOfferItems = await Promise.all(
+    visibleCircleCardMenuOfferItems({
+      cardType: card.cardType,
+      contentBlocks: card.contentBlocks
+    }).map(async (item) => ({
+      ...item,
+      imageUrl: await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url)
+    }))
+  );
   const documents = visibleCircleCardDocumentItems({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
@@ -541,6 +563,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     services,
     products,
     priceItems,
+    menuOfferItems,
     documents,
     bookingEnquiry,
     galleryItems,

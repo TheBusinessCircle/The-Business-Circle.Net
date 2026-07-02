@@ -62,6 +62,7 @@ vi.mock("@/server/circle-card/smart-profile-import.service", () => ({
 
 import {
   upsertCircleCardAction,
+  upsertCircleCardMenuOfferItemInlineAction,
   upsertCircleCardPriceListItemInlineAction
 } from "@/actions/circle-card.actions";
 import { initialCircleCardSaveActionState } from "@/lib/circle-card/save-action-state";
@@ -384,6 +385,73 @@ describe("Price List inline actions", () => {
       ok: false,
       error: "price-list-locked",
       message: "Price List is included with Circle Card Pro."
+    });
+    expect(prismaMock.circleCard.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("Menu & Offers inline actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSignedInUser();
+  });
+
+  function validMenuOfferForm() {
+    const formData = new FormData();
+    formData.set("cardId", "clx0000000000000000000020");
+    formData.set("title", "Lunch Special");
+    formData.set("description", "A weekday lunch offer.");
+    formData.set("imageUrl", "/uploads/circle-card/lunch.webp");
+    formData.set("category", "Lunch");
+    formData.set("price", "£12");
+    formData.set("previousPrice", "£16");
+    formData.set("badge", "Special Offer");
+    formData.set("ctaLabel", "Order Now");
+    formData.set("ctaUrl", "https://example.com/order");
+    formData.set("expiryDate", "2026-07-31");
+    formData.set("isFeatured", "on");
+    formData.set("isActive", "on");
+    return formData;
+  }
+
+  it("saves an item for an entitled Business Card", async () => {
+    prismaMock.circleCard.findFirst.mockResolvedValue({
+      id: "clx0000000000000000000020",
+      slug: "asha-business",
+      cardType: "BUSINESS",
+      contentBlocks: { business: { PRODUCTS: { items: [] } } }
+    });
+    prismaMock.circleCard.update.mockResolvedValue({});
+
+    const result = await upsertCircleCardMenuOfferItemInlineAction(validMenuOfferForm());
+
+    expect(result).toMatchObject({ ok: true, notice: "Menu or offer item saved" });
+    expect(prismaMock.circleCard.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        contentBlocks: expect.objectContaining({
+          business: expect.objectContaining({
+            MENU_OFFERS: expect.objectContaining({ items: [expect.objectContaining({ title: "Lunch Special" })] })
+          })
+        })
+      })
+    }));
+  });
+
+  it("locks editing for Circle Card Free", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user_123",
+      role: "MEMBER",
+      membershipTier: "FOUNDATION",
+      suspended: false,
+      subscription: null
+    });
+
+    const result = await upsertCircleCardMenuOfferItemInlineAction(validMenuOfferForm());
+
+    expect(result).toEqual({
+      ok: false,
+      error: "menu-offers-locked",
+      message: "Menu & Offers are included with Circle Card Pro."
     });
     expect(prismaMock.circleCard.update).not.toHaveBeenCalled();
   });

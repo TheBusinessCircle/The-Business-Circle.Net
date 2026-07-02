@@ -10,6 +10,10 @@ import {
 import { prisma } from "@/lib/prisma";
 import { resolveCircleCardFileAction } from "@/lib/circle-card/file-actions";
 import {
+  isSafeCircleCardExternalUrl,
+  isSafeCircleCardLinkDestination
+} from "@/lib/circle-card/schema";
+import {
   createCircleCardActivityForCardOwner,
   readCircleCardVisitorIdFromCookieHeader,
   trackCircleCardEvent
@@ -41,21 +45,12 @@ function anonymousRateKey(request: Request, linkId: string) {
 }
 
 function localCircleCardFileName(fileUrl: string | null | undefined) {
-  if (!fileUrl) {
+  if (!fileUrl || !isSafeCircleCardLinkDestination(fileUrl)) {
     return null;
   }
 
   const match = fileUrl.match(/^\/api\/circle-card\/link-file\/([^/?#]+)$/);
   return match?.[1] ?? null;
-}
-
-function isHttpUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function linkAccessMetadata(input: {
@@ -166,7 +161,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "That code is not correct." }, { status: 401, headers });
     }
 
-    const destinationType = link.fileUrl ? "file" : link.url ? "url" : "missing";
+    const safeFileUrl = isSafeCircleCardLinkDestination(link.fileUrl) ? link.fileUrl : null;
+    const safeUrl = isSafeCircleCardExternalUrl(link.url) ? link.url : null;
+    const destinationType = safeFileUrl ? "file" : safeUrl ? "url" : "missing";
     const resolvedAction = resolveCircleCardFileAction(link);
 
     if (destinationType === "missing") {
@@ -272,9 +269,13 @@ export async function GET(request: Request) {
     }).response;
   }
 
-  const destination = link.fileUrl || link.url;
+  const destination = isSafeCircleCardExternalUrl(link.fileUrl)
+    ? link.fileUrl
+    : isSafeCircleCardExternalUrl(link.url)
+      ? link.url
+      : null;
 
-  if (destination && isHttpUrl(destination)) {
+  if (destination && isSafeCircleCardExternalUrl(destination)) {
     return NextResponse.redirect(destination);
   }
 

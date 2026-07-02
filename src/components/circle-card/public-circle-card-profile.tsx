@@ -55,7 +55,10 @@ import {
   buildCircleCardThemeStyle,
   resolveCircleCardTheme
 } from "@/lib/circle-card/theme";
-import type { CircleCardSocialPlatform } from "@/lib/circle-card/schema";
+import {
+  isSafeCircleCardLinkDestination,
+  type CircleCardSocialPlatform
+} from "@/lib/circle-card/schema";
 import { cn } from "@/lib/utils";
 import type { PublicCircleCard } from "@/server/circle-card";
 import type { LucideIcon } from "lucide-react";
@@ -454,7 +457,8 @@ function customLinkHref(link: PublicCircleCard["customLinks"][number]) {
     return "";
   }
 
-  return link.fileUrl || link.url || "";
+  const destination = link.fileUrl || link.url || "";
+  return isSafeCircleCardLinkDestination(destination) ? destination : "";
 }
 
 function customLinkAnchorProps(link: PublicCircleCard["customLinks"][number], href: string) {
@@ -1905,6 +1909,64 @@ export function PublicCircleCardProfile({
     );
   }
 
+  function renderMenuOffersSection({ id = "business-menu-offers" }: { id?: string } = {}) {
+    if (card.cardType !== "BUSINESS" || !card.menuOfferItems.length) {
+      return null;
+    }
+
+    return (
+      <section
+        id={id}
+        aria-labelledby={`${id}-title`}
+        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gold">Current selections</p>
+            <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">Menu &amp; Offers</h2>
+          </div>
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+            <BookOpen size={18} />
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {card.menuOfferItems.map((item) => (
+            <article key={item.id} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]">
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.title} loading="lazy" className="aspect-[4/3] h-auto w-full border-b border-silver/12 bg-background/40 object-cover" />
+              ) : null}
+              <div className="flex flex-1 flex-col p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    {item.category ? <p className="text-xs font-medium text-gold">{item.category}</p> : null}
+                    <h3 className="mt-1 text-base font-semibold text-foreground">{item.title}</h3>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    {item.badge ? <span className="rounded-full border border-gold/24 bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold">{item.badge}</span> : null}
+                    {item.isFeatured ? <span className="inline-flex items-center gap-1 rounded-full border border-gold/20 bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold"><Star size={11} /> Featured</span> : null}
+                  </div>
+                </div>
+                {item.price ? (
+                  <div className="mt-3 flex flex-wrap items-baseline gap-2">
+                    <span className="text-lg font-semibold text-gold">{item.price}</span>
+                    {item.previousPrice ? <span className="text-sm text-muted line-through">{item.previousPrice}</span> : null}
+                  </div>
+                ) : null}
+                <p className="mt-2 text-sm leading-relaxed text-muted">{item.description}</p>
+                {item.ctaLabel && item.ctaUrl ? (
+                  <a {...getExternalLinkProps(item.ctaUrl)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 h-11 w-full gap-2 sm:w-fit")}>
+                    {item.ctaLabel}<ChevronRight size={14} />
+                  </a>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   function renderDocumentsSection({ id = "business-downloads" }: { id?: string } = {}) {
     if (card.cardType !== "BUSINESS" || !card.documents.length) {
       return null;
@@ -2401,6 +2463,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "classic-about" })}
             {renderServicesSection({ id: "classic-services" })}
             {renderProductsSection({ id: "classic-products" })}
+            {renderMenuOffersSection({ id: "classic-menu-offers" })}
             {renderDocumentsSection({ id: "classic-downloads" })}
             {renderBookingSection({ id: "classic-booking" })}
             {renderGallerySection({ id: "classic-gallery" })}
@@ -2644,6 +2707,7 @@ export function PublicCircleCardProfile({
             {renderAboutSection({ id: "creator-about" })}
             {renderServicesSection({ id: "creator-services" })}
             {renderProductsSection({ id: "creator-products" })}
+            {renderMenuOffersSection({ id: "creator-menu-offers" })}
             {renderDocumentsSection({ id: "creator-downloads" })}
             {renderBookingSection({ id: "creator-booking" })}
             {renderGallerySection({ id: "creator-gallery" })}
@@ -2961,6 +3025,7 @@ export function PublicCircleCardProfile({
             {renderServicesSection()}
             {renderPriceListSection()}
             {renderProductsSection()}
+            {renderMenuOffersSection()}
             {renderDocumentsSection()}
             {renderBookingSection()}
             {renderGallerySection()}

@@ -45,7 +45,7 @@ type CircleCardSmartLinkFieldsProps = {
 };
 
 const LINK_TYPE_LABELS: Record<CircleCardLinkType, string> = {
-  GENERAL: "General",
+  GENERAL: "Website",
   BOOK_CALL: "Book a call",
   PORTFOLIO: "Portfolio",
   LATEST_OFFER: "Latest offer",
@@ -161,7 +161,9 @@ export function CircleCardSmartLinkFields({
   hasAccessCode = false,
   imageDraftKey
 }: CircleCardSmartLinkFieldsProps) {
-  const [type, setType] = useState<CircleCardLinkType>(() => resolveLinkType(defaultType));
+  const initialType = resolveLinkType(defaultType);
+  const [type, setType] = useState<CircleCardLinkType>(initialType);
+  const [label, setLabel] = useState(defaultLabel?.trim() || LINK_TYPE_LABELS[initialType]);
   const [visibility, setVisibility] = useState<CircleCardLinkVisibility>(() =>
     resolveVisibility(defaultVisibility)
   );
@@ -222,7 +224,11 @@ export function CircleCardSmartLinkFields({
 
   function handleTypeChange(value: string) {
     const nextType = resolveLinkType(value);
+    const previousDefaultLabel = LINK_TYPE_LABELS[type];
     setType(nextType);
+    setLabel((current) =>
+      !current.trim() || current === previousDefaultLabel ? LINK_TYPE_LABELS[nextType] : current
+    );
 
     if (!CIRCLE_CARD_FILE_LINK_TYPES.includes(nextType as (typeof CIRCLE_CARD_FILE_LINK_TYPES)[number])) {
       setVisibility("PUBLIC");
@@ -293,7 +299,8 @@ export function CircleCardSmartLinkFields({
           <Input
             id={`${idPrefix}-label`}
             name="label"
-            defaultValue={defaultLabel ?? ""}
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
             placeholder={LINK_TYPE_LABELS[type]}
             maxLength={90}
             required

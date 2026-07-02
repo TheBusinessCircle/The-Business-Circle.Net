@@ -53,6 +53,7 @@ import {
 import {
   CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
+  CIRCLE_CARD_MENU_OFFER_PRO_LIMIT,
   CIRCLE_CARD_PRODUCT_PRO_LIMIT,
   CIRCLE_CARD_REVIEW_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
@@ -66,6 +67,8 @@ import {
   circleCardReviewItemIdSchema,
   circleCardOpeningHoursFormSchema,
   circleCardOpeningHoursPresetSchema,
+  circleCardMenuOfferItemFormSchema,
+  circleCardMenuOfferItemIdSchema,
   circleCardProductItemFormSchema,
   circleCardProductItemIdSchema,
   circleCardPriceListItemFormSchema,
@@ -78,6 +81,7 @@ import {
   readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
+  readCircleCardMenuOfferItems,
   readCircleCardProductItems,
   readCircleCardPriceListItems,
   readCircleCardReviewItems,
@@ -86,12 +90,14 @@ import {
   writeCircleCardBookingEnquiry,
   writeCircleCardDocumentItems,
   writeCircleCardOpeningHours,
+  writeCircleCardMenuOfferItems,
   writeCircleCardProductItems,
   writeCircleCardPriceListItems,
   type CircleCardGalleryItem,
   type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardOpeningHours,
+  type CircleCardMenuOfferItem,
   type CircleCardProductItem,
   type CircleCardPriceListItem,
   type CircleCardReviewItem,
@@ -1074,6 +1080,18 @@ export type CircleCardPriceListInlineActionResult =
       message: string;
     };
 
+export type CircleCardMenuOfferInlineActionResult =
+  | {
+      ok: true;
+      notice: string;
+      item?: CircleCardMenuOfferItem;
+    }
+  | {
+      ok: false;
+      error: string;
+      message: string;
+    };
+
 export type CircleCardReviewInlineActionResult =
   | {
       ok: true;
@@ -1164,6 +1182,13 @@ function inlineCircleCardPriceListError(
   error: string,
   message: string
 ): CircleCardPriceListInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardMenuOfferError(
+  error: string,
+  message: string
+): CircleCardMenuOfferInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -3696,6 +3721,173 @@ export async function deleteCircleCardPriceListItemInlineAction(input: {
   return { ok: true, notice: "Price deleted" };
 }
 
+export async function upsertCircleCardMenuOfferItemInlineAction(
+  formData: FormData
+): Promise<CircleCardMenuOfferInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardMenuOfferItemFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    menuOfferItemId: formData.get("menuOfferItemId") ?? "",
+    title: formData.get("title"),
+    description: formData.get("description"),
+    imageUrl: formData.get("imageUrl") ?? "",
+    category: formData.get("category") ?? "",
+    price: formData.get("price") ?? "",
+    previousPrice: formData.get("previousPrice") ?? "",
+    badge: formData.get("badge") ?? "",
+    ctaLabel: formData.get("ctaLabel") ?? "",
+    ctaUrl: formData.get("ctaUrl") ?? "",
+    expiryDate: formData.get("expiryDate") ?? "",
+    isFeatured: formData.get("isFeatured"),
+    isActive: formData.get("isActive")
+  });
+
+  if (!parsed.success) {
+    return inlineCircleCardMenuOfferError(
+      "menu-offer-invalid",
+      parsed.error.issues[0]?.message ?? "Check the menu or offer fields and try again."
+    );
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardMenuOfferError(
+      "menu-offers-locked",
+      "Menu & Offers are included with Circle Card Pro."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardMenuOfferError(
+      card ? "menu-offers-business-card-required" : "card-not-found",
+      card ? "Menu & Offers can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const items = readCircleCardMenuOfferItems(card.contentBlocks);
+  const existingIndex = parsed.data.menuOfferItemId
+    ? items.findIndex((item) => item.id === parsed.data.menuOfferItemId)
+    : -1;
+  if (parsed.data.menuOfferItemId && existingIndex < 0) {
+    return inlineCircleCardMenuOfferError(
+      "menu-offer-not-found",
+      "That menu or offer item could not be found on this Business Card."
+    );
+  }
+  if (existingIndex < 0 && items.length >= CIRCLE_CARD_MENU_OFFER_PRO_LIMIT) {
+    return inlineCircleCardMenuOfferError(
+      "menu-offer-limit",
+      `Circle Card Pro can keep up to ${CIRCLE_CARD_MENU_OFFER_PRO_LIMIT} menu and offer items.`
+    );
+  }
+
+  const item: CircleCardMenuOfferItem = {
+    id: existingIndex >= 0 ? items[existingIndex].id : randomBytes(12).toString("hex"),
+    title: parsed.data.title,
+    description: parsed.data.description,
+    imageUrl: parsed.data.imageUrl || null,
+    category: parsed.data.category || null,
+    price: parsed.data.price || null,
+    previousPrice: parsed.data.previousPrice || null,
+    badge: parsed.data.badge || null,
+    ctaLabel: parsed.data.ctaLabel || null,
+    ctaUrl: parsed.data.ctaUrl || null,
+    isFeatured: parsed.data.isFeatured,
+    isActive: parsed.data.isActive,
+    expiryDate: parsed.data.expiryDate || null,
+    sortOrder: existingIndex >= 0 ? items[existingIndex].sortOrder : items.length
+  };
+  const nextItems = [...items];
+  if (existingIndex >= 0) nextItems[existingIndex] = item;
+  else nextItems.push(item);
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardMenuOfferItems(card.contentBlocks, nextItems) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return { ok: true, notice: "Menu or offer item saved", item };
+  } catch {
+    return inlineCircleCardMenuOfferError(
+      "menu-offer-save-failed",
+      "The item could not be saved. Your current item is still shown."
+    );
+  }
+}
+
+export async function toggleCircleCardMenuOfferItemInlineAction(input: {
+  cardId: string;
+  menuOfferItemId: string;
+}): Promise<CircleCardMenuOfferInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardMenuOfferItemIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardMenuOfferError("menu-offer-invalid", "Check the item and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardMenuOfferError("menu-offers-locked", "Menu & Offers are included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardMenuOfferError(
+      card ? "menu-offers-business-card-required" : "card-not-found",
+      card ? "Menu & Offers can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+  const items = readCircleCardMenuOfferItems(card.contentBlocks);
+  const itemIndex = items.findIndex((item) => item.id === parsed.data.menuOfferItemId);
+  if (itemIndex < 0) {
+    return inlineCircleCardMenuOfferError("menu-offer-not-found", "That item could not be found on this Business Card.");
+  }
+
+  items[itemIndex] = { ...items[itemIndex], isActive: !items[itemIndex].isActive };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardMenuOfferItems(card.contentBlocks, items) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return {
+    ok: true,
+    notice: items[itemIndex].isActive ? "Item shown" : "Item hidden",
+    item: items[itemIndex]
+  };
+}
+
+export async function deleteCircleCardMenuOfferItemInlineAction(input: {
+  cardId: string;
+  menuOfferItemId: string;
+}): Promise<CircleCardMenuOfferInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardMenuOfferItemIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardMenuOfferError("menu-offer-invalid", "Check the item and try again.");
+  }
+  if (!canManageCircleCardBusinessBlocks(user)) {
+    return inlineCircleCardMenuOfferError("menu-offers-locked", "Menu & Offers are included with Circle Card Pro.");
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "BUSINESS") {
+    return inlineCircleCardMenuOfferError(
+      card ? "menu-offers-business-card-required" : "card-not-found",
+      card ? "Menu & Offers can only be added to a Business Card." : "That Circle Card could not be found."
+    );
+  }
+  const items = readCircleCardMenuOfferItems(card.contentBlocks);
+  const nextItems = items.filter((item) => item.id !== parsed.data.menuOfferItemId);
+  if (nextItems.length === items.length) {
+    return inlineCircleCardMenuOfferError("menu-offer-not-found", "That item could not be found on this Business Card.");
+  }
+
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardMenuOfferItems(card.contentBlocks, nextItems) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return { ok: true, notice: "Menu or offer item deleted" };
+}
+
 export async function upsertCircleCardReviewItemInlineAction(
   formData: FormData
 ): Promise<CircleCardReviewInlineActionResult> {
@@ -4242,7 +4434,10 @@ export async function upsertCircleCardLinkInlineAction(
   const parsed = circleCardLinkFormSchema.safeParse(readCircleCardLinkFormData(formData));
 
   if (!parsed.success) {
-    return inlineCircleCardError("custom-link-invalid", "Check the link fields and try again.");
+    return inlineCircleCardError(
+      "custom-link-invalid",
+      parsed.error.issues[0]?.message ?? "Check the link fields and try again."
+    );
   }
 
   const values = parsed.data;

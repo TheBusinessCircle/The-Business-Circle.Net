@@ -1,7 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
-import { normalizeCircleCardUrl } from "@/lib/circle-card/schema";
+import {
+  isSafeCircleCardExternalUrl,
+  normalizeCircleCardUrl
+} from "@/lib/circle-card/schema";
 
 export const CIRCLE_CARD_CREATOR_BLOCK_TYPES = [
   "INTRO_VIDEO",
@@ -122,8 +125,8 @@ export const CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS = [
   {
     type: "MENU_OFFERS",
     family: "BUSINESS",
-    label: "Menu / Offers",
-    publicEditingEnabled: false
+    label: "Menu & Offers",
+    publicEditingEnabled: true
   }
 ] as const satisfies readonly CircleCardContentBlockDefinition[];
 
@@ -181,6 +184,38 @@ export type CircleCardPriceListItem = {
   isFeatured: boolean;
   sortOrder: number;
 };
+
+export const CIRCLE_CARD_MENU_OFFER_BADGES = [
+  "New",
+  "Popular",
+  "Limited Time",
+  "Best Seller",
+  "Special Offer",
+  "Seasonal",
+  "Chef's Choice",
+  "Recommended"
+] as const;
+
+export type CircleCardMenuOfferBadge = (typeof CIRCLE_CARD_MENU_OFFER_BADGES)[number];
+
+export type CircleCardMenuOfferItem = {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string | null;
+  category: string | null;
+  price: string | null;
+  previousPrice: string | null;
+  badge: CircleCardMenuOfferBadge | null;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  isFeatured: boolean;
+  isActive: boolean;
+  expiryDate: string | null;
+  sortOrder: number;
+};
+
+export const CIRCLE_CARD_MENU_OFFER_PRO_LIMIT = 100;
 
 export type CircleCardDocumentItem = {
   id: string;
@@ -462,6 +497,96 @@ export const circleCardPriceListItemFormSchema = z
 export const circleCardPriceListItemIdSchema = z.object({
   cardId: z.string().cuid(),
   priceListItemId: z.string().trim().min(1).max(64)
+});
+
+function normalizeSafeMenuOfferUrl(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const normalized = normalizeCircleCardUrl(value);
+  return isSafeCircleCardExternalUrl(normalized) ? normalized : null;
+}
+
+function isValidCalendarDate(value: string) {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+export const circleCardMenuOfferItemFormSchema = z
+  .object({
+    cardId: z.string().cuid(),
+    menuOfferItemId: z.string().trim().max(64).optional().or(z.literal("")),
+    title: z.string().trim().min(1, "Add a title.").max(100),
+    description: z.string().trim().min(1, "Add a short description.").max(500),
+    imageUrl: productImageUrlSchema,
+    category: z.string().trim().max(60).optional().or(z.literal("")),
+    price: z.string().trim().max(60).optional().or(z.literal("")),
+    previousPrice: z.string().trim().max(60).optional().or(z.literal("")),
+    badge: z.enum(CIRCLE_CARD_MENU_OFFER_BADGES).optional().or(z.literal("")),
+    ctaLabel: z.string().trim().max(40).optional().or(z.literal("")),
+    ctaUrl: z
+      .string()
+      .trim()
+      .max(2048)
+      .optional()
+      .or(z.literal(""))
+      .transform((value, context) => {
+        if (!value) return "";
+        const safeUrl = normalizeSafeMenuOfferUrl(value);
+        if (!safeUrl) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Use a safe https:// URL without credentials."
+          });
+          return z.NEVER;
+        }
+        return safeUrl;
+      }),
+    expiryDate: z
+      .string()
+      .trim()
+      .optional()
+      .or(z.literal(""))
+      .refine((value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value) && isValidCalendarDate(value), {
+        message: "Choose a valid expiry date."
+      }),
+    isFeatured: z.preprocess(
+      (value) => value === true || value === "true" || value === "on" || value === "1",
+      z.boolean()
+    ),
+    isActive: z.preprocess(
+      (value) => value === true || value === "true" || value === "on" || value === "1",
+      z.boolean()
+    )
+  })
+  .superRefine((value, context) => {
+    if (value.previousPrice && !value.price) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["price"],
+        message: "Add the current price when using a previous price."
+      });
+    }
+    if (value.ctaLabel && !value.ctaUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ctaUrl"],
+        message: "Add a CTA URL when using a CTA label."
+      });
+    }
+    if (value.ctaUrl && !value.ctaLabel) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ctaLabel"],
+        message: "Add a CTA label for the link."
+      });
+    }
+  });
+
+export const circleCardMenuOfferItemIdSchema = z.object({
+  cardId: z.string().cuid(),
+  menuOfferItemId: z.string().trim().min(1).max(64)
 });
 
 const CIRCLE_CARD_DOCUMENT_LOCAL_FILE_PATTERN =
@@ -1169,6 +1294,99 @@ export function visibleCircleCardPriceListItems(input: {
     : [];
 }
 
+export function readCircleCardMenuOfferItems(value: unknown): CircleCardMenuOfferItem[] {
+  if (!isRecord(value) || !isRecord(value.business) || !isRecord(value.business.MENU_OFFERS)) {
+    return [];
+  }
+
+  const items = value.business.MENU_OFFERS.items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .flatMap((item, index) => {
+      if (!isRecord(item)) return [];
+
+      const id = typeof item.id === "string" ? item.id.trim() : "";
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+      const description = typeof item.description === "string" ? item.description.trim() : "";
+      if (!id || !title || !description) return [];
+
+      const rawBadge = typeof item.badge === "string" ? item.badge.trim() : "";
+      const badge = CIRCLE_CARD_MENU_OFFER_BADGES.find((candidate) => candidate === rawBadge) ?? null;
+      const ctaLabel = typeof item.ctaLabel === "string" && item.ctaLabel.trim()
+        ? item.ctaLabel.trim().slice(0, 40)
+        : null;
+      const ctaUrl = normalizeSafeMenuOfferUrl(item.ctaUrl);
+      const rawExpiryDate = typeof item.expiryDate === "string" ? item.expiryDate.trim() : "";
+      const expiryDate = /^\d{4}-\d{2}-\d{2}$/.test(rawExpiryDate) && isValidCalendarDate(rawExpiryDate)
+        ? rawExpiryDate
+        : null;
+
+      return [{
+        id,
+        title: title.slice(0, 100),
+        description: description.slice(0, 500),
+        imageUrl: readSafeProductImageUrl(item.imageUrl),
+        category: typeof item.category === "string" && item.category.trim()
+          ? item.category.trim().slice(0, 60)
+          : null,
+        price: typeof item.price === "string" && item.price.trim()
+          ? item.price.trim().slice(0, 60)
+          : null,
+        previousPrice: typeof item.previousPrice === "string" && item.previousPrice.trim()
+          ? item.previousPrice.trim().slice(0, 60)
+          : null,
+        badge,
+        ctaLabel: ctaLabel && ctaUrl ? ctaLabel : null,
+        ctaUrl: ctaLabel && ctaUrl ? ctaUrl : null,
+        isFeatured: item.isFeatured === true,
+        isActive: item.isActive !== false,
+        expiryDate,
+        sortOrder: typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+          ? item.sortOrder
+          : index
+      } satisfies CircleCardMenuOfferItem];
+    })
+    .sort((left, right) => left.sortOrder - right.sortOrder);
+}
+
+export function writeCircleCardMenuOfferItems(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  menuOfferItems: CircleCardMenuOfferItem[]
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const business = isRecord(root.business) ? root.business : {};
+  const currentMenuOffers = isRecord(business.MENU_OFFERS) ? business.MENU_OFFERS : {};
+
+  return {
+    ...root,
+    business: {
+      ...business,
+      MENU_OFFERS: {
+        ...currentMenuOffers,
+        items: menuOfferItems.map((item, index) => ({ ...item, sortOrder: index }))
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardMenuOfferItems(input: {
+  cardType: string;
+  contentBlocks: unknown;
+  now?: Date;
+}) {
+  if (input.cardType !== "BUSINESS") return [];
+
+  const today = (input.now ?? new Date()).toISOString().slice(0, 10);
+  return readCircleCardMenuOfferItems(input.contentBlocks)
+    .filter((item) => item.isActive && (!item.expiryDate || item.expiryDate >= today))
+    .sort((left, right) =>
+      Number(right.isFeatured) - Number(left.isFeatured) || left.sortOrder - right.sortOrder
+    );
+}
+
 export function readCircleCardDocumentItems(value: unknown): CircleCardDocumentItem[] {
   if (!isRecord(value) || !isRecord(value.business) || !isRecord(value.business.DOWNLOADS_DOCUMENTS)) {
     return [];
@@ -1562,6 +1780,7 @@ export type CircleCardProductsBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardDocumentsBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardBookingBuilderMode = CircleCardServicesBuilderMode;
 export type CircleCardPriceListBuilderMode = CircleCardServicesBuilderMode;
+export type CircleCardMenuOffersBuilderMode = CircleCardServicesBuilderMode;
 
 export function resolveCircleCardServicesBuilderMode(input: {
   cardType?: string | null;
@@ -1620,6 +1839,15 @@ export function resolveCircleCardPriceListBuilderMode(input: {
   isPlatformOwner?: boolean;
   platformPreviewCardType?: string | null;
 }): CircleCardPriceListBuilderMode {
+  return resolveCircleCardServicesBuilderMode(input);
+}
+
+export function resolveCircleCardMenuOffersBuilderMode(input: {
+  cardType?: string | null;
+  hasProAccess: boolean;
+  isPlatformOwner?: boolean;
+  platformPreviewCardType?: string | null;
+}): CircleCardMenuOffersBuilderMode {
   return resolveCircleCardServicesBuilderMode(input);
 }
 

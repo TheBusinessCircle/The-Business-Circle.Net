@@ -9,6 +9,7 @@ import {
   circleCardReviewItemFormSchema,
   circleCardProductItemFormSchema,
   circleCardPriceListItemFormSchema,
+  circleCardMenuOfferItemFormSchema,
   createCircleCardOpeningHoursPreset,
   isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
@@ -16,6 +17,7 @@ import {
   readCircleCardDocumentItems,
   readCircleCardProductItems,
   readCircleCardPriceListItems,
+  readCircleCardMenuOfferItems,
   readCircleCardServices,
   readCircleCardReviewItems,
   resolveCircleCardGalleryBuilderMode,
@@ -24,6 +26,7 @@ import {
   resolveCircleCardOpeningHoursBuilderMode,
   resolveCircleCardProductsBuilderMode,
   resolveCircleCardPriceListBuilderMode,
+  resolveCircleCardMenuOffersBuilderMode,
   resolveCircleCardServicesBuilderMode,
   resolveCircleCardReviewsBuilderMode,
   visibleCircleCardOpeningHours,
@@ -31,6 +34,7 @@ import {
   visibleCircleCardDocumentItems,
   visibleCircleCardProductItems,
   visibleCircleCardPriceListItems,
+  visibleCircleCardMenuOfferItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardServices,
   visibleCircleCardReviewItems,
@@ -39,6 +43,7 @@ import {
   writeCircleCardDocumentItems,
   writeCircleCardProductItems,
   writeCircleCardPriceListItems,
+  writeCircleCardMenuOfferItems,
   writeCircleCardGalleryItems,
   writeCircleCardServices,
   writeCircleCardReviewItems,
@@ -47,6 +52,7 @@ import {
   type CircleCardDocumentItem,
   type CircleCardProductItem,
   type CircleCardPriceListItem,
+  type CircleCardMenuOfferItem,
   type CircleCardServiceItem,
   type CircleCardReviewItem
 } from "@/lib/circle-card/content-blocks";
@@ -118,6 +124,23 @@ const hiddenProduct: CircleCardProductItem = {
   title: "Hidden toolkit",
   isActive: false,
   sortOrder: 2
+};
+
+const activeMenuOffer: CircleCardMenuOfferItem = {
+  id: "menu-offer-active",
+  title: "Lunch special",
+  description: "A weekday lunch offer.",
+  imageUrl: "/uploads/circle-card/lunch.webp",
+  category: "Lunch",
+  price: "£12",
+  previousPrice: "£16",
+  badge: "Special Offer",
+  ctaLabel: "Order Now",
+  ctaUrl: "https://example.com/order",
+  isFeatured: false,
+  isActive: true,
+  expiryDate: "2026-07-31",
+  sortOrder: 0
 };
 
 const activePriceItem: CircleCardPriceListItem = {
@@ -369,6 +392,66 @@ describe("Circle Card Price List content block", () => {
     expect(circleCardPriceListItemFormSchema.safeParse({ ...base, ctaUrl: "https://user:secret@example.com" }).success).toBe(false);
     expect(circleCardPriceListItemFormSchema.safeParse({ ...base, ctaUrl: "/pricing" }).success).toBe(false);
     expect(circleCardPriceListItemFormSchema.safeParse({ ...base, ctaUrl: "" }).success).toBe(false);
+  });
+});
+
+describe("Circle Card Menu & Offers content block", () => {
+  it("stores items under business.MENU_OFFERS.items and preserves other blocks", () => {
+    const withProducts = writeCircleCardProductItems({}, [activeProduct]);
+    const contentBlocks = writeCircleCardMenuOfferItems(withProducts, [activeMenuOffer]);
+
+    expect(contentBlocks).toMatchObject({
+      business: { MENU_OFFERS: { items: [activeMenuOffer] } }
+    });
+    expect(readCircleCardProductItems(contentBlocks)).toEqual([activeProduct]);
+    expect(readCircleCardMenuOfferItems(contentBlocks)).toEqual([activeMenuOffer]);
+  });
+
+  it("shows active, unexpired, featured items first on Business Cards only", () => {
+    const featured = { ...activeMenuOffer, id: "menu-featured", isFeatured: true, sortOrder: 1 };
+    const hidden = { ...activeMenuOffer, id: "menu-hidden", isActive: false, sortOrder: 2 };
+    const expired = { ...activeMenuOffer, id: "menu-expired", expiryDate: "2026-06-30", sortOrder: 3 };
+    const contentBlocks = writeCircleCardMenuOfferItems({}, [activeMenuOffer, featured, hidden, expired]);
+    const now = new Date("2026-07-02T12:00:00.000Z");
+
+    expect(visibleCircleCardMenuOfferItems({ cardType: "BUSINESS", contentBlocks, now })).toEqual([
+      featured,
+      activeMenuOffer
+    ]);
+    expect(visibleCircleCardMenuOfferItems({ cardType: "PERSONAL", contentBlocks, now })).toEqual([]);
+    expect(visibleCircleCardMenuOfferItems({ cardType: "CREATOR", contentBlocks, now })).toEqual([]);
+  });
+
+  it("uses the shared Business Card Pro access mode", () => {
+    expect(resolveCircleCardMenuOffersBuilderMode({ cardType: "BUSINESS", hasProAccess: true })).toBe("enabled");
+    expect(resolveCircleCardMenuOffersBuilderMode({ cardType: "BUSINESS", hasProAccess: false })).toBe("locked");
+    expect(resolveCircleCardMenuOffersBuilderMode({ cardType: "PERSONAL", hasProAccess: true })).toBe("hidden");
+    expect(resolveCircleCardMenuOffersBuilderMode({ cardType: "CREATOR", hasProAccess: true })).toBe("hidden");
+  });
+
+  it("accepts optional prices and rejects unsafe or credentialed CTA URLs", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      menuOfferItemId: "",
+      title: "Lunch special",
+      description: "A weekday lunch offer.",
+      imageUrl: "/uploads/circle-card/lunch.webp",
+      category: "Lunch",
+      price: "",
+      previousPrice: "",
+      badge: "Special Offer",
+      ctaLabel: "Order Now",
+      ctaUrl: "https://example.com/order",
+      expiryDate: "2026-07-31",
+      isFeatured: true,
+      isActive: true
+    };
+
+    expect(circleCardMenuOfferItemFormSchema.safeParse(base).success).toBe(true);
+    expect(circleCardMenuOfferItemFormSchema.safeParse({ ...base, ctaUrl: "javascript:alert(1)" }).success).toBe(false);
+    expect(circleCardMenuOfferItemFormSchema.safeParse({ ...base, ctaUrl: "data:text/html,test" }).success).toBe(false);
+    expect(circleCardMenuOfferItemFormSchema.safeParse({ ...base, ctaUrl: "https://user:pass@example.com" }).success).toBe(false);
+    expect(circleCardMenuOfferItemFormSchema.safeParse({ ...base, ctaUrl: "not a url" }).success).toBe(false);
   });
 });
 

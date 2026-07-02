@@ -97,6 +97,7 @@ import {
   CircleCardIdentityFields,
   CircleCardImageUploadField,
   CircleCardInstallPrompt,
+  CircleCardMenuOffersManager,
   CircleCardPlanPanel,
   CircleCardProductsManager,
   CircleCardPriceListManager,
@@ -195,6 +196,7 @@ import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
   CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
+  CIRCLE_CARD_MENU_OFFER_PRO_LIMIT,
   CIRCLE_CARD_OPENING_HOURS_PRESETS,
   CIRCLE_CARD_PRODUCT_PRO_LIMIT,
   CIRCLE_CARD_REVIEW_PRO_LIMIT,
@@ -208,11 +210,13 @@ import {
   readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
+  readCircleCardMenuOfferItems,
   readCircleCardProductItems,
   readCircleCardPriceListItems,
   readCircleCardReviewItems,
   readCircleCardServices,
   resolveCircleCardOpeningHoursBuilderMode,
+  resolveCircleCardMenuOffersBuilderMode,
   resolveCircleCardBookingBuilderMode,
   resolveCircleCardDocumentsBuilderMode,
   resolveCircleCardProductsBuilderMode,
@@ -221,6 +225,8 @@ import {
   resolveCircleCardReviewsBuilderMode,
   resolveCircleCardServicesBuilderMode,
   type CircleCardOpeningHours,
+  type CircleCardMenuOffersBuilderMode,
+  type CircleCardMenuOfferItem,
   type CircleCardBookingBuilderMode,
   type CircleCardBookingEnquiry,
   type CircleCardDocumentsBuilderMode,
@@ -1107,6 +1113,43 @@ function CircleCardPriceListBuilder({
   return <CircleCardPriceListManager cardId={cardId} cardName={cardName} initialItems={priceItems} />;
 }
 
+function CircleCardMenuOffersBuilder({
+  mode,
+  cardId,
+  cardName,
+  items
+}: {
+  mode: CircleCardMenuOffersBuilderMode;
+  cardId: string;
+  cardName: string;
+  items: CircleCardMenuOfferItem[];
+}) {
+  if (mode === "hidden") return null;
+  if (mode === "locked") {
+    return (
+      <div id="business-card-menu-offers" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Menu &amp; Offers are included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add and manage menu items, promotions and offers on this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (mode === "preview") {
+    return (
+      <div id="business-card-menu-offers" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Menu &amp; Offers Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add items. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+  return <CircleCardMenuOffersManager cardId={cardId} cardName={cardName} initialItems={items} />;
+}
+
 function CircleCardBookingBuilder({
   mode,
   cardId,
@@ -1503,6 +1546,8 @@ function BusinessCardBuilderFoundation({
   products,
   priceListMode,
   priceItems,
+  menuOffersMode,
+  menuOfferItems,
   bookingMode,
   booking,
   documentsMode,
@@ -1531,6 +1576,8 @@ function BusinessCardBuilderFoundation({
   products: CircleCardProductItem[];
   priceListMode: CircleCardPriceListBuilderMode;
   priceItems: CircleCardPriceListItem[];
+  menuOffersMode: CircleCardMenuOffersBuilderMode;
+  menuOfferItems: CircleCardMenuOfferItem[];
   bookingMode: CircleCardBookingBuilderMode;
   booking: CircleCardBookingEnquiry | null;
   documentsMode: CircleCardDocumentsBuilderMode;
@@ -1601,6 +1648,7 @@ function BusinessCardBuilderFoundation({
   const activeServiceCount = services.filter((service) => service.isActive).length;
   const activeProductCount = products.filter((product) => product.isActive).length;
   const activePriceCount = priceItems.filter((item) => item.isActive).length;
+  const activeMenuOfferCount = menuOfferItems.filter((item) => item.isActive).length;
   const activeDocumentCount = documents.filter((document) => document.isActive).length;
   const activeGalleryCount = galleryItems.filter((item) => item.isActive).length;
   const activeReviewCount = reviews.filter(
@@ -1610,6 +1658,7 @@ function BusinessCardBuilderFoundation({
     services: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-services" }),
     products: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-products" }),
     priceList: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-price-list" }),
+    menuOffers: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-menu-offers" }),
     booking: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-booking" }),
     documents: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-downloads" }),
     gallery: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-gallery" }),
@@ -1640,6 +1689,14 @@ function BusinessCardBuilderFoundation({
       status: priceItems.length ? `${activePriceCount} active` : "0 prices",
       action: priceItems.length ? "Manage Price List" : "Add first price",
       href: moduleHrefs.priceList
+    },
+    {
+      type: "MENU_OFFERS",
+      label: "Menu & Offers",
+      description: "Share menu items, promotions and time-limited offers.",
+      status: menuOfferItems.length ? `${activeMenuOfferCount} Active` : "0 Items",
+      action: menuOfferItems.length ? "Manage Menu & Offers" : "Add first item",
+      href: moduleHrefs.menuOffers
     },
     {
       type: "BOOKING_ENQUIRY_LINK",
@@ -1745,6 +1802,12 @@ function BusinessCardBuilderFoundation({
           cardName={businessName || "Selected Business Card"}
           priceItems={priceItems}
         />
+        <CircleCardMenuOffersBuilder
+          mode={menuOffersMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          items={menuOfferItems}
+        />
         <CircleCardBookingBuilder
           mode={bookingMode}
           cardId={cardId}
@@ -1791,7 +1854,7 @@ function BusinessCardBuilderFoundation({
             </p>
           </div>
 
-          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-9">
             <Link
               href={moduleHrefs.services}
               className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
@@ -1819,6 +1882,13 @@ function BusinessCardBuilderFoundation({
             >
               <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Prices</span>
               <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{activePriceCount} active</span>
+            </Link>
+            <Link
+              href={moduleHrefs.menuOffers}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Menu &amp; Offers</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{menuOfferItems.length} / {CIRCLE_CARD_MENU_OFFER_PRO_LIMIT}</span>
             </Link>
             <Link
               href={moduleHrefs.documents}
@@ -1930,6 +2000,13 @@ function BusinessCardBuilderFoundation({
             cardId={cardId}
             cardName={businessName || "Selected Business Card"}
             priceItems={priceItems}
+          />
+
+          <CircleCardMenuOffersBuilder
+            mode={menuOffersMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            items={menuOfferItems}
           />
 
           <CircleCardBookingBuilder
@@ -4587,6 +4664,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     isPlatformOwner,
     platformPreviewCardType: selectedOwnerCardTypePreviewMode
   });
+  const menuOffersBuilderMode = resolveCircleCardMenuOffersBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
   const bookingBuilderMode = resolveCircleCardBookingBuilderMode({
     cardType: card?.cardType,
     hasProAccess: !isCircleCardFree,
@@ -4626,6 +4709,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardPriceItems = card?.cardType === "BUSINESS"
     ? readCircleCardPriceListItems(card.contentBlocks)
     : [];
+  const selectedCardMenuOfferItems = card?.cardType === "BUSINESS"
+    ? readCircleCardMenuOfferItems(card.contentBlocks)
+    : [];
   const selectedCardBooking = card?.cardType === "BUSINESS"
     ? readCircleCardBookingEnquiry(card.contentBlocks)
     : null;
@@ -4653,6 +4739,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     servicesBuilderMode !== "hidden" ||
     productsBuilderMode !== "hidden" ||
     priceListBuilderMode !== "hidden" ||
+    menuOffersBuilderMode !== "hidden" ||
     bookingBuilderMode !== "hidden" ||
     documentsBuilderMode !== "hidden" ||
     galleryBuilderMode !== "hidden" ||
@@ -8542,6 +8629,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           products={selectedCardProducts}
           priceListMode={priceListBuilderMode}
           priceItems={selectedCardPriceItems}
+          menuOffersMode={menuOffersBuilderMode}
+          menuOfferItems={selectedCardMenuOfferItems}
           bookingMode={bookingBuilderMode}
           booking={selectedCardBooking}
           documentsMode={documentsBuilderMode}
