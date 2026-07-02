@@ -52,6 +52,8 @@ import {
 } from "@/lib/circle-card/wallet-testimonials";
 import {
   CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
+  CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT,
+  CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_MENU_OFFER_PRO_LIMIT,
   CIRCLE_CARD_PRODUCT_PRO_LIMIT,
@@ -59,6 +61,8 @@ import {
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
   circleCardBookingEnquiryFormSchema,
+  circleCardFeaturedContentItemFormSchema,
+  circleCardFeaturedContentItemIdSchema,
   circleCardGalleryItemFormSchema,
   circleCardGalleryItemIdSchema,
   circleCardDocumentItemFormSchema,
@@ -78,6 +82,7 @@ import {
   createCircleCardOpeningHoursPreset,
   createEmptyCircleCardContentBlocks,
   readCircleCardGalleryItems,
+  readCircleCardFeaturedContentItems,
   readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardOpeningHours,
@@ -87,6 +92,7 @@ import {
   readCircleCardReviewItems,
   readCircleCardServices,
   writeCircleCardGalleryItems,
+  writeCircleCardFeaturedContentItems,
   writeCircleCardBookingEnquiry,
   writeCircleCardDocumentItems,
   writeCircleCardOpeningHours,
@@ -94,6 +100,7 @@ import {
   writeCircleCardProductItems,
   writeCircleCardPriceListItems,
   type CircleCardGalleryItem,
+  type CircleCardFeaturedContentItem,
   type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardOpeningHours,
@@ -1092,6 +1099,10 @@ export type CircleCardMenuOfferInlineActionResult =
       message: string;
     };
 
+export type CircleCardFeaturedContentInlineActionResult =
+  | { ok: true; notice: string; item?: CircleCardFeaturedContentItem }
+  | { ok: false; error: string; message: string };
+
 export type CircleCardReviewInlineActionResult =
   | {
       ok: true;
@@ -1189,6 +1200,13 @@ function inlineCircleCardMenuOfferError(
   error: string,
   message: string
 ): CircleCardMenuOfferInlineActionResult {
+  return { ok: false, error, message };
+}
+
+function inlineCircleCardFeaturedContentError(
+  error: string,
+  message: string
+): CircleCardFeaturedContentInlineActionResult {
   return { ok: false, error, message };
 }
 
@@ -3886,6 +3904,160 @@ export async function deleteCircleCardMenuOfferItemInlineAction(input: {
   });
   revalidateCircleCardPaths(card.slug);
   return { ok: true, notice: "Menu or offer item deleted" };
+}
+
+export async function upsertCircleCardFeaturedContentItemInlineAction(
+  formData: FormData
+): Promise<CircleCardFeaturedContentInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardFeaturedContentItemFormSchema.safeParse({
+    cardId: formData.get("cardId"),
+    featuredContentItemId: formData.get("featuredContentItemId") ?? "",
+    title: formData.get("title"),
+    description: formData.get("description"),
+    platform: formData.get("platform"),
+    thumbnailUrl: formData.get("thumbnailUrl") ?? "",
+    url: formData.get("url"),
+    publishedDate: formData.get("publishedDate") ?? "",
+    isFeatured: formData.get("isFeatured"),
+    isActive: formData.get("isActive")
+  });
+
+  if (!parsed.success) {
+    return inlineCircleCardFeaturedContentError(
+      "featured-content-invalid",
+      parsed.error.issues[0]?.message ?? "Check the content details and try again."
+    );
+  }
+
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardFeaturedContentError(
+      card ? "featured-content-creator-card-required" : "card-not-found",
+      card ? "Featured Content can only be added to a Creator Card." : "That Circle Card could not be found."
+    );
+  }
+
+  const items = readCircleCardFeaturedContentItems(card.contentBlocks);
+  const existingIndex = parsed.data.featuredContentItemId
+    ? items.findIndex((item) => item.id === parsed.data.featuredContentItemId)
+    : -1;
+  if (parsed.data.featuredContentItemId && existingIndex < 0) {
+    return inlineCircleCardFeaturedContentError(
+      "featured-content-not-found",
+      "That content item could not be found on this Creator Card."
+    );
+  }
+
+  const hasProAccess = resolveCircleCardAccessLevel({
+    role: user.role,
+    membershipTier: user.membershipTier,
+    hasActiveSubscription: user.hasActiveSubscription
+  }) !== "FREE";
+  const itemLimit = hasProAccess
+    ? CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT
+    : CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT;
+  if (existingIndex < 0 && items.length >= itemLimit) {
+    return inlineCircleCardFeaturedContentError(
+      "featured-content-limit",
+      hasProAccess
+        ? `Creator Pro can keep up to ${itemLimit} Featured Content items.`
+        : "Unlock unlimited Featured Content with Creator Pro."
+    );
+  }
+
+  const item: CircleCardFeaturedContentItem = {
+    id: existingIndex >= 0 ? items[existingIndex].id : randomBytes(12).toString("hex"),
+    title: parsed.data.title,
+    description: parsed.data.description,
+    platform: parsed.data.platform,
+    thumbnailUrl: parsed.data.thumbnailUrl || null,
+    url: parsed.data.url,
+    isFeatured: parsed.data.isFeatured,
+    isActive: parsed.data.isActive,
+    publishedDate: parsed.data.publishedDate || null,
+    sortOrder: existingIndex >= 0 ? items[existingIndex].sortOrder : items.length
+  };
+  const nextItems = [...items];
+  if (existingIndex >= 0) nextItems[existingIndex] = item;
+  else nextItems.push(item);
+
+  try {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: { contentBlocks: writeCircleCardFeaturedContentItems(card.contentBlocks, nextItems) }
+    });
+    revalidateCircleCardPaths(card.slug);
+    return { ok: true, notice: "Featured Content saved", item };
+  } catch {
+    return inlineCircleCardFeaturedContentError(
+      "featured-content-save-failed",
+      "The content item could not be saved. Your current item is still shown."
+    );
+  }
+}
+
+export async function toggleCircleCardFeaturedContentItemInlineAction(input: {
+  cardId: string;
+  featuredContentItemId: string;
+}): Promise<CircleCardFeaturedContentInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardFeaturedContentItemIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardFeaturedContentError("featured-content-invalid", "Check the content item and try again.");
+  }
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardFeaturedContentError(
+      card ? "featured-content-creator-card-required" : "card-not-found",
+      card ? "Featured Content is only available on Creator Cards." : "That Circle Card could not be found."
+    );
+  }
+  const items = readCircleCardFeaturedContentItems(card.contentBlocks);
+  const itemIndex = items.findIndex((item) => item.id === parsed.data.featuredContentItemId);
+  if (itemIndex < 0) {
+    return inlineCircleCardFeaturedContentError("featured-content-not-found", "That content item could not be found.");
+  }
+  items[itemIndex] = { ...items[itemIndex], isActive: !items[itemIndex].isActive };
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardFeaturedContentItems(card.contentBlocks, items) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return {
+    ok: true,
+    notice: items[itemIndex].isActive ? "Content shown" : "Content hidden",
+    item: items[itemIndex]
+  };
+}
+
+export async function deleteCircleCardFeaturedContentItemInlineAction(input: {
+  cardId: string;
+  featuredContentItemId: string;
+}): Promise<CircleCardFeaturedContentInlineActionResult> {
+  const user = await requireCircleCardActionUser();
+  const parsed = circleCardFeaturedContentItemIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return inlineCircleCardFeaturedContentError("featured-content-invalid", "Check the content item and try again.");
+  }
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  if (!card || card.cardType !== "CREATOR") {
+    return inlineCircleCardFeaturedContentError(
+      card ? "featured-content-creator-card-required" : "card-not-found",
+      card ? "Featured Content is only available on Creator Cards." : "That Circle Card could not be found."
+    );
+  }
+  const items = readCircleCardFeaturedContentItems(card.contentBlocks);
+  const nextItems = items.filter((item) => item.id !== parsed.data.featuredContentItemId);
+  if (nextItems.length === items.length) {
+    return inlineCircleCardFeaturedContentError("featured-content-not-found", "That content item could not be found.");
+  }
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: { contentBlocks: writeCircleCardFeaturedContentItems(card.contentBlocks, nextItems) }
+  });
+  revalidateCircleCardPaths(card.slug);
+  return { ok: true, notice: "Featured Content deleted" };
 }
 
 export async function upsertCircleCardReviewItemInlineAction(

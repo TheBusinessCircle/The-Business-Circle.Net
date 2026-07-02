@@ -37,6 +37,7 @@ import {
 } from "@/lib/circle-card/identity";
 import {
   CIRCLE_CARD_WEEKDAYS,
+  circleCardFeaturedContentPreviewImage,
   circleCardBookingPhoneHref,
   circleCardBookingWhatsAppHref,
   circleCardOpeningHoursDayLabel
@@ -862,6 +863,65 @@ function FeaturedLinkCard({
           {ctaLabel}
           <ChevronRight size={15} className="transition-transform group-hover:translate-x-0.5" />
         </span>
+      </span>
+    </CircleCardTrackedLink>
+  );
+}
+
+function creatorPlatformIcon(platform: PublicCircleCard["featuredContentItems"][number]["platform"]) {
+  switch (platform) {
+    case "YouTube": return <Youtube size={20} />;
+    case "Instagram": return <Instagram size={20} />;
+    case "Facebook": return <Facebook size={20} />;
+    case "LinkedIn": return <Linkedin size={20} />;
+    case "Twitch": return <Twitch size={20} />;
+    case "Spotify": return <Music2 size={20} />;
+    case "Apple Podcasts":
+    case "Podcast RSS": return <Podcast size={20} />;
+    case "Newsletter": return <Mail size={20} />;
+    case "Blog": return <BookOpen size={20} />;
+    case "TikTok":
+    case "X":
+    case "Threads": return <AtSign size={20} />;
+    default: return <Globe2 size={20} />;
+  }
+}
+
+function CreatorFeaturedContentCard({
+  item,
+  analyticsCardId
+}: {
+  item: PublicCircleCard["featuredContentItems"][number];
+  analyticsCardId?: string;
+}) {
+  const previewImage = circleCardFeaturedContentPreviewImage(item);
+  const dateLabel = item.publishedDate
+    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" })
+        .format(new Date(`${item.publishedDate}T00:00:00.000Z`))
+    : null;
+
+  return (
+    <CircleCardTrackedLink
+      {...getExternalLinkProps(item.url)}
+      cardId={analyticsCardId ?? ""}
+      eventType="CUSTOM_LINK_CLICK"
+      metadata={{ source: "creator_featured_content", itemId: item.id, platform: item.platform, url: analyticsUrlValue(item.url) }}
+      className="group flex min-h-[300px] min-w-0 flex-col overflow-hidden rounded-[1.6rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(22,39,45,0.9),rgba(8,16,32,0.96)_48%,rgba(4,10,24,0.98))] p-3 shadow-[0_22px_56px_rgba(0,0,0,0.26)] transition hover:-translate-y-0.5 hover:border-cyan-300/30 sm:p-4"
+    >
+      <span className="relative mb-4 block aspect-[1.7] overflow-hidden rounded-[1.15rem] border border-silver/14 bg-[image:var(--cc-theme-media-bg)]">
+        {previewImage ? <img src={previewImage} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" /> : null}
+        {previewImage ? <span className="absolute inset-0 bg-[linear-gradient(180deg,transparent,rgba(3,8,19,0.72))]" /> : null}
+        <span className="absolute left-4 top-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/24 bg-[#061126]/78 text-cyan-100 backdrop-blur">{creatorPlatformIcon(item.platform)}</span>
+        <span className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2">
+          <span className="rounded-full border border-white/12 bg-black/30 px-3 py-1.5 text-xs font-medium text-silver backdrop-blur">{item.platform}</span>
+          {item.isFeatured ? <span className="rounded-full border border-gold/28 bg-gold/12 px-3 py-1.5 text-xs font-medium text-gold">Featured</span> : null}
+        </span>
+      </span>
+      <span className="flex flex-1 flex-col px-1 pb-1">
+        <span className="line-clamp-2 text-xl font-semibold leading-tight text-foreground">{item.title}</span>
+        <span className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">{item.description}</span>
+        {dateLabel ? <span className="mt-3 text-xs text-silver">Published {dateLabel}</span> : null}
+        <span className="mt-auto inline-flex min-h-11 w-fit items-center gap-1.5 pt-5 text-sm font-semibold text-cyan-100">Open content<ChevronRight size={15} /></span>
       </span>
     </CircleCardTrackedLink>
   );
@@ -2701,6 +2761,19 @@ export function PublicCircleCardProfile({
                   </p>
                 ) : null}
               </div>
+            ) : null}
+
+            {card.featuredContentItems.length ? (
+              <section id="creator-featured-content" className="rounded-[1.75rem] border border-cyan-300/16 bg-white/[0.035] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.22)] sm:p-5 lg:p-6">
+                <div className="mb-4 sm:mb-5">
+                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Featured Content</p>
+                  <h2 className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Selected work from {creatorFirstName}</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">A curated portfolio of videos, posts and creator work worth seeing first.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {card.featuredContentItems.map((item) => <CreatorFeaturedContentCard key={item.id} item={item} analyticsCardId={analyticsCardId} />)}
+                </div>
+              </section>
             ) : null}
 
             {card.approvedWalletTestimonialCount > 0 || card.reviews.length > 0

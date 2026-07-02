@@ -91,6 +91,7 @@ import {
   CircleCardCopyLinkButton,
   CircleCardDashboardSection,
   CircleCardDocumentsManager,
+  CircleCardFeaturedContentManager,
   CircleCardFirstCardFormHelper,
   CircleCardGalleryManager,
   CircleCardIdentityBanner,
@@ -205,6 +206,8 @@ import {
 import {
   CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
   CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
+  CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT,
+  CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_MENU_OFFER_PRO_LIMIT,
   CIRCLE_CARD_OPENING_HOURS_PRESETS,
@@ -217,6 +220,7 @@ import {
   circleCardCreatorBlockHasContent,
   isValidCircleCardReviewItem,
   readCircleCardGalleryItems,
+  readCircleCardFeaturedContentItems,
   readCircleCardCreatorBlocks,
   readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
@@ -2271,6 +2275,7 @@ function CreatorProStudio({
   activeLinkTypes,
   creatorTrustSignalCount,
   creatorBlocks,
+  featuredContentItems,
   publicUrl,
   className
 }: {
@@ -2288,6 +2293,7 @@ function CreatorProStudio({
   activeLinkTypes: string[];
   creatorTrustSignalCount: number;
   creatorBlocks: ReturnType<typeof readCircleCardCreatorBlocks>;
+  featuredContentItems: ReturnType<typeof readCircleCardFeaturedContentItems>;
   publicUrl: string;
   className?: string;
 }) {
@@ -2297,15 +2303,14 @@ function CreatorProStudio({
   const isPreview = mode === "preview";
   const cardHref = (hash: string) => circleCardManageHref({ cardId, section: "my-card", hash });
   const featuredLinksHref = cardHref("custom-links");
+  const featuredContentHref = cardHref("creator-featured-content");
   const socialProfilesHref = cardHref("card-social-profiles");
   const contactHref = cardHref("card-contact-details");
   const identityHref = cardHref("card-identity");
   const imagesHref = cardHref("card-images");
   const shareHref = circleCardManageHref({ cardId, section: "share", hash: "share-assets" });
   const linkTypeSet = new Set(activeLinkTypes);
-  const featuredContentCount = activeLinkTypes.filter((type) =>
-    ["GENERAL", "DOWNLOAD", "PORTFOLIO", "CASE_STUDY"].includes(type)
-  ).length;
+  const featuredContentCount = featuredContentItems.filter((item) => item.isActive).length;
   const creatorOfferCount = activeLinkTypes.filter((type) =>
     ["LATEST_OFFER", "SHOP", "COMMUNITY"].includes(type)
   ).length;
@@ -2347,7 +2352,7 @@ function CreatorProStudio({
       benefit: "Show your best videos, posts or content pieces.",
       status: featuredContentCount > 0 ? "Active" : "Not Started",
       action: featuredContentCount > 0 ? "Manage" : "Set up",
-      href: featuredLinksHref,
+      href: featuredContentHref,
       icon: Star
     },
     {
@@ -2493,11 +2498,11 @@ function CreatorProStudio({
                   <span className="mt-4 text-[10px] font-medium uppercase tracking-[0.1em] text-silver">Studio {String(index + 1).padStart(2, "0")}</span>
                   <span className="mt-1 text-base font-semibold text-foreground">{module.name}</span>
                   <span className="mt-1 text-sm leading-relaxed text-muted">{module.benefit}</span>
-                  <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && module.action !== "Coming Soon" ? "Unlock with Pro" : module.action}{module.href && !locked ? <ArrowUpRight size={13} /> : null}</span>
+                  <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && module.action !== "Coming Soon" && module.name !== "Featured Content" ? "Unlock with Pro" : module.action}{module.href && (!locked || module.name === "Featured Content") ? <ArrowUpRight size={13} /> : null}</span>
                 </>
               );
 
-              return module.href && !locked ? (
+              return module.href && (!locked || module.name === "Featured Content") ? (
                 <Link key={module.name} href={module.href} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="group flex min-h-52 min-w-0 flex-col rounded-2xl border border-silver/14 bg-card/48 p-4 transition hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50">{content}</Link>
               ) : (
                 <div key={module.name} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="flex min-h-52 min-w-0 flex-col rounded-2xl border border-silver/12 bg-card/32 p-4">{content}</div>
@@ -2505,6 +2510,16 @@ function CreatorProStudio({
             })}
           </div>
         </section>
+
+        {!isPreview ? (
+          <CircleCardFeaturedContentManager
+            cardId={cardId}
+            cardName={fullName}
+            initialItems={featuredContentItems}
+            itemLimit={locked ? CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT : CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT}
+            hasProAccess={!locked}
+          />
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Link href={publicUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 min-w-0 gap-2 px-2")}><Eye size={14} /><span className="truncate">View Creator profile</span></Link>
@@ -5193,6 +5208,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardCreatorBlocks = card?.cardType === "CREATOR" || creatorStudioMode === "preview"
     ? readCircleCardCreatorBlocks(card?.contentBlocks)
     : {};
+  const selectedCardFeaturedContentItems = card?.cardType === "CREATOR"
+    ? readCircleCardFeaturedContentItems(card.contentBlocks)
+    : [];
   const selectedCardCreatorTrustSignalCount = card?.cardType === "CREATOR"
     ? card.recommendationsReceived.length + card.walletTestimonialsReceived.filter(
         (testimonial) => testimonial.status === "APPROVED"
@@ -9138,6 +9156,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           activeLinkTypes={customLinks.filter((link) => link.isActive).map((link) => link.type)}
           creatorTrustSignalCount={selectedCardCreatorTrustSignalCount}
           creatorBlocks={selectedCardCreatorBlocks}
+          featuredContentItems={selectedCardFeaturedContentItems}
           publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
           className={activeSection === "my-card" ? undefined : "hidden"}
         />

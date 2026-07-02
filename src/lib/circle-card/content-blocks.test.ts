@@ -5,6 +5,7 @@ import {
   circleCardBookingPhoneHref,
   circleCardBookingWhatsAppHref,
   circleCardGalleryItemFormSchema,
+  circleCardFeaturedContentItemFormSchema,
   circleCardDocumentItemFormSchema,
   circleCardReviewItemFormSchema,
   circleCardProductItemFormSchema,
@@ -14,6 +15,7 @@ import {
   createCircleCardOpeningHoursPreset,
   isValidCircleCardGalleryImageUrl,
   readCircleCardGalleryItems,
+  readCircleCardFeaturedContentItems,
   readCircleCardBookingEnquiry,
   readCircleCardDocumentItems,
   readCircleCardProductItems,
@@ -38,6 +40,7 @@ import {
   visibleCircleCardPriceListItems,
   visibleCircleCardMenuOfferItems,
   visibleCircleCardGalleryItems,
+  visibleCircleCardFeaturedContentItems,
   visibleCircleCardServices,
   visibleCircleCardReviewItems,
   writeCircleCardOpeningHours,
@@ -47,9 +50,11 @@ import {
   writeCircleCardPriceListItems,
   writeCircleCardMenuOfferItems,
   writeCircleCardGalleryItems,
+  writeCircleCardFeaturedContentItems,
   writeCircleCardServices,
   writeCircleCardReviewItems,
   type CircleCardGalleryItem,
+  type CircleCardFeaturedContentItem,
   type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
   type CircleCardProductItem,
@@ -80,6 +85,71 @@ describe("Circle Card creator content block foundation", () => {
   it("only treats meaningful creator block values as prepared content", () => {
     expect(circleCardCreatorBlockHasContent({ items: [], title: "" })).toBe(false);
     expect(circleCardCreatorBlockHasContent({ items: [{ title: "Press mention" }] })).toBe(true);
+  });
+});
+
+describe("Circle Card Featured Content", () => {
+  const featured: CircleCardFeaturedContentItem = {
+    id: "featured-video",
+    title: "My best launch video",
+    description: "A behind-the-scenes look at the launch.",
+    platform: "YouTube",
+    thumbnailUrl: null,
+    url: "https://youtube.com/watch?v=abc123XYZ",
+    isFeatured: true,
+    isActive: true,
+    publishedDate: "2026-06-10",
+    sortOrder: 1
+  };
+  const standard: CircleCardFeaturedContentItem = {
+    ...featured,
+    id: "standard-post",
+    title: "Studio notes",
+    platform: "Blog",
+    url: "https://example.com/studio-notes",
+    isFeatured: false,
+    sortOrder: 0
+  };
+  const hidden: CircleCardFeaturedContentItem = {
+    ...standard,
+    id: "hidden-post",
+    title: "Draft post",
+    isActive: false,
+    sortOrder: 2
+  };
+
+  it("stores items under creator.FEATURED_CONTENT without changing business blocks", () => {
+    const stored = writeCircleCardFeaturedContentItems(
+      { business: { PRODUCTS: { items: [{ id: "product-1" }] } } },
+      [standard, featured]
+    );
+    expect(readCircleCardFeaturedContentItems(stored)).toHaveLength(2);
+    expect(stored.business).toEqual({ PRODUCTS: { items: [{ id: "product-1" }] } });
+  });
+
+  it("renders Creator items only, hides inactive items and puts featured work first", () => {
+    const stored = writeCircleCardFeaturedContentItems({}, [standard, featured, hidden]);
+    expect(visibleCircleCardFeaturedContentItems({ cardType: "CREATOR", contentBlocks: stored })
+      .map((item) => item.id)).toEqual(["featured-video", "standard-post"]);
+    expect(visibleCircleCardFeaturedContentItems({ cardType: "BUSINESS", contentBlocks: stored })).toEqual([]);
+    expect(visibleCircleCardFeaturedContentItems({ cardType: "PERSONAL", contentBlocks: stored })).toEqual([]);
+  });
+
+  it("accepts credential-free HTTPS and rejects unsafe content URLs", () => {
+    const base = {
+      cardId: "cm12345678901234567890123",
+      title: "A content title",
+      description: "A useful description",
+      platform: "TikTok",
+      thumbnailUrl: "",
+      publishedDate: "",
+      isFeatured: false,
+      isActive: true
+    };
+    expect(circleCardFeaturedContentItemFormSchema.safeParse({ ...base, url: "https://example.com/post" }).success).toBe(true);
+    for (const url of ["javascript:alert(1)", "data:text/plain,test", "ftp://example.com/file", "https://user:pass@example.com/post", "not a url"]) {
+      expect(circleCardFeaturedContentItemFormSchema.safeParse({ ...base, url }).success).toBe(false);
+    }
   });
 });
 

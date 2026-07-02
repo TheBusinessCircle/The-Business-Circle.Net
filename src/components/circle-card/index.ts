@@ -10,6 +10,7 @@ export * from "@/components/circle-card/circle-card-documents-manager";
 export * from "@/components/circle-card/circle-card-framed-image";
 export * from "@/components/circle-card/circle-card-gallery-manager";
 export * from "@/components/circle-card/circle-card-first-card-form-helper";
+export * from "@/components/circle-card/circle-card-featured-content-manager";
 export * from "@/components/circle-card/circle-card-identity-fields";
 export * from "@/components/circle-card/circle-card-image-upload-field";
 export * from "@/components/circle-card/circle-card-link-file-upload-field";

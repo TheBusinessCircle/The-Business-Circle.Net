@@ -196,6 +196,45 @@ export type CircleCardServiceItem = {
 
 export const CIRCLE_CARD_SERVICE_LIMIT = 12;
 
+export const CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS = [
+  "TikTok",
+  "YouTube",
+  "Instagram",
+  "Facebook",
+  "LinkedIn",
+  "X",
+  "Threads",
+  "Pinterest",
+  "Spotify",
+  "Apple Podcasts",
+  "Podcast RSS",
+  "Twitch",
+  "Kick",
+  "Website",
+  "Blog",
+  "Newsletter",
+  "Other"
+] as const;
+
+export type CircleCardFeaturedContentPlatform =
+  (typeof CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS)[number];
+
+export type CircleCardFeaturedContentItem = {
+  id: string;
+  title: string;
+  description: string;
+  platform: CircleCardFeaturedContentPlatform;
+  thumbnailUrl: string | null;
+  url: string;
+  isFeatured: boolean;
+  isActive: boolean;
+  publishedDate: string | null;
+  sortOrder: number;
+};
+
+export const CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT = 3;
+export const CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT = 100;
+
 export type CircleCardProductItem = {
   id: string;
   title: string;
@@ -554,6 +593,49 @@ function isValidCalendarDate(value: string) {
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
+
+function normalizeSafeFeaturedContentUrl(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const normalized = normalizeCircleCardUrl(value);
+  return isSafeCircleCardExternalUrl(normalized) ? normalized : null;
+}
+
+export const circleCardFeaturedContentItemFormSchema = z.object({
+  cardId: z.string().cuid(),
+  featuredContentItemId: z.string().trim().max(64).optional().or(z.literal("")),
+  title: z.string().trim().min(1, "Add a title.").max(120),
+  description: z.string().trim().min(1, "Add a short description.").max(600),
+  platform: z.enum(CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS),
+  thumbnailUrl: productImageUrlSchema,
+  url: z.string().trim().max(2048).transform((value, context) => {
+    const safeUrl = normalizeSafeFeaturedContentUrl(value);
+    if (!safeUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Use a safe https:// URL without credentials."
+      });
+      return z.NEVER;
+    }
+    return safeUrl;
+  }),
+  publishedDate: z.string().trim().optional().or(z.literal("")).refine(
+    (value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value) && isValidCalendarDate(value),
+    { message: "Choose a valid published date." }
+  ),
+  isFeatured: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  ),
+  isActive: z.preprocess(
+    (value) => value === true || value === "true" || value === "on" || value === "1",
+    z.boolean()
+  )
+});
+
+export const circleCardFeaturedContentItemIdSchema = z.object({
+  cardId: z.string().cuid(),
+  featuredContentItemId: z.string().trim().min(1).max(64)
+});
 
 export const circleCardMenuOfferItemFormSchema = z
   .object({
@@ -1928,6 +2010,104 @@ export function readCircleCardCreatorBlocks(
     },
     {}
   );
+}
+
+export function readCircleCardFeaturedContentItems(value: unknown): CircleCardFeaturedContentItem[] {
+  if (!isRecord(value) || !isRecord(value.creator) || !isRecord(value.creator.FEATURED_CONTENT)) {
+    return [];
+  }
+
+  const items = value.creator.FEATURED_CONTENT.items;
+  if (!Array.isArray(items)) return [];
+
+  return items.flatMap((item, index) => {
+    if (!isRecord(item)) return [];
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const title = typeof item.title === "string" ? item.title.trim() : "";
+    const description = typeof item.description === "string" ? item.description.trim() : "";
+    const platform = CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS.find(
+      (candidate) => candidate === item.platform
+    );
+    const url = normalizeSafeFeaturedContentUrl(item.url);
+    if (!id || !title || !description || !platform || !url) return [];
+
+    const rawPublishedDate = typeof item.publishedDate === "string" ? item.publishedDate.trim() : "";
+    const publishedDate = /^\d{4}-\d{2}-\d{2}$/.test(rawPublishedDate) && isValidCalendarDate(rawPublishedDate)
+      ? rawPublishedDate
+      : null;
+
+    return [{
+      id,
+      title: title.slice(0, 120),
+      description: description.slice(0, 600),
+      platform,
+      thumbnailUrl: readSafeProductImageUrl(item.thumbnailUrl),
+      url,
+      isFeatured: item.isFeatured === true,
+      isActive: item.isActive !== false,
+      publishedDate,
+      sortOrder: typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+        ? item.sortOrder
+        : index
+    } satisfies CircleCardFeaturedContentItem];
+  }).sort((left, right) => left.sortOrder - right.sortOrder);
+}
+
+export function writeCircleCardFeaturedContentItems(
+  value: Prisma.JsonValue | Prisma.InputJsonValue | null | undefined,
+  featuredContentItems: CircleCardFeaturedContentItem[]
+): Prisma.InputJsonObject {
+  const root: Record<string, unknown> = isRecord(value) ? value : {};
+  const creator = isRecord(root.creator) ? root.creator : {};
+  const currentFeaturedContent = isRecord(creator.FEATURED_CONTENT)
+    ? creator.FEATURED_CONTENT
+    : {};
+
+  return {
+    ...root,
+    creator: {
+      ...creator,
+      FEATURED_CONTENT: {
+        ...currentFeaturedContent,
+        items: featuredContentItems.map((item, index) => ({ ...item, sortOrder: index }))
+      }
+    }
+  } as Prisma.InputJsonObject;
+}
+
+export function visibleCircleCardFeaturedContentItems(input: {
+  cardType: string;
+  contentBlocks: unknown;
+}) {
+  return input.cardType === "CREATOR"
+    ? readCircleCardFeaturedContentItems(input.contentBlocks)
+        .filter((item) => item.isActive)
+        .sort((left, right) =>
+          Number(right.isFeatured) - Number(left.isFeatured) || left.sortOrder - right.sortOrder
+        )
+    : [];
+}
+
+export function circleCardFeaturedContentPreviewImage(item: CircleCardFeaturedContentItem) {
+  if (item.thumbnailUrl) return item.thumbnailUrl;
+  if (item.platform !== "YouTube") return null;
+
+  try {
+    const url = new URL(item.url);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const videoId = host === "youtu.be"
+      ? url.pathname.split("/").filter(Boolean)[0]
+      : ["youtube.com", "m.youtube.com"].includes(host)
+        ? url.pathname === "/watch"
+          ? url.searchParams.get("v")
+          : url.pathname.match(/^\/(?:shorts|live|embed)\/([^/]+)/)?.[1]
+        : null;
+    return videoId && /^[a-zA-Z0-9_-]{6,20}$/.test(videoId)
+      ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export function circleCardCreatorBlockHasContent(value: unknown): boolean {

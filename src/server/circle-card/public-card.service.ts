@@ -11,6 +11,7 @@ import { SITE_CONFIG } from "@/config/site";
 import {
   visibleCircleCardBookingEnquiry,
   visibleCircleCardDocumentItems,
+  visibleCircleCardFeaturedContentItems,
   visibleCircleCardGalleryItems,
   visibleCircleCardMenuOfferItems,
   visibleCircleCardOpeningHours,
@@ -20,6 +21,7 @@ import {
   visibleCircleCardServices,
   type CircleCardBookingEnquiry,
   type CircleCardDocumentItem,
+  type CircleCardFeaturedContentItem,
   type CircleCardGalleryItem,
   type CircleCardMenuOfferItem,
   type CircleCardOpeningHours,
@@ -125,6 +127,7 @@ export type PublicCircleCard = {
   priceItems: CircleCardPriceListItem[];
   menuOfferItems: CircleCardMenuOfferItem[];
   documents: CircleCardDocumentItem[];
+  featuredContentItems: CircleCardFeaturedContentItem[];
   bookingEnquiry: CircleCardBookingEnquiry | null;
   galleryItems: CircleCardGalleryItem[];
   reviews: CircleCardReviewItem[];
@@ -192,6 +195,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   priceItems: [],
   menuOfferItems: [],
   documents: [],
+  featuredContentItems: [],
   bookingEnquiry: null,
   galleryItems: [],
   reviews: [],
@@ -491,6 +495,15 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
   });
+  const featuredContentItems = await Promise.all(
+    visibleCircleCardFeaturedContentItems({
+      cardType: card.cardType,
+      contentBlocks: card.contentBlocks
+    }).map(async (item) => ({
+      ...item,
+      thumbnailUrl: await resolvePublicUploadImageUrl(item.thumbnailUrl, SITE_CONFIG.url)
+    }))
+  );
   const bookingEnquiry = visibleCircleCardBookingEnquiry({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
@@ -565,6 +578,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     priceItems,
     menuOfferItems,
     documents,
+    featuredContentItems,
     bookingEnquiry,
     galleryItems,
     reviews,
