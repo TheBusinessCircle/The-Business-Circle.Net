@@ -306,7 +306,7 @@ export function CircleCardDocumentsManager({
                 </details>
               );
             })}
-            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">No documents yet. Add the first useful file below.</p> : null}
+            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">Upload brochures, forms, menus or price lists.</p> : null}
           </div>
 
           <details className="group/add mt-3 rounded-xl border border-gold/20 bg-background/20">

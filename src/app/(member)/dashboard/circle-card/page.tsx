@@ -183,6 +183,10 @@ import {
   type CircleCardUpgradeTrigger
 } from "@/lib/circle-card/upgrade-triggers";
 import { buildCircleCardShareSourceUrl } from "@/lib/circle-card/share-sources";
+import {
+  calculateBusinessProfileCompletion,
+  type BusinessProfileCompletionItemId
+} from "@/lib/circle-card/business-profile-completion";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import {
   CIRCLE_CARD_RECOMMENDATION_CATEGORIES,
@@ -199,7 +203,6 @@ import {
   CIRCLE_CARD_MENU_OFFER_PRO_LIMIT,
   CIRCLE_CARD_OPENING_HOURS_PRESETS,
   CIRCLE_CARD_PRODUCT_PRO_LIMIT,
-  CIRCLE_CARD_REVIEW_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
   CIRCLE_CARD_WEEKDAYS,
   CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
@@ -1007,7 +1010,7 @@ function CircleCardServicesBuilder({
         ))}
         {!services.length ? (
           <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
-            No services added yet. Add the first service people should see.
+            Add your first service so visitors know exactly what you offer.
           </p>
         ) : null}
       </div>
@@ -1283,13 +1286,15 @@ function CircleCardReviewsBuilder({
   cardId,
   cardName,
   reviews,
-  pendingWalletTestimonials
+  pendingWalletTestimonials,
+  approvedWalletTestimonialCount
 }: {
   mode: CircleCardReviewsBuilderMode;
   cardId?: string;
   cardName: string;
   reviews: CircleCardReviewItem[];
   pendingWalletTestimonials: CircleCardPendingWalletTestimonial[];
+  approvedWalletTestimonialCount: number;
 }) {
   if (mode === "hidden") {
     return null;
@@ -1300,9 +1305,9 @@ function CircleCardReviewsBuilder({
       <div id="business-card-reviews" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-foreground">Reviews are included with Circle Card Pro.</p>
+            <p className="text-sm font-semibold text-foreground">Circle Trust is included with Circle Card Pro.</p>
             <p className="mt-1 text-sm leading-relaxed text-muted">
-              Collect and display testimonials with Circle Card Pro.
+              Build trust with connection testimonials and client proof.
             </p>
           </div>
           <Badge variant="outline" className="w-fit border-gold/28 text-gold">Pro</Badge>
@@ -1315,9 +1320,9 @@ function CircleCardReviewsBuilder({
     return (
       <div id="business-card-reviews" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
         <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">Business preview</Badge>
-        <p className="mt-3 text-sm font-semibold text-foreground">Reviews / Testimonials preview</p>
+        <p className="mt-3 text-sm font-semibold text-foreground">Circle Trust preview</p>
         <p className="mt-1 text-sm leading-relaxed text-muted">
-          Select or create a Business Card to display client proof directly on it.
+          Select or create a Business Card to build reputation through real connections.
         </p>
       </div>
     );
@@ -1329,6 +1334,7 @@ function CircleCardReviewsBuilder({
       cardName={cardName}
       initialItems={reviews}
       pendingWalletTestimonials={pendingWalletTestimonials}
+      approvedWalletTestimonialCount={approvedWalletTestimonialCount}
     />
   );
 }
@@ -1409,6 +1415,11 @@ function CircleCardOpeningHoursBuilder({
         </summary>
 
         <div className="mt-4 border-t border-silver/12 pt-4">
+          {!openingHours ? (
+            <p className="mb-4 rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
+              Add opening hours so visitors know when you are available.
+            </p>
+          ) : null}
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.08em] text-silver">Quick presets</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -1540,6 +1551,8 @@ function BusinessCardBuilderFoundation({
   access,
   previewLabel,
   cardId,
+  publicUrl,
+  fullName,
   servicesMode,
   services,
   productsMode,
@@ -1557,6 +1570,7 @@ function BusinessCardBuilderFoundation({
   reviewsMode,
   reviews,
   pendingWalletTestimonials,
+  approvedWalletTestimonialCount,
   openingHoursMode,
   openingHours,
   businessName,
@@ -1565,11 +1579,17 @@ function BusinessCardBuilderFoundation({
   businessCategory,
   serviceArea,
   websiteUrl,
+  profileImageUrl,
+  businessLogoUrl,
+  email,
+  phone,
   className
 }: {
   access: BusinessCardBuilderAccess;
   previewLabel: string;
   cardId: string;
+  publicUrl: string;
+  fullName: string;
   servicesMode: CircleCardServicesBuilderMode;
   services: CircleCardServiceItem[];
   productsMode: CircleCardProductsBuilderMode;
@@ -1587,6 +1607,7 @@ function BusinessCardBuilderFoundation({
   reviewsMode: CircleCardReviewsBuilderMode;
   reviews: CircleCardReviewItem[];
   pendingWalletTestimonials: CircleCardPendingWalletTestimonial[];
+  approvedWalletTestimonialCount: number;
   openingHoursMode: CircleCardOpeningHoursBuilderMode;
   openingHours: CircleCardOpeningHours | null;
   businessName?: string | null;
@@ -1595,6 +1616,10 @@ function BusinessCardBuilderFoundation({
   businessCategory?: string | null;
   serviceArea?: string | null;
   websiteUrl?: string | null;
+  profileImageUrl?: string | null;
+  businessLogoUrl?: string | null;
+  email?: string | null;
+  phone?: string | null;
   className?: string;
 }) {
   const locked = access === "locked";
@@ -1654,6 +1679,7 @@ function BusinessCardBuilderFoundation({
   const activeReviewCount = reviews.filter(
     (item) => item.isActive && isValidCircleCardReviewItem(item)
   ).length;
+  const trustSignalCount = activeReviewCount + approvedWalletTestimonialCount;
   const moduleHrefs = {
     services: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-services" }),
     products: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-products" }),
@@ -1665,79 +1691,158 @@ function BusinessCardBuilderFoundation({
     reviews: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-reviews" }),
     openingHours: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-opening-hours" })
   };
+  const completion = calculateBusinessProfileCompletion({
+    businessName,
+    about: businessDescription,
+    profileImageUrl,
+    businessLogoUrl,
+    location: serviceArea,
+    websiteUrl,
+    email,
+    phone,
+    activeServiceCount,
+    hasOpeningHours: Boolean(openingHours),
+    activeGalleryCount,
+    activeProductCount,
+    activePriceCount,
+    activeDocumentCount,
+    bookingActive: Boolean(booking?.isActive && booking.showOnPublicCard),
+    activeMenuOfferCount,
+    trustSignalCount
+  });
+  const completionById = new Map(completion.items.map((item) => [item.id, item.complete]));
+  const completionChecklist = [
+    {
+      label: "Business identity",
+      complete: ["business-name", "about", "brand-image"].every((id) => completionById.get(id as BusinessProfileCompletionItemId))
+    },
+    {
+      label: "Contact details",
+      complete: ["location", "contact-route"].every((id) => completionById.get(id as BusinessProfileCompletionItemId))
+    },
+    { label: "Services", complete: Boolean(completionById.get("services")) },
+    { label: "Gallery", complete: Boolean(completionById.get("gallery")) },
+    { label: "Products", complete: Boolean(completionById.get("products")) },
+    { label: "Booking", complete: Boolean(completionById.get("booking")) },
+    { label: "Circle Trust", complete: Boolean(completionById.get("circle-trust")) }
+  ];
+  const completionActionHrefs: Record<BusinessProfileCompletionItemId, { label: string; href: string }> = {
+    "business-name": {
+      label: "Add your business name",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" })
+    },
+    about: {
+      label: "Add your business description",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" })
+    },
+    "brand-image": {
+      label: "Add a logo or profile image",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-images" })
+    },
+    location: {
+      label: "Add your business location",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" })
+    },
+    "contact-route": {
+      label: "Add a website or contact route",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" })
+    },
+    services: { label: "Add your first service", href: moduleHrefs.services },
+    "opening-hours": { label: "Add opening hours", href: moduleHrefs.openingHours },
+    gallery: { label: "Upload portfolio images", href: moduleHrefs.gallery },
+    products: { label: "Add a product", href: moduleHrefs.products },
+    "price-list": { label: "Add your first price", href: moduleHrefs.priceList },
+    documents: { label: "Add a document", href: moduleHrefs.documents },
+    booking: { label: "Add a booking link", href: moduleHrefs.booking },
+    "menu-offers": { label: "Add a menu or offer", href: moduleHrefs.menuOffers },
+    "circle-trust": {
+      label: "Build my Circle Trust",
+      href: moduleHrefs.reviews
+    }
+  };
+  const nextBestAction = completion.nextIncompleteId
+    ? completionActionHrefs[completion.nextIncompleteId]
+    : { label: "View your completed Business Card", href: publicUrl };
   const activeModules = [
     {
       type: "SERVICES",
       label: "Services",
-      description: "Present your core services, prices and enquiry routes.",
+      description: "Show what you offer.",
       status: services.length ? `${activeServiceCount} active` : "0 services",
+      complete: activeServiceCount > 0,
       action: services.length ? "Manage Services" : "Add your first service",
       href: moduleHrefs.services
     },
     {
       type: "PRODUCTS",
       label: "Products",
-      description: "Show products, prices and external buying or enquiry routes.",
+      description: "Let people browse what you sell.",
       status: products.length ? `${activeProductCount} active` : "0 products",
+      complete: activeProductCount > 0,
       action: products.length ? "Manage Products" : "Add first product",
       href: moduleHrefs.products
     },
     {
       type: "PRICE_LIST",
       label: "Price List",
-      description: "Share service, package, session and starting-price guidance.",
+      description: "Give visitors clear starting points.",
       status: priceItems.length ? `${activePriceCount} active` : "0 prices",
+      complete: activePriceCount > 0,
       action: priceItems.length ? "Manage Price List" : "Add first price",
       href: moduleHrefs.priceList
     },
     {
       type: "MENU_OFFERS",
       label: "Menu & Offers",
-      description: "Share menu items, promotions and time-limited offers.",
+      description: "Highlight timely promotions.",
       status: menuOfferItems.length ? `${activeMenuOfferCount} Active` : "0 Items",
+      complete: activeMenuOfferCount > 0,
       action: menuOfferItems.length ? "Manage Menu & Offers" : "Add first item",
       href: moduleHrefs.menuOffers
     },
     {
       type: "BOOKING_ENQUIRY_LINK",
       label: "Booking / Enquiry",
-      description: "Give visitors a clear route to book, call, message or enquire.",
+      description: "Turn visitors into enquiries.",
       status: booking?.isActive && booking.showOnPublicCard ? "Active" : booking ? "Hidden" : "Not set",
+      complete: Boolean(booking?.isActive && booking.showOnPublicCard),
       action: booking ? "Manage Booking" : "Add booking link",
       href: moduleHrefs.booking
     },
     {
       type: "DOWNLOADS_DOCUMENTS",
       label: "Downloads / Documents",
-      description: "Share brochures, menus, forms, guides and other useful files.",
+      description: "Share useful files and resources.",
       status: documents.length ? `${activeDocumentCount} active` : "0 documents",
+      complete: activeDocumentCount > 0,
       action: documents.length ? "Manage Documents" : "Add first document",
       href: moduleHrefs.documents
     },
     {
       type: "GALLERY_PORTFOLIO",
       label: "Gallery / Portfolio",
-      description: "Showcase selected work directly on this Business Card.",
-      status: galleryItems.length
-        ? `${galleryItems.length} image${galleryItems.length === 1 ? "" : "s"}${activeGalleryCount < galleryItems.length ? ` · ${activeGalleryCount} active` : ""}`
-        : "0 images",
+      description: "Show proof of your work.",
+      status: `${activeGalleryCount} image${activeGalleryCount === 1 ? "" : "s"}`,
+      complete: activeGalleryCount > 0,
       action: galleryItems.length ? "Manage Gallery" : "Add your first gallery image",
       href: moduleHrefs.gallery
     },
     {
       type: "OPENING_HOURS",
       label: "Opening Hours",
-      description: "Tell people when the business is open or available.",
+      description: "Help visitors know when you are available.",
       status: openingHours ? "Set up" : "Not set",
+      complete: Boolean(openingHours),
       action: openingHours ? "Edit Opening Hours" : "Set your opening hours",
       href: moduleHrefs.openingHours
     },
     {
       type: "REVIEWS_TESTIMONIALS",
-      label: "Reviews / Testimonials",
-      description: "Display client proof directly on your Business Card.",
-      status: reviews.length ? `${activeReviewCount} active` : "0 reviews",
-      action: reviews.length ? "Manage Reviews" : "Add first review",
+      label: "Circle Trust",
+      description: "Build reputation through real connections.",
+      status: `${trustSignalCount} trust signal${trustSignalCount === 1 ? "" : "s"}`,
+      complete: trustSignalCount > 0,
+      action: trustSignalCount ? "Build Trust" : "Build my Circle Trust",
       href: moduleHrefs.reviews
     }
   ] as const;
@@ -1832,6 +1937,7 @@ function BusinessCardBuilderFoundation({
           cardName={businessName || "Selected Business Card"}
           reviews={reviews}
           pendingWalletTestimonials={pendingWalletTestimonials}
+          approvedWalletTestimonialCount={approvedWalletTestimonialCount}
         />
         <CircleCardOpeningHoursBuilder
           mode={openingHoursMode}
@@ -1841,7 +1947,7 @@ function BusinessCardBuilderFoundation({
         />
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 pb-16 sm:pb-0">
           <div className="rounded-2xl border border-gold/20 bg-gold/8 p-4">
             <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
               Builder for: {businessName || "Selected Business Card"}
@@ -1852,6 +1958,62 @@ function BusinessCardBuilderFoundation({
             <p className="mt-1 text-sm leading-relaxed text-muted">
               Launch an active module below to manage what appears on this selected Business Card.
             </p>
+          </div>
+
+          <section aria-labelledby="business-profile-completion-title" className="grid gap-3 rounded-2xl border border-gold/20 bg-card/48 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_minmax(240px,0.38fr)]">
+            <div className="min-w-0">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Business Pro</p>
+                  <h3 id="business-profile-completion-title" className="mt-1 text-sm font-semibold text-foreground sm:text-base">Business Profile Completion</h3>
+                </div>
+                <p className="font-display text-3xl font-semibold text-gold">{completion.score}%</p>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/60" aria-hidden="true">
+                <div className="h-full rounded-full bg-gradient-to-r from-gold/70 to-gold transition-[width]" style={{ width: `${completion.score}%` }} />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">
+                {completionChecklist.map((item) => (
+                  <div key={item.label} className="flex min-w-0 items-center gap-1.5 text-xs">
+                    {item.complete ? (
+                      <CheckCircle2 size={14} className="shrink-0 text-emerald-300" aria-hidden="true" />
+                    ) : (
+                      <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-silver/40" aria-hidden="true" />
+                    )}
+                    <span className={cn("truncate", item.complete ? "text-foreground" : "text-muted")}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-col justify-between rounded-xl border border-gold/18 bg-gold/8 p-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Next best action</p>
+                <p className="mt-2 text-sm font-semibold leading-snug text-foreground">{nextBestAction.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  {completion.score === 100
+                    ? "Your Business Card is ready to share."
+                    : `${completion.completedCount} of ${completion.totalCount} profile signals complete.`}
+                </p>
+              </div>
+              <Link href={nextBestAction.href} className={cn(buttonVariants({ size: "sm" }), "mt-3 h-10 w-full gap-2")}>
+                {nextBestAction.label}
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
+          </section>
+
+          <div aria-label="Business Card shortcuts" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <Link href={publicUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 min-w-0 gap-2 px-2")}>
+              <Eye size={14} aria-hidden="true" />
+              <span className="truncate">View public Business Card</span>
+            </Link>
+            <CircleCardCopyLinkButton publicUrl={publicUrl} label="Copy public link" size="sm" className="h-10 min-w-0 px-2" analytics={{ cardId, source: "business_builder" }} />
+            <CircleCardShareButton title={`${fullName} | Circle Card`} publicUrl={publicUrl} cardId={cardId} analyticsSource="business_builder" label="Share Business Card" size="sm" className="min-w-0" buttonClassName="h-10 min-w-0 px-2" hideStatus />
+            <Link href={moduleHrefs.reviews} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 min-w-0 gap-2 px-2")}>
+              <ShieldCheck size={14} aria-hidden="true" />
+              <span className="truncate">Build my Circle Trust</span>
+            </Link>
           </div>
 
           <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-9">
@@ -1915,8 +2077,8 @@ function BusinessCardBuilderFoundation({
               href={moduleHrefs.reviews}
               className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
             >
-              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Reviews</span>
-              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{reviews.length} / {CIRCLE_CARD_REVIEW_PRO_LIMIT}</span>
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Circle Trust</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{trustSignalCount} signal{trustSignalCount === 1 ? "" : "s"}</span>
             </Link>
           </nav>
 
@@ -1936,15 +2098,18 @@ function BusinessCardBuilderFoundation({
                   <Link
                     key={module.type}
                     href={module.href}
-                    className="group flex min-h-32 min-w-0 flex-col rounded-xl border border-gold/20 bg-card/52 p-3 transition-colors hover:border-gold/40 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+                    className="group flex min-h-36 min-w-0 flex-col rounded-xl border border-gold/20 bg-card/52 p-3 transition-colors hover:border-gold/40 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
                   >
                     <span className="flex items-start justify-between gap-3">
                       <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gold/20 bg-gold/10 text-gold">
                         <Icon size={16} aria-hidden="true" />
                       </span>
-                      <Badge variant="outline" className="max-w-full border-emerald-400/24 text-emerald-200">
-                        {module.status}
-                      </Badge>
+                      <span className="flex max-w-[70%] flex-wrap justify-end gap-1.5">
+                        <Badge variant={module.complete ? "outline" : "muted"} className={module.complete ? "border-emerald-400/24 text-emerald-200" : undefined}>
+                          {module.complete ? "Complete" : "Set up"}
+                        </Badge>
+                        <Badge variant="muted" className="max-w-full">{module.status}</Badge>
+                      </span>
                     </span>
                     <span className="mt-3 text-sm font-semibold text-foreground">{module.label}</span>
                     <span className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">{module.description}</span>
@@ -2036,6 +2201,7 @@ function BusinessCardBuilderFoundation({
             cardName={businessName || "Selected Business Card"}
             reviews={reviews}
             pendingWalletTestimonials={pendingWalletTestimonials}
+            approvedWalletTestimonialCount={approvedWalletTestimonialCount}
           />
 
           <CircleCardOpeningHoursBuilder
@@ -3119,10 +3285,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
         },
         walletTestimonialsReceived: {
-          where: { status: "PENDING" },
+          where: { status: { in: ["PENDING", "APPROVED"] } },
           orderBy: [{ createdAt: "desc" }],
           select: {
             id: true,
+            status: true,
             reviewerName: true,
             reviewerRoleOrCompany: true,
             testimonialText: true,
@@ -4726,12 +4893,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     : [];
   const selectedCardPendingWalletTestimonials: CircleCardPendingWalletTestimonial[] =
     card?.cardType === "BUSINESS"
-      ? card.walletTestimonialsReceived.map((testimonial) => ({
-          ...testimonial,
+      ? card.walletTestimonialsReceived
+        .filter((testimonial) => testimonial.status === "PENDING")
+        .map((testimonial) => ({
+          id: testimonial.id,
+          reviewerName: testimonial.reviewerName,
+          reviewerRoleOrCompany: testimonial.reviewerRoleOrCompany,
+          testimonialText: testimonial.testimonialText,
+          rating: testimonial.rating,
           relationship: testimonial.relationship,
           createdAt: testimonial.createdAt.toISOString()
         }))
       : [];
+  const selectedCardApprovedWalletTestimonialCount = card?.cardType === "BUSINESS"
+    ? card.walletTestimonialsReceived.filter((testimonial) => testimonial.status === "APPROVED").length
+    : 0;
   const selectedCardOpeningHours = card?.cardType === "BUSINESS"
     ? readCircleCardOpeningHours(card.contentBlocks)
     : null;
@@ -8623,6 +8799,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           access={businessBuilderAccess}
           previewLabel={businessBuilderPreviewLabel}
           cardId={card.id}
+          publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
+          fullName={card.fullName}
           servicesMode={servicesBuilderMode}
           services={selectedCardServices}
           productsMode={productsBuilderMode}
@@ -8640,6 +8818,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           reviewsMode={reviewsBuilderMode}
           reviews={selectedCardReviews}
           pendingWalletTestimonials={selectedCardPendingWalletTestimonials}
+          approvedWalletTestimonialCount={selectedCardApprovedWalletTestimonialCount}
           openingHoursMode={openingHoursBuilderMode}
           openingHours={selectedCardOpeningHours}
           businessName={card.businessName}
@@ -8648,6 +8827,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           businessCategory={businessBuilderCategory}
           serviceArea={card.location}
           websiteUrl={card.websiteUrl}
+          profileImageUrl={card.profileImageUrl}
+          businessLogoUrl={card.businessLogoUrl}
+          email={card.email}
+          phone={card.phone}
           className={activeSection === "my-card" ? undefined : "hidden"}
         />
       ) : null}

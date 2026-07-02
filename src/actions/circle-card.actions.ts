@@ -3021,7 +3021,7 @@ export async function upsertCircleCardGalleryItemInlineAction(
     revalidateCircleCardPaths(card.slug);
     return {
       ok: true,
-      notice: "Gallery image saved",
+      notice: existingIndex >= 0 ? "Gallery image updated" : "Gallery image added",
       item: galleryItem
     };
   } catch {
@@ -3182,7 +3182,7 @@ export async function upsertCircleCardBookingEnquiryInlineAction(
       data: { contentBlocks: writeCircleCardBookingEnquiry(card.contentBlocks, booking) }
     });
     revalidateCircleCardPaths(card.slug);
-    return { ok: true, notice: "Booking / Enquiry saved", booking };
+    return { ok: true, notice: "Booking section updated", booking };
   } catch {
     return inlineCircleCardBookingError(
       "booking-save-failed",
@@ -3280,7 +3280,7 @@ export async function upsertCircleCardDocumentItemInlineAction(
       data: { contentBlocks: writeCircleCardDocumentItems(card.contentBlocks, nextDocuments) }
     });
     revalidateCircleCardPaths(card.slug);
-    return { ok: true, notice: "Document saved", item: document };
+    return { ok: true, notice: existingIndex >= 0 ? "Document updated" : "Document added", item: document };
   } catch {
     return inlineCircleCardDocumentError(
       "document-save-failed",
@@ -3463,7 +3463,7 @@ export async function upsertCircleCardProductItemInlineAction(
       data: { contentBlocks: writeCircleCardProductItems(card.contentBlocks, nextProducts) }
     });
     revalidateCircleCardPaths(card.slug);
-    return { ok: true, notice: "Product saved", item: product };
+    return { ok: true, notice: existingIndex >= 0 ? "Product updated" : "Product added", item: product };
   } catch {
     return inlineCircleCardProductError(
       "product-save-failed",
@@ -3639,7 +3639,7 @@ export async function upsertCircleCardPriceListItemInlineAction(
       data: { contentBlocks: writeCircleCardPriceListItems(card.contentBlocks, nextItems) }
     });
     revalidateCircleCardPaths(card.slug);
-    return { ok: true, notice: "Price saved", item: priceItem };
+    return { ok: true, notice: existingIndex >= 0 ? "Price updated" : "Price added", item: priceItem };
   } catch {
     return inlineCircleCardPriceListError(
       "price-list-save-failed",
@@ -3806,7 +3806,7 @@ export async function upsertCircleCardMenuOfferItemInlineAction(
       data: { contentBlocks: writeCircleCardMenuOfferItems(card.contentBlocks, nextItems) }
     });
     revalidateCircleCardPaths(card.slug);
-    return { ok: true, notice: "Menu or offer item saved", item };
+    return { ok: true, notice: "Menu / Offer saved", item };
   } catch {
     return inlineCircleCardMenuOfferError(
       "menu-offer-save-failed",

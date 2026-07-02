@@ -101,6 +101,11 @@ export function CircleCardBookingManager({
           <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Card: {cardName}</p>
           {notice ? <p role="status" className="mt-3 rounded-xl border border-emerald-400/24 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-100">{notice}</p> : null}
           {error ? <p role="alert" className="mt-3 rounded-xl border border-destructive/24 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
+          {!booking ? (
+            <p className="mt-3 rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
+              Add a booking or enquiry link so visitors can take action.
+            </p>
+          ) : null}
 
           <form onSubmit={save} className="mt-4 space-y-3" noValidate>
             <input type="hidden" name="cardId" value={cardId} />

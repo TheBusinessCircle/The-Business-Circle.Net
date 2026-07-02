@@ -291,7 +291,7 @@ export function CircleCardMenuOffersManager({
                 </details>
               );
             })}
-            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">No menu or offer items yet. Add the first item below.</p> : null}
+            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">Highlight seasonal offers, menus or limited-time promotions.</p> : null}
           </div>
           <details className="group/add mt-3 rounded-xl border border-gold/20 bg-background/20">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden"><span>Add item</span><span className="flex items-center gap-2 text-xs font-normal text-muted">{items.length}/{CIRCLE_CARD_MENU_OFFER_PRO_LIMIT}<ChevronDown size={15} className="text-silver transition-transform group-open/add:rotate-180" /></span></summary>

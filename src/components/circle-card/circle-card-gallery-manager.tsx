@@ -421,7 +421,7 @@ export function CircleCardGalleryManager({
         })}
         {!items.length ? (
           <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
-            No portfolio images yet. Add your first image below.
+            Show your best work with portfolio images.
           </p>
         ) : null}
       </div>

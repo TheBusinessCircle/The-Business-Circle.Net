@@ -64,7 +64,7 @@ describe("Circle Card image upload safety", () => {
   it("keeps Gallery and featured-link saves client-side", () => {
     expect(galleryManager).toContain("event.preventDefault()");
     expect(galleryManager).toContain("upsertCircleCardGalleryItemInlineAction");
-    expect(actions).toContain('notice: "Gallery image saved"');
+    expect(actions).toContain('"Gallery image updated" : "Gallery image added"');
     expect(smartLinkManager).toContain("event.preventDefault()");
     expect(smartLinkManager).toContain("upsertCircleCardLinkInlineAction");
   });

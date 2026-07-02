@@ -190,12 +190,14 @@ export function CircleCardReviewsManager({
   cardId,
   cardName,
   initialItems,
-  pendingWalletTestimonials = []
+  pendingWalletTestimonials = [],
+  approvedWalletTestimonialCount = 0
 }: {
   cardId: string;
   cardName: string;
   initialItems: CircleCardReviewItem[];
   pendingWalletTestimonials?: CircleCardPendingWalletTestimonial[];
+  approvedWalletTestimonialCount?: number;
 }) {
   const [items, setItems] = useState(initialItems);
   const [pendingItemId, setPendingItemId] = useState("");
@@ -282,18 +284,19 @@ export function CircleCardReviewsManager({
   }
 
   const activeCount = items.filter((item) => item.isActive && isValidCircleCardReviewItem(item)).length;
+  const trustSignalCount = activeCount + approvedWalletTestimonialCount;
 
   return (
     <section id="business-card-reviews" className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-3 sm:p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-display text-xl font-semibold text-foreground">Reviews / Testimonials</h3>
+            <h3 className="font-display text-xl font-semibold text-foreground">Circle Trust</h3>
             <Badge variant="outline" className="border-gold/28 text-gold">Pro</Badge>
-            <Badge variant="muted">{activeCount} active</Badge>
+            <Badge variant="muted">{trustSignalCount} trust signal{trustSignalCount === 1 ? "" : "s"}</Badge>
             {pendingTestimonials.length ? <Badge variant="muted">{pendingTestimonials.length} pending</Badge> : null}
           </div>
-          <p className="mt-1 text-sm text-muted">Show proof that people trust your work.</p>
+          <p className="mt-1 text-sm text-muted">Build reputation through real connections and trusted client proof.</p>
           <p className="mt-2 text-[11px] uppercase tracking-[0.08em] text-gold">Card: {cardName}</p>
         </div>
       </div>
@@ -304,7 +307,7 @@ export function CircleCardReviewsManager({
       <div className="mt-4 rounded-xl border border-gold/18 bg-background/20 p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-foreground">Pending wallet testimonials</p>
+            <p className="text-sm font-semibold text-foreground">Pending connection trust signals</p>
             <p className="mt-1 text-xs text-muted">Approve connection proof before it appears publicly.</p>
           </div>
           <Badge variant="outline" className="border-gold/24 text-gold">{pendingTestimonials.length}</Badge>
@@ -334,7 +337,7 @@ export function CircleCardReviewsManager({
               </article>
             );
           }) : (
-            <p className="text-xs text-muted">No testimonials are waiting for approval.</p>
+            <p className="text-xs text-muted">No connection trust signals are waiting for approval.</p>
           )}
         </div>
       </div>
@@ -377,14 +380,14 @@ export function CircleCardReviewsManager({
         })}
         {!items.length ? (
           <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
-            Add your first testimonial.
+            Ask people in your Circle to help build your trust.
           </p>
         ) : null}
       </div>
 
       <details data-circle-card-module-details className="group mt-3 rounded-xl border border-gold/20 bg-background/20" open={!items.length}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-          <span>Add testimonial</span>
+          <span>Add trust signal</span>
           <span className="flex items-center gap-2 text-xs font-normal text-muted">
             {items.length}/{CIRCLE_CARD_REVIEW_PRO_LIMIT}
             <ChevronDown size={15} className="text-silver transition-transform group-open:rotate-180" />

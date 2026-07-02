@@ -31,6 +31,14 @@ const documentsManager = readFileSync(
   join(root, "src/components/circle-card/circle-card-documents-manager.tsx"),
   "utf8"
 );
+const galleryManager = readFileSync(
+  join(root, "src/components/circle-card/circle-card-gallery-manager.tsx"),
+  "utf8"
+);
+const reviewsManager = readFileSync(
+  join(root, "src/components/circle-card/circle-card-reviews-manager.tsx"),
+  "utf8"
+);
 const publicProfile = readFileSync(
   join(root, "src/components/circle-card/public-circle-card-profile.tsx"),
   "utf8"
@@ -56,14 +64,26 @@ describe("Business Builder module launcher", () => {
     expect(dashboard).toContain("Add first product");
     expect(dashboard).toContain("Add your first gallery image");
     expect(dashboard).toContain("Set your opening hours");
-    expect(dashboard).toContain("Add first review");
-    expect(dashboard).toContain("Manage Reviews");
-    expect(dashboard).toContain("Reviews are included with Circle Card Pro.");
+    expect(dashboard).toContain("Build my Circle Trust");
+    expect(dashboard).toContain("Build Trust");
+    expect(dashboard).toContain("Circle Trust is included with Circle Card Pro.");
     expect(dashboard).toContain("Products are included with Circle Card Pro.");
     expect(dashboard).toContain("Price List is included with Circle Card Pro.");
     expect(dashboard).toContain("Menu &amp; Offers are included with Circle Card Pro.");
     expect(dashboard).toContain("Downloads are included with Circle Card Pro.");
     expect(dashboard).toContain("Booking / Enquiry is included with Circle Card Pro.");
+  });
+
+  it("shows completion guidance, next actions and reused public shortcuts", () => {
+    expect(dashboard).toContain("Business Profile Completion");
+    expect(dashboard).toContain("Next best action");
+    expect(dashboard).toContain("completion.nextIncompleteId");
+    expect(dashboard).toContain('label: "Add your first service"');
+    expect(dashboard).toContain('label: "Upload portfolio images"');
+    expect(dashboard).toContain('label: "Build my Circle Trust"');
+    expect(dashboard).toContain("CircleCardCopyLinkButton");
+    expect(dashboard).toContain("CircleCardShareButton");
+    expect(dashboard).toContain("View public Business Card");
   });
 
   it("keeps future business modules visible and inactive", () => {
@@ -137,6 +157,16 @@ describe("Business Builder module launcher", () => {
     expect(bookingManager).toContain("upsertCircleCardBookingEnquiryInlineAction");
     expect(bookingManager).toContain("Visible on public card");
     expect(bookingManager).toContain("Add booking link");
+  });
+
+  it("uses positive, action-led Business Pro empty states", () => {
+    expect(productsManager).toContain("Add products people can browse before they contact you.");
+    expect(documentsManager).toContain("Upload brochures, forms, menus or price lists.");
+    expect(priceListManager).toContain("Give visitors clear starting points before they enquire.");
+    expect(menuOffersManager).toContain("Highlight seasonal offers, menus or limited-time promotions.");
+    expect(bookingManager).toContain("Add a booking or enquiry link so visitors can take action.");
+    expect(galleryManager).toContain("Show your best work with portfolio images.");
+    expect(reviewsManager).toContain("Ask people in your Circle to help build your trust.");
   });
 
   it("renders safe public booking contact actions for Business Cards", () => {

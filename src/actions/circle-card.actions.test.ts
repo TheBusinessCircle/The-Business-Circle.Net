@@ -354,7 +354,7 @@ describe("Price List inline actions", () => {
 
     const result = await upsertCircleCardPriceListItemInlineAction(validPriceListForm());
 
-    expect(result).toMatchObject({ ok: true, notice: "Price saved" });
+    expect(result).toMatchObject({ ok: true, notice: "Price added" });
     expect(prismaMock.circleCard.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "clx0000000000000000000020" },
@@ -425,7 +425,7 @@ describe("Menu & Offers inline actions", () => {
 
     const result = await upsertCircleCardMenuOfferItemInlineAction(validMenuOfferForm());
 
-    expect(result).toMatchObject({ ok: true, notice: "Menu or offer item saved" });
+    expect(result).toMatchObject({ ok: true, notice: "Menu / Offer saved" });
     expect(prismaMock.circleCard.update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         contentBlocks: expect.objectContaining({

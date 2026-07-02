@@ -319,7 +319,7 @@ export function CircleCardProductsManager({
                 </details>
               );
             })}
-            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">No products yet. Add the first product below.</p> : null}
+            {!items.length ? <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">Add products people can browse before they contact you.</p> : null}
           </div>
 
           <details className="group/add mt-3 rounded-xl border border-gold/20 bg-background/20">
