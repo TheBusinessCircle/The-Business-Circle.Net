@@ -37,6 +37,10 @@ describe("Creator Pro completion polish", () => {
   });
 
   it("orders the populated Creator story from content through trust and next steps", () => {
+    const creatorPublicStory = publicProfile.slice(
+      publicProfile.indexOf('if (publicLayout === "CREATOR")'),
+      publicProfile.indexOf("const businessHeroImageUrl")
+    );
     const storyMarkers = [
       'card.featuredContentItems.length',
       'renderCreatorMediaKitSection()',
@@ -44,10 +48,10 @@ describe("Creator Pro completion polish", () => {
       'renderCreatorBrandPartnershipsSection()',
       'card.pressProofItems.length',
       'card.creatorOffers.length',
-      'renderTrustScoreCard({ reviewsId: "creator-reviews" })',
+      'renderTrustScoreCard()',
       'renderFeaturedLinksSection({'
     ];
-    const positions = storyMarkers.map((marker) => publicProfile.lastIndexOf(marker));
+    const positions = storyMarkers.map((marker) => creatorPublicStory.indexOf(marker));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((left, right) => left - right));
   });

@@ -31,7 +31,7 @@ describe("Circle Card wallet testimonial trust workflow", () => {
   it("rechecks wallet ownership, self-review, visibility and duplicate pending server-side", () => {
     expect(actions).toContain("prisma.circleWalletContact.findFirst");
     expect(actions).toContain("userId: { not: user.id }");
-    expect(actions).toContain('cardType: "BUSINESS"');
+    expect(actions).toContain('cardType: { in: ["BUSINESS", "CREATOR"] }');
     expect(actions).toContain("isPublished: true");
     expect(actions).toContain("archivedAt: null");
     expect(actions).toContain('status: "PENDING"');
@@ -41,7 +41,7 @@ describe("Circle Card wallet testimonial trust workflow", () => {
   it("shows wallet entry and owner approval without publishing pending records", () => {
     expect(dashboard).toContain("walletTestimonialContacts");
     expect(walletForm).toContain("Search people in your wallet");
-    expect(reviewManager).toContain("Pending wallet testimonials");
+    expect(reviewManager).toContain("Pending connection trust signals");
     expect(reviewManager).toContain("approveCircleCardWalletTestimonialAction");
     expect(reviewManager).toContain("rejectCircleCardWalletTestimonialAction");
     expect(publicService).toContain('where: { status: "APPROVED" }');

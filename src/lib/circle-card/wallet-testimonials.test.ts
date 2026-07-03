@@ -48,8 +48,9 @@ describe("Circle Card wallet testimonial validation", () => {
     expect(circleCardWalletTestimonialSubmitSchema.safeParse({ ...base, rating: "6" }).success).toBe(false);
   });
 
-  it("allows only another owner's live, non-archived Business Card", () => {
+  it("allows only another owner's live, non-archived Business or Creator Card", () => {
     expect(isEligibleCircleCardWalletTestimonialTarget(liveBusinessCard, "reviewer-user")).toBe(true);
+    expect(isEligibleCircleCardWalletTestimonialTarget({ ...liveBusinessCard, cardType: "CREATOR" }, "reviewer-user")).toBe(true);
     expect(isEligibleCircleCardWalletTestimonialTarget(liveBusinessCard, "target-user")).toBe(false);
     expect(isEligibleCircleCardWalletTestimonialTarget({ ...liveBusinessCard, isPublished: false }, "reviewer-user")).toBe(false);
     expect(isEligibleCircleCardWalletTestimonialTarget({ ...liveBusinessCard, archivedAt: new Date() }, "reviewer-user")).toBe(false);

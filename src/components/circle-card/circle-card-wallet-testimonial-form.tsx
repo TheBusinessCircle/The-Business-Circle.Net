@@ -90,7 +90,7 @@ export function CircleCardWalletTestimonialForm({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="wallet-testimonial-search">Find a saved Business Card</Label>
+        <Label htmlFor="wallet-testimonial-search">Find a saved Business or Creator Card</Label>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-3 text-muted" size={16} />
           <Input

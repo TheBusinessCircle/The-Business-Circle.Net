@@ -29,16 +29,40 @@ const sectionRouter = readFileSync(
   join(root, "src/components/circle-card/circle-card-section-router.tsx"),
   "utf8"
 );
+const trustPanel = readFileSync(
+  join(root, "src/components/circle-card/public-circle-trust-panel.tsx"),
+  "utf8"
+);
+const trustPage = readFileSync(
+  join(root, "src/app/(public)/card/[slug]/trust/page.tsx"),
+  "utf8"
+);
+const trustDomain = readFileSync(
+  join(root, "src/lib/circle-card/circle-trust.ts"),
+  "utf8"
+);
 
 describe("public Circle Card trust journey", () => {
   it("renders honest trust score content and both public testimonial entry points", () => {
-    expect(profile).toContain('id="circle-card-trust"');
-    expect(profile).toContain("circleCardTrustSummary(card.approvedWalletTestimonialCount)");
-    expect(profile).toContain("verified connection testimonial");
+    expect(profile).toContain("<PublicCircleTrustPanel");
+    expect(trustPanel).toContain('id="circle-card-trust"');
+    expect(trustPanel).toContain("Help build my Circle Trust");
+    expect(trustPanel).not.toContain("average rating");
     expect(profile).toContain('id="circle-card-testimonial"');
     expect(profile).toContain("Already connected? Share your experience.");
     expect(profile).toContain("testimonialLoginHref");
     expect(profile).toContain("testimonialFlowHref");
+  });
+
+  it("uses an unweighted V1 score and exposes a dedicated expansion-safe trust page", () => {
+    expect(trustDomain).toContain("verifiedConnectionCount + verifiedTestimonialCount");
+    expect(trustPage).toContain("Trust Summary");
+    expect(trustPage).toContain("Verified Testimonials");
+    expect(trustPage).toContain("Verified Connections");
+    expect(trustPage).toContain("Trust Signals");
+    expect(trustPage).toContain("Trust Timeline");
+    expect(trustPage).toContain("Achievements");
+    expect(trustPage).toContain("do not reduce Circle Trust before a moderation decision");
   });
 
   it("places the lower testimonial CTA before every QR/share section", () => {

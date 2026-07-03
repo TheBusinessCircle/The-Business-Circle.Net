@@ -643,12 +643,14 @@ function revalidateCircleCardPaths(slug?: string | null) {
 
   if (slug) {
     revalidatePath(`/card/${slug}`);
+    revalidatePath(`/card/${slug}/trust`);
   }
 }
 
 function revalidateCircleCardPublicPaths(slug?: string | null) {
   if (slug) {
     revalidatePath(`/card/${slug}`);
+    revalidatePath(`/card/${slug}/trust`);
   }
 }
 
@@ -658,6 +660,7 @@ function revalidateCircleCardConnectionPaths(slugs: Array<string | null | undefi
   for (const slug of slugs) {
     if (slug) {
       revalidatePath(`/card/${slug}`);
+      revalidatePath(`/card/${slug}/trust`);
     }
   }
 }
@@ -5026,7 +5029,7 @@ export async function submitCircleCardWalletTestimonialAction(
       cardId: parsed.data.targetCardId,
       card: {
         userId: { not: user.id },
-        cardType: "BUSINESS",
+        cardType: { in: ["BUSINESS", "CREATOR"] },
         isPublished: true,
         archivedAt: null,
         user: { suspended: false }
@@ -5048,7 +5051,7 @@ export async function submitCircleCardWalletTestimonialAction(
     return {
       ok: false,
       error: "wallet-testimonial-target-ineligible",
-      message: "Choose a live Business Circle Card saved in your Wallet."
+      message: "Choose a live Business or Creator Circle Card saved in your Wallet."
     };
   }
 
@@ -5140,7 +5143,10 @@ async function moderateCircleCardWalletTestimonial(input: {
     }
   });
 
-  if (!testimonial || testimonial.targetCard.cardType !== "BUSINESS") {
+  if (
+    !testimonial ||
+    (testimonial.targetCard.cardType !== "BUSINESS" && testimonial.targetCard.cardType !== "CREATOR")
+  ) {
     return { ok: false, error: "wallet-testimonial-not-found", message: "That testimonial could not be found." };
   }
   if (testimonial.status !== "PENDING") {

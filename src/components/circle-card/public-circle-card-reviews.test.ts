@@ -24,7 +24,7 @@ describe("public Circle Card reviews", () => {
   it("renders active valid client proof", () => {
     const markup = renderReviews([review]);
 
-    expect(markup).toContain("Trusted by clients");
+    expect(markup).toContain("Trusted by your Circle");
     expect(markup).toContain("Alex Morgan");
     expect(markup).toContain("Excellent to work with.");
     expect(markup).toContain("5 out of 5 stars");
@@ -47,7 +47,7 @@ describe("public Circle Card reviews", () => {
     );
 
     expect(markup).toContain("Verified connection testimonial");
-    expect(markup).toContain("Trusted by 1 connection");
+    expect(markup).toContain("1 verified testimonial");
     expect(markup).toContain("Collaborated");
   });
 });

@@ -155,7 +155,7 @@ export default async function CircleCardTestimonialPage({ searchParams }: PagePr
             ) : targetCardId && !targetIsEligible ? (
               <div className="rounded-2xl border border-silver/18 bg-background/24 p-5">
                 <p className="font-semibold text-foreground">This Circle Card cannot receive testimonials.</p>
-                <p className="mt-2 text-sm text-muted">Only live Business Circle Cards can receive wallet testimonials.</p>
+                <p className="mt-2 text-sm text-muted">Only live Business or Creator Circle Cards can receive wallet testimonials.</p>
               </div>
             ) : targetCardId && !selectedContact && targetCard ? (
               <div className="rounded-2xl border border-gold/24 bg-gold/10 p-5">

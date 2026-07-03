@@ -15,6 +15,7 @@ import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-in
 import { CircleCardPrivateLinkAction } from "@/components/circle-card/circle-card-private-link-action";
 import { PublicCircleCardGallery } from "@/components/circle-card/public-circle-card-gallery";
 import { PublicCircleCardReviews } from "@/components/circle-card/public-circle-card-reviews";
+import { PublicCircleTrustPanel } from "@/components/circle-card/public-circle-trust-panel";
 import { CircleCardQrPanel } from "@/components/circle-card/circle-card-qr-panel";
 import { CircleCardReportForm } from "@/components/circle-card/circle-card-report-form";
 import { CircleCardShareButton } from "@/components/circle-card/circle-card-share-button";
@@ -28,8 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
 import type { CircleCardShareSource } from "@/lib/circle-card/share-sources";
 import {
-  circleCardTestimonialFlowHref,
-  circleCardTrustSummary
+  circleCardTestimonialFlowHref
 } from "@/lib/circle-card/wallet-testimonials";
 import {
   getCircleCardAccountTypeLabel,
@@ -2552,7 +2552,7 @@ export function PublicCircleCardProfile({
   }
 
   function renderReviewsSection({ id = "business-reviews" }: { id?: string } = {}) {
-    if (card.cardType !== "BUSINESS" || !card.reviews.length) {
+    if ((card.cardType !== "BUSINESS" && card.cardType !== "CREATOR") || !card.reviews.length) {
       return null;
     }
 
@@ -2565,60 +2565,29 @@ export function PublicCircleCardProfile({
     );
   }
 
-  function renderTrustScoreCard({ reviewsId = "business-reviews" }: { reviewsId?: string } = {}) {
-    const manualTestimonialCount = Math.max(
-      0,
-      card.reviews.length - card.approvedWalletTestimonialCount
-    );
-    const trustHref = viewerIsOwner || card.cardType !== "BUSINESS"
-      ? card.reviews.length
-        ? `#${reviewsId}`
-        : "#circle-card-trust"
-      : !isAuthenticated
-        ? testimonialLoginHref
-        : testimonialFlowHref;
+  function renderTrustScoreCard() {
+    const canBuildTrust = card.cardType === "BUSINESS" || card.cardType === "CREATOR";
+    const testimonialHref = card.isDemo || viewerIsOwner || !canBuildTrust
+      ? null
+      : isAuthenticated
+        ? testimonialFlowHref
+        : testimonialLoginHref;
 
     return (
-      <section
-        id="circle-card-trust"
-        aria-labelledby="circle-card-trust-title"
-        className="scroll-mt-24 rounded-[1.75rem] border border-gold/22 bg-[linear-gradient(145deg,rgba(12,25,32,0.9),rgba(4,10,24,0.97))] p-5 shadow-panel-soft sm:p-6"
-      >
-        <Link
-          href={trustHref}
-          className="group flex items-start justify-between gap-4 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-        >
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Trust Score</p>
-            <h2 id="circle-card-trust-title" className="mt-1 font-display text-2xl text-foreground">
-              {circleCardTrustSummary(card.approvedWalletTestimonialCount)}
-            </h2>
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-              {card.approvedWalletTestimonialCount > 0 ? (
-                <span>
-                  {card.approvedWalletTestimonialCount} verified connection testimonial{card.approvedWalletTestimonialCount === 1 ? "" : "s"}
-                </span>
-              ) : (
-                <span>No verified connection testimonials yet</span>
-              )}
-              {card.averageWalletTestimonialRating !== null ? (
-                <span>{card.averageWalletTestimonialRating.toFixed(1)} average rating</span>
-              ) : null}
-              {manualTestimonialCount > 0 ? (
-                <span>{manualTestimonialCount} owner-managed testimonial{manualTestimonialCount === 1 ? "" : "s"}</span>
-              ) : null}
-            </div>
-          </div>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold transition group-hover:border-gold/45 group-hover:bg-gold/16">
-            <ShieldCheck size={19} aria-hidden="true" />
-          </span>
-        </Link>
-      </section>
+      <PublicCircleTrustPanel
+        trust={card.trust}
+        slug={card.slug}
+        testimonialHref={testimonialHref}
+      />
     );
   }
 
   function renderTestimonialCta() {
-    if (card.isDemo || card.cardType !== "BUSINESS" || viewerIsOwner) {
+    if (
+      card.isDemo ||
+      (card.cardType !== "BUSINESS" && card.cardType !== "CREATOR") ||
+      viewerIsOwner
+    ) {
       return null;
     }
 
@@ -2630,9 +2599,9 @@ export function PublicCircleCardProfile({
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-gold">Circle Card trust network</p>
+            <p className="text-xs font-medium text-gold">Verified Trust</p>
             <h2 id="circle-card-testimonial-title" className="mt-1 font-display text-2xl text-foreground">
-              Leave a testimonial
+              Help build my Circle Trust
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
               Already connected? Share your experience.
@@ -2642,8 +2611,8 @@ export function PublicCircleCardProfile({
             href={isAuthenticated ? testimonialFlowHref : testimonialLoginHref}
             className={cn(buttonVariants(), "shrink-0 gap-2")}
           >
-            <Star size={16} />
-            Leave a testimonial
+            <ShieldCheck size={16} />
+            Help build my Circle Trust
           </Link>
         </div>
       </section>
@@ -2831,7 +2800,7 @@ export function PublicCircleCardProfile({
               ) : null}
             </section>
 
-            {renderTrustScoreCard({ reviewsId: "classic-reviews" })}
+            {renderTrustScoreCard()}
             {renderAboutSection({ id: "classic-about" })}
             {renderServicesSection({ id: "classic-services" })}
             {renderProductsSection({ id: "classic-products" })}
@@ -3121,9 +3090,7 @@ export function PublicCircleCardProfile({
               </section>
             ) : null}
 
-            {card.approvedWalletTestimonialCount > 0 || card.reviews.length > 0
-              ? renderTrustScoreCard({ reviewsId: "creator-reviews" })
-              : null}
+            {renderTrustScoreCard()}
             <PublicRecommendations recommendations={card.recommendations} />
             {renderAboutSection({ id: "creator-about", heading: "Creator story" })}
             {renderServicesSection({ id: "creator-services" })}

@@ -31,13 +31,13 @@ export function PublicCircleCardReviews({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-gold">Reviews / Testimonials</p>
+          <p className="text-xs font-medium text-gold">Verified Trust</p>
           <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">
-            Trusted by clients
+            Trusted by your Circle
           </h2>
           {trustedConnectionCount > 0 ? (
             <p className="mt-2 text-xs font-medium text-silver">
-              Trusted by {trustedConnectionCount} connection{trustedConnectionCount === 1 ? "" : "s"}
+              {trustedConnectionCount} verified testimonial{trustedConnectionCount === 1 ? "" : "s"}
             </p>
           ) : null}
         </div>

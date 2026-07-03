@@ -30,7 +30,7 @@ describe("Circle Card reviews wiring", () => {
   it("keeps the manager anchored and public rendering card-scoped", () => {
     expect(manager).toContain('id="business-card-reviews"');
     expect(publicService).toContain("visibleCircleCardReviewItems({");
-    expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.reviews.length');
+    expect(publicProfile).toContain('card.cardType !== "BUSINESS" && card.cardType !== "CREATOR"');
     expect(publicProfile).toContain("<PublicCircleCardReviews");
   });
 });

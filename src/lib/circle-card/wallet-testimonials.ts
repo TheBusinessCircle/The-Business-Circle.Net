@@ -70,7 +70,7 @@ export function isEligibleCircleCardWalletTestimonialTarget(
 ) {
   return Boolean(
     card &&
-      card.cardType === "BUSINESS" &&
+      (card.cardType === "BUSINESS" || card.cardType === "CREATOR") &&
       card.userId !== reviewerUserId &&
       card.isPublished &&
       !card.archivedAt &&

@@ -1,0 +1,94 @@
+import { describe, expect, it } from "vitest";
+import { buildCircleTrustSummary } from "@/lib/circle-card/circle-trust";
+
+const card = {
+  fullName: "Alex Morgan",
+  businessName: "North Studio",
+  role: "Founder",
+  tagline: "Clear work for growing teams",
+  about: null,
+  profileImageUrl: "/alex.jpg",
+  businessLogoUrl: null,
+  websiteUrl: "https://example.com",
+  email: null,
+  phone: null,
+  location: "London",
+  isPublished: true,
+  archivedAt: null
+};
+
+describe("Circle Trust V1", () => {
+  it("uses one point per verified relationship signal and does not weight ratings", () => {
+    const trust = buildCircleTrustSummary({
+      card,
+      owner: {
+        role: "MEMBER",
+        emailVerified: new Date("2026-01-01"),
+        foundingMember: false,
+        hasActiveSubscription: true
+      },
+      verifiedConnectionCount: 3,
+      verifiedTestimonials: [
+        {
+          id: "one",
+          reviewerName: "Sam",
+          reviewerRoleOrCompany: null,
+          testimonialText: "Trusted work.",
+          rating: 1,
+          relationship: "WORKED_WITH",
+          verifiedAt: new Date("2026-01-02")
+        },
+        {
+          id: "two",
+          reviewerName: "Jo",
+          reviewerRoleOrCompany: null,
+          testimonialText: "Trusted again.",
+          rating: 5,
+          relationship: "COLLABORATED",
+          verifiedAt: new Date("2026-01-03")
+        }
+      ],
+      manualTestimonialCount: 4
+    });
+
+    expect(trust.score).toBe(5);
+    expect(trust.manualTestimonialCount).toBe(4);
+    expect(trust.signals.map((signal) => signal.id)).toEqual([
+      "verified-connections",
+      "verified-testimonials",
+      "published-circle-card",
+      "active-profile",
+      "profile-complete",
+      "verified-account-email",
+      "bcn-member"
+    ]);
+  });
+
+  it("shows only signals supported by stored state", () => {
+    const trust = buildCircleTrustSummary({
+      card: {
+        ...card,
+        businessName: null,
+        role: null,
+        profileImageUrl: null,
+        websiteUrl: null,
+        location: null
+      },
+      owner: {
+        role: "MEMBER",
+        emailVerified: null,
+        foundingMember: false,
+        hasActiveSubscription: false
+      },
+      verifiedConnectionCount: 0,
+      verifiedTestimonials: [],
+      manualTestimonialCount: 0
+    });
+
+    expect(trust.score).toBe(0);
+    expect(trust.signals.map((signal) => signal.id)).toEqual([
+      "published-circle-card",
+      "active-profile"
+    ]);
+  });
+});

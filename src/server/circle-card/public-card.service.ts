@@ -49,6 +49,11 @@ import {
   type CircleCardLinkType,
   type CircleCardSocialLinks
 } from "@/lib/circle-card/schema";
+import {
+  buildCircleTrustSummary,
+  type CircleTrustSummary,
+  type CircleTrustTestimonial
+} from "@/lib/circle-card/circle-trust";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { resolvePublicUploadImageUrl } from "@/server/circle-card/public-upload-image-url";
@@ -149,6 +154,7 @@ export type PublicCircleCard = {
   approvedWalletTestimonialCount: number;
   averageWalletTestimonialRating: number | null;
   trustScore: number;
+  trust: CircleTrustSummary;
   openingHours: CircleCardOpeningHours | null;
   customLinks: PublicCircleCardLink[];
   ownerCards: PublicCircleCardSwitcherItem[];
@@ -222,6 +228,16 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   approvedWalletTestimonialCount: 0,
   averageWalletTestimonialRating: null,
   trustScore: 0,
+  trust: {
+    version: 1,
+    score: 0,
+    summary: "Building Circle Trust through verified connections and testimonials.",
+    verifiedConnectionCount: 0,
+    verifiedTestimonialCount: 0,
+    manualTestimonialCount: 0,
+    signals: [],
+    latestVerifiedTestimonials: []
+  },
   openingHours: null,
   customLinks: [
     {
@@ -325,6 +341,8 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       location: true,
       socialLinks: true,
       contentBlocks: true,
+      isPublished: true,
+      archivedAt: true,
       customLinks: {
         where: {
           isActive: true
@@ -393,6 +411,12 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       },
       _count: {
         select: {
+          connectionRequestsSent: {
+            where: { status: "ACCEPTED" }
+          },
+          connectionRequestsReceived: {
+            where: { status: "ACCEPTED" }
+          },
           referralsReceived: {
             where: {
               visibility: "PUBLIC_SUCCESS",
@@ -407,6 +431,8 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           role: true,
           membershipTier: true,
           foundingTier: true,
+          foundingMember: true,
+          emailVerified: true,
           subscription: {
             select: {
               status: true
@@ -609,7 +635,49 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
   const averageWalletTestimonialRating = walletRatings.length
     ? Math.round((walletRatings.reduce((total, rating) => total + rating, 0) / walletRatings.length) * 10) / 10
     : null;
-  const trustScore = approvedWalletTestimonialCount;
+  const verifiedTestimonials: CircleTrustTestimonial[] = card.walletTestimonialsReceived.map(
+    (testimonial) => ({
+      id: testimonial.id,
+      reviewerName: testimonial.reviewerName,
+      reviewerRoleOrCompany: testimonial.reviewerRoleOrCompany,
+      testimonialText: testimonial.testimonialText,
+      rating: testimonial.rating,
+      relationship: testimonial.relationship,
+      verifiedAt: testimonial.walletVerifiedAt
+    })
+  );
+  const hasActiveSubscription =
+    card.user.role === "ADMIN"
+      ? true
+      : hasEntitledSubscription(card.user.subscription?.status ?? null);
+  const trust = buildCircleTrustSummary({
+    card: {
+      fullName: card.fullName,
+      businessName: card.businessName,
+      role: card.role,
+      tagline: card.tagline,
+      about: card.about,
+      profileImageUrl: card.profileImageUrl,
+      businessLogoUrl: card.businessLogoUrl,
+      websiteUrl: card.websiteUrl,
+      email: card.email,
+      phone: card.phone,
+      location: card.location,
+      isPublished: card.isPublished,
+      archivedAt: card.archivedAt
+    },
+    owner: {
+      role: card.user.role,
+      emailVerified: card.user.emailVerified,
+      foundingMember: card.user.foundingMember,
+      hasActiveSubscription
+    },
+    verifiedConnectionCount:
+      card._count.connectionRequestsSent + card._count.connectionRequestsReceived,
+    verifiedTestimonials,
+    manualTestimonialCount: manualReviews.length
+  });
+  const trustScore = trust.score;
   const { contentBlocks, walletTestimonialsReceived, ...publicCard } = card;
   void contentBlocks;
   void walletTestimonialsReceived;
@@ -626,10 +694,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       role: card.user.role,
       membershipTier: card.user.membershipTier,
       foundingTier: card.user.foundingTier,
-      hasActiveSubscription:
-        card.user.role === "ADMIN"
-          ? true
-          : hasEntitledSubscription(card.user.subscription?.status ?? null)
+      hasActiveSubscription
     },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     services,
@@ -649,6 +714,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     approvedWalletTestimonialCount,
     averageWalletTestimonialRating,
     trustScore,
+    trust,
     openingHours,
     recommendations: card.recommendationsReceived,
     successfulReferralCount: card._count.referralsReceived,

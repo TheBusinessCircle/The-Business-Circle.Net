@@ -63,6 +63,6 @@ describe("Creator Pro Studio foundation", () => {
     expect(publicProfile).toContain('heading: "Creator platforms & community"');
     expect(publicProfile).toContain('eyebrow: "Work With Me"');
     expect(publicProfile).toContain("<PublicRecommendations recommendations={card.recommendations} />");
-    expect(publicProfile).toContain("card.approvedWalletTestimonialCount > 0 || card.reviews.length > 0");
+    expect(publicProfile).toContain("<PublicCircleTrustPanel");
   });
 });

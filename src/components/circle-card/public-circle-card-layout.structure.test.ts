@@ -38,7 +38,7 @@ describe("public Circle Card layout wiring", () => {
     expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !booking');
     expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.openingHours');
     expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.galleryItems.length');
-    expect(publicProfile).toContain('card.cardType !== "BUSINESS" || !card.reviews.length');
+    expect(publicProfile).toContain('card.cardType !== "BUSINESS" && card.cardType !== "CREATOR"');
   });
 
   it("uses Creator cardType for Creator dashboard tooling", () => {

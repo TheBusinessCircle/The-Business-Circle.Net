@@ -42,6 +42,8 @@ export * from "@/components/circle-card/circle-card-theme-fields";
 export * from "@/components/circle-card/circle-card-tracked-link";
 export * from "@/components/circle-card/circle-card-visibility-control";
 export * from "@/components/circle-card/circle-card-wallet-testimonial-form";
+export * from "@/components/circle-card/circle-trust-owner-moderation";
 export * from "@/components/circle-card/public-circle-card-profile";
 export * from "@/components/circle-card/public-circle-card-gallery";
 export * from "@/components/circle-card/public-circle-card-reviews";
+export * from "@/components/circle-card/public-circle-trust-panel";
