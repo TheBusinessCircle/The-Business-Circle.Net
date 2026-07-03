@@ -2578,6 +2578,7 @@ export function PublicCircleCardProfile({
         trust={card.trust}
         slug={card.slug}
         testimonialHref={testimonialHref}
+        creator={card.cardType === "CREATOR"}
       />
     );
   }
@@ -2946,6 +2947,9 @@ export function PublicCircleCardProfile({
                     <span className="rounded-full border border-silver/14 bg-white/[0.05] px-3 py-1.5 text-xs text-silver">
                       {viewLabel}
                     </span>
+                    <Link href={`/card/${card.slug}/trust`} className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/22 bg-cyan-300/[0.07] px-3 py-1.5 text-xs font-semibold text-cyan-100 transition-colors hover:border-cyan-300/38 hover:bg-cyan-300/[0.11]">
+                      <ShieldCheck size={13} aria-hidden="true" /> Circle Trust {card.trust.score}
+                    </Link>
                   </div>
 
                   <h1 className="mt-5 font-display text-4xl font-semibold leading-tight text-foreground sm:text-6xl lg:text-7xl">
@@ -3110,8 +3114,8 @@ export function PublicCircleCardProfile({
               : null}
             {renderFeaturedLinksSection({
               id: "creator-featured-links",
-              eyebrow: "Work With Me",
-              heading: `Connect with ${creatorFirstName}`,
+              eyebrow: "Ways To Work Together",
+              heading: `Work with ${creatorFirstName}`,
               description: "Explore selected links, communities and ways to work together.",
               source: "creator_featured_card"
             })}

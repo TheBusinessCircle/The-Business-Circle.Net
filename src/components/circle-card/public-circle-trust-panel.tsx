@@ -10,13 +10,15 @@ type PublicCircleTrustPanelProps = {
   slug: string;
   testimonialHref?: string | null;
   showLatestTestimonials?: boolean;
+  creator?: boolean;
 };
 
 export function PublicCircleTrustPanel({
   trust,
   slug,
   testimonialHref,
-  showLatestTestimonials = true
+  showLatestTestimonials = true,
+  creator = false
 }: PublicCircleTrustPanelProps) {
   const latestTestimonials = trust.latestVerifiedTestimonials.slice(0, 2);
 
@@ -24,11 +26,16 @@ export function PublicCircleTrustPanel({
     <section
       id="circle-card-trust"
       aria-labelledby="circle-card-trust-title"
-      className="scroll-mt-24 overflow-hidden rounded-[1.75rem] border border-gold/24 bg-[radial-gradient(circle_at_top_right,rgba(212,175,95,0.11),transparent_34%),linear-gradient(145deg,rgba(12,25,32,0.94),rgba(4,10,24,0.98))] p-5 shadow-panel-soft sm:p-6"
+      className={cn(
+        "scroll-mt-24 overflow-hidden rounded-[1.75rem] border p-5 shadow-panel-soft sm:p-6",
+        creator
+          ? "border-cyan-300/22 bg-[radial-gradient(circle_at_12%_0%,rgba(34,211,238,0.12),transparent_34%),radial-gradient(circle_at_90%_10%,rgba(212,175,95,0.1),transparent_32%),linear-gradient(145deg,rgba(9,22,39,0.96),rgba(4,10,24,0.99))]"
+          : "border-gold/24 bg-[radial-gradient(circle_at_top_right,rgba(212,175,95,0.11),transparent_34%),linear-gradient(145deg,rgba(12,25,32,0.94),rgba(4,10,24,0.98))]"
+      )}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-gold">Circle Trust</p>
+          <p className={cn("text-xs font-medium uppercase tracking-[0.12em]", creator ? "text-cyan-200" : "text-gold")}>Circle Trust</p>
           <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-1">
             <h2 id="circle-card-trust-title" className="font-display text-5xl font-semibold leading-none text-foreground sm:text-6xl">
               {trust.score}
@@ -42,9 +49,9 @@ export function PublicCircleTrustPanel({
         </span>
       </div>
 
-      <details className="group mt-5 rounded-2xl border border-silver/14 bg-white/[0.035]" open>
+      <details className="group mt-5 rounded-2xl border border-silver/14 bg-white/[0.035]">
         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-          <span>Trust Signals</span>
+          <span>Built from</span>
           <span className="flex items-center gap-2 text-xs font-normal text-muted">
             {trust.signals.length}
             <ChevronDown size={15} className="transition-transform group-open:rotate-180" />
@@ -62,6 +69,9 @@ export function PublicCircleTrustPanel({
               </div>
             </div>
           ))}
+          {!trust.signals.length ? (
+            <p className="rounded-xl border border-silver/10 bg-background/24 p-3 text-xs leading-relaxed text-muted sm:col-span-2">No public trust signals have been recorded yet.</p>
+          ) : null}
         </div>
       </details>
 

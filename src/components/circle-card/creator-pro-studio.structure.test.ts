@@ -61,7 +61,7 @@ describe("Creator Pro Studio foundation", () => {
   it("uses real Creator data and suppresses empty public sections", () => {
     expect(publicProfile).toContain("creatorSocialRows.length");
     expect(publicProfile).toContain('heading: "Creator platforms & community"');
-    expect(publicProfile).toContain('eyebrow: "Work With Me"');
+    expect(publicProfile).toContain('eyebrow: "Ways To Work Together"');
     expect(publicProfile).toContain("<PublicRecommendations recommendations={card.recommendations} />");
     expect(publicProfile).toContain("<PublicCircleTrustPanel");
   });

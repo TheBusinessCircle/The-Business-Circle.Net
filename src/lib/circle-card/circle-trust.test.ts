@@ -14,11 +14,12 @@ const card = {
   phone: null,
   location: "London",
   isPublished: true,
-  archivedAt: null
+  archivedAt: null,
+  hasHistoricalActivity: true
 };
 
 describe("Circle Trust V1", () => {
-  it("uses one point per verified relationship signal and does not weight ratings", () => {
+  it("backfills verified relationships and completed historical platform signals", () => {
     const trust = buildCircleTrustSummary({
       card,
       owner: {
@@ -51,7 +52,7 @@ describe("Circle Trust V1", () => {
       manualTestimonialCount: 4
     });
 
-    expect(trust.score).toBe(5);
+    expect(trust.score).toBe(11);
     expect(trust.manualTestimonialCount).toBe(4);
     expect(trust.signals.map((signal) => signal.id)).toEqual([
       "verified-connections",
@@ -60,8 +61,10 @@ describe("Circle Trust V1", () => {
       "active-profile",
       "profile-complete",
       "verified-account-email",
+      "website-added",
       "bcn-member"
     ]);
+    expect(trust.signals.find((signal) => signal.id === "verified-testimonials")?.scoreContribution).toBe(2);
   });
 
   it("shows only signals supported by stored state", () => {
@@ -72,7 +75,8 @@ describe("Circle Trust V1", () => {
         role: null,
         profileImageUrl: null,
         websiteUrl: null,
-        location: null
+        location: null,
+        hasHistoricalActivity: false
       },
       owner: {
         role: "MEMBER",
@@ -85,10 +89,10 @@ describe("Circle Trust V1", () => {
       manualTestimonialCount: 0
     });
 
-    expect(trust.score).toBe(0);
     expect(trust.signals.map((signal) => signal.id)).toEqual([
-      "published-circle-card",
-      "active-profile"
+      "published-circle-card"
     ]);
+    expect(trust.score).toBe(1);
+    expect(trust.availableSignals.map((signal) => signal.id)).toContain("verified-account-email");
   });
 });

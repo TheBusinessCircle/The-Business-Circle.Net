@@ -121,6 +121,7 @@ import {
   CircleCardTrackedLink,
   CircleCardSmartLinkFields,
   CircleCardThemeFields,
+  CircleTrustProgressPanel,
   CircleCardVisibilityCheckbox,
   CircleCardVisibilityToggle,
   CircleCardWalletTestimonialForm,
@@ -193,6 +194,11 @@ import {
   calculateBusinessProfileCompletion,
   type BusinessProfileCompletionItemId
 } from "@/lib/circle-card/business-profile-completion";
+import {
+  buildCircleTrustSummary,
+  type CircleTrustSummary,
+  type CircleTrustTestimonial
+} from "@/lib/circle-card/circle-trust";
 import {
   calculateCreatorProfileCompletion,
   resolveCreatorStudioMode,
@@ -1602,6 +1608,8 @@ function BusinessCardBuilderFoundation({
   reviews,
   pendingWalletTestimonials,
   approvedWalletTestimonialCount,
+  trust,
+  hasProAccess,
   openingHoursMode,
   openingHours,
   businessName,
@@ -1639,6 +1647,8 @@ function BusinessCardBuilderFoundation({
   reviews: CircleCardReviewItem[];
   pendingWalletTestimonials: CircleCardPendingWalletTestimonial[];
   approvedWalletTestimonialCount: number;
+  trust: CircleTrustSummary;
+  hasProAccess: boolean;
   openingHoursMode: CircleCardOpeningHoursBuilderMode;
   openingHours: CircleCardOpeningHours | null;
   businessName?: string | null;
@@ -1901,25 +1911,36 @@ function BusinessCardBuilderFoundation({
         </Badge>
       }
     >
+      <CircleTrustProgressPanel
+        trust={trust}
+        cardId={cardId}
+        cardType="BUSINESS"
+        hasProAccess={hasProAccess}
+        publicUrl={publicUrl}
+      />
+
       {locked ? (
-        <div className="space-y-3">
-        <div className="rounded-2xl border border-gold/24 bg-gold/10 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
-                Business Card Builder is a Pro feature.
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-muted">
-                Free keeps your personal identity card, 5 featured links and basic analytics. Pro prepares a
-                second business card with services, products, stronger customisation and deeper insight.
-              </p>
+        <div className="mt-4 space-y-3">
+          <div className="rounded-2xl border border-gold/24 bg-gold/10 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  Business Card Builder is a Pro feature.
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  Free keeps your personal identity card, 5 featured links and basic analytics. Pro prepares a
+                  second business card with services, products, stronger customisation and deeper insight.
+                </p>
+                <p className="mt-2 text-xs font-medium text-gold">
+                  Completing these modules helps strengthen your Circle Trust. Pro access does not add points by itself.
+                </p>
+              </div>
+              <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 sm:w-auto")}>
+                Explore Pro
+                <ArrowUpRight size={16} />
+              </Link>
             </div>
-            <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 sm:w-auto")}>
-              Explore Pro
-              <ArrowUpRight size={16} />
-            </Link>
           </div>
-        </div>
         <CircleCardServicesBuilder
           mode={servicesMode}
           cardId={cardId}
@@ -1978,7 +1999,7 @@ function BusinessCardBuilderFoundation({
         />
         </div>
       ) : (
-        <div className="space-y-4 pb-16 sm:pb-0">
+        <div className="mt-4 space-y-4 pb-16 sm:pb-0">
           <div className="rounded-2xl border border-gold/20 bg-gold/8 p-4">
             <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
               Builder for: {businessName || "Selected Business Card"}
@@ -2291,6 +2312,7 @@ function CreatorProStudio({
   activeFeaturedLinkCount,
   activeLinkTypes,
   creatorTrustSignalCount,
+  trust,
   featuredContentItems,
   mediaKit,
   audienceSnapshot,
@@ -2311,6 +2333,7 @@ function CreatorProStudio({
   activeFeaturedLinkCount: number;
   activeLinkTypes: string[];
   creatorTrustSignalCount: number;
+  trust: CircleTrustSummary;
   featuredContentItems: ReturnType<typeof readCircleCardFeaturedContentItems>;
   mediaKit: ReturnType<typeof readCircleCardMediaKit>;
   audienceSnapshot: ReturnType<typeof readCircleCardAudienceSnapshot>;
@@ -2522,6 +2545,14 @@ function CreatorProStudio({
           </div>
         </section>
 
+        <CircleTrustProgressPanel
+          trust={trust}
+          cardId={cardId}
+          cardType="CREATOR"
+          hasProAccess={!locked}
+          publicUrl={publicUrl}
+        />
+
         {locked ? (
           <div className="rounded-2xl border border-gold/22 bg-gold/8 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2556,6 +2587,7 @@ function CreatorProStudio({
                   <span className="mt-1 text-base font-semibold text-foreground">{module.name}</span>
                   <span className="mt-2 text-xs font-semibold text-silver">{module.metric}</span>
                   <span className="mt-1 text-sm leading-relaxed text-muted">{module.benefit}</span>
+                  {locked && !availableOnFree ? <span className="mt-2 text-xs leading-relaxed text-gold">Completing this module helps strengthen your Circle Trust.</span> : null}
                   <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && !availableOnFree ? "Unlock with Pro" : module.action}{module.href && (!locked || availableOnFree) ? <ArrowUpRight size={13} /> : null}</span>
                 </>
               );
@@ -3685,12 +3717,19 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             testimonialText: true,
             rating: true,
             relationship: true,
+            walletVerifiedAt: true,
             createdAt: true
           }
         },
         recommendationsReceived: {
           where: { visibility: "PUBLIC", status: "ACTIVE" },
           select: { id: true }
+        },
+        _count: {
+          select: {
+            activities: true,
+            events: true
+          }
         }
       }
     }),
@@ -5329,10 +5368,58 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedCardBrandPartnerships = card?.cardType === "CREATOR"
     ? readCircleCardBrandPartnerships(card.contentBlocks)
     : [];
+  const selectedCardVerifiedTestimonials: CircleTrustTestimonial[] = card
+    ? card.walletTestimonialsReceived
+      .filter((testimonial) => testimonial.status === "APPROVED")
+      .map((testimonial) => ({
+        id: testimonial.id,
+        reviewerName: testimonial.reviewerName,
+        reviewerRoleOrCompany: testimonial.reviewerRoleOrCompany,
+        testimonialText: testimonial.testimonialText,
+        rating: testimonial.rating,
+        relationship: testimonial.relationship,
+        verifiedAt: testimonial.walletVerifiedAt
+      }))
+    : [];
+  const selectedCardVerifiedConnectionCount = card
+    ? connectionRequests.filter(
+      (request) => request.status === "ACCEPTED" &&
+        (request.requesterCardId === card.id || request.recipientCardId === card.id)
+    ).length
+    : 0;
+  const selectedCardTrust = card
+    ? buildCircleTrustSummary({
+      card: {
+        fullName: card.fullName,
+        businessName: card.businessName,
+        role: card.role,
+        tagline: card.tagline,
+        about: card.about,
+        profileImageUrl: card.profileImageUrl,
+        businessLogoUrl: card.businessLogoUrl,
+        websiteUrl: card.websiteUrl,
+        email: card.email,
+        phone: card.phone,
+        location: card.location,
+        isPublished: card.isPublished,
+        archivedAt: card.archivedAt,
+        hasHistoricalActivity:
+          card.viewCount > 0 || card._count.activities > 0 || card._count.events > 0
+      },
+      owner: {
+        role: session.user.role,
+        emailVerified: session.user.emailVerified,
+        foundingMember: session.user.foundingMember,
+        hasActiveSubscription: session.user.hasActiveSubscription
+      },
+      verifiedConnectionCount: selectedCardVerifiedConnectionCount,
+      verifiedTestimonials: selectedCardVerifiedTestimonials,
+      manualTestimonialCount:
+        card.cardType === "BUSINESS" ? readCircleCardReviewItems(card.contentBlocks).length : 0
+    })
+    : null;
   const selectedCardCreatorTrustSignalCount = card?.cardType === "CREATOR"
-    ? card.recommendationsReceived.length + card.walletTestimonialsReceived.filter(
-        (testimonial) => testimonial.status === "APPROVED"
-      ).length
+    ? selectedCardTrust?.signals.length ?? 0
     : 0;
   const showBusinessCardBuilder =
     servicesBuilderMode !== "hidden" ||
@@ -9217,7 +9304,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </aside>
       </div>
 
-      {card && showBusinessCardBuilder ? (
+      {card && selectedCardTrust && showBusinessCardBuilder ? (
         <BusinessCardBuilderFoundation
           access={businessBuilderAccess}
           previewLabel={businessBuilderPreviewLabel}
@@ -9242,6 +9329,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           reviews={selectedCardReviews}
           pendingWalletTestimonials={selectedCardPendingWalletTestimonials}
           approvedWalletTestimonialCount={selectedCardApprovedWalletTestimonialCount}
+          trust={selectedCardTrust}
+          hasProAccess={!isCircleCardFree}
           openingHoursMode={openingHoursBuilderMode}
           openingHours={selectedCardOpeningHours}
           businessName={card.businessName}
@@ -9258,7 +9347,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         />
       ) : null}
 
-      {card && creatorStudioMode !== "hidden" ? (
+      {card && selectedCardTrust && creatorStudioMode !== "hidden" ? (
         <CreatorProStudio
           mode={creatorStudioMode}
           entitlementLabel={circleCardEntitlement.label}
@@ -9271,6 +9360,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           activeFeaturedLinkCount={activeCustomLinkCount}
           activeLinkTypes={customLinks.filter((link) => link.isActive).map((link) => link.type)}
           creatorTrustSignalCount={selectedCardCreatorTrustSignalCount}
+          trust={selectedCardTrust}
           featuredContentItems={selectedCardFeaturedContentItems}
           creatorOffers={selectedCardCreatorOffers}
           pressProofItems={selectedCardPressProofItems}

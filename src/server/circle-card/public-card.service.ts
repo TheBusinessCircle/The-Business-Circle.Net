@@ -231,11 +231,12 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   trust: {
     version: 1,
     score: 0,
-    summary: "Building Circle Trust through verified connections and testimonials.",
+    summary: "Build Circle Trust through verified relationships and completed platform trust signals.",
     verifiedConnectionCount: 0,
     verifiedTestimonialCount: 0,
     manualTestimonialCount: 0,
     signals: [],
+    availableSignals: [],
     latestVerifiedTestimonials: []
   },
   openingHours: null,
@@ -422,7 +423,9 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
               visibility: "PUBLIC_SUCCESS",
               status: "WON"
             }
-          }
+          },
+          activities: true,
+          events: true
         }
       },
       viewCount: true,
@@ -664,7 +667,9 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       phone: card.phone,
       location: card.location,
       isPublished: card.isPublished,
-      archivedAt: card.archivedAt
+      archivedAt: card.archivedAt,
+      hasHistoricalActivity:
+        card.viewCount > 0 || card._count.activities > 0 || card._count.events > 0
     },
     owner: {
       role: card.user.role,

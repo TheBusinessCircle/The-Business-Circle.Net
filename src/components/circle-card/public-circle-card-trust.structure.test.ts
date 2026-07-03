@@ -54,14 +54,15 @@ describe("public Circle Card trust journey", () => {
     expect(profile).toContain("testimonialFlowHref");
   });
 
-  it("uses an unweighted V1 score and exposes a dedicated expansion-safe trust page", () => {
-    expect(trustDomain).toContain("verifiedConnectionCount + verifiedTestimonialCount");
+  it("uses transparent one-point historical signals and exposes a dedicated trust page", () => {
+    expect(trustDomain).toContain("signals.reduce");
+    expect(trustDomain).toContain("availableSignals");
     expect(trustPage).toContain("Trust Summary");
     expect(trustPage).toContain("Verified Testimonials");
     expect(trustPage).toContain("Verified Connections");
     expect(trustPage).toContain("Trust Signals");
-    expect(trustPage).toContain("Trust Timeline");
-    expect(trustPage).toContain("Achievements");
+    expect(trustPage).not.toContain("Trust Timeline");
+    expect(trustPage).not.toContain("Achievements");
     expect(trustPage).toContain("do not reduce Circle Trust before a moderation decision");
   });
 

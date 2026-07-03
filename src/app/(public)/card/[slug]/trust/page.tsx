@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Clock3, LockKeyhole, ShieldCheck, Sparkles, Star, Users } from "lucide-react";
+import { ArrowLeft, CheckCircle2, LockKeyhole, ShieldCheck, Star, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { CircleCardReportForm } from "@/components/circle-card/circle-card-report-form";
 import { CircleTrustOwnerModeration } from "@/components/circle-card/circle-trust-owner-moderation";
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = `${card.fullName} | Circle Trust`;
-  const description = `Circle Trust for ${card.fullName}, built from verified Circle Card connections and testimonials.`;
+  const description = `Circle Trust for ${card.fullName}, built from verified relationships and completed platform trust signals.`;
   return {
     ...CIRCLE_CARD_PWA_METADATA,
     metadataBase: new URL(SITE_CONFIG.url),
@@ -121,6 +121,7 @@ export default async function CircleTrustPage({ params }: PageProps) {
         <section aria-labelledby="trust-signals-title" className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6">
           <p className="text-xs font-medium uppercase tracking-[0.1em] text-gold">Trust Signals</p>
           <h2 id="trust-signals-title" className="mt-2 font-display text-2xl text-foreground">Signals supported by platform data</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">Each verified relationship contributes one point. Each completed platform trust signal contributes one point. Ratings and owner-managed testimonials do not change the score.</p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {card.trust.signals.map((signal) => (
               <article key={signal.id} className="rounded-2xl border border-silver/12 bg-background/24 p-4">
@@ -129,6 +130,7 @@ export default async function CircleTrustPage({ params }: PageProps) {
                 <p className="mt-2 text-xs leading-relaxed text-muted">{signal.description}</p>
               </article>
             ))}
+            {!card.trust.signals.length ? <p className="rounded-2xl border border-dashed border-silver/16 bg-background/18 p-4 text-sm text-muted sm:col-span-2 lg:col-span-3">No completed public trust signals have been recorded yet.</p> : null}
           </div>
         </section>
 
@@ -159,19 +161,6 @@ export default async function CircleTrustPage({ params }: PageProps) {
             <p className="mt-4 rounded-2xl border border-dashed border-silver/16 bg-background/18 p-4 text-sm text-muted">Building Circle Trust. No verified testimonials are public yet.</p>
           )}
         </section>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <section aria-labelledby="future-timeline-title" className="rounded-[1.5rem] border border-dashed border-silver/16 bg-white/[0.025] p-5">
-            <Clock3 size={18} className="text-silver" />
-            <h2 id="future-timeline-title" className="mt-3 text-base font-semibold text-foreground">Trust Timeline</h2>
-            <p className="mt-2 text-sm text-muted">Reserved for a future Circle Trust release.</p>
-          </section>
-          <section aria-labelledby="future-achievements-title" className="rounded-[1.5rem] border border-dashed border-silver/16 bg-white/[0.025] p-5">
-            <Sparkles size={18} className="text-silver" />
-            <h2 id="future-achievements-title" className="mt-3 text-base font-semibold text-foreground">Achievements</h2>
-            <p className="mt-2 text-sm text-muted">Reserved for a future Circle Trust release.</p>
-          </section>
-        </div>
 
         {!card.isDemo ? (
           <section aria-labelledby="trust-concern-title" className="rounded-[1.5rem] border border-silver/12 bg-white/[0.025] p-5">
