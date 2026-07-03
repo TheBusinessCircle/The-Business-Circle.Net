@@ -110,6 +110,7 @@ export type PublicCircleCard = {
   cardType: CircleCardType;
   displayOrder: number;
   isDefaultCard: boolean;
+  createdAt: Date;
   fullName: string;
   businessName: string | null;
   accountType: CircleCardAccountType | null;
@@ -177,6 +178,7 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
   cardType: "PERSONAL",
   displayOrder: 0,
   isDefaultCard: true,
+  createdAt: new Date("2026-06-01T09:00:00.000Z"),
   fullName: "Trev Clarke",
   businessName: "The Business Circle",
   accountType: "FOUNDER",
@@ -237,7 +239,8 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     manualTestimonialCount: 0,
     signals: [],
     availableSignals: [],
-    latestVerifiedTestimonials: []
+    latestVerifiedTestimonials: [],
+    timeline: []
   },
   openingHours: null,
   customLinks: [
@@ -314,6 +317,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       cardType: true,
       displayOrder: true,
       isDefaultCard: true,
+      createdAt: true,
       fullName: true,
       businessName: true,
       accountType: true,
@@ -372,6 +376,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       walletTestimonialsReceived: {
         where: { status: "APPROVED" },
         orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }],
+        take: 24,
         select: {
           id: true,
           reviewerName: true,
@@ -379,7 +384,30 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           testimonialText: true,
           rating: true,
           relationship: true,
-          walletVerifiedAt: true
+          walletVerifiedAt: true,
+          reviewerUser: {
+            select: { image: true }
+          }
+        }
+      },
+      connectionRequestsSent: {
+        where: { status: "ACCEPTED" },
+        orderBy: [{ respondedAt: "desc" }, { createdAt: "desc" }],
+        take: 12,
+        select: {
+          id: true,
+          createdAt: true,
+          respondedAt: true
+        }
+      },
+      connectionRequestsReceived: {
+        where: { status: "ACCEPTED" },
+        orderBy: [{ respondedAt: "desc" }, { createdAt: "desc" }],
+        take: 12,
+        select: {
+          id: true,
+          createdAt: true,
+          respondedAt: true
         }
       },
       recommendationsReceived: {
@@ -435,6 +463,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
           membershipTier: true,
           foundingTier: true,
           foundingMember: true,
+          foundingClaimedAt: true,
           emailVerified: true,
           subscription: {
             select: {
@@ -642,6 +671,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     (testimonial) => ({
       id: testimonial.id,
       reviewerName: testimonial.reviewerName,
+      reviewerImageUrl: testimonial.reviewerUser.image,
       reviewerRoleOrCompany: testimonial.reviewerRoleOrCompany,
       testimonialText: testimonial.testimonialText,
       rating: testimonial.rating,
@@ -653,6 +683,20 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     card.user.role === "ADMIN"
       ? true
       : hasEntitledSubscription(card.user.subscription?.status ?? null);
+  const verifiedConnectionEvents = [
+    ...card.connectionRequestsSent.map((connection) => ({
+      id: connection.id,
+      connectionName: null,
+      connectionBusinessName: null,
+      verifiedAt: connection.respondedAt ?? connection.createdAt
+    })),
+    ...card.connectionRequestsReceived.map((connection) => ({
+      id: connection.id,
+      connectionName: null,
+      connectionBusinessName: null,
+      verifiedAt: connection.respondedAt ?? connection.createdAt
+    }))
+  ];
   const trust = buildCircleTrustSummary({
     card: {
       fullName: card.fullName,
@@ -668,6 +712,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       location: card.location,
       isPublished: card.isPublished,
       archivedAt: card.archivedAt,
+      createdAt: card.createdAt,
       hasHistoricalActivity:
         card.viewCount > 0 || card._count.activities > 0 || card._count.events > 0
     },
@@ -675,17 +720,27 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       role: card.user.role,
       emailVerified: card.user.emailVerified,
       foundingMember: card.user.foundingMember,
+      foundingClaimedAt: card.user.foundingClaimedAt,
       hasActiveSubscription
     },
     verifiedConnectionCount:
       card._count.connectionRequestsSent + card._count.connectionRequestsReceived,
+    verifiedConnectionEvents,
     verifiedTestimonials,
     manualTestimonialCount: manualReviews.length
   });
   const trustScore = trust.score;
-  const { contentBlocks, walletTestimonialsReceived, ...publicCard } = card;
+  const {
+    contentBlocks,
+    walletTestimonialsReceived,
+    connectionRequestsSent,
+    connectionRequestsReceived,
+    ...publicCard
+  } = card;
   void contentBlocks;
   void walletTestimonialsReceived;
+  void connectionRequestsSent;
+  void connectionRequestsReceived;
   const [profileImageUrl, businessLogoUrl] = await Promise.all([
     resolvePublicUploadImageUrl(card.profileImageUrl, SITE_CONFIG.url),
     resolvePublicUploadImageUrl(card.businessLogoUrl, SITE_CONFIG.url)

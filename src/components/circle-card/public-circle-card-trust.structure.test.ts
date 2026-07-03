@@ -46,7 +46,8 @@ describe("public Circle Card trust journey", () => {
   it("renders honest trust score content and both public testimonial entry points", () => {
     expect(profile).toContain("<PublicCircleTrustPanel");
     expect(trustPanel).toContain('id="circle-card-trust"');
-    expect(trustPanel).toContain("Help build my Circle Trust");
+    expect(trustPanel).toContain("Trusted by my Circle");
+    expect(trustPanel).toContain("Build their Circle Trust");
     expect(trustPanel).not.toContain("average rating");
     expect(profile).toContain('id="circle-card-testimonial"');
     expect(profile).toContain("Already connected? Share your experience.");
@@ -61,8 +62,11 @@ describe("public Circle Card trust journey", () => {
     expect(trustPage).toContain("Verified Testimonials");
     expect(trustPage).toContain("Verified Connections");
     expect(trustPage).toContain("Trust Signals");
-    expect(trustPage).not.toContain("Trust Timeline");
+    expect(trustPage).toContain("Trust Timeline");
     expect(trustPage).not.toContain("Achievements");
+    expect(trustPage).toContain("circle-card-public-theme");
+    expect(trustPage).toContain("buildCircleCardThemeStyle");
+    expect(trustPage).toContain("Circle Trust by Circle Card");
     expect(trustPage).toContain("do not reduce Circle Trust before a moderation decision");
   });
 
@@ -76,10 +80,10 @@ describe("public Circle Card trust journey", () => {
     expect(dashboard).toContain('if (value === "wallet")');
     expect(walletForm).toContain("initialTargetCardId");
     expect(walletForm).toContain("hasPendingTestimonial");
-    expect(walletForm).toContain("You’ve already sent a testimonial for approval.");
-    expect(directFlow).toContain("Leave a testimonial for ${targetName}");
+    expect(walletForm).toContain("You’ve already sent a trust signal for approval.");
+    expect(directFlow).toContain("Leave a Trust Signal for ${targetName}");
     expect(directFlow).toContain("Save to wallet and continue");
-    expect(directFlow).toContain("You cannot leave a testimonial for your own card.");
+    expect(directFlow).toContain("You cannot leave a trust signal for your own card.");
     expect(directFlow).toContain("initialTargetCardId={selectedContact?.targetCardId ?? \"\"}");
   });
 
@@ -92,6 +96,8 @@ describe("public Circle Card trust journey", () => {
 
   it("publishes approved wallet proof only and keeps pending or rejected proof private", () => {
     expect(publicService).toContain('where: { status: "APPROVED" }');
+    expect(publicService).toContain('status: "ACCEPTED"');
+    expect(publicService).toContain("reviewerUser");
     expect(publicService).toContain("averageWalletTestimonialRating");
     expect(publicService).not.toContain('where: { status: "REJECTED" }');
   });

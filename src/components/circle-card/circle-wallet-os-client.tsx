@@ -809,8 +809,8 @@ export function CircleWalletOsClient({
             </span>
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Trust network</p>
-              <h2 className="mt-1 font-display text-2xl font-semibold text-foreground">Leave a testimonial</h2>
-              <p className="mt-1 text-sm text-muted">Search your wallet to leave a testimonial.</p>
+              <h2 className="mt-1 font-display text-2xl font-semibold text-foreground">Leave a Trust Signal</h2>
+              <p className="mt-1 text-sm text-muted">Search your wallet to leave a verified trust signal.</p>
             </div>
           </div>
           <CircleCardWalletTestimonialForm contacts={testimonialContacts} />

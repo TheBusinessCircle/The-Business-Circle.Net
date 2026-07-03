@@ -12,6 +12,7 @@ import {
 import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-about-expander";
 import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
 import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-install-prompt";
+import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
 import { CircleCardPrivateLinkAction } from "@/components/circle-card/circle-card-private-link-action";
 import { PublicCircleCardGallery } from "@/components/circle-card/public-circle-card-gallery";
 import { PublicCircleCardReviews } from "@/components/circle-card/public-circle-card-reviews";
@@ -186,8 +187,6 @@ const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
   { key: "podcast", label: "Podcast", icon: Podcast },
   { key: "other", label: "Other", icon: LinkIcon }
 ] as const;
-
-const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
 
 const primaryActionClassName =
   "h-12 w-full rounded-2xl border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-button-bg)] text-[var(--cc-theme-button-text)] shadow-[var(--cc-theme-button-shadow)] hover:border-gold/70 hover:brightness-110";
@@ -512,19 +511,6 @@ function membershipBadgeLabel(card: PublicCircleCard, ownerIsBcnMember: boolean)
   }
 
   return "BCN Foundation";
-}
-
-function CircleCardLogoMark({ className, alt = "" }: { className?: string; alt?: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold/45 bg-[#061126] shadow-[0_0_30px_hsl(var(--cc-theme-primary-hsl)/0.24)]",
-        className
-      )}
-    >
-      <img src={CIRCLE_CARD_LOGO_SRC} alt={alt} className="h-full w-full object-cover" />
-    </span>
-  );
 }
 
 type PremiumBadgeProps = {
@@ -2602,7 +2588,7 @@ export function PublicCircleCardProfile({
           <div className="min-w-0">
             <p className="text-xs font-medium text-gold">Verified Trust</p>
             <h2 id="circle-card-testimonial-title" className="mt-1 font-display text-2xl text-foreground">
-              Help build my Circle Trust
+              Leave a Trust Signal
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
               Already connected? Share your experience.
@@ -2613,7 +2599,7 @@ export function PublicCircleCardProfile({
             className={cn(buttonVariants(), "shrink-0 gap-2")}
           >
             <ShieldCheck size={16} />
-            Help build my Circle Trust
+              Build their Circle Trust
           </Link>
         </div>
       </section>

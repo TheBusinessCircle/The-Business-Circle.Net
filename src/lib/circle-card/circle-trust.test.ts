@@ -15,7 +15,8 @@ const card = {
   location: "London",
   isPublished: true,
   archivedAt: null,
-  hasHistoricalActivity: true
+  hasHistoricalActivity: true,
+  createdAt: new Date("2025-12-01")
 };
 
 describe("Circle Trust V1", () => {
@@ -29,6 +30,14 @@ describe("Circle Trust V1", () => {
         hasActiveSubscription: true
       },
       verifiedConnectionCount: 3,
+      verifiedConnectionEvents: [
+        {
+          id: "connection-one",
+          connectionName: "Taylor",
+          connectionBusinessName: "Clear Works",
+          verifiedAt: new Date("2026-01-04")
+        }
+      ],
       verifiedTestimonials: [
         {
           id: "one",
@@ -65,6 +74,8 @@ describe("Circle Trust V1", () => {
       "bcn-member"
     ]);
     expect(trust.signals.find((signal) => signal.id === "verified-testimonials")?.scoreContribution).toBe(2);
+    expect(trust.timeline[0]?.title).toBe("Taylor joined their trusted Circle");
+    expect(trust.timeline.map((event) => event.kind)).toContain("TESTIMONIAL");
   });
 
   it("shows only signals supported by stored state", () => {

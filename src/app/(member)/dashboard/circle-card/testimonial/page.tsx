@@ -18,7 +18,7 @@ import { requireCircleCardUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
-  title: "Leave a testimonial",
+  title: "Leave a Trust Signal",
   description: "Leave trusted feedback for a Circle Card saved in your Wallet.",
   path: "/dashboard/circle-card/testimonial",
   noIndex: true
@@ -127,12 +127,12 @@ export default async function CircleCardTestimonialPage({ searchParams }: PagePr
                   Circle Card trust network
                 </p>
                 <CardTitle className="mt-1 font-display text-2xl sm:text-3xl">
-                  {targetCardId ? `Leave a testimonial for ${targetName}` : "Leave a testimonial"}
+                  {targetCardId ? `Leave a Trust Signal for ${targetName}` : "Leave a Trust Signal"}
                 </CardTitle>
                 <p className="mt-2 text-sm leading-relaxed text-muted">
                   {targetCardId
-                    ? "Your testimonial will be sent privately for approval before it appears publicly."
-                    : "Search your wallet to leave a testimonial."}
+                    ? "Your trust signal will be sent privately for approval before it appears publicly."
+                    : "Search your wallet to leave a verified trust signal."}
                 </p>
               </div>
             </div>
@@ -140,13 +140,13 @@ export default async function CircleCardTestimonialPage({ searchParams }: PagePr
           <CardContent className="p-4 sm:p-6">
             {notice === "card-saved" || notice === "card-already-saved" ? (
               <p className="mb-4 rounded-xl border border-emerald-400/24 bg-emerald-400/10 p-3 text-sm text-emerald-100">
-                Circle Card saved. You can leave your testimonial now.
+                Circle Card saved. You can leave your trust signal now.
               </p>
             ) : null}
 
             {targetCardId && isOwnCard ? (
               <div className="rounded-2xl border border-gold/24 bg-gold/10 p-5">
-                <p className="font-semibold text-foreground">You cannot leave a testimonial for your own card.</p>
+                <p className="font-semibold text-foreground">You cannot leave a trust signal for your own card.</p>
               </div>
             ) : targetCardId && !targetCard ? (
               <div className="rounded-2xl border border-silver/18 bg-background/24 p-5">
@@ -154,8 +154,8 @@ export default async function CircleCardTestimonialPage({ searchParams }: PagePr
               </div>
             ) : targetCardId && !targetIsEligible ? (
               <div className="rounded-2xl border border-silver/18 bg-background/24 p-5">
-                <p className="font-semibold text-foreground">This Circle Card cannot receive testimonials.</p>
-                <p className="mt-2 text-sm text-muted">Only live Business or Creator Circle Cards can receive wallet testimonials.</p>
+                <p className="font-semibold text-foreground">This Circle Card cannot receive trust signals.</p>
+                <p className="mt-2 text-sm text-muted">Only live Business or Creator Circle Cards can receive Wallet trust signals.</p>
               </div>
             ) : targetCardId && !selectedContact && targetCard ? (
               <div className="rounded-2xl border border-gold/24 bg-gold/10 p-5">
@@ -163,9 +163,9 @@ export default async function CircleCardTestimonialPage({ searchParams }: PagePr
                   <ShieldCheck size={20} className="mt-0.5 shrink-0 text-gold" />
                   <div>
                     <p className="font-semibold text-foreground">
-                      Save this Circle Card to your wallet before leaving a testimonial.
+                      Save this Circle Card to your wallet before leaving a trust signal.
                     </p>
-                    <p className="mt-2 text-sm text-muted">This confirms the testimonial comes through a saved Circle Card relationship.</p>
+                    <p className="mt-2 text-sm text-muted">This confirms the trust signal comes through a saved Circle Card relationship.</p>
                   </div>
                 </div>
                 <form action={saveCircleWalletContactAction} className="mt-5">

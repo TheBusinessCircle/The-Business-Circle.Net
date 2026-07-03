@@ -26,11 +26,21 @@ export type CircleTrustOpportunity = {
 export type CircleTrustTestimonial = {
   id: string;
   reviewerName: string;
+  reviewerImageUrl?: string | null;
   reviewerRoleOrCompany: string | null;
   testimonialText: string;
   rating: number | null;
   relationship: string | null;
   verifiedAt: Date;
+};
+
+export type CircleTrustTimelineEvent = {
+  id: string;
+  kind: "CONNECTION" | "TESTIMONIAL" | "VERIFICATION" | "PROFILE";
+  title: string;
+  description: string;
+  occurredAt: Date;
+  actorName?: string | null;
 };
 
 export type CircleTrustSummary = {
@@ -43,6 +53,7 @@ export type CircleTrustSummary = {
   signals: CircleTrustSignal[];
   availableSignals: CircleTrustOpportunity[];
   latestVerifiedTestimonials: CircleTrustTestimonial[];
+  timeline: CircleTrustTimelineEvent[];
 };
 
 type BuildCircleTrustInput = {
@@ -61,13 +72,21 @@ type BuildCircleTrustInput = {
     isPublished: boolean;
     archivedAt: Date | null;
     hasHistoricalActivity: boolean;
+    createdAt?: Date | null;
   };
   owner: {
     role: string;
     emailVerified: Date | null;
     foundingMember: boolean;
+    foundingClaimedAt?: Date | null;
     hasActiveSubscription: boolean;
   };
+  verifiedConnectionEvents?: Array<{
+    id: string;
+    connectionName?: string | null;
+    connectionBusinessName?: string | null;
+    verifiedAt: Date;
+  }>;
   verifiedConnectionCount: number;
   verifiedTestimonials: CircleTrustTestimonial[];
   manualTestimonialCount: number;
@@ -207,7 +226,7 @@ export function buildCircleTrustSummary(input: BuildCircleTrustInput): CircleTru
     signals.push({
       id: "founding-member",
       label: "Founding Member",
-      description: "Recorded as a founding member of The Business Circle.",
+      description: "Recorded as an early founding member of the platform.",
       scoreContribution: 1
     });
   }
@@ -215,15 +234,15 @@ export function buildCircleTrustSummary(input: BuildCircleTrustInput): CircleTru
   if (input.owner.role === "ADMIN" || input.owner.hasActiveSubscription) {
     signals.push({
       id: "bcn-member",
-      label: "BCN Member",
-      description: "Active membership is recorded by The Business Circle.",
+      label: "Circle Card Member",
+      description: "Active platform membership is recorded for this Circle Card.",
       scoreContribution: 1
     });
   } else {
     availableSignals.push({
       id: "bcn-member",
-      label: "Join BCN",
-      description: "BCN membership opens additional genuine trust-building opportunities."
+      label: "Explore Membership",
+      description: "Membership opens additional genuine trust-building opportunities."
     });
   }
 
@@ -236,6 +255,59 @@ export function buildCircleTrustSummary(input: BuildCircleTrustInput): CircleTru
   const summary = score > 0
     ? `Built from ${verifiedRelationshipCount} verified relationship${verifiedRelationshipCount === 1 ? "" : "s"} and ${completedPlatformSignalCount} completed platform trust signal${completedPlatformSignalCount === 1 ? "" : "s"}.`
     : "Build Circle Trust through verified relationships and completed platform trust signals.";
+  const timeline: CircleTrustTimelineEvent[] = [
+    ...(input.verifiedConnectionEvents ?? []).map((connection) => ({
+      id: `connection:${connection.id}`,
+      kind: "CONNECTION" as const,
+      title: connection.connectionName
+        ? `${connection.connectionName} joined their trusted Circle`
+        : "A new verified connection joined their trusted Circle",
+      description: connection.connectionBusinessName
+        ? `Verified Circle Wallet connection · ${connection.connectionBusinessName}`
+        : "Verified Circle Wallet connection",
+      occurredAt: connection.verifiedAt,
+      actorName: connection.connectionName ?? null
+    })),
+    ...input.verifiedTestimonials.map((testimonial) => ({
+      id: `testimonial:${testimonial.id}`,
+      kind: "TESTIMONIAL" as const,
+      title: `${testimonial.reviewerName} left a verified trust signal`,
+      description: testimonial.reviewerRoleOrCompany
+        ? `Approved Wallet testimonial · ${testimonial.reviewerRoleOrCompany}`
+        : "Approved Wallet testimonial",
+      occurredAt: testimonial.verifiedAt,
+      actorName: testimonial.reviewerName
+    })),
+    ...(input.owner.emailVerified
+      ? [{
+          id: "verification:email",
+          kind: "VERIFICATION" as const,
+          title: "Account email verified",
+          description: "Confirmed by the Circle Card platform.",
+          occurredAt: input.owner.emailVerified
+        }]
+      : []),
+    ...(input.owner.foundingMember && input.owner.foundingClaimedAt
+      ? [{
+          id: "verification:founding-member",
+          kind: "VERIFICATION" as const,
+          title: "Founding member status recorded",
+          description: "Early platform membership confirmed.",
+          occurredAt: input.owner.foundingClaimedAt
+        }]
+      : []),
+    ...(input.card.createdAt
+      ? [{
+          id: "profile:created",
+          kind: "PROFILE" as const,
+          title: "Circle Card profile created",
+          description: "Professional trust profile started.",
+          occurredAt: input.card.createdAt
+        }]
+      : [])
+  ]
+    .sort((left, right) => right.occurredAt.getTime() - left.occurredAt.getTime())
+    .slice(0, 16);
 
   return {
     version: 1,
@@ -246,6 +318,7 @@ export function buildCircleTrustSummary(input: BuildCircleTrustInput): CircleTru
     manualTestimonialCount: Math.max(0, input.manualTestimonialCount),
     signals,
     availableSignals,
-    latestVerifiedTestimonials: input.verifiedTestimonials.slice(0, 6)
+    latestVerifiedTestimonials: input.verifiedTestimonials.slice(0, 24),
+    timeline
   };
 }

@@ -78,7 +78,7 @@ export function PublicCircleTrustPanel({
       {showLatestTestimonials && latestTestimonials.length ? (
         <details className="group mt-3 rounded-2xl border border-silver/14 bg-white/[0.035]">
           <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-            <span className="inline-flex items-center gap-2"><Quote size={14} className="text-gold" />Latest verified testimonials</span>
+            <span className="inline-flex items-center gap-2"><Quote size={14} className="text-gold" />Latest verified trust signals</span>
             <ChevronDown size={15} className="text-muted transition-transform group-open:rotate-180" />
           </summary>
           <div className="grid gap-3 border-t border-silver/12 p-3 sm:grid-cols-2">
@@ -108,11 +108,11 @@ export function PublicCircleTrustPanel({
 
       <div className="mt-4 grid gap-2 sm:flex sm:flex-wrap">
         <Link href={`/card/${slug}/trust`} className={cn(buttonVariants(), "min-h-11 gap-2")}>
-          View Circle Trust <ArrowRight size={15} />
+          Trusted by my Circle <ArrowRight size={15} />
         </Link>
         {testimonialHref ? (
           <Link href={testimonialHref} className={cn(buttonVariants({ variant: "outline" }), "min-h-11 gap-2")}>
-            <ShieldCheck size={15} /> Help build my Circle Trust
+            <ShieldCheck size={15} /> Build their Circle Trust
           </Link>
         ) : null}
       </div>

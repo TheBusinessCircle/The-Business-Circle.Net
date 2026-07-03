@@ -73,7 +73,7 @@ export function CircleCardWalletTestimonialForm({
         setError(result.message);
       }
     } catch {
-      setError("The testimonial could not be sent.");
+      setError("The trust signal could not be sent.");
     } finally {
       setSaving(false);
     }
@@ -82,7 +82,7 @@ export function CircleCardWalletTestimonialForm({
   if (!contacts.length) {
     return (
       <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted">
-        Save someone’s Circle Card first, then you can leave a testimonial.
+        Save someone’s Circle Card first, then you can leave a verified trust signal.
       </p>
     );
   }
@@ -155,7 +155,7 @@ export function CircleCardWalletTestimonialForm({
       {selected ? (
         selected.hasPendingTestimonial ? (
           <p role="status" className="flex items-center gap-2 rounded-xl border border-gold/24 bg-gold/10 p-3 text-sm text-gold">
-            <CheckCircle2 size={15} /> You’ve already sent a testimonial for approval.
+            <CheckCircle2 size={15} /> You’ve already sent a trust signal for approval.
           </p>
         ) : message ? (
           <p role="status" className="flex items-center gap-2 rounded-xl border border-emerald-400/24 bg-emerald-400/10 p-3 text-sm text-emerald-100">
@@ -166,7 +166,7 @@ export function CircleCardWalletTestimonialForm({
             <input type="hidden" name="targetCardId" value={selected.targetCardId} />
             <p className="text-xs font-medium text-gold">For {selected.fullName}</p>
             <div className="space-y-2">
-              <Label htmlFor="wallet-testimonial-text">Testimonial</Label>
+              <Label htmlFor="wallet-testimonial-text">Your trust signal</Label>
               <Textarea
                 ref={testimonialTextRef}
                 id="wallet-testimonial-text"
@@ -201,7 +201,7 @@ export function CircleCardWalletTestimonialForm({
             {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
             <Button type="submit" size="sm" className="gap-2" disabled={saving}>
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              {saving ? "Sending..." : "Send testimonial"}
+              {saving ? "Sending..." : "Send trust signal"}
             </Button>
           </form>
         )

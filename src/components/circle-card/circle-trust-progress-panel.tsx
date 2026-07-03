@@ -49,7 +49,7 @@ function actionForSignal(cardId: string, signal: CircleTrustOpportunity) {
       href: manageHref(cardId, "my-card", "card-contact-details"),
       label: "Add Website"
     },
-    "bcn-member": { href: "/join", label: "Join BCN" }
+    "bcn-member": { href: "/join", label: "Explore Membership" }
   };
 
   return actions[signal.id] ?? null;
