@@ -363,6 +363,7 @@ import { absoluteUrl, cn, formatCurrency, formatDate, slugify } from "@/lib/util
 import {
   calculateCircleCardCompletionForCard,
   createDueOpportunityNotificationsForUser,
+  getCircleCardCommissionEarningsForUser,
   getCircleCardReferralCentreForUser,
   getCircleCardAnalyticsSummary,
   markCircleCardReferralActivationForUser,
@@ -3689,7 +3690,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     notifications,
     unreadNotificationCount,
     activityItems,
-    referralCentre
+    referralCentre,
+    commissionEarnings
   ] = await Promise.all([
     prisma.circleCard.findMany({
       where: {
@@ -4192,7 +4194,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         createdAt: true
       }
     }),
-    getCircleCardReferralCentreForUser(session.user.id)
+    getCircleCardReferralCentreForUser(session.user.id),
+    getCircleCardCommissionEarningsForUser(session.user.id)
   ]);
   const platformOwnerDiagnostics = resolveCircleCardPlatformOwnerDiagnostics({
     role: session.user.role,
@@ -6639,14 +6642,36 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                       <p>Likely Pro candidates: {referralCentre.insights.likelyProCandidates}</p>
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-gold/18 bg-gold/8 p-4">
-                    <p className="text-sm font-semibold text-foreground">Future Rewards</p>
-                    <p className="mt-2 font-display text-2xl text-gold">
-                      {referralCentre.rewardAwareness.statusLabel}
+                  <div className="rounded-2xl border border-gold/22 bg-gradient-to-br from-gold/12 via-card/72 to-background/28 p-4 shadow-[0_18px_55px_rgba(0,0,0,0.16)]">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-foreground">Circle Card Pro earnings</p>
+                      {commissionEarnings?.isFoundingAmbassador ? (
+                        <Badge className="border-gold/30 bg-gold/12 text-gold">Founding Ambassador</Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-silver/18 text-silver">Standard</Badge>
+                      )}
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      {[
+                        ["Total referred", commissionEarnings?.totalReferredUsers ?? 0],
+                        ["Active Pro", commissionEarnings?.activeProReferrals ?? 0],
+                        ["Estimated monthly", formatCurrency((commissionEarnings?.estimatedMonthlyPence ?? 0) / 100)],
+                        ["Pending", formatCurrency((commissionEarnings?.pendingPence ?? 0) / 100)],
+                        ["Paid", formatCurrency((commissionEarnings?.paidPence ?? 0) / 100)]
+                      ].map(([label, value]) => (
+                        <div key={label} className="min-w-0 rounded-xl border border-silver/12 bg-background/22 p-3 last:col-span-2">
+                          <p className="text-[11px] text-muted">{label}</p>
+                          <p className="mt-1 truncate text-lg font-semibold text-foreground">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-xs leading-relaxed text-muted">
+                      {commissionEarnings?.isFoundingAmbassador
+                        ? "First 10 active Pro referrals at £3/month, next 5 at £2/month, then £1/month."
+                        : "£1/month for each active referred Pro user."}
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">
-                      Future rewards will be tracked when Pro billing is active. No payout or
-                      commission calculations are active.
+                    <p className="mt-2 text-[11px] leading-relaxed text-silver">
+                      {commissionEarnings?.notice ?? referralCentre.rewardAwareness.statusLabel} Pending does not mean paid. No payout is automatic.
                     </p>
                   </div>
                 </div>

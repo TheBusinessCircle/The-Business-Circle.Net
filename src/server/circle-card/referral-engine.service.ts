@@ -623,7 +623,7 @@ export async function attributeCircleCardReferralSignup(input: {
             signupSourceType: sourceType,
             signupSourceCardSlug: sourceCardSlug || null,
             signupSourceEvent: sourceEvent,
-            futureRewards: "tracked_after_pro_upgrade"
+            commissionFoundation: "awaiting_active_pro_entitlement"
           } as Prisma.InputJsonObject
         }
       });
@@ -660,7 +660,7 @@ export async function attributeCircleCardReferralSignup(input: {
           signupSourceType: sourceType,
           signupSourceCardSlug: sourceCardSlug || null,
           signupSourceEvent: sourceEvent,
-          futureRewards: "tracked_after_pro_upgrade"
+          commissionFoundation: "awaiting_active_pro_entitlement"
         })
       },
       select: {
@@ -974,7 +974,7 @@ export async function getCircleCardReferralCentreForUser(userId: string) {
         ? {
             id: "referral-activated",
             title: "One referral completed their Circle Card",
-            message: "Activation is being tracked before future rewards are enabled.",
+            message: "Activation is tracked. Commission begins only while this referral has an active Pro entitlement.",
             actionHref: "#recent-referrals",
             actionLabel: "View activation"
           }

@@ -6,6 +6,7 @@ import {
   BarChart3,
   ChevronDown,
   ContactRound,
+  Coins,
   Crown,
   ExternalLink,
   Eye,
@@ -29,6 +30,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { BackToTopButton } from "@/components/ui/back-to-top-button";
 import {
+  generateCircleCardCommissionLedgerAction,
+  markCircleCardCommissionPaidAction,
+  updateCircleCardAmbassadorProfileAction,
+  voidCircleCardCommissionAction
+} from "@/actions/admin/circle-card-commission.actions";
+import {
   CIRCLE_CARD_ACCOUNT_TYPE_COPY,
   getCircleCardAccountTypeLabel
 } from "@/lib/circle-card/identity";
@@ -50,11 +57,12 @@ import {
   circleCardReportStatusLabel
 } from "@/lib/circle-card/reports";
 import { createPageMetadata } from "@/lib/seo";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   getAdminCircleCardCommandCentre,
   type AdminCircleCardTopCard
 } from "@/server/admin/circle-card-command-centre.service";
+import { getCircleCardCommissionMonitorForCurrentAdmin } from "@/server/circle-card/commission.service";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -70,6 +78,7 @@ type MetricItem = {
 const sectionTabs = [
   { label: "Overview", href: "#overview" },
   { label: "Referrals", href: "#referrals" },
+  { label: "Commissions", href: "#commissions" },
   { label: "Plans", href: "#plans" },
   { label: "Users & Cards", href: "#users-cards" },
   { label: "Activity", href: "#activity" },
@@ -121,6 +130,7 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
     referralSort,
     referralCode
   });
+  const commissionMonitor = await getCircleCardCommissionMonitorForCurrentAdmin();
   const pricingReadiness = getCircleCardBillingReadiness();
   const proAnnualPrice = formatCircleCardAnnualPrice("PRO");
   const teamsAnnualPrice = formatCircleCardAnnualPrice("TEAMS");
@@ -576,6 +586,124 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
         <MetricGrid metrics={referralFunnelMetrics} />
         <ReferralEnginePanel referralEngine={dashboard.referralEngine} />
       </section>
+
+      {commissionMonitor ? (
+        <section id="commissions" className="scroll-mt-24 space-y-4">
+          <SectionHeading
+            icon={Coins}
+            eyebrow="Platform owner"
+            title="Commission Monitor"
+            description="Manual, auditable Circle Card Pro commission estimates. No payouts run here."
+          />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            {[
+              ["Founding Ambassadors", commissionMonitor.totalAmbassadors],
+              ["Standard referrers", commissionMonitor.standardReferrers],
+              ["Active Pro referrals", commissionMonitor.activeProReferrals],
+              ["Pending", formatCurrency(commissionMonitor.pendingPence / 100)],
+              ["Paid", formatCurrency(commissionMonitor.paidPence / 100)],
+              ["Current month rows", commissionMonitor.currentMonthRows]
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-0 rounded-2xl border border-gold/18 bg-card/62 p-4">
+                <p className="text-xs text-muted">{label}</p>
+                <p className="mt-2 truncate text-xl font-semibold text-foreground">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <Card className="border-gold/24 bg-gradient-to-br from-gold/10 via-card/72 to-background/25">
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2 text-lg">
+                <Coins size={18} className="text-gold" />
+                Current month ledger
+              </CardTitle>
+              <CardDescription>{commissionMonitor.notice} Entries begin as Pending.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form action={generateCircleCardCommissionLedgerAction}>
+                <Button type="submit" className="w-full gap-2 sm:w-auto">
+                  <Coins size={16} />
+                  Generate current month ledger
+                </Button>
+              </form>
+              <p className="text-xs leading-relaxed text-muted">
+                Safe to run again: the unique referrer, referred user and month key skips duplicates.
+                This records estimates only and never contacts Stripe, a bank or a payout provider.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Ambassador and test entitlement</CardTitle>
+              <CardDescription>
+                Owner-assigned only. Founding Ambassador places are capped at 50; free Pro is an
+                internal entitlement override, not evidence of payment.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={updateCircleCardAmbassadorProfileAction} className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto_auto_auto] lg:items-center">
+                <Input name="userId" required placeholder="User ID" />
+                <select name="type" defaultValue="STANDARD" className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground">
+                  <option value="STANDARD">Standard</option>
+                  <option value="FOUNDING_AMBASSADOR">Founding Ambassador</option>
+                </select>
+                <label className="inline-flex items-center gap-2 text-sm text-muted">
+                  <input type="checkbox" name="freeProGranted" /> Free Pro
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-muted">
+                  <input type="checkbox" name="active" defaultChecked /> Active
+                </label>
+                <Button type="submit" variant="outline">Save profile</Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Commission rows</CardTitle>
+              <CardDescription>Latest 40 private ledger entries. Paid and Void are manual owner decisions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {commissionMonitor.rows.length ? commissionMonitor.rows.map((row) => (
+                <div key={row.id} className="rounded-2xl border border-border/80 bg-background/25 p-4">
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-foreground">
+                          {displayPerson(row.referrerUser)} → {displayPerson(row.referredUser)}
+                        </p>
+                        <Badge variant="outline">{row.status}</Badge>
+                        <Badge variant="outline" className="border-gold/24 text-gold">
+                          {formatCurrency(row.amountPence / 100)}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-xs text-muted">
+                        {row.tierApplied.replaceAll("_", " ")} · {row.source} · {formatDate(row.periodMonth)}
+                      </p>
+                      {row.statusReason ? <p className="mt-1 text-xs text-muted">{row.statusReason}</p> : null}
+                    </div>
+                    {row.status === "PENDING" || row.status === "APPROVED" ? (
+                      <div className="grid shrink-0 grid-cols-2 gap-2">
+                        <form action={markCircleCardCommissionPaidAction}>
+                          <input type="hidden" name="ledgerId" value={row.id} />
+                          <Button type="submit" size="sm" variant="outline" className="w-full">Mark paid</Button>
+                        </form>
+                        <form action={voidCircleCardCommissionAction}>
+                          <input type="hidden" name="ledgerId" value={row.id} />
+                          <Button type="submit" size="sm" variant="ghost" className="w-full">Void</Button>
+                        </form>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )) : (
+                <EmptyState icon={Coins} title="No commission rows" description="Generate the current month after Pro entitlements are ready." />
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
       <section id="plans" className="scroll-mt-24 space-y-4">
         <SectionHeading

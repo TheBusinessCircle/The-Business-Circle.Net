@@ -123,6 +123,10 @@ model User {
   circleCardReferralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipient")
   circleCardGrowthReferralsMade        CircleCardGrowthReferral[] @relation("CircleCardGrowthReferralReferrer")
   circleCardGrowthReferralReceived     CircleCardGrowthReferral? @relation("CircleCardGrowthReferralReferredUser")
+  circleCardAmbassadorProfile          CircleCardAmbassadorProfile?
+  circleCardCommissionsEarned          CircleCardCommissionLedger[] @relation("CircleCardCommissionReferrer")
+  circleCardCommissionsGenerated       CircleCardCommissionLedger[] @relation("CircleCardCommissionReferredUser")
+  circleCardCommissionsReviewed        CircleCardCommissionLedger[] @relation("CircleCardCommissionReviewer")
   opportunities                        Opportunity[]
   circleCardNotifications              CircleCardNotification[]
   circleCardActivities                 CircleCardActivity[]
@@ -728,12 +732,14 @@ model CircleCardGrowthReferral {
   activationStatus String    @default("CLICKED") @db.VarChar(40)
   proInterestAt    DateTime?
   teamsInterestAt  DateTime?
+  convertedToProAt DateTime?
   metadata         Json      @default("{}")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   referrerUser     User      @relation("CircleCardGrowthReferralReferrer", fields: [referrerUserId], references: [id], onDelete: Cascade)
   referrerCard     CircleCard? @relation("CircleCardGrowthReferralCard", fields: [referrerCardId], references: [id], onDelete: SetNull)
   referredUser     User?     @relation("CircleCardGrowthReferralReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+  commissionEntries CircleCardCommissionLedger[]
 
   @@index([referrerUserId, createdAt])
   @@index([referrerCardId])
@@ -744,6 +750,52 @@ model CircleCardGrowthReferral {
   @@index([activatedAt])
   @@index([proInterestAt])
   @@index([teamsInterestAt])
+  @@index([convertedToProAt])
+}
+
+model CircleCardAmbassadorProfile {
+  id             String                   @id @default(cuid())
+  userId         String                   @unique
+  type           CircleCardAmbassadorType @default(STANDARD)
+  freeProGranted Boolean                  @default(false)
+  active         Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([type, active])
+  @@index([freeProGranted, active])
+}
+
+model CircleCardCommissionLedger {
+  id             String                      @id @default(cuid())
+  referrerUserId String
+  referredUserId String
+  referralId     String
+  reviewedById   String?
+  periodMonth    DateTime
+  amountPence    Int
+  currency       String                      @default("GBP") @db.VarChar(3)
+  tierApplied    CircleCardCommissionTier
+  status         CircleCardCommissionStatus  @default(PENDING)
+  reason         String                      @db.VarChar(160)
+  source         String                      @db.VarChar(80)
+  paidAt         DateTime?
+  voidedAt       DateTime?
+  statusReason   String?                     @db.VarChar(240)
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  referrerUser   User                        @relation("CircleCardCommissionReferrer", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referredUser   User                        @relation("CircleCardCommissionReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
+  referral       CircleCardGrowthReferral    @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  reviewedBy     User?                       @relation("CircleCardCommissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([referrerUserId, referredUserId, periodMonth])
+  @@index([periodMonth, status])
+  @@index([referrerUserId, status])
+  @@index([referredUserId])
+  @@index([referralId])
+  @@index([reviewedById])
 }
 
 model CircleCardConnectionRequest {
@@ -2992,6 +3044,25 @@ enum SubscriptionStatus {
   CANCELED
   UNPAID
   PAUSED
+}
+
+enum CircleCardAmbassadorType {
+  STANDARD
+  FOUNDING_AMBASSADOR
+}
+
+enum CircleCardCommissionTier {
+  STANDARD
+  FOUNDING_FIRST_10
+  FOUNDING_NEXT_5
+  FOUNDING_ADDITIONAL
+}
+
+enum CircleCardCommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  VOID
 }
 
 enum PendingRegistrationStatus {
