@@ -50,37 +50,46 @@ type CircleCardSpinToConnectProps = {
 
 type DragState = {
   pointerId: number;
-  startAngle: number;
-  baseRotation: number;
-  delta: number;
+  startX: number;
+  startY: number;
+  startedAt: number;
+  lastX: number;
+  lastAt: number;
+  deltaX: number;
+  velocityX: number;
   moved: boolean;
 };
 
-const SPIN_DRAG_THRESHOLD = 32;
-const SPIN_ROTATION_DEGREES = 760;
-const PARTICLE_COUNT = 14;
+type SpinConfig = {
+  id: number;
+  direction: 1 | -1;
+  duration: number;
+  totalDegrees: number;
+  strength: number;
+  reduced: boolean;
+};
+
+type SignatureSpinStyle = CSSProperties & {
+  "--cc-spin-stage-one": string;
+  "--cc-spin-stage-two": string;
+  "--cc-spin-stage-three": string;
+  "--cc-spin-overshoot": string;
+  "--cc-spin-settle": string;
+  "--cc-spin-end": string;
+  "--cc-spin-duration": string;
+  "--cc-drag-y": string;
+};
+
+const SPIN_DRAG_THRESHOLD = 24;
+const SPIN_CHARGE_DELAY_MS = 90;
+const SPIN_BASE_DURATION_MS = 1080;
+const SPIN_MAX_DURATION_MS = 1460;
+const PARTICLE_COUNT = 10;
 const SPIN_TO_CONNECT_LABEL = "Spin To Connect";
 const SPIN_INTERACTION_STORAGE_KEY = "circle-card:spin-to-connect:has-interacted";
 
-function readPointerAngle(target: HTMLElement, event: PointerEvent<HTMLElement>) {
-  const rect = target.getBoundingClientRect();
-  const x = event.clientX - (rect.left + rect.width / 2);
-  const y = event.clientY - (rect.top + rect.height / 2);
-  return Math.atan2(y, x) * (180 / Math.PI);
-}
-
-function normalizeAngleDelta(delta: number) {
-  let normalized = delta;
-
-  while (normalized > 180) {
-    normalized -= 360;
-  }
-
-  while (normalized < -180) {
-    normalized += 360;
-  }
-
-  return normalized;
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(Math.max(value, minimum), maximum);
 }
 
 function initials(name: string) {
@@ -166,10 +175,24 @@ export function CircleCardSpinToConnect({
   const formRef = useRef<HTMLFormElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const submittingRef = useRef(false);
+  const spinInFlightRef = useRef(false);
   const suppressClickRef = useRef(false);
-  const [rotation, setRotation] = useState(0);
+  const chargeTimerRef = useRef<number | null>(null);
+  const completionTimerRef = useRef<number | null>(null);
+  const tapDirectionRef = useRef<1 | -1>(1);
+  const [dragTilt, setDragTilt] = useState(0);
+  const [isCharging, setIsCharging] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [spinConfig, setSpinConfig] = useState<SpinConfig>({
+    id: 0,
+    direction: 1,
+    duration: SPIN_BASE_DURATION_MS,
+    totalDegrees: 1800,
+    strength: 0.35,
+    reduced: false
+  });
   const [hasInteractedWithSpin, setHasInteractedWithSpin] = useState(false);
   const [localConnected, setLocalConnected] = useState(
     isConnected || initialState === "connected" || initialState === "first" || initialState === "already"
@@ -207,7 +230,8 @@ export function CircleCardSpinToConnect({
   });
   const registerHref = `/register?${registerParams.toString()}`;
   const loginHref = `/login?from=${encodeURIComponent(returnTarget)}`;
-  const shouldShowProfileNudge = !hasInteractedWithSpin && !isSpinning && !isDragging;
+  const shouldShowProfileNudge =
+    !hasInteractedWithSpin && !isCharging && !isSpinning && !isDragging;
 
   useEffect(() => {
     try {
@@ -216,6 +240,23 @@ export function CircleCardSpinToConnect({
       setHasInteractedWithSpin(false);
     }
   }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    updatePreference();
+    mediaQuery.addEventListener?.("change", updatePreference);
+
+    return () => mediaQuery.removeEventListener?.("change", updatePreference);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (chargeTimerRef.current !== null) window.clearTimeout(chargeTimerRef.current);
+      if (completionTimerRef.current !== null) window.clearTimeout(completionTimerRef.current);
+    },
+    []
+  );
 
   function markSpinInteraction() {
     setHasInteractedWithSpin(true);
@@ -251,6 +292,10 @@ export function CircleCardSpinToConnect({
       return;
     }
 
+    spinInFlightRef.current = false;
+    setIsCharging(false);
+    setIsSpinning(false);
+    setDragTilt(0);
     markSpinInteraction();
 
     trackSpinEvent(analyticsCardId, "SPIN_COMPLETED", {
@@ -266,13 +311,11 @@ export function CircleCardSpinToConnect({
 
     if (viewerIsOwner) {
       setStatusMessage(SPIN_TO_CONNECT_LABEL);
-      setIsSpinning(false);
       return;
     }
 
     if (isDemo) {
       setStatusMessage("Demo Circle Card");
-      setIsSpinning(false);
       return;
     }
 
@@ -282,7 +325,6 @@ export function CircleCardSpinToConnect({
         cardSlug
       });
       setStatusMessage("Already in your Circle");
-      setIsSpinning(false);
       return;
     }
 
@@ -294,7 +336,6 @@ export function CircleCardSpinToConnect({
       });
       setStatusMessage("Connection Found");
       setShowAcquisitionModal(true);
-      setIsSpinning(false);
       return;
     }
 
@@ -306,25 +347,54 @@ export function CircleCardSpinToConnect({
     }
   }
 
-  function triggerSpin() {
-    if (isSpinning || submittingRef.current) {
+  function triggerSpin(input?: {
+    direction?: 1 | -1;
+    strength?: number;
+  }) {
+    if (spinInFlightRef.current || submittingRef.current) {
       return;
     }
+
+    spinInFlightRef.current = true;
+    const direction = input?.direction ?? tapDirectionRef.current;
+    const strength = clamp(input?.strength ?? 0.35, 0, 1);
+    const reduced = prefersReducedMotion;
+    const duration = reduced
+      ? 260
+      : Math.round(
+          SPIN_BASE_DURATION_MS + strength * (SPIN_MAX_DURATION_MS - SPIN_BASE_DURATION_MS)
+        );
+    const turns = reduced ? 0 : 5 + Math.round(strength * 3);
+    const totalDegrees = direction * turns * 360;
+    tapDirectionRef.current = direction === 1 ? -1 : 1;
 
     trackSpinEvent(analyticsCardId, "SPIN_STARTED", {
       source: "spin_to_connect",
       cardSlug,
       pendingReturn
     });
-    vibrate();
-    startBurst();
-    setIsSpinning(true);
-    setRotation((current) => current + SPIN_ROTATION_DEGREES);
-    window.setTimeout(completeSpin, 640);
+    if (!reduced) vibrate();
+    setIsCharging(true);
+    setDragTilt(0);
+    setSpinConfig((current) => ({
+      id: current.id + 1,
+      direction,
+      duration,
+      totalDegrees,
+      strength,
+      reduced
+    }));
+
+    chargeTimerRef.current = window.setTimeout(() => {
+      setIsCharging(false);
+      setIsSpinning(true);
+      if (!reduced) startBurst();
+      completionTimerRef.current = window.setTimeout(completeSpin, duration);
+    }, reduced ? 20 : SPIN_CHARGE_DELAY_MS);
   }
 
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
-    if (isSpinning || submittingRef.current) {
+    if (spinInFlightRef.current || submittingRef.current) {
       return;
     }
 
@@ -332,9 +402,13 @@ export function CircleCardSpinToConnect({
     setIsDragging(true);
     dragRef.current = {
       pointerId: event.pointerId,
-      startAngle: readPointerAngle(event.currentTarget, event),
-      baseRotation: rotation,
-      delta: 0,
+      startX: event.clientX,
+      startY: event.clientY,
+      startedAt: event.timeStamp,
+      lastX: event.clientX,
+      lastAt: event.timeStamp,
+      deltaX: 0,
+      velocityX: 0,
       moved: false
     };
   }
@@ -346,12 +420,20 @@ export function CircleCardSpinToConnect({
       return;
     }
 
-    const nextDelta = normalizeAngleDelta(
-      readPointerAngle(event.currentTarget, event) - drag.startAngle
-    );
-    drag.delta = nextDelta;
-    drag.moved = drag.moved || Math.abs(nextDelta) > SPIN_DRAG_THRESHOLD;
-    setRotation(drag.baseRotation + nextDelta);
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    const elapsed = Math.max(event.timeStamp - drag.lastAt, 1);
+    const instantVelocity = (event.clientX - drag.lastX) / elapsed;
+    drag.deltaX = deltaX;
+    drag.velocityX = drag.velocityX * 0.58 + instantVelocity * 0.42;
+    drag.lastX = event.clientX;
+    drag.lastAt = event.timeStamp;
+    drag.moved =
+      drag.moved ||
+      (Math.abs(deltaX) > SPIN_DRAG_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY));
+
+    const width = Math.max(event.currentTarget.getBoundingClientRect().width, 1);
+    setDragTilt(clamp((deltaX / width) * 42, -34, 34));
   }
 
   function handlePointerEnd(event: PointerEvent<HTMLButtonElement>) {
@@ -370,16 +452,35 @@ export function CircleCardSpinToConnect({
       // Pointer capture may already be released by the browser.
     }
 
-    if (drag.moved || Math.abs(drag.delta) > SPIN_DRAG_THRESHOLD) {
+    if (drag.moved || Math.abs(drag.velocityX) > 0.28) {
+      const elapsed = Math.max(event.timeStamp - drag.startedAt, 1);
+      const averageVelocity = drag.deltaX / elapsed;
+      const velocity = Math.abs(drag.velocityX) > Math.abs(averageVelocity)
+        ? drag.velocityX
+        : averageVelocity;
+      const direction: 1 | -1 = (velocity || drag.deltaX) >= 0 ? 1 : -1;
+      const width = Math.max(event.currentTarget.getBoundingClientRect().width, 1);
+      const strength = clamp(
+        Math.max(Math.abs(drag.deltaX) / width, Math.abs(velocity) / 1.25),
+        0.15,
+        1
+      );
       suppressClickRef.current = true;
-      triggerSpin();
+      triggerSpin({ direction, strength });
       window.setTimeout(() => {
         suppressClickRef.current = false;
       }, 0);
       return;
     }
 
-    setRotation(drag.baseRotation);
+    setDragTilt(0);
+  }
+
+  function handlePointerCancel(event: PointerEvent<HTMLButtonElement>) {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setIsDragging(false);
+    setDragTilt(0);
   }
 
   function handleClick() {
@@ -399,6 +500,17 @@ export function CircleCardSpinToConnect({
     event.preventDefault();
     triggerSpin();
   }
+
+  const spinStyle: SignatureSpinStyle = {
+    "--cc-spin-stage-one": `${spinConfig.totalDegrees * 0.08}deg`,
+    "--cc-spin-stage-two": `${spinConfig.totalDegrees * 0.42}deg`,
+    "--cc-spin-stage-three": `${spinConfig.totalDegrees * 0.86}deg`,
+    "--cc-spin-overshoot": `${spinConfig.totalDegrees + spinConfig.direction * 18}deg`,
+    "--cc-spin-settle": `${spinConfig.totalDegrees - spinConfig.direction * 5}deg`,
+    "--cc-spin-end": `${spinConfig.totalDegrees}deg`,
+    "--cc-spin-duration": `${spinConfig.duration}ms`,
+    "--cc-drag-y": `${dragTilt}deg`
+  };
 
   return (
     <div
@@ -439,34 +551,57 @@ export function CircleCardSpinToConnect({
         type="button"
         aria-label={`Spin ${cardName}'s Circle Card`}
         aria-describedby={`${cardSlug}-spin-status`}
+        aria-busy={isCharging || isSpinning}
+        data-charging={isCharging ? "true" : "false"}
+        data-spinning={isSpinning ? "true" : "false"}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
+        onPointerCancel={handlePointerCancel}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
-        className="relative z-10 h-full w-full cursor-grab rounded-full touch-none outline-none transition-transform active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        style={{
-          transform: `rotate(${rotation}deg) scale(${isSpinning ? 1.045 : 1})`,
-          transition: isSpinning
-            ? "transform 640ms cubic-bezier(0.16, 1, 0.3, 1)"
-            : "transform 180ms cubic-bezier(0.18, 0.89, 0.32, 1.28)"
-        }}
+        className={cn(
+          "circle-card-signature-spin-button relative z-10 h-full w-full cursor-grab rounded-full touch-none outline-none active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          shouldShowProfileNudge && "circle-card-spin-profile-nudge"
+        )}
       >
         <span
+          aria-hidden="true"
+          className="circle-card-signature-spin-trail circle-card-signature-spin-trail-blue"
+        />
+        <span
+          aria-hidden="true"
+          className="circle-card-signature-spin-trail circle-card-signature-spin-trail-gold"
+        />
+        <span
+          key={spinConfig.id}
+          style={spinStyle}
           className={cn(
-            "block h-full w-full rounded-full",
-            shouldShowProfileNudge && "circle-card-spin-profile-nudge"
+            "circle-card-signature-spin-coin block h-full w-full rounded-full",
+            isCharging && "is-charging",
+            isSpinning && "is-spinning",
+            spinConfig.reduced && "is-reduced"
           )}
         >
-          {children}
+          <span aria-hidden="true" className="circle-card-signature-spin-edge" />
+          <span className="circle-card-signature-spin-face circle-card-signature-spin-face-front">
+            {children}
+            <span aria-hidden="true" className="circle-card-signature-spin-sheen" />
+          </span>
+          <span
+            aria-hidden="true"
+            className="circle-card-signature-spin-face circle-card-signature-spin-face-back"
+          >
+            {children}
+            <span className="circle-card-signature-spin-back-mark" />
+          </span>
         </span>
       </button>
 
       {burst
         ? Array.from({ length: PARTICLE_COUNT }).map((_, index) => {
             const angle = (index / PARTICLE_COUNT) * Math.PI * 2;
-            const distance = 42 + (index % 4) * 10;
+            const distance = 34 + spinConfig.strength * 20 + (index % 3) * 8;
             const particleStyle: CSSProperties = {
               transform: burst.expanded
                 ? `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px) scale(0.18)`
@@ -479,7 +614,12 @@ export function CircleCardSpinToConnect({
               <span
                 key={`${burst.id}-${index}`}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-1.5 w-1.5 rounded-full bg-gold shadow-[0_0_16px_rgba(212,175,95,0.8)]"
+                className={cn(
+                  "circle-card-signature-spin-particle pointer-events-none absolute left-1/2 top-1/2 z-20 rounded-full",
+                  index % 2 === 0
+                    ? "h-1.5 w-1.5 bg-gold shadow-[0_0_16px_rgba(212,175,95,0.8)]"
+                    : "h-1 w-1 bg-[#64a7ff] shadow-[0_0_15px_rgba(30,91,255,0.82)]"
+                )}
                 style={particleStyle}
               />
             );

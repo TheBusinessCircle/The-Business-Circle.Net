@@ -33,4 +33,28 @@ describe("Circle Card spin activation guidance", () => {
     expect(globals).toContain("prefers-reduced-motion: reduce");
     expect(globals).toContain(".circle-card-spin-guide-arrow");
   });
+
+  it("uses a physical 3D coin with tap, flick and guarded completion", () => {
+    const spin = readSource("src/components/circle-card/circle-card-spin-to-connect.tsx");
+    const globals = readSource("src/app/globals.css");
+
+    expect(spin).toContain("velocityX");
+    expect(spin).toContain("direction: 1 | -1");
+    expect(spin).toContain("SPIN_CHARGE_DELAY_MS");
+    expect(spin).toContain("spinInFlightRef.current");
+    expect(spin).toContain("circle-card-signature-spin-face-front");
+    expect(spin).toContain("circle-card-signature-spin-face-back");
+    expect(spin).toContain("onPointerCancel={handlePointerCancel}");
+    expect(spin).toContain("aria-busy={isCharging || isSpinning}");
+    expect(globals).toContain("perspective: 920px");
+    expect(globals).toContain("transform-style: preserve-3d");
+    expect(globals).toContain("@keyframes circle-card-signature-spin");
+    expect(globals).toContain("@keyframes circle-card-signature-confirm");
+  });
+
+  it("preserves one existing completed-spin analytics path", () => {
+    const spin = readSource("src/components/circle-card/circle-card-spin-to-connect.tsx");
+    expect(spin.match(/trackSpinEvent\(analyticsCardId, "SPIN_COMPLETED"/g)).toHaveLength(1);
+    expect(spin.match(/captureSpinReferralAttribution\(\{/g)).toHaveLength(1);
+  });
 });
