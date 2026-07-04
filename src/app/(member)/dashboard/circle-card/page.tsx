@@ -128,13 +128,10 @@ import {
   type CircleCardPendingWalletTestimonial
 } from "@/components/circle-card";
 import {
-  CircleCardPlatformOwnerCardTypePreviewBadge,
   CircleCardPlatformOwnerCardTypePreviewModules,
   CircleCardPlatformOwnerCardTypePreviewSwitcher,
   CircleCardPlatformOwnerFeatureMatrixLite,
-  CircleCardPlatformOwnerPreviewBadge,
   CircleCardPlatformOwnerPreviewSwitcher,
-  CircleCardPlatformOwnerSandboxBadge,
   CircleCardPlatformOwnerSandboxIndicator,
   CircleCardPlatformOwnerSandboxPanel,
   CircleCardPlatformOwnerSandboxToggle,
@@ -1723,15 +1720,15 @@ function BusinessCardBuilderFoundation({
   ).length;
   const trustSignalCount = activeReviewCount + approvedWalletTestimonialCount;
   const moduleHrefs = {
-    services: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-services" }),
-    products: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-products" }),
-    priceList: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-price-list" }),
-    menuOffers: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-menu-offers" }),
-    booking: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-booking" }),
-    documents: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-downloads" }),
-    gallery: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-gallery" }),
-    reviews: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-reviews" }),
-    openingHours: circleCardManageHref({ cardId, section: "my-card", hash: "business-card-opening-hours" })
+    services: circleCardManageHref({ cardId, section: "business", hash: "business-card-services" }),
+    products: circleCardManageHref({ cardId, section: "business", hash: "business-card-products" }),
+    priceList: circleCardManageHref({ cardId, section: "business", hash: "business-card-price-list" }),
+    menuOffers: circleCardManageHref({ cardId, section: "business", hash: "business-card-menu-offers" }),
+    booking: circleCardManageHref({ cardId, section: "business", hash: "business-card-booking" }),
+    documents: circleCardManageHref({ cardId, section: "business", hash: "business-card-downloads" }),
+    gallery: circleCardManageHref({ cardId, section: "business", hash: "business-card-gallery" }),
+    reviews: circleCardManageHref({ cardId, section: "business", hash: "business-card-reviews" }),
+    openingHours: circleCardManageHref({ cardId, section: "business", hash: "business-card-opening-hours" })
   };
   const completion = calculateBusinessProfileCompletion({
     businessName,
@@ -1898,7 +1895,7 @@ function BusinessCardBuilderFoundation({
           ? "Business Card Builder is a Pro feature."
           : "Structure services, products, enquiry and trust sections for a stronger business profile."
       }
-      appSection="my-card"
+      appSection="business"
       className={cn(
         "border-gold/20 bg-[linear-gradient(145deg,hsl(var(--card)/0.72),hsl(var(--background)/0.36))]",
         className
@@ -4955,31 +4952,40 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const appSectionItems: Array<{
     section: CircleCardAppSection;
     icon: typeof Activity;
+    targetId: string;
     badge?: number;
   }> = [
     {
       section: "home",
       icon: Activity,
+      targetId: "circle-card-home",
       badge: unreadNotificationCount + pendingIncomingRequests.length + followUpsDueCount
     },
-    { section: "my-card", icon: ContactRound },
+    {
+      section: "my-card",
+      icon: ContactRound,
+      targetId: card ? "current-card" : "circle-card-form"
+    },
     {
       section: "network",
       icon: WalletCards,
+      targetId: "wallet",
       badge: pendingIncomingRequests.length + incomingIntroductions.length
     },
     {
       section: "business",
       icon: ShoppingBag,
+      targetId: "business-card-builder",
       badge: receivedReferrals.length + dueOpportunityFollowUps.length
     },
     {
       section: "referrals",
       icon: Send,
+      targetId: "referral-centre",
       badge: referralCentre?.stats.signups
     },
-    { section: "share", icon: QrCode },
-    { section: "settings", icon: MenuIcon }
+    { section: "share", icon: QrCode, targetId: "share-assets" },
+    { section: "settings", icon: MenuIcon, targetId: "circle-card-settings" }
   ];
   const homeQuickStats = [
     {
@@ -5477,122 +5483,91 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   return (
     <div className="space-y-6">
       <CircleCardSectionRouter />
-      <section className="member-accent-panel rounded-2xl border p-5 sm:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <section className="member-accent-panel rounded-2xl border p-4 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--member-accent-border)/0.32)] bg-[hsl(var(--member-accent)/0.12)] px-3 py-1 text-xs uppercase tracking-[0.08em] text-[hsl(var(--member-accent-text))]">
               <ContactRound size={14} />
               My Circle Card
             </div>
-            <h1 className="mt-4 font-display text-4xl text-foreground sm:text-5xl">
-              Your relationship identity layer
+            <h1 className="mt-3 font-display text-3xl text-foreground sm:text-5xl">
+              Circle Card Workspace
             </h1>
-            <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--member-accent-muted))] sm:text-base">
-              Create a clean card, share it with a QR code, save useful contacts, and give people
-              a direct route back to you.
+            <p className="mt-2 text-sm text-[hsl(var(--member-accent-muted))] sm:text-base">
+              Your card, wallet and growth tools in one place.
             </p>
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-4 grid gap-2">
               <Link
                 href={
                   card
                     ? circleCardManageHref({ cardId: card.id, section: "share", hash: "share-assets-qr" })
                     : circleCardSectionHref("share", "share-assets-qr")
                 }
-                className={cn(buttonVariants(), "h-11 min-w-[128px] justify-center gap-2")}
+                className={cn(buttonVariants(), "h-12 w-full justify-center gap-2 shadow-gold-soft sm:w-44")}
               >
                 <QrCode size={16} />
                 QR
               </Link>
-              <Link
-                href={card ? selectedCardReturnPath : circleCardSectionHref("my-card", "circle-card-form")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
-              >
-                <ContactRound size={16} />
-                {card ? "Edit Card" : "Create Card"}
-              </Link>
-              <Link
-                href={circleCardSectionHref("network", "connect-hub")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
-              >
-                <Share2 size={16} />
-                Connect Hub
-              </Link>
-              <Link
-                href={circleCardSectionHref("network", "discover")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
-              >
-                <Compass size={16} />
-                Discover
-              </Link>
-              <Link
-                href={circleCardSectionHref("network", "introductions")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
-              >
-                <UserCheck size={16} />
-                Introductions
-              </Link>
-              <Link
-                href={circleCardSectionHref("referrals", "referral-centre")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
-              >
-                <Send size={16} />
-                Referral Centre
-              </Link>
-              <Link
-                href={circleCardSectionHref("business", "referrals")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
-              >
-                <Handshake size={16} />
-                Business Referrals
-              </Link>
-              <Link
-                href={circleCardSectionHref("business", "opportunities")}
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
-              >
-                <ShoppingBag size={16} />
-                Opportunities
-              </Link>
-              <Link
-                href="/dashboard/circle-card/wallet"
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
-              >
-                <WalletCards size={16} />
-                Wallet
-              </Link>
-              <Link
-                href={
-                  card
-                    ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "analytics" })
-                    : circleCardSectionHref("my-card", "analytics")
-                }
-                className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
-              >
-                <BarChart3 size={16} />
-                Analytics
-              </Link>
-              {card ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                {card ? (
+                  <Link
+                    href={`/card/${card.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(buttonVariants({ variant: "outline" }), "h-10 min-w-0 justify-center gap-1.5 px-2 text-xs sm:text-sm")}
+                  >
+                    <Eye size={15} />
+                    Public Card
+                  </Link>
+                ) : (
+                  <Button type="button" variant="outline" disabled className="h-10 min-w-0 gap-1.5 px-2 text-xs sm:text-sm">
+                    <Eye size={15} />
+                    Public Card
+                  </Button>
+                )}
                 <Link
-                  href={`/card/${card.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(buttonVariants({ variant: "outline" }), "h-11 min-w-[128px] justify-center gap-2")}
+                  href={card ? selectedCardReturnPath : circleCardSectionHref("my-card", "circle-card-form")}
+                  className={cn(buttonVariants({ variant: "outline" }), "h-10 min-w-0 justify-center gap-1.5 px-2 text-xs sm:text-sm")}
                 >
-                  Public card
-                  <ArrowUpRight size={16} />
+                  <ContactRound size={15} />
+                  Edit
                 </Link>
-              ) : null}
+                <Link href="/dashboard/circle-card/wallet" className={cn(buttonVariants({ variant: "outline" }), "h-10 min-w-0 justify-center gap-1.5 px-2 text-xs sm:text-sm")}>
+                  <WalletCards size={15} />
+                  Wallet
+                </Link>
+                <Link href={circleCardSectionHref("referrals", "referral-centre")} className={cn(buttonVariants({ variant: "outline" }), "h-10 min-w-0 justify-center gap-1.5 px-2 text-xs sm:text-sm")}>
+                  <Send size={15} />
+                  Referrals
+                </Link>
+                <Link href={card ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "analytics" }) : circleCardSectionHref("my-card", "analytics")} className={cn(buttonVariants({ variant: "outline" }), "h-10 min-w-0 justify-center gap-1.5 px-2 text-xs sm:text-sm")}>
+                  <BarChart3 size={15} />
+                  Analytics
+                </Link>
+                {card && publicUrl ? (
+                  <CircleCardShareButton
+                    title={`${card.fullName} | Circle Card`}
+                    publicUrl={publicUrl}
+                    cardId={card.id}
+                    analyticsSource="dashboard_hub"
+                    label="Share"
+                    hideStatus
+                    buttonClassName="h-10 w-full min-w-0 px-2 text-xs sm:text-sm"
+                  />
+                ) : (
+                  <Button type="button" variant="outline" disabled className="h-10 min-w-0 gap-1.5 px-2 text-xs sm:text-sm">
+                    <Share2 size={15} />
+                    Share
+                  </Button>
+                )}
+                <Link href={circleCardSectionHref("settings", "circle-card-settings")} className={cn(buttonVariants({ variant: "outline" }), "h-10 min-w-0 justify-center gap-1.5 px-2 text-xs sm:text-sm")}>
+                  <MenuIcon size={15} />
+                  Settings
+                </Link>
+              </div>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {isPlatformOwner ? (
-              <CircleCardPlatformOwnerPreviewBadge activeMode={selectedOwnerPreviewMode} />
-            ) : null}
-            {isPlatformOwner ? (
-              <CircleCardPlatformOwnerCardTypePreviewBadge
-                activeMode={selectedOwnerCardTypePreviewMode}
-              />
-            ) : null}
-            {isPlatformOwner ? <CircleCardPlatformOwnerSandboxBadge /> : null}
             <Badge variant="muted">{accountLabel}</Badge>
             <Badge variant="outline" className="border-silver/18 text-silver">
               {activeCardLimitLabel}
@@ -5603,9 +5578,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
       <nav
         aria-label="Circle Card sections"
-        className="sticky top-0 z-20 -mx-2 overflow-x-auto border-y border-silver/12 bg-background/88 px-2 py-3 backdrop-blur-xl sm:rounded-2xl sm:border sm:bg-card/72"
+        className="sticky top-16 z-20 -mx-2 border-y border-silver/12 bg-background/92 px-2 py-2 backdrop-blur-xl sm:mx-0 sm:rounded-2xl sm:border sm:bg-card/78"
       >
-        <div className="flex min-w-max gap-2">
+        <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7 sm:gap-2">
           {appSectionItems.map((item) => {
             const Icon = item.icon;
             const selected = activeSection === item.section;
@@ -5615,21 +5590,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 key={item.section}
                 href={
                   card
-                    ? circleCardManageHref({ cardId: card.id, section: item.section })
-                    : circleCardSectionHref(item.section)
+                    ? circleCardManageHref({ cardId: card.id, section: item.section, hash: item.targetId })
+                    : circleCardSectionHref(item.section, item.targetId)
                 }
                 data-circle-card-section-tab={item.section}
                 data-active={selected ? "true" : "false"}
                 aria-current={selected ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-11 items-center gap-2 rounded-xl border border-silver/14 bg-background/25 px-3 text-sm font-medium text-muted transition-colors hover:border-silver/30 hover:text-foreground",
+                  "relative inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-xl border border-silver/14 bg-background/25 px-1.5 text-[11px] font-medium text-muted transition-colors hover:border-silver/30 hover:text-foreground sm:h-11 sm:gap-2 sm:px-3 sm:text-sm",
                   "data-[active=true]:border-gold/42 data-[active=true]:bg-gold/14 data-[active=true]:text-gold data-[active=true]:shadow-inner-surface"
                 )}
               >
                 <Icon size={16} />
                 <span>{CIRCLE_CARD_APP_SECTION_LABELS[item.section]}</span>
                 {item.badge ? (
-                  <span className="rounded-full border border-gold/24 bg-gold/12 px-2 py-0.5 text-[11px] text-gold">
+                  <span className="hidden rounded-full border border-gold/24 bg-gold/12 px-2 py-0.5 text-[11px] text-gold sm:inline-flex">
                     {item.badge}
                   </span>
                 ) : null}
@@ -5646,8 +5621,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         id="my-cards"
         title="My Circle Cards"
         summary="Manage each identity, its public link, sharing tools and settings."
-        defaultOpen
-        className="border-gold/20 bg-[linear-gradient(145deg,hsl(var(--card)/0.78),hsl(var(--background)/0.42))]"
+        appSection="my-card"
+        className={cn(
+          "border-gold/20 bg-[linear-gradient(145deg,hsl(var(--card)/0.78),hsl(var(--background)/0.42))]",
+          activeSection !== "my-card" && "hidden"
+        )}
         badge={
           <span className="flex flex-wrap gap-2">
             <Badge variant="outline" className="border-gold/28 text-gold">
@@ -5962,19 +5940,26 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       ) : null}
 
       {!isPlatformOwner && card && publicUrl ? (
-        <CircleCardSetupChecklistPanel
-          cardId={card.id}
-          fullName={card.fullName}
-          publicUrl={publicUrl}
-          setupItems={setupChecklistItems}
-          created={created || notice === "card-created"}
-        />
+        <div
+          data-circle-card-section="my-card"
+          className={activeSection === "my-card" ? undefined : "hidden"}
+        >
+          <CircleCardSetupChecklistPanel
+            cardId={card.id}
+            fullName={card.fullName}
+            publicUrl={publicUrl}
+            setupItems={setupChecklistItems}
+            created={created || notice === "card-created"}
+          />
+        </div>
       ) : null}
 
       <CircleCardDashboardSection
         id="circle-card-plan"
         title="Plan and access"
         summary="Current limits, included capabilities and upgrade previews."
+        appSection="settings"
+        className={activeSection === "settings" ? undefined : "hidden"}
         badge={<Badge variant="outline" className="border-gold/28 text-gold">{circleCardEntitlement.label}</Badge>}
       >
         <CircleCardPlanPanel
@@ -5989,34 +5974,39 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       </CircleCardDashboardSection>
 
       {showPlatformOwnerDiagnostics ? (
-        <section
-          id="platform-owner-diagnostics"
-          className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-4 sm:p-5"
+        <details
+          id="owner-tools"
+          className="group scroll-mt-24 overflow-hidden rounded-2xl border border-gold/20 bg-card/58 shadow-panel-soft"
         >
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Admin Diagnostics</p>
-              <h2 className="mt-1 font-display text-xl text-foreground">Platform Owner Detection</h2>
-            </div>
-            <Badge variant={isPlatformOwner ? "premium" : "outline"}>
-              {isPlatformOwner ? "Owner resolved" : "Owner hidden"}
-            </Badge>
-          </div>
-          <dl className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {platformOwnerDiagnosticItems.map((item) => (
-              <div key={item.label} className="rounded-xl border border-border/70 bg-card/42 p-3">
-                <dt className="text-[11px] uppercase tracking-[0.08em] text-muted">{item.label}</dt>
-                <dd className="mt-1 break-words text-sm font-semibold text-foreground">{item.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      ) : null}
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden sm:px-5 sm:py-4">
+            <span>
+              <span className="font-display text-lg font-semibold text-foreground">Owner Tools</span>
+              <span className="mt-1 block text-xs text-muted">Admin diagnostics and platform controls</span>
+            </span>
+            <ChevronDown size={17} className="shrink-0 text-gold transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-3 border-t border-silver/12 p-3 sm:p-5">
+            <details className="group/diagnostics rounded-xl border border-silver/14 bg-background/18">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+                <span className="text-sm font-semibold text-foreground">Admin diagnostics</span>
+                <Badge variant={isPlatformOwner ? "premium" : "outline"}>
+                  {isPlatformOwner ? "Owner resolved" : "Owner hidden"}
+                </Badge>
+              </summary>
+              <dl className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2 xl:grid-cols-4">
+                {platformOwnerDiagnosticItems.map((item) => (
+                  <div key={item.label} className="rounded-xl border border-border/70 bg-card/42 p-3">
+                    <dt className="text-[11px] uppercase tracking-[0.08em] text-muted">{item.label}</dt>
+                    <dd className="mt-1 break-words text-sm font-semibold text-foreground">{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
 
       {isPlatformOwner ? (
         <CircleCardDashboardSection
           id="platform-owner-control-centre"
-          title="Platform Owner Control Centre"
+          title="Platform controls"
           summary="Owner-only operating cockpit for Circle Card build, test and launch foundations."
           badge={<Badge variant="premium">Platform Owner</Badge>}
           className="border-gold/26 bg-[linear-gradient(145deg,hsl(var(--card)/0.76),hsl(var(--background)/0.42))]"
@@ -6349,11 +6339,16 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
         </CircleCardDashboardSection>
       ) : null}
+          </div>
+        </details>
+      ) : null}
 
       <CircleCardDashboardSection
         id="circle-card-upgrade-signals"
         title="Growth and upgrade signals"
         summary="Usage-based guidance for when Pro or Teams may become useful."
+        appSection="settings"
+        className={activeSection === "settings" ? undefined : "hidden"}
         badge={<Badge variant="muted">Advanced</Badge>}
       >
         <CircleCardUpgradeSignalsPanel
@@ -6364,13 +6359,18 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       </CircleCardDashboardSection>
 
       {isPlatformOwner && card && publicUrl ? (
-        <CircleCardSetupChecklistPanel
-          cardId={card.id}
-          fullName={card.fullName}
-          publicUrl={publicUrl}
-          setupItems={setupChecklistItems}
-          created={created || notice === "card-created"}
-        />
+        <div
+          data-circle-card-section="my-card"
+          className={activeSection === "my-card" ? undefined : "hidden"}
+        >
+          <CircleCardSetupChecklistPanel
+            cardId={card.id}
+            fullName={card.fullName}
+            publicUrl={publicUrl}
+            setupItems={setupChecklistItems}
+            created={created || notice === "card-created"}
+          />
+        </div>
       ) : null}
 
       {isCircleCardFree ? <CircleCardBcnDiscoveryPanel /> : null}
@@ -6396,71 +6396,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         />
       ) : null}
 
-      <section
-        data-circle-card-section="home"
-        className={cn("space-y-4", activeSection !== "home" && "hidden")}
+      <CircleCardDashboardSection
+        id="circle-card-home"
+        title="Circle Card Home"
+        summary="Activity and signals that need attention."
+        appSection="home"
+        defaultOpen
+        className={activeSection === "home" ? undefined : "hidden"}
+        badge={
+          <Badge variant="outline" className="border-gold/28 text-gold">
+            {card?.isPublished ? "Published" : card ? "Unpublished" : "Setup needed"}
+          </Badge>
+        }
       >
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-          <Card className="border-gold/22 bg-gold/8">
-            <CardHeader>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <CardTitle className="inline-flex items-center gap-2">
-                    <ContactRound size={18} className="text-gold" />
-                    Circle Card Home
-                  </CardTitle>
-                  <CardDescription>
-                    Quick actions and the signals that need attention today.
-                  </CardDescription>
-                </div>
-                <Badge variant="outline" className="w-fit border-gold/28 text-gold">
-                  {card?.isPublished ? "Published" : card ? "Unpublished" : "Setup needed"}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {card && publicUrl ? (
-                <>
-                  <Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">
-                    <Button type="button" className="h-12 w-full gap-2">
-                      <ArrowUpRight size={16} />
-                      Public Card
-                    </Button>
-                  </Link>
-                  <Link href={circleCardManageHref({ cardId: card.id, section: "share", hash: "share-assets-qr" })}>
-                    <Button type="button" variant="outline" className="h-12 w-full gap-2">
-                      <QrCode size={16} />
-                      My QR
-                    </Button>
-                  </Link>
-                  <Link href={circleCardSectionHref("network", "business-card-scanner")}>
-                    <Button type="button" variant="outline" className="h-12 w-full gap-2">
-                      <Camera size={16} />
-                      Scan
-                    </Button>
-                  </Link>
-                  <CircleCardShareButton
-                    title={`${card.fullName} | Circle Card`}
-                    publicUrl={publicUrl}
-                    cardId={card.id}
-                    analyticsSource="dashboard_home"
-                    label="Share"
-                    hideStatus
-                    buttonClassName="h-12"
-                  />
-                </>
-              ) : (
-                <Link href={circleCardSectionHref("my-card", "circle-card-form")} className="sm:col-span-2 xl:col-span-4">
-                  <Button type="button" className="h-12 w-full gap-2">
-                    <ContactRound size={16} />
-                    Create your Circle Card
-                  </Button>
-                </Link>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-silver/16 bg-card/62">
+        <div className="space-y-4">
+          <Card className="border-silver/16 bg-background/20 shadow-none">
             <CardHeader>
               <CardTitle className="inline-flex items-center gap-2">
                 <Activity size={18} className="text-gold" />
@@ -6490,7 +6440,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </Card>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
           {homeQuickStats.map((item) => {
             const Icon = item.icon;
 
@@ -6498,7 +6448,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <Link
                 key={item.label}
                 href={item.href}
-                className="rounded-2xl border border-silver/14 bg-card/54 p-4 transition-colors hover:border-gold/28 hover:bg-card/72"
+                className="rounded-xl border border-silver/14 bg-card/54 p-3 transition-colors hover:border-gold/28 hover:bg-card/72 sm:rounded-2xl sm:p-4"
               >
                 <div className="flex items-center justify-between gap-3">
                   <Icon size={17} className="text-gold" />
@@ -6511,7 +6461,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             );
           })}
         </div>
-      </section>
+      </CircleCardDashboardSection>
 
       <CircleCardDashboardSection
         id="referral-centre"
@@ -6519,7 +6469,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         summary="Share Circle Card with people who would benefit from a cleaner way to connect"
         appSection="referrals"
         className={activeSection === "referrals" ? undefined : "hidden"}
-        defaultOpen
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
             {referralCentre?.stats.signups ?? 0} signup
@@ -6740,7 +6689,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         summary="Recent Circle Card activity and relationship items that need attention"
         appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
-        defaultOpen={unreadNotificationCount > 0}
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
             {unreadNotificationCount} unread
@@ -6847,7 +6795,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         summary="A relationship timeline for your Circle Card, wallet, referrals and opportunities"
         appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
-        defaultOpen={visibleActivityItems.length > 0}
         badge={
           <Badge variant="outline" className="border-silver/18 text-silver">
             {activeActivityFilterLabel}
@@ -6956,7 +6903,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         summary="Introduce two people from your Circle Wallet and track private responses"
         appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
-        defaultOpen={incomingIntroductions.length > 0}
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
             {incomingIntroductions.length} incoming
@@ -7196,7 +7142,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         summary="Track real business opportunities created through relationships and Circle Card activity"
         appSection="business"
         className={activeSection === "business" ? undefined : "hidden"}
-        defaultOpen={openOpportunities.length > 0}
         badge={
           <span className="inline-flex gap-2">
             <Badge variant="outline" className="border-gold/28 text-gold">
@@ -7596,7 +7541,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         summary="Find opted-in Circle Cards, save useful people, and start connection requests"
         appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
-        defaultOpen
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
             {discoverCards.length} result{discoverCards.length === 1 ? "" : "s"}
@@ -8006,7 +7950,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         summary="Send, receive, and track business referrals through Circle Card"
         appSection="business"
         className={activeSection === "business" ? undefined : "hidden"}
-        defaultOpen={receivedReferrals.length > 0}
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
             {receivedReferrals.length} received
@@ -8375,7 +8318,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         summary="Share your card, add someone by link, and move quickly into wallet connections"
         appSection="network"
         className={activeSection === "network" ? undefined : "hidden"}
-        defaultOpen
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
             {pendingIncomingRequests.length + pendingOutgoingRequests.length} request
@@ -9368,7 +9310,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           businessLogoUrl={card.businessLogoUrl}
           email={card.email}
           phone={card.phone}
-          className={activeSection === "my-card" ? undefined : "hidden"}
+          className={activeSection === "business" ? undefined : "hidden"}
         />
       ) : null}
 
@@ -11480,7 +11422,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         summary="Publishing, public link settings, standards and account controls"
         appSection="settings"
         className={activeSection === "settings" ? undefined : "hidden"}
-        defaultOpen
         badge={
           <Badge variant="outline" className="border-gold/28 text-gold">
             {card?.isPublished ? "Published" : card ? "Unpublished" : "Setup needed"}

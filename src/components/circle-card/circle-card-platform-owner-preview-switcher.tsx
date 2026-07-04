@@ -520,7 +520,7 @@ export function CircleCardPlatformOwnerSandboxIndicator() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)] rounded-xl border border-amber-300/38 bg-background/92 px-3 py-2 text-xs font-semibold text-amber-100 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur">
+    <div className="fixed bottom-4 left-4 z-50 max-w-[calc(100vw-2rem)] rounded-xl border border-amber-300/38 bg-background/92 px-3 py-2 text-xs font-semibold text-amber-100 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur">
       <span className="inline-flex items-center gap-2">
         <ShieldAlert size={14} />
         SANDBOX MODE ACTIVE

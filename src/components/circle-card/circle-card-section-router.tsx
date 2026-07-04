@@ -2,7 +2,15 @@
 
 import { useEffect } from "react";
 
-const CIRCLE_CARD_SECTIONS = new Set(["home", "my-card", "network", "business", "share", "settings"]);
+const CIRCLE_CARD_SECTIONS = new Set([
+  "home",
+  "my-card",
+  "network",
+  "business",
+  "referrals",
+  "share",
+  "settings"
+]);
 
 function findAnchor(target: EventTarget | null) {
   return target instanceof Element ? target.closest<HTMLAnchorElement>("a[href]") : null;
