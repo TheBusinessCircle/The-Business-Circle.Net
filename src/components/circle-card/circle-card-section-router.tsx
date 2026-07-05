@@ -48,13 +48,21 @@ function scrollToSection(section: string, targetId: string | null) {
   });
 }
 
-function setActiveSection(section: string) {
+function setActiveSection(section: string, targetId: string | null) {
   document.querySelectorAll<HTMLElement>("[data-circle-card-section]").forEach((element) => {
     element.classList.toggle("hidden", element.dataset.circleCardSection !== section);
   });
 
   document.querySelectorAll<HTMLElement>("[data-circle-card-section-tab]").forEach((element) => {
-    const active = element.dataset.circleCardSectionTab === section;
+    const sameSection = element.dataset.circleCardSectionTab === section;
+    const targetMatches = Boolean(targetId && element.dataset.circleCardTargetTab === targetId);
+    const canonicalTarget =
+      (section === "home" && element.dataset.circleCardTargetTab === "circle-card-home") ||
+      (section === "my-card" && element.dataset.circleCardTargetTab === "my-cards") ||
+      (section === "business" && element.dataset.circleCardTargetTab === "business-card-builder") ||
+      (section === "referrals" && element.dataset.circleCardTargetTab === "referral-centre") ||
+      (section === "settings" && element.dataset.circleCardTargetTab === "circle-card-settings");
+    const active = sameSection && (targetId ? targetMatches : canonicalTarget);
     element.dataset.active = active ? "true" : "false";
     if (active) {
       element.setAttribute("aria-current", "page");
@@ -73,7 +81,7 @@ function activateFromUrl(url: URL, updateHistory: boolean) {
   }
 
   const targetId = url.hash ? decodeURIComponent(url.hash.slice(1)) : null;
-  setActiveSection(section);
+  setActiveSection(section, targetId);
   dispatchOpenEvent(targetId);
 
   if (updateHistory) {

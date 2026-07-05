@@ -54,7 +54,7 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
       <header className="mb-6 overflow-hidden rounded-[1.75rem] border border-silver/12 bg-[radial-gradient(circle_at_82%_0%,rgba(212,175,95,.14),transparent_34%),linear-gradient(145deg,rgba(8,18,38,.94),rgba(4,9,20,.98))] p-5 shadow-panel-soft sm:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <Link href="/dashboard/circle-card" className="inline-flex items-center gap-2 text-xs font-semibold text-silver hover:text-foreground"><ArrowLeft size={14} /> My Circle Card</Link>
+            <Link href="/dashboard/circle-card?section=my-card#my-cards" className="inline-flex items-center gap-2 text-xs font-semibold text-silver hover:text-foreground"><ArrowLeft size={14} /> Your Cards</Link>
             <div className="mt-5 flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl border border-gold/25 bg-gold/10 text-gold"><Sparkles size={20} /></span><div><div className="flex flex-wrap items-center gap-2"><h1 className="font-display text-3xl text-foreground sm:text-4xl">Circle Studio</h1><Badge variant="premium">Pro</Badge></div><p className="mt-1 text-sm text-muted">Not a theme selector. Your professionally designed identity system.</p></div></div>
             <p className="mt-5 max-w-2xl text-sm leading-relaxed text-silver">Make your card unmistakably yours while keeping every choice polished, accessible and recognisably Circle Card.</p>
           </div>

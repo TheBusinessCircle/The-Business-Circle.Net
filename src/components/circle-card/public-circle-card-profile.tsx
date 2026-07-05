@@ -1666,7 +1666,7 @@ export function PublicCircleCardProfile({
     className,
     id = "circle-card-quick-connect",
     heading = "Direct routes back",
-    emptyMessage = "Contact details can be added from the Circle Card dashboard."
+    emptyMessage = "Contact details can be added from Your Cards."
   }: {
     rows?: ContactRow[];
     className?: string;

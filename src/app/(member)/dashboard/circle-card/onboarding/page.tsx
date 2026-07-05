@@ -75,8 +75,8 @@ export default async function CircleCardOnboardingPage({ searchParams }: PagePro
             Set up your first Circle Card
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--member-accent-muted))] sm:text-base">
-            Add the essentials now. You can edit the full card, wallet and analytics from the
-            Circle Card dashboard after publishing.
+            Add the essentials now. You can edit the full card and open Circle Wallet or Circle
+            Insights after publishing.
           </p>
         </div>
       </section>

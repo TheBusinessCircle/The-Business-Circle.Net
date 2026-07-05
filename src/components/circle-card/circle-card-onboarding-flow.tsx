@@ -392,8 +392,8 @@ export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowP
               <div className="rounded-2xl border border-gold/24 bg-gold/10 p-5">
                 <p className="text-sm font-medium text-foreground">Ready to publish</p>
                 <p className="mt-2 text-sm leading-relaxed text-muted">
-                  Your card will be live straight away. You can edit every field from the Circle
-                  Card dashboard after setup.
+                  Your card will be live straight away. You can edit every field from Your Cards
+                  after setup.
                 </p>
               </div>
             ) : currentStep.id === "accountType" ? (

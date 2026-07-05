@@ -72,8 +72,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     rulesAccepted,
     profileTheme,
     circleCardUnreadCount,
-    circleCardNotifications,
-    primaryCircleCard
+    circleCardNotifications
   ] = await Promise.all([
     showCircleCardShell
       ? Promise.resolve({ unreadCount: 0, pendingRequestCount: 0, pendingWinCredits: 0 })
@@ -86,14 +85,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     getCircleCardNotificationUnreadCount(session.user.id),
     showCircleCardNotificationOrb
       ? getCircleCardNotificationPanel(session.user.id, 10)
-      : Promise.resolve([]),
-    showCircleCardShell
-      ? prisma.circleCard.findFirst({
-          where: { userId: session.user.id, archivedAt: null },
-          orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
-          select: { slug: true, isPublished: true }
-        })
-      : Promise.resolve(null)
+      : Promise.resolve([])
   ]);
   const circleCardOrbNotifications = circleCardNotifications.map((notification) => ({
     id: notification.id,
@@ -139,34 +131,26 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     return item;
   };
 
-  const publicCardHref =
-    primaryCircleCard?.slug && primaryCircleCard.isPublished
-      ? `/card/${primaryCircleCard.slug}`
-      : "/dashboard/circle-card?section=share#share-assets";
   const circleCardNavItems = [
     {
-      label: "My Circle Card",
-      href: "/dashboard/circle-card",
+      label: "Your Cards",
+      href: "/dashboard/circle-card?section=my-card#my-cards",
       badgeCount: circleCardUnreadCount
     },
     {
-      label: "Circle Studio",
+      label: "Studio",
       href: "/dashboard/circle-card/studio",
-      description: "Build your Pro identity."
+      description: "Make your Circle Card unmistakably yours."
     },
     { label: "Wallet", href: "/dashboard/circle-card/wallet" },
-    { label: "Analytics", href: "/dashboard/circle-card?section=my-card#analytics" },
-    { label: "Settings", href: "/dashboard/circle-card?section=settings#circle-card-settings" },
     {
-      label: "Public card",
-      href: publicCardHref,
-      description: primaryCircleCard?.isPublished ? "Open your live public profile." : "Publish and share your card."
+      label: "Trust",
+      href: "/dashboard/circle-card?section=my-card#circle-trust",
+      description: "Build your Circle Trust."
     },
-    {
-      label: "Discover",
-      href: "/dashboard/circle-card?section=network#discover",
-      description: "Find and save other Circle Cards."
-    }
+    { label: "Insights", href: "/dashboard/circle-card?section=my-card#analytics" },
+    { label: "Referrals", href: "/dashboard/circle-card?section=referrals#referral-centre" },
+    { label: "Settings", href: "/dashboard/circle-card?section=settings#circle-card-settings" },
   ];
   const circleCardOnlyDiscoveryNavItems = [
     {
@@ -212,9 +196,9 @@ export default async function MemberLayout({ children }: { children: ReactNode }
         suspended: session.user.suspended
       })
     : `${getMembershipTierLabel(effectiveTier)} Active`;
-  const workspaceTitle = showCircleCardShell ? "Circle Card Workspace" : "Member Workspace";
+  const workspaceTitle = showCircleCardShell ? "Circle Card" : "Member Workspace";
   const workspaceSubtitle = showCircleCardShell
-    ? "Card, wallet, analytics, and relationship tools"
+    ? "Your cards, wallet, trust and insights"
     : "The Business Circle Network";
   const circleCardAccountLabel = getCircleCardAccountLabel({
     role: session.user.role,
@@ -276,10 +260,10 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                   accentThemeStyle={memberShellStyle}
                   showAdminLink={session.user.role === "ADMIN"}
                   workspaceEyebrow={showCircleCardShell ? membershipBadge : undefined}
-                  workspaceTitle={showCircleCardShell ? "Relationship tools" : undefined}
+                  workspaceTitle={showCircleCardShell ? "Circle Card" : undefined}
                   workspaceDescription={
                     showCircleCardShell
-                      ? "Create your card, manage your wallet, and keep your relationship tools close."
+                      ? "Your cards, Studio, Wallet, Trust and relationship tools."
                       : undefined
                   }
                   dialogLabel={showCircleCardShell ? "Circle Card navigation" : undefined}
