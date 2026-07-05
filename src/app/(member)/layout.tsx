@@ -149,6 +149,11 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       href: "/dashboard/circle-card",
       badgeCount: circleCardUnreadCount
     },
+    {
+      label: "Circle Studio",
+      href: "/dashboard/circle-card/studio",
+      description: "Build your Pro identity."
+    },
     { label: "Wallet", href: "/dashboard/circle-card/wallet" },
     { label: "Analytics", href: "/dashboard/circle-card?section=my-card#analytics" },
     { label: "Settings", href: "/dashboard/circle-card?section=settings#circle-card-settings" },

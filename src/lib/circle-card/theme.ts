@@ -83,6 +83,7 @@ export type CircleCardThemeInput = {
   themeButtonColor?: string | null;
   themeSurfaceStyle?: string | null;
   themePreset?: string | null;
+  themeMetadata?: Prisma.JsonValue | unknown;
 };
 
 export type CircleCardThemeMetadata = {
@@ -232,16 +233,18 @@ function isDefaultThemeColor(slot: keyof typeof CIRCLE_CARD_DEFAULT_THEME_COLORS
 }
 
 export function resolveCircleCardTheme(input: CircleCardThemeInput = {}): CircleCardResolvedTheme {
+  const studio = readCircleStudioMetadata(input.themeMetadata);
+  const studioAccent = studio ? CIRCLE_STUDIO_ACCENTS[studio.tokens.accentPalette] : null;
   const primaryColor = normalizeHexColor(
-    input.themePrimaryColor,
+    studioAccent?.primary ?? input.themePrimaryColor,
     DEFAULT_CIRCLE_CARD_THEME_PRESET.primaryColor
   );
   const accentColor = normalizeHexColor(
-    input.themeAccentColor,
+    studioAccent?.accent ?? input.themeAccentColor,
     DEFAULT_CIRCLE_CARD_THEME_PRESET.accentColor
   );
   const buttonColor = normalizeHexColor(
-    input.themeButtonColor,
+    studioAccent?.button ?? input.themeButtonColor,
     DEFAULT_CIRCLE_CARD_THEME_PRESET.buttonColor
   );
   const surfaceStyle = resolveCircleCardThemeSurfaceStyle(input.themeSurfaceStyle);
@@ -265,6 +268,31 @@ export function resolveCircleCardTheme(input: CircleCardThemeInput = {}): Circle
     buttonHsl: hexToHsl(buttonColor),
     buttonForegroundHsl: buttonForegroundHsl(buttonColor)
   };
+}
+
+export function resolveCircleStudioTokens(input: CircleCardThemeInput = {}): CircleStudioTokens {
+  return readCircleStudioMetadata(input.themeMetadata)?.tokens ?? DEFAULT_CIRCLE_STUDIO_TOKENS;
+}
+
+export function buildCircleStudioDataAttributes(input: CircleCardThemeInput = {}) {
+  const tokens = resolveCircleStudioTokens(input);
+  return {
+    "data-cc-identity": tokens.identityStyle.toLowerCase(),
+    "data-cc-hero": tokens.heroLayout.toLowerCase().replaceAll("_", "-"),
+    "data-cc-button": tokens.buttonStyle.toLowerCase().replaceAll("_", "-"),
+    "data-cc-surface": tokens.cardSurface.toLowerCase().replaceAll("_", "-"),
+    "data-cc-profile": tokens.profileFrame.toLowerCase().replaceAll("_", "-"),
+    "data-cc-motion": tokens.motionProfile.toLowerCase().replaceAll("_", "-"),
+    "data-cc-type": tokens.typographySystem.toLowerCase().replaceAll("_", "-"),
+    "data-cc-qr": tokens.qrStyle.toLowerCase().replaceAll("_", "-"),
+    "data-cc-entry": tokens.entryAnimation.toLowerCase().replaceAll("_", "-"),
+    "data-cc-links": tokens.linkCardStyle.toLowerCase().replaceAll("_", "-"),
+    "data-cc-icons": tokens.iconStyle.toLowerCase().replaceAll("_", "-"),
+    "data-cc-background": tokens.backgroundTreatment.toLowerCase().replaceAll("_", "-"),
+    "data-cc-divider": tokens.sectionDivider.toLowerCase().replaceAll("_", "-"),
+    "data-cc-trust": tokens.trustStyle.toLowerCase().replaceAll("_", "-"),
+    "data-cc-trust-presentation": tokens.trustPresentation.toLowerCase().replaceAll("_", "-")
+  } as const;
 }
 
 export function buildCircleCardThemeStorage(input: CircleCardThemeInput = {}) {
@@ -343,3 +371,10 @@ export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
     "--button-foreground": "var(--cc-theme-button-foreground-hsl)"
   };
 }
+import type { Prisma } from "@prisma/client";
+import {
+  CIRCLE_STUDIO_ACCENTS,
+  DEFAULT_CIRCLE_STUDIO_TOKENS,
+  readCircleStudioMetadata,
+  type CircleStudioTokens
+} from "@/lib/circle-card/identity-engine";

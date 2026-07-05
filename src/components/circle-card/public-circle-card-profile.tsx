@@ -55,6 +55,7 @@ import {
 import { getExternalLinkProps } from "@/lib/links";
 import {
   buildCircleCardThemeStyle,
+  buildCircleStudioDataAttributes,
   resolveCircleCardTheme
 } from "@/lib/circle-card/theme";
 import {
@@ -1180,6 +1181,7 @@ export function PublicCircleCardProfile({
   const circleCardTheme = resolveCircleCardTheme(card);
   const circleCardThemeStyle = buildCircleCardThemeStyle(circleCardTheme) as CSSProperties;
   const circleCardThemeSurface = circleCardTheme.surfaceStyle.toLowerCase();
+  const circleStudioAttributes = buildCircleStudioDataAttributes(card);
   const currentPublicCardPath = publicCardPath(card.slug, source);
   const spinReturnPath = publicCardPath(card.slug, source, "return");
   const circleCardRegistrationParams = new URLSearchParams({
@@ -2664,6 +2666,7 @@ export function PublicCircleCardProfile({
         className="circle-card-public-theme relative overflow-hidden pb-12"
         style={circleCardThemeStyle}
         data-circle-card-surface={circleCardThemeSurface}
+        {...circleStudioAttributes}
       >
         <div
           aria-hidden="true"
@@ -2832,6 +2835,7 @@ export function PublicCircleCardProfile({
         className="circle-card-public-theme relative overflow-hidden pb-16 lg:pb-20"
         style={circleCardThemeStyle}
         data-circle-card-surface={circleCardThemeSurface}
+        {...circleStudioAttributes}
       >
         <div
           aria-hidden="true"
@@ -3177,6 +3181,7 @@ export function PublicCircleCardProfile({
       className="circle-card-public-theme relative overflow-hidden pb-32 lg:pb-16"
       style={circleCardThemeStyle}
       data-circle-card-surface={circleCardThemeSurface}
+      {...circleStudioAttributes}
     >
       <div
         aria-hidden="true"

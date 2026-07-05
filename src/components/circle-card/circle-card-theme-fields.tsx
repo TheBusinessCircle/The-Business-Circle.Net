@@ -1,18 +1,12 @@
-"use client";
-
-import { useMemo, useState, type CSSProperties } from "react";
-import { Palette, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  CIRCLE_CARD_DEFAULT_THEME_COLORS,
-  buildCircleCardThemeStyle,
-  resolveCircleCardTheme
-} from "@/lib/circle-card/theme";
+import Link from "next/link";
+import { ArrowUpRight, Palette, Sparkles } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { CIRCLE_STUDIO_ACCENTS, circleStudioLabel, readCircleStudioMetadata } from "@/lib/circle-card/identity-engine";
 import { cn } from "@/lib/utils";
 
 type CircleCardThemeFieldsProps = {
+  cardId?: string | null;
+  themeMetadata?: unknown;
   themePrimaryColor?: string | null;
   themeAccentColor?: string | null;
   themeButtonColor?: string | null;
@@ -22,164 +16,23 @@ type CircleCardThemeFieldsProps = {
   compact?: boolean;
 };
 
-function normalizeColorInput(value: string | null | undefined, fallback: string) {
-  return /^#[0-9a-f]{6}$/i.test(value?.trim() ?? "") ? value!.trim().toUpperCase() : fallback;
-}
-
-export function CircleCardThemeFields({
-  themePrimaryColor,
-  themeAccentColor,
-  themeButtonColor,
-  fullName,
-  tagline,
-  profileLayout,
-  compact = false
-}: CircleCardThemeFieldsProps) {
-  const initialTheme = resolveCircleCardTheme({
-    themePrimaryColor,
-    themeAccentColor,
-    themeButtonColor
-  });
-  const [primaryColor, setPrimaryColor] = useState(initialTheme.primaryColor);
-  const [accentColor, setAccentColor] = useState(initialTheme.accentColor);
-  const [buttonColor, setButtonColor] = useState(initialTheme.buttonColor);
-
-  const resolvedTheme = useMemo(
-    () =>
-      resolveCircleCardTheme({
-        themePrimaryColor: primaryColor,
-        themeAccentColor: accentColor,
-        themeButtonColor: buttonColor
-      }),
-    [accentColor, buttonColor, primaryColor]
-  );
-  const previewStyle = buildCircleCardThemeStyle(resolvedTheme) as CSSProperties;
-  const previewName = fullName?.trim() || "Your name";
-  const previewTagline = tagline?.trim() || "A Circle Card that feels unmistakably yours.";
-  const layoutLabel = profileLayout ? `${profileLayout.toLowerCase()} layout` : "profile layout";
-
-  function resetPreviewToDefault() {
-    setPrimaryColor(CIRCLE_CARD_DEFAULT_THEME_COLORS.primaryColor);
-    setAccentColor(CIRCLE_CARD_DEFAULT_THEME_COLORS.accentColor);
-    setButtonColor(CIRCLE_CARD_DEFAULT_THEME_COLORS.buttonColor);
-  }
+export function CircleCardThemeFields({ cardId, themeMetadata }: CircleCardThemeFieldsProps) {
+  const studio = readCircleStudioMetadata(themeMetadata);
+  const accent = studio ? CIRCLE_STUDIO_ACCENTS[studio.tokens.accentPalette] : CIRCLE_STUDIO_ACCENTS.GOLD;
+  const href = cardId ? `/dashboard/circle-card/studio?card=${cardId}` : "/dashboard/circle-card/studio";
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-2">
-        <Palette size={16} className="text-gold" />
-        <p className="text-sm font-semibold text-foreground">Profile Colours</p>
-      </div>
-
-      <div className={cn("grid gap-4", compact ? "" : "lg:grid-cols-[minmax(0,1fr)_360px]")}>
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="themePrimaryColor">Primary colour</Label>
-              <Input
-                id="themePrimaryColor"
-                name="themePrimaryColor"
-                type="color"
-                value={primaryColor}
-                className="h-12 p-1"
-                onChange={(event) =>
-                  setPrimaryColor(normalizeColorInput(event.target.value, primaryColor))
-                }
-              />
-              <p className="text-xs font-medium text-silver">{primaryColor}</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="themeAccentColor">Accent colour</Label>
-              <Input
-                id="themeAccentColor"
-                name="themeAccentColor"
-                type="color"
-                value={accentColor}
-                className="h-12 p-1"
-                onChange={(event) =>
-                  setAccentColor(normalizeColorInput(event.target.value, accentColor))
-                }
-              />
-              <p className="text-xs font-medium text-silver">{accentColor}</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="themeButtonColor">Button colour</Label>
-              <Input
-                id="themeButtonColor"
-                name="themeButtonColor"
-                type="color"
-                value={buttonColor}
-                className="h-12 p-1"
-                onChange={(event) =>
-                  setButtonColor(normalizeColorInput(event.target.value, buttonColor))
-                }
-              />
-              <p className="text-xs font-medium text-silver">{buttonColor}</p>
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            name="resetThemeColours"
-            value="true"
-            variant="outline"
-            className="gap-2"
-            onClick={resetPreviewToDefault}
-          >
-            <RotateCcw size={15} />
-            Reset to default
-          </Button>
-        </div>
-
-        <div
-          className="circle-card-theme-preview rounded-[1.5rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-page-bg)] p-4 shadow-panel-soft"
-          style={previewStyle}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium text-gold">Live Preview</p>
-              <p className="mt-1 text-sm font-semibold text-foreground">{layoutLabel}</p>
-            </div>
-            <span className="rounded-full border border-[color:var(--cc-theme-accent-badge-border)] bg-[var(--cc-theme-accent-badge-bg)] px-3 py-1 text-xs text-gold">
-              {resolvedTheme.hasCustomColors ? "Custom" : "Default"}
-            </span>
-          </div>
-
-          <div className="mt-4 rounded-[1.25rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-hero-bg)] p-4 shadow-inner-surface">
-            <div className="flex items-center gap-3">
-              <span className="grid h-14 w-14 place-items-center rounded-full border border-gold/40 bg-gold/12 text-lg font-semibold text-foreground">
-                {previewName
-                  .split(" ")
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map((part) => part[0]?.toUpperCase())
-                  .join("") || "CC"}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-foreground">{previewName}</p>
-                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
-                  {previewTagline}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="rounded-full border border-[color:var(--cc-theme-accent-badge-border)] bg-[var(--cc-theme-accent-badge-bg)] px-3 py-1 text-xs text-gold">
-                Accent badge
-              </span>
-              <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1 text-xs text-silver">
-                Section tint
-              </span>
-            </div>
-
-            <button
-              type="button"
-              className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-button-bg)] px-4 text-sm font-semibold text-[var(--cc-theme-button-text)] shadow-[var(--cc-theme-button-shadow)]"
-            >
-              Button preview
-            </button>
+    <div className="overflow-hidden rounded-[1.4rem] border border-silver/12 bg-[radial-gradient(circle_at_85%_0%,rgba(212,175,95,.13),transparent_32%),rgba(255,255,255,.025)] p-5">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><Palette size={16} className="text-gold" /> Circle Studio</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">Build a curated identity with styles, layouts, surfaces, type, motion, QR presentation and more. Every combination stays premium.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-silver/12 bg-background/25 px-3 py-1 text-xs text-silver">{studio ? circleStudioLabel(studio.tokens.identityStyle) : "Circle Card original"}</span>
+            <span className="flex items-center gap-1.5 rounded-full border border-silver/12 bg-background/25 px-3 py-1 text-xs text-silver"><span className="h-2.5 w-2.5 rounded-full" style={{ background: accent.primary }} /> {studio ? accent.label : "Classic gold"}</span>
           </div>
         </div>
+        <Link href={href} className={cn(buttonVariants(), "shrink-0 gap-2")}><Sparkles size={16} /> Open Circle Studio <ArrowUpRight size={14} /></Link>
       </div>
     </div>
   );

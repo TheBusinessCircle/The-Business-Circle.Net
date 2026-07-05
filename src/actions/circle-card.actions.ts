@@ -144,6 +144,14 @@ import {
   buildCircleCardThemeMetadata,
   buildCircleCardThemeStorage
 } from "@/lib/circle-card/theme";
+import {
+  CIRCLE_STUDIO_ACCENTS,
+  CIRCLE_STUDIO_OPTIONS,
+  buildCircleStudioMetadata,
+  isCircleStudioToken,
+  type CircleStudioTokenKey,
+  type CircleStudioTokens
+} from "@/lib/circle-card/identity-engine";
 import { buildCircleCardDiscoverVisibilityData } from "@/lib/circle-card/privacy";
 import {
   circleCardRecommendationFormSchema,
@@ -2513,6 +2521,59 @@ export async function updateCircleCardIdentityAction(formData: FormData) {
 
   revalidateCircleCardPaths(card.slug);
   redirectWithNotice(returnPath, "identity-updated");
+}
+
+export async function updateCircleStudioAction(formData: FormData) {
+  const user = await requireCircleCardActionUser();
+  const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card/studio");
+  const cardId = String(formData.get("cardId") ?? "");
+  const tokenKeys = Object.keys(CIRCLE_STUDIO_OPTIONS) as CircleStudioTokenKey[];
+  const tokens = Object.fromEntries(
+    tokenKeys.map((key) => [key, String(formData.get(key) ?? "").trim().toUpperCase()])
+  ) as CircleStudioTokens;
+
+  if (!cardId || tokenKeys.some((key) => !isCircleStudioToken(key, tokens[key]))) {
+    redirectWithError(returnPath, "studio-invalid");
+  }
+
+  if (!user.hasActiveSubscription && user.role !== "ADMIN") {
+    redirectWithError(returnPath, "studio-pro-required");
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: { id: cardId, userId: user.id, archivedAt: null },
+    select: { id: true, slug: true }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  const accent = CIRCLE_STUDIO_ACCENTS[tokens.accentPalette];
+  await prisma.circleCard.update({
+    where: { id: card.id },
+    data: {
+      themePrimaryColor: accent.primary,
+      themeAccentColor: accent.accent,
+      themeButtonColor: accent.button,
+      themeSurfaceStyle: "PREMIUM",
+      themePreset: tokens.identityStyle,
+      themeMetadata: buildCircleStudioMetadata(tokens) as Prisma.InputJsonValue
+    }
+  });
+
+  await createCircleCardActivity({
+    userId: user.id,
+    circleCardId: card.id,
+    type: "CARD_UPDATED",
+    title: "Circle Studio identity activated",
+    message: `${tokens.identityStyle.toLowerCase()} identity activated.`,
+    entityType: "CIRCLE_CARD",
+    entityId: card.id
+  });
+
+  revalidateCircleCardPaths(card.slug);
+  redirectWithNotice(returnPath, "studio-activated");
 }
 
 export async function upsertCircleCardLinkAction(formData: FormData) {

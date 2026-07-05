@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Copy, Download, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
 import { trackCircleCardEvent } from "@/lib/circle-card/analytics-client";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +47,7 @@ export function CircleCardQrPanel({
     let mounted = true;
 
     QRCode.toDataURL(publicUrl, {
-      errorCorrectionLevel: "M",
+      errorCorrectionLevel: "H",
       margin: 2,
       scale: 8,
       color: {
@@ -179,6 +180,7 @@ export function CircleCardQrPanel({
     <div
       ref={panelRef}
       className={cn(
+        "circle-card-qr-panel",
         premium
           ? "relative overflow-hidden rounded-[1.75rem] border border-gold/24 bg-[radial-gradient(circle_at_50%_0%,rgba(47,109,255,0.18),transparent_36%),linear-gradient(155deg,rgba(9,22,50,0.92),rgba(4,10,24,0.98))] p-4 shadow-[0_24px_70px_rgba(0,0,0,0.36),0_0_54px_rgba(47,109,255,0.1)] sm:p-5"
           : "rounded-2xl border border-silver/16 bg-background/22 p-4",
@@ -216,7 +218,7 @@ export function CircleCardQrPanel({
       >
         <div
           className={cn(
-            "grid min-h-[180px] place-items-center rounded-2xl border border-white/10 bg-white p-3",
+            "relative grid min-h-[180px] place-items-center rounded-2xl border border-white/10 bg-white p-3",
             premium ? "min-h-[220px] border-gold/20 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.22)]" : null
           )}
         >
@@ -224,11 +226,14 @@ export function CircleCardQrPanel({
             <img
               src={qrDataUrl}
               alt="Circle Card QR code"
-              className={cn("h-40 w-40", premium ? "h-48 w-48" : null)}
+              className={cn("circle-card-qr-image h-40 w-40", premium ? "h-48 w-48" : null)}
             />
           ) : (
             <span className="text-sm text-background">{status || "Generating QR"}</span>
           )}
+          <span aria-hidden="true" className="circle-card-qr-centre-logo absolute left-1/2 top-1/2 hidden h-8 w-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-lg bg-white p-1 shadow-md">
+            <CircleCardLogoMark className="h-full w-full" alt="" />
+          </span>
         </div>
 
         <div className={cn("flex flex-col justify-end gap-2", premium ? "sm:flex-row" : null)}>

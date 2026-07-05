@@ -9031,19 +9031,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
               <CircleCardDashboardSection
                 id="card-theme"
-                title="Profile Colours"
-                summary="Primary, accent and button colours for your public profile"
+                title="Circle Studio"
+                summary="Your professionally designed Pro identity system"
               >
                 <p className="mb-4 text-xs font-medium uppercase tracking-[0.08em] text-gold">
                   Styling: {currentCardDisplayName}
                 </p>
                 <CircleCardThemeFields
-                  themePrimaryColor={card?.themePrimaryColor}
-                  themeAccentColor={card?.themeAccentColor}
-                  themeButtonColor={card?.themeButtonColor}
-                  fullName={card?.fullName ?? member?.name}
-                  tagline={card?.tagline}
-                  profileLayout={card?.profileLayout}
+                  cardId={card?.id}
+                  themeMetadata={card?.themeMetadata}
                 />
               </CircleCardDashboardSection>
 
