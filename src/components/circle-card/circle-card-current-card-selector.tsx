@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ContactRound, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { CircleCardDashboardSection } from "@/components/circle-card/circle-card-dashboard-section";
-
-const CURRENT_CARD_STORAGE_KEY = "circle-card.dashboard.current-card-id";
+import {
+  clearCircleCardCurrentCardPreference,
+  persistCircleCardCurrentCardPreference,
+  readCircleCardCurrentCardPreference
+} from "@/lib/circle-card/current-card-preference";
 
 export type CircleCardCurrentCardSelectorOption = {
   id: string;
@@ -16,6 +20,7 @@ export type CircleCardCurrentCardSelectorOption = {
   typeLabel: string;
   statusLabel: string;
   isDefault: boolean;
+  isLive: boolean;
 };
 
 type CircleCardCurrentCardSelectorProps = {
@@ -44,6 +49,7 @@ export function CircleCardCurrentCardSelector({
   isPlatformOwner = false,
   previewCardTypeLabel
 }: CircleCardCurrentCardSelectorProps) {
+  const router = useRouter();
   const [pendingCardId, setPendingCardId] = useState(selectedCardId || cards[0]?.id || "");
   const selectedCard = useMemo(
     () => cards.find((candidate) => candidate.id === pendingCardId) ?? cards[0] ?? null,
@@ -52,28 +58,35 @@ export function CircleCardCurrentCardSelector({
 
   useEffect(() => {
     if (selectedCardId && hasExplicitSelection) {
-      window.sessionStorage.setItem(CURRENT_CARD_STORAGE_KEY, selectedCardId);
+      const explicitCard = cards.find((candidate) => candidate.id === selectedCardId);
+      if (explicitCard?.isLive) {
+        persistCircleCardCurrentCardPreference(selectedCardId);
+      }
       setPendingCardId(selectedCardId);
       return;
     }
 
-    const storedCardId = window.sessionStorage.getItem(CURRENT_CARD_STORAGE_KEY);
-    if (!storedCardId || !cards.some((candidate) => candidate.id === storedCardId)) {
+    const storedCardId = readCircleCardCurrentCardPreference();
+    const storedCard = cards.find((candidate) => candidate.id === storedCardId);
+    if (!storedCardId || !storedCard?.isLive) {
+      if (storedCardId) clearCircleCardCurrentCardPreference();
       return;
     }
 
     if (storedCardId !== selectedCardId) {
-      window.location.replace(cardSwitchUrl(storedCardId, currentSection));
+      persistCircleCardCurrentCardPreference(storedCardId);
+      router.replace(cardSwitchUrl(storedCardId, currentSection), { scroll: false });
       return;
     }
 
     setPendingCardId(selectedCardId);
-  }, [cards, currentSection, hasExplicitSelection, selectedCardId]);
+  }, [cards, currentSection, hasExplicitSelection, router, selectedCardId]);
 
   function switchCard(cardId: string) {
     setPendingCardId(cardId);
-    window.sessionStorage.setItem(CURRENT_CARD_STORAGE_KEY, cardId);
-    window.location.assign(cardSwitchUrl(cardId, currentSection));
+    const selected = cards.find((candidate) => candidate.id === cardId);
+    if (selected?.isLive) persistCircleCardCurrentCardPreference(cardId);
+    router.replace(cardSwitchUrl(cardId, currentSection), { scroll: false });
   }
 
   if (!cards.length || !selectedCard) {

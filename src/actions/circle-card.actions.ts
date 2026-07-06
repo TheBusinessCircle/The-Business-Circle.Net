@@ -142,13 +142,16 @@ import {
 } from "@/lib/circle-card/content-blocks";
 import {
   buildCircleCardThemeMetadata,
-  buildCircleCardThemeStorage
+  buildCircleCardThemeStorage,
+  resolveCircleCardTheme
 } from "@/lib/circle-card/theme";
 import {
-  CIRCLE_STUDIO_ACCENTS,
   CIRCLE_STUDIO_OPTIONS,
   buildCircleStudioMetadata,
+  getCircleStudioFineTuneIssues,
+  isCircleStudioCustomColor,
   isCircleStudioToken,
+  normalizeCircleStudioFineTune,
   type CircleStudioTokenKey,
   type CircleStudioTokens
 } from "@/lib/circle-card/identity-engine";
@@ -2531,9 +2534,29 @@ export async function updateCircleStudioAction(formData: FormData) {
   const tokens = Object.fromEntries(
     tokenKeys.map((key) => [key, String(formData.get(key) ?? "").trim().toUpperCase()])
   ) as CircleStudioTokens;
+  const rawAccentColor = String(formData.get("fineTuneAccentColor") ?? "").trim();
+  const rawSecondaryColor = String(formData.get("fineTuneSecondaryColor") ?? "").trim();
+  const rawBackgroundImageUrl = String(formData.get("fineTuneBackgroundImageUrl") ?? "").trim();
+  const fineTune = normalizeCircleStudioFineTune({
+    accentColor: rawAccentColor || null,
+    secondaryColor: rawSecondaryColor || null,
+    backgroundStyle: String(formData.get("fineTuneBackgroundStyle") ?? "PRESET").trim().toUpperCase(),
+    backgroundImageUrl: rawBackgroundImageUrl || null,
+    backgroundOverlay: String(formData.get("fineTuneBackgroundOverlay") ?? "0.72").trim(),
+    paletteSource: String(formData.get("fineTunePaletteSource") ?? "PRESET").trim().toUpperCase()
+  });
 
   if (!cardId || tokenKeys.some((key) => !isCircleStudioToken(key, tokens[key]))) {
     redirectWithError(returnPath, "studio-invalid");
+  }
+
+  if (
+    (rawAccentColor && !isCircleStudioCustomColor(rawAccentColor)) ||
+    (rawSecondaryColor && !isCircleStudioCustomColor(rawSecondaryColor)) ||
+    (rawBackgroundImageUrl && !fineTune.backgroundImageUrl) ||
+    getCircleStudioFineTuneIssues(fineTune).length
+  ) {
+    redirectWithError(returnPath, "studio-contrast");
   }
 
   if (!user.hasActiveSubscription && user.role !== "ADMIN") {
@@ -2549,16 +2572,17 @@ export async function updateCircleStudioAction(formData: FormData) {
     redirectWithError(returnPath, "card-not-found");
   }
 
-  const accent = CIRCLE_STUDIO_ACCENTS[tokens.accentPalette];
+  const metadata = buildCircleStudioMetadata(tokens, "CORE", fineTune);
+  const resolvedTheme = resolveCircleCardTheme({ themeMetadata: metadata });
   await prisma.circleCard.update({
     where: { id: card.id },
     data: {
-      themePrimaryColor: accent.primary,
-      themeAccentColor: accent.accent,
-      themeButtonColor: accent.button,
+      themePrimaryColor: resolvedTheme.primaryColor,
+      themeAccentColor: resolvedTheme.accentColor,
+      themeButtonColor: resolvedTheme.buttonColor,
       themeSurfaceStyle: "PREMIUM",
       themePreset: tokens.identityStyle,
-      themeMetadata: buildCircleStudioMetadata(tokens) as Prisma.InputJsonValue
+      themeMetadata: metadata as Prisma.InputJsonValue
     }
   });
 

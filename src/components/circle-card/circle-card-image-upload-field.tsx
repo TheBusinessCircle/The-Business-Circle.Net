@@ -26,7 +26,7 @@ type ImageAdjustmentValues = {
 type CircleCardImageUploadFieldProps = {
   id: string;
   label: string;
-  uploadKind: "profile-photo" | "business-logo" | "gallery-image" | "link-image";
+  uploadKind: "profile-photo" | "business-logo" | "background-image" | "gallery-image" | "link-image";
   name?: string;
   defaultValue?: string;
   value?: string;
@@ -49,6 +49,7 @@ type CircleCardImageUploadFieldProps = {
   previewClassName?: string;
   fallbackSrc?: string;
   showAdjustments?: boolean;
+  allowUrlInput?: boolean;
 };
 
 type UploadResponse = {
@@ -159,7 +160,8 @@ export function CircleCardImageUploadField({
   className,
   previewClassName,
   fallbackSrc,
-  showAdjustments = true
+  showAdjustments = true,
+  allowUrlInput = true
 }: CircleCardImageUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const defaultValueRef = useRef(defaultValue);
@@ -397,17 +399,23 @@ export function CircleCardImageUploadField({
           </div>
 
           <div className="min-w-0 space-y-2">
-            <Input
-              id={id}
-              name={name}
-              value={imageUrl}
-              placeholder="https://..."
-              onChange={(event) => {
-                setNotice(null);
-                setLastUploadedUrl(null);
-                commitImageUrl(event.target.value);
-              }}
-            />
+            {allowUrlInput ? (
+              <Input
+                id={id}
+                name={name}
+                value={imageUrl}
+                placeholder="https://..."
+                onChange={(event) => {
+                  setNotice(null);
+                  setLastUploadedUrl(null);
+                  commitImageUrl(event.target.value);
+                }}
+              />
+            ) : (
+              <p id={id} className="rounded-xl border border-silver/12 bg-background/28 px-3 py-2 text-xs text-muted">
+                Choose a protected image upload for this background.
+              </p>
+            )}
             <input
               ref={fileInputRef}
               type="file"

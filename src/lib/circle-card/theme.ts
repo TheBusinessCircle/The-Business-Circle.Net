@@ -75,6 +75,7 @@ export type CircleCardResolvedTheme = CircleCardThemeValues & {
   accentHsl: string;
   buttonHsl: string;
   buttonForegroundHsl: string;
+  fineTune: CircleStudioFineTune;
 };
 
 export type CircleCardThemeInput = {
@@ -225,7 +226,14 @@ function relativeLuminance(value: string) {
 }
 
 function buttonForegroundHsl(buttonColor: string) {
-  return relativeLuminance(buttonColor) > 0.54 ? "222 58% 8%" : "210 43% 97%";
+  const buttonLuminance = relativeLuminance(buttonColor);
+  const darkLuminance = relativeLuminance("#071126");
+  const lightLuminance = relativeLuminance("#F7FAFC");
+  const darkContrast = (Math.max(buttonLuminance, darkLuminance) + 0.05) /
+    (Math.min(buttonLuminance, darkLuminance) + 0.05);
+  const lightContrast = (Math.max(buttonLuminance, lightLuminance) + 0.05) /
+    (Math.min(buttonLuminance, lightLuminance) + 0.05);
+  return darkContrast >= lightContrast ? "222 58% 8%" : "210 43% 97%";
 }
 
 function isDefaultThemeColor(slot: keyof typeof CIRCLE_CARD_DEFAULT_THEME_COLORS, value: string) {
@@ -235,16 +243,17 @@ function isDefaultThemeColor(slot: keyof typeof CIRCLE_CARD_DEFAULT_THEME_COLORS
 export function resolveCircleCardTheme(input: CircleCardThemeInput = {}): CircleCardResolvedTheme {
   const studio = readCircleStudioMetadata(input.themeMetadata);
   const studioAccent = studio ? CIRCLE_STUDIO_ACCENTS[studio.tokens.accentPalette] : null;
+  const fineTune = studio?.fineTune ?? DEFAULT_CIRCLE_STUDIO_FINE_TUNE;
   const primaryColor = normalizeHexColor(
-    studioAccent?.primary ?? input.themePrimaryColor,
+    fineTune.secondaryColor ?? studioAccent?.primary ?? input.themePrimaryColor,
     DEFAULT_CIRCLE_CARD_THEME_PRESET.primaryColor
   );
   const accentColor = normalizeHexColor(
-    studioAccent?.accent ?? input.themeAccentColor,
+    fineTune.accentColor ?? studioAccent?.accent ?? input.themeAccentColor,
     DEFAULT_CIRCLE_CARD_THEME_PRESET.accentColor
   );
   const buttonColor = normalizeHexColor(
-    studioAccent?.button ?? input.themeButtonColor,
+    fineTune.accentColor ?? studioAccent?.button ?? input.themeButtonColor,
     DEFAULT_CIRCLE_CARD_THEME_PRESET.buttonColor
   );
   const surfaceStyle = resolveCircleCardThemeSurfaceStyle(input.themeSurfaceStyle);
@@ -266,7 +275,8 @@ export function resolveCircleCardTheme(input: CircleCardThemeInput = {}): Circle
     primaryHsl: hexToHsl(primaryColor),
     accentHsl: hexToHsl(accentColor),
     buttonHsl: hexToHsl(buttonColor),
-    buttonForegroundHsl: buttonForegroundHsl(buttonColor)
+    buttonForegroundHsl: buttonForegroundHsl(buttonColor),
+    fineTune
   };
 }
 
@@ -274,8 +284,13 @@ export function resolveCircleStudioTokens(input: CircleCardThemeInput = {}): Cir
   return readCircleStudioMetadata(input.themeMetadata)?.tokens ?? DEFAULT_CIRCLE_STUDIO_TOKENS;
 }
 
+export function resolveCircleStudioFineTune(input: CircleCardThemeInput = {}) {
+  return readCircleStudioMetadata(input.themeMetadata)?.fineTune ?? DEFAULT_CIRCLE_STUDIO_FINE_TUNE;
+}
+
 export function buildCircleStudioDataAttributes(input: CircleCardThemeInput = {}) {
   const tokens = resolveCircleStudioTokens(input);
+  const fineTune = resolveCircleStudioFineTune(input);
   return {
     "data-cc-identity": tokens.identityStyle.toLowerCase(),
     "data-cc-hero": tokens.heroLayout.toLowerCase().replaceAll("_", "-"),
@@ -291,7 +306,8 @@ export function buildCircleStudioDataAttributes(input: CircleCardThemeInput = {}
     "data-cc-background": tokens.backgroundTreatment.toLowerCase().replaceAll("_", "-"),
     "data-cc-divider": tokens.sectionDivider.toLowerCase().replaceAll("_", "-"),
     "data-cc-trust": tokens.trustStyle.toLowerCase().replaceAll("_", "-"),
-    "data-cc-trust-presentation": tokens.trustPresentation.toLowerCase().replaceAll("_", "-")
+    "data-cc-trust-presentation": tokens.trustPresentation.toLowerCase().replaceAll("_", "-"),
+    "data-cc-fine-background": fineTune.backgroundStyle !== "PRESET" ? "true" : "false"
   } as const;
 }
 
@@ -340,6 +356,19 @@ export function buildCircleCardThemeMetadata(
 
 export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
   const surface = SURFACE_TOKENS[theme.surfaceStyle];
+  const escapedBackgroundImage = theme.fineTune.backgroundImageUrl
+    ?.replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')
+    .replace(/[\r\n]/g, "");
+  const presetBackground = `radial-gradient(circle at 16% 0%, hsl(${theme.primaryHsl} / 0.24), transparent 30%), radial-gradient(circle at 82% 8%, hsl(${theme.accentHsl} / 0.2), transparent 28%), linear-gradient(180deg, hsl(${surface.background}) 0%, #08101f 48%, #030712 100%)`;
+  const pageBackground =
+    theme.fineTune.backgroundStyle === "IMAGE" && escapedBackgroundImage
+      ? `linear-gradient(rgba(3,7,18,${theme.fineTune.backgroundOverlay}), rgba(3,7,18,${Math.min(0.94, theme.fineTune.backgroundOverlay + 0.1)})), url("${escapedBackgroundImage}") center / cover no-repeat, ${presetBackground}`
+      : theme.fineTune.backgroundStyle === "DEEP_GRADIENT"
+        ? `radial-gradient(circle at 10% 0%, hsl(${theme.primaryHsl} / 0.34), transparent 38%), linear-gradient(145deg, #02040a, hsl(${surface.background}) 54%, #030712)`
+        : theme.fineTune.backgroundStyle === "SOFT_GLOW"
+          ? `radial-gradient(ellipse at 50% -8%, hsl(${theme.accentHsl} / 0.3), transparent 44%), radial-gradient(circle at 90% 65%, hsl(${theme.primaryHsl} / 0.14), transparent 28%), #030712`
+          : presetBackground;
 
   return {
     "--cc-theme-primary-hsl": theme.primaryHsl,
@@ -355,7 +384,7 @@ export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
     "--cc-theme-secondary-border": `hsl(${theme.primaryHsl} / 0.32)`,
     "--cc-theme-secondary-shadow": `0 16px 38px hsl(${theme.primaryHsl} / 0.16)`,
     "--cc-theme-hero-shadow": `0 30px 90px rgba(0,0,0,0.48), 0 0 72px hsl(${theme.primaryHsl} / 0.12)`,
-    "--cc-theme-page-bg": `radial-gradient(circle at 16% 0%, hsl(${theme.primaryHsl} / 0.24), transparent 30%), radial-gradient(circle at 82% 8%, hsl(${theme.accentHsl} / 0.2), transparent 28%), linear-gradient(180deg, hsl(${surface.background}) 0%, #08101f 48%, #030712 100%)`,
+    "--cc-theme-page-bg": pageBackground,
     "--cc-theme-hero-bg": `radial-gradient(circle at 18% 18%, hsl(${theme.accentHsl} / 0.24), transparent 26%), radial-gradient(circle at 78% 14%, hsl(${theme.primaryHsl} / 0.32), transparent 32%), linear-gradient(145deg, hsl(${surface.card} / 0.95), rgba(4,10,24,0.98))`,
     "--cc-theme-media-bg": `radial-gradient(circle at 20% 18%, hsl(${theme.primaryHsl} / 0.24), transparent 30%), radial-gradient(circle at 86% 20%, hsl(${theme.accentHsl} / 0.26), transparent 28%), linear-gradient(135deg, hsl(${surface.card} / 0.94), rgba(5,12,26,0.98))`,
     "--cc-theme-hero-line": `linear-gradient(90deg, transparent, hsl(${theme.accentHsl} / 0.74), hsl(${theme.primaryHsl} / 0.5), transparent)`,
@@ -374,7 +403,9 @@ export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
 import type { Prisma } from "@prisma/client";
 import {
   CIRCLE_STUDIO_ACCENTS,
+  DEFAULT_CIRCLE_STUDIO_FINE_TUNE,
   DEFAULT_CIRCLE_STUDIO_TOKENS,
   readCircleStudioMetadata,
+  type CircleStudioFineTune,
   type CircleStudioTokens
 } from "@/lib/circle-card/identity-engine";

@@ -19,6 +19,8 @@ type CircleCardThemeFieldsProps = {
 export function CircleCardThemeFields({ cardId, themeMetadata }: CircleCardThemeFieldsProps) {
   const studio = readCircleStudioMetadata(themeMetadata);
   const accent = studio ? CIRCLE_STUDIO_ACCENTS[studio.tokens.accentPalette] : CIRCLE_STUDIO_ACCENTS.GOLD;
+  const displayAccent = studio?.fineTune.accentColor ?? accent.primary;
+  const accentLabel = studio?.fineTune.accentColor ? "Fine-tuned palette" : studio ? accent.label : "Classic gold";
   const href = cardId ? `/dashboard/circle-card/studio?card=${cardId}` : "/dashboard/circle-card/studio";
 
   return (
@@ -29,7 +31,7 @@ export function CircleCardThemeFields({ cardId, themeMetadata }: CircleCardTheme
           <p className="mt-2 text-sm leading-relaxed text-muted">Build a curated identity with styles, layouts, surfaces, type, motion, QR presentation and more. Every combination stays premium.</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-silver/12 bg-background/25 px-3 py-1 text-xs text-silver">{studio ? circleStudioLabel(studio.tokens.identityStyle) : "Circle Card original"}</span>
-            <span className="flex items-center gap-1.5 rounded-full border border-silver/12 bg-background/25 px-3 py-1 text-xs text-silver"><span className="h-2.5 w-2.5 rounded-full" style={{ background: accent.primary }} /> {studio ? accent.label : "Classic gold"}</span>
+            <span className="flex items-center gap-1.5 rounded-full border border-silver/12 bg-background/25 px-3 py-1 text-xs text-silver"><span className="h-2.5 w-2.5 rounded-full" style={{ background: displayAccent }} /> {accentLabel}</span>
           </div>
         </div>
         <Link href={href} className={cn(buttonVariants(), "shrink-0 gap-2")}><Sparkles size={16} /> Open Circle Studio <ArrowUpRight size={14} /></Link>

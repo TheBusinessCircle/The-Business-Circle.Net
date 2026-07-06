@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import {
   Activity,
   ArrowUpRight,
@@ -172,6 +173,10 @@ import {
   type CircleCardPlatformStatusTone
 } from "@/lib/circle-card/platform-owner-control";
 import { isAdminRole } from "@/lib/auth/permissions";
+import {
+  CIRCLE_CARD_CURRENT_CARD_COOKIE,
+  normalizeCircleCardCurrentCardId
+} from "@/lib/circle-card/current-card-preference";
 import {
   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
   CIRCLE_CARD_PLAN_DEFINITIONS,
@@ -3631,8 +3636,12 @@ function circleCardActivityIcon(type: string) {
 export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
   const session = await requireCircleCardUser();
   const params = await searchParams;
+  const cookieStore = await cookies();
   const activeSection = resolveCircleCardAppSection(firstValue(params.section));
   const selectedCardId = firstValue(params.cardId) ?? "";
+  const persistedCardId = normalizeCircleCardCurrentCardId(
+    cookieStore.get(CIRCLE_CARD_CURRENT_CARD_COOKIE)?.value
+  );
   const createCardRequested = firstValue(params.newCard) === "1";
   const notice = firstValue(params.notice);
   const created = firstValue(params.created) === "1";
@@ -4216,12 +4225,24 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     existingCardCount: cardCount
   });
   const shouldShowNewCardForm = createCardRequested && canCreateAdditionalCard;
+  const liveCards = cards.filter((candidate) => candidate.isPublished);
   const selectedExistingCard =
     selectedCardId && !shouldShowNewCardForm
-      ? cards.find((candidate) => candidate.id === selectedCardId) ?? null
+      ? cards.find(
+          (candidate) => candidate.id === selectedCardId && (candidate.isPublished || !liveCards.length)
+        ) ?? null
       : null;
-  const defaultCard = cards.find((candidate) => candidate.isDefaultCard || candidate.isPrimary) ?? null;
-  const card = shouldShowNewCardForm ? null : selectedExistingCard ?? defaultCard ?? cards[0] ?? null;
+  const persistedCard = persistedCardId
+    ? cards.find((candidate) => candidate.id === persistedCardId && candidate.isPublished) ?? null
+    : null;
+  const defaultCard =
+    cards.find(
+      (candidate) => candidate.isPublished && (candidate.isDefaultCard || candidate.isPrimary)
+    ) ?? null;
+  const firstLiveCard = liveCards[0] ?? null;
+  const card = shouldShowNewCardForm
+    ? null
+    : selectedExistingCard ?? persistedCard ?? defaultCard ?? firstLiveCard ?? cards[0] ?? null;
   const normalizedWalletContacts = walletContacts.map((contact) => {
     const socialLinks = readCircleWalletBusinessCardSocialLinks(contact.socialLinks);
     const fullName =
@@ -4747,7 +4768,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const currentCardContextLabel = card
     ? `${currentCardDisplayName} - ${currentCardTypeMeta?.label ?? "Circle"} Card`
     : "No Circle Card selected";
-  const currentCardSelectorOptions = cards.map((ownedCard) => {
+  const currentCardSelectorOptions = (liveCards.length ? liveCards : cards).map((ownedCard) => {
     const typeMeta = circleCardHubTypeMeta(ownedCard.cardType);
     const statusMeta = circleCardHubStatusMeta({ isPublished: ownedCard.isPublished });
 
@@ -4757,7 +4778,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       detail: [ownedCard.fullName, ownedCard.role].filter(Boolean).join(" / "),
       typeLabel: typeMeta.label,
       statusLabel: statusMeta.label,
-      isDefault: ownedCard.isDefaultCard
+      isDefault: ownedCard.isDefaultCard,
+      isLive: ownedCard.isPublished
     };
   });
   const referralPath = referralCentre?.identity.code
@@ -5578,6 +5600,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </div>
       </section>
 
+      <CircleCardInstallPrompt showManualFallback />
+
       <nav
         aria-label="Circle Card sections"
         className="sticky top-16 z-20 -mx-2 border-y border-silver/12 bg-background/92 px-2 py-2 backdrop-blur-xl sm:mx-0 sm:rounded-2xl sm:border sm:bg-card/78"
@@ -5623,7 +5647,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         </div>
       </nav>
 
-      <CircleCardInstallPrompt />
       {isPlatformOwner ? <CircleCardPlatformOwnerSandboxIndicator /> : null}
 
       <CircleCardDashboardSection
@@ -11517,6 +11540,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       >
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
+            <CircleCardInstallPrompt variant="settings" showManualFallback />
             <Card className="border-silver/16 bg-card/62">
               <CardHeader>
                 <CardTitle className="inline-flex items-center gap-2 text-lg">

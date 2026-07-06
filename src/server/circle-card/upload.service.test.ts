@@ -15,6 +15,7 @@ import {
   circleCardLinkFileUploadDirectory,
   persistCircleCardImageUpload,
   persistCircleCardLinkFileUpload,
+  isCircleCardImageUploadKind,
   readCircleCardImage,
   readCircleCardLinkFile,
   resolveCircleCardLinkFilePath,
@@ -29,6 +30,10 @@ afterEach(async () => {
 });
 
 describe("Circle Card local image storage", () => {
+  it("accepts the protected Studio background upload kind", () => {
+    expect(isCircleCardImageUploadKind("background-image")).toBe(true);
+  });
+
   it("writes to public/uploads/circle-card and serves the returned URL", async () => {
     const sourceBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
     const imageUrl = await persistCircleCardImageUpload({

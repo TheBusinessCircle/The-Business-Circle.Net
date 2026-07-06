@@ -1,6 +1,22 @@
 import type { Prisma } from "@prisma/client";
+import { normalizeSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 
 export const CIRCLE_STUDIO_VERSION = 2 as const;
+export const CIRCLE_STUDIO_FINE_TUNE_VERSION = 1 as const;
+
+export const CIRCLE_STUDIO_BACKGROUND_STYLES = [
+  "PRESET",
+  "DEEP_GRADIENT",
+  "SOFT_GLOW",
+  "IMAGE"
+] as const;
+
+export const CIRCLE_STUDIO_PALETTE_SOURCES = [
+  "PRESET",
+  "CUSTOM",
+  "PROFILE_IMAGE",
+  "BUSINESS_LOGO"
+] as const;
 
 export const CIRCLE_STUDIO_OPTIONS = {
   identityStyle: ["EXECUTIVE", "CORPORATE", "MODERN", "LUXURY", "BOLD", "MINIMAL", "CREATOR", "FUTURE"],
@@ -46,7 +62,125 @@ export type CircleStudioMetadata = {
   source: "circle-studio";
   collection: "CORE" | string;
   tokens: CircleStudioTokens;
+  fineTune: CircleStudioFineTune;
 };
+
+export type CircleStudioFineTune = {
+  version: 1;
+  accentColor: string | null;
+  secondaryColor: string | null;
+  backgroundStyle: (typeof CIRCLE_STUDIO_BACKGROUND_STYLES)[number];
+  backgroundImageUrl: string | null;
+  backgroundOverlay: number;
+  paletteSource: (typeof CIRCLE_STUDIO_PALETTE_SOURCES)[number];
+};
+
+export const DEFAULT_CIRCLE_STUDIO_FINE_TUNE: CircleStudioFineTune = {
+  version: CIRCLE_STUDIO_FINE_TUNE_VERSION,
+  accentColor: null,
+  secondaryColor: null,
+  backgroundStyle: "PRESET",
+  backgroundImageUrl: null,
+  backgroundOverlay: 0.72,
+  paletteSource: "PRESET"
+};
+
+const CIRCLE_STUDIO_HEX_PATTERN = /^#[0-9a-f]{6}$/i;
+const CIRCLE_STUDIO_SAFE_BACKGROUND = "#071126";
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeStudioHex(value: unknown) {
+  return typeof value === "string" && CIRCLE_STUDIO_HEX_PATTERN.test(value.trim())
+    ? value.trim().toUpperCase()
+    : null;
+}
+
+function studioRgb(value: string) {
+  const normalized = value.slice(1);
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16)
+  };
+}
+
+function studioLuminance(value: string) {
+  const { r, g, b } = studioRgb(value);
+  const channels = [r, g, b].map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+}
+
+export function circleStudioContrastRatio(foreground: string, background: string) {
+  if (!normalizeStudioHex(foreground) || !normalizeStudioHex(background)) return 0;
+  const foregroundLuminance = studioLuminance(foreground);
+  const backgroundLuminance = studioLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+export function isCircleStudioCustomColor(value: unknown) {
+  return normalizeStudioHex(value) !== null;
+}
+
+export function normalizeCircleStudioFineTune(input: unknown): CircleStudioFineTune {
+  const source = input && typeof input === "object" && !Array.isArray(input)
+    ? input as Record<string, unknown>
+    : {};
+  const backgroundStyle = CIRCLE_STUDIO_BACKGROUND_STYLES.includes(
+    source.backgroundStyle as CircleStudioFineTune["backgroundStyle"]
+  )
+    ? source.backgroundStyle as CircleStudioFineTune["backgroundStyle"]
+    : DEFAULT_CIRCLE_STUDIO_FINE_TUNE.backgroundStyle;
+  const paletteSource = CIRCLE_STUDIO_PALETTE_SOURCES.includes(
+    source.paletteSource as CircleStudioFineTune["paletteSource"]
+  )
+    ? source.paletteSource as CircleStudioFineTune["paletteSource"]
+    : DEFAULT_CIRCLE_STUDIO_FINE_TUNE.paletteSource;
+  const overlay = typeof source.backgroundOverlay === "number"
+    ? source.backgroundOverlay
+    : Number(source.backgroundOverlay);
+
+  return {
+    version: CIRCLE_STUDIO_FINE_TUNE_VERSION,
+    accentColor: normalizeStudioHex(source.accentColor),
+    secondaryColor: normalizeStudioHex(source.secondaryColor),
+    backgroundStyle,
+    backgroundImageUrl: normalizeSafeCircleCardImageUrl(source.backgroundImageUrl),
+    backgroundOverlay: Number.isFinite(overlay)
+      ? Number(clamp(overlay, 0.62, 0.86).toFixed(2))
+      : DEFAULT_CIRCLE_STUDIO_FINE_TUNE.backgroundOverlay,
+    paletteSource
+  };
+}
+
+export function getCircleStudioFineTuneIssues(input: CircleStudioFineTune) {
+  const issues: string[] = [];
+  if (
+    input.accentColor &&
+    circleStudioContrastRatio(input.accentColor, CIRCLE_STUDIO_SAFE_BACKGROUND) < 4.5
+  ) {
+    issues.push("Choose a lighter accent colour so text and controls remain readable.");
+  }
+  if (
+    input.secondaryColor &&
+    circleStudioContrastRatio(input.secondaryColor, CIRCLE_STUDIO_SAFE_BACKGROUND) < 3
+  ) {
+    issues.push("Choose a lighter secondary colour so borders and highlights remain clear.");
+  }
+  if (input.backgroundStyle === "IMAGE" && !input.backgroundImageUrl) {
+    issues.push("Upload a background image before using the image background.");
+  }
+  return issues;
+}
 
 export const CIRCLE_STUDIO_ACCENTS = {
   PROFESSIONAL_BLUE: { label: "Professional Blue", primary: "#2867D7", accent: "#78A8FF", button: "#2867D7" },
@@ -140,11 +274,15 @@ export function readCircleStudioMetadata(value: Prisma.JsonValue | unknown): Cir
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const metadata = value as Record<string, unknown>;
   if (metadata.version !== CIRCLE_STUDIO_VERSION || metadata.source !== "circle-studio") return null;
-  return { version: 2, source: "circle-studio", collection: typeof metadata.collection === "string" ? metadata.collection : "CORE", tokens: normalizeCircleStudioTokens(metadata.tokens) };
+  return { version: 2, source: "circle-studio", collection: typeof metadata.collection === "string" ? metadata.collection : "CORE", tokens: normalizeCircleStudioTokens(metadata.tokens), fineTune: normalizeCircleStudioFineTune(metadata.fineTune) };
 }
 
-export function buildCircleStudioMetadata(tokens: CircleStudioTokens, collection = "CORE"): CircleStudioMetadata {
-  return { version: CIRCLE_STUDIO_VERSION, source: "circle-studio", collection, tokens: normalizeCircleStudioTokens(tokens) };
+export function buildCircleStudioMetadata(
+  tokens: CircleStudioTokens,
+  collection = "CORE",
+  fineTune: CircleStudioFineTune = DEFAULT_CIRCLE_STUDIO_FINE_TUNE
+): CircleStudioMetadata {
+  return { version: CIRCLE_STUDIO_VERSION, source: "circle-studio", collection, tokens: normalizeCircleStudioTokens(tokens), fineTune: normalizeCircleStudioFineTune(fineTune) };
 }
 
 export const CIRCLE_STUDIO_RECOMMENDATIONS: Record<string, CircleStudioTokens["identityStyle"]> = {

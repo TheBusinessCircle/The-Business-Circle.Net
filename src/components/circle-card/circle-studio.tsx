@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { updateCircleStudioAction } from "@/actions/circle-card.actions";
 import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
+import { CircleStudioFineTune as CircleStudioFineTuneControls } from "@/components/circle-card/circle-studio-fine-tune";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   CIRCLE_STUDIO_ACCENTS,
@@ -27,9 +28,12 @@ import {
   CIRCLE_STUDIO_PRESETS,
   buildCircleStudioMetadata,
   circleStudioLabel,
+  getCircleStudioFineTuneIssues,
+  type CircleStudioFineTune,
   type CircleStudioTokenKey,
   type CircleStudioTokens
 } from "@/lib/circle-card/identity-engine";
+import { persistCircleCardCurrentCardPreference } from "@/lib/circle-card/current-card-preference";
 import {
   buildCircleCardThemeStyle,
   buildCircleStudioDataAttributes,
@@ -45,11 +49,15 @@ type StudioCard = {
   role: string | null;
   tagline: string | null;
   profileImageUrl: string | null;
+  businessLogoUrl: string | null;
+  cardType: string;
+  isPublished: boolean;
 };
 
 type CircleStudioProps = {
   card: StudioCard;
   initialTokens: CircleStudioTokens;
+  initialFineTune: CircleStudioFineTune;
   canActivate: boolean;
   notice?: string | null;
   error?: string | null;
@@ -73,8 +81,8 @@ function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "CC";
 }
 
-function LiveCardPreview({ card, tokens, device }: { card: StudioCard; tokens: CircleStudioTokens; device: Device }) {
-  const metadata = buildCircleStudioMetadata(tokens);
+function LiveCardPreview({ card, tokens, fineTune, device }: { card: StudioCard; tokens: CircleStudioTokens; fineTune: CircleStudioFineTune; device: Device }) {
+  const metadata = buildCircleStudioMetadata(tokens, "CORE", fineTune);
   const themeInput = { themeMetadata: metadata };
   const style = buildCircleCardThemeStyle(resolveCircleCardTheme(themeInput)) as CSSProperties;
   const attributes = buildCircleStudioDataAttributes(themeInput);
@@ -128,11 +136,14 @@ function LiveCardPreview({ card, tokens, device }: { card: StudioCard; tokens: C
   );
 }
 
-export function CircleStudio({ card, initialTokens, canActivate, notice, error }: CircleStudioProps) {
+export function CircleStudio({ card, initialTokens, initialFineTune, canActivate, notice, error }: CircleStudioProps) {
   const [tokens, setTokens] = useState(initialTokens);
+  const [fineTune, setFineTune] = useState(initialFineTune);
   const [device, setDevice] = useState<Device>("desktop");
   const [panel, setPanel] = useState<Panel>("styles");
   const activePreset = CIRCLE_STUDIO_PRESETS.find((preset) => preset.key === tokens.identityStyle);
+  const activeAccent = CIRCLE_STUDIO_ACCENTS[tokens.accentPalette];
+  const fineTuneIssues = getCircleStudioFineTuneIssues(fineTune);
   const tokenEntries = useMemo(() => Object.entries(CIRCLE_STUDIO_FIELD_COPY) as [Exclude<CircleStudioTokenKey, "identityStyle">, { label: string; description: string }][], []);
 
   function selectPreset(key: CircleStudioTokens["identityStyle"]) {
@@ -144,14 +155,24 @@ export function CircleStudio({ card, initialTokens, canActivate, notice, error }
     setTokens((current) => ({ ...current, [key]: value }));
   }
 
+  useEffect(() => {
+    if (card.isPublished) persistCircleCardCurrentCardPreference(card.id);
+  }, [card.id, card.isPublished]);
+
   return (
     <form action={updateCircleStudioAction} className="space-y-6">
       <input type="hidden" name="cardId" value={card.id} />
       <input type="hidden" name="returnPath" value={`/dashboard/circle-card/studio?card=${card.id}`} />
       {(Object.keys(tokens) as CircleStudioTokenKey[]).map((key) => <input key={key} type="hidden" name={key} value={tokens[key]} />)}
+      <input type="hidden" name="fineTuneAccentColor" value={fineTune.accentColor ?? ""} />
+      <input type="hidden" name="fineTuneSecondaryColor" value={fineTune.secondaryColor ?? ""} />
+      <input type="hidden" name="fineTuneBackgroundStyle" value={fineTune.backgroundStyle} />
+      <input type="hidden" name="fineTuneBackgroundImageUrl" value={fineTune.backgroundImageUrl ?? ""} />
+      <input type="hidden" name="fineTuneBackgroundOverlay" value={fineTune.backgroundOverlay} />
+      <input type="hidden" name="fineTunePaletteSource" value={fineTune.paletteSource} />
 
       {notice === "studio-activated" ? <div role="status" className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">Your Circle Studio identity is now live.</div> : null}
-      {error ? <div role="alert" className="rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error === "studio-pro-required" ? "Circle Studio activation is available with Circle Card Pro. Your preview is still yours to explore." : "That identity could not be activated. Please try again."}</div> : null}
+      {error ? <div role="alert" className="rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error === "studio-pro-required" ? "Circle Studio activation is available with Circle Card Pro. Your preview is still yours to explore." : error === "studio-contrast" ? "That colour or background combination did not pass Circle Card readability checks. Adjust it and try again." : "That identity could not be activated. Please try again."}</div> : null}
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(520px,.9fr)]">
         <div className="min-w-0 space-y-5">
@@ -185,6 +206,15 @@ export function CircleStudio({ card, initialTokens, canActivate, notice, error }
 
           {panel === "details" ? (
             <div className="space-y-4">
+              <CircleStudioFineTuneControls
+                value={fineTune}
+                onChange={setFineTune}
+                presetAccent={activeAccent.accent}
+                presetSecondary={activeAccent.primary}
+                profileImageUrl={card.profileImageUrl}
+                businessLogoUrl={card.businessLogoUrl}
+                isBusinessCard={card.cardType === "BUSINESS"}
+              />
               {tokenEntries.map(([key, copy]) => (
                 <fieldset key={key} className="rounded-[1.25rem] border border-silver/12 bg-white/[.025] p-4">
                   <legend className="sr-only">{copy.label}</legend>
@@ -208,10 +238,10 @@ export function CircleStudio({ card, initialTokens, canActivate, notice, error }
                 {([ ["desktop", Monitor], ["tablet", Tablet], ["mobile", Smartphone] ] as const).map(([value, Icon]) => <button key={value} type="button" aria-label={`${value} preview`} aria-pressed={device === value} onClick={() => setDevice(value)} className={cn("grid h-8 w-9 place-items-center rounded-lg transition", device === value ? "bg-gold/15 text-gold" : "text-muted hover:text-foreground")}><Icon size={15} /></button>)}
               </div>
             </div>
-            <div className="max-h-[680px] overflow-auto rounded-[1.65rem] bg-black/20 p-1 sm:p-2"><LiveCardPreview card={card} tokens={tokens} device={device} /></div>
+            <div className="max-h-[680px] overflow-auto rounded-[1.65rem] bg-black/20 p-1 sm:p-2"><LiveCardPreview card={card} tokens={tokens} fineTune={fineTune} device={device} /></div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{activePreset?.label} · {circleStudioLabel(tokens.accentPalette)}</p><p className="mt-1 text-xs text-muted">Preview updates instantly. Activate when it feels like you.</p></div>
-              {canActivate ? <Button type="submit" className="shrink-0 gap-2"><WandSparkles size={16} /> Activate identity</Button> : <Link href="/circle-card/pro" className={cn(buttonVariants(), "shrink-0 gap-2")}><Crown size={16} /> Unlock with Pro <ArrowUpRight size={14} /></Link>}
+              {canActivate ? <Button type="submit" disabled={fineTuneIssues.length > 0} className="shrink-0 gap-2"><WandSparkles size={16} /> Activate identity</Button> : <Link href="/circle-card/pro" className={cn(buttonVariants(), "shrink-0 gap-2")}><Crown size={16} /> Unlock with Pro <ArrowUpRight size={14} /></Link>}
             </div>
             {!canActivate ? <p className="mt-3 flex items-center gap-2 rounded-xl border border-gold/18 bg-gold/[.06] px-3 py-2 text-xs text-gold"><LockKeyhole size={14} /> This style is available in Circle Card Pro. Everything remains previewable.</p> : null}
           </div>

@@ -12,6 +12,7 @@ export type CircleCardImageUploadKind =
   | "profile-photo"
   | "business-logo"
   | "business-card-scan"
+  | "background-image"
   | "gallery-image"
   | "link-image";
 export type CircleCardLinkFileUploadKind = "link-file";
@@ -20,7 +21,7 @@ export type CircleCardUploadKind = CircleCardImageUploadKind | CircleCardLinkFil
 const CIRCLE_CARD_UPLOAD_DIR = join(process.cwd(), "public", "uploads", "circle-card");
 const CIRCLE_CARD_LINK_FILE_UPLOAD_DIR = join(process.cwd(), ".uploads", "circle-card-link-files");
 const CIRCLE_CARD_IMAGE_FILE_NAME_PATTERN =
-  /^[a-z0-9_-]+-(?:profile-photo|business-logo|business-card-scan|gallery-image|link-image)-[0-9]+-[a-f0-9]{8}\.(?:jpg|png|webp)$/i;
+  /^[a-z0-9_-]+-(?:profile-photo|business-logo|business-card-scan|background-image|gallery-image|link-image)-[0-9]+-[a-f0-9]{8}\.(?:jpg|png|webp)$/i;
 const CIRCLE_CARD_LINK_FILE_NAME_PATTERN =
   /^[0-9]+-[a-f0-9]{16}\.(pdf|html?|docx?|xlsx?|csv|txt|jpg|png|webp|zip)$/i;
 export const MAX_CIRCLE_CARD_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -31,6 +32,7 @@ const CIRCLE_CARD_UPLOAD_KINDS = new Set<CircleCardImageUploadKind>([
   "profile-photo",
   "business-logo",
   "business-card-scan",
+  "background-image",
   "gallery-image",
   "link-image"
 ]);
