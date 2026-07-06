@@ -146,7 +146,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { BackToTopButton } from "@/components/ui/back-to-top-button";
 import {
   circleCardFileActionLabel,
   circleCardFileKindLabel,
@@ -11761,7 +11760,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </aside>
         </div>
       </CircleCardDashboardSection>
-      <BackToTopButton />
     </div>
   );
 }

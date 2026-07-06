@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CircleCardOnboardingFlow } from "@/components/circle-card/circle-card-onboarding-flow";
+import { CircleCardPageHeader } from "@/components/circle-card/circle-card-page-header";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { CIRCLE_CARD_PLAN_DEFINITIONS } from "@/lib/circle-card/plans";
 import { prisma } from "@/lib/prisma";
@@ -66,20 +67,11 @@ export default async function CircleCardOnboardingPage({ searchParams }: PagePro
 
   return (
     <div className="space-y-6">
-      <section className="member-accent-panel rounded-2xl border p-5 sm:p-6">
-        <div className="max-w-3xl">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-[hsl(var(--member-accent-text))]">
-            {CIRCLE_CARD_PLAN_DEFINITIONS.FREE.label}
-          </p>
-          <h1 className="mt-3 font-display text-4xl text-foreground sm:text-5xl">
-            Set up your first Circle Card
-          </h1>
-          <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--member-accent-muted))] sm:text-base">
-            Add the essentials now. You can edit the full card and open Circle Wallet or Circle
-            Insights after publishing.
-          </p>
-        </div>
-      </section>
+      <CircleCardPageHeader
+        eyebrow={CIRCLE_CARD_PLAN_DEFINITIONS.FREE.label}
+        title="Set up your first Circle Card"
+        description="Add the essentials now. You can edit the full card and open Circle Wallet or Circle Insights after publishing."
+      />
 
       {error && ERROR_MESSAGES[error] ? (
         <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

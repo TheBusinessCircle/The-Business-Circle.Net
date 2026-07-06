@@ -36,6 +36,7 @@ import {
   upsertCircleCardRecommendationAction
 } from "@/actions/circle-card.actions";
 import { CircleCardFramedImage, CircleCardShareButton } from "@/components/circle-card";
+import { CircleCardPageHeader } from "@/components/circle-card/circle-card-page-header";
 import {
   CircleCardWalletTestimonialForm,
   type CircleCardWalletTestimonialContact
@@ -737,24 +738,21 @@ export function CircleWalletOsClient({
       />
 
       <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 lg:px-8">
-        <header className="rounded-[1.5rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-hero-bg)] p-4 shadow-[var(--cc-theme-hero-shadow)] sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
+        <CircleCardPageHeader
+          className="circle-card-page-header-themed"
+          eyebrow={
+            <div className="flex flex-wrap items-center gap-2">
                 <ThemeBadge tone="strong">
                   <WalletCards size={13} />
                   Circle Wallet
                 </ThemeBadge>
                 {themePresetLabel ? <ThemeBadge>{themePresetLabel}</ThemeBadge> : null}
                 <ThemeBadge>{themeSurfaceStyle}</ThemeBadge>
-              </div>
-              <h1 className="mt-3 truncate font-display text-3xl font-semibold leading-tight text-foreground sm:text-5xl">
-                Circle Wallet
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-silver sm:text-base">
-                Your people. Your relationships. Your Circle.
-              </p>
             </div>
+          }
+          title="Circle Wallet"
+          description="Your people. Your relationships. Your Circle."
+          actions={
             <div className="grid gap-2 sm:flex sm:flex-wrap">
               <Link href="/dashboard/circle-card" className={cn(buttonVariants({ variant: "outline" }), secondaryActionClassName, "min-w-0 gap-2")}>
                 <ContactRound size={16} />
@@ -776,16 +774,17 @@ export function CircleWalletOsClient({
                 Add Relationship
               </Link>
             </div>
-          </div>
-
-          <div className="mt-5 flex max-w-full flex-wrap gap-2">
+          }
+          footer={
+            <div className="flex max-w-full flex-wrap gap-2">
             <CompactMetric label="Saved" value={contacts.length} icon={WalletCards} />
             <CompactMetric label="Connected" value={tabCounts.connected} icon={UserCheck} />
             <CompactMetric label="Favourites" value={tabCounts.favourites} icon={Star} />
             <CompactMetric label="Follow-Ups" value={tabCounts["follow-ups"]} icon={CalendarDays} />
             <CompactMetric label="Recent" value={recentlyAddedCount} icon={Clock3} />
-          </div>
-        </header>
+            </div>
+          }
+        />
 
         {noticeMessage || errorMessage ? (
           <div className="mt-4 space-y-2">

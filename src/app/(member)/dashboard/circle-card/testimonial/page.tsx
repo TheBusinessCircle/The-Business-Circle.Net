@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft, ShieldCheck, Star, WalletCards } from "lucide-react";
+import { ShieldCheck, Star, WalletCards } from "lucide-react";
 import { saveCircleWalletContactAction } from "@/actions/circle-card.actions";
 import {
   CircleCardWalletTestimonialForm,
   type CircleCardWalletTestimonialContact
 } from "@/components/circle-card/circle-card-wallet-testimonial-form";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CircleCardPageHeader } from "@/components/circle-card/circle-card-page-header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import {
   circleCardTestimonialFlowHref,
@@ -15,7 +15,6 @@ import {
 } from "@/lib/circle-card/wallet-testimonials";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Leave a Trust Signal",
@@ -108,35 +107,16 @@ export default async function CircleCardTestimonialPage({ searchParams }: PagePr
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(212,175,95,0.12),transparent_34%),#030813] px-3 py-5 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-3xl">
-        <Link
-          href="/dashboard/circle-card/wallet"
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mb-4 gap-2")}
-        >
-          <ArrowLeft size={14} />
-          Back to Wallet
-        </Link>
-
         <Card className="scroll-mt-4 border-gold/35 bg-card/95 shadow-[0_24px_80px_rgba(212,175,95,0.14)] ring-1 ring-gold/10">
-          <CardHeader className="border-b border-gold/14">
-            <div className="flex items-start gap-3">
-              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/25 bg-gold/10 text-gold">
-                <Star size={19} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
-                  Circle Card trust network
-                </p>
-                <CardTitle className="mt-1 font-display text-2xl sm:text-3xl">
-                  {targetCardId ? `Leave a Trust Signal for ${targetName}` : "Leave a Trust Signal"}
-                </CardTitle>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
-                  {targetCardId
-                    ? "Your trust signal will be sent privately for approval before it appears publicly."
-                    : "Search your wallet to leave a verified trust signal."}
-                </p>
-              </div>
-            </div>
-          </CardHeader>
+          <CircleCardPageHeader
+            className="circle-card-page-header-embedded"
+            eyebrow="Circle Card trust network"
+            icon={<Star size={19} />}
+            title={targetCardId ? `Leave a Trust Signal for ${targetName}` : "Leave a Trust Signal"}
+            description={targetCardId
+              ? "Your trust signal will be sent privately for approval before it appears publicly."
+              : "Search your wallet to leave a verified trust signal."}
+          />
           <CardContent className="p-4 sm:p-6">
             {notice === "card-saved" || notice === "card-already-saved" ? (
               <p className="mb-4 rounded-xl border border-emerald-400/24 bg-emerald-400/10 p-3 text-sm text-emerald-100">
