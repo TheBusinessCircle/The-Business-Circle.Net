@@ -54,9 +54,7 @@ import {
 } from "@/lib/circle-card/file-actions";
 import { getExternalLinkProps } from "@/lib/links";
 import {
-  buildCircleCardThemeStyle,
-  buildCircleStudioDataAttributes,
-  resolveCircleCardTheme
+  resolveCircleCardLiveTheme
 } from "@/lib/circle-card/theme";
 import {
   isSafeCircleCardLinkDestination,
@@ -1178,10 +1176,11 @@ export function PublicCircleCardProfile({
   const accountTypeLabel = getCircleCardAccountTypeLabel(card.accountType);
   const identityTagLabels = card.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2);
   const publicLayout = resolvePublicCircleCardLayout(card.cardType);
-  const circleCardTheme = resolveCircleCardTheme(card);
-  const circleCardThemeStyle = buildCircleCardThemeStyle(circleCardTheme) as CSSProperties;
+  const circleCardLiveTheme = resolveCircleCardLiveTheme(card);
+  const circleCardTheme = circleCardLiveTheme.theme;
+  const circleCardThemeStyle = circleCardLiveTheme.style as CSSProperties;
   const circleCardThemeSurface = circleCardTheme.surfaceStyle.toLowerCase();
-  const circleStudioAttributes = buildCircleStudioDataAttributes(card);
+  const circleStudioAttributes = circleCardLiveTheme.attributes;
   const currentPublicCardPath = publicCardPath(card.slug, source);
   const spinReturnPath = publicCardPath(card.slug, source, "return");
   const circleCardRegistrationParams = new URLSearchParams({

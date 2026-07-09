@@ -54,6 +54,10 @@ import {
   type CircleTrustSummary,
   type CircleTrustTestimonial
 } from "@/lib/circle-card/circle-trust";
+import {
+  buildCircleStudioMetadata,
+  readCircleStudioMetadata
+} from "@/lib/circle-card/identity-engine";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { resolvePublicUploadImageUrl } from "@/server/circle-card/public-upload-image-url";
@@ -295,6 +299,25 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     hasActiveSubscription: true
   }
 };
+
+async function resolvePublicCircleCardThemeMetadataUploads(value: Prisma.JsonValue) {
+  const metadata = readCircleStudioMetadata(value);
+
+  if (!metadata?.fineTune.backgroundImageUrl) {
+    return value;
+  }
+
+  const backgroundImageUrl = await resolvePublicUploadImageUrl(
+    metadata.fineTune.backgroundImageUrl,
+    SITE_CONFIG.url
+  );
+
+  return buildCircleStudioMetadata(metadata.tokens, metadata.collection, {
+    ...metadata.fineTune,
+    backgroundImageUrl,
+    backgroundStyle: backgroundImageUrl ? metadata.fineTune.backgroundStyle : "PRESET"
+  }) as Prisma.JsonValue;
+}
 
 export async function getPublicCircleCard(slug: string): Promise<PublicCircleCard | null> {
   if (slug === "demo") {
@@ -741,15 +764,17 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
   void walletTestimonialsReceived;
   void connectionRequestsSent;
   void connectionRequestsReceived;
-  const [profileImageUrl, businessLogoUrl] = await Promise.all([
+  const [profileImageUrl, businessLogoUrl, themeMetadata] = await Promise.all([
     resolvePublicUploadImageUrl(card.profileImageUrl, SITE_CONFIG.url),
-    resolvePublicUploadImageUrl(card.businessLogoUrl, SITE_CONFIG.url)
+    resolvePublicUploadImageUrl(card.businessLogoUrl, SITE_CONFIG.url),
+    resolvePublicCircleCardThemeMetadataUploads(card.themeMetadata)
   ]);
 
   return {
     ...publicCard,
     profileImageUrl,
     businessLogoUrl,
+    themeMetadata,
     user: {
       role: card.user.role,
       membershipTier: card.user.membershipTier,

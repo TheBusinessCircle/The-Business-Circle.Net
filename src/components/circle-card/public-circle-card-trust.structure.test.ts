@@ -65,9 +65,18 @@ describe("public Circle Card trust journey", () => {
     expect(trustPage).toContain("Trust Timeline");
     expect(trustPage).not.toContain("Achievements");
     expect(trustPage).toContain("circle-card-public-theme");
-    expect(trustPage).toContain("buildCircleCardThemeStyle");
+    expect(trustPage).toContain("resolveCircleCardLiveTheme");
     expect(trustPage).toContain("Circle Trust by Circle Card");
     expect(trustPage).toContain("do not reduce Circle Trust before a moderation decision");
+  });
+
+  it("uses one live theme resolver and resolves Studio background uploads publicly", () => {
+    expect(profile).toContain("resolveCircleCardLiveTheme(card)");
+    expect(trustPage).toContain("resolveCircleCardLiveTheme(card)");
+    expect(publicService).toContain("resolvePublicCircleCardThemeMetadataUploads");
+    expect(publicService).toContain("metadata.fineTune.backgroundImageUrl");
+    expect(publicService).toContain("resolvePublicUploadImageUrl");
+    expect(publicService).toContain('backgroundStyle: backgroundImageUrl ? metadata.fineTune.backgroundStyle : "PRESET"');
   });
 
   it("places the lower testimonial CTA before every QR/share section", () => {

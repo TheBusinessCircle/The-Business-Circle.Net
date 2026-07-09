@@ -9,7 +9,12 @@ import {
   normalizeCircleStudioTokens,
   readCircleStudioMetadata
 } from "@/lib/circle-card/identity-engine";
-import { buildCircleCardThemeStyle, buildCircleStudioDataAttributes, resolveCircleCardTheme } from "@/lib/circle-card/theme";
+import {
+  buildCircleCardThemeStyle,
+  buildCircleStudioDataAttributes,
+  resolveCircleCardLiveTheme,
+  resolveCircleCardTheme
+} from "@/lib/circle-card/theme";
 
 describe("Circle Studio identity engine", () => {
   it("ships every core identity as a complete curated token set", () => {
@@ -67,6 +72,10 @@ describe("Circle Studio identity engine", () => {
       "data-cc-profile": "luxury-ring",
       "data-cc-button": "luxury",
       "data-cc-fine-background": "true"
+    });
+    expect(resolveCircleCardLiveTheme({ themeMetadata: metadata })).toMatchObject({
+      theme: studioPreviewTheme,
+      attributes: expect.objectContaining({ "data-cc-identity": "luxury" })
     });
   });
 
@@ -126,6 +135,8 @@ describe("Circle Studio identity engine", () => {
     expect(theme.accentColor).toBe("#78A8FF");
     expect(theme.primaryColor).toBe("#4B72C2");
     expect(theme.fineTune.backgroundOverlay).toBe(0.62);
+    expect(buildCircleCardThemeStyle(theme)["--cc-bg-image"]).toBe('url("/uploads/circle-card/test-user-background-image-1700000000000-deadbeef.png")');
+    expect(buildCircleCardThemeStyle(theme)["--cc-bg-overlay"]).toBe("0.62");
     expect(buildCircleCardThemeStyle(theme)["--cc-theme-page-bg"]).toContain('url("/uploads/circle-card/test-user-background-image-1700000000000-deadbeef.png")');
     expect(getCircleStudioFineTuneIssues(theme.fineTune)).toEqual([]);
   });

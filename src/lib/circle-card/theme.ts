@@ -88,6 +88,12 @@ export type CircleCardThemeInput = {
   themeMetadata?: Prisma.JsonValue | unknown;
 };
 
+export type CircleCardLiveTheme = {
+  theme: CircleCardResolvedTheme;
+  style: ReturnType<typeof buildCircleCardThemeStyle>;
+  attributes: ReturnType<typeof buildCircleStudioDataAttributes>;
+};
+
 export type CircleCardThemeMetadata = {
   version: 1;
   source: "default" | "custom";
@@ -408,6 +414,8 @@ export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
               : `linear-gradient(145deg, hsl(${surface.card} / 0.78), rgba(4,10,24,0.94))`;
 
   return {
+    "--cc-bg-image": escapedBackgroundImage ? `url("${escapedBackgroundImage}")` : "none",
+    "--cc-bg-overlay": String(theme.fineTune.backgroundOverlay),
     "--cc-theme-primary-hsl": theme.primaryHsl,
     "--cc-theme-accent-hsl": theme.accentHsl,
     "--cc-theme-button-hsl": theme.buttonHsl,
@@ -438,6 +446,16 @@ export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
     "--primary": "var(--cc-theme-button-hsl)",
     "--ring": "var(--cc-theme-primary-hsl)",
     "--button-foreground": "var(--cc-theme-button-foreground-hsl)"
+  };
+}
+
+export function resolveCircleCardLiveTheme(input: CircleCardThemeInput = {}): CircleCardLiveTheme {
+  const theme = resolveCircleCardTheme(input);
+
+  return {
+    theme,
+    style: buildCircleCardThemeStyle(theme),
+    attributes: buildCircleStudioDataAttributes(input)
   };
 }
 import type { Prisma } from "@prisma/client";

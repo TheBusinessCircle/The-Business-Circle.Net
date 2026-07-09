@@ -36,9 +36,7 @@ import {
 } from "@/lib/circle-card/identity-engine";
 import { persistCircleCardCurrentCardPreference } from "@/lib/circle-card/current-card-preference";
 import {
-  buildCircleCardThemeStyle,
-  buildCircleStudioDataAttributes,
-  resolveCircleCardTheme
+  resolveCircleCardLiveTheme
 } from "@/lib/circle-card/theme";
 import { cn } from "@/lib/utils";
 
@@ -105,8 +103,9 @@ function ActivateIdentityButton({ applied, disabled }: { applied: boolean; disab
 function LiveCardPreview({ card, tokens, fineTune, device }: { card: StudioCard; tokens: CircleStudioTokens; fineTune: CircleStudioFineTune; device: Device }) {
   const metadata = buildCircleStudioMetadata(tokens, "CORE", fineTune);
   const themeInput = { themeMetadata: metadata };
-  const style = buildCircleCardThemeStyle(resolveCircleCardTheme(themeInput)) as CSSProperties;
-  const attributes = buildCircleStudioDataAttributes(themeInput);
+  const liveTheme = resolveCircleCardLiveTheme(themeInput);
+  const style = liveTheme.style as CSSProperties;
+  const attributes = liveTheme.attributes;
   const isCompact = device === "mobile";
 
   return (

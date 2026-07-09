@@ -2597,6 +2597,7 @@ export async function updateCircleStudioAction(formData: FormData) {
   });
 
   revalidateCircleCardPaths(card.slug);
+  revalidatePath("/dashboard/circle-card/studio");
   redirectWithNotice(returnPath, "studio-activated");
 }
 

@@ -172,6 +172,8 @@ describe("updateCircleStudioAction", () => {
       })
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/card/asha-business");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/card/asha-business/trust");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/dashboard/circle-card/studio");
     expect(createCircleCardActivityMock).toHaveBeenCalledWith(
       expect.objectContaining({ circleCardId: "business-card-id" })
     );

@@ -27,7 +27,7 @@ import { SITE_CONFIG } from "@/config/site";
 import { getCircleCardTypeLabel } from "@/lib/circle-card/card-types";
 import type { CircleTrustTimelineEvent } from "@/lib/circle-card/circle-trust";
 import { CIRCLE_CARD_PWA_METADATA } from "@/lib/circle-card/metadata";
-import { buildCircleCardThemeStyle, buildCircleStudioDataAttributes, resolveCircleCardTheme } from "@/lib/circle-card/theme";
+import { resolveCircleCardLiveTheme } from "@/lib/circle-card/theme";
 import {
   circleCardTestimonialFlowHref,
   circleCardWalletTestimonialRelationshipLabel
@@ -118,8 +118,9 @@ export default async function CircleTrustPage({ params }: PageProps) {
   const testimonialHref = session?.user
     ? testimonialFlowHref
     : `/login?from=${encodeURIComponent(testimonialFlowHref)}`;
-  const theme = resolveCircleCardTheme(card);
-  const themeStyle = buildCircleCardThemeStyle(theme) as CSSProperties;
+  const liveTheme = resolveCircleCardLiveTheme(card);
+  const theme = liveTheme.theme;
+  const themeStyle = liveTheme.style as CSSProperties;
   const cardTypeLabel = getCircleCardTypeLabel(card.cardType) ?? "Professional";
   const identityImage = card.profileImageUrl || card.businessLogoUrl;
   const identityImagePositionX = card.profileImageUrl
@@ -140,7 +141,7 @@ export default async function CircleTrustPage({ params }: PageProps) {
       className="circle-card-public-theme relative min-h-screen overflow-x-hidden pb-12 sm:pb-16"
       style={themeStyle}
       data-circle-card-surface={theme.surfaceStyle.toLowerCase()}
-      {...buildCircleStudioDataAttributes(card)}
+      {...liveTheme.attributes}
     >
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[image:var(--cc-theme-page-bg)]" />
 

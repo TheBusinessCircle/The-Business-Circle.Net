@@ -2079,6 +2079,11 @@ a:hover {
   box-shadow: var(--cc-theme-secondary-shadow);
 }
 
+.circle-card-public-theme main :is(article, details, footer) {
+  border-color: var(--cc-theme-secondary-border);
+  background: var(--cc-theme-card-bg);
+}
+
 .circle-card-public-theme main > section[class*="--cc-theme-hero-bg"],
 .circle-card-public-theme main > article[class*="--cc-theme-hero-bg"],
 .circle-card-public-theme main > section:has(.circle-card-qr-panel) {
