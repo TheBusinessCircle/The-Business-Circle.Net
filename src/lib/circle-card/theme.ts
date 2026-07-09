@@ -562,8 +562,8 @@ export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
     .replace(/[\r\n]/g, "");
   const presetBackground = circleStudioPresetBackground(theme, surface);
   const visuals = circleStudioIdentityVisuals(theme, surface);
-  const imageOverlayStart = Math.max(0.5, theme.fineTune.backgroundOverlay - 0.1);
-  const imageOverlayEnd = Math.min(0.88, Math.max(0.58, theme.fineTune.backgroundOverlay + 0.02));
+  const imageOverlayStart = Math.max(0.34, theme.fineTune.backgroundOverlay - 0.24);
+  const imageOverlayEnd = Math.min(0.74, Math.max(0.42, theme.fineTune.backgroundOverlay - 0.06));
   const pageBackground =
     theme.fineTune.backgroundStyle === "IMAGE" && escapedBackgroundImage
       ? `linear-gradient(rgba(3,7,18,${imageOverlayStart}), rgba(3,7,18,${imageOverlayEnd})), url("${escapedBackgroundImage}") center / cover no-repeat, ${presetBackground}`

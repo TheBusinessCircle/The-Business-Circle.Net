@@ -6,6 +6,7 @@ import { Copy, Download, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
 import { trackCircleCardEvent } from "@/lib/circle-card/analytics-client";
+import { circleCardPublicThemeClasses } from "@/lib/circle-card/public-theme-classes";
 import { cn } from "@/lib/utils";
 
 type CircleCardQrPanelProps = {
@@ -182,7 +183,7 @@ export function CircleCardQrPanel({
       className={cn(
         "circle-card-qr-panel",
         premium
-          ? "cc-theme-surface relative overflow-hidden rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-4 shadow-[var(--cc-theme-hero-shadow)] sm:p-5"
+          ? circleCardPublicThemeClasses.qrPanel
           : "cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-4",
         className
       )}
@@ -190,7 +191,7 @@ export function CircleCardQrPanel({
       {premium ? (
         <div
           aria-hidden="true"
-          className="absolute inset-x-8 top-0 h-px bg-[image:var(--cc-theme-hero-line)]"
+          className={cn(circleCardPublicThemeClasses.divider, "absolute inset-x-8 top-0")}
         />
       ) : null}
       <div className="flex items-start justify-between gap-3">
@@ -202,8 +203,9 @@ export function CircleCardQrPanel({
         </div>
         <span
           className={cn(
-            "cc-theme-icon inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--cc-theme-accent-badge-border)] bg-[var(--cc-theme-icon-bg)] text-gold",
-            premium ? "shadow-[0_0_26px_rgba(47,109,255,0.18)]" : null
+            circleCardPublicThemeClasses.iconSurface,
+            "h-10 w-10 rounded-xl",
+            premium ? "shadow-[var(--cc-theme-secondary-shadow)]" : null
           )}
         >
           <QrCode size={18} />
@@ -219,7 +221,7 @@ export function CircleCardQrPanel({
         <div
           className={cn(
             "relative grid min-h-[180px] place-items-center rounded-2xl border border-white/10 bg-white p-3",
-            premium ? "min-h-[220px] border-gold/20 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.22)]" : null
+            premium ? "min-h-[220px] border-[color:var(--cc-theme-accent-badge-border)] p-4 shadow-[var(--cc-theme-secondary-shadow)]" : null
           )}
         >
           {qrDataUrl ? (

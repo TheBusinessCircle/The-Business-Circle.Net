@@ -56,6 +56,7 @@ import { getExternalLinkProps } from "@/lib/links";
 import {
   resolveCircleCardLiveTheme
 } from "@/lib/circle-card/theme";
+import { circleCardPublicThemeClasses } from "@/lib/circle-card/public-theme-classes";
 import {
   isSafeCircleCardLinkDestination,
   type CircleCardSocialPlatform
@@ -188,13 +189,13 @@ const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
 ] as const;
 
 const primaryActionClassName =
-  "cc-theme-button h-12 w-full rounded-2xl border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-button-bg)] text-[var(--cc-theme-button-text)] shadow-[var(--cc-theme-button-shadow)] hover:border-gold/70 hover:brightness-110";
+  circleCardPublicThemeClasses.primaryButton;
 
 const secondaryActionClassName =
-  "cc-theme-button h-12 w-full rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] text-foreground shadow-[var(--cc-theme-secondary-shadow)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)] hover:text-foreground";
+  circleCardPublicThemeClasses.secondaryButton;
 
 const mobileActionClassName =
-  "cc-theme-button h-12 w-full min-w-0 flex-col gap-0.5 rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] px-1 text-[11px] leading-none text-foreground shadow-[0_10px_26px_rgba(2,8,23,0.34)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]";
+  cn(circleCardPublicThemeClasses.secondaryButton, "min-w-0 flex-col gap-0.5 px-1 text-[11px] leading-none");
 
 function initials(name: string) {
   return name
@@ -908,7 +909,7 @@ function CreatorFeaturedContentCard({
         <span className="line-clamp-2 text-xl font-semibold leading-tight text-foreground">{item.title}</span>
         <span className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">{item.description}</span>
         {dateLabel ? <span className="mt-3 text-xs text-silver">Published {dateLabel}</span> : null}
-        <span className="mt-auto inline-flex min-h-11 w-fit items-center gap-1.5 pt-5 text-sm font-semibold text-cyan-100">Open content<ChevronRight size={15} /></span>
+        <span className="mt-auto inline-flex min-h-11 w-fit items-center gap-1.5 pt-5 text-sm font-semibold text-[hsl(var(--cc-theme-accent-hsl))]">Open content<ChevronRight size={15} /></span>
       </span>
     </CircleCardTrackedLink>
   );
@@ -973,7 +974,7 @@ function CreatorPressProofCard({
         <img src={item.image} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_42%,rgba(3,8,19,0.84))]" />
         <div className="absolute left-3 right-3 top-3 flex flex-wrap items-start justify-between gap-2">
-          <span className="rounded-full border border-cyan-300/24 bg-black/40 px-3 py-1.5 text-xs font-medium text-cyan-100 backdrop-blur">{item.proofType}</span>
+          <span className={cn(circleCardPublicThemeClasses.heroBadge, "bg-black/40 backdrop-blur")}>{item.proofType}</span>
           {item.badge ? <span className="rounded-full border border-gold/28 bg-gold/16 px-3 py-1.5 text-xs font-semibold text-gold backdrop-blur">{item.badge}</span> : null}
         </div>
         {item.featured ? <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full border border-gold/28 bg-black/42 px-3 py-1.5 text-xs font-medium text-gold backdrop-blur"><Star size={11} />Featured</span> : null}
@@ -983,7 +984,7 @@ function CreatorPressProofCard({
         <p className="mt-2 text-sm leading-relaxed text-muted">{item.description}</p>
         {(item.sourceName || dateLabel) ? (
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-silver">
-            {item.sourceName ? <span className="font-semibold text-cyan-100">{item.sourceName}</span> : null}
+            {item.sourceName ? <span className="font-semibold text-[hsl(var(--cc-theme-accent-hsl))]">{item.sourceName}</span> : null}
             {item.sourceName && dateLabel ? <span aria-hidden="true">·</span> : null}
             {dateLabel ? <time dateTime={item.date ?? undefined}>{dateLabel}</time> : null}
           </div>
@@ -1388,10 +1389,15 @@ export function PublicCircleCardProfile({
     }
 
     const request = connectionState.request;
+    const connectionPanelClassName = cn(circleCardPublicThemeClasses.linkCard, "mt-4 p-4");
+    const connectionBadgeClassName = cn(
+      circleCardPublicThemeClasses.heroBadge,
+      "mt-4 flex flex-wrap items-center gap-2 px-4 py-3 text-sm"
+    );
 
     if (!connectionState.viewerPrimaryCardId) {
       return (
-        <div className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4">
+        <div className={connectionPanelClassName}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
@@ -1415,7 +1421,7 @@ export function PublicCircleCardProfile({
 
     if (request?.status === "ACCEPTED") {
       return (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm text-gold">
+        <div className={connectionBadgeClassName}>
           <UserCheck size={16} />
           Connected
         </div>
@@ -1424,7 +1430,7 @@ export function PublicCircleCardProfile({
 
     if (request?.status === "PENDING" && request.direction === "OUTGOING") {
       return (
-        <div className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4">
+        <div className={connectionPanelClassName}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
@@ -1452,15 +1458,15 @@ export function PublicCircleCardProfile({
 
     if (request?.status === "PENDING" && request.direction === "INCOMING") {
       return (
-        <div className="mt-4 rounded-2xl border border-gold/24 bg-gold/10 p-4">
+        <div className={connectionPanelClassName}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="inline-flex items-center gap-2 text-sm font-medium text-gold">
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-[hsl(var(--cc-theme-accent-hsl))]">
                 <Handshake size={16} />
                 They sent you a connection request
               </p>
               {request.message ? (
-                <p className="mt-2 text-sm text-gold/80">&ldquo;{request.message}&rdquo;</p>
+                <p className="mt-2 text-sm text-muted">&ldquo;{request.message}&rdquo;</p>
               ) : null}
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -1488,14 +1494,14 @@ export function PublicCircleCardProfile({
 
     if (savedContact) {
       return (
-        <div className="mt-4 rounded-2xl border border-gold/24 bg-gold/10 p-4">
+        <div className={connectionPanelClassName}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="inline-flex items-center gap-2 text-sm font-medium text-gold">
+              <p className="inline-flex items-center gap-2 text-sm font-medium text-[hsl(var(--cc-theme-accent-hsl))]">
                 <UserCheck size={16} />
                 Already in your Circle
               </p>
-              <p className="mt-1 text-sm text-gold/80">
+              <p className="mt-1 text-sm text-muted">
                 Connected in your Circle Wallet.
               </p>
             </div>
@@ -1515,7 +1521,7 @@ export function PublicCircleCardProfile({
 
     if (!savedContact) {
       return (
-        <div className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4">
+        <div className={connectionPanelClassName}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
@@ -1538,7 +1544,7 @@ export function PublicCircleCardProfile({
     return (
       <form
         action={sendCircleCardConnectionRequestAction}
-        className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4"
+        className={connectionPanelClassName}
       >
         <input type="hidden" name="recipientCardId" value={card.id} />
         <input type="hidden" name="returnPath" value={`/card/${card.slug}`} />
@@ -1650,7 +1656,7 @@ export function PublicCircleCardProfile({
     return (
       <section
         aria-labelledby={id}
-        className={cn("cc-theme-surface rounded-[1.5rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6", className)}
+        className={cn(circleCardPublicThemeClasses.sectionCard, "rounded-[1.5rem]", className)}
       >
         <h2 id={id} className="text-sm font-semibold text-foreground">
           {heading}
@@ -1677,7 +1683,7 @@ export function PublicCircleCardProfile({
       <section
         aria-labelledby={id}
         className={cn(
-          "cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft",
+          circleCardPublicThemeClasses.quickConnectCard,
           className
         )}
       >
@@ -1688,7 +1694,7 @@ export function PublicCircleCardProfile({
               {heading}
             </h2>
           </div>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
             <ChevronRight size={18} />
           </span>
         </div>
@@ -1742,7 +1748,7 @@ export function PublicCircleCardProfile({
       <section
         aria-labelledby={id}
         className={cn(
-          "cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6",
+          circleCardPublicThemeClasses.sectionCard,
           className
         )}
       >
@@ -1756,7 +1762,7 @@ export function PublicCircleCardProfile({
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{description}</p>
             ) : null}
           </div>
-          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-silver/14 bg-white/[0.05] px-3 py-1.5 text-xs text-silver">
+          <span className={cn(circleCardPublicThemeClasses.heroBadge, "w-fit text-silver")}>
             <Sparkles size={13} className="text-gold" />
             Active links
           </span>
@@ -1812,7 +1818,7 @@ export function PublicCircleCardProfile({
     return (
       <section
         aria-labelledby="business-highlights-title"
-        className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft"
+        className={circleCardPublicThemeClasses.sectionCard}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -1821,7 +1827,7 @@ export function PublicCircleCardProfile({
               What this business does
             </h2>
           </div>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
             <BriefcaseBusiness size={18} />
           </span>
         </div>
@@ -1870,7 +1876,7 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6"
+        className={circleCardPublicThemeClasses.sectionCard}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -1879,7 +1885,7 @@ export function PublicCircleCardProfile({
               What we can help with
             </h2>
           </div>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
             <BriefcaseBusiness size={18} />
           </span>
         </div>
@@ -1934,7 +1940,7 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6"
+        className={circleCardPublicThemeClasses.sectionCard}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -1943,7 +1949,7 @@ export function PublicCircleCardProfile({
               Explore our products
             </h2>
           </div>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
             <ShoppingBag size={18} />
           </span>
         </div>
@@ -2009,14 +2015,14 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6"
+        className={circleCardPublicThemeClasses.sectionCard}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-medium text-gold">Pricing</p>
             <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">Price List</h2>
           </div>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
             <Tag size={18} />
           </span>
         </div>
@@ -2057,21 +2063,21 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6"
+        className={circleCardPublicThemeClasses.sectionCard}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-medium text-gold">Current selections</p>
             <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">Menu &amp; Offers</h2>
           </div>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
             <BookOpen size={18} />
           </span>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {card.menuOfferItems.map((item) => (
-            <article key={item.id} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]">
+            <article key={item.id} className={cn(circleCardPublicThemeClasses.linkCard, "flex min-w-0 flex-col overflow-hidden")}>
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt={item.title} loading="lazy" className="aspect-[4/3] h-auto w-full border-b border-silver/12 bg-background/40 object-cover" />
               ) : null}
@@ -2115,7 +2121,7 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6"
+        className={circleCardPublicThemeClasses.sectionCard}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -2124,7 +2130,7 @@ export function PublicCircleCardProfile({
               Downloads / Documents
             </h2>
           </div>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
             <FileText size={18} />
           </span>
         </div>
@@ -2143,9 +2149,9 @@ export function PublicCircleCardProfile({
             });
 
             return (
-              <article key={document.id} className="flex min-w-0 flex-col rounded-2xl border border-silver/14 bg-background/22 p-4">
+              <article key={document.id} className={cn(circleCardPublicThemeClasses.linkCard, "flex min-w-0 flex-col p-4")}>
                 <div className="flex items-start gap-3">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-silver/14 bg-white/[0.04] text-gold">
+                  <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-10 w-10 rounded-xl")}>
                     <FileText size={17} />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -2196,20 +2202,20 @@ export function PublicCircleCardProfile({
     const contactEmail = mediaKit.businessEnquiriesEmail || mediaKit.creatorEmail;
 
     return (
-      <section id={id} aria-labelledby={`${id}-title`} className="overflow-hidden rounded-[1.75rem] border border-cyan-300/18 bg-[linear-gradient(145deg,rgba(10,29,42,0.9),rgba(4,10,24,0.97))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.25)] sm:p-6 lg:p-7">
+      <section id={id} aria-labelledby={`${id}-title`} className={cn(circleCardPublicThemeClasses.sectionCard, "overflow-hidden lg:p-7")}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Live Media Kit</p>
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-[hsl(var(--cc-theme-accent-hsl))]">Live Media Kit</p>
             <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">{mediaKit.creatorName || card.fullName}</h2>
             {mediaKit.creatorTagline ? <p className="mt-3 max-w-3xl text-base leading-relaxed text-silver sm:text-lg">{mediaKit.creatorTagline}</p> : null}
             <p className="mt-2 text-xs text-muted">Always up to date · Built into this Circle Card</p>
           </div>
-          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><BriefcaseBusiness size={20} /></span>
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-12 w-12 rounded-2xl")}><BriefcaseBusiness size={20} /></span>
         </div>
 
         {(mediaKit.primaryNiche || mediaKit.secondaryNiche || mediaKit.location || mediaKit.languages.length || mediaKit.availableWorldwide || mediaKit.yearsCreating !== null) ? (
           <div className="mt-5 flex flex-wrap gap-2">
-            {mediaKit.primaryNiche ? <span className="rounded-full border border-cyan-300/20 bg-cyan-400/[0.07] px-3 py-1.5 text-xs font-medium text-cyan-100">{mediaKit.primaryNiche}</span> : null}
+            {mediaKit.primaryNiche ? <span className={circleCardPublicThemeClasses.heroBadge}>{mediaKit.primaryNiche}</span> : null}
             {mediaKit.secondaryNiche ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">{mediaKit.secondaryNiche}</span> : null}
             {mediaKit.location ? <span className="inline-flex items-center gap-1.5 rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver"><MapPin size={12} />{mediaKit.location}</span> : null}
             {mediaKit.languages.length ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">{mediaKit.languages.join(" · ")}</span> : null}
@@ -2219,31 +2225,31 @@ export function PublicCircleCardProfile({
         ) : null}
 
         {mediaKit.whatICreate.length ? (
-          <div className="mt-5 rounded-2xl border border-cyan-300/16 bg-cyan-400/[0.045] p-4 sm:p-5">
+          <div className={cn(circleCardPublicThemeClasses.linkCard, "mt-5 p-4 sm:p-5")}>
             <h3 className="text-sm font-semibold text-foreground">What I Create</h3>
             <div className="mt-3 flex flex-wrap gap-2">
-              {mediaKit.whatICreate.map((contentType) => <span key={contentType} className="rounded-full border border-cyan-300/20 bg-cyan-400/[0.07] px-3 py-1.5 text-xs font-medium text-cyan-100">{contentType}</span>)}
+              {mediaKit.whatICreate.map((contentType) => <span key={contentType} className={circleCardPublicThemeClasses.heroBadge}>{contentType}</span>)}
             </div>
           </div>
         ) : null}
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           {mediaKit.availableFor.length ? (
-            <div className="rounded-2xl border border-silver/14 bg-white/[0.035] p-4 sm:p-5">
+            <div className={cn(circleCardPublicThemeClasses.linkCard, "p-4 sm:p-5")}>
               <h3 className="text-sm font-semibold text-foreground">Available for Collaborations</h3>
               <div className="mt-3 flex flex-wrap gap-2">{mediaKit.availableFor.map((workType) => <span key={workType} className="rounded-full border border-gold/24 bg-[linear-gradient(135deg,rgba(212,175,95,0.14),rgba(34,211,238,0.05))] px-3 py-1.5 text-xs font-medium text-gold shadow-inner-surface">{workType === "Sponsored Posts" ? "Sponsored Content" : workType}</span>)}</div>
             </div>
           ) : null}
           {audience.length ? (
-            <div className="rounded-2xl border border-silver/14 bg-white/[0.035] p-4 sm:p-5">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><BarChart3 size={15} className="text-cyan-200" />Audience Snapshot</h3>
+            <div className={cn(circleCardPublicThemeClasses.linkCard, "p-4 sm:p-5")}>
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><BarChart3 size={15} className="text-[hsl(var(--cc-theme-accent-hsl))]" />Audience Snapshot</h3>
               <div className="mt-3 grid grid-cols-2 gap-2">{audience.map((item) => <div key={item.label} className="min-w-0 rounded-xl border border-silver/12 bg-background/22 p-3"><p className="text-[11px] text-muted">{item.label}</p><p className="mt-1 truncate text-sm font-semibold text-foreground">{item.value}</p></div>)}</div>
             </div>
           ) : null}
         </div>
 
         {(contactEmail || mediaKit.websiteUrl || mediaKit.communityUrl || mediaKit.mediaKitFileUrl || mediaKit.externalMediaKitUrl) ? (
-          <div className="mt-5 rounded-2xl border border-cyan-300/16 bg-cyan-400/[0.045] p-4 sm:p-5">
+          <div className={cn(circleCardPublicThemeClasses.linkCard, "mt-5 p-4 sm:p-5")}>
             <h3 className="text-sm font-semibold text-foreground">Let&apos;s Work Together</h3>
             <p className="mt-1 text-sm text-muted">Interested in collaborating? Use the contact options below.</p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -2277,13 +2283,13 @@ export function PublicCircleCardProfile({
     );
 
     return (
-      <section id={id} aria-labelledby={`${id}-title`} className="rounded-[1.75rem] border border-cyan-300/16 bg-white/[0.035] p-5 shadow-[0_22px_64px_rgba(0,0,0,0.22)] sm:p-6 lg:p-7">
+      <section id={id} aria-labelledby={`${id}-title`} className={cn(circleCardPublicThemeClasses.sectionCard, "lg:p-7")}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Audience Snapshot</p>
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-[hsl(var(--cc-theme-accent-hsl))]">Audience Snapshot</p>
             <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Who Watches My Content</h2>
           </div>
-          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><BarChart3 size={20} /></span>
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-12 w-12 rounded-2xl")}><BarChart3 size={20} /></span>
         </div>
 
         {stats.length ? (
@@ -2292,7 +2298,7 @@ export function PublicCircleCardProfile({
               const Icon = stat.icon;
               return (
                 <article key={stat.label} className="min-w-0 rounded-2xl border border-silver/14 bg-[linear-gradient(145deg,rgba(255,255,255,0.055),rgba(34,211,238,0.025))] p-4 shadow-inner-surface">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-300/18 bg-cyan-400/[0.06] text-cyan-100"><Icon size={15} /></span>
+                  <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-9 w-9 rounded-xl")}><Icon size={15} /></span>
                   <p className="mt-4 break-words font-display text-2xl font-semibold text-foreground">{stat.value}</p>
                   <p className="mt-1 text-xs text-muted">{stat.label}</p>
                 </article>
@@ -2307,7 +2313,7 @@ export function PublicCircleCardProfile({
             {snapshot.audienceAge ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">Age {snapshot.audienceAge}</span> : null}
             {snapshot.audienceGender ? <span className="rounded-full border border-silver/14 bg-white/[0.04] px-3 py-1.5 text-xs text-silver">{snapshot.audienceGender}</span> : null}
             {countries.map((country, index) => <span key={`${country}-${index}`} className="inline-flex items-center gap-1.5 rounded-full border border-gold/20 bg-gold/8 px-3 py-1.5 text-xs text-gold"><MapPin size={11} />{country}</span>)}
-            {snapshot.postingFrequency ? <span className="rounded-full border border-cyan-300/18 bg-cyan-400/[0.05] px-3 py-1.5 text-xs text-cyan-100">Posts {snapshot.postingFrequency.toLowerCase()}</span> : null}
+            {snapshot.postingFrequency ? <span className={circleCardPublicThemeClasses.heroBadge}>Posts {snapshot.postingFrequency.toLowerCase()}</span> : null}
           </div>
         ) : null}
 
@@ -2316,7 +2322,7 @@ export function PublicCircleCardProfile({
             {snapshot.audienceInterests.length ? (
               <div className="rounded-2xl border border-silver/14 bg-background/22 p-4 sm:p-5">
                 <h3 className="text-sm font-semibold text-foreground">Audience Interests</h3>
-                <div className="mt-3 flex flex-wrap gap-2">{snapshot.audienceInterests.map((interest) => <span key={interest} className="rounded-full border border-cyan-300/18 bg-cyan-400/[0.055] px-3 py-1.5 text-xs text-cyan-100">{interest}</span>)}</div>
+                <div className="mt-3 flex flex-wrap gap-2">{snapshot.audienceInterests.map((interest) => <span key={interest} className={circleCardPublicThemeClasses.heroBadge}>{interest}</span>)}</div>
               </div>
             ) : null}
             {snapshot.bestPerformingContent ? (
@@ -2349,22 +2355,22 @@ export function PublicCircleCardProfile({
     if (!partnerships.length) {
       if (!openToInterests.length) return null;
       return (
-        <section id={id} aria-labelledby={`${id}-title`} className="rounded-[1.75rem] border border-cyan-300/18 bg-[linear-gradient(145deg,rgba(12,31,44,0.9),rgba(4,10,24,0.97))] p-5 shadow-panel-soft sm:p-6">
+        <section id={id} aria-labelledby={`${id}-title`} className={circleCardPublicThemeClasses.sectionCard}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Open to Partnerships</p>
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-[hsl(var(--cc-theme-accent-hsl))]">Open to Partnerships</p>
               <h2 id={`${id}-title`} className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Open to Brand Partnerships</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Interested in creating trusted work together? These are the creator&apos;s current content interests.</p>
             </div>
-            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><Handshake size={20} /></span>
+            <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-12 w-12 rounded-2xl")}><Handshake size={20} /></span>
           </div>
-          <div className="mt-5 flex flex-wrap gap-2">{openToInterests.map((interest) => <span key={interest} className="rounded-full border border-cyan-300/20 bg-cyan-400/[0.07] px-3 py-1.5 text-xs font-medium text-cyan-100">{interest}</span>)}</div>
+          <div className="mt-5 flex flex-wrap gap-2">{openToInterests.map((interest) => <span key={interest} className={circleCardPublicThemeClasses.heroBadge}>{interest}</span>)}</div>
         </section>
       );
     }
 
     return (
-      <section id={id} aria-labelledby={`${id}-title`} className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(18,30,38,0.9),rgba(4,10,24,0.97))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.25)] sm:p-6 lg:p-7">
+      <section id={id} aria-labelledby={`${id}-title`} className={cn(circleCardPublicThemeClasses.sectionCard, "lg:p-7")}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-gold">Trusted By</p>
@@ -2380,7 +2386,7 @@ export function PublicCircleCardProfile({
             return (
               <article key={item.id} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04] shadow-inner-surface">
                 <div className="flex min-h-32 items-center justify-center border-b border-silver/12 bg-[linear-gradient(145deg,rgba(255,255,255,0.08),rgba(255,255,255,0.025))] p-5">
-                  {item.brandLogo ? <img src={item.brandLogo} alt={`${item.brandName} logo`} loading="lazy" className="max-h-20 w-auto max-w-[75%] object-contain" /> : <span className="font-display text-3xl font-semibold text-cyan-100">{item.brandName.slice(0, 2).toUpperCase()}</span>}
+                  {item.brandLogo ? <img src={item.brandLogo} alt={`${item.brandName} logo`} loading="lazy" className="max-h-20 w-auto max-w-[75%] object-contain" /> : <span className="font-display text-3xl font-semibold text-[hsl(var(--cc-theme-accent-hsl))]">{item.brandName.slice(0, 2).toUpperCase()}</span>}
                 </div>
                 <div className="flex flex-1 flex-col p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -2414,9 +2420,9 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="relative overflow-hidden rounded-[1.75rem] border border-gold/28 bg-[linear-gradient(145deg,rgba(24,38,45,0.96),rgba(5,12,27,0.98))] p-5 shadow-[0_22px_58px_rgba(0,0,0,0.34)] sm:p-7"
+        className={cn(circleCardPublicThemeClasses.sectionCard, "relative overflow-hidden sm:p-7")}
       >
-        <div aria-hidden="true" className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-gold/65 to-transparent" />
+        <div aria-hidden="true" className={cn(circleCardPublicThemeClasses.divider, "absolute inset-x-10 top-0")} />
         <div className="relative">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -2428,7 +2434,7 @@ export function PublicCircleCardProfile({
                 {booking.description}
               </p>
             </div>
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/24 bg-gold/12 text-gold">
+            <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
               <CalendarDays size={18} />
             </span>
           </div>
@@ -2480,7 +2486,7 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6"
+        className={circleCardPublicThemeClasses.sectionCard}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -2489,7 +2495,7 @@ export function PublicCircleCardProfile({
               Opening Hours
             </h2>
           </div>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
+          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
             <CalendarDays size={18} />
           </span>
         </div>
@@ -2583,7 +2589,7 @@ export function PublicCircleCardProfile({
       <section
         id="circle-card-testimonial"
         aria-labelledby="circle-card-testimonial-title"
-        className="scroll-mt-24 rounded-[1.75rem] border border-gold/20 bg-gold/8 p-5 shadow-panel-soft sm:p-6"
+        className={cn(circleCardPublicThemeClasses.trustPanel, "scroll-mt-24")}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -2662,16 +2668,11 @@ export function PublicCircleCardProfile({
   if (publicLayout === "CLASSIC") {
     return (
       <div
-        className="circle-card-public-theme relative overflow-hidden pb-12"
+        className={cn(circleCardPublicThemeClasses.backgroundShell, "pb-12")}
         style={circleCardThemeStyle}
         data-circle-card-surface={circleCardThemeSurface}
         {...circleStudioAttributes}
       >
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 bg-[image:var(--cc-theme-page-bg)]"
-        />
-
         <div className="public-page-stack relative max-w-5xl pt-4 sm:pt-6 lg:pt-8">
           <header className="flex items-center justify-between gap-3">
             <Link
@@ -2698,10 +2699,10 @@ export function PublicCircleCardProfile({
           {renderCardSwitcher()}
 
           <main className="mx-auto mt-5 max-w-4xl space-y-5">
-            <section className="rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7">
+            <section className={circleCardPublicThemeClasses.heroShell}>
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                 <CircleCardSpinToConnect {...spinToConnectProps} className="h-28 w-28 shrink-0">
-                  <div className="cc-theme-avatar grid h-full w-full place-items-center overflow-hidden rounded-full border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-media-bg)] text-2xl font-semibold text-foreground shadow-[0_0_42px_hsl(var(--cc-theme-primary-hsl)/0.22)]">
+                  <div className={cn(circleCardPublicThemeClasses.profileFrame, "text-2xl font-semibold")}>
                     {card.profileImageUrl ? (
                       <CircleCardFramedImage
                         src={card.profileImageUrl}
@@ -2752,7 +2753,7 @@ export function PublicCircleCardProfile({
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className={cn(circleCardPublicThemeClasses.actionPanel, "mt-6 grid gap-3 sm:grid-cols-3")}>
                 <a
                   href={`/card/${card.slug}/vcard`}
                   className={cn(buttonVariants({ variant: "outline" }), secondaryActionClassName, "gap-2")}
@@ -2831,16 +2832,11 @@ export function PublicCircleCardProfile({
 
     return (
       <div
-        className="circle-card-public-theme relative overflow-hidden pb-16 lg:pb-20"
+        className={cn(circleCardPublicThemeClasses.backgroundShell, "pb-16 lg:pb-20")}
         style={circleCardThemeStyle}
         data-circle-card-surface={circleCardThemeSurface}
         {...circleStudioAttributes}
       >
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 bg-[image:var(--cc-theme-page-bg)]"
-        />
-
         <div className="public-page-stack relative max-w-6xl pt-4 sm:pt-6 lg:pt-8">
           <header className="flex items-center justify-between gap-3">
             <Link
@@ -2867,7 +2863,7 @@ export function PublicCircleCardProfile({
           {renderCardSwitcher()}
 
           <main className="mt-5 space-y-4 sm:space-y-5">
-            <section className="relative isolate overflow-hidden rounded-[2rem] border border-gold/22 bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7 lg:p-8">
+            <section className={cn(circleCardPublicThemeClasses.heroShell, "isolate lg:p-8")}>
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[image:var(--cc-theme-hero-line)]"
@@ -2907,8 +2903,8 @@ export function PublicCircleCardProfile({
                         aria-hidden="true"
                         className="absolute -inset-3 rounded-full bg-[conic-gradient(from_140deg,hsl(var(--cc-theme-accent-hsl)/0.8),hsl(var(--cc-theme-primary-hsl)/0.5),hsl(var(--cc-theme-button-hsl)/0.42),hsl(var(--cc-theme-accent-hsl)/0.8))] opacity-70 blur-md"
                       />
-                      <div className="cc-theme-avatar relative grid h-full w-full place-items-center rounded-full border border-[color:var(--cc-theme-button-border)] bg-[var(--cc-theme-accent-badge-bg)] p-1.5 shadow-[0_0_0_10px_hsl(var(--cc-theme-primary-hsl)/0.05),0_24px_70px_rgba(0,0,0,0.36)]">
-                        <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground sm:text-5xl">
+                      <div className={cn(circleCardPublicThemeClasses.profileFrame, "relative p-1.5 text-4xl font-semibold sm:text-5xl")}>
+                        <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[image:var(--cc-theme-media-bg)]">
                           {card.profileImageUrl ? (
                             <CircleCardFramedImage
                               src={card.profileImageUrl}
@@ -2930,10 +2926,10 @@ export function PublicCircleCardProfile({
 
                 <div className="min-w-0 text-center lg:text-left">
                   <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-                    <span className="rounded-full border border-gold/24 bg-gold/12 px-3 py-1.5 text-xs font-medium text-gold">
+                    <span className={circleCardPublicThemeClasses.heroBadge}>
                       Creator Circle Card
                     </span>
-                    <span className="rounded-full border border-silver/14 bg-white/[0.05] px-3 py-1.5 text-xs text-silver">
+                    <span className={cn(circleCardPublicThemeClasses.heroBadge, "text-silver")}>
                       {viewLabel}
                     </span>
                     <Link href={`/card/${card.slug}/trust`} className="cc-theme-link-card inline-flex items-center gap-1.5 rounded-full border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-link-bg)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--cc-theme-accent-hsl))] transition-colors hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]">
@@ -2969,9 +2965,9 @@ export function PublicCircleCardProfile({
                           href={row.href}
                           {...row.anchorProps}
                           aria-label={row.label}
-                          className="group inline-flex min-h-12 max-w-full items-center gap-2 rounded-full border border-silver/14 bg-white/[0.06] px-1.5 pr-3 text-left shadow-inner-surface backdrop-blur transition-all hover:-translate-y-0.5 hover:border-gold/32 hover:bg-white/[0.09]"
+                          className={cn("group", circleCardPublicThemeClasses.socialPill)}
                         >
-                          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/18 bg-gold/12 text-gold">
+                          <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-9 w-9 rounded-full")}>
                             {row.icon}
                           </span>
                           <span className="min-w-0">
@@ -2999,7 +2995,7 @@ export function PublicCircleCardProfile({
 
             <section
               aria-label="Circle Card actions"
-              className="rounded-[1.5rem] border border-silver/14 bg-white/[0.04] p-3 shadow-[0_20px_58px_rgba(0,0,0,0.24)] backdrop-blur sm:p-4"
+              className={cn(circleCardPublicThemeClasses.actionPanel, "rounded-[1.5rem] p-3 sm:p-4")}
             >
               <div className="grid gap-3 sm:grid-cols-3">
                 <a
@@ -3038,9 +3034,9 @@ export function PublicCircleCardProfile({
             ) : null}
 
             {card.featuredContentItems.length ? (
-              <section id="creator-featured-content" className="rounded-[1.75rem] border border-cyan-300/16 bg-white/[0.035] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.22)] sm:p-5 lg:p-6">
+              <section id="creator-featured-content" className={cn(circleCardPublicThemeClasses.sectionCard, "p-4 sm:p-5 lg:p-6")}>
                 <div className="mb-4 sm:mb-5">
-                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Featured Content</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-[hsl(var(--cc-theme-accent-hsl))]">Featured Content</p>
                   <h2 className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Selected work from {creatorFirstName}</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">A curated portfolio of videos, posts and creator work worth seeing first.</p>
                 </div>
@@ -3053,14 +3049,14 @@ export function PublicCircleCardProfile({
             {renderCreatorAudienceSnapshotSection()}
             {renderCreatorBrandPartnershipsSection()}
             {card.cardType === "CREATOR" && card.pressProofItems.length ? (
-              <section id="creator-press-proof" aria-labelledby="creator-press-proof-title" className="min-w-0 overflow-hidden rounded-[1.75rem] border border-cyan-300/18 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_36%),rgba(255,255,255,0.035)] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.24)] sm:p-5 lg:p-6">
+              <section id="creator-press-proof" aria-labelledby="creator-press-proof-title" className={cn(circleCardPublicThemeClasses.sectionCard, "min-w-0 overflow-hidden p-4 sm:p-5 lg:p-6")}>
                 <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-cyan-200">Press &amp; Proof</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-[hsl(var(--cc-theme-accent-hsl))]">Press &amp; Proof</p>
                     <h2 id="creator-press-proof-title" className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Proof &amp; Milestones</h2>
                     <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Press mentions, creator milestones and proof of work that build a clear credibility story.</p>
                   </div>
-                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/22 bg-cyan-400/[0.08] text-cyan-100"><Award size={20} /></span>
+                  <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-12 w-12 rounded-2xl")}><Award size={20} /></span>
                 </div>
                 <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {card.pressProofItems.map((item) => <CreatorPressProofCard key={item.id} item={item} analyticsCardId={analyticsCardId} />)}
@@ -3068,14 +3064,14 @@ export function PublicCircleCardProfile({
               </section>
             ) : null}
             {card.cardType === "CREATOR" && card.creatorOffers.length ? (
-              <section id="creator-offers" aria-labelledby="creator-offers-title" className="min-w-0 overflow-hidden rounded-[1.75rem] border border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.09),transparent_35%),rgba(255,255,255,0.035)] p-4 shadow-[0_22px_64px_rgba(0,0,0,0.24)] sm:p-5 lg:p-6">
+              <section id="creator-offers" aria-labelledby="creator-offers-title" className={cn(circleCardPublicThemeClasses.sectionCard, "min-w-0 overflow-hidden p-4 sm:p-5 lg:p-6")}>
                 <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
                   <div className="min-w-0">
                     <p className="text-xs font-medium uppercase tracking-[0.12em] text-gold">Creator Offers</p>
                     <h2 id="creator-offers-title" className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">Support My Work</h2>
                     <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Courses, downloads, communities and creator favourites, with a clear next step.</p>
                   </div>
-                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/24 bg-gold/10 text-gold"><ShoppingBag size={20} /></span>
+                  <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-12 w-12 rounded-2xl")}><ShoppingBag size={20} /></span>
                 </div>
                 <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {card.creatorOffers.map((item) => <CreatorOfferCard key={item.id} item={item} analyticsCardId={analyticsCardId} />)}
@@ -3117,7 +3113,7 @@ export function PublicCircleCardProfile({
 
             <section
               aria-label="Circle Card trust"
-              className="rounded-[1.25rem] border border-silver/12 bg-white/[0.026] p-4 shadow-inner-surface sm:p-5"
+              className={cn(circleCardPublicThemeClasses.trustPanel, "rounded-[1.25rem] p-4 shadow-inner-surface sm:p-5")}
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
@@ -3177,16 +3173,11 @@ export function PublicCircleCardProfile({
 
   return (
     <div
-      className="circle-card-public-theme relative overflow-hidden pb-32 lg:pb-16"
+      className={cn(circleCardPublicThemeClasses.backgroundShell, "pb-32 lg:pb-16")}
       style={circleCardThemeStyle}
       data-circle-card-surface={circleCardThemeSurface}
       {...circleStudioAttributes}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[image:var(--cc-theme-page-bg)]"
-      />
-
       <div className="public-page-stack relative max-w-7xl pt-4 sm:pt-6 lg:pt-8">
         <header className="flex items-center justify-between gap-3">
           <Link
@@ -3217,7 +3208,7 @@ export function PublicCircleCardProfile({
           <main className="space-y-5">
             <article
               aria-labelledby="circle-card-profile-title"
-              className="relative overflow-hidden rounded-[2rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7"
+              className={circleCardPublicThemeClasses.heroShell}
             >
               <div
                 aria-hidden="true"
@@ -3231,7 +3222,7 @@ export function PublicCircleCardProfile({
                     className="h-40 w-40 sm:h-48 sm:w-48"
                     showAmbientRing={false}
                   >
-                    <div className="cc-theme-avatar grid h-full w-full place-items-center overflow-hidden rounded-full border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-media-bg)] text-4xl font-semibold text-foreground shadow-[0_0_64px_hsl(var(--cc-theme-primary-hsl)/0.3)]">
+                    <div className={cn(circleCardPublicThemeClasses.profileFrame, "text-4xl font-semibold")}>
                       {businessHeroImageUrl ? (
                         <CircleCardFramedImage
                           src={businessHeroImageUrl}
@@ -3351,7 +3342,7 @@ export function PublicCircleCardProfile({
 
             <section
               aria-label="Circle Card actions"
-              className="rounded-[1.75rem] border border-gold/22 bg-[linear-gradient(145deg,rgba(8,19,43,0.9),rgba(4,10,24,0.96))] p-4 shadow-[0_22px_58px_rgba(0,0,0,0.32)] sm:p-5"
+              className={circleCardPublicThemeClasses.actionPanel}
             >
               <div className="grid gap-3 sm:grid-cols-3">
                 <a
@@ -3379,7 +3370,7 @@ export function PublicCircleCardProfile({
               {renderConnectionAction()}
 
               {!isAuthenticated ? (
-                <div className="mt-4 rounded-2xl border border-silver/14 bg-white/[0.035] p-4">
+                <div className={cn(circleCardPublicThemeClasses.linkCard, "mt-4 p-4")}>
                   <p className="text-sm font-medium text-foreground">Save to Circle Wallet</p>
                   <p className="mt-2 text-sm text-muted">
                     Download the contact now, or sign in to save this person into your private Circle
@@ -3436,9 +3427,9 @@ export function PublicCircleCardProfile({
               ownerAccountLabel={ownerAccountLabel}
               ownerIsBcnMember={ownerIsBcnMember}
             />
-            <section className="rounded-[1.75rem] border border-silver/14 bg-white/[0.035] p-5 shadow-inner-surface">
+            <section className={cn(circleCardPublicThemeClasses.sectionCard, "shadow-inner-surface")}>
               <div className="flex items-center gap-3">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[#2f6dff]/26 bg-[#1e5bff]/12 text-[#d8e6ff]">
+                <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-11 w-11 rounded-2xl")}>
                   <BarChart3 size={18} />
                 </span>
                 <div>
@@ -3453,7 +3444,7 @@ export function PublicCircleCardProfile({
         <CircleCardInstallPrompt className="mt-5 lg:hidden" />
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-silver/14 bg-[#030813]/94 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-panel backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-panel backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-3 gap-2">
           <a
             href={`/card/${card.slug}/vcard`}

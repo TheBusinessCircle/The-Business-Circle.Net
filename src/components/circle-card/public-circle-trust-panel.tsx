@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, ChevronDown, Quote, ShieldCheck, Star } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import type { CircleTrustSummary } from "@/lib/circle-card/circle-trust";
+import { circleCardPublicThemeClasses } from "@/lib/circle-card/public-theme-classes";
 import { circleCardWalletTestimonialRelationshipLabel } from "@/lib/circle-card/wallet-testimonials";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +28,7 @@ export function PublicCircleTrustPanel({
       id="circle-card-trust"
       aria-labelledby="circle-card-trust-title"
       className={cn(
-        "cc-theme-surface scroll-mt-24 overflow-hidden rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6",
+        circleCardPublicThemeClasses.trustPanel,
         creator ? "shadow-[var(--cc-theme-hero-shadow)]" : null
       )}
     >
@@ -42,7 +43,7 @@ export function PublicCircleTrustPanel({
           </div>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{trust.summary}</p>
         </div>
-        <span className="cc-theme-icon inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--cc-theme-accent-badge-border)] bg-[var(--cc-theme-icon-bg)] text-gold">
+        <span className={cn(circleCardPublicThemeClasses.iconSurface, "h-12 w-12 rounded-2xl")}>
           <ShieldCheck size={21} aria-hidden="true" />
         </span>
       </div>
