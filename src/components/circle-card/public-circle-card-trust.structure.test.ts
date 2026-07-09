@@ -41,6 +41,7 @@ const trustDomain = readFileSync(
   join(root, "src/lib/circle-card/circle-trust.ts"),
   "utf8"
 );
+const globalsCss = readFileSync(join(root, "src/app/globals.css"), "utf8");
 
 describe("public Circle Card trust journey", () => {
   it("renders honest trust score content and both public testimonial entry points", () => {
@@ -77,6 +78,19 @@ describe("public Circle Card trust journey", () => {
     expect(publicService).toContain("metadata.fineTune.backgroundImageUrl");
     expect(publicService).toContain("resolvePublicUploadImageUrl");
     expect(publicService).toContain('backgroundStyle: backgroundImageUrl ? metadata.fineTune.backgroundStyle : "PRESET"');
+  });
+
+  it("keeps live public and Trust surfaces controlled by Circle Studio identity tokens", () => {
+    for (const identity of ["executive", "corporate", "modern", "luxury", "bold", "minimal", "creator", "future"]) {
+      expect(globalsCss).toContain(`data-cc-identity="${identity}"`);
+    }
+
+    expect(globalsCss).toContain("--cc-theme-link-bg");
+    expect(globalsCss).toContain("--cc-theme-trust-bg");
+    expect(globalsCss).toContain("--cc-theme-qr-bg");
+    expect(globalsCss).toContain("--cc-theme-profile-shadow");
+    expect(globalsCss).toContain(".circle-card-public-theme main :is(section, article)[aria-labelledby*=\"trust\"]");
+    expect(globalsCss).not.toMatch(/circle-card-public-theme[\s\S]{0,240}letter-spacing:\s*-\./);
   });
 
   it("places the lower testimonial CTA before every QR/share section", () => {

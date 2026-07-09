@@ -90,6 +90,13 @@ describe("Circle Studio identity engine", () => {
       const signature = [
         style["--cc-theme-section-bg"],
         style["--cc-theme-page-bg"],
+        style["--cc-theme-hero-bg"],
+        style["--cc-theme-card-bg"],
+        style["--cc-theme-link-bg"],
+        style["--cc-theme-trust-bg"],
+        style["--cc-theme-qr-bg"],
+        style["--cc-theme-button-bg"],
+        style["--cc-theme-profile-shadow"],
         attributes["data-cc-profile"],
         attributes["data-cc-button"],
         attributes["data-cc-entry"]
@@ -101,6 +108,13 @@ describe("Circle Studio identity engine", () => {
       expect(attributes["data-cc-button"]).toBeTruthy();
       expect(attributes["data-cc-motion"]).toBeTruthy();
       expect(style["--cc-theme-page-bg"]).not.toBe("linear-gradient(#030712,#030712)");
+      expect(style["--cc-theme-hero-bg"]).toContain("gradient");
+      expect(style["--cc-theme-card-bg"]).toBeTruthy();
+      expect(style["--cc-theme-link-bg"]).toBeTruthy();
+      expect(style["--cc-theme-trust-bg"]).toBeTruthy();
+      expect(style["--cc-theme-qr-bg"]).toBeTruthy();
+      expect(style["--cc-theme-button-bg"]).toBeTruthy();
+      expect(style["--cc-theme-profile-shadow"]).toBeTruthy();
       signatures.add(signature);
     }
 

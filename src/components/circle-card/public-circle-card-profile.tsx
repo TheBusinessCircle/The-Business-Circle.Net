@@ -2936,7 +2936,7 @@ export function PublicCircleCardProfile({
                     <span className="rounded-full border border-silver/14 bg-white/[0.05] px-3 py-1.5 text-xs text-silver">
                       {viewLabel}
                     </span>
-                    <Link href={`/card/${card.slug}/trust`} className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/22 bg-cyan-300/[0.07] px-3 py-1.5 text-xs font-semibold text-cyan-100 transition-colors hover:border-cyan-300/38 hover:bg-cyan-300/[0.11]">
+                    <Link href={`/card/${card.slug}/trust`} className="cc-theme-link-card inline-flex items-center gap-1.5 rounded-full border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-link-bg)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--cc-theme-accent-hsl))] transition-colors hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]">
                       <ShieldCheck size={13} aria-hidden="true" /> Circle Trust {card.trust.score}
                     </Link>
                   </div>
