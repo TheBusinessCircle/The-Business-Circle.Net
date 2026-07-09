@@ -190,13 +190,13 @@ const SOCIAL_CONTACT_PLATFORMS: readonly SocialPlatformConfig[] = [
 ] as const;
 
 const primaryActionClassName =
-  "h-12 w-full rounded-2xl border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-button-bg)] text-[var(--cc-theme-button-text)] shadow-[var(--cc-theme-button-shadow)] hover:border-gold/70 hover:brightness-110";
+  "cc-theme-button h-12 w-full rounded-2xl border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-button-bg)] text-[var(--cc-theme-button-text)] shadow-[var(--cc-theme-button-shadow)] hover:border-gold/70 hover:brightness-110";
 
 const secondaryActionClassName =
-  "h-12 w-full rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] text-foreground shadow-[var(--cc-theme-secondary-shadow)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)] hover:text-foreground";
+  "cc-theme-button h-12 w-full rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] text-foreground shadow-[var(--cc-theme-secondary-shadow)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)] hover:text-foreground";
 
 const mobileActionClassName =
-  "h-12 w-full min-w-0 flex-col gap-0.5 rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] px-1 text-[11px] leading-none text-foreground shadow-[0_10px_26px_rgba(2,8,23,0.34)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]";
+  "cc-theme-button h-12 w-full min-w-0 flex-col gap-0.5 rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] px-1 text-[11px] leading-none text-foreground shadow-[0_10px_26px_rgba(2,8,23,0.34)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]";
 
 function initials(name: string) {
   return name
@@ -526,8 +526,8 @@ function PremiumBadge({ icon, label, muted = false }: PremiumBadgeProps) {
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-inner-surface",
         muted
-          ? "border-silver/14 bg-white/[0.035] text-silver"
-          : "border-gold/28 bg-gold/12 text-gold"
+          ? "border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] text-silver"
+          : "border-[color:var(--cc-theme-accent-badge-border)] bg-[var(--cc-theme-accent-badge-bg)] text-gold"
       )}
     >
       {icon}
@@ -567,11 +567,11 @@ function ContactAction({
   thumbnailUrl
 }: ContactActionProps) {
   const className =
-    "group flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-silver/14 bg-white/[0.035] px-3.5 py-3 text-left shadow-inner-surface transition-all hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)] sm:px-4";
+    "cc-theme-link-card group flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] px-3.5 py-3 text-left shadow-inner-surface transition-all hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)] sm:px-4";
   const content = (
     <>
       <span className="flex min-w-0 items-center gap-3">
-        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gold/18 bg-gold/10 text-gold">
+        <span className="cc-theme-icon inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[color:var(--cc-theme-accent-badge-border)] bg-[var(--cc-theme-icon-bg)] text-gold">
           {thumbnailUrl ? (
             <CircleCardFramedImage src={thumbnailUrl} alt="" className="h-full w-full object-cover">
               {icon}
@@ -740,7 +740,7 @@ function FeaturedLinkCard({
 
   if (link.visibility === "PRIVATE_CODE") {
     return (
-      <article className="group relative overflow-hidden rounded-[1.6rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(22,39,45,0.9),rgba(8,16,32,0.96)_48%,rgba(4,10,24,0.98))] p-3 shadow-[0_22px_56px_rgba(0,0,0,0.26)] transition-all hover:-translate-y-0.5 hover:border-gold/35 hover:shadow-[0_28px_72px_rgba(212,175,95,0.14)] sm:p-4">
+      <article className="cc-theme-link-card group relative overflow-hidden rounded-[1.6rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3 shadow-[var(--cc-theme-secondary-shadow)] transition-all hover:-translate-y-0.5 hover:border-[color:var(--cc-theme-button-border)] sm:p-4">
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.62),rgba(68,211,188,0.38),transparent)]"
@@ -756,7 +756,7 @@ function FeaturedLinkCard({
               <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,19,0.1),rgba(3,8,19,0.78))]" />
             </>
           ) : null}
-          <span className="absolute left-4 top-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/28 bg-[#061126]/72 text-gold shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur">
+          <span className="cc-theme-icon absolute left-4 top-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-[color:var(--cc-theme-accent-badge-border)] bg-[#061126]/72 text-gold shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur">
             {customLinkIcon(link)}
           </span>
           <span className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3">
@@ -812,7 +812,7 @@ function FeaturedLinkCard({
           : undefined,
         url: analyticsUrlValue(href)
       }}
-      className="group relative flex min-h-[280px] flex-col overflow-hidden rounded-[1.6rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(22,39,45,0.9),rgba(8,16,32,0.96)_48%,rgba(4,10,24,0.98))] p-3 shadow-[0_22px_56px_rgba(0,0,0,0.26)] transition-all hover:-translate-y-0.5 hover:border-gold/35 hover:shadow-[0_28px_72px_rgba(68,211,188,0.13)] sm:p-4"
+      className="cc-theme-link-card group relative flex min-h-[280px] flex-col overflow-hidden rounded-[1.6rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3 shadow-[var(--cc-theme-secondary-shadow)] transition-all hover:-translate-y-0.5 hover:border-[color:var(--cc-theme-button-border)] sm:p-4"
     >
       <span
         aria-hidden="true"
@@ -829,7 +829,7 @@ function FeaturedLinkCard({
             <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,19,0.08),rgba(3,8,19,0.76))]" />
           </>
         ) : null}
-        <span className="absolute left-4 top-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/28 bg-[#061126]/72 text-gold shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur transition-transform group-hover:scale-105">
+        <span className="cc-theme-icon absolute left-4 top-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-[color:var(--cc-theme-accent-badge-border)] bg-[#061126]/72 text-gold shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur transition-transform group-hover:scale-105">
           {customLinkIcon(link)}
         </span>
         <span className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3">
@@ -895,12 +895,12 @@ function CreatorFeaturedContentCard({
       cardId={analyticsCardId ?? ""}
       eventType="CUSTOM_LINK_CLICK"
       metadata={{ source: "creator_featured_content", itemId: item.id, platform: item.platform, url: analyticsUrlValue(item.url) }}
-      className="group flex min-h-[300px] min-w-0 flex-col overflow-hidden rounded-[1.6rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(22,39,45,0.9),rgba(8,16,32,0.96)_48%,rgba(4,10,24,0.98))] p-3 shadow-[0_22px_56px_rgba(0,0,0,0.26)] transition hover:-translate-y-0.5 hover:border-cyan-300/30 sm:p-4"
+      className="cc-theme-link-card group flex min-h-[300px] min-w-0 flex-col overflow-hidden rounded-[1.6rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3 shadow-[var(--cc-theme-secondary-shadow)] transition hover:-translate-y-0.5 hover:border-[color:var(--cc-theme-button-border)] sm:p-4"
     >
       <span className="relative mb-4 block aspect-[1.7] overflow-hidden rounded-[1.15rem] border border-silver/14 bg-[image:var(--cc-theme-media-bg)]">
         {previewImage ? <img src={previewImage} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" /> : null}
         {previewImage ? <span className="absolute inset-0 bg-[linear-gradient(180deg,transparent,rgba(3,8,19,0.72))]" /> : null}
-        <span className="absolute left-4 top-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/24 bg-[#061126]/78 text-cyan-100 backdrop-blur">{creatorPlatformIcon(item.platform)}</span>
+        <span className="cc-theme-icon absolute left-4 top-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:var(--cc-theme-accent-badge-border)] bg-[#061126]/78 text-gold backdrop-blur">{creatorPlatformIcon(item.platform)}</span>
         <span className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2">
           <span className="rounded-full border border-white/12 bg-black/30 px-3 py-1.5 text-xs font-medium text-silver backdrop-blur">{item.platform}</span>
           {item.isFeatured ? <span className="rounded-full border border-gold/28 bg-gold/12 px-3 py-1.5 text-xs font-medium text-gold">Featured</span> : null}
@@ -924,7 +924,7 @@ function CreatorOfferCard({
   analyticsCardId?: string;
 }) {
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-[1.6rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(25,35,42,0.94),rgba(6,13,28,0.98))] shadow-[0_22px_60px_rgba(0,0,0,0.28)]">
+    <article className="cc-theme-card flex min-w-0 flex-col overflow-hidden rounded-[1.6rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] shadow-[var(--cc-theme-secondary-shadow)]">
       <div className="relative aspect-[1.55] overflow-hidden border-b border-silver/12 bg-[image:var(--cc-theme-media-bg)]">
         <img src={item.image} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgba(3,8,19,0.82))]" />
@@ -970,7 +970,7 @@ function CreatorPressProofCard({
     : null;
 
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-[1.6rem] border border-cyan-300/18 bg-[linear-gradient(145deg,rgba(15,35,48,0.94),rgba(5,12,27,0.98))] shadow-[0_22px_60px_rgba(0,0,0,0.28)]">
+    <article className="cc-theme-card flex min-w-0 flex-col overflow-hidden rounded-[1.6rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] shadow-[var(--cc-theme-secondary-shadow)]">
       <div className="relative aspect-[1.55] overflow-hidden border-b border-silver/12 bg-[image:var(--cc-theme-media-bg)]">
         <img src={item.image} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_42%,rgba(3,8,19,0.84))]" />
@@ -1018,7 +1018,7 @@ function TrustArea({ card, ownerAccountLabel, ownerIsBcnMember }: TrustAreaProps
   return (
     <section
       aria-label="Circle Card trust"
-      className="rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.86),rgba(4,10,24,0.94))] p-5 shadow-panel-soft"
+      className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft"
     >
       <div className="flex items-center gap-3">
         <CircleCardLogoMark className="h-11 w-11" alt="" />
@@ -1073,7 +1073,7 @@ function PublicRecommendationItem({
     .join(" at ");
 
   return (
-    <article className="rounded-2xl border border-silver/14 bg-white/[0.035] p-4 shadow-inner-surface">
+    <article className="cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-4 shadow-inner-surface">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Link
@@ -1114,7 +1114,7 @@ function PublicRecommendations({
   return (
     <section
       aria-labelledby="circle-card-recommendations-title"
-      className="rounded-[1.75rem] border border-gold/20 bg-[linear-gradient(145deg,rgba(9,20,45,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft"
+      className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -1651,7 +1651,7 @@ export function PublicCircleCardProfile({
     return (
       <section
         aria-labelledby={id}
-        className={cn("rounded-[1.5rem] border border-silver/14 bg-white/[0.035] p-5 shadow-panel-soft sm:p-6", className)}
+        className={cn("cc-theme-surface rounded-[1.5rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6", className)}
       >
         <h2 id={id} className="text-sm font-semibold text-foreground">
           {heading}
@@ -1678,7 +1678,7 @@ export function PublicCircleCardProfile({
       <section
         aria-labelledby={id}
         className={cn(
-          "rounded-[1.75rem] border border-silver/14 bg-[linear-gradient(145deg,rgba(9,20,45,0.86),rgba(4,10,24,0.94))] p-5 shadow-panel-soft",
+          "cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft",
           className
         )}
       >
@@ -1711,7 +1711,7 @@ export function PublicCircleCardProfile({
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-dashed border-silver/16 bg-white/[0.03] p-4 text-sm text-muted">
+            <p className="cc-theme-card rounded-2xl border border-dashed border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-4 text-sm text-muted">
               {emptyMessage}
             </p>
           )}
@@ -1743,7 +1743,7 @@ export function PublicCircleCardProfile({
       <section
         aria-labelledby={id}
         className={cn(
-          "rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6",
+          "cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6",
           className
         )}
       >
@@ -1813,7 +1813,7 @@ export function PublicCircleCardProfile({
     return (
       <section
         aria-labelledby="business-highlights-title"
-        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.82),rgba(4,10,24,0.94))] p-5 shadow-panel-soft"
+        className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -1844,14 +1844,14 @@ export function PublicCircleCardProfile({
                 key={highlight.label}
                 href={highlight.href}
                 {...highlight.anchorProps}
-                className="rounded-2xl border border-silver/14 bg-white/[0.04] p-4 transition-colors hover:border-gold/28 hover:bg-white/[0.06]"
+                className="cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-4 transition-colors hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]"
               >
                 {content}
               </a>
             ) : (
               <div
                 key={highlight.label}
-                className="rounded-2xl border border-silver/14 bg-white/[0.04] p-4"
+                className="cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-4"
               >
                 {content}
               </div>
@@ -1871,7 +1871,7 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6"
+        className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -1889,7 +1889,7 @@ export function PublicCircleCardProfile({
           {card.services.map((service) => (
             <article
               key={service.id}
-              className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]"
+              className="cc-theme-card flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)]"
             >
               {service.imageUrl ? (
                 <CircleCardFramedImage
@@ -1935,7 +1935,7 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6"
+        className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -1953,7 +1953,7 @@ export function PublicCircleCardProfile({
           {card.products.map((product) => (
             <article
               key={product.id}
-              className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]"
+              className="cc-theme-card flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)]"
             >
               {product.imageUrl ? (
                 <img
@@ -2010,7 +2010,7 @@ export function PublicCircleCardProfile({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-5 shadow-panel-soft sm:p-6"
+        className="cc-theme-surface rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -2024,7 +2024,7 @@ export function PublicCircleCardProfile({
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {card.priceItems.map((item) => (
-            <article key={item.id} className="flex min-w-0 flex-col rounded-2xl border border-silver/14 bg-white/[0.04] p-4">
+            <article key={item.id} className="cc-theme-card flex min-w-0 flex-col rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   {item.category ? <p className="text-xs font-medium text-gold">{item.category}</p> : null}
@@ -2702,7 +2702,7 @@ export function PublicCircleCardProfile({
             <section className="rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[image:var(--cc-theme-hero-bg)] p-5 shadow-[var(--cc-theme-hero-shadow)] sm:p-7">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                 <CircleCardSpinToConnect {...spinToConnectProps} className="h-28 w-28 shrink-0">
-                  <div className="grid h-full w-full place-items-center overflow-hidden rounded-full border border-gold/45 bg-[#071126] text-2xl font-semibold text-foreground shadow-[0_0_42px_hsl(var(--cc-theme-primary-hsl)/0.22)]">
+                  <div className="cc-theme-avatar grid h-full w-full place-items-center overflow-hidden rounded-full border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-media-bg)] text-2xl font-semibold text-foreground shadow-[0_0_42px_hsl(var(--cc-theme-primary-hsl)/0.22)]">
                     {card.profileImageUrl ? (
                       <CircleCardFramedImage
                         src={card.profileImageUrl}
@@ -2908,7 +2908,7 @@ export function PublicCircleCardProfile({
                         aria-hidden="true"
                         className="absolute -inset-3 rounded-full bg-[conic-gradient(from_140deg,hsl(var(--cc-theme-accent-hsl)/0.8),hsl(var(--cc-theme-primary-hsl)/0.5),hsl(var(--cc-theme-button-hsl)/0.42),hsl(var(--cc-theme-accent-hsl)/0.8))] opacity-70 blur-md"
                       />
-                      <div className="relative grid h-full w-full place-items-center rounded-full border border-gold/55 bg-gold/12 p-1.5 shadow-[0_0_0_10px_rgba(212,175,95,0.05),0_24px_70px_rgba(0,0,0,0.36)]">
+                      <div className="cc-theme-avatar relative grid h-full w-full place-items-center rounded-full border border-[color:var(--cc-theme-button-border)] bg-[var(--cc-theme-accent-badge-bg)] p-1.5 shadow-[0_0_0_10px_hsl(var(--cc-theme-primary-hsl)/0.05),0_24px_70px_rgba(0,0,0,0.36)]">
                         <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-[#071126] text-4xl font-semibold text-foreground sm:text-5xl">
                           {card.profileImageUrl ? (
                             <CircleCardFramedImage
@@ -3232,7 +3232,7 @@ export function PublicCircleCardProfile({
                     className="h-40 w-40 sm:h-48 sm:w-48"
                     showAmbientRing={false}
                   >
-                    <div className="grid h-full w-full place-items-center overflow-hidden rounded-full border border-gold/60 bg-[#071126] text-4xl font-semibold text-foreground shadow-[0_0_64px_hsl(var(--cc-theme-primary-hsl)/0.3)]">
+                    <div className="cc-theme-avatar grid h-full w-full place-items-center overflow-hidden rounded-full border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-media-bg)] text-4xl font-semibold text-foreground shadow-[0_0_64px_hsl(var(--cc-theme-primary-hsl)/0.3)]">
                       {businessHeroImageUrl ? (
                         <CircleCardFramedImage
                           src={businessHeroImageUrl}

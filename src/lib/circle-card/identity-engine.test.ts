@@ -9,7 +9,7 @@ import {
   normalizeCircleStudioTokens,
   readCircleStudioMetadata
 } from "@/lib/circle-card/identity-engine";
-import { buildCircleStudioDataAttributes, resolveCircleCardTheme } from "@/lib/circle-card/theme";
+import { buildCircleCardThemeStyle, buildCircleStudioDataAttributes, resolveCircleCardTheme } from "@/lib/circle-card/theme";
 
 describe("Circle Studio identity engine", () => {
   it("ships every core identity as a complete curated token set", () => {
@@ -39,11 +39,63 @@ describe("Circle Studio identity engine", () => {
     const metadata = buildCircleStudioMetadata(CIRCLE_STUDIO_PRESETS[7].tokens);
     const theme = resolveCircleCardTheme({ themeMetadata: metadata });
     expect(theme.primaryColor).toBe(CIRCLE_STUDIO_ACCENTS.ELECTRIC_BLUE.primary);
+    expect(theme.studioTokens.profileFrame).toBe("GLOW_RING");
     expect(buildCircleStudioDataAttributes({ themeMetadata: metadata })).toMatchObject({
       "data-cc-identity": "future",
       "data-cc-profile": "glow-ring",
       "data-cc-motion": "premium"
     });
+  });
+
+  it("uses the same resolver output for Studio preview, public cards and Circle Trust", () => {
+    const metadata = buildCircleStudioMetadata(CIRCLE_STUDIO_PRESETS[3].tokens, "CORE", {
+      ...DEFAULT_CIRCLE_STUDIO_FINE_TUNE,
+      accentColor: "#F0CF88",
+      secondaryColor: "#D4AF5F",
+      backgroundStyle: "SOFT_GLOW"
+    });
+    const studioPreviewTheme = resolveCircleCardTheme({ themeMetadata: metadata });
+    const publicCardTheme = resolveCircleCardTheme({ themeMetadata: metadata });
+    const trustTheme = resolveCircleCardTheme({ themeMetadata: metadata });
+
+    expect(publicCardTheme).toEqual(studioPreviewTheme);
+    expect(trustTheme).toEqual(studioPreviewTheme);
+    expect(buildCircleCardThemeStyle(publicCardTheme)["--cc-theme-page-bg"]).toContain("radial-gradient");
+    expect(buildCircleStudioDataAttributes({ themeMetadata: metadata })).toMatchObject({
+      "data-cc-identity": "luxury",
+      "data-cc-surface": "luxury",
+      "data-cc-profile": "luxury-ring",
+      "data-cc-button": "luxury",
+      "data-cc-fine-background": "true"
+    });
+  });
+
+  it("makes each curated identity visually distinct across public tokens", () => {
+    const signatures = new Set<string>();
+
+    for (const preset of CIRCLE_STUDIO_PRESETS) {
+      const metadata = buildCircleStudioMetadata(preset.tokens);
+      const theme = resolveCircleCardTheme({ themeMetadata: metadata });
+      const style = buildCircleCardThemeStyle(theme);
+      const attributes = buildCircleStudioDataAttributes({ themeMetadata: metadata });
+      const signature = [
+        style["--cc-theme-section-bg"],
+        style["--cc-theme-page-bg"],
+        attributes["data-cc-profile"],
+        attributes["data-cc-button"],
+        attributes["data-cc-entry"]
+      ].join("|");
+
+      expect(attributes["data-cc-surface"]).toBeTruthy();
+      expect(attributes["data-cc-profile"]).toBeTruthy();
+      expect(attributes["data-cc-background"]).toBeTruthy();
+      expect(attributes["data-cc-button"]).toBeTruthy();
+      expect(attributes["data-cc-motion"]).toBeTruthy();
+      expect(style["--cc-theme-page-bg"]).not.toBe("linear-gradient(#030712,#030712)");
+      signatures.add(signature);
+    }
+
+    expect(signatures.size).toBe(CIRCLE_STUDIO_PRESETS.length);
   });
 
   it("keeps existing version-two designs unchanged when fine tuning is absent", () => {
@@ -74,6 +126,7 @@ describe("Circle Studio identity engine", () => {
     expect(theme.accentColor).toBe("#78A8FF");
     expect(theme.primaryColor).toBe("#4B72C2");
     expect(theme.fineTune.backgroundOverlay).toBe(0.62);
+    expect(buildCircleCardThemeStyle(theme)["--cc-theme-page-bg"]).toContain('url("/uploads/circle-card/test-user-background-image-1700000000000-deadbeef.png")');
     expect(getCircleStudioFineTuneIssues(theme.fineTune)).toEqual([]);
   });
 

@@ -27,15 +27,13 @@ export function PublicCircleTrustPanel({
       id="circle-card-trust"
       aria-labelledby="circle-card-trust-title"
       className={cn(
-        "scroll-mt-24 overflow-hidden rounded-[1.75rem] border p-5 shadow-panel-soft sm:p-6",
-        creator
-          ? "border-cyan-300/22 bg-[radial-gradient(circle_at_12%_0%,rgba(34,211,238,0.12),transparent_34%),radial-gradient(circle_at_90%_10%,rgba(212,175,95,0.1),transparent_32%),linear-gradient(145deg,rgba(9,22,39,0.96),rgba(4,10,24,0.99))]"
-          : "border-gold/24 bg-[radial-gradient(circle_at_top_right,rgba(212,175,95,0.11),transparent_34%),linear-gradient(145deg,rgba(12,25,32,0.94),rgba(4,10,24,0.98))]"
+        "cc-theme-surface scroll-mt-24 overflow-hidden rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-5 shadow-panel-soft sm:p-6",
+        creator ? "shadow-[var(--cc-theme-hero-shadow)]" : null
       )}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className={cn("text-xs font-medium uppercase tracking-[0.12em]", creator ? "text-cyan-200" : "text-gold")}>Circle Trust</p>
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-gold">Circle Trust</p>
           <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-1">
             <h2 id="circle-card-trust-title" className="font-display text-5xl font-semibold leading-none text-foreground sm:text-6xl">
               {trust.score}
@@ -44,12 +42,12 @@ export function PublicCircleTrustPanel({
           </div>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{trust.summary}</p>
         </div>
-        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/28 bg-gold/10 text-gold">
+        <span className="cc-theme-icon inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--cc-theme-accent-badge-border)] bg-[var(--cc-theme-icon-bg)] text-gold">
           <ShieldCheck size={21} aria-hidden="true" />
         </span>
       </div>
 
-      <details className="group mt-5 rounded-2xl border border-silver/14 bg-white/[0.035]">
+      <details className="cc-theme-card group mt-5 rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)]">
         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
           <span>Built from</span>
           <span className="flex items-center gap-2 text-xs font-normal text-muted">
@@ -59,7 +57,7 @@ export function PublicCircleTrustPanel({
         </summary>
         <div className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2">
           {trust.signals.map((signal) => (
-            <div key={signal.id} className="flex items-start gap-2.5 rounded-xl border border-silver/10 bg-background/24 p-3">
+            <div key={signal.id} className="cc-theme-card flex items-start gap-2.5 rounded-xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3">
               <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-300" aria-hidden="true" />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">
@@ -70,20 +68,20 @@ export function PublicCircleTrustPanel({
             </div>
           ))}
           {!trust.signals.length ? (
-            <p className="rounded-xl border border-silver/10 bg-background/24 p-3 text-xs leading-relaxed text-muted sm:col-span-2">No public trust signals have been recorded yet.</p>
+            <p className="cc-theme-card rounded-xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3 text-xs leading-relaxed text-muted sm:col-span-2">No public trust signals have been recorded yet.</p>
           ) : null}
         </div>
       </details>
 
       {showLatestTestimonials && latestTestimonials.length ? (
-        <details className="group mt-3 rounded-2xl border border-silver/14 bg-white/[0.035]">
+        <details className="cc-theme-card group mt-3 rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)]">
           <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
             <span className="inline-flex items-center gap-2"><Quote size={14} className="text-gold" />Latest verified trust signals</span>
             <ChevronDown size={15} className="text-muted transition-transform group-open:rotate-180" />
           </summary>
           <div className="grid gap-3 border-t border-silver/12 p-3 sm:grid-cols-2">
             {latestTestimonials.map((testimonial) => (
-              <article key={testimonial.id} className="rounded-xl border border-silver/10 bg-background/24 p-3">
+              <article key={testimonial.id} className="cc-theme-card rounded-xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3">
                 {testimonial.rating ? (
                   <div className="flex text-gold" aria-label={`${testimonial.rating} out of 5 stars`}>
                     {Array.from({ length: testimonial.rating }, (_, index) => (

@@ -176,7 +176,7 @@ export default async function CircleTrustPage({ params }: PageProps) {
             <div className="relative z-10 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center">
               <div className="min-w-0 text-center lg:text-left">
                 <div className="flex flex-col items-center gap-3 sm:flex-row sm:text-left lg:justify-start">
-                  <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-media-bg)] text-lg font-semibold text-foreground shadow-[0_0_38px_hsl(var(--cc-theme-primary-hsl)/0.24)]">
+                  <div className="cc-theme-avatar grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full border border-[color:var(--cc-theme-button-border)] bg-[image:var(--cc-theme-media-bg)] text-lg font-semibold text-foreground shadow-[0_0_38px_hsl(var(--cc-theme-primary-hsl)/0.24)]">
                     {identityImage ? (
                       <CircleCardFramedImage
                         src={identityImage}
@@ -225,11 +225,11 @@ export default async function CircleTrustPage({ params }: PageProps) {
             </div>
 
             <div className="relative z-10 mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              <div className="rounded-2xl border border-silver/12 bg-background/24 p-3 sm:p-4"><Users size={16} className="text-gold" /><p className="mt-2 text-2xl font-semibold text-foreground">{card.trust.verifiedConnectionCount}</p><p className="mt-1 text-xs text-muted">Verified Connections</p></div>
-              <div className="rounded-2xl border border-silver/12 bg-background/24 p-3 sm:p-4"><MessageSquareQuote size={16} className="text-gold" /><p className="mt-2 text-2xl font-semibold text-foreground">{card.trust.verifiedTestimonialCount}</p><p className="mt-1 text-xs text-muted">Verified Testimonials</p></div>
-              {card.averageWalletTestimonialRating !== null ? <div className="rounded-2xl border border-silver/12 bg-background/24 p-3 sm:p-4"><Star size={16} className="text-gold" fill="currentColor" /><p className="mt-2 text-2xl font-semibold text-foreground">{card.averageWalletTestimonialRating}</p><p className="mt-1 text-xs text-muted">Average Rating</p></div> : null}
-              <div className="rounded-2xl border border-silver/12 bg-background/24 p-3 sm:p-4"><CalendarDays size={16} className="text-gold" /><p className="mt-2 text-sm font-semibold text-foreground">{dateFormatter.format(card.createdAt)}</p><p className="mt-1 text-xs text-muted">Circle Card Member Since</p></div>
-              <div className="rounded-2xl border border-silver/12 bg-background/24 p-3 sm:p-4"><Sparkles size={16} className="text-gold" /><p className="mt-2 text-2xl font-semibold text-foreground">{platformSignalCount}</p><p className="mt-1 text-xs text-muted">Platform Signals</p></div>
+              <div className="cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3 sm:p-4"><Users size={16} className="text-gold" /><p className="mt-2 text-2xl font-semibold text-foreground">{card.trust.verifiedConnectionCount}</p><p className="mt-1 text-xs text-muted">Verified Connections</p></div>
+              <div className="cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3 sm:p-4"><MessageSquareQuote size={16} className="text-gold" /><p className="mt-2 text-2xl font-semibold text-foreground">{card.trust.verifiedTestimonialCount}</p><p className="mt-1 text-xs text-muted">Verified Testimonials</p></div>
+              {card.averageWalletTestimonialRating !== null ? <div className="cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3 sm:p-4"><Star size={16} className="text-gold" fill="currentColor" /><p className="mt-2 text-2xl font-semibold text-foreground">{card.averageWalletTestimonialRating}</p><p className="mt-1 text-xs text-muted">Average Rating</p></div> : null}
+              <div className="cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3 sm:p-4"><CalendarDays size={16} className="text-gold" /><p className="mt-2 text-sm font-semibold text-foreground">{dateFormatter.format(card.createdAt)}</p><p className="mt-1 text-xs text-muted">Circle Card Member Since</p></div>
+              <div className="cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-3 sm:p-4"><Sparkles size={16} className="text-gold" /><p className="mt-2 text-2xl font-semibold text-foreground">{platformSignalCount}</p><p className="mt-1 text-xs text-muted">Platform Signals</p></div>
             </div>
           </section>
 
@@ -247,7 +247,7 @@ export default async function CircleTrustPage({ params }: PageProps) {
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">Every signal below comes from stored platform data. Nothing is inferred, purchased or added because of a rating.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {card.trust.signals.map((signal) => (
-                <article key={signal.id} className="group rounded-2xl border border-silver/12 bg-background/22 p-4 transition-colors hover:border-[color:var(--cc-theme-button-border)] hover:bg-background/30">
+                <article key={signal.id} className="cc-theme-card group rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-4 transition-colors hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gold/22 bg-gold/10 text-gold"><CheckCircle2 size={16} /></span>
                   <p className="mt-3 text-sm font-semibold text-foreground">{signal.count !== undefined ? `${signal.count} ` : ""}{signal.label}</p>
                   <p className="mt-1.5 text-xs leading-relaxed text-muted">{signal.description}</p>
@@ -296,7 +296,7 @@ export default async function CircleTrustPage({ params }: PageProps) {
             {card.trust.latestVerifiedTestimonials.length ? (
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 {card.trust.latestVerifiedTestimonials.map((testimonial) => (
-                  <article key={testimonial.id} className="flex min-w-0 flex-col rounded-[1.35rem] border border-silver/12 bg-background/22 p-4 shadow-inner-surface sm:p-5">
+                  <article key={testimonial.id} className="cc-theme-card flex min-w-0 flex-col rounded-[1.35rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-4 shadow-inner-surface sm:p-5">
                     <div className="flex min-w-0 items-center gap-3">
                       <Avatar name={testimonial.reviewerName} image={testimonial.reviewerImageUrl} className="h-11 w-11 shrink-0" />
                       <div className="min-w-0 flex-1">

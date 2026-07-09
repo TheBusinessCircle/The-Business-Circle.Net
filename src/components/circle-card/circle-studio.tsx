@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -81,6 +82,26 @@ function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "CC";
 }
 
+function ActivateIdentityButton({ applied, disabled }: { applied: boolean; disabled: boolean }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" disabled={disabled || pending} className="shrink-0 gap-2">
+      {pending ? (
+        "Applying..."
+      ) : applied ? (
+        <>
+          <Check size={16} /> Applied
+        </>
+      ) : (
+        <>
+          <WandSparkles size={16} /> Activate identity
+        </>
+      )}
+    </Button>
+  );
+}
+
 function LiveCardPreview({ card, tokens, fineTune, device }: { card: StudioCard; tokens: CircleStudioTokens; fineTune: CircleStudioFineTune; device: Device }) {
   const metadata = buildCircleStudioMetadata(tokens, "CORE", fineTune);
   const themeInput = { themeMetadata: metadata };
@@ -144,6 +165,7 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
   const activePreset = CIRCLE_STUDIO_PRESETS.find((preset) => preset.key === tokens.identityStyle);
   const activeAccent = CIRCLE_STUDIO_ACCENTS[tokens.accentPalette];
   const fineTuneIssues = getCircleStudioFineTuneIssues(fineTune);
+  const applied = notice === "studio-activated";
   const tokenEntries = useMemo(() => Object.entries(CIRCLE_STUDIO_FIELD_COPY) as [Exclude<CircleStudioTokenKey, "identityStyle">, { label: string; description: string }][], []);
 
   function selectPreset(key: CircleStudioTokens["identityStyle"]) {
@@ -171,7 +193,16 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
       <input type="hidden" name="fineTuneBackgroundOverlay" value={fineTune.backgroundOverlay} />
       <input type="hidden" name="fineTunePaletteSource" value={fineTune.paletteSource} />
 
-      {notice === "studio-activated" ? <div role="status" className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">Your Circle Studio identity is now live.</div> : null}
+      {applied ? (
+        <div role="status" className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+          <p className="font-semibold">Your Circle Card style is live.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href={`/card/${card.slug}`} className={cn(buttonVariants({ size: "sm" }), "gap-2")}>View Public Card <ArrowUpRight size={13} /></Link>
+            <Link href={`/card/${card.slug}/trust`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2 border-emerald-300/30 text-emerald-100 hover:bg-emerald-300/10")}>Open Circle Trust <ArrowUpRight size={13} /></Link>
+            <a href="#circle-styles-heading" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "border-emerald-300/30 text-emerald-100 hover:bg-emerald-300/10")}>Continue Editing</a>
+          </div>
+        </div>
+      ) : null}
       {error ? <div role="alert" className="rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error === "studio-pro-required" ? "Circle Studio activation is available with Circle Card Pro. Your preview is still yours to explore." : error === "studio-contrast" ? "That colour or background combination did not pass Circle Card readability checks. Adjust it and try again." : "That identity could not be activated. Please try again."}</div> : null}
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(520px,.9fr)]">
@@ -241,9 +272,9 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
             <div className="max-h-[680px] overflow-auto rounded-[1.65rem] bg-black/20 p-1 sm:p-2"><LiveCardPreview card={card} tokens={tokens} fineTune={fineTune} device={device} /></div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{activePreset?.label} · {circleStudioLabel(tokens.accentPalette)}</p><p className="mt-1 text-xs text-muted">Preview updates instantly. Activate when it feels like you.</p></div>
-              {canActivate ? <Button type="submit" disabled={fineTuneIssues.length > 0} className="shrink-0 gap-2"><WandSparkles size={16} /> Activate identity</Button> : <Link href="/circle-card/pro" className={cn(buttonVariants(), "shrink-0 gap-2")}><Crown size={16} /> Unlock with Pro <ArrowUpRight size={14} /></Link>}
+              {canActivate ? <ActivateIdentityButton applied={applied} disabled={fineTuneIssues.length > 0} /> : <Link href="/circle-card/pro" className={cn(buttonVariants(), "shrink-0 gap-2")}><Crown size={16} /> Unlock with Pro <ArrowUpRight size={14} /></Link>}
             </div>
-            {!canActivate ? <p className="mt-3 flex items-center gap-2 rounded-xl border border-gold/18 bg-gold/[.06] px-3 py-2 text-xs text-gold"><LockKeyhole size={14} /> This style is available in Circle Card Pro. Everything remains previewable.</p> : null}
+            {!canActivate ? <p className="mt-3 flex items-center gap-2 rounded-xl border border-gold/18 bg-gold/[.06] px-3 py-2 text-xs text-gold"><LockKeyhole size={14} /> Upgrade to Pro to make this style live.</p> : null}
           </div>
         </aside>
       </div>

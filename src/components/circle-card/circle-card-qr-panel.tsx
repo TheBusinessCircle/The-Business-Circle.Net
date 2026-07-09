@@ -182,15 +182,15 @@ export function CircleCardQrPanel({
       className={cn(
         "circle-card-qr-panel",
         premium
-          ? "relative overflow-hidden rounded-[1.75rem] border border-gold/24 bg-[radial-gradient(circle_at_50%_0%,rgba(47,109,255,0.18),transparent_36%),linear-gradient(155deg,rgba(9,22,50,0.92),rgba(4,10,24,0.98))] p-4 shadow-[0_24px_70px_rgba(0,0,0,0.36),0_0_54px_rgba(47,109,255,0.1)] sm:p-5"
-          : "rounded-2xl border border-silver/16 bg-background/22 p-4",
+          ? "cc-theme-surface relative overflow-hidden rounded-[1.75rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-section-bg)] p-4 shadow-[var(--cc-theme-hero-shadow)] sm:p-5"
+          : "cc-theme-card rounded-2xl border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-card-bg)] p-4",
         className
       )}
     >
       {premium ? (
         <div
           aria-hidden="true"
-          className="absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,175,95,0.72),rgba(75,126,255,0.45),transparent)]"
+          className="absolute inset-x-8 top-0 h-px bg-[image:var(--cc-theme-hero-line)]"
         />
       ) : null}
       <div className="flex items-start justify-between gap-3">
@@ -202,7 +202,7 @@ export function CircleCardQrPanel({
         </div>
         <span
           className={cn(
-            "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/24 bg-gold/10 text-gold",
+            "cc-theme-icon inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--cc-theme-accent-badge-border)] bg-[var(--cc-theme-icon-bg)] text-gold",
             premium ? "shadow-[0_0_26px_rgba(47,109,255,0.18)]" : null
           )}
         >
@@ -243,7 +243,7 @@ export function CircleCardQrPanel({
             className={cn(
               "w-full justify-center gap-2",
               premium
-                ? "h-11 rounded-2xl border-[#2f6dff]/30 bg-[#0b1c3f]/72 hover:border-gold/35 hover:bg-[#102958]"
+                ? "cc-theme-button h-11 rounded-2xl border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]"
                 : null
             )}
             onClick={copyPublicLink}
@@ -257,7 +257,7 @@ export function CircleCardQrPanel({
             className={cn(
               "w-full justify-center gap-2",
               premium
-                ? "h-11 rounded-2xl border-[#2f6dff]/30 bg-[#0b1c3f]/72 hover:border-gold/35 hover:bg-[#102958]"
+                ? "cc-theme-button h-11 rounded-2xl border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]"
                 : null
             )}
             onClick={downloadQrCode}
@@ -273,7 +273,7 @@ export function CircleCardQrPanel({
               className={cn(
                 "w-full justify-center gap-2",
                 premium
-                  ? "h-11 rounded-2xl border-[#2f6dff]/30 bg-[#0b1c3f]/72 hover:border-gold/35 hover:bg-[#102958]"
+                  ? "cc-theme-button h-11 rounded-2xl border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] hover:border-[color:var(--cc-theme-button-border)] hover:bg-[var(--cc-theme-secondary-hover-bg)]"
                   : null
               )}
               onClick={copyQrImage}

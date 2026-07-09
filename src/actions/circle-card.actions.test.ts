@@ -61,10 +61,15 @@ vi.mock("@/server/circle-card/smart-profile-import.service", () => ({
 }));
 
 import {
+  updateCircleStudioAction,
   upsertCircleCardAction,
   upsertCircleCardMenuOfferItemInlineAction,
   upsertCircleCardPriceListItemInlineAction
 } from "@/actions/circle-card.actions";
+import {
+  CIRCLE_STUDIO_PRESETS,
+  type CircleStudioTokens
+} from "@/lib/circle-card/identity-engine";
 import { initialCircleCardSaveActionState } from "@/lib/circle-card/save-action-state";
 
 function validCircleCardForm(overrides: Record<string, string> = {}) {
@@ -106,6 +111,90 @@ function mockSignedInUser() {
     subscription: null
   });
 }
+
+function circleStudioForm(cardId: string, tokens: CircleStudioTokens = CIRCLE_STUDIO_PRESETS[3].tokens) {
+  const formData = new FormData();
+  formData.set("cardId", cardId);
+  formData.set("returnPath", `/dashboard/circle-card/studio?card=${cardId}`);
+  Object.entries(tokens).forEach(([key, value]) => formData.set(key, value));
+  formData.set("fineTuneAccentColor", "#F0CF88");
+  formData.set("fineTuneSecondaryColor", "#D4AF5F");
+  formData.set("fineTuneBackgroundStyle", "IMAGE");
+  formData.set("fineTuneBackgroundImageUrl", "/uploads/circle-card/user-background-image-1700000000000-deadbeef.png");
+  formData.set("fineTuneBackgroundOverlay", "0.66");
+  formData.set("fineTunePaletteSource", "PROFILE_IMAGE");
+  return formData;
+}
+
+describe("updateCircleStudioAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSignedInUser();
+    createCircleCardActivityMock.mockResolvedValue({ stored: true });
+  });
+
+  it("activates metadata on the selected card only", async () => {
+    prismaMock.circleCard.findFirst.mockResolvedValue({
+      id: "business-card-id",
+      slug: "asha-business"
+    });
+    prismaMock.circleCard.update.mockResolvedValue({});
+
+    await expect(updateCircleStudioAction(circleStudioForm("business-card-id"))).rejects.toThrow(
+      "REDIRECT:/dashboard/circle-card/studio?card=business-card-id&notice=studio-activated"
+    );
+
+    expect(prismaMock.circleCard.findFirst).toHaveBeenCalledWith({
+      where: { id: "business-card-id", userId: "user_123", archivedAt: null },
+      select: { id: true, slug: true }
+    });
+    expect(prismaMock.circleCard.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "business-card-id" },
+        data: expect.objectContaining({
+          themePreset: "LUXURY",
+          themeMetadata: expect.objectContaining({
+            source: "circle-studio",
+            tokens: expect.objectContaining({
+              identityStyle: "LUXURY",
+              profileFrame: "LUXURY_RING",
+              buttonStyle: "LUXURY",
+              cardSurface: "LUXURY"
+            }),
+            fineTune: expect.objectContaining({
+              backgroundStyle: "IMAGE",
+              backgroundImageUrl: "/uploads/circle-card/user-background-image-1700000000000-deadbeef.png",
+              backgroundOverlay: 0.66,
+              paletteSource: "PROFILE_IMAGE"
+            })
+          })
+        })
+      })
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/card/asha-business");
+    expect(createCircleCardActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({ circleCardId: "business-card-id" })
+    );
+  });
+
+  it("does not activate live Pro styling for Free users", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user_123",
+      role: "MEMBER",
+      membershipTier: "FOUNDATION",
+      suspended: false,
+      subscription: null
+    });
+
+    await expect(updateCircleStudioAction(circleStudioForm("personal-card-id"))).rejects.toThrow(
+      "REDIRECT:/dashboard/circle-card/studio?card=personal-card-id&error=studio-pro-required"
+    );
+
+    expect(prismaMock.circleCard.findFirst).not.toHaveBeenCalled();
+    expect(prismaMock.circleCard.update).not.toHaveBeenCalled();
+    expect(createCircleCardActivityMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("upsertCircleCardAction", () => {
   beforeEach(() => {

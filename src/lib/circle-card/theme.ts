@@ -75,6 +75,7 @@ export type CircleCardResolvedTheme = CircleCardThemeValues & {
   accentHsl: string;
   buttonHsl: string;
   buttonForegroundHsl: string;
+  studioTokens: CircleStudioTokens;
   fineTune: CircleStudioFineTune;
 };
 
@@ -242,7 +243,8 @@ function isDefaultThemeColor(slot: keyof typeof CIRCLE_CARD_DEFAULT_THEME_COLORS
 
 export function resolveCircleCardTheme(input: CircleCardThemeInput = {}): CircleCardResolvedTheme {
   const studio = readCircleStudioMetadata(input.themeMetadata);
-  const studioAccent = studio ? CIRCLE_STUDIO_ACCENTS[studio.tokens.accentPalette] : null;
+  const studioTokens = studio?.tokens ?? DEFAULT_CIRCLE_STUDIO_TOKENS;
+  const studioAccent = CIRCLE_STUDIO_ACCENTS[studioTokens.accentPalette];
   const fineTune = studio?.fineTune ?? DEFAULT_CIRCLE_STUDIO_FINE_TUNE;
   const primaryColor = normalizeHexColor(
     fineTune.secondaryColor ?? studioAccent?.primary ?? input.themePrimaryColor,
@@ -276,6 +278,7 @@ export function resolveCircleCardTheme(input: CircleCardThemeInput = {}): Circle
     accentHsl: hexToHsl(accentColor),
     buttonHsl: hexToHsl(buttonColor),
     buttonForegroundHsl: buttonForegroundHsl(buttonColor),
+    studioTokens,
     fineTune
   };
 }
@@ -354,21 +357,55 @@ export function buildCircleCardThemeMetadata(
   };
 }
 
+function circleStudioPresetBackground(theme: CircleCardResolvedTheme, surface: (typeof SURFACE_TOKENS)[CircleCardThemeSurfaceStyle]) {
+  switch (theme.studioTokens.backgroundTreatment) {
+    case "CORPORATE_CLEAN":
+      return `radial-gradient(circle at 90% 0%, hsl(${theme.primaryHsl} / 0.16), transparent 32%), linear-gradient(180deg, #071126 0%, #030712 100%)`;
+    case "GLASS_GLOW":
+      return `radial-gradient(circle at 50% -8%, hsl(${theme.primaryHsl} / 0.42), transparent 42%), radial-gradient(circle at 8% 78%, hsl(${theme.accentHsl} / 0.14), transparent 30%), linear-gradient(180deg, #071126 0%, #030712 100%)`;
+    case "LUXURY_MESH":
+      return `radial-gradient(circle at 15% 8%, hsl(${theme.accentHsl} / 0.3), transparent 31%), radial-gradient(circle at 88% 18%, hsl(${theme.primaryHsl} / 0.22), transparent 34%), linear-gradient(135deg, #0b0d15 0%, #030712 100%)`;
+    case "CREATOR_ENERGY":
+      return `radial-gradient(circle at 8% 12%, hsl(${theme.primaryHsl} / 0.44), transparent 31%), radial-gradient(circle at 90% 6%, hsl(${theme.accentHsl} / 0.36), transparent 32%), radial-gradient(circle at 55% 110%, hsl(${theme.buttonHsl} / 0.16), transparent 34%), linear-gradient(160deg, #0a1022 0%, #030712 100%)`;
+    case "DARK_PREMIUM":
+      return `radial-gradient(circle at 20% 0%, hsl(${theme.accentHsl} / 0.14), transparent 30%), linear-gradient(155deg, #02040a 0%, #071126 52%, #030712 100%)`;
+    case "AMBIENT_LIGHTING":
+      return `radial-gradient(ellipse at 50% -10%, hsl(${theme.primaryHsl} / 0.48), transparent 45%), radial-gradient(circle at 90% 70%, hsl(${theme.accentHsl} / 0.2), transparent 28%), radial-gradient(circle at 8% 92%, hsl(${theme.buttonHsl} / 0.12), transparent 30%), #030712`;
+    case "NOISE_TEXTURE":
+      return `radial-gradient(circle at 20% 0%, hsl(${theme.primaryHsl} / 0.22), transparent 34%), radial-gradient(circle at 80% 18%, hsl(${theme.accentHsl} / 0.18), transparent 32%), linear-gradient(180deg, hsl(${surface.background}) 0%, #030712 100%)`;
+    case "SUBTLE_GRADIENT":
+    default:
+      return `radial-gradient(circle at 16% 0%, hsl(${theme.primaryHsl} / 0.3), transparent 34%), radial-gradient(circle at 82% 8%, hsl(${theme.accentHsl} / 0.24), transparent 30%), linear-gradient(180deg, hsl(${surface.background}) 0%, #08101f 48%, #030712 100%)`;
+  }
+}
+
 export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
   const surface = SURFACE_TOKENS[theme.surfaceStyle];
   const escapedBackgroundImage = theme.fineTune.backgroundImageUrl
     ?.replaceAll("\\", "\\\\")
     .replaceAll('"', '\\"')
     .replace(/[\r\n]/g, "");
-  const presetBackground = `radial-gradient(circle at 16% 0%, hsl(${theme.primaryHsl} / 0.24), transparent 30%), radial-gradient(circle at 82% 8%, hsl(${theme.accentHsl} / 0.2), transparent 28%), linear-gradient(180deg, hsl(${surface.background}) 0%, #08101f 48%, #030712 100%)`;
+  const presetBackground = circleStudioPresetBackground(theme, surface);
   const pageBackground =
     theme.fineTune.backgroundStyle === "IMAGE" && escapedBackgroundImage
       ? `linear-gradient(rgba(3,7,18,${theme.fineTune.backgroundOverlay}), rgba(3,7,18,${Math.min(0.94, theme.fineTune.backgroundOverlay + 0.1)})), url("${escapedBackgroundImage}") center / cover no-repeat, ${presetBackground}`
       : theme.fineTune.backgroundStyle === "DEEP_GRADIENT"
-        ? `radial-gradient(circle at 10% 0%, hsl(${theme.primaryHsl} / 0.34), transparent 38%), linear-gradient(145deg, #02040a, hsl(${surface.background}) 54%, #030712)`
+        ? `radial-gradient(circle at 10% 0%, hsl(${theme.primaryHsl} / 0.48), transparent 40%), radial-gradient(circle at 92% 12%, hsl(${theme.accentHsl} / 0.28), transparent 34%), linear-gradient(145deg, #02040a, hsl(${surface.background}) 54%, #030712)`
         : theme.fineTune.backgroundStyle === "SOFT_GLOW"
-          ? `radial-gradient(ellipse at 50% -8%, hsl(${theme.accentHsl} / 0.3), transparent 44%), radial-gradient(circle at 90% 65%, hsl(${theme.primaryHsl} / 0.14), transparent 28%), #030712`
+          ? `radial-gradient(ellipse at 50% -8%, hsl(${theme.accentHsl} / 0.42), transparent 46%), radial-gradient(circle at 90% 65%, hsl(${theme.primaryHsl} / 0.2), transparent 30%), #030712`
           : presetBackground;
+  const cardSurface =
+    theme.studioTokens.cardSurface === "CLASSIC"
+      ? `hsl(${surface.card} / 0.82)`
+      : theme.studioTokens.cardSurface === "MATTE"
+        ? `linear-gradient(145deg, hsl(${surface.card} / 0.96), rgba(4,10,24,0.98))`
+        : theme.studioTokens.cardSurface === "METAL"
+          ? `linear-gradient(145deg, hsl(${theme.primaryHsl} / 0.18), rgba(255,255,255,0.075) 42%, rgba(4,10,24,0.97) 72%)`
+          : theme.studioTokens.cardSurface === "LUXURY"
+            ? `linear-gradient(145deg, hsl(${theme.accentHsl} / 0.13), hsl(${surface.card} / 0.9) 42%, rgba(4,10,24,0.98))`
+            : theme.studioTokens.cardSurface === "GLASS"
+              ? `linear-gradient(145deg, hsl(${surface.card} / 0.66), hsl(${theme.primaryHsl} / 0.13))`
+              : `linear-gradient(145deg, hsl(${surface.card} / 0.78), rgba(4,10,24,0.94))`;
 
   return {
     "--cc-theme-primary-hsl": theme.primaryHsl,
@@ -379,10 +416,13 @@ export function buildCircleCardThemeStyle(theme: CircleCardResolvedTheme) {
     "--cc-theme-button-border": `hsl(${theme.accentHsl} / 0.48)`,
     "--cc-theme-button-bg": `linear-gradient(135deg, hsl(${theme.buttonHsl} / 0.98) 0%, hsl(${theme.accentHsl} / 0.94) 100%)`,
     "--cc-theme-button-shadow": `0 18px 44px hsl(${theme.buttonHsl} / 0.22)`,
-    "--cc-theme-secondary-bg": `hsl(${surface.card} / 0.72)`,
-    "--cc-theme-secondary-hover-bg": `hsl(${surface.card} / 0.9)`,
+    "--cc-theme-secondary-bg": cardSurface,
+    "--cc-theme-secondary-hover-bg": `hsl(${surface.card} / 0.92)`,
     "--cc-theme-secondary-border": `hsl(${theme.primaryHsl} / 0.32)`,
     "--cc-theme-secondary-shadow": `0 16px 38px hsl(${theme.primaryHsl} / 0.16)`,
+    "--cc-theme-section-bg": `linear-gradient(145deg, hsl(${surface.card} / 0.76), rgba(4,10,24,0.94))`,
+    "--cc-theme-card-bg": `linear-gradient(145deg, hsl(${surface.card} / 0.68), hsl(${theme.primaryHsl} / 0.08))`,
+    "--cc-theme-icon-bg": `hsl(${theme.accentHsl} / 0.12)`,
     "--cc-theme-hero-shadow": `0 30px 90px rgba(0,0,0,0.48), 0 0 72px hsl(${theme.primaryHsl} / 0.12)`,
     "--cc-theme-page-bg": pageBackground,
     "--cc-theme-hero-bg": `radial-gradient(circle at 18% 18%, hsl(${theme.accentHsl} / 0.24), transparent 26%), radial-gradient(circle at 78% 14%, hsl(${theme.primaryHsl} / 0.32), transparent 32%), linear-gradient(145deg, hsl(${surface.card} / 0.95), rgba(4,10,24,0.98))`,
