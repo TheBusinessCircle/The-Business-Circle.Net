@@ -51,7 +51,7 @@ describe("public conversion, SEO, AEO and GEO structure", () => {
     expect(home).toContain("What changes after joining");
     expect(home).toContain("Founder Signals");
     expect(home).toContain("How the environment works");
-    expect(home).toContain("Membership invitation");
+    expect(home).toContain("Membership Invitation");
 
     expect(home.indexOf("<WhatBcnActuallyIsSection")).toBeLessThan(
       home.indexOf("<WhatChangesAfterJoiningSection")

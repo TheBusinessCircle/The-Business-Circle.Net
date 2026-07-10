@@ -67,12 +67,13 @@ describe("member mobile navigation structure", () => {
 
     expect(layout).toContain("const isCircleCardWorkspaceRoute = isCircleCardDashboardPath(currentPathname)");
     expect(layout).toContain("const showCircleCardShell = isCircleCardWorkspaceRoute || circleCardFree");
-    expect(layout).toContain('label: "My Circle Card"');
+    expect(layout).toContain('label: "Your Cards"');
+    expect(layout).toContain('label: "Studio"');
     expect(layout).toContain('label: "Wallet"');
-    expect(layout).toContain('label: "Analytics"');
+    expect(layout).toContain('label: "Trust"');
+    expect(layout).toContain('label: "Insights"');
+    expect(layout).toContain('label: "Referrals"');
     expect(layout).toContain('label: "Settings"');
-    expect(layout).toContain('label: "Public card"');
-    expect(layout).toContain('label: "Discover"');
     expect(layout).toContain('workspaceBrand={showCircleCardShell ? "circle-card" : "bcn"}');
     expect(layout).toContain(
       'footer={<MemberFooter variant={showCircleCardShell ? "circle-card-free" : "member"} />}'
@@ -81,6 +82,5 @@ describe("member mobile navigation structure", () => {
     expect(navigation).toContain('href.includes("/dashboard/circle-card/wallet")');
     expect(navigation).toContain('href.includes("#analytics")');
     expect(navigation).toContain('href.includes("section=settings")');
-    expect(navigation).toContain('href.includes("#discover")');
   });
 });

@@ -18,10 +18,10 @@ describe("founder audit data and scoring", () => {
     expect(FOUNDER_AUDIT_QUESTIONS[9]?.answers.map((answer) => answer.score)).toEqual([3, 2, 1]);
   });
 
-  it("maps score ranges to the correct membership tier recommendation", () => {
+  it("maps normalized score bands to the correct membership tier recommendation", () => {
     expect(getFounderAuditRecommendation(10).tierSlug).toBe("foundation");
-    expect(getFounderAuditRecommendation(15).tierSlug).toBe("foundation");
-    expect(getFounderAuditRecommendation(16).tierSlug).toBe("inner-circle");
+    expect(getFounderAuditRecommendation(17).tierSlug).toBe("foundation");
+    expect(getFounderAuditRecommendation(18).tierSlug).toBe("inner-circle");
     expect(getFounderAuditRecommendation(23).tierSlug).toBe("inner-circle");
     expect(getFounderAuditRecommendation(24).tierSlug).toBe("core");
     expect(getFounderAuditRecommendation(30).tierSlug).toBe("core");

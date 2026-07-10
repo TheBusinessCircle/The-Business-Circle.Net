@@ -37,7 +37,13 @@ describe("Circle Card public visibility", () => {
     expect(action).toContain("setCircleCardVisibilityAction");
     expect(action).toContain('redirectWithError(returnPath, "card-hidden-default")');
     expect(action).toContain("nextDefaultCard");
-    expect(dashboard).toContain("Hidden from public switcher");
+    expect(dashboard).toContain('label: "Hidden"');
+    expect(dashboard).toContain(
+      "isOnlyLiveCard={ownedCard.isPublished && liveCardCount === 1}"
+    );
+    expect(dashboard).toContain(
+      "disabled={ownedCard.isDefaultCard || !ownedCard.isPublished}"
+    );
     expect(control).toContain("Set Live");
     expect(control).toContain("Hide Card");
     expect(control).toContain("This is your only live Circle Card.");
