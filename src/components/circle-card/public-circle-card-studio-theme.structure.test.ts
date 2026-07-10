@@ -19,6 +19,10 @@ const publicThemeClasses = readFileSync(
   join(root, "src/lib/circle-card/public-theme-classes.ts"),
   "utf8"
 );
+const trustPage = readFileSync(
+  join(root, "src/app/(public)/card/[slug]/trust/page.tsx"),
+  "utf8"
+);
 const themeResolver = readFileSync(join(root, "src/lib/circle-card/theme.ts"), "utf8");
 
 describe("public Circle Card Studio theme contract", () => {
@@ -69,5 +73,12 @@ describe("public Circle Card Studio theme contract", () => {
     expect(themeResolver).toContain("--cc-bg-image");
     expect(themeResolver).toContain("backgroundImageUrl");
     expect(themeResolver).toContain('data-cc-fine-background');
+  });
+
+  it("applies the same outer background shell to Circle Trust", () => {
+    expect(trustPage).toContain("resolveCircleCardLiveTheme(card)");
+    expect(trustPage).toContain("circleCardPublicThemeClasses.backgroundShell");
+    expect(trustPage).toContain("{...liveTheme.attributes}");
+    expect(trustPage).not.toContain("bg-[image:var(--cc-theme-page-bg)]");
   });
 });

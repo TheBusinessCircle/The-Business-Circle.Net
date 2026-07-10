@@ -89,6 +89,7 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
         canActivate={canActivate}
         notice={firstValue(params.notice)}
         error={firstValue(params.error)}
+        activatedAt={firstValue(params.activatedAt)}
       />
     </div>
   );

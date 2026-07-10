@@ -152,6 +152,7 @@ import {
   isCircleStudioCustomColor,
   isCircleStudioToken,
   normalizeCircleStudioFineTune,
+  readCircleStudioMetadata,
   type CircleStudioTokenKey,
   type CircleStudioTokens
 } from "@/lib/circle-card/identity-engine";
@@ -650,6 +651,7 @@ async function resolveAvailableSlug(input: {
 
 function revalidateCircleCardPaths(slug?: string | null) {
   revalidatePath("/dashboard/circle-card");
+  revalidatePath("/dashboard/circle-card/studio");
   revalidatePath("/circle-card");
 
   if (slug) {
@@ -662,6 +664,17 @@ function revalidateCircleCardPublicPaths(slug?: string | null) {
   if (slug) {
     revalidatePath(`/card/${slug}`);
     revalidatePath(`/card/${slug}/trust`);
+  }
+}
+
+function readCircleStudioActivationMetadata(formData: FormData) {
+  const rawMetadata = formData.get("studioMetadataJson");
+  if (typeof rawMetadata !== "string" || !rawMetadata.trim()) return null;
+
+  try {
+    return readCircleStudioMetadata(JSON.parse(rawMetadata));
+  } catch {
+    return null;
   }
 }
 
@@ -2531,13 +2544,14 @@ export async function updateCircleStudioAction(formData: FormData) {
   const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card/studio");
   const cardId = String(formData.get("cardId") ?? "");
   const tokenKeys = Object.keys(CIRCLE_STUDIO_OPTIONS) as CircleStudioTokenKey[];
-  const tokens = Object.fromEntries(
+  const submittedMetadata = readCircleStudioActivationMetadata(formData);
+  const fallbackTokens = Object.fromEntries(
     tokenKeys.map((key) => [key, String(formData.get(key) ?? "").trim().toUpperCase()])
   ) as CircleStudioTokens;
   const rawAccentColor = String(formData.get("fineTuneAccentColor") ?? "").trim();
   const rawSecondaryColor = String(formData.get("fineTuneSecondaryColor") ?? "").trim();
   const rawBackgroundImageUrl = String(formData.get("fineTuneBackgroundImageUrl") ?? "").trim();
-  const fineTune = normalizeCircleStudioFineTune({
+  const fallbackFineTune = normalizeCircleStudioFineTune({
     accentColor: rawAccentColor || null,
     secondaryColor: rawSecondaryColor || null,
     backgroundStyle: String(formData.get("fineTuneBackgroundStyle") ?? "PRESET").trim().toUpperCase(),
@@ -2545,15 +2559,18 @@ export async function updateCircleStudioAction(formData: FormData) {
     backgroundOverlay: String(formData.get("fineTuneBackgroundOverlay") ?? "0.72").trim(),
     paletteSource: String(formData.get("fineTunePaletteSource") ?? "PRESET").trim().toUpperCase()
   });
+  const metadata = submittedMetadata ?? buildCircleStudioMetadata(fallbackTokens, "CORE", fallbackFineTune);
+  const tokens = metadata.tokens;
+  const fineTune = metadata.fineTune;
 
   if (!cardId || tokenKeys.some((key) => !isCircleStudioToken(key, tokens[key]))) {
     redirectWithError(returnPath, "studio-invalid");
   }
 
   if (
-    (rawAccentColor && !isCircleStudioCustomColor(rawAccentColor)) ||
-    (rawSecondaryColor && !isCircleStudioCustomColor(rawSecondaryColor)) ||
-    (rawBackgroundImageUrl && !fineTune.backgroundImageUrl) ||
+    (!submittedMetadata && rawAccentColor && !isCircleStudioCustomColor(rawAccentColor)) ||
+    (!submittedMetadata && rawSecondaryColor && !isCircleStudioCustomColor(rawSecondaryColor)) ||
+    (!submittedMetadata && rawBackgroundImageUrl && !fineTune.backgroundImageUrl) ||
     getCircleStudioFineTuneIssues(fineTune).length
   ) {
     redirectWithError(returnPath, "studio-contrast");
@@ -2572,7 +2589,6 @@ export async function updateCircleStudioAction(formData: FormData) {
     redirectWithError(returnPath, "card-not-found");
   }
 
-  const metadata = buildCircleStudioMetadata(tokens, "CORE", fineTune);
   const resolvedTheme = resolveCircleCardTheme({ themeMetadata: metadata });
   await prisma.circleCard.update({
     where: { id: card.id },
@@ -2597,8 +2613,7 @@ export async function updateCircleStudioAction(formData: FormData) {
   });
 
   revalidateCircleCardPaths(card.slug);
-  revalidatePath("/dashboard/circle-card/studio");
-  redirectWithNotice(returnPath, "studio-activated");
+  redirectWithNotice(appendQueryParam(returnPath, "activatedAt", String(Date.now())), "studio-activated");
 }
 
 export async function upsertCircleCardLinkAction(formData: FormData) {

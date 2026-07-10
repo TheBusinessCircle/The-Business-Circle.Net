@@ -30,6 +30,7 @@ import {
   buildCircleStudioMetadata,
   circleStudioLabel,
   getCircleStudioFineTuneIssues,
+  type CircleStudioMetadata,
   type CircleStudioFineTune,
   type CircleStudioTokenKey,
   type CircleStudioTokens
@@ -60,6 +61,7 @@ type CircleStudioProps = {
   canActivate: boolean;
   notice?: string | null;
   error?: string | null;
+  activatedAt?: string | null;
 };
 
 type Device = "desktop" | "tablet" | "mobile";
@@ -100,13 +102,13 @@ function ActivateIdentityButton({ applied, disabled }: { applied: boolean; disab
   );
 }
 
-function LiveCardPreview({ card, tokens, fineTune, device }: { card: StudioCard; tokens: CircleStudioTokens; fineTune: CircleStudioFineTune; device: Device }) {
-  const metadata = buildCircleStudioMetadata(tokens, "CORE", fineTune);
+function LiveCardPreview({ card, metadata, device }: { card: StudioCard; metadata: CircleStudioMetadata; device: Device }) {
   const themeInput = { themeMetadata: metadata };
   const liveTheme = resolveCircleCardLiveTheme(themeInput);
   const style = liveTheme.style as CSSProperties;
   const attributes = liveTheme.attributes;
   const isCompact = device === "mobile";
+  const tokens = metadata.tokens;
 
   return (
     <div
@@ -156,7 +158,7 @@ function LiveCardPreview({ card, tokens, fineTune, device }: { card: StudioCard;
   );
 }
 
-export function CircleStudio({ card, initialTokens, initialFineTune, canActivate, notice, error }: CircleStudioProps) {
+export function CircleStudio({ card, initialTokens, initialFineTune, canActivate, notice, error, activatedAt }: CircleStudioProps) {
   const [tokens, setTokens] = useState(initialTokens);
   const [fineTune, setFineTune] = useState(initialFineTune);
   const [device, setDevice] = useState<Device>("desktop");
@@ -165,6 +167,8 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
   const activeAccent = CIRCLE_STUDIO_ACCENTS[tokens.accentPalette];
   const fineTuneIssues = getCircleStudioFineTuneIssues(fineTune);
   const applied = notice === "studio-activated";
+  const previewMetadata = useMemo(() => buildCircleStudioMetadata(tokens, "CORE", fineTune), [tokens, fineTune]);
+  const activationQuery = applied && activatedAt ? `?studio=${encodeURIComponent(activatedAt)}` : "";
   const tokenEntries = useMemo(() => Object.entries(CIRCLE_STUDIO_FIELD_COPY) as [Exclude<CircleStudioTokenKey, "identityStyle">, { label: string; description: string }][], []);
 
   function selectPreset(key: CircleStudioTokens["identityStyle"]) {
@@ -184,6 +188,7 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
     <form action={updateCircleStudioAction} className="space-y-6">
       <input type="hidden" name="cardId" value={card.id} />
       <input type="hidden" name="returnPath" value={`/dashboard/circle-card/studio?card=${card.id}`} />
+      <input type="hidden" name="studioMetadataJson" value={JSON.stringify(previewMetadata)} />
       {(Object.keys(tokens) as CircleStudioTokenKey[]).map((key) => <input key={key} type="hidden" name={key} value={tokens[key]} />)}
       <input type="hidden" name="fineTuneAccentColor" value={fineTune.accentColor ?? ""} />
       <input type="hidden" name="fineTuneSecondaryColor" value={fineTune.secondaryColor ?? ""} />
@@ -196,8 +201,8 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
         <div role="status" className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
           <p className="font-semibold">Your Circle Card style is live.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link href={`/card/${card.slug}`} className={cn(buttonVariants({ size: "sm" }), "gap-2")}>View Public Card <ArrowUpRight size={13} /></Link>
-            <Link href={`/card/${card.slug}/trust`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2 border-emerald-300/30 text-emerald-100 hover:bg-emerald-300/10")}>Open Circle Trust <ArrowUpRight size={13} /></Link>
+            <Link href={`/card/${card.slug}${activationQuery}`} className={cn(buttonVariants({ size: "sm" }), "gap-2")}>View Public Card <ArrowUpRight size={13} /></Link>
+            <Link href={`/card/${card.slug}/trust${activationQuery}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2 border-emerald-300/30 text-emerald-100 hover:bg-emerald-300/10")}>Open Circle Trust <ArrowUpRight size={13} /></Link>
             <a href="#circle-styles-heading" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "border-emerald-300/30 text-emerald-100 hover:bg-emerald-300/10")}>Continue Editing</a>
           </div>
         </div>
@@ -268,7 +273,7 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
                 {([ ["desktop", Monitor], ["tablet", Tablet], ["mobile", Smartphone] ] as const).map(([value, Icon]) => <button key={value} type="button" aria-label={`${value} preview`} aria-pressed={device === value} onClick={() => setDevice(value)} className={cn("grid h-8 w-9 place-items-center rounded-lg transition", device === value ? "bg-gold/15 text-gold" : "text-muted hover:text-foreground")}><Icon size={15} /></button>)}
               </div>
             </div>
-            <div className="max-h-[680px] overflow-auto rounded-[1.65rem] bg-black/20 p-1 sm:p-2"><LiveCardPreview card={card} tokens={tokens} fineTune={fineTune} device={device} /></div>
+            <div className="max-h-[680px] overflow-auto rounded-[1.65rem] bg-black/20 p-1 sm:p-2"><LiveCardPreview card={card} metadata={previewMetadata} device={device} /></div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{activePreset?.label} · {circleStudioLabel(tokens.accentPalette)}</p><p className="mt-1 text-xs text-muted">Preview updates instantly. Activate when it feels like you.</p></div>
               {canActivate ? <ActivateIdentityButton applied={applied} disabled={fineTuneIssues.length > 0} /> : <Link href="/circle-card/pro" className={cn(buttonVariants(), "shrink-0 gap-2")}><Crown size={16} /> Unlock with Pro <ArrowUpRight size={14} /></Link>}

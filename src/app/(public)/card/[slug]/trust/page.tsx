@@ -27,6 +27,7 @@ import { SITE_CONFIG } from "@/config/site";
 import { getCircleCardTypeLabel } from "@/lib/circle-card/card-types";
 import type { CircleTrustTimelineEvent } from "@/lib/circle-card/circle-trust";
 import { CIRCLE_CARD_PWA_METADATA } from "@/lib/circle-card/metadata";
+import { circleCardPublicThemeClasses } from "@/lib/circle-card/public-theme-classes";
 import { resolveCircleCardLiveTheme } from "@/lib/circle-card/theme";
 import {
   circleCardTestimonialFlowHref,
@@ -138,13 +139,11 @@ export default async function CircleTrustPage({ params }: PageProps) {
 
   return (
     <div
-      className="circle-card-public-theme relative min-h-screen overflow-x-hidden pb-12 sm:pb-16"
+      className={cn(circleCardPublicThemeClasses.backgroundShell, "pb-12 sm:pb-16")}
       style={themeStyle}
       data-circle-card-surface={theme.surfaceStyle.toLowerCase()}
       {...liveTheme.attributes}
     >
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[image:var(--cc-theme-page-bg)]" />
-
       <div className="public-page-stack relative max-w-6xl pt-3 sm:pt-5 lg:pt-7">
         <header className="sticky top-2 z-30 flex min-w-0 items-center justify-between gap-3 rounded-[1.35rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] p-2.5 shadow-[var(--cc-theme-secondary-shadow)] backdrop-blur-xl sm:p-3">
           <Link
