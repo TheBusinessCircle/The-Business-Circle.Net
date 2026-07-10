@@ -10,6 +10,7 @@ export type CircleCardCommissionEntitlementSource =
   | "PRO_SUBSCRIPTION"
   | "TEAMS_SUBSCRIPTION"
   | "ADMIN_OVERRIDE"
+  | "EARLY_ACCESS"
   | "AMBASSADOR_FREE_PRO";
 
 export function resolveCircleCardCommissionProEntitlement(input: {
@@ -33,22 +34,17 @@ export function resolveCircleCardCommissionProEntitlement(input: {
     hasActiveSubscription: hasEntitledSubscription(input.subscriptionStatus),
     hasActiveCircleCardSubscription: input.hasActiveCircleCardSubscription,
     circleCardSubscriptionPlan: input.circleCardSubscriptionPlan,
-    circleCardAdminOverridePlan: hasAmbassadorOverride ? "PRO" : null
+    circleCardAmbassadorFreePro: hasAmbassadorOverride
   });
-  const activePro = !input.suspended && entitlement.plan !== "FREE";
-  const source: CircleCardCommissionEntitlementSource = !activePro
-    ? "FREE"
-    : hasAmbassadorOverride
-      ? "AMBASSADOR_FREE_PRO"
-      : entitlement.source === "BCN_INCLUDED_PRO" ||
-          entitlement.source === "PRO_SUBSCRIPTION" ||
-          entitlement.source === "TEAMS_SUBSCRIPTION"
-        ? entitlement.source
-        : "ADMIN_OVERRIDE";
+  const source = entitlement.source as CircleCardCommissionEntitlementSource;
+  const activePro =
+    !input.suspended &&
+    entitlement.source === "PRO_SUBSCRIPTION" &&
+    entitlement.plan === "PRO";
 
   return {
     activePro,
-    source,
+    source: activePro ? source : source === "FREE" ? "FREE" : source,
     plan: entitlement.plan,
     notice: CIRCLE_CARD_COMMISSION_ESTIMATE_NOTICE,
     stripeIntegrationReady: true as const

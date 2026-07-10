@@ -1,6 +1,7 @@
 import { constructStripeWebhookEvent } from "@/server/stripe";
 import { processFounderStripeWebhookEvent } from "@/server/founder";
 import { processStripeWebhookEvent } from "@/server/subscriptions";
+import { processCircleCardStripeWebhookEvent } from "@/server/circle-card";
 import { logServerError } from "@/lib/security/logging";
 
 export const runtime = "nodejs";
@@ -28,6 +29,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    const handledByCircleCard = await processCircleCardStripeWebhookEvent(event);
+    if (handledByCircleCard) {
+      return new Response("ok", { status: 200 });
+    }
+
     await processStripeWebhookEvent(event);
     await processFounderStripeWebhookEvent(event);
   } catch (error) {

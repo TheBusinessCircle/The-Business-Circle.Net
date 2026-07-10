@@ -1,6 +1,7 @@
 export * from "@/server/circle-card/analytics.service";
 export * from "@/server/circle-card/activation.service";
 export * from "@/server/circle-card/activity.service";
+export * from "@/server/circle-card/billing.service";
 export * from "@/server/circle-card/business-card-scanner.service";
 export * from "@/server/circle-card/commission.service";
 export * from "@/server/circle-card/moderation.service";

@@ -5,6 +5,7 @@ import {
   CircleCardAccountType,
   CircleCardEventType,
   CircleCardType,
+  CircleCardSubscriptionPlan,
   CircleCardReportReason,
   CircleCardReportStatus,
   LeadSource,
@@ -1512,7 +1513,10 @@ async function loadCircleCardPlanBoundary() {
     likelyProUsers,
     likelyTeamsUsers,
     proInterestCount,
-    teamsInterestCount
+    teamsInterestCount,
+    paidCircleCardProUsers,
+    paidCircleCardTeamsUsers,
+    ambassadorFreeProUsers
   ] =
     await Promise.all([
       db.user.count({
@@ -1571,12 +1575,28 @@ async function loadCircleCardPlanBoundary() {
             { sourceLabel: { contains: "Circle Card Teams Interest", mode: "insensitive" } }
           ]
         }
+      }),
+      db.circleCardSubscription.count({
+        where: {
+          plan: CircleCardSubscriptionPlan.PRO,
+          status: SubscriptionStatus.ACTIVE
+        }
+      }),
+      db.circleCardSubscription.count({
+        where: {
+          plan: CircleCardSubscriptionPlan.TEAMS,
+          status: SubscriptionStatus.ACTIVE
+        }
+      }),
+      db.circleCardAmbassadorProfile.count({
+        where: {
+          freeProGranted: true,
+          active: true
+        }
       })
     ]);
 
   const multiCardCandidates = await loadLikelyProMultiCardUsers(likelyProUsers);
-  const paidCircleCardProUsers = 0;
-  const paidCircleCardTeamsUsers = 0;
   const earlyAccessUsers = 0;
   const freeEntitlementUsers = Math.max(
     totalCircleCardUsers -
@@ -1584,6 +1604,7 @@ async function loadCircleCardPlanBoundary() {
       adminOverrideUsers -
       paidCircleCardProUsers -
       paidCircleCardTeamsUsers -
+      ambassadorFreeProUsers -
       earlyAccessUsers,
     0
   );
@@ -1593,7 +1614,8 @@ async function loadCircleCardPlanBoundary() {
     TEAMS_SUBSCRIPTION: paidCircleCardTeamsUsers,
     BCN_INCLUDED_PRO: bcnIncludedProUsers,
     ADMIN_OVERRIDE: adminOverrideUsers,
-    EARLY_ACCESS: earlyAccessUsers
+    EARLY_ACCESS: earlyAccessUsers,
+    AMBASSADOR_FREE_PRO: ambassadorFreeProUsers
   };
   const planCounts: Record<CircleCardPlanKey, number> = {
     FREE: sourceCounts.FREE,
@@ -1601,7 +1623,8 @@ async function loadCircleCardPlanBoundary() {
       sourceCounts.PRO_SUBSCRIPTION +
       sourceCounts.BCN_INCLUDED_PRO +
       sourceCounts.ADMIN_OVERRIDE +
-      sourceCounts.EARLY_ACCESS,
+      sourceCounts.EARLY_ACCESS +
+      sourceCounts.AMBASSADOR_FREE_PRO,
     TEAMS: sourceCounts.TEAMS_SUBSCRIPTION
   };
   const accountTypeCounts = {

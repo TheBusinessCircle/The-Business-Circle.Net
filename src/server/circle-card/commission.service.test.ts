@@ -6,11 +6,19 @@ vi.mock("server-only", () => ({}), { virtual: true });
 const referralFindManyMock = vi.hoisted(() => vi.fn());
 const referralUpdateManyMock = vi.hoisted(() => vi.fn());
 const ledgerCreateManyMock = vi.hoisted(() => vi.fn());
+const ledgerFindManyMock = vi.hoisted(() => vi.fn());
+const ledgerUpdateMock = vi.hoisted(() => vi.fn());
+const circleCardSubscriptionFindUniqueMock = vi.hoisted(() => vi.fn());
 const transactionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/db", () => ({
   db: {
     circleCardGrowthReferral: { findMany: referralFindManyMock },
+    circleCardSubscription: { findUnique: circleCardSubscriptionFindUniqueMock },
+    circleCardCommissionLedger: {
+      findMany: ledgerFindManyMock,
+      update: ledgerUpdateMock
+    },
     $transaction: transactionMock
   }
 }));
@@ -24,6 +32,8 @@ describe("Circle Card commission ledger generation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createdKeys.clear();
+    ledgerFindManyMock.mockResolvedValue([]);
+    circleCardSubscriptionFindUniqueMock.mockResolvedValue(null);
     referralFindManyMock.mockResolvedValue([
       {
         id: "referral_1",
@@ -45,9 +55,12 @@ describe("Circle Card commission ledger generation", () => {
           membershipTier: MembershipTier.FOUNDATION,
           suspended: false,
           createdAt: new Date("2026-06-01T00:00:00.000Z"),
-          subscription: {
+          circleCardSubscription: {
+            plan: "PRO",
             status: SubscriptionStatus.ACTIVE,
             currentPeriodStart: new Date("2026-06-15T00:00:00.000Z"),
+            currentPeriodEnd: new Date("2026-08-15T00:00:00.000Z"),
+            lastInvoicePaidAt: new Date("2026-06-15T00:00:00.000Z"),
             createdAt: new Date("2026-06-15T00:00:00.000Z")
           },
           circleCardAmbassadorProfile: null

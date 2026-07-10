@@ -264,7 +264,8 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
     TEAMS_SUBSCRIPTION: "Future paid Circle Card Teams subscriptions only.",
     BCN_INCLUDED_PRO: "Active BCN members receiving Circle Card Pro without a separate Circle Card subscription.",
     ADMIN_OVERRIDE: "Admin Preview access, separate from paid and BCN-included reporting.",
-    EARLY_ACCESS: "Future early-access grants, separate from paid and BCN-included reporting."
+    EARLY_ACCESS: "Future early-access grants, separate from paid and BCN-included reporting.",
+    AMBASSADOR_FREE_PRO: "Founding Ambassador free Pro access. Not a paid subscription source."
   } satisfies Record<(typeof CIRCLE_CARD_ENTITLEMENT_SOURCES)[number], string>;
   const entitlementSourceMetrics: MetricItem[] = CIRCLE_CARD_ENTITLEMENT_SOURCES.map((source) => ({
     label: CIRCLE_CARD_ENTITLEMENT_SOURCE_LABELS[source],
@@ -595,13 +596,25 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
             title="Commission Monitor"
             description="Manual, auditable Circle Card Pro commission estimates. No payouts run here."
           />
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {[
               ["Founding Ambassadors", commissionMonitor.totalAmbassadors],
               ["Standard referrers", commissionMonitor.standardReferrers],
               ["Active Pro referrals", commissionMonitor.activeProReferrals],
-              ["Pending", formatCurrency(commissionMonitor.pendingPence / 100)],
-              ["Paid", formatCurrency(commissionMonitor.paidPence / 100)],
+              ["Paid Pro subscribers", commissionMonitor.paidSubscribers],
+              ["Monthly subscribers", commissionMonitor.monthlySubscribers],
+              ["Annual subscribers", commissionMonitor.annualSubscribers],
+              ["Trialing", commissionMonitor.trialingCount],
+              ["Past due", commissionMonitor.pastDueCount],
+              ["Cancelling", commissionMonitor.cancellingAtPeriodEnd],
+              ["Cancelled", commissionMonitor.cancelledCount],
+              ["Paid referrals", commissionMonitor.paidReferralCount],
+              [
+                "Monthly liability",
+                formatCurrency(commissionMonitor.estimatedMonthlyCommissionLiabilityPence / 100)
+              ],
+              ["Pending", formatCurrency(commissionMonitor.pendingCommissionPence / 100)],
+              ["Paid", formatCurrency(commissionMonitor.paidCommissionPence / 100)],
               ["Current month rows", commissionMonitor.currentMonthRows]
             ].map(([label, value]) => (
               <div key={label} className="min-w-0 rounded-2xl border border-gold/18 bg-card/62 p-4">

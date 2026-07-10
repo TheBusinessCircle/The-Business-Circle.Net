@@ -23,7 +23,8 @@ export const CIRCLE_CARD_ENTITLEMENT_SOURCES = [
   "TEAMS_SUBSCRIPTION",
   "BCN_INCLUDED_PRO",
   "ADMIN_OVERRIDE",
-  "EARLY_ACCESS"
+  "EARLY_ACCESS",
+  "AMBASSADOR_FREE_PRO"
 ] as const;
 
 export type CircleCardEntitlementSource =
@@ -36,7 +37,8 @@ export type CircleCardBillingReportCategory =
   | "PAID_CIRCLE_CARD"
   | "BCN_INCLUDED"
   | "ADMIN_OVERRIDE"
-  | "EARLY_ACCESS";
+  | "EARLY_ACCESS"
+  | "AMBASSADOR_FREE";
 
 export type CircleCardEntitlementInput = {
   role?: Role | null;
@@ -47,6 +49,7 @@ export type CircleCardEntitlementInput = {
   circleCardSubscriptionPlan?: PaidCircleCardPlanKey | null;
   circleCardAdminOverridePlan?: PaidCircleCardPlanKey | null;
   circleCardEarlyAccessPlan?: PaidCircleCardPlanKey | null;
+  circleCardAmbassadorFreePro?: boolean | null;
 };
 
 export type CircleCardEntitlement = {
@@ -60,6 +63,7 @@ export type CircleCardEntitlement = {
   isBcnIncludedPro: boolean;
   isAdminOverride: boolean;
   isEarlyAccess: boolean;
+  isAmbassadorFreePro: boolean;
   affectsBcnSubscription: false;
 };
 
@@ -72,7 +76,8 @@ export const CIRCLE_CARD_ENTITLEMENT_SOURCE_LABELS: Record<
   TEAMS_SUBSCRIPTION: "Paid Circle Card Teams",
   BCN_INCLUDED_PRO: "BCN Included Pro",
   ADMIN_OVERRIDE: "Admin Preview",
-  EARLY_ACCESS: "Early Access"
+  EARLY_ACCESS: "Early Access",
+  AMBASSADOR_FREE_PRO: "Ambassador Free Pro"
 };
 
 export type CircleCardFeatureAccess = {
@@ -161,6 +166,8 @@ function circleCardBillingReportCategory(
       return "ADMIN_OVERRIDE";
     case "EARLY_ACCESS":
       return "EARLY_ACCESS";
+    case "AMBASSADOR_FREE_PRO":
+      return "AMBASSADOR_FREE";
     case "FREE":
     default:
       return "FREE";
@@ -186,6 +193,7 @@ function buildCircleCardEntitlement(input: {
     isBcnIncludedPro: input.source === "BCN_INCLUDED_PRO",
     isAdminOverride: input.source === "ADMIN_OVERRIDE",
     isEarlyAccess: input.source === "EARLY_ACCESS",
+    isAmbassadorFreePro: input.source === "AMBASSADOR_FREE_PRO",
     affectsBcnSubscription: false
   };
 }
@@ -220,6 +228,14 @@ export function resolveCircleCardEntitlement(
         input.circleCardSubscriptionPlan === "TEAMS"
           ? "TEAMS_SUBSCRIPTION"
           : "PRO_SUBSCRIPTION",
+      membershipTier: input.membershipTier
+    });
+  }
+
+  if (input.circleCardAmbassadorFreePro) {
+    return buildCircleCardEntitlement({
+      plan: "PRO",
+      source: "AMBASSADOR_FREE_PRO",
       membershipTier: input.membershipTier
     });
   }

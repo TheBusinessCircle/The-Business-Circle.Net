@@ -6,7 +6,6 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isCircleCardPlatformOwner } from "@/lib/circle-card/platform-owner-control";
-import { resolveCircleCardCommissionProEntitlement } from "@/lib/circle-card/commission-entitlement";
 import {
   calculateCircleCardMonthlyCommissions,
   CIRCLE_CARD_COMMISSION_ESTIMATE_NOTICE,
@@ -14,16 +13,29 @@ import {
   type ActiveProReferralForCommission
 } from "@/lib/circle-card/referral-rewards";
 import { requireAdmin } from "@/lib/session";
+import {
+  getCircleCardBillingAdminMetrics,
+  isPaidCircleCardProCommissionEligibleForMonth,
+  reconcileCurrentCircleCardCommissionRows
+} from "@/server/circle-card/billing.service";
 
 function conversionDate(input: {
   convertedToProAt: Date | null;
   userCreatedAt: Date;
-  subscription: { currentPeriodStart: Date | null; createdAt: Date } | null;
-  ambassadorProfile: { createdAt: Date; updatedAt: Date; freeProGranted: boolean } | null;
+  circleCardSubscription: {
+    currentPeriodStart: Date | null;
+    lastInvoicePaidAt: Date | null;
+    createdAt: Date;
+  } | null;
 }) {
   if (input.convertedToProAt) return input.convertedToProAt;
-  if (input.subscription) return input.subscription.createdAt;
-  if (input.ambassadorProfile?.freeProGranted) return input.ambassadorProfile.createdAt;
+  if (input.circleCardSubscription?.lastInvoicePaidAt) {
+    return input.circleCardSubscription.lastInvoicePaidAt;
+  }
+  if (input.circleCardSubscription?.currentPeriodStart) {
+    return input.circleCardSubscription.currentPeriodStart;
+  }
+  if (input.circleCardSubscription) return input.circleCardSubscription.createdAt;
   return input.userCreatedAt;
 }
 
@@ -42,10 +54,13 @@ const commissionReferralInclude = {
       membershipTier: true,
       suspended: true,
       createdAt: true,
-      subscription: {
+      circleCardSubscription: {
         select: {
+          plan: true,
           status: true,
           currentPeriodStart: true,
+          currentPeriodEnd: true,
+          lastInvoicePaidAt: true,
           createdAt: true
         }
       },
@@ -54,7 +69,7 @@ const commissionReferralInclude = {
   }
 } as const;
 
-async function loadActiveProReferrals(referrerUserId?: string) {
+async function loadActiveProReferrals(referrerUserId?: string, periodMonth = getCircleCardCommissionPeriodMonth()) {
   const referrals = await db.circleCardGrowthReferral.findMany({
     where: {
       ...(referrerUserId ? { referrerUserId } : {}),
@@ -68,35 +83,29 @@ async function loadActiveProReferrals(referrerUserId?: string) {
   return referrals.flatMap((referral) => {
     const referredUser = referral.referredUser;
     if (!referredUser || referral.referrerUser.suspended) return [];
+    if (referredUser.suspended) return [];
     if (referral.referrerUser.circleCardAmbassadorProfile?.active === false) return [];
-
-    const entitlement = resolveCircleCardCommissionProEntitlement({
-      role: referredUser.role,
-      membershipTier: referredUser.membershipTier,
-      suspended: referredUser.suspended,
-      subscriptionStatus: referredUser.subscription?.status,
-      ambassadorFreeProGranted: referredUser.circleCardAmbassadorProfile?.freeProGranted,
-      ambassadorActive: referredUser.circleCardAmbassadorProfile?.active
-    });
-
-    if (!entitlement.activePro) return [];
+    if (referral.referrerUserId === referredUser.id) return [];
+    if (!isPaidCircleCardProCommissionEligibleForMonth(referredUser.circleCardSubscription, periodMonth)) {
+      return [];
+    }
 
     return [{
       referral,
       convertedToProAt: conversionDate({
         convertedToProAt: referral.convertedToProAt,
         userCreatedAt: referredUser.createdAt,
-        subscription: referredUser.subscription,
-        ambassadorProfile: referredUser.circleCardAmbassadorProfile
+        circleCardSubscription: referredUser.circleCardSubscription
       }),
-      entitlementSource: entitlement.source
+      entitlementSource: "PRO_SUBSCRIPTION" as const
     }];
   });
 }
 
 export async function generateCurrentMonthCircleCardCommissionLedger(now = new Date()) {
   const periodMonth = getCircleCardCommissionPeriodMonth(now);
-  const activeReferrals = await loadActiveProReferrals();
+  const reconciliation = await reconcileCurrentCircleCardCommissionRows(now);
+  const activeReferrals = await loadActiveProReferrals(undefined, periodMonth);
   const byReferrer = new Map<string, typeof activeReferrals>();
 
   for (const item of activeReferrals) {
@@ -157,6 +166,7 @@ export async function generateCurrentMonthCircleCardCommissionLedger(now = new D
     eligibleRows: rows.length,
     createdRows: result,
     duplicateRowsSkipped: rows.length - result,
+    reconciledPendingRows: reconciliation.voided,
     amountPence: rows.reduce((total, row) => total + row.amountPence, 0),
     notice: CIRCLE_CARD_COMMISSION_ESTIMATE_NOTICE
   };
@@ -241,7 +251,7 @@ export async function getCircleCardCommissionMonitorForCurrentAdmin() {
   if (!ownerAccess) return null;
 
   const periodMonth = getCircleCardCommissionPeriodMonth();
-  const [ambassadors, standardProfiles, activeReferrals, totals, currentRows, rows] =
+  const [ambassadors, standardProfiles, activeReferrals, totals, currentRows, rows, billingMetrics] =
     await Promise.all([
       db.circleCardAmbassadorProfile.count({
         where: { type: CircleCardAmbassadorType.FOUNDING_AMBASSADOR, active: true }
@@ -263,7 +273,8 @@ export async function getCircleCardCommissionMonitorForCurrentAdmin() {
           referrerUser: { select: { name: true, email: true } },
           referredUser: { select: { name: true, email: true } }
         }
-      })
+      }),
+      getCircleCardBillingAdminMetrics()
     ]);
   const totalFor = (...statuses: CircleCardCommissionStatus[]) =>
     totals
@@ -279,17 +290,53 @@ export async function getCircleCardCommissionMonitorForCurrentAdmin() {
       )
       .map((item) => item.referral.referrerUserId)
   ]);
+  const activeByReferrer = new Map<string, typeof activeReferrals>();
+  for (const item of activeReferrals) {
+    const list = activeByReferrer.get(item.referral.referrerUserId) ?? [];
+    list.push(item);
+    activeByReferrer.set(item.referral.referrerUserId, list);
+  }
+  const estimatedMonthlyCommissionLiabilityPence = Array.from(activeByReferrer.values()).reduce(
+    (total, items) => {
+      const referrerType =
+        items[0]?.referral.referrerUser.circleCardAmbassadorProfile?.type ??
+        CircleCardAmbassadorType.STANDARD;
+      const allocations = calculateCircleCardMonthlyCommissions({
+        referrerType,
+        activeProReferrals: items.map((item) => ({
+          referralId: item.referral.id,
+          referredUserId: item.referral.referredUserId!,
+          convertedToProAt: item.convertedToProAt,
+          entitlementSource: item.entitlementSource
+        }))
+      });
+
+      return total + allocations.reduce((subtotal, row) => subtotal + row.amountPence, 0);
+    },
+    0
+  );
 
   return {
     periodMonth,
     totalAmbassadors: ambassadors,
     standardReferrers: standardReferrerIds.size,
     activeProReferrals: activeReferrals.length,
+    paidSubscribers: billingMetrics.paidSubscribers,
+    monthlySubscribers: billingMetrics.monthlySubscribers,
+    annualSubscribers: billingMetrics.annualSubscribers,
+    trialingCount: billingMetrics.trialingCount,
+    pastDueCount: billingMetrics.pastDueCount,
+    cancellingAtPeriodEnd: billingMetrics.cancellingAtPeriodEnd,
+    cancelledCount: billingMetrics.cancelledCount,
+    paidReferralCount: billingMetrics.paidReferralCount,
+    estimatedMonthlyCommissionLiabilityPence,
     pendingPence: totalFor(
       CircleCardCommissionStatus.PENDING,
       CircleCardCommissionStatus.APPROVED
     ),
     paidPence: totalFor(CircleCardCommissionStatus.PAID),
+    pendingCommissionPence: billingMetrics.pendingCommissionPence,
+    paidCommissionPence: billingMetrics.paidCommissionPence,
     currentMonthRows: currentRows,
     rows,
     notice: CIRCLE_CARD_COMMISSION_ESTIMATE_NOTICE

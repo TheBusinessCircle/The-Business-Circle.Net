@@ -89,6 +89,7 @@ import {
   BusinessCardScanner,
   CircleCardBcnDiscoveryPanel,
   CircleCardAudienceSnapshotManager,
+  CircleCardBillingPortalButton,
   CircleCardBookingManager,
   CircleCardBrandPartnershipsManager,
   CircleCardCopyLinkButton,
@@ -155,8 +156,7 @@ import {
 } from "@/lib/circle-card/file-actions";
 import {
   canCreateCircleCard,
-  getCircleCardFeatureAccess,
-  resolveCircleCardEntitlement
+  getCircleCardFeatureAccess
 } from "@/lib/circle-card/permissions";
 import {
   CIRCLE_CARD_CONTROL_CENTRE_DEVELOPMENT_MODULES,
@@ -369,7 +369,8 @@ import {
   getCircleCardAnalyticsSummary,
   markCircleCardReferralActivationForUser,
   syncCircleCardActivationLeadScore,
-  trackCircleCardEvent
+  trackCircleCardEvent,
+  loadCircleCardEntitlementForUser
 } from "@/server/circle-card";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
@@ -4205,7 +4206,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedOwnerCardTypePreviewMode = isPlatformOwner
     ? resolveCircleCardPlatformOwnerCardTypePreviewMode(firstValue(params.ownerCardType))
     : "personal";
-  const actualCircleCardEntitlement = resolveCircleCardEntitlement({
+  const actualCircleCardEntitlement = await loadCircleCardEntitlementForUser({
+    userId: session.user.id,
     role: session.user.role,
     membershipTier: session.user.membershipTier,
     hasActiveSubscription: session.user.hasActiveSubscription,
@@ -5518,6 +5520,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       }
     });
   }
+  const showCircleCardProSuccess =
+    firstValue(params.billing) === "success" && firstValue(params.plan) === "pro";
 
   return (
     <div className="space-y-6">
@@ -5599,6 +5603,55 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           </div>
         </div>
       </section>
+
+      {showCircleCardProSuccess ? (
+        <section className="rounded-2xl border border-emerald-400/28 bg-emerald-400/10 p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <Badge variant="outline" className="border-emerald-400/30 text-emerald-100">
+                Circle Card Pro is active.
+              </Badge>
+              <h2 className="mt-3 font-display text-2xl text-foreground">
+                Your Pro workspace is ready.
+              </h2>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <Link
+                href={card ? `/dashboard/circle-card/studio?card=${card.id}` : "/dashboard/circle-card/studio"}
+                className={cn(buttonVariants(), "justify-center gap-2")}
+              >
+                <Sparkles size={15} />
+                Open Circle Studio
+              </Link>
+              <Link
+                href={card ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "circle-card-form" }) : circleCardSectionHref("my-card", "circle-card-form")}
+                className={cn(buttonVariants({ variant: "outline" }), "justify-center gap-2")}
+              >
+                <ContactRound size={15} />
+                Edit your card
+              </Link>
+              {card ? (
+                <Link
+                  href={`/card/${card.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ variant: "outline" }), "justify-center gap-2")}
+                >
+                  <Eye size={15} />
+                  View public card
+                </Link>
+              ) : null}
+              <Link
+                href={circleCardSectionHref("referrals", "referral-centre")}
+                className={cn(buttonVariants({ variant: "outline" }), "justify-center gap-2")}
+              >
+                <Send size={15} />
+                Referral Centre
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <CircleCardInstallPrompt showManualFallback />
 
@@ -6066,6 +6119,21 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           platformOwnerCardTypePreviewMode={selectedOwnerCardTypePreviewMode}
           className="border-0 bg-transparent p-0 shadow-none"
         />
+        {circleCardEntitlement.hasPaidCircleCardSubscription ? (
+          <div className="mt-4 rounded-2xl border border-silver/14 bg-background/22 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Circle Card billing</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Manage the Circle Card product attached to your Stripe customer. BCN membership billing remains separate.
+                </p>
+              </div>
+              <div className="sm:w-64">
+                <CircleCardBillingPortalButton returnPath="/dashboard/circle-card?billing=portal-return" />
+              </div>
+            </div>
+          </div>
+        ) : null}
       </CircleCardDashboardSection>
 
       {showPlatformOwnerDiagnostics ? (

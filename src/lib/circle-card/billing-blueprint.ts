@@ -20,6 +20,7 @@ export const CIRCLE_CARD_CHECKOUT_METADATA_BLUEPRINT = [
   "billingPeriod",
   "referralCode",
   "referralClickId",
+  "referralId",
   "referralSource",
   "source"
 ] as const;

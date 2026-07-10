@@ -91,6 +91,7 @@ model User {
   passwordResetTokens            PasswordResetToken[]
   sessions                       Session[]
   subscription                   Subscription?
+  circleCardSubscription         CircleCardSubscription?
   createdCallRooms               CallRoom[]                   @relation("CallRoomCreator")
   hostedCallRooms                CallRoom[]                   @relation("CallRoomHost")
   callParticipations             CallParticipant[]
@@ -1327,6 +1328,36 @@ model Subscription {
   @@index([status, tier])
   @@index([billingInterval, billingVariant])
   @@index([currentPeriodEnd])
+  @@index([updatedAt])
+}
+
+model CircleCardSubscription {
+  id                   String                     @id @default(cuid())
+  userId               String                     @unique
+  plan                 CircleCardSubscriptionPlan
+  status               SubscriptionStatus         @default(INCOMPLETE)
+  billingInterval      BillingInterval
+  stripeCustomerId     String
+  stripeSubscriptionId String?                    @unique
+  stripePriceId        String
+  stripeProductId      String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean                    @default(false)
+  cancelledAt          DateTime?
+  trialEndsAt          DateTime?
+  lastInvoicePaidAt    DateTime?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  user                 User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([plan, status])
+  @@index([billingInterval, status])
+  @@index([stripeCustomerId])
+  @@index([stripePriceId])
+  @@index([currentPeriodEnd])
+  @@index([cancelAtPeriodEnd, currentPeriodEnd])
+  @@index([lastInvoicePaidAt])
   @@index([updatedAt])
 }
 
@@ -3204,6 +3235,11 @@ enum BillingInterval {
 enum SubscriptionBillingVariant {
   STANDARD
   FOUNDING
+}
+
+enum CircleCardSubscriptionPlan {
+  PRO
+  TEAMS
 }
 
 enum StripeWebhookEventStatus {

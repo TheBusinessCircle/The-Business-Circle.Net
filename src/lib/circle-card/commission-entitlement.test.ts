@@ -14,7 +14,7 @@ describe("Circle Card commission Pro entitlement", () => {
     ).toMatchObject({ activePro: false, source: "FREE", plan: "FREE" });
   });
 
-  it("accepts current internal Pro entitlement without pretending a payment occurred", () => {
+  it("does not treat BCN included Pro as paid commission eligibility", () => {
     expect(
       resolveCircleCardCommissionProEntitlement({
         role: Role.MEMBER,
@@ -22,10 +22,10 @@ describe("Circle Card commission Pro entitlement", () => {
         suspended: false,
         subscriptionStatus: SubscriptionStatus.ACTIVE
       })
-    ).toMatchObject({ activePro: true, source: "BCN_INCLUDED_PRO", plan: "PRO" });
+    ).toMatchObject({ activePro: false, source: "BCN_INCLUDED_PRO", plan: "PRO" });
   });
 
-  it("supports an active owner-granted free Pro override for testing", () => {
+  it("does not treat Ambassador free Pro as paid commission eligibility", () => {
     expect(
       resolveCircleCardCommissionProEntitlement({
         role: Role.MEMBER,
@@ -34,7 +34,19 @@ describe("Circle Card commission Pro entitlement", () => {
         ambassadorFreeProGranted: true,
         ambassadorActive: true
       })
-    ).toMatchObject({ activePro: true, source: "AMBASSADOR_FREE_PRO" });
+    ).toMatchObject({ activePro: false, source: "AMBASSADOR_FREE_PRO" });
+  });
+
+  it("accepts a paid Circle Card Pro subscription as commission eligibility", () => {
+    expect(
+      resolveCircleCardCommissionProEntitlement({
+        role: Role.MEMBER,
+        membershipTier: MembershipTier.FOUNDATION,
+        suspended: false,
+        hasActiveCircleCardSubscription: true,
+        circleCardSubscriptionPlan: "PRO"
+      })
+    ).toMatchObject({ activePro: true, source: "PRO_SUBSCRIPTION", plan: "PRO" });
   });
 
   it("blocks cancelled, inactive and suspended entitlement", () => {

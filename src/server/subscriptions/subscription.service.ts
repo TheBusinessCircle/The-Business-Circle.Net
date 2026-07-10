@@ -1907,7 +1907,7 @@ export async function createStripeBillingPortalSessionForUser(
   };
 }
 
-async function acquireWebhookProcessingLease(event: Stripe.Event) {
+export async function acquireWebhookProcessingLease(event: Stripe.Event) {
   const now = new Date();
 
   try {
@@ -1978,7 +1978,7 @@ async function acquireWebhookProcessingLease(event: Stripe.Event) {
   return claimed.count > 0;
 }
 
-async function markWebhookProcessed(eventId: string) {
+export async function markWebhookProcessed(eventId: string) {
   await db.stripeWebhookEvent.update({
     where: {
       id: eventId
@@ -1991,7 +1991,7 @@ async function markWebhookProcessed(eventId: string) {
   });
 }
 
-async function markWebhookFailed(eventId: string, error: unknown) {
+export async function markWebhookFailed(eventId: string, error: unknown) {
   await db.stripeWebhookEvent.update({
     where: {
       id: eventId

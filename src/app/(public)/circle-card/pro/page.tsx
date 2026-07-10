@@ -18,12 +18,14 @@ import {
 } from "lucide-react";
 import { registerCircleCardProInterestAction } from "@/actions/circle-card-pro.actions";
 import { auth } from "@/auth";
+import { CircleCardProCheckoutButtons } from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
 import {
+  formatCircleCardAnnualDiscount,
   formatCircleCardAnnualPrice,
   formatCircleCardPrice,
   getCircleCardBillingReadiness
@@ -214,6 +216,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
   const defaultBusinessName = primaryCard?.businessName || "";
   const proPrice = formatCircleCardPrice("PRO");
   const proAnnualPrice = formatCircleCardAnnualPrice("PRO");
+  const proAnnualDiscount = formatCircleCardAnnualDiscount("PRO");
 
   return (
     <div className="public-page-stack">
@@ -235,10 +238,10 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
           </Badge>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             {billingReadiness.billingEnabled ? (
-              <Button type="button" size="lg" disabled className="w-full gap-2 sm:w-auto">
-                Checkout CTA prepared
-                <ArrowRight size={16} />
-              </Button>
+              <CircleCardProCheckoutButtons
+                monthlyLabel="£9.99/month"
+                annualLabel={`£95.90/year${proAnnualDiscount ? " / 20% annual saving" : ""}`}
+              />
             ) : (
               <a
                 href="#register-interest"
@@ -386,7 +389,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
             </p>
             {billingReadiness.billingEnabled ? (
               <p className="mt-3 rounded-lg border border-gold/24 bg-gold/10 p-3 text-xs leading-relaxed text-gold">
-                Billing flag is enabled, but checkout is intentionally not active in this prep phase.
+                Stripe test checkout is active for Circle Card Pro. BCN membership billing stays separate.
               </p>
             ) : null}
             <div className="mt-4 grid gap-2 text-sm text-muted">
