@@ -119,6 +119,7 @@ describe("public marketing spacing system", () => {
       "/home",
       "/about",
       "/membership",
+      "/circle-card",
       "/audit",
       "/founder",
       "/insights",
