@@ -69,45 +69,64 @@ export function CircleCardRegisterForm({
     setNotice(null);
 
     startTransition(async () => {
-      const response = await fetch("/api/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          source: "circle-card",
-          name: values.name,
+      try {
+        const response = await fetch("/api/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            source: "circle-card",
+            name: values.name,
+            email: values.email,
+            password: values.password,
+            acceptedTerms: values.acceptedTerms,
+            minimumAgeConfirmed: values.minimumAgeConfirmed,
+            marketingEmailOptIn: values.marketingEmailOptIn,
+            businessName: values.businessName,
+            returnTo: values.returnTo,
+            sourceCardSlug: values.sourceCardSlug,
+            referralCode: values.referralCode
+          })
+        });
+        const data = (await response.json().catch(() => ({}))) as CircleCardRegisterResponse;
+
+        if (!response.ok) {
+          setNotice(data.error ?? "Unable to create your free Circle Card account.");
+          return;
+        }
+
+        const signInResult = await signIn("credentials", {
           email: values.email,
           password: values.password,
-          acceptedTerms: values.acceptedTerms,
-          minimumAgeConfirmed: values.minimumAgeConfirmed,
-          marketingEmailOptIn: values.marketingEmailOptIn,
-          businessName: values.businessName,
-          returnTo: values.returnTo,
-          sourceCardSlug: values.sourceCardSlug,
-          referralCode: values.referralCode
-        })
-      });
-      const data = (await response.json().catch(() => ({}))) as CircleCardRegisterResponse;
+          redirect: false
+        });
 
-      if (!response.ok) {
-        setNotice(data.error ?? "Unable to create your free Circle Card account.");
-        return;
+        if (signInResult?.error) {
+          setNotice("Account created. Use the Sign in link below to continue your Circle Card setup.");
+          return;
+        }
+
+        // The registration request performs the primary attribution. This
+        // authenticated retry closes the small failure window between account
+        // creation and referral persistence without creating duplicates.
+        await fetch("/api/circle-card/referral-attribution/signup", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            referralCode: values.referralCode,
+            sourceCardSlug: values.sourceCardSlug,
+            returnTo: values.returnTo
+          })
+        }).catch(() => undefined);
+
+        router.push(data.redirectTo ?? "/dashboard/circle-card/onboarding");
+        router.refresh();
+      } catch {
+        setNotice("We could not reach the registration service. Your details are still here; please try again.");
       }
-
-      const signInResult = await signIn("credentials", {
-        email: values.email,
-        password: values.password,
-        redirect: false
-      });
-
-      if (signInResult?.error) {
-        setNotice("Account created. Sign in to continue your Circle Card setup.");
-        return;
-      }
-
-      router.push(data.redirectTo ?? "/dashboard/circle-card");
-      router.refresh();
     });
   });
 

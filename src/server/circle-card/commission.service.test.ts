@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MembershipTier, Role, SubscriptionStatus } from "@prisma/client";
 
-vi.mock("server-only", () => ({}), { virtual: true });
+vi.mock("server-only", () => ({}));
 
 const referralFindManyMock = vi.hoisted(() => vi.fn());
 const referralUpdateManyMock = vi.hoisted(() => vi.fn());

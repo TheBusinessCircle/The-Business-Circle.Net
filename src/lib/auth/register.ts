@@ -499,15 +499,54 @@ async function dispatchCircleCardLeadAndWelcomeEmail(input: {
   returnTo: string | null;
 }) {
   try {
-    const lead = await recordCircleCardSignupLead(input);
     const firstName = input.name.trim().split(/\s+/)[0] || "there";
-    const sendResult = await sendCircleCardWelcomeEmail({
-      email: input.email,
-      firstName
-    });
+    const [leadResult, welcomeResult, verificationResult] = await Promise.allSettled([
+      recordCircleCardSignupLead(input),
+      sendCircleCardWelcomeEmail({
+        email: input.email,
+        firstName
+      }),
+      sendEmailVerificationForUser({
+        userId: input.userId,
+        email: input.email,
+        firstName
+      })
+    ]);
 
-    if (sendResult.sent) {
-      await markLeadEmailed(lead.id);
+    if (
+      leadResult.status === "fulfilled" &&
+      welcomeResult.status === "fulfilled" &&
+      welcomeResult.value.sent
+    ) {
+      await markLeadEmailed(leadResult.value.id);
+    }
+
+    if (leadResult.status === "rejected") {
+      logServerWarning("circle-card-signup-lead-record-failed", {
+        userId: input.userId,
+        email: input.email,
+        reason:
+          leadResult.reason instanceof Error
+            ? leadResult.reason.message
+            : "Unknown lead recording error."
+      });
+    }
+
+    if (verificationResult.status === "rejected") {
+      logServerWarning("circle-card-verification-email-send-threw", {
+        userId: input.userId,
+        email: input.email,
+        reason:
+          verificationResult.reason instanceof Error
+            ? verificationResult.reason.message
+            : "Unknown verification email error."
+      });
+    } else if (!verificationResult.value.sent) {
+      logServerWarning("circle-card-verification-email-not-sent", {
+        userId: input.userId,
+        email: input.email,
+        reason: verificationResult.value.reason
+      });
     }
   } catch (error) {
     logServerError("circle-card-lead-or-welcome-dispatch-failed", error);
@@ -834,7 +873,10 @@ export async function createCircleCardFreeRegistration(
   const passwordHash = await hashPassword(input.password);
   const acceptedAt = new Date();
   const businessName = normalizeCircleCardBusinessName(input.businessName);
-  const returnTo = safeRedirectPath(input.returnTo, "");
+  const returnTo = safeRedirectPath(
+    input.returnTo,
+    "/dashboard/circle-card/onboarding"
+  );
   const shouldProvisionReturnCard = shouldProvisionCircleCardForReturnPath(returnTo);
   const sourceCardSlug =
     input.sourceCardSlug?.trim() || sourceCardSlugFromReturnPath(returnTo);
@@ -885,7 +927,7 @@ export async function createCircleCardFreeRegistration(
             isPrimary: true,
             isDefaultCard: true,
             displayOrder: 0,
-            isPublished: true,
+            isPublished: false,
             fullName: input.name.trim(),
             businessName,
             accountType: "INDIVIDUAL",
@@ -926,7 +968,7 @@ export async function createCircleCardFreeRegistration(
       return createdUser;
     });
 
-    void dispatchCircleCardLeadAndWelcomeEmail({
+    await dispatchCircleCardLeadAndWelcomeEmail({
       userId: user.id,
       name: input.name,
       email,
@@ -940,7 +982,7 @@ export async function createCircleCardFreeRegistration(
 
     return {
       user,
-      redirectTo: returnTo || "/dashboard/circle-card"
+      redirectTo: returnTo
     };
   } catch (error) {
     if (isUniqueEmailError(error)) {

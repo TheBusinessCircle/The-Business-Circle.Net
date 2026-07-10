@@ -125,7 +125,8 @@ describe("visual media placement registry", () => {
 
     expect(
       VISUAL_MEDIA_PLACEMENT_KEYS.every((key) => {
-        const asset = VISUAL_MEDIA_DEFAULT_ASSETS[key];
+        const asset =
+          VISUAL_MEDIA_DEFAULT_ASSETS[key as keyof typeof VISUAL_MEDIA_DEFAULT_ASSETS];
         return (
           asset.imageUrl.startsWith("/visual-media/defaults/") &&
           asset.imageUrl.endsWith(".webp") &&

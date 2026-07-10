@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
 import { TERMS_LABEL, TERMS_VERSION } from "@/config/legal";
 
 const createPendingRegistrationMock = vi.hoisted(() => vi.fn());
@@ -9,6 +10,7 @@ const rateLimitHeadersMock = vi.hoisted(() => vi.fn());
 const isTrustedOriginMock = vi.hoisted(() => vi.fn());
 const isBillingEnabledMock = vi.hoisted(() => vi.fn());
 const getBillingConfigurationErrorMessageMock = vi.hoisted(() => vi.fn());
+const attributeCircleCardReferralSignupMock = vi.hoisted(() => vi.fn());
 const MockRegistrationServiceError = vi.hoisted(
   () =>
     class MockRegistrationServiceError extends Error {
@@ -48,6 +50,10 @@ vi.mock("@/server/subscriptions", () => ({
   isBillingEnabled: isBillingEnabledMock
 }));
 
+vi.mock("@/server/circle-card", () => ({
+  attributeCircleCardReferralSignup: attributeCircleCardReferralSignupMock
+}));
+
 import { POST } from "@/app/api/register/route";
 
 describe("register route", () => {
@@ -61,6 +67,10 @@ describe("register route", () => {
     rateLimitHeadersMock.mockReturnValue({});
     isBillingEnabledMock.mockReturnValue(true);
     getBillingConfigurationErrorMessageMock.mockReturnValue(null);
+    attributeCircleCardReferralSignupMock.mockResolvedValue({
+      attributed: false,
+      reason: "missing-referrer"
+    });
   });
 
   it("returns a clear validation error when Terms are not accepted", async () => {
@@ -72,7 +82,7 @@ describe("register route", () => {
     );
 
     const response = await POST(
-      new Request("http://localhost/api/register", {
+      new NextRequest("http://localhost/api/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -112,7 +122,7 @@ describe("register route", () => {
     });
 
     const response = await POST(
-      new Request("http://localhost/api/register", {
+      new NextRequest("http://localhost/api/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -155,7 +165,7 @@ describe("register route", () => {
     isBillingEnabledMock.mockReturnValueOnce(false);
 
     const response = await POST(
-      new Request("http://localhost/api/register", {
+      new NextRequest("http://localhost/api/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -192,7 +202,7 @@ describe("register route", () => {
     });
 
     const response = await POST(
-      new Request("http://localhost/api/register", {
+      new NextRequest("http://localhost/api/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -223,5 +233,74 @@ describe("register route", () => {
     );
     expect(createPendingRegistrationMock).not.toHaveBeenCalled();
     expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
+  });
+
+  it("uses a source-card fallback when the Spin cookie write has not completed", async () => {
+    createCircleCardFreeRegistrationMock.mockResolvedValueOnce({
+      user: { id: "new_user", email: "new@example.com", name: "New User" },
+      redirectTo: "/card/origin-card?spin=return"
+    });
+    attributeCircleCardReferralSignupMock.mockResolvedValueOnce({
+      attributed: true,
+      referralId: "referral_1"
+    });
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "circle-card",
+          name: "New User",
+          email: "new@example.com",
+          password: "ValidPassword1!",
+          acceptedTerms: true,
+          minimumAgeConfirmed: true,
+          returnTo: "/card/origin-card?spin=return",
+          sourceCardSlug: "origin-card"
+        })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(attributeCircleCardReferralSignupMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referredUserId: "new_user",
+        referralCode: "origin-card",
+        referralSource: "spin_to_connect",
+        sourceType: "spin_to_connect",
+        sourceCardSlug: "origin-card",
+        sourceEvent: "SPIN_COMPLETED"
+      })
+    );
+  });
+
+  it("does not block registration when source-card attribution is invalid", async () => {
+    createCircleCardFreeRegistrationMock.mockResolvedValueOnce({
+      user: { id: "new_user", email: "new@example.com", name: "New User" },
+      redirectTo: "/dashboard/circle-card/onboarding"
+    });
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "circle-card",
+          name: "New User",
+          email: "new@example.com",
+          password: "ValidPassword1!",
+          acceptedTerms: true,
+          minimumAgeConfirmed: true,
+          sourceCardSlug: "not-a-real-card"
+        })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      redirectTo: "/dashboard/circle-card/onboarding"
+    });
   });
 });

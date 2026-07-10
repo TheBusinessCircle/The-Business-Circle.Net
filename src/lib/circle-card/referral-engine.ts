@@ -72,10 +72,9 @@ export function shouldStoreCircleCardReferralAttribution(input: {
     return true;
   }
 
-  return Boolean(
-    input.hasExplicitReferralCode ||
-      isExplicitCircleCardReferralSource(input.nextSourceType)
-  );
+  // First-touch attribution is deliberate: a later public-card visit must not
+  // replace a legitimate referrer already held by the browser.
+  return false;
 }
 
 export function buildCircleCardReferralPath(code: string) {
