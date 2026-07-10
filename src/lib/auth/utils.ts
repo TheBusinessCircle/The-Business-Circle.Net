@@ -3,11 +3,27 @@ export function normalizeEmail(email: string): string {
 }
 
 export function safeRedirectPath(candidate: string | null | undefined, fallback = "/dashboard"): string {
-  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) {
+  if (
+    !candidate ||
+    !candidate.startsWith("/") ||
+    candidate.startsWith("//") ||
+    candidate.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(candidate)
+  ) {
     return fallback;
   }
 
-  return candidate;
+  try {
+    const parsed = new URL(candidate, "http://internal.local");
+
+    if (parsed.origin !== "http://internal.local") {
+      return fallback;
+    }
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
 }
 
 export function withFromParam(pathname: string, from: string | null | undefined): string {

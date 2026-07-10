@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import {
   Activity,
@@ -3636,6 +3637,18 @@ function circleCardActivityIcon(type: string) {
 
 export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
   const session = await requireCircleCardUser();
+  const existingCard = await prisma.circleCard.findFirst({
+    where: {
+      userId: session.user.id,
+      archivedAt: null
+    },
+    select: { id: true }
+  });
+
+  if (!existingCard) {
+    redirect("/dashboard/circle-card/onboarding");
+  }
+
   const params = await searchParams;
   const cookieStore = await cookies();
   const activeSection = resolveCircleCardAppSection(firstValue(params.section));

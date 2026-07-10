@@ -141,7 +141,7 @@ describe("updateCircleStudioAction", () => {
     prismaMock.circleCard.update.mockResolvedValue({});
 
     await expect(updateCircleStudioAction(circleStudioForm("business-card-id"))).rejects.toThrow(
-      "REDIRECT:/dashboard/circle-card/studio?card=business-card-id&notice=studio-activated"
+      /REDIRECT:\/dashboard\/circle-card\/studio\?card=business-card-id&activatedAt=\d+&notice=studio-activated/
     );
 
     expect(prismaMock.circleCard.findFirst).toHaveBeenCalledWith({

@@ -200,6 +200,7 @@ async function loadReferralOwnerByCode(code: string): Promise<ReferralCodeOwner 
   const card = await prisma.circleCard.findUnique({
     where: { slug: normalizedCode },
     select: {
+      isPublished: true,
       user: {
         select: {
           id: true,
@@ -222,7 +223,7 @@ async function loadReferralOwnerByCode(code: string): Promise<ReferralCodeOwner 
     }
   });
 
-  return card?.user ?? null;
+  return card?.isPublished ? card.user : null;
 }
 
 export async function ensureCircleCardReferralIdentityForUser(userId: string) {

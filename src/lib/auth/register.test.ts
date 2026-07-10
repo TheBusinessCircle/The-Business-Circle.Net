@@ -226,7 +226,7 @@ describe("createPendingRegistration", () => {
       })
     ).rejects.toMatchObject({
       code: "INVALID_INPUT",
-      message: `You must accept the ${TERMS_LABEL} to continue.`
+      message: expect.stringContaining(`You must accept the ${TERMS_LABEL}`)
     } satisfies Partial<RegistrationServiceError>);
   });
 

@@ -11,9 +11,11 @@ import {
   CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG,
   CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT,
   CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE,
-  normalizeCircleCardReferralCode
+  normalizeCircleCardReferralCode,
+  normalizeCircleCardReferralSourceCardSlug
 } from "@/lib/circle-card/referral-engine";
 import { isCircleCardRegistrationSource } from "@/lib/circle-card/routes";
+import { safeRedirectPath } from "@/lib/auth/utils";
 import {
   clientIpFromHeaders,
   consumeRateLimit,
@@ -131,28 +133,53 @@ export async function POST(request: NextRequest) {
       const payloadReferralCode = normalizeCircleCardReferralCode(
         (payload as { referralCode?: string }).referralCode
       );
-      const referralCode =
-        payloadReferralCode || requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CODE);
-      const referralClickId = payloadReferralCode
-        ? ""
-        : requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID);
-      const referralSource =
-        (payloadReferralCode
-          ? "signup_referral_code"
-          : requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE)) ||
-        "circle_card_signup";
-      const sourceType = payloadReferralCode
-        ? "signup_referral_code"
-        : requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE);
-      const sourceCardSlug = requestCookieValue(
-        request,
-        CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG
+      const payloadSourceCardSlug = normalizeCircleCardReferralSourceCardSlug(
+        (payload as { sourceCardSlug?: string }).sourceCardSlug
       );
-      const sourceEvent = requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT);
+      const cookieReferralCode = requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CODE);
+      const referralCode =
+        cookieReferralCode || payloadReferralCode || payloadSourceCardSlug;
+      const referralClickId =
+        cookieReferralCode || !payloadReferralCode
+          ? requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID)
+          : "";
+      const payloadReturnTo = safeRedirectPath(
+        (payload as { returnTo?: string }).returnTo,
+        ""
+      );
+      const isSpinSignup =
+        payloadReturnTo.startsWith("/card/") &&
+        new URL(payloadReturnTo, "http://internal.local").searchParams.get("spin") === "return";
+      const referralSource =
+        (cookieReferralCode
+          ? requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE)
+          : payloadReferralCode
+            ? "signup_referral_code"
+            : payloadSourceCardSlug
+              ? isSpinSignup
+                ? "spin_to_connect"
+                : "public_card_ref"
+              : "") ||
+        "circle_card_signup";
+      const sourceType = cookieReferralCode
+        ? requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE)
+        : payloadReferralCode
+          ? "signup_referral_code"
+          : payloadSourceCardSlug
+            ? isSpinSignup
+              ? "spin_to_connect"
+              : "public_card_ref"
+            : "";
+      const sourceCardSlug =
+        requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG) ||
+        payloadSourceCardSlug;
+      const sourceEvent =
+        requestCookieValue(request, CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT) ||
+        (isSpinSignup ? "SPIN_COMPLETED" : payloadSourceCardSlug ? "PUBLIC_CARD_SIGNUP" : "");
 
       if (referralCode || referralClickId) {
         try {
-          await attributeCircleCardReferralSignup({
+          const attribution = await attributeCircleCardReferralSignup({
             referredUserId: result.user.id,
             referralCode,
             referralClickId,
@@ -161,13 +188,23 @@ export async function POST(request: NextRequest) {
             sourceCardSlug,
             sourceEvent
           });
-          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_CODE);
-          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID);
-          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE);
-          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE);
-          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG);
-          response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT);
+
+          if (
+            attribution.attributed ||
+            attribution.reason === "already-attributed" ||
+            attribution.reason === "self-referral"
+          ) {
+            response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_CODE);
+            response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_CLICK_ID);
+            response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE);
+            response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_TYPE);
+            response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_CARD_SLUG);
+            response.cookies.delete(CIRCLE_CARD_REFERRAL_COOKIE_SOURCE_EVENT);
+          }
         } catch (error) {
+          // Account creation remains available if optional attribution infrastructure
+          // is temporarily unavailable. The authenticated post-sign-in retry uses
+          // the retained cookies and submitted source-card context.
           logServerError("circle-card-referral-attribution-failed", error);
         }
       }
