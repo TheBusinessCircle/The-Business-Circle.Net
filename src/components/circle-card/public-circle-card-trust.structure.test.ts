@@ -65,7 +65,7 @@ describe("public Circle Card trust journey", () => {
     expect(trustPage).toContain("Trust Signals");
     expect(trustPage).toContain("Trust Timeline");
     expect(trustPage).not.toContain("Achievements");
-    expect(trustPage).toContain("circle-card-public-theme");
+    expect(trustPage).toContain("circleCardPublicThemeClasses.backgroundShell");
     expect(trustPage).toContain("resolveCircleCardLiveTheme");
     expect(trustPage).toContain("Circle Trust by Circle Card");
     expect(trustPage).toContain("do not reduce Circle Trust before a moderation decision");

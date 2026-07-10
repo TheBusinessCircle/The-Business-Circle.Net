@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
+  useCallback,
   useEffect,
   useRef,
   useState
@@ -21,6 +22,8 @@ import {
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CircleCardSpinActivationGuide } from "@/components/circle-card/circle-card-spin-activation-guide";
+import { CircleCardSpinDialogPortal } from "@/components/circle-card/circle-card-spin-dialog-portal";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { trackCircleCardEvent } from "@/lib/circle-card/analytics-client";
 import { shouldSuppressCircleCardPlatformOwnerSandboxEvent } from "@/lib/circle-card/platform-owner-sandbox";
 import { cn } from "@/lib/utils";
@@ -173,6 +176,7 @@ export function CircleCardSpinToConnect({
   children
 }: CircleCardSpinToConnectProps) {
   const formRef = useRef<HTMLFormElement>(null);
+  const spinButtonRef = useRef<HTMLButtonElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const submittingRef = useRef(false);
   const spinInFlightRef = useRef(false);
@@ -232,6 +236,22 @@ export function CircleCardSpinToConnect({
   const loginHref = `/login?from=${encodeURIComponent(returnTarget)}`;
   const shouldShowProfileNudge =
     !hasInteractedWithSpin && !isCharging && !isSpinning && !isDragging;
+  const closeAcquisitionDialog = useCallback(() => {
+    setShowAcquisitionModal(false);
+    trackAnalyticsEvent(ANALYTICS_EVENTS.spinToConnectDialogClosed, {
+      cardId,
+      cardSlug,
+      dialog: "acquisition"
+    });
+  }, [cardId, cardSlug]);
+  const closeCelebrationDialog = useCallback(() => {
+    setShowCelebrationModal(false);
+    trackAnalyticsEvent(ANALYTICS_EVENTS.spinToConnectDialogClosed, {
+      cardId,
+      cardSlug,
+      dialog: "celebration"
+    });
+  }, [cardId, cardSlug]);
 
   useEffect(() => {
     try {
@@ -303,6 +323,11 @@ export function CircleCardSpinToConnect({
       cardSlug,
       viewerState: localConnected ? "connected" : "open"
     });
+    trackAnalyticsEvent(ANALYTICS_EVENTS.spinToConnectCompleted, {
+      cardId,
+      cardSlug,
+      viewerState: localConnected ? "connected" : "open"
+    });
     captureSpinReferralAttribution({
       cardSlug,
       isDemo,
@@ -311,11 +336,6 @@ export function CircleCardSpinToConnect({
 
     if (viewerIsOwner) {
       setStatusMessage(SPIN_TO_CONNECT_LABEL);
-      return;
-    }
-
-    if (isDemo) {
-      setStatusMessage("Demo Circle Card");
       return;
     }
 
@@ -335,6 +355,11 @@ export function CircleCardSpinToConnect({
         reason: isAuthenticated ? "missing_circle_card" : "signed_out"
       });
       setStatusMessage("Connection Found");
+      trackAnalyticsEvent(ANALYTICS_EVENTS.spinToConnectDialogOpened, {
+        cardId,
+        cardSlug,
+        reason: isAuthenticated ? "missing_circle_card" : "signed_out"
+      });
       setShowAcquisitionModal(true);
       return;
     }
@@ -370,6 +395,11 @@ export function CircleCardSpinToConnect({
 
     trackSpinEvent(analyticsCardId, "SPIN_STARTED", {
       source: "spin_to_connect",
+      cardSlug,
+      pendingReturn
+    });
+    trackAnalyticsEvent(ANALYTICS_EVENTS.spinToConnectStarted, {
+      cardId,
       cardSlug,
       pendingReturn
     });
@@ -513,7 +543,8 @@ export function CircleCardSpinToConnect({
   };
 
   return (
-    <div
+    <>
+      <div
       className={cn(
         "relative inline-flex select-none items-center justify-center align-middle",
         pendingReturn && "motion-safe:animate-pulse",
@@ -548,6 +579,7 @@ export function CircleCardSpinToConnect({
       ) : null}
 
       <button
+        ref={spinButtonRef}
         type="button"
         aria-label={`Spin ${cardName}'s Circle Card`}
         aria-describedby={`${cardSlug}-spin-status`}
@@ -640,67 +672,87 @@ export function CircleCardSpinToConnect({
         {statusMessage}
       </span>
 
-      {showAcquisitionModal ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/78 p-4 backdrop-blur-md">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="spin-acquisition-title"
-            className="w-full max-w-md overflow-hidden rounded-[1.5rem] border border-gold/24 bg-[linear-gradient(145deg,rgba(9,20,45,0.98),rgba(4,10,24,0.98))] p-5 text-left shadow-[0_34px_100px_rgba(0,0,0,0.5)]"
-          >
+      </div>
+
+      <CircleCardSpinDialogPortal
+        open={showAcquisitionModal}
+        titleId="spin-acquisition-title"
+        descriptionId="spin-acquisition-description"
+        onClose={closeAcquisitionDialog}
+        returnFocusRef={spinButtonRef}
+      >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gold">
                   Spin To Connect
                 </p>
                 <h2 id="spin-acquisition-title" className="mt-2 font-display text-2xl text-foreground">
-                  Connection Found
+                  Your connection is ready
                 </h2>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAcquisitionModal(false)}
-                className="rounded-full border border-silver/14 bg-white/[0.04] p-2 text-silver transition hover:border-gold/30 hover:text-foreground"
+                onClick={closeAcquisitionDialog}
+                className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full border border-silver/20 bg-white/[0.05] text-silver transition hover:border-gold/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
                 aria-label="Close connection modal"
               >
                 <X size={16} />
               </button>
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-muted">
-              To join {cardName}&apos;s Circle you&apos;ll need your own Circle Card.
+            <p id="spin-acquisition-description" className="mt-4 text-sm leading-relaxed text-muted">
+              Create your free Circle Card to save this connection, build your own profile and
+              start growing your Circle with {cardName}.
             </p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Link href={registerHref} className={cn(buttonVariants(), "gap-2 rounded-2xl")}>
+            <div className="mt-5 grid gap-3">
+              <Link
+                href={registerHref}
+                onClick={() =>
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.spinToConnectSignupClicked, {
+                    cardId,
+                    cardSlug
+                  })
+                }
+                className={cn(buttonVariants(), "min-h-11 gap-2 rounded-2xl")}
+              >
                 <UserPlus size={16} />
-                Create Free Circle Card
+                Create My Free Circle Card
               </Link>
               <Link
                 href={loginHref}
-                className={cn(buttonVariants({ variant: "outline" }), "gap-2 rounded-2xl")}
+                onClick={() =>
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.spinToConnectLoginClicked, {
+                    cardId,
+                    cardSlug
+                  })
+                }
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "min-h-11 gap-2 rounded-2xl"
+                )}
               >
                 <LogIn size={16} />
-                Sign In
+                Already have an account? Sign in
               </Link>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </CircleCardSpinDialogPortal>
 
-      {showCelebrationModal ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/78 p-4 backdrop-blur-md">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="spin-celebration-title"
-            className="w-full max-w-md overflow-hidden rounded-[1.5rem] border border-gold/28 bg-[radial-gradient(circle_at_50%_0%,rgba(212,175,95,0.22),transparent_38%),linear-gradient(145deg,rgba(9,20,45,0.98),rgba(4,10,24,0.98))] p-5 text-center shadow-[0_34px_100px_rgba(0,0,0,0.5)]"
-          >
+      <CircleCardSpinDialogPortal
+        open={showCelebrationModal}
+        titleId="spin-celebration-title"
+        descriptionId="spin-celebration-description"
+        onClose={closeCelebrationDialog}
+        returnFocusRef={spinButtonRef}
+      >
+          <div className="text-center">
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full border border-gold/45 bg-gold/12 text-gold shadow-[0_0_46px_rgba(212,175,95,0.35)]">
               <Sparkles size={28} />
             </div>
             <h2 id="spin-celebration-title" className="mt-4 font-display text-3xl text-foreground">
               Welcome To Circle Card
             </h2>
-            <p className="mt-2 text-sm text-muted">Your Circle has begun.</p>
+            <p id="spin-celebration-description" className="mt-2 text-sm text-muted">
+              Your Circle has begun.
+            </p>
             <div className="mt-5 rounded-2xl border border-silver/14 bg-white/[0.045] p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.08em] text-silver">
                 Connection count
@@ -731,16 +783,15 @@ export function CircleCardSpinToConnect({
               <Button
                 type="button"
                 variant="outline"
-                className="gap-2 rounded-2xl"
-                onClick={() => setShowCelebrationModal(false)}
+                className="min-h-11 gap-2 rounded-2xl"
+                onClick={closeCelebrationDialog}
               >
                 Keep Exploring
                 <ArrowRight size={16} />
               </Button>
             </div>
           </div>
-        </div>
-      ) : null}
-    </div>
+      </CircleCardSpinDialogPortal>
+    </>
   );
 }
