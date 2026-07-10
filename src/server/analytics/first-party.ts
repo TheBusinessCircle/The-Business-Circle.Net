@@ -31,7 +31,13 @@ export const FIRST_PARTY_ANALYTICS_EVENTS = [
   "review_submitted",
   "google_review_clicked",
   "public_cta_join_clicked",
-  "audit_cta_clicked"
+  "audit_cta_clicked",
+  "spin_to_connect_started",
+  "spin_to_connect_completed",
+  "spin_to_connect_dialog_opened",
+  "spin_to_connect_signup_clicked",
+  "spin_to_connect_login_clicked",
+  "spin_to_connect_dialog_closed"
 ] as const;
 
 export type FirstPartyAnalyticsEvent = (typeof FIRST_PARTY_ANALYTICS_EVENTS)[number];
