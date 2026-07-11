@@ -913,57 +913,58 @@ export async function createCircleCardFreeRegistration(
         }
       });
 
-      if (shouldProvisionReturnCard) {
-        const slugBase = buildCircleCardSlugBase({
-          slug: "",
-          fullName: input.name,
-          businessName: businessName ?? ""
-        });
-        const slug = await resolveAvailableCircleCardSlug(tx, slugBase);
-        const card = await tx.circleCard.create({
-          data: {
-            slug,
-            userId: createdUser.id,
-            isPrimary: true,
-            isDefaultCard: true,
-            displayOrder: 0,
-            isPublished: false,
-            fullName: input.name.trim(),
-            businessName,
-            accountType: "INDIVIDUAL",
-            identityTags: [],
-            profileLayout: DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT,
-            themePrimaryColor: themeStorage.values.themePrimaryColor,
-            themeAccentColor: themeStorage.values.themeAccentColor,
-            themeButtonColor: themeStorage.values.themeButtonColor,
-            themeSurfaceStyle: themeStorage.values.themeSurfaceStyle,
-            themePreset: themeStorage.values.themePreset,
-            themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue,
-            socialLinks: {},
-            contentBlocks: createEmptyCircleCardContentBlocks() as Prisma.InputJsonValue
-          },
-          select: {
-            id: true
-          }
-        });
+      const slugBase = buildCircleCardSlugBase({
+        slug: "",
+        fullName: input.name,
+        businessName: businessName ?? ""
+      });
+      const slug = await resolveAvailableCircleCardSlug(tx, slugBase);
+      const card = await tx.circleCard.create({
+        data: {
+          slug,
+          userId: createdUser.id,
+          isPrimary: true,
+          isDefaultCard: true,
+          displayOrder: 0,
+          isPublished: false,
+          fullName: input.name.trim(),
+          businessName,
+          accountType: "INDIVIDUAL",
+          identityTags: [],
+          profileLayout: DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT,
+          themePrimaryColor: themeStorage.values.themePrimaryColor,
+          themeAccentColor: themeStorage.values.themeAccentColor,
+          themeButtonColor: themeStorage.values.themeButtonColor,
+          themeSurfaceStyle: themeStorage.values.themeSurfaceStyle,
+          themePreset: themeStorage.values.themePreset,
+          themeMetadata: buildCircleCardThemeMetadata(resolvedTheme) as Prisma.InputJsonValue,
+          socialLinks: {},
+          contentBlocks: createEmptyCircleCardContentBlocks() as Prisma.InputJsonValue
+        },
+        select: {
+          id: true
+        }
+      });
 
-        await tx.circleCardActivity.create({
-          data: {
-            userId: createdUser.id,
-            circleCardId: card.id,
-            type: "CARD_CREATED",
-            title: "Circle Card created",
-            message: `${input.name.trim()}'s Circle Card was created from Spin To Connect.`,
-            entityType: "CIRCLE_CARD",
-            entityId: card.id,
-            metadata: {
-              source: "spin_to_connect_registration",
-              sourceCardSlug,
-              returnTo
-            } as Prisma.InputJsonObject
-          }
-        });
-      }
+      await tx.circleCardActivity.create({
+        data: {
+          userId: createdUser.id,
+          circleCardId: card.id,
+          type: "CARD_CREATED",
+          title: "Circle Card created",
+          message: shouldProvisionReturnCard
+            ? `${input.name.trim()}'s Circle Card was created from Spin To Connect.`
+            : `${input.name.trim()}'s Circle Card was started.`,
+          entityType: "CIRCLE_CARD",
+          entityId: card.id,
+          metadata: {
+            source: shouldProvisionReturnCard
+              ? "spin_to_connect_registration"
+              : "circle_card_registration",
+            ...(shouldProvisionReturnCard ? { sourceCardSlug, returnTo } : {})
+          } as Prisma.InputJsonObject
+        }
+      });
 
       return createdUser;
     });
@@ -982,7 +983,7 @@ export async function createCircleCardFreeRegistration(
 
     return {
       user,
-      redirectTo: returnTo
+      redirectTo: "/dashboard/circle-card/onboarding"
     };
   } catch (error) {
     if (isUniqueEmailError(error)) {

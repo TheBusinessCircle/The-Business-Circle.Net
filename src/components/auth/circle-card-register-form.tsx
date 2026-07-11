@@ -43,6 +43,7 @@ export function CircleCardRegisterForm({
 }: CircleCardRegisterFormProps = {}) {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
+  const [accountCreated, setAccountCreated] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<CircleCardRegistrationFormInput>({
@@ -103,6 +104,7 @@ export function CircleCardRegisterForm({
         });
 
         if (signInResult?.error) {
+          setAccountCreated(true);
           setNotice("Account created. Use the Sign in link below to continue your Circle Card setup.");
           return;
         }
@@ -323,7 +325,11 @@ export function CircleCardRegisterForm({
             <span>
               Already have a BCN account?{" "}
               <Link
-                href={`/login?from=${encodeURIComponent(returnTo || "/dashboard/circle-card")}`}
+                href={`/login?from=${encodeURIComponent(
+                  accountCreated
+                    ? "/dashboard/circle-card/onboarding"
+                    : returnTo || "/dashboard/circle-card"
+                )}`}
                 className="text-primary hover:underline"
               >
                 Sign in

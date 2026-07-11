@@ -1,53 +1,54 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useFormStatus } from "react-dom";
-import type { CircleCardAccountType } from "@prisma/client";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import type { CircleCardType } from "@prisma/client";
 import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
-  BriefcaseBusiness,
   Building2,
   Camera,
-  ContactRound,
+  Check,
   Eye,
-  Globe2,
+  Link2,
+  QrCode,
   Rocket,
+  Share2,
   Sparkles,
-  Tags,
-  UsersRound,
   UserRound
 } from "lucide-react";
-import { completeCircleCardOnboardingAction } from "@/actions/circle-card.actions";
+import {
+  publishFirstCircleCardAction,
+  saveFirstCircleCardStepAction
+} from "@/actions/circle-card-onboarding.actions";
 import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
 import { CircleCardImageUploadField } from "@/components/circle-card/circle-card-image-upload-field";
+import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
+import { CIRCLE_CARD_TYPE_COPY, CIRCLE_CARD_TYPES } from "@/lib/circle-card/card-types";
 import {
-  CIRCLE_CARD_ACCOUNT_TYPE_COPY,
-  CIRCLE_CARD_ACCOUNT_TYPES,
-  CIRCLE_CARD_IDENTITY_TAGS,
-  getCircleCardIdentityTagLabel
-} from "@/lib/circle-card/identity";
-import { getCircleCardOnboardingPlanGuidance } from "@/lib/circle-card/plans";
-import {
-  CIRCLE_CARD_DISCOVER_HIDDEN_LABEL,
-  CIRCLE_CARD_DISCOVER_SETTING_COPY,
-  CIRCLE_CARD_DISCOVER_VISIBLE_LABEL
-} from "@/lib/circle-card/privacy";
+  calculateFirstCircleCardReadiness,
+  FIRST_CIRCLE_CARD_MISSING_COPY,
+  type FirstCircleCardReadiness
+} from "@/lib/circle-card/first-card-readiness";
 import { cn } from "@/lib/utils";
 
-type CircleCardOnboardingDefaults = {
-  accountType: CircleCardAccountType | "";
-  identityTags: string[];
+type Values = {
+  cardId: string;
+  slug: string;
+  cardType: CircleCardType;
   fullName: string;
   businessName: string;
   role: string;
   tagline: string;
+  email: string;
+  phone: string;
   websiteUrl: string;
   profileImageUrl: string;
   businessLogoUrl: string;
@@ -57,657 +58,398 @@ type CircleCardOnboardingDefaults = {
   businessLogoPositionX: number;
   businessLogoPositionY: number;
   businessLogoScale: number;
-  showInDiscover: boolean;
 };
 
-type CircleCardOnboardingFlowProps = {
-  defaults: CircleCardOnboardingDefaults;
+type Props = {
+  defaults: Values;
+  initialStep: number;
+  initialReadiness: FirstCircleCardReadiness;
+  entitlement: "free" | "pro";
+  source: {
+    source: "spin" | "circle-card";
+    sourceCardSlug: string | null;
+    returnTo: string | null;
+    ownerName: string | null;
+  };
 };
 
 const STEPS = [
-  {
-    id: "accountType",
-    title: "What best describes you?",
-    label: "Account type",
-    description: "Choose the foundation that fits how you will use Circle Card.",
-    icon: UserRound,
-    optional: false,
-    placeholder: ""
-  },
-  {
-    id: "identityTags",
-    title: "Identity tags",
-    label: "Identity tags",
-    description: "Pick a few tags that help people understand what you do.",
-    icon: Tags,
-    optional: true,
-    placeholder: ""
-  },
-  {
-    id: "profileImageUrl",
-    title: "Profile photo",
-    label: "Profile photo",
-    description: "Upload a portrait from your device, or skip and add a photo later.",
-    icon: Camera,
-    optional: true,
-    placeholder: "https://..."
-  },
-  {
-    id: "businessLogoUrl",
-    title: "Business logo",
-    label: "Business logo",
-    description: "Add a business mark for the small identity badge, or skip this step.",
-    icon: Building2,
-    optional: true,
-    placeholder: "https://..."
-  },
-  {
-    id: "fullName",
-    title: "Full name",
-    label: "Full name",
-    description: "This is the main name people will see on your public Circle Card.",
-    icon: UserRound,
-    optional: false,
-    placeholder: "Your name"
-  },
-  {
-    id: "businessName",
-    title: "Business name",
-    label: "Business name",
-    description: "Add the business or project you want associated with this card.",
-    icon: BriefcaseBusiness,
-    optional: true,
-    placeholder: "Your business"
-  },
-  {
-    id: "role",
-    title: "Role",
-    label: "Role",
-    description: "Give people a quick sense of what you do.",
-    icon: ContactRound,
-    optional: true,
-    placeholder: "Founder, operator, advisor"
-  },
-  {
-    id: "tagline",
-    title: "Tagline",
-    label: "Tagline",
-    description: "A short line that makes the card feel useful and memorable.",
-    icon: Sparkles,
-    optional: true,
-    placeholder: "What people should remember"
-  },
-  {
-    id: "websiteUrl",
-    title: "Website",
-    label: "Website",
-    description: "Add the best next step for people who want to learn more.",
-    icon: Globe2,
-    optional: true,
-    placeholder: "https://example.com"
-  },
-  {
-    id: "discover",
-    title: "Want to be found by other Circle Card users?",
-    label: "Discover visibility",
-    description: CIRCLE_CARD_DISCOVER_SETTING_COPY,
-    icon: Eye,
-    optional: false,
-    placeholder: ""
-  },
-  {
-    id: "publish",
-    title: "Publish card",
-    label: "Publish",
-    description: "Create your first Circle Card and make it available at its public link.",
-    icon: BadgeCheck,
-    optional: false,
-    placeholder: ""
-  }
+  { title: "Who are you?", short: "Who you are", icon: UserRound },
+  { title: "What do you do?", short: "What you do", icon: Sparkles },
+  { title: "How should people connect?", short: "How to connect", icon: Link2 }
 ] as const;
 
-type FieldKey = keyof CircleCardOnboardingDefaults;
-type TextFieldKey = Exclude<
-  FieldKey,
-  | "accountType"
-  | "identityTags"
-  | "profileImagePositionX"
-  | "profileImagePositionY"
-  | "profileImageScale"
-  | "businessLogoPositionX"
-  | "businessLogoPositionY"
-  | "businessLogoScale"
-  | "showInDiscover"
->;
-
-const CIRCLE_CARD_LOGO_SRC = "/branding/circle-card-logo.png";
-const ACCOUNT_TYPE_ICONS = {
-  INDIVIDUAL: UserRound,
-  FOUNDER: Rocket,
-  TEAM: UsersRound
-} as const;
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <Button type="submit" disabled={pending} className="w-full gap-2" size="lg">
-      {pending ? "Publishing..." : "Publish Circle Card"}
-      {pending ? null : <BadgeCheck size={16} />}
-    </Button>
-  );
+function purposePrompt(cardType: CircleCardType) {
+  if (cardType === "CREATOR") return "What do you create?";
+  if (cardType === "BUSINESS") return "What does your business help people with?";
+  return "What do you want people to know you for?";
 }
 
-export function CircleCardOnboardingFlow({ defaults }: CircleCardOnboardingFlowProps) {
-  const [stepIndex, setStepIndex] = useState(0);
-  const [values, setValues] = useState<CircleCardOnboardingDefaults>(defaults);
-  const [stepError, setStepError] = useState<string | null>(null);
-  const currentStep = STEPS[stepIndex];
-  const StepIcon = currentStep.icon;
-  const progress = Math.round(((stepIndex + 1) / STEPS.length) * 100);
-  const currentValue =
-    currentStep.id !== "publish" &&
-    currentStep.id !== "accountType" &&
-    currentStep.id !== "identityTags" &&
-    currentStep.id !== "discover"
-      ? String(values[currentStep.id as TextFieldKey] ?? "")
-      : "";
-
-  const previewName = values.fullName.trim() || "Your name";
-  const previewMeta = useMemo(
-    () => [values.role, values.businessName].filter(Boolean).join(" at "),
-    [values.businessName, values.role]
+export function CircleCardOnboardingFlow({
+  defaults,
+  initialStep,
+  initialReadiness,
+  entitlement,
+  source
+}: Props) {
+  const [values, setValues] = useState(defaults);
+  const [step, setStep] = useState(Math.max(0, Math.min(2, initialStep)));
+  const [welcome, setWelcome] = useState(initialReadiness.completedEssentials === 0);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  const [published, setPublished] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const previewRef = useRef<HTMLElement>(null);
+  const completedRef = useRef(false);
+  const readiness = useMemo(
+    () =>
+      calculateFirstCircleCardReadiness({
+        ...values,
+        socialLinks: {},
+        activeCustomLinkCount: 0,
+        isPublished: published
+      }),
+    [published, values]
   );
-  const accountTypeLabel = values.accountType
-    ? CIRCLE_CARD_ACCOUNT_TYPE_COPY[values.accountType].shortLabel
-    : null;
-  const selectedPlanGuidance = getCircleCardOnboardingPlanGuidance(values.accountType);
-  const identityTagLabels = useMemo(
-    () => values.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2),
-    [values.identityTags]
+  const analyticsProperties = useMemo(
+    () => ({
+      card_type: values.cardType,
+      source: source.source,
+      source_card_slug: source.sourceCardSlug,
+      completion_percentage: readiness.completionPercentage,
+      current_onboarding_step: step + 1,
+      entitlement
+    }),
+    [entitlement, readiness.completionPercentage, source.source, source.sourceCardSlug, step, values.cardType]
   );
 
-  function updateValue(key: TextFieldKey, value: string) {
-    setValues((previous) => ({
-      ...previous,
-      [key]: value
-    }));
+  useEffect(() => {
+    trackAnalyticsEvent(ANALYTICS_EVENTS.circleCardOnboardingViewed, analyticsProperties);
+    return () => {
+      if (!completedRef.current) {
+        trackAnalyticsEvent(ANALYTICS_EVENTS.circleCardOnboardingAbandoned, analyticsProperties);
+      }
+    };
+    // This event intentionally represents the initial server-backed state only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    if (key === "fullName" && value.trim().length >= 2) {
-      setStepError(null);
+  useEffect(() => {
+    if (!welcome) headingRef.current?.focus();
+  }, [step, welcome]);
+
+  function update<K extends keyof Values>(key: K, value: Values[K]) {
+    setValues((current) => ({ ...current, [key]: value }));
+    if (saveStatus !== "idle") setSaveStatus("idle");
+    setMessage(null);
+  }
+
+  function validateStep() {
+    if (step === 0) {
+      if (values.fullName.trim().length < 2) return "Add the name people should see on your card.";
+      if (!values.profileImageUrl && !values.businessLogoUrl) return "Add a profile photo or business logo.";
     }
+    if (step === 1) {
+      if (!values.role.trim() && !values.businessName.trim()) return "Add your role, title or business name.";
+      if (!values.tagline.trim()) return "Add a short description of what you do.";
+    }
+    if (step === 2 && !values.email.trim() && !values.phone.trim() && !values.websiteUrl.trim()) {
+      return "Add at least one way for people to connect.";
+    }
+    return null;
   }
 
-  function updateAccountType(accountType: CircleCardAccountType) {
-    setValues((previous) => ({
-      ...previous,
-      accountType
-    }));
-    setStepError(null);
+  function draftInput() {
+    const { slug: _slug, ...input } = values;
+    void _slug;
+    return input;
   }
 
-  function toggleIdentityTag(tag: string) {
-    setValues((previous) => {
-      const selectedTags = new Set(previous.identityTags);
+  function saveAndContinue() {
+    const validation = validateStep();
+    if (validation) {
+      setMessage(validation);
+      setSaveStatus("error");
+      return;
+    }
 
-      if (selectedTags.has(tag)) {
-        selectedTags.delete(tag);
-      } else if (selectedTags.size < 8) {
-        selectedTags.add(tag);
+    setSaveStatus("saving");
+    setMessage(null);
+    startTransition(async () => {
+      const result = await saveFirstCircleCardStepAction(draftInput());
+      if (!result.ok) {
+        setSaveStatus("error");
+        setMessage(result.message);
+        return;
       }
 
-      return {
-        ...previous,
-        identityTags: Array.from(selectedTags)
-      };
+      setValues((current) => ({ ...current, cardId: result.cardId, slug: result.slug }));
+      setSaveStatus("saved");
+      const event =
+        step === 0
+          ? ANALYTICS_EVENTS.circleCardIdentityCompleted
+          : step === 1
+            ? ANALYTICS_EVENTS.circleCardPurposeCompleted
+            : ANALYTICS_EVENTS.circleCardConnectionMethodCompleted;
+      trackAnalyticsEvent(event, {
+        ...analyticsProperties,
+        completion_percentage: result.completionPercentage
+      });
+      if (result.publishReady) {
+        trackAnalyticsEvent(ANALYTICS_EVENTS.circleCardPublishReady, {
+          ...analyticsProperties,
+          completion_percentage: 100
+        });
+      }
+      if (step < 2) setStep((current) => current + 1);
     });
   }
 
-  function updateDiscoverVisibility(showInDiscover: boolean) {
-    setValues((previous) => ({
-      ...previous,
-      showInDiscover
-    }));
-  }
-
-  function updateImageAdjustments(
-    prefix: "profileImage" | "businessLogo",
-    adjustment: {
-      positionX: number;
-      positionY: number;
-      scale: number;
-    }
-  ) {
-    if (prefix === "profileImage") {
-      setValues((previous) => ({
-        ...previous,
-        profileImagePositionX: adjustment.positionX,
-        profileImagePositionY: adjustment.positionY,
-        profileImageScale: adjustment.scale
-      }));
+  function publishCard() {
+    const validation = validateStep();
+    if (validation || !readiness.publishReady) {
+      setMessage(validation ?? "Complete the three essentials before publishing.");
+      setSaveStatus("error");
       return;
     }
 
-    setValues((previous) => ({
-      ...previous,
-      businessLogoPositionX: adjustment.positionX,
-      businessLogoPositionY: adjustment.positionY,
-      businessLogoScale: adjustment.scale
-    }));
+    setSaveStatus("saving");
+    startTransition(async () => {
+      const result = await publishFirstCircleCardAction(draftInput());
+      if (!result.ok) {
+        setSaveStatus("error");
+        setMessage(result.message);
+        return;
+      }
+      setValues((current) => ({ ...current, cardId: result.cardId, slug: result.slug }));
+      setPublished(true);
+      setSaveStatus("saved");
+      completedRef.current = true;
+      trackAnalyticsEvent(ANALYTICS_EVENTS.circleCardFirstPublished, {
+        ...analyticsProperties,
+        completion_percentage: 100
+      });
+    });
   }
 
-  function canLeaveCurrentStep() {
-    if (currentStep.id === "accountType" && !values.accountType) {
-      setStepError("Choose the option that best describes you.");
-      return false;
-    }
-
-    if (currentStep.id !== "fullName") {
-      return true;
-    }
-
-    if (values.fullName.trim().length < 2) {
-      setStepError("Add your full name before continuing.");
-      return false;
-    }
-
-    return true;
+  function openPreview() {
+    setPreviewOpen(true);
+    trackAnalyticsEvent(ANALYTICS_EVENTS.circleCardPreviewOpened, analyticsProperties);
+    requestAnimationFrame(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
-  function goNext() {
-    if (!canLeaveCurrentStep()) {
-      return;
-    }
-
-    setStepIndex((previous) => Math.min(previous + 1, STEPS.length - 1));
+  if (welcome) {
+    return (
+      <main className="mx-auto flex min-h-[100dvh] w-full max-w-3xl items-center overflow-x-hidden px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6">
+        <Card className="w-full overflow-hidden border-gold/25 bg-card/90 shadow-panel-soft">
+          <CardContent className="p-5 sm:p-9">
+            <div className="flex items-center gap-3">
+              <CircleCardLogoMark className="h-11 w-11" alt="Circle Card" />
+              <Badge variant="outline" className="border-gold/30 text-gold">Circle Card {entitlement === "pro" ? "Pro" : "Free"}</Badge>
+            </div>
+            <h1 className="mt-7 font-display text-4xl leading-tight text-foreground sm:text-5xl">Let’s build your Circle Card</h1>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
+              Your account is ready. Add a few details so people know who you are, what you do and how to connect with you. You’ll see your Circle Card come to life as you build it.
+            </p>
+            {source.ownerName ? (
+              <p className="mt-4 rounded-2xl border border-gold/20 bg-gold/10 p-4 text-sm text-foreground">
+                You joined through {source.ownerName}. Build your card now so you can start connecting too.
+              </p>
+            ) : null}
+            <ol className="mt-7 grid gap-3 sm:grid-cols-3">
+              {STEPS.map((item, index) => (
+                <li key={item.short} className="flex min-h-20 items-center gap-3 rounded-2xl border border-silver/14 bg-background/25 p-4 text-sm text-foreground">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gold/12 font-semibold text-gold">{index + 1}</span>
+                  {index === 0 ? "Add who you are" : index === 1 ? "Add what you do" : "Add how people can connect"}
+                </li>
+              ))}
+            </ol>
+            <div className="mt-7 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <Button
+                size="lg"
+                className="min-h-12 gap-2"
+                onClick={() => {
+                  setWelcome(false);
+                  trackAnalyticsEvent(ANALYTICS_EVENTS.circleCardFirstBuildStarted, analyticsProperties);
+                }}
+              >
+                Build My Circle Card <ArrowRight size={17} />
+              </Button>
+              <Link href="/dashboard" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "min-h-12")}>Continue Later</Link>
+            </div>
+            <p className="mt-4 text-center text-xs text-muted">It only takes a couple of minutes, and you can edit everything later.</p>
+          </CardContent>
+        </Card>
+      </main>
+    );
   }
 
-  function goBack() {
-    setStepError(null);
-    setStepIndex((previous) => Math.max(previous - 1, 0));
+  if (published) {
+    return (
+      <main className="mx-auto flex min-h-[100dvh] w-full max-w-3xl items-center px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
+        <Card className="w-full border-gold/30 bg-card/90">
+          <CardContent className="p-6 text-center sm:p-10">
+            <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><Check size={30} /></span>
+            <h1 className="mt-6 font-display text-4xl text-foreground">Your Circle Card is live</h1>
+            <p className="mx-auto mt-3 max-w-xl text-muted">Your public link and QR code are ready. Share your card and start making useful connections.</p>
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+              <Link href={`/card/${values.slug}`} className={cn(buttonVariants({ size: "lg" }), "min-h-12 gap-2")}><Eye size={17} /> View My Circle Card</Link>
+              <Link href={`/dashboard/circle-card?section=share&cardId=${values.cardId}#share-assets`} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "min-h-12 gap-2")}><Share2 size={17} /> Share My Circle Card</Link>
+              <Link href={`/dashboard/circle-card?section=share&cardId=${values.cardId}#qr-code`} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "min-h-12 gap-2")}><QrCode size={17} /> Show My QR Code</Link>
+              <Link href={`/dashboard/circle-card?section=links&cardId=${values.cardId}`} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "min-h-12 gap-2")}><Link2 size={17} /> Add Another Link</Link>
+            </div>
+            {source.returnTo && source.ownerName ? (
+              <Link
+                href={source.returnTo}
+                onClick={() => trackAnalyticsEvent(ANALYTICS_EVENTS.circleCardSourceCardReturned, analyticsProperties)}
+                className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "mt-5 min-h-12")}
+              >
+                Return to {source.ownerName}’s Circle Card
+              </Link>
+            ) : null}
+          </CardContent>
+        </Card>
+      </main>
+    );
   }
 
-  function skipStep() {
-    if (currentStep.id === "identityTags") {
-      setValues((previous) => ({
-        ...previous,
-        identityTags: []
-      }));
-      goNext();
-      return;
-    }
-
-    if (currentStep.id !== "publish" && currentStep.optional) {
-      updateValue(currentStep.id as TextFieldKey, "");
-    }
-
-    goNext();
-  }
+  const StepIcon = STEPS[step].icon;
+  const previewName = values.fullName.trim() || "Your name";
+  const previewPurpose = values.tagline.trim() || "Your short description will appear here.";
 
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <Card className="border-silver/16 bg-card/72">
-        <CardHeader className="border-b border-silver/12">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Badge variant="outline" className="border-gold/25 text-gold">
-              Step {stepIndex + 1} of {STEPS.length}
-            </Badge>
-            <span className="text-xs text-muted">{progress}% complete</span>
-          </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-background/50">
+    <main className="mx-auto min-h-[100dvh] w-full max-w-6xl overflow-x-hidden px-3 py-4 pb-[max(6rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:pb-8">
+      <header className="sticky top-0 z-20 -mx-3 border-b border-silver/12 bg-background/90 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center gap-3">
+          <CircleCardLogoMark className="h-9 w-9 shrink-0" alt="Circle Card" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="truncate font-medium text-foreground">Build My Circle Card</span>
+              <span className="shrink-0 text-muted">{readiness.completedEssentials} of 3 essentials added</span>
+            </div>
             <div
-              className="h-full rounded-full bg-gold transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-6 p-5 sm:p-7">
-          <div className="flex items-start gap-4">
-            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gold/25 bg-gold/10 text-gold">
-              <StepIcon size={20} />
-            </span>
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.08em] text-silver">
-                Circle Card setup
-              </p>
-              <CardTitle className="mt-2 text-3xl">{currentStep.title}</CardTitle>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                {currentStep.description}
-              </p>
+              className="mt-2 h-2 overflow-hidden rounded-full bg-silver/12"
+              role="progressbar"
+              aria-label="First Circle Card readiness"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={readiness.completionPercentage}
+              aria-valuetext={`${readiness.completedEssentials} of 3 essentials added`}
+            >
+              <div className="h-full rounded-full bg-gold motion-safe:transition-[width]" style={{ width: `${readiness.completionPercentage}%` }} />
             </div>
           </div>
+        </div>
+      </header>
 
-          <form action={completeCircleCardOnboardingAction} className="space-y-5">
-            {Object.entries(values).flatMap(([key, value]) =>
-              Array.isArray(value)
-                ? value.map((item) => (
-                    <input key={`${key}-${item}`} type="hidden" name={key} value={String(item)} />
-                  ))
-                : [<input key={key} type="hidden" name={key} value={String(value)} />]
-            )}
-            <input type="hidden" name="isPublished" value="true" />
-
-            {currentStep.id === "publish" ? (
-              <div className="rounded-2xl border border-gold/24 bg-gold/10 p-5">
-                <p className="text-sm font-medium text-foreground">Ready to publish</p>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
-                  Your card will be live straight away. You can edit every field from Your Cards
-                  after setup.
-                </p>
+      <div className="mt-5 grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <Card className="min-w-0 border-silver/16 bg-card/82">
+          <CardContent className="p-4 sm:p-7">
+            <div className="flex items-start gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold/10 text-gold"><StepIcon size={20} /></span>
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-[0.08em] text-silver">Step {step + 1} of 3</p>
+                <h1 ref={headingRef} tabIndex={-1} className="mt-1 font-display text-3xl text-foreground outline-none">{STEPS[step].title}</h1>
               </div>
-            ) : currentStep.id === "accountType" ? (
-              <div className="space-y-4">
-                <div className="grid gap-3 md:grid-cols-3">
-                  {CIRCLE_CARD_ACCOUNT_TYPES.map((type) => {
-                    const copy = CIRCLE_CARD_ACCOUNT_TYPE_COPY[type];
-                    const planGuidance = getCircleCardOnboardingPlanGuidance(type);
-                    const Icon = ACCOUNT_TYPE_ICONS[type];
-                    const selected = values.accountType === type;
+            </div>
 
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => updateAccountType(type)}
-                        className={cn(
-                          "flex min-h-44 flex-col gap-3 rounded-2xl border bg-background/22 p-4 text-left text-sm transition",
-                          selected
-                            ? "border-gold/45 bg-gold/10 text-foreground shadow-gold-soft"
-                            : "border-silver/14 text-muted hover:border-silver/28 hover:text-foreground"
-                        )}
-                      >
-                        <span className="inline-flex items-center gap-2 font-medium text-foreground">
-                          <Icon size={17} className="text-gold" />
-                          {copy.label}
-                        </span>
-                        {planGuidance ? (
-                          <span className="w-fit rounded-full border border-gold/24 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold">
-                            Suggested: {planGuidance.suggestedLabel}
-                          </span>
-                        ) : null}
-                        <span className="text-xs leading-relaxed text-muted">{copy.description}</span>
-                        <span className="mt-auto flex flex-wrap gap-1.5">
-                          {copy.points.slice(0, 3).map((point) => (
-                            <span
-                              key={point}
-                              className="rounded-full border border-silver/14 bg-card/50 px-2 py-1 text-[11px] text-silver"
-                            >
-                              {point}
-                            </span>
-                          ))}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div
-                  className={cn(
-                    "rounded-2xl border border-silver/14 bg-background/18 p-4 text-sm text-muted",
-                    selectedPlanGuidance?.warning ? "border-amber-500/30 bg-amber-500/10" : ""
-                  )}
-                >
-                  <p className="font-medium text-foreground">
-                    {selectedPlanGuidance
-                      ? `Recommended path: ${selectedPlanGuidance.suggestedLabel}`
-                      : "Choose the path that fits how you will share your card."}
-                  </p>
-                  <p className="mt-1 leading-relaxed">
-                    {selectedPlanGuidance
-                      ? selectedPlanGuidance.description
-                      : "Individual cards can stay on Free, while business growth and team rollout will have clearer upgrade paths."}
-                  </p>
-                  <p className="mt-2 leading-relaxed">
-                    {selectedPlanGuidance?.guidance ??
-                      "Start free. Upgrade when your card becomes part of your business growth system."}
-                  </p>
-                  {selectedPlanGuidance?.warning ? (
-                    <p className="mt-2 font-medium text-amber-200">{selectedPlanGuidance.warning}</p>
-                  ) : null}
-                </div>
-                {stepError ? <p className="text-xs text-destructive">{stepError}</p> : null}
-              </div>
-            ) : currentStep.id === "identityTags" ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  {CIRCLE_CARD_IDENTITY_TAGS.map((tag) => {
-                    const selected = values.identityTags.includes(tag.value);
-
-                    return (
-                      <button
-                        key={tag.value}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => toggleIdentityTag(tag.value)}
-                        className={cn(
-                          "inline-flex min-h-10 items-center rounded-full border px-3 text-xs font-medium transition",
-                          selected
-                            ? "border-gold/40 bg-gold/10 text-gold"
-                            : "border-silver/14 bg-background/22 text-silver hover:border-silver/28 hover:text-foreground"
-                        )}
-                      >
-                        {tag.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-muted">Optional. Choose up to eight.</p>
-              </div>
-            ) : currentStep.id === "discover" ? (
-              <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Discover visibility">
-                {[
-                  {
-                    value: false,
-                    title: "No, keep me hidden",
-                    label: CIRCLE_CARD_DISCOVER_HIDDEN_LABEL,
-                    description:
-                      "Your public card link still works when you share it directly."
-                  },
-                  {
-                    value: true,
-                    title: "Yes, show my card",
-                    label: CIRCLE_CARD_DISCOVER_VISIBLE_LABEL,
-                    description:
-                      "Other Circle Card users can find your public card in Discover."
-                  }
-                ].map((option) => {
-                  const selected = values.showInDiscover === option.value;
-
-                  return (
-                    <button
-                      key={option.label}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => updateDiscoverVisibility(option.value)}
-                      className={cn(
-                        "min-h-36 rounded-2xl border bg-background/22 p-4 text-left text-sm transition",
-                        selected
-                          ? "border-gold/45 bg-gold/10 text-foreground shadow-gold-soft"
-                          : "border-silver/14 text-muted hover:border-silver/28 hover:text-foreground"
-                      )}
-                    >
-                      <span className="text-base font-semibold text-foreground">{option.title}</span>
-                      <span className="mt-2 block text-xs font-medium text-gold">{option.label}</span>
-                      <span className="mt-3 block text-xs leading-relaxed text-muted">
-                        {option.description}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : currentStep.id === "profileImageUrl" || currentStep.id === "businessLogoUrl" ? (
-              <CircleCardImageUploadField
-                id={`onboarding-${currentStep.id}`}
-                label={currentStep.label}
-                uploadKind={currentStep.id === "profileImageUrl" ? "profile-photo" : "business-logo"}
-                value={currentValue}
-                onValueChange={(nextValue) => updateValue(currentStep.id as TextFieldKey, nextValue)}
-                positionX={
-                  currentStep.id === "profileImageUrl"
-                    ? values.profileImagePositionX
-                    : values.businessLogoPositionX
-                }
-                positionY={
-                  currentStep.id === "profileImageUrl"
-                    ? values.profileImagePositionY
-                    : values.businessLogoPositionY
-                }
-                scale={
-                  currentStep.id === "profileImageUrl"
-                    ? values.profileImageScale
-                    : values.businessLogoScale
-                }
-                onAdjustmentChange={(nextValues) =>
-                  updateImageAdjustments(
-                    currentStep.id === "profileImageUrl" ? "profileImage" : "businessLogo",
-                    nextValues
-                  )
-                }
-                previewAlt="Circle Card onboarding image preview"
-                helperText="Optional. You can skip this for now."
-                previewClassName="rounded-full"
-              />
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor={`onboarding-${currentStep.id}`}>{currentStep.label}</Label>
-                <Input
-                  id={`onboarding-${currentStep.id}`}
-                  value={currentValue}
-                  placeholder={currentStep.placeholder}
-                  type={currentStep.id === "websiteUrl" ? "url" : "text"}
-                  autoComplete={currentStep.id === "fullName" ? "name" : undefined}
-                  onChange={(event) => updateValue(currentStep.id as TextFieldKey, event.target.value)}
-                />
-                {currentStep.id === "fullName" && stepError ? (
-                  <p className="text-xs text-destructive">{stepError}</p>
-                ) : currentStep.optional ? (
-                  <p className="text-xs text-muted">Optional. You can skip this for now.</p>
-                ) : null}
-              </div>
-            )}
-
-            <div className="sticky bottom-0 -mx-5 border-t border-silver/12 bg-card/95 px-5 py-4 backdrop-blur sm:-mx-7 sm:px-7 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0">
-              {currentStep.id === "publish" ? (
-                <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
-                  <Button type="button" variant="outline" onClick={goBack} className="gap-2">
-                    <ArrowLeft size={16} />
-                    Back
-                  </Button>
-                  <SubmitButton />
-                </div>
+            <div className="mt-7 space-y-5">
+              {step === 0 ? (
+                <>
+                  <fieldset>
+                    <legend className="text-sm font-medium text-foreground">Choose your card type</legend>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      {CIRCLE_CARD_TYPES.map((type) => {
+                        const selected = values.cardType === type;
+                        const Icon = type === "BUSINESS" ? Building2 : type === "CREATOR" ? Rocket : UserRound;
+                        return (
+                          <button key={type} type="button" aria-pressed={selected} onClick={() => update("cardType", type)} className={cn("min-h-24 rounded-2xl border p-4 text-left", selected ? "border-gold/45 bg-gold/10" : "border-silver/14 bg-background/25")}>
+                            <Icon size={18} className="text-gold" />
+                            <span className="mt-2 block text-sm font-medium text-foreground">{CIRCLE_CARD_TYPE_COPY[type].label}</span>
+                            <span className="mt-1 block text-xs text-muted">{CIRCLE_CARD_TYPE_COPY[type].description}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                  <div className="space-y-2">
+                    <Label htmlFor="first-card-name">Display name</Label>
+                    <Input id="first-card-name" value={values.fullName} onChange={(event) => update("fullName", event.target.value)} autoComplete="name" />
+                  </div>
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <CircleCardImageUploadField id="first-card-photo" label="Profile photo" uploadKind="profile-photo" value={values.profileImageUrl} onValueChange={(value) => update("profileImageUrl", value)} positionX={values.profileImagePositionX} positionY={values.profileImagePositionY} scale={values.profileImageScale} onAdjustmentChange={(next) => setValues((current) => ({ ...current, profileImagePositionX: next.positionX, profileImagePositionY: next.positionY, profileImageScale: next.scale }))} previewAlt="Profile photo preview" helperText="Use a clear photo of you." previewClassName="rounded-full" />
+                    <CircleCardImageUploadField id="first-card-logo" label="Business logo" uploadKind="business-logo" value={values.businessLogoUrl} onValueChange={(value) => update("businessLogoUrl", value)} positionX={values.businessLogoPositionX} positionY={values.businessLogoPositionY} scale={values.businessLogoScale} onAdjustmentChange={(next) => setValues((current) => ({ ...current, businessLogoPositionX: next.positionX, businessLogoPositionY: next.positionY, businessLogoScale: next.scale }))} previewAlt="Business logo preview" helperText="A logo can be used instead of a profile photo." previewClassName="rounded-full" />
+                  </div>
+                </>
+              ) : step === 1 ? (
+                <>
+                  <p className="rounded-2xl border border-gold/18 bg-gold/8 p-4 text-sm text-muted">{purposePrompt(values.cardType)}</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2"><Label htmlFor="first-card-role">Role or headline</Label><Input id="first-card-role" value={values.role} onChange={(event) => update("role", event.target.value)} placeholder="Founder, designer, creator" autoComplete="organization-title" /></div>
+                    <div className="space-y-2"><Label htmlFor="first-card-business">{values.cardType === "CREATOR" ? "Creator or brand name" : "Business or organisation"}</Label><Input id="first-card-business" value={values.businessName} onChange={(event) => update("businessName", event.target.value)} autoComplete="organization" /></div>
+                  </div>
+                  <div className="space-y-2"><Label htmlFor="first-card-tagline">Short description</Label><Input id="first-card-tagline" value={values.tagline} onChange={(event) => update("tagline", event.target.value)} maxLength={180} placeholder="A short line about what you do and who you help" /><p className="text-xs text-muted">Keep it useful and brief. You can add a full biography later.</p></div>
+                </>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={goBack}
-                    disabled={stepIndex === 0}
-                    className="gap-2"
-                  >
-                    <ArrowLeft size={16} />
-                    Back
-                  </Button>
-                  {currentStep.optional ? (
-                    <Button type="button" variant="ghost" onClick={skipStep}>
-                      Skip
-                    </Button>
+                <>
+                  <p className="text-sm leading-relaxed text-muted">Add one connection method now. You can add social profiles, messaging routes and Quick Connect options in the full editor later.</p>
+                  <div className="space-y-2"><Label htmlFor="first-card-email">Email</Label><Input id="first-card-email" type="email" value={values.email} onChange={(event) => update("email", event.target.value)} autoComplete="email" inputMode="email" /></div>
+                  <div className="space-y-2"><Label htmlFor="first-card-phone">Phone</Label><Input id="first-card-phone" type="tel" value={values.phone} onChange={(event) => update("phone", event.target.value)} autoComplete="tel" inputMode="tel" /></div>
+                  <div className="space-y-2"><Label htmlFor="first-card-website">Website</Label><Input id="first-card-website" type="url" value={values.websiteUrl} onChange={(event) => update("websiteUrl", event.target.value)} placeholder="https://example.com" autoComplete="url" inputMode="url" /></div>
+                  {readiness.publishReady ? (
+                    <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-5"><p className="font-medium text-foreground">Your Circle Card is ready</p><p className="mt-1 text-sm text-muted">Preview keeps it private. Publish makes it available through its public link and QR code.</p></div>
                   ) : (
-                    <span className="hidden sm:block" />
+                    <div className="rounded-2xl border border-silver/14 bg-background/25 p-4 text-sm text-muted">{readiness.missing.map((item) => <p key={item}>{FIRST_CIRCLE_CARD_MISSING_COPY[item]}</p>)}</div>
                   )}
-                  <Button type="button" onClick={goNext} className="gap-2">
-                    Next
-                    <ArrowRight size={16} />
-                  </Button>
-                </div>
+                </>
               )}
             </div>
-          </form>
-        </CardContent>
-      </Card>
 
-      <aside className="rounded-[2rem] border border-silver/16 bg-card/62 p-5 shadow-panel-soft">
-        <p className="text-[11px] uppercase tracking-[0.08em] text-silver">Preview</p>
-        <div className="mt-5 rounded-[1.5rem] border border-gold/24 bg-background/36 p-5">
-          <div className="flex items-start gap-4">
-            <div className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-gold/24 bg-background/40 text-sm font-semibold text-foreground">
-              {values.profileImageUrl ? (
-                <CircleCardFramedImage
-                  src={values.profileImageUrl}
-                  alt=""
-                  positionX={values.profileImagePositionX}
-                  positionY={values.profileImagePositionY}
-                  scale={values.profileImageScale}
-                >
-                  {previewName.slice(0, 2).toUpperCase()}
-                </CircleCardFramedImage>
-              ) : (
-                previewName.slice(0, 2).toUpperCase()
-              )}
-              {values.businessLogoUrl ? (
-                <span className="absolute bottom-0 right-0 grid h-7 w-7 overflow-hidden rounded-full border border-gold/60 bg-background shadow-gold-soft">
-                  <CircleCardFramedImage
-                    src={values.businessLogoUrl}
-                    fallbackSrc={CIRCLE_CARD_LOGO_SRC}
-                    alt=""
-                    positionX={values.businessLogoPositionX}
-                    positionY={values.businessLogoPositionY}
-                    scale={values.businessLogoScale}
-                    fallbackPositionX={50}
-                    fallbackPositionY={50}
-                    fallbackScale={1}
-                  />
-                </span>
-              ) : null}
+            <div aria-live="polite" className="mt-5 min-h-6 text-sm">
+              {saveStatus === "saving" || isPending ? <span className="text-muted">Saving…</span> : null}
+              {saveStatus === "saved" ? <span className="text-emerald-300">Saved</span> : null}
+              {saveStatus === "error" && message ? <span role="alert" className="text-destructive">{message}</span> : null}
             </div>
-            <div className="min-w-0">
-              <h2 className="font-display text-2xl leading-tight text-foreground">
-                {previewName}
-              </h2>
-              <p className="mt-2 text-sm text-silver">{previewMeta || "Circle Card"}</p>
+
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-silver/14 bg-card/95 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:mt-5 lg:border-0 lg:bg-transparent lg:p-0">
+              <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)] gap-3 sm:grid-cols-[auto_auto_minmax(0,1fr)]">
+                <Button type="button" variant="outline" className="min-h-11" disabled={step === 0 || isPending} onClick={() => setStep((current) => Math.max(0, current - 1))}><ArrowLeft size={16} /><span className="sr-only sm:not-sr-only sm:ml-2">Back</span></Button>
+                <Button type="button" variant="outline" className="hidden min-h-11 sm:inline-flex" onClick={openPreview}><Eye size={16} />{readiness.publishReady ? "Preview My Circle Card" : "Preview My Progress"}</Button>
+                {step < 2 ? (
+                  <Button type="button" className="min-h-11 gap-2" disabled={isPending} onClick={saveAndContinue}>Save &amp; Continue <ArrowRight size={16} /></Button>
+                ) : readiness.publishReady ? (
+                  <Button type="button" className="min-h-11 gap-2" disabled={isPending} onClick={publishCard}>Publish My Circle Card <BadgeCheck size={16} /></Button>
+                ) : (
+                  <Button type="button" className="min-h-11 gap-2" disabled={isPending} onClick={saveAndContinue}>Save Connection Method <Check size={16} /></Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <aside ref={previewRef} className={cn("min-w-0 scroll-mt-24 rounded-[2rem] border border-silver/16 bg-card/72 p-4 lg:sticky lg:top-24 lg:block lg:self-start", previewOpen ? "block" : "hidden")} aria-label="Private Circle Card preview">
+          <div className="flex items-center justify-between gap-3"><p className="text-xs uppercase tracking-[0.08em] text-silver">Private preview</p><Badge variant="outline" className="border-silver/18 text-silver">Not public</Badge></div>
+          <div className="mt-4 overflow-hidden rounded-[1.6rem] border border-gold/22 bg-background/40 p-5 shadow-panel-soft">
+            <div className="flex items-start gap-4">
+              <div className="relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full border border-gold/30 bg-card text-lg font-semibold text-foreground">
+                {values.profileImageUrl || values.businessLogoUrl ? <CircleCardFramedImage src={values.profileImageUrl || values.businessLogoUrl} alt="" positionX={values.profileImageUrl ? values.profileImagePositionX : values.businessLogoPositionX} positionY={values.profileImageUrl ? values.profileImagePositionY : values.businessLogoPositionY} scale={values.profileImageUrl ? values.profileImageScale : values.businessLogoScale}>{previewName.slice(0, 2).toUpperCase()}</CircleCardFramedImage> : <Camera size={22} className="text-muted" />}
+              </div>
+              <div className="min-w-0"><h2 className="break-words font-display text-2xl text-foreground">{previewName}</h2><p className="mt-1 break-words text-sm text-silver">{[values.role, values.businessName].filter(Boolean).join(" · ") || "Your role or business"}</p></div>
+            </div>
+            <p className="mt-5 break-words text-sm leading-relaxed text-muted">{previewPurpose}</p>
+            <div className="mt-5 grid gap-2">
+              {[values.email && "Email", values.phone && "Call", values.websiteUrl && "Website"].filter(Boolean).map((label) => <div key={label} className="flex min-h-11 items-center rounded-xl border border-silver/14 bg-card/65 px-4 text-sm text-foreground"><Link2 size={15} className="mr-2 text-gold" />{label}</div>)}
+              {!values.email && !values.phone && !values.websiteUrl ? <div className="min-h-11 rounded-xl border border-dashed border-silver/18 p-3 text-sm text-muted">Your connection button will appear here.</div> : null}
             </div>
           </div>
-          {values.tagline ? (
-            <p className="mt-5 text-sm leading-relaxed text-muted">{values.tagline}</p>
-          ) : null}
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Badge variant="outline" className="border-gold/25 text-gold">
-              Circle Card Free
-            </Badge>
-            {selectedPlanGuidance ? (
-              <Badge variant="outline" className="border-gold/25 text-gold">
-                Suggested: {selectedPlanGuidance.suggestedLabel}
-              </Badge>
-            ) : null}
-            {accountTypeLabel ? (
-              <Badge variant="outline" className="border-silver/18 text-silver">
-                {accountTypeLabel}
-              </Badge>
-            ) : null}
-            {identityTagLabels.map((tagLabel) => (
-              <Badge key={tagLabel} variant="outline" className="border-silver/18 text-silver">
-                {tagLabel}
-              </Badge>
-            ))}
-            <Badge variant="outline" className="border-silver/18 text-silver">
-              Wallet ready
-            </Badge>
-            <Badge variant="outline" className="border-silver/18 text-silver">
-              {values.showInDiscover
-                ? CIRCLE_CARD_DISCOVER_VISIBLE_LABEL
-                : CIRCLE_CARD_DISCOVER_HIDDEN_LABEL}
-            </Badge>
-          </div>
-        </div>
-        <div
-          className={cn(
-            "mt-5 rounded-2xl border border-dashed border-silver/18 bg-background/18 p-4 text-sm text-muted",
-            stepIndex === STEPS.length - 1 ? "border-gold/24 bg-gold/10 text-gold" : ""
-          )}
-        >
-          BCN membership features stay separate. This setup only creates your free Circle Card.
-        </div>
-      </aside>
-    </div>
+          <Button type="button" variant="ghost" className="mt-3 min-h-11 w-full lg:hidden" onClick={() => setPreviewOpen(false)}>Close Preview</Button>
+        </aside>
+      </div>
+
+      <Button type="button" variant="outline" className="mt-4 min-h-11 w-full sm:hidden" onClick={openPreview}><Eye size={16} />{readiness.publishReady ? "Preview My Circle Card" : "Preview My Progress"}</Button>
+      <div className="mt-4 text-center"><Link href="/dashboard" className="text-sm text-muted hover:text-foreground">Continue Later</Link></div>
+    </main>
   );
 }

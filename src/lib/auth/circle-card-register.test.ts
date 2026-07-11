@@ -85,7 +85,11 @@ describe("Circle Card free registration", () => {
         })
       })
     );
-    expect(mocks.circleCardCreate).not.toHaveBeenCalled();
+    expect(mocks.circleCardCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ isPublished: false, userId: "user_1" })
+      })
+    );
     expect(result.redirectTo).toBe("/dashboard/circle-card/onboarding");
   });
 
@@ -142,7 +146,7 @@ describe("Circle Card free registration", () => {
         })
       })
     );
-    expect(result.redirectTo).toBe("/card/origin-card?spin=return");
+    expect(result.redirectTo).toBe("/dashboard/circle-card/onboarding");
 
     mocks.userFindUnique.mockResolvedValueOnce({ id: "user_1", suspended: false });
     await expect(createCircleCardFreeRegistration(payload)).rejects.toMatchObject({
