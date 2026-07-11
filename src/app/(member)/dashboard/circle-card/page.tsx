@@ -155,6 +155,7 @@ import {
   detectCircleCardFileKind,
   resolveCircleCardFileAction
 } from "@/lib/circle-card/file-actions";
+import { calculateFirstCircleCardReadiness } from "@/lib/circle-card/first-card-readiness";
 import {
   canCreateCircleCard,
   getCircleCardFeatureAccess
@@ -3642,10 +3643,35 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       userId: session.user.id,
       archivedAt: null
     },
-    select: { id: true }
+    select: {
+      id: true,
+      cardType: true,
+      fullName: true,
+      profileImageUrl: true,
+      businessLogoUrl: true,
+      role: true,
+      businessName: true,
+      tagline: true,
+      about: true,
+      email: true,
+      phone: true,
+      websiteUrl: true,
+      socialLinks: true,
+      isPublished: true,
+      _count: { select: { customLinks: { where: { isActive: true } } } }
+    }
   });
 
   if (!existingCard) {
+    redirect("/dashboard/circle-card/onboarding");
+  }
+
+  const firstCardReadiness = calculateFirstCircleCardReadiness({
+    ...existingCard,
+    activeCustomLinkCount: existingCard._count.customLinks
+  });
+
+  if (firstCardReadiness.state !== "published") {
     redirect("/dashboard/circle-card/onboarding");
   }
 
