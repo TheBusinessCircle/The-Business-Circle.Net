@@ -16,6 +16,7 @@ import {
   persistCircleCardImageUpload,
   persistCircleCardLinkFileUpload,
   isCircleCardImageUploadKind,
+  removeOwnedCircleCardImageUpload,
   readCircleCardImage,
   readCircleCardLinkFile,
   resolveCircleCardLinkFilePath,
@@ -76,6 +77,20 @@ describe("Circle Card local image storage", () => {
 
     expect(missing.status).toBe(404);
     expect(invalid.status).toBe(404);
+  });
+
+  it("removes failed local uploads only for their owning user", async () => {
+    const imageUrl = await persistCircleCardImageUpload({
+      file: new File([new Uint8Array([1, 2, 3])], "profile.png", { type: "image/png" }),
+      userId: "owner-1",
+      kind: "profile-photo"
+    });
+    const filename = imageUrl.split("/").at(-1) ?? "";
+
+    await expect(removeOwnedCircleCardImageUpload(imageUrl, "another-user")).resolves.toBe(false);
+    expect(await readCircleCardImage(filename)).not.toBeNull();
+    await expect(removeOwnedCircleCardImageUpload(imageUrl, "owner-1")).resolves.toBe(true);
+    expect(await readCircleCardImage(filename)).toBeNull();
   });
 });
 

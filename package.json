@@ -16,6 +16,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:prod": "prisma migrate deploy",
+    "db:verify:circle-card": "tsx scripts/verify-circle-card-schema.ts",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "founding:seed-access-pass": "tsx scripts/seed-founding-access-pass.ts",

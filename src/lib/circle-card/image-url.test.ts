@@ -7,7 +7,7 @@ describe("Circle Card image URL contract", () => {
     "/uploads/profiles/member-avatar.jpg",
     "/uploads/links/featured-link.webp",
     "https://res.cloudinary.com/demo/image/upload/v1/card.png",
-    "https://cdn.example.com/card.jpg?width=800"
+    "https://lh3.googleusercontent.com/card.jpg?width=800"
   ])("accepts safe image URL %s", (value) => {
     expect(isSafeCircleCardImageUrl(value)).toBe(true);
   });
@@ -21,6 +21,9 @@ describe("Circle Card image URL contract", () => {
     "ftp://example.com/image.png",
     "/uploads/other/image.png",
     "/uploads/circle-card/../private.png",
+    "/uploads/circle-card/%2e%2e/private.png",
+    "/api/private/image.png",
+    "https://unapproved.example.com/image.png",
     "https://user:password@example.com/image.png"
   ])("rejects unsafe image URL %s", (value) => {
     expect(isSafeCircleCardImageUrl(value)).toBe(false);

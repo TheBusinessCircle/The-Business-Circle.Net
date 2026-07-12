@@ -547,11 +547,11 @@ export function CircleCardImageUploadField({
             {notice.message}
           </p>
         ) : null}
-        {lastUploadedUrl ? (
+        {allowUrlInput && lastUploadedUrl ? (
           <p className="break-all text-xs text-silver">
             Uploaded URL: <span className="font-medium text-foreground">{lastUploadedUrl}</span>
           </p>
-        ) : imageUrl ? (
+        ) : allowUrlInput && imageUrl ? (
           <p className="break-all text-xs text-muted">
             {currentImageValueLabel}: <span className="text-silver">{imageUrl}</span>
           </p>

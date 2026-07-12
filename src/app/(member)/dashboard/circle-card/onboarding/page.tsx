@@ -7,6 +7,7 @@ import {
   firstIncompleteCircleCardStep
 } from "@/lib/circle-card/first-card-readiness";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
+import { normalizeSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
 
@@ -111,8 +112,11 @@ export default async function CircleCardOnboardingPage() {
         phone: card?.phone ?? "",
         websiteUrl:
           card?.websiteUrl ?? member?.profile?.website ?? member?.profile?.business?.website ?? "",
-        profileImageUrl: card?.profileImageUrl ?? member?.image ?? "",
-        businessLogoUrl: card?.businessLogoUrl ?? "",
+        profileImageUrl:
+          normalizeSafeCircleCardImageUrl(card?.profileImageUrl) ??
+          normalizeSafeCircleCardImageUrl(member?.image) ??
+          "",
+        businessLogoUrl: normalizeSafeCircleCardImageUrl(card?.businessLogoUrl) ?? "",
         profileImagePositionX: card?.profileImagePositionX ?? 50,
         profileImagePositionY: card?.profileImagePositionY ?? 50,
         profileImageScale: card?.profileImageScale ?? 1,
