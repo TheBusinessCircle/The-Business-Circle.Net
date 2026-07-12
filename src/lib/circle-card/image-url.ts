@@ -1,6 +1,37 @@
 const MANAGED_CIRCLE_CARD_IMAGE_PATH =
   /^\/uploads\/(?:circle-card|profiles|links)\/([^?#]+\.(?:jpe?g|png|webp))(?:[?#].*)?$/i;
 
+const DEFAULT_APPROVED_REMOTE_IMAGE_HOSTS = new Set([
+  "thebusinesscircle.net",
+  "www.thebusinesscircle.net",
+  "res.cloudinary.com",
+  "lh3.googleusercontent.com"
+]);
+
+function approvedRemoteImageHosts() {
+  const hosts = new Set(DEFAULT_APPROVED_REMOTE_IMAGE_HOSTS);
+
+  for (const configuredUrl of [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.APP_URL,
+    process.env.NEXTAUTH_URL
+  ]) {
+    if (!configuredUrl) continue;
+    try {
+      hosts.add(new URL(configuredUrl).hostname.toLowerCase());
+    } catch {
+      // Invalid site configuration must not expand the image allowlist.
+    }
+  }
+
+  for (const host of (process.env.CIRCLE_CARD_REMOTE_IMAGE_HOSTS ?? "").split(",")) {
+    const normalized = host.trim().toLowerCase();
+    if (normalized && /^[a-z0-9.-]+$/.test(normalized)) hosts.add(normalized);
+  }
+
+  return hosts;
+}
+
 function hasSafeManagedPath(path: string) {
   try {
     const decodedPath = decodeURIComponent(path);
@@ -35,7 +66,12 @@ export function isSafeCircleCardImageUrl(value: unknown): value is string {
 
   try {
     const url = new URL(imageUrl);
-    return url.protocol === "https:" && Boolean(url.hostname) && !url.username && !url.password;
+    return (
+      url.protocol === "https:" &&
+      approvedRemoteImageHosts().has(url.hostname.toLowerCase()) &&
+      !url.username &&
+      !url.password
+    );
   } catch {
     return false;
   }

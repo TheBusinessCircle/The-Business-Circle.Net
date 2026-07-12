@@ -149,27 +149,26 @@ if [[ "$MIGRATION_FILES_CHANGED" == true ]]; then
 fi
 
 if [[ "$MIGRATION_STATUS_KNOWN" == false ]]; then
-  DEPLOYMENT_WARNING=true
   printf 'WARNING: Prisma could not determine migration status.\n%s\n' "$MIGRATION_STATUS_OUTPUT" >&2
+  abort "DATABASE MIGRATION STATUS CHECK FAILED"
 fi
 
 if [[ "$MIGRATIONS_REQUIRED" == true ]]; then
-  if ask_yes_no "Apply database migrations?"; then
-    if ! npx prisma migrate deploy; then
-      abort "DATABASE MIGRATION FAILED"
-    fi
-    MIGRATION_RESULT="Applied"
-    printf '%s\n' "✓ Database migrations applied"
-  else
-    MIGRATION_RESULT="Skipped by operator"
-    DEPLOYMENT_WARNING=true
-    printf '%s\n' "WARNING: Database migrations were not applied."
+  printf '%s\n' "Applying required database migrations before the application build..."
+  if ! npx prisma migrate deploy; then
+    abort "DATABASE MIGRATION FAILED"
   fi
+  MIGRATION_RESULT="Applied"
+  printf '%s\n' "✓ Database migrations applied"
 elif [[ "$MIGRATION_STATUS_KNOWN" == true ]]; then
   printf '%s\n' "No database migrations required."
 else
   MIGRATION_RESULT="Status unavailable"
   printf '%s\n' "Database migration requirement could not be confirmed."
+fi
+
+if ! npm run db:verify:circle-card; then
+  abort "CIRCLE CARD DATABASE SCHEMA VERIFICATION FAILED"
 fi
 
 print_step 5 "Build"

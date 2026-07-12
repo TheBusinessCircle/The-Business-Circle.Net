@@ -1109,7 +1109,7 @@ describe("Circle Card gallery content block", () => {
     expect(isValidCircleCardGalleryImageUrl("/uploads/profiles/member-avatar.png")).toBe(true);
     expect(isValidCircleCardGalleryImageUrl("/uploads/links/featured-link.webp")).toBe(true);
     expect(isValidCircleCardGalleryImageUrl("https://res.cloudinary.com/demo/image/upload/v1/work.webp")).toBe(true);
-    expect(isValidCircleCardGalleryImageUrl("https://cdn.example.com/work.png")).toBe(true);
+    expect(isValidCircleCardGalleryImageUrl("https://cdn.example.com/work.png")).toBe(false);
     expect(isValidCircleCardGalleryImageUrl("")).toBe(false);
     expect(isValidCircleCardGalleryImageUrl("   ")).toBe(false);
     expect(isValidCircleCardGalleryImageUrl("javascript:alert(1)")).toBe(false);

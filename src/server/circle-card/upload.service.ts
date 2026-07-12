@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import {
   CIRCLE_CARD_LINK_FILE_MIME_BY_EXTENSION,
@@ -220,6 +220,22 @@ export function resolveCircleCardImageFilePath(filename: string) {
   }
 
   return absolutePath;
+}
+
+/** Removes only a local Circle Card upload whose filename belongs to this user. */
+export async function removeOwnedCircleCardImageUpload(imageUrl: string, userId: string) {
+  const prefix = "/uploads/circle-card/";
+  if (!imageUrl.startsWith(prefix)) return false;
+
+  const filename = imageUrl.slice(prefix.length);
+  const ownerPrefix = userId.replace(/[^a-z0-9_-]/gi, "").slice(0, 80) || "user";
+  if (!filename.startsWith(`${ownerPrefix}-`)) return false;
+
+  const absolutePath = resolveCircleCardImageFilePath(filename);
+  if (!absolutePath) return false;
+
+  await rm(absolutePath, { force: true });
+  return true;
 }
 
 export async function readCircleCardImage(filename: string) {

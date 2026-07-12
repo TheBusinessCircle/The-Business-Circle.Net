@@ -178,8 +178,22 @@ export function CircleCardOnboardingFlow({
     setSaveStatus("saving");
     setMessage(null);
     startTransition(async () => {
-      const result = await saveFirstCircleCardStepAction(draftInput());
+      let result;
+      try {
+        result = await saveFirstCircleCardStepAction(draftInput());
+      } catch {
+        setSaveStatus("error");
+        setMessage("We could not save that yet. Your details are still here—try again.");
+        return;
+      }
       if (!result.ok) {
+        if (result.uploadsDiscarded) {
+          setValues((current) => ({
+            ...current,
+            profileImageUrl: "",
+            businessLogoUrl: ""
+          }));
+        }
         setSaveStatus("error");
         setMessage(result.message);
         return;
@@ -217,8 +231,22 @@ export function CircleCardOnboardingFlow({
 
     setSaveStatus("saving");
     startTransition(async () => {
-      const result = await publishFirstCircleCardAction(draftInput());
+      let result;
+      try {
+        result = await publishFirstCircleCardAction(draftInput());
+      } catch {
+        setSaveStatus("error");
+        setMessage("We could not publish that yet. Your details are still here—try again.");
+        return;
+      }
       if (!result.ok) {
+        if (result.uploadsDiscarded) {
+          setValues((current) => ({
+            ...current,
+            profileImageUrl: "",
+            businessLogoUrl: ""
+          }));
+        }
         setSaveStatus("error");
         setMessage(result.message);
         return;
@@ -379,8 +407,8 @@ export function CircleCardOnboardingFlow({
                     <Input id="first-card-name" value={values.fullName} onChange={(event) => update("fullName", event.target.value)} autoComplete="name" />
                   </div>
                   <div className="grid gap-5 sm:grid-cols-2">
-                    <CircleCardImageUploadField id="first-card-photo" label="Profile photo" uploadKind="profile-photo" value={values.profileImageUrl} onValueChange={(value) => update("profileImageUrl", value)} positionX={values.profileImagePositionX} positionY={values.profileImagePositionY} scale={values.profileImageScale} onAdjustmentChange={(next) => setValues((current) => ({ ...current, profileImagePositionX: next.positionX, profileImagePositionY: next.positionY, profileImageScale: next.scale }))} previewAlt="Profile photo preview" helperText="Use a clear photo of you." previewClassName="rounded-full" />
-                    <CircleCardImageUploadField id="first-card-logo" label="Business logo" uploadKind="business-logo" value={values.businessLogoUrl} onValueChange={(value) => update("businessLogoUrl", value)} positionX={values.businessLogoPositionX} positionY={values.businessLogoPositionY} scale={values.businessLogoScale} onAdjustmentChange={(next) => setValues((current) => ({ ...current, businessLogoPositionX: next.positionX, businessLogoPositionY: next.positionY, businessLogoScale: next.scale }))} previewAlt="Business logo preview" helperText="A logo can be used instead of a profile photo." previewClassName="rounded-full" />
+                    <CircleCardImageUploadField id="first-card-photo" label="Profile photo" uploadKind="profile-photo" allowUrlInput={false} value={values.profileImageUrl} onValueChange={(value) => update("profileImageUrl", value)} positionX={values.profileImagePositionX} positionY={values.profileImagePositionY} scale={values.profileImageScale} onAdjustmentChange={(next) => setValues((current) => ({ ...current, profileImagePositionX: next.positionX, profileImagePositionY: next.positionY, profileImageScale: next.scale }))} previewAlt="Profile photo preview" helperText="Use a clear photo of you." previewClassName="rounded-full" />
+                    <CircleCardImageUploadField id="first-card-logo" label="Business logo" uploadKind="business-logo" allowUrlInput={false} value={values.businessLogoUrl} onValueChange={(value) => update("businessLogoUrl", value)} positionX={values.businessLogoPositionX} positionY={values.businessLogoPositionY} scale={values.businessLogoScale} onAdjustmentChange={(next) => setValues((current) => ({ ...current, businessLogoPositionX: next.positionX, businessLogoPositionY: next.positionY, businessLogoScale: next.scale }))} previewAlt="Business logo preview" helperText="A logo can be used instead of a profile photo." previewClassName="rounded-full" />
                   </div>
                 </>
               ) : step === 1 ? (

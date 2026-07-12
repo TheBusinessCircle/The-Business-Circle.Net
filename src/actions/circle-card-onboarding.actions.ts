@@ -5,10 +5,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createEmptyCircleCardContentBlocks } from "@/lib/circle-card/content-blocks";
 import { calculateFirstCircleCardReadiness } from "@/lib/circle-card/first-card-readiness";
+import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import { buildCircleCardSlugBase, normalizeCircleCardUrl } from "@/lib/circle-card/schema";
 import { buildCircleCardThemeMetadata, buildCircleCardThemeStorage } from "@/lib/circle-card/theme";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
+import { logServerError } from "@/lib/security/logging";
+import { removeOwnedCircleCardImageUpload } from "@/server/circle-card/upload.service";
 
 const optionalText = (maximum: number) => z.string().trim().max(maximum).optional().default("");
 const optionalEmail = z.union([z.literal(""), z.string().trim().email().max(254)]).default("");
@@ -17,7 +20,7 @@ const optionalWebsite = optionalText(500).refine(
   "Enter a valid website address."
 );
 const optionalImage = optionalText(1000).refine(
-  (value) => !value || value.startsWith("/") || /^https?:\/\//i.test(value),
+  (value) => !value || isSafeCircleCardImageUrl(value),
   "Use an uploaded image or a valid image address."
 );
 
@@ -54,7 +57,7 @@ export type FirstCardSaveResult =
       publishReady: boolean;
       published: boolean;
     }
-  | { ok: false; message: string };
+  | { ok: false; message: string; uploadsDiscarded?: true };
 
 function nullable(value: string) {
   return value.trim() || null;
@@ -86,7 +89,13 @@ async function readOwnedStarterCard(userId: string, cardId?: string) {
       ...(cardId ? { id: cardId } : {})
     },
     orderBy: [{ isDefaultCard: "desc" }, { createdAt: "asc" }],
-    select: { id: true, slug: true, isPublished: true }
+    select: {
+      id: true,
+      slug: true,
+      isPublished: true,
+      profileImageUrl: true,
+      businessLogoUrl: true
+    }
   });
 }
 
@@ -131,7 +140,13 @@ async function saveFirstCard(input: FirstCardDraftInput, publish: boolean): Prom
         const existing = await tx.circleCard.findFirst({
           where: { userId: session.user.id, archivedAt: null },
           orderBy: [{ isDefaultCard: "desc" }, { createdAt: "asc" }],
-          select: { id: true, slug: true, isPublished: true }
+          select: {
+            id: true,
+            slug: true,
+            isPublished: true,
+            profileImageUrl: true,
+            businessLogoUrl: true
+          }
         });
         if (existing) return existing;
 
@@ -156,7 +171,13 @@ async function saveFirstCard(input: FirstCardDraftInput, publish: boolean): Prom
             socialLinks: {},
             contentBlocks: createEmptyCircleCardContentBlocks() as Prisma.InputJsonValue
           },
-          select: { id: true, slug: true, isPublished: true }
+          select: {
+            id: true,
+            slug: true,
+            isPublished: true,
+            profileImageUrl: true,
+            businessLogoUrl: true
+          }
         });
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
       card = created;
@@ -214,15 +235,76 @@ async function saveFirstCard(input: FirstCardDraftInput, publish: boolean): Prom
       publishReady: readiness.publishReady,
       published: publish
     };
-  } catch {
+  } catch (error) {
+    logServerError("circle-card-onboarding-save-failed", error, {
+      userId: session.user.id,
+      cardId: card?.id || values.cardId || undefined,
+      cardType: values.cardType,
+      publish,
+      hasProfileImage: Boolean(values.profileImageUrl),
+      hasBusinessLogo: Boolean(values.businessLogoUrl),
+      profileImageIsManagedUpload: values.profileImageUrl.startsWith("/uploads/circle-card/"),
+      businessLogoIsManagedUpload: values.businessLogoUrl.startsWith("/uploads/circle-card/")
+    });
+    const persistedImages = card
+      ? await prisma.circleCard.findUnique({
+          where: { id: card.id },
+          select: { profileImageUrl: true, businessLogoUrl: true }
+        }).catch(() => null)
+      : null;
+    const cleanupCandidates = [
+      {
+        value: values.profileImageUrl,
+        previous: card?.profileImageUrl,
+        persisted: persistedImages?.profileImageUrl
+      },
+      {
+        value: values.businessLogoUrl,
+        previous: card?.businessLogoUrl,
+        persisted: persistedImages?.businessLogoUrl
+      }
+    ].filter(
+      (image) =>
+        image.value.startsWith("/uploads/circle-card/") &&
+        image.value !== image.previous &&
+        image.value !== image.persisted
+    );
+    const cleanupResults = await Promise.all(
+      cleanupCandidates.map((image) =>
+        removeOwnedCircleCardImageUpload(image.value, session.user.id).catch((cleanupError) => {
+          logServerError("circle-card-onboarding-upload-cleanup-failed", cleanupError, {
+            userId: session.user.id,
+            cardId: card?.id || values.cardId || undefined
+          });
+          return false;
+        })
+      )
+    );
+    if (cleanupResults.some(Boolean)) {
+      return {
+        ok: false,
+        uploadsDiscarded: true,
+        message: "We could not save that yet. Your other details are still here; please choose the image again."
+      };
+    }
     return { ok: false, message: "We couldn’t save that yet. Your details are still here—try again." };
   }
 }
 
 export async function saveFirstCircleCardStepAction(input: FirstCardDraftInput) {
-  return saveFirstCard(input, false);
+  try {
+    return await saveFirstCard(input, false);
+  } catch (error) {
+    logServerError("circle-card-onboarding-action-failed", error, { publish: false });
+    return { ok: false as const, message: "We could not save that yet. Your details are still here—try again." };
+  }
 }
 
 export async function publishFirstCircleCardAction(input: FirstCardDraftInput) {
-  return saveFirstCard(input, true);
+  try {
+    return await saveFirstCard(input, true);
+  } catch (error) {
+    logServerError("circle-card-onboarding-action-failed", error, { publish: true });
+    return { ok: false as const, message: "We could not publish that yet. Your details are still here—try again." };
+  }
 }
