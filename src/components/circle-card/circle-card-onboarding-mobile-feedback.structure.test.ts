@@ -23,7 +23,29 @@ describe("Circle Card onboarding save feedback and restoration", () => {
     expect(toolbar).toContain('role="alert"');
     expect(toolbar).toContain("message");
     expect(flow).toContain("We could not save that yet. Your details are still here—try again.");
-    expect(flow).toContain("pb-[max(9rem,env(safe-area-inset-bottom))]");
+    expect(flow).toContain("pb-[calc(9rem+env(safe-area-inset-bottom))]");
+  });
+
+  it("keeps the Step 2 description visible above the mobile toolbar", () => {
+    expect(flow).toContain("<Textarea");
+    expect(flow).toContain("ref={taglineRef}");
+    expect(flow).toContain("maxLength={180}");
+    expect(flow).toContain("min-h-[120px]");
+    expect(flow).toContain("border border-silver/30");
+    expect(flow).toContain("scroll-mb-[calc(9rem+env(safe-area-inset-bottom))]");
+    expect(flow).toContain("onFocus={scrollDescriptionAboveToolbar}");
+    expect(flow).toContain("fieldBottom > toolbarTop - 16");
+  });
+
+  it("focuses and reveals the description when Step 2 validation fails", () => {
+    const descriptionValidation = flow.indexOf("if (!values.tagline.trim())");
+    const validationEnd = flow.indexOf("return \"Add a short description of what you do.\"", descriptionValidation);
+    const validation = flow.slice(descriptionValidation, validationEnd);
+
+    expect(descriptionValidation).toBeGreaterThan(-1);
+    expect(validation).toContain("focusDescription()");
+    expect(flow).toContain("taglineRef.current?.focus({ preventScroll: true })");
+    expect(flow).toContain("scrollDescriptionAboveToolbar()");
   });
 
   it("restores the saved image, crop values and readiness-selected step after refresh", () => {

@@ -31,6 +31,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { CIRCLE_CARD_TYPE_COPY, CIRCLE_CARD_TYPES } from "@/lib/circle-card/card-types";
 import {
@@ -103,6 +104,8 @@ export function CircleCardOnboardingFlow({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const taglineRef = useRef<HTMLTextAreaElement>(null);
+  const mobileToolbarRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLElement>(null);
   const completedRef = useRef(false);
   const readiness = useMemo(
@@ -148,6 +151,32 @@ export function CircleCardOnboardingFlow({
     setMessage(null);
   }
 
+  function scrollDescriptionAboveToolbar() {
+    if (!window.matchMedia("(max-width: 1023px)").matches) return;
+
+    const revealField = () => {
+      const field = taglineRef.current;
+      if (!field) return;
+
+      field.scrollIntoView({ behavior: "smooth", block: "center" });
+      requestAnimationFrame(() => {
+        const toolbarTop = mobileToolbarRef.current?.getBoundingClientRect().top;
+        const fieldBottom = field.getBoundingClientRect().bottom;
+        if (toolbarTop !== undefined && fieldBottom > toolbarTop - 16) {
+          window.scrollBy({ top: fieldBottom - toolbarTop + 16, behavior: "smooth" });
+        }
+      });
+    };
+
+    requestAnimationFrame(revealField);
+    window.setTimeout(revealField, 300);
+  }
+
+  function focusDescription() {
+    taglineRef.current?.focus({ preventScroll: true });
+    scrollDescriptionAboveToolbar();
+  }
+
   function validateStep() {
     if (step === 0) {
       if (values.fullName.trim().length < 2) return "Add the name people should see on your card.";
@@ -155,7 +184,10 @@ export function CircleCardOnboardingFlow({
     }
     if (step === 1) {
       if (!values.role.trim() && !values.businessName.trim()) return "Add your role, title or business name.";
-      if (!values.tagline.trim()) return "Add a short description of what you do.";
+      if (!values.tagline.trim()) {
+        focusDescription();
+        return "Add a short description of what you do.";
+      }
     }
     if (step === 2 && !values.email.trim() && !values.phone.trim() && !values.websiteUrl.trim()) {
       return "Add at least one way for people to connect.";
@@ -350,7 +382,7 @@ export function CircleCardOnboardingFlow({
   const previewPurpose = values.tagline.trim() || "Your short description will appear here.";
 
   return (
-    <main className="mx-auto min-h-[100dvh] w-full max-w-6xl overflow-x-hidden px-3 py-4 pb-[max(9rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:pb-8">
+    <main className="mx-auto min-h-[100dvh] w-full max-w-6xl overflow-x-hidden px-3 py-4 pb-[calc(9rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:pb-8">
       <header className="sticky top-0 z-20 -mx-3 border-b border-silver/12 bg-background/90 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <CircleCardLogoMark className="h-9 w-9 shrink-0" alt="Circle Card" />
@@ -420,7 +452,21 @@ export function CircleCardOnboardingFlow({
                     <div className="space-y-2"><Label htmlFor="first-card-role">Role or headline</Label><Input id="first-card-role" value={values.role} onChange={(event) => update("role", event.target.value)} placeholder="Founder, designer, creator" autoComplete="organization-title" /></div>
                     <div className="space-y-2"><Label htmlFor="first-card-business">{values.cardType === "CREATOR" ? "Creator or brand name" : "Business or organisation"}</Label><Input id="first-card-business" value={values.businessName} onChange={(event) => update("businessName", event.target.value)} autoComplete="organization" /></div>
                   </div>
-                  <div className="space-y-2"><Label htmlFor="first-card-tagline">Short description</Label><Input id="first-card-tagline" value={values.tagline} onChange={(event) => update("tagline", event.target.value)} maxLength={180} placeholder="A short line about what you do and who you help" /><p className="text-xs text-muted">Keep it useful and brief. You can add a full biography later.</p></div>
+                  <div className="space-y-2">
+                    <Label htmlFor="first-card-tagline">Short description</Label>
+                    <Textarea
+                      ref={taglineRef}
+                      id="first-card-tagline"
+                      value={values.tagline}
+                      onChange={(event) => update("tagline", event.target.value)}
+                      onFocus={scrollDescriptionAboveToolbar}
+                      maxLength={180}
+                      rows={5}
+                      className="min-h-[120px] scroll-mb-[calc(9rem+env(safe-area-inset-bottom))] resize-y border border-silver/30 bg-background/45 px-4 py-3 text-base text-foreground placeholder:text-muted sm:text-sm"
+                      placeholder="A short line about what you do and who you help"
+                    />
+                    <p className="text-xs text-muted">Keep it useful and brief. You can add a full biography later.</p>
+                  </div>
                 </>
               ) : (
                 <>
@@ -437,7 +483,7 @@ export function CircleCardOnboardingFlow({
               )}
             </div>
 
-            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-silver/14 bg-card/95 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:mt-5 lg:border-0 lg:bg-transparent lg:p-0">
+            <div ref={mobileToolbarRef} className="fixed inset-x-0 bottom-0 z-30 border-t border-silver/14 bg-card/95 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:mt-5 lg:border-0 lg:bg-transparent lg:p-0">
               <div aria-live="polite" className="mx-auto mb-2 min-h-6 max-w-6xl text-sm lg:mb-3">
                 {saveStatus === "saving" || isPending ? (
                   <span role="status" className="inline-flex items-center gap-2 text-muted">
