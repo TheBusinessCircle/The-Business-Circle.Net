@@ -1,15 +1,16 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, normalize } from "node:path";
+import { join } from "node:path";
 
 const serverRoot = join(process.cwd(), ".next", "server");
 const manifestPath = join(serverRoot, "server-reference-manifest.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+const canonicalPath = (value) => value.replaceAll("\\", "/").replace(/\/{2,}/g, "/");
 const expected = new Map([
   [
-    normalize("src/actions/circle-card-onboarding.actions.ts"),
+    canonicalPath("src/actions/circle-card-onboarding.actions.ts"),
     ["publishFirstCircleCardAction", "saveFirstCircleCardStepAction"]
   ],
-  [normalize("src/actions/circle-card-report.actions.ts"), ["submitCircleCardReportAction"]]
+  [canonicalPath("src/actions/circle-card-report.actions.ts"), ["submitCircleCardReportAction"]]
 ]);
 
 function filesBelow(directory) {
@@ -26,7 +27,7 @@ const compiledSources = serverJavaScript.map((path) => ({ path, source: readFile
 
 for (const [sourceSuffix, approvedExports] of expected) {
   const references = Object.entries(manifest.node).filter(([, reference]) =>
-    normalize(reference.filename).endsWith(sourceSuffix)
+    canonicalPath(reference.filename).endsWith(sourceSuffix)
   );
   const exportedNames = references.map(([, reference]) => reference.exportedName).sort();
 
