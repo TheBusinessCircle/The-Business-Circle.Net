@@ -90,7 +90,7 @@ import {
   BusinessCardScanner,
   CircleCardBcnDiscoveryPanel,
   CircleCardAudienceSnapshotManager,
-  CircleCardBillingPortalButton,
+  CircleCardBillingStatusPanel,
   CircleCardBookingManager,
   CircleCardBrandPartnershipsManager,
   CircleCardCopyLinkButton,
@@ -184,6 +184,12 @@ import {
   CIRCLE_CARD_PLAN_DEFINITIONS,
   type CircleCardPlanFeature
 } from "@/lib/circle-card/plans";
+import {
+  CIRCLE_CARD_LINK_PLAN_ORDER,
+  isCircleCardLinkEligibleForPublicLaunch,
+  selectCircleCardLinksWithinPlan,
+  selectCircleCardsWithinPlan
+} from "@/lib/circle-card/plan-policy";
 import {
   CIRCLE_CARD_BILLING_FLAG_ENV,
   getCircleCardBillingReadiness
@@ -372,7 +378,8 @@ import {
   markCircleCardReferralActivationForUser,
   syncCircleCardActivationLeadScore,
   trackCircleCardEvent,
-  loadCircleCardAccessForUser
+  loadCircleCardAccessForUser,
+  filterPublicCircleCardTargetsWithinOwnerPlans
 } from "@/server/circle-card";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
@@ -2874,6 +2881,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   "card-not-found": "That Circle Card could not be found.",
   "card-hidden-default": "Set the Circle Card live before making it your public default.",
   "card-limit": "You have reached the Circle Card limit for your current access.",
+  "card-plan-locked": "This saved extra card is read-only until Circle Card Pro is restored.",
   "slug-taken": "That public card link is already taken.",
   "card-save-failed": "The Circle Card could not be saved.",
   "custom-link-invalid": "Check the custom link fields and try again.",
@@ -3718,8 +3726,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     member,
     walletContacts,
     connectionRequests,
-    connectHubCard,
-    discoverCandidateCards,
+    rawConnectHubCard,
+    rawDiscoverCandidateCards,
     introductions,
     referrals,
     opportunities,
@@ -3742,7 +3750,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       ],
       include: {
         customLinks: {
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+          orderBy: [...CIRCLE_CARD_LINK_PLAN_ORDER]
         },
         walletTestimonialsReceived: {
           where: { status: { in: ["PENDING", "APPROVED"] } },
@@ -4036,6 +4044,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             recommenderCard: {
               select: {
                 id: true,
+                userId: true,
                 slug: true,
                 fullName: true,
                 businessName: true,
@@ -4233,6 +4242,22 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     getCircleCardReferralCentreForUser(session.user.id),
     getCircleCardCommissionEarningsForUser(session.user.id)
   ]);
+  const planVisibleExternalCards = await filterPublicCircleCardTargetsWithinOwnerPlans([
+    ...(rawConnectHubCard ? [rawConnectHubCard] : []),
+    ...rawDiscoverCandidateCards,
+    ...walletContacts.flatMap((contact) => (contact.card ? [contact.card] : [])),
+    ...rawDiscoverCandidateCards.flatMap((candidate) =>
+      candidate.recommendationsReceived.map((recommendation) => recommendation.recommenderCard)
+    )
+  ]);
+  const planVisibleExternalCardIds = new Set(planVisibleExternalCards.map((candidate) => candidate.id));
+  const connectHubCard =
+    rawConnectHubCard && planVisibleExternalCardIds.has(rawConnectHubCard.id)
+      ? rawConnectHubCard
+      : null;
+  const discoverCandidateCards = rawDiscoverCandidateCards.filter((candidate) =>
+    planVisibleExternalCardIds.has(candidate.id)
+  );
   const platformOwnerDiagnostics = resolveCircleCardPlatformOwnerDiagnostics({
     role: session.user.role,
     email: session.user.email,
@@ -4254,6 +4279,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       )
     : actualCircleCardEntitlement;
   const featureAccess = getCircleCardFeatureAccess(circleCardEntitlement.accessLevel);
+  const planAllowedCardIds = new Set(
+    selectCircleCardsWithinPlan(cards, actualCircleCardAccess.limits.circleCards).map(
+      (ownedCard) => ownedCard.id
+    )
+  );
   const cardCount = cards.length;
   const liveCardCount = cards.filter((ownedCard) => ownedCard.isPublished).length;
   const canCreateAdditionalCard = canCreateCircleCard({
@@ -4279,8 +4309,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const card = shouldShowNewCardForm
     ? null
     : selectedExistingCard ?? persistedCard ?? defaultCard ?? firstLiveCard ?? cards[0] ?? null;
+  const isSelectedCardLockedByPlan = Boolean(card && !planAllowedCardIds.has(card.id));
   const normalizedWalletContacts = walletContacts.map((contact) => {
     const socialLinks = readCircleWalletBusinessCardSocialLinks(contact.socialLinks);
+    const publicTargetAvailable = Boolean(
+      contact.card && planVisibleExternalCardIds.has(contact.card.id)
+    );
     const fullName =
       contact.card?.fullName ??
       contact.fullName ??
@@ -4299,14 +4333,16 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       websiteUrl: contact.card?.websiteUrl ?? contact.websiteUrl,
       email: contact.card?.email ?? contact.email,
       phone: contact.card?.phone ?? contact.mobilePhone ?? contact.phone,
-      isPublished: contact.card?.isPublished ?? false,
-      publicCardHref: contact.card?.slug ? `/card/${contact.card.slug}` : null,
+      isPublished: Boolean(contact.card?.isPublished && publicTargetAvailable),
+      publicCardHref:
+        contact.card?.slug && publicTargetAvailable ? `/card/${contact.card.slug}` : null,
       sourceLabel: walletContactSourceLabel(contact.source),
       isScannedBusinessCard: contact.source === "BUSINESS_CARD_SCAN"
     };
 
     return {
       ...contact,
+      publicTargetAvailable,
       tags: readCircleWalletTags(contact.tags),
       socialLinks,
       display
@@ -4314,7 +4350,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   });
   const walletTestimonialContacts = normalizedWalletContacts
     .filter(
-      (contact) => isEligibleCircleCardWalletTestimonialTarget(contact.card, session.user.id)
+      (contact) =>
+        contact.publicTargetAvailable &&
+        isEligibleCircleCardWalletTestimonialTarget(contact.card, session.user.id)
     )
     .map((contact) => ({
       walletContactId: contact.id,
@@ -4536,7 +4574,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const discoverCards = discoverCandidateCards
     .map((candidate) => {
       const candidateSocialLinks = readCircleCardSocialLinks(candidate.socialLinks);
-      const recommendations = candidate.recommendationsReceived;
+      const recommendations = candidate.recommendationsReceived.filter((recommendation) =>
+        planVisibleExternalCardIds.has(recommendation.recommenderCard.id)
+      );
       const recommendedByKnown = recommendations.filter((recommendation) =>
         connectedByCardId.has(recommendation.recommenderCardId)
       );
@@ -4661,7 +4701,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         ? completedIntroductions
         : incomingIntroductions;
   const introducibleWalletContacts = normalizedWalletContacts.filter(
-    (contact) => contact.card?.id && contact.card.userId !== session.user.id
+    (contact) =>
+      contact.publicTargetAvailable &&
+      contact.card?.id &&
+      contact.card.userId !== session.user.id
   );
   const selectedIntroductionOptions =
     selectedWalletContact?.card?.id
@@ -4672,7 +4715,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         )
       : [];
   const canIntroduceSelectedContact = Boolean(
-    card && selectedWalletContact?.card?.id && selectedWalletContact.card.userId !== session.user.id
+    card &&
+    selectedWalletContact?.publicTargetAvailable &&
+    selectedWalletContact.card?.id &&
+    selectedWalletContact.card.userId !== session.user.id
   );
   const referralReturnPath = buildReferralHref({ referralView });
   const referralSentReturnPath = buildReferralHref({ referralView: "sent" });
@@ -4700,11 +4746,17 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           ? lostReferrals
           : sentReferrals;
   const referrableWalletContacts = normalizedWalletContacts.filter(
-    (contact) => contact.card?.id && contact.card.userId !== session.user.id
+    (contact) =>
+      contact.publicTargetAvailable &&
+      contact.card?.id &&
+      contact.card.userId !== session.user.id
   );
   const referrableDiscoverCards = discoverCards.filter((candidate) => candidate.userId !== session.user.id);
   const canSendReferralToSelectedContact = Boolean(
-    card && selectedWalletContact?.card?.id && selectedWalletContact.card.userId !== session.user.id
+    card &&
+    selectedWalletContact?.publicTargetAvailable &&
+    selectedWalletContact.card?.id &&
+    selectedWalletContact.card.userId !== session.user.id
   );
   const opportunityReturnPath = buildOpportunityHref();
   const openOpportunities = opportunities.filter((opportunity) =>
@@ -4774,6 +4826,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const defaultFirstCardSlug = slugify(defaultFirstCardBusinessName || defaultFirstCardName);
   const customLinks = card?.customLinks ?? [];
   const activeCustomLinkCount = customLinks.filter((link) => link.isActive).length;
+  const planVisibleLinkIds = new Set(
+    selectCircleCardLinksWithinPlan(customLinks, actualCircleCardAccess.limits.activeLinks).map(
+      (link) => link.id
+    )
+  );
+  const planHiddenActiveLinkCount = customLinks.filter(
+    (link) =>
+      isCircleCardLinkEligibleForPublicLaunch(link) && !planVisibleLinkIds.has(link.id)
+  ).length;
   const customLinkLimitLabel = isCircleCardFree
     ? `${activeCustomLinkCount}/${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active links`
     : `${activeCustomLinkCount} active links`;
@@ -5555,7 +5616,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     });
   }
   const showCircleCardProSuccess =
+    actualCircleCardAccess.source === "standalone_subscription" &&
     actualCircleCardAccess.hasProAccess &&
+    actualCircleCardAccess.lifecycleStatus === "active" &&
     firstValue(params.billing) === "success" &&
     firstValue(params.plan) === "pro";
 
@@ -5766,6 +5829,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             {cards.length ? (
               cards.map((ownedCard) => {
                 const selected = card?.id === ownedCard.id;
+                const lockedByPlan = !planAllowedCardIds.has(ownedCard.id);
                 const typeMeta = circleCardHubTypeMeta(ownedCard.cardType);
                 const statusMeta = circleCardHubStatusMeta({ isPublished: ownedCard.isPublished });
                 const TypeIcon = typeMeta.icon;
@@ -5783,7 +5847,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     data-active={selected ? "true" : "false"}
                     className={cn(
                       "min-w-0 rounded-2xl border border-border/80 bg-background/28 p-3 transition-colors sm:p-4",
-                      "data-[active=true]:border-gold/42 data-[active=true]:bg-gold/8"
+                      "data-[active=true]:border-gold/42 data-[active=true]:bg-gold/8",
+                      lockedByPlan && "border-silver/14 bg-background/18"
                     )}
                   >
                     <div className="flex min-w-0 items-start justify-between gap-2 sm:gap-3">
@@ -5799,6 +5864,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             <Badge variant="outline" className={statusMeta.className}>
                               {statusMeta.label}
                             </Badge>
+                            {lockedByPlan ? (
+                              <Badge variant="outline" className="gap-1 border-gold/28 text-gold">
+                                <Lock size={12} /> Locked by plan
+                              </Badge>
+                            ) : null}
                           </div>
                           <h3 className="mt-1.5 truncate text-base font-semibold text-foreground sm:text-lg">
                             {ownedCard.businessName || ownedCard.fullName}
@@ -5828,7 +5898,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
-                      {ownedCard.isPublished ? (
+                      {ownedCard.isPublished && !lockedByPlan ? (
                         <Link
                           href={`/card/${ownedCard.slug}`}
                           target="_blank"
@@ -5853,9 +5923,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         className={cn(buttonVariants({ variant: selected ? "default" : "outline", size: "sm" }), "h-9 justify-center gap-1.5 px-2")}
                       >
                         <ContactRound size={14} />
-                        {selected ? "Editing" : "Edit"}
+                        {lockedByPlan ? "View saved" : selected ? "Editing" : "Edit"}
                       </Link>
-                      {ownedCard.isPublished ? (
+                      {ownedCard.isPublished && !lockedByPlan ? (
                         <>
                           <CircleCardShareButton
                             title={cardTitle}
@@ -5901,7 +5971,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         <ChevronDown size={15} className="text-silver transition-transform group-open:rotate-180" />
                       </summary>
                       <div className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2">
-                        {ownedCard.isPublished ? (
+                        {ownedCard.isPublished && !lockedByPlan ? (
                           <Link
                             href={circleCardManageHref({
                               cardId: ownedCard.id,
@@ -5936,13 +6006,19 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                           <Wrench size={14} />
                           Settings
                         </Link>
-                        <CircleCardVisibilityToggle
-                          cardId={ownedCard.id}
-                          isPublished={ownedCard.isPublished}
-                          isDefaultCard={Boolean(ownedCard.isDefaultCard || ownedCard.isPrimary)}
-                          isOnlyLiveCard={ownedCard.isPublished && liveCardCount === 1}
-                          returnPath={manageReturnPath}
-                        />
+                        {lockedByPlan ? (
+                          <Button type="button" variant="outline" size="sm" className="h-10 w-full gap-2" disabled>
+                            <Lock size={14} /> Private while plan-locked
+                          </Button>
+                        ) : (
+                          <CircleCardVisibilityToggle
+                            cardId={ownedCard.id}
+                            isPublished={ownedCard.isPublished}
+                            isDefaultCard={Boolean(ownedCard.isDefaultCard || ownedCard.isPrimary)}
+                            isOnlyLiveCard={ownedCard.isPublished && liveCardCount === 1}
+                            returnPath={manageReturnPath}
+                          />
+                        )}
                         <form action={setDefaultCircleCardAction}>
                           <input type="hidden" name="cardId" value={ownedCard.id} />
                           <input type="hidden" name="returnPath" value={manageReturnPath} />
@@ -5951,7 +6027,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                             variant="outline"
                             size="sm"
                             className="h-10 w-full gap-2"
-                            disabled={ownedCard.isDefaultCard || !ownedCard.isPublished}
+                            disabled={lockedByPlan || ownedCard.isDefaultCard || !ownedCard.isPublished}
                           >
                             <Star size={14} />
                             {ownedCard.isDefaultCard
@@ -6006,7 +6082,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <div className="rounded-xl border border-silver/14 bg-card/42 p-3">
                 <p className="text-sm font-semibold text-foreground">You&apos;ve reached your plan limit.</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted">
-                  Existing cards keep their own public URLs, QR codes, share links, settings and analytics.
+                  Your default card stays public. Saved extra cards are kept privately and become
+                  read-only until the plan that includes them is restored.
                 </p>
               </div>
             )}
@@ -6058,6 +6135,25 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               : undefined
           }
         />
+      ) : null}
+
+      {card && isSelectedCardLockedByPlan ? (
+        <div
+          role="status"
+          data-circle-card-section="my-card"
+          className={cn(
+            "rounded-2xl border border-gold/24 bg-gold/[.08] p-4 text-sm",
+            activeSection !== "my-card" && "hidden"
+          )}
+        >
+          <p className="flex items-center gap-2 font-semibold text-foreground">
+            <Lock size={15} className="text-gold" /> Saved extra card locked by plan
+          </p>
+          <p className="mt-1 leading-relaxed text-muted">
+            This card and all of its content are preserved privately. It is read-only and excluded
+            from public rendering until Circle Card Pro is restored.
+          </p>
+        </div>
       ) : null}
 
       {card && selectedCardTrust ? (
@@ -6155,21 +6251,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           platformOwnerCardTypePreviewMode={selectedOwnerCardTypePreviewMode}
           className="border-0 bg-transparent p-0 shadow-none"
         />
-        {circleCardEntitlement.hasPaidCircleCardSubscription ? (
-          <div className="mt-4 rounded-2xl border border-silver/14 bg-background/22 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Circle Card billing</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted">
-                  Manage the Circle Card product attached to your Stripe customer. BCN membership billing remains separate.
-                </p>
-              </div>
-              <div className="sm:w-64">
-                <CircleCardBillingPortalButton returnPath="/dashboard/circle-card?billing=portal-return" />
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <CircleCardBillingStatusPanel
+          access={actualCircleCardAccess}
+          billingEnabled={circleCardBillingReadiness.billingEnabled}
+        />
       </CircleCardDashboardSection>
 
       {showPlatformOwnerDiagnostics ? (
@@ -8959,6 +9044,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
             >
               <input type="hidden" name="returnPath" value={selectedCardReturnPath} />
               {card ? <input type="hidden" name="cardId" value={card.id} /> : null}
+              <fieldset disabled={isSelectedCardLockedByPlan} className="contents">
 
               {isFirstCardCreateFlow ? (
                 <>
@@ -9366,6 +9452,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               </div>
                 </>
               )}
+              </fieldset>
             </CircleCardSaveForm>
           </CardContent>
         </Card>
@@ -9561,16 +9648,22 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           appSection="my-card"
           className={activeSection === "my-card" ? undefined : "hidden"}
         >
-          <CircleCardSmartProfileImportPanel
-            cardId={card.id}
-            returnPath={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "smart-profile-import" })}
-            isCreatorLayout={card.cardType === "CREATOR"}
-            existingTagline={card.tagline}
-            existingProfileImageUrl={card.profileImageUrl}
-            existingWebsiteUrl={card.websiteUrl}
-            existingSocialLinks={activeSocialLinkMap}
-            customLinkLimitLabel={customLinkLimitLabel}
-          />
+          {isSelectedCardLockedByPlan ? (
+            <p className="rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-muted">
+              Smart Profile Import is read-only for this saved extra card until Pro is restored.
+            </p>
+          ) : (
+            <CircleCardSmartProfileImportPanel
+              cardId={card.id}
+              returnPath={circleCardManageHref({ cardId: card.id, section: "my-card", hash: "smart-profile-import" })}
+              isCreatorLayout={card.cardType === "CREATOR"}
+              existingTagline={card.tagline}
+              existingProfileImageUrl={card.profileImageUrl}
+              existingWebsiteUrl={card.websiteUrl}
+              existingSocialLinks={activeSocialLinkMap}
+              customLinkLimitLabel={customLinkLimitLabel}
+            />
+          )}
         </CircleCardDashboardSection>
       ) : null}
 
@@ -9593,16 +9686,29 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
             Links for: {currentCardDisplayName}
           </p>
+          {planHiddenActiveLinkCount > 0 ? (
+            <div className="rounded-2xl border border-gold/22 bg-gold/[.07] p-4 text-sm">
+              <p className="font-semibold text-foreground">
+                {planHiddenActiveLinkCount} active link{planHiddenActiveLinkCount === 1 ? " is" : "s are"} hidden by the Free plan
+              </p>
+              <p className="mt-1 leading-relaxed text-muted">
+                The first five eligible active links stay public in the order shown. Hidden links
+                remain saved and return automatically when Pro is restored.
+              </p>
+            </div>
+          ) : null}
 
         {card ? (
           <>
-            <CircleCardSmartLinkCreateForm
-              cardId={card.id}
-              sortOrder={customLinks.length}
-              defaultActive={!freeActiveCustomLinkLimitReached}
-              examples={CUSTOM_LINK_EXAMPLES}
-              activeLimitLabel={`Free cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links.`}
-            />
+            {!isSelectedCardLockedByPlan ? (
+              <CircleCardSmartLinkCreateForm
+                cardId={card.id}
+                sortOrder={customLinks.length}
+                defaultActive={!freeActiveCustomLinkLimitReached}
+                examples={CUSTOM_LINK_EXAMPLES}
+                activeLimitLabel={`Free cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links.`}
+              />
+            ) : null}
 
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
               {USE_OPTIMISTIC_SMART_LINK_MANAGER ? (
@@ -9627,9 +9733,12 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     accessCodeHint: customLink.accessCodeHint,
                     hasAccessCode: Boolean(customLink.accessCodeHash),
                     sortOrder: customLink.sortOrder,
-                    isActive: customLink.isActive
+                    isActive: customLink.isActive,
+                    createdAt: customLink.createdAt.toISOString()
                   }))}
                   focusedLinkId={focusedCustomLinkId}
+                  activeLinkLimit={actualCircleCardAccess.limits.activeLinks}
+                  readOnly={isSelectedCardLockedByPlan}
                 />
               ) : (
               <div className="space-y-3">

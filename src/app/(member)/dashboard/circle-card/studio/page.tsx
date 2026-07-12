@@ -16,6 +16,10 @@ import {
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { loadCircleCardAccessForUser } from "@/server/circle-card";
+import {
+  CIRCLE_CARD_PLAN_ORDER,
+  selectCircleCardsWithinPlan
+} from "@/lib/circle-card/plan-policy";
 
 export const metadata: Metadata = {
   title: "Circle Studio | Circle Card",
@@ -41,7 +45,7 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
   );
   const [cards, circleCardAccess] = await Promise.all([prisma.circleCard.findMany({
     where: { userId: session.user.id, archivedAt: null },
-    orderBy: [{ isDefaultCard: "desc" }, { displayOrder: "asc" }, { createdAt: "asc" }],
+    orderBy: [...CIRCLE_CARD_PLAN_ORDER],
     select: {
       id: true,
       slug: true,
@@ -53,7 +57,14 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
       businessLogoUrl: true,
       cardType: true,
       isPublished: true,
-      themeMetadata: true
+      isDefaultCard: true,
+      isPrimary: true,
+      displayOrder: true,
+      createdAt: true,
+      themeMetadata: true,
+      studioDraftMetadata: true,
+      studioDraftUpdatedAt: true,
+      studioPreviousActiveMetadata: true
     }
   }), loadCircleCardAccessForUser(session.user.id)]);
 
@@ -67,7 +78,12 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
   ) ?? null;
   const defaultLiveCard = liveCards[0] ?? null;
   const card = requestedCard ?? persistedCard ?? defaultLiveCard ?? cards[0];
-  const canActivate = circleCardAccess.capabilities.circleStudio;
+  const planCardIds = new Set(
+    selectCircleCardsWithinPlan(cards, circleCardAccess.limits.circleCards).map((item) => item.id)
+  );
+  const isPlanLocked = !planCardIds.has(card.id);
+  const canActivate = circleCardAccess.capabilities.circleStudio && !isPlanLocked;
+  const studioMetadata = card.studioDraftMetadata ?? card.themeMetadata;
 
   return (
     <div className="page-shell pb-16 pt-4 sm:pt-6">
@@ -85,9 +101,12 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
       <CircleStudio
         key={card.id}
         card={card}
-        initialTokens={resolveCircleStudioTokens(card)}
-        initialFineTune={resolveCircleStudioFineTune(card)}
+        initialTokens={resolveCircleStudioTokens({ themeMetadata: studioMetadata })}
+        initialFineTune={resolveCircleStudioFineTune({ themeMetadata: studioMetadata })}
         canActivate={canActivate}
+        hasSavedDraft={Boolean(card.studioDraftMetadata)}
+        hasPreviousActiveDesign={Boolean(card.studioPreviousActiveMetadata)}
+        isPlanLocked={isPlanLocked}
         notice={firstValue(params.notice)}
         error={firstValue(params.error)}
         activatedAt={firstValue(params.activatedAt)}

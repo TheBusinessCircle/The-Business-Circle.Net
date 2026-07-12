@@ -15,6 +15,7 @@ import {
 } from "@/lib/circle-card/wallet-testimonials";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
+import { filterPublicCircleCardTargetsWithinOwnerPlans } from "@/server/circle-card/plan-policy.service";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Leave a Trust Signal",
@@ -83,9 +84,17 @@ export default async function CircleCardTestimonialPage({ searchParams }: PagePr
       : Promise.resolve(null)
   ]);
 
+  const planVisibleTargets = await filterPublicCircleCardTargetsWithinOwnerPlans([
+    ...walletContacts.flatMap((contact) => (contact.card ? [contact.card] : [])),
+    ...(targetCard ? [targetCard] : [])
+  ]);
+  const planVisibleTargetIds = new Set(planVisibleTargets.map((card) => card.id));
+
   const contacts: CircleCardWalletTestimonialContact[] = walletContacts
-    .filter((contact) =>
-      isEligibleCircleCardWalletTestimonialTarget(contact.card, session.user.id)
+    .filter(
+      (contact) =>
+        Boolean(contact.card && planVisibleTargetIds.has(contact.card.id)) &&
+        isEligibleCircleCardWalletTestimonialTarget(contact.card, session.user.id)
     )
     .map((contact) => ({
       walletContactId: contact.id,
@@ -100,9 +109,13 @@ export default async function CircleCardTestimonialPage({ searchParams }: PagePr
   const selectedContact = contacts.find((contact) => contact.targetCardId === targetCardId) ?? null;
   const isOwnCard = Boolean(targetCard && targetCard.userId === session.user.id);
   const targetIsEligible = Boolean(
-    targetCard && isEligibleCircleCardWalletTestimonialTarget(targetCard, session.user.id)
+    targetCard &&
+    planVisibleTargetIds.has(targetCard.id) &&
+    isEligibleCircleCardWalletTestimonialTarget(targetCard, session.user.id)
   );
-  const targetName = targetCard?.fullName ?? selectedContact?.fullName ?? "this Circle Card";
+  const targetName = targetIsEligible
+    ? targetCard?.fullName ?? selectedContact?.fullName ?? "this Circle Card"
+    : "this Circle Card";
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(212,175,95,0.12),transparent_34%),#030813] px-3 py-5 sm:px-6 sm:py-10">

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/server/circle-card/plan-policy.service", () => ({
+  isPublicCircleCardTargetWithinOwnerPlan: vi.fn().mockResolvedValue(true)
+}));
 
 const userFindUniqueMock = vi.hoisted(() => vi.fn());
 const referralFindUniqueMock = vi.hoisted(() => vi.fn());

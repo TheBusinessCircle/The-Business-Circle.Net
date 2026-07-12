@@ -8,6 +8,7 @@ import {
   type CircleCardLaunchCapabilities,
   type CircleCardPlanKey
 } from "@/lib/circle-card/plans";
+import type { CircleCardCustomerLifecycleStatus } from "@/lib/circle-card/subscription-lifecycle";
 
 export const CIRCLE_CARD_ACCESS_LEVELS = [
   "FREE",
@@ -102,7 +103,15 @@ export type CircleCardAccessSnapshot = {
   plan: CircleCardPlanKey;
   source: CircleCardAccessSource;
   hasProAccess: boolean;
+  lifecycleStatus: CircleCardCustomerLifecycleStatus;
   accessEndsAt: Date | null;
+  effectiveAccessEndsAt: Date | null;
+  paymentFailedAt: Date | null;
+  recoveryGraceEndsAt: Date | null;
+  cancellationEffectiveAt: Date | null;
+  checkoutSessionExpiresAt: Date | null;
+  cancelAtPeriodEnd: boolean;
+  hasBillingRelationship: boolean;
   subscriptionStatus: SubscriptionStatus | null;
   isInRecoveryGrace: boolean;
   limits: CircleCardAccessLimits;
@@ -156,7 +165,15 @@ function circleCardAccessLimits(plan: CircleCardPlanKey): CircleCardAccessLimits
 
 export function buildCircleCardAccessSnapshot(input: {
   entitlement: CircleCardEntitlement;
+  lifecycleStatus?: CircleCardCustomerLifecycleStatus;
   accessEndsAt?: Date | null;
+  effectiveAccessEndsAt?: Date | null;
+  paymentFailedAt?: Date | null;
+  recoveryGraceEndsAt?: Date | null;
+  cancellationEffectiveAt?: Date | null;
+  checkoutSessionExpiresAt?: Date | null;
+  cancelAtPeriodEnd?: boolean;
+  hasBillingRelationship?: boolean;
   subscriptionStatus?: SubscriptionStatus | null;
   isInRecoveryGrace?: boolean;
 }): CircleCardAccessSnapshot {
@@ -164,7 +181,15 @@ export function buildCircleCardAccessSnapshot(input: {
     plan: input.entitlement.plan,
     source: circleCardAccessSource(input.entitlement.source),
     hasProAccess: input.entitlement.plan !== "FREE",
+    lifecycleStatus: input.lifecycleStatus ?? "free",
     accessEndsAt: input.accessEndsAt ?? null,
+    effectiveAccessEndsAt: input.effectiveAccessEndsAt ?? input.accessEndsAt ?? null,
+    paymentFailedAt: input.paymentFailedAt ?? null,
+    recoveryGraceEndsAt: input.recoveryGraceEndsAt ?? null,
+    cancellationEffectiveAt: input.cancellationEffectiveAt ?? null,
+    checkoutSessionExpiresAt: input.checkoutSessionExpiresAt ?? null,
+    cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
+    hasBillingRelationship: input.hasBillingRelationship ?? false,
     subscriptionStatus: input.subscriptionStatus ?? null,
     isInRecoveryGrace: input.isInRecoveryGrace ?? false,
     limits: circleCardAccessLimits(input.entitlement.plan),

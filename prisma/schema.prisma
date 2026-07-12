@@ -447,6 +447,10 @@ model CircleCard {
   location        String?
   socialLinks     Json                  @default("{}")
   contentBlocks   Json                  @default("{}")
+  studioDraftMetadata Json?
+  studioDraftUpdatedAt DateTime?
+  studioPreviousActiveMetadata Json?
+  studioPreviousActiveAt DateTime?
   isPrimary       Boolean               @default(false)
   isPublished     Boolean               @default(true)
   showInDiscover  Boolean               @default(false)
@@ -489,6 +493,7 @@ model CircleCard {
   @@index([profileLayout])
   @@index([themeSurfaceStyle])
   @@index([themePreset])
+  @@index([studioDraftUpdatedAt])
 }
 
 model CircleCardLink {
@@ -1366,6 +1371,27 @@ model CircleCardSubscription {
   cancelledAt          DateTime?
   trialEndsAt          DateTime?
   lastInvoicePaidAt    DateTime?
+  accessEndsAt         DateTime?
+  lastPaidPeriodStart  DateTime?
+  lastPaidPeriodEnd    DateTime?
+  lastPaidInvoiceId    String?                    @unique
+  paymentFailedAt      DateTime?
+  recoveryGraceEndsAt  DateTime?
+  paymentFailureInvoiceId String?
+  paymentFailurePeriodStart DateTime?
+  paymentFailurePeriodEnd DateTime?
+  lastStripeEventCreatedAt DateTime?
+  lastStripeEventId    String?
+  lastPaymentEventCreatedAt DateTime?
+  lastPaymentEventId   String?
+  latestCheckoutSessionId String?                 @unique
+  checkoutSessionExpiresAt DateTime?
+  checkoutStartedAt    DateTime?
+  checkoutAttemptId    String?
+  cancellationEffectiveAt DateTime?
+  recoveredAt          DateTime?
+  reconciliationRequiredAt DateTime?
+  reconciliationReason String?                    @db.VarChar(240)
   createdAt            DateTime                   @default(now())
   updatedAt            DateTime                   @updatedAt
   user                 User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1377,6 +1403,13 @@ model CircleCardSubscription {
   @@index([currentPeriodEnd])
   @@index([cancelAtPeriodEnd, currentPeriodEnd])
   @@index([lastInvoicePaidAt])
+  @@index([accessEndsAt])
+  @@index([recoveryGraceEndsAt])
+  @@index([checkoutSessionExpiresAt])
+  @@index([lastStripeEventCreatedAt])
+  @@index([lastPaymentEventCreatedAt])
+  @@index([reconciliationRequiredAt])
+  @@index([status, accessEndsAt])
   @@index([updatedAt])
 }
 

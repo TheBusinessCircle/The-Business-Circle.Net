@@ -60,6 +60,7 @@ const commissionReferralInclude = {
           status: true,
           currentPeriodStart: true,
           currentPeriodEnd: true,
+          accessEndsAt: true,
           lastInvoicePaidAt: true,
           createdAt: true
         }

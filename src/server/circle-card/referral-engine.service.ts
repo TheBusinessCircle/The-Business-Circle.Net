@@ -14,6 +14,7 @@ import { getCircleCardReferralRewardAwareness } from "@/lib/circle-card/referral
 import { calculateCircleCardCompletionForCard } from "@/server/circle-card/activation.service";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
+import { isPublicCircleCardTargetWithinOwnerPlan } from "@/server/circle-card/plan-policy.service";
 
 const REFERRAL_RECENT_LIMIT = 8;
 const ADMIN_REFERRAL_RECENT_LIMIT = 12;
@@ -200,6 +201,8 @@ async function loadReferralOwnerByCode(code: string): Promise<ReferralCodeOwner 
   const card = await prisma.circleCard.findUnique({
     where: { slug: normalizedCode },
     select: {
+      id: true,
+      userId: true,
       isPublished: true,
       user: {
         select: {
@@ -223,7 +226,9 @@ async function loadReferralOwnerByCode(code: string): Promise<ReferralCodeOwner 
     }
   });
 
-  return card?.isPublished ? card.user : null;
+  return card?.isPublished && (await isPublicCircleCardTargetWithinOwnerPlan(card))
+    ? card.user
+    : null;
 }
 
 export async function ensureCircleCardReferralIdentityForUser(userId: string) {
@@ -425,7 +430,12 @@ export async function recordCircleCardReferralDiscoveryFromCard(input: {
     }
   });
 
-  if (!card || !card.isPublished || card.user.id === input.viewerUserId) {
+  if (
+    !card ||
+    !card.isPublished ||
+    card.user.id === input.viewerUserId ||
+    !(await isPublicCircleCardTargetWithinOwnerPlan({ id: card.id, userId: card.user.id }))
+  ) {
     return null;
   }
 

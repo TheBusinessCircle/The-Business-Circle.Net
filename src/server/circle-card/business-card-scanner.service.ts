@@ -8,6 +8,7 @@ import {
   normalizeWebsiteDomain
 } from "@/lib/circle-card/schema";
 import { prisma } from "@/lib/prisma";
+import { filterPublicCircleCardTargetsWithinOwnerPlans } from "@/server/circle-card/plan-policy.service";
 import {
   getResourceAiProviderDiagnostics,
   maskOpenAiApiKeyForDiagnostics
@@ -469,7 +470,7 @@ export async function findBusinessCardCircleCardMatches(input: {
     return [];
   }
 
-  return prisma.circleCard.findMany({
+  const matches = await prisma.circleCard.findMany({
     where: {
       isPublished: true,
       archivedAt: null,
@@ -505,7 +506,7 @@ export async function findBusinessCardCircleCardMatches(input: {
           : null
       ].filter(isPresent)
     },
-    take: 3,
+    take: 80,
     orderBy: [{ isDefaultCard: "desc" }, { displayOrder: "asc" }, { updatedAt: "desc" }],
     select: {
       id: true,
@@ -522,6 +523,8 @@ export async function findBusinessCardCircleCardMatches(input: {
       businessLogoUrl: true
     }
   });
+
+  return (await filterPublicCircleCardTargetsWithinOwnerPlans(matches)).slice(0, 3);
 }
 
 export async function findDuplicateBusinessCardWalletContact(input: {

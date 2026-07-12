@@ -48,8 +48,10 @@ vi.mock("@/lib/utils", async (importOriginal) => ({
 vi.mock("@/server/circle-card", () => ({
   createCircleCardActivity: createCircleCardActivityMock,
   createCircleCardNotification: createCircleCardNotificationMock,
+  filterPublicCircleCardTargetsWithinOwnerPlans: vi.fn(async (targets: unknown[]) => targets),
   findBusinessCardCircleCardMatches: vi.fn(),
   findDuplicateBusinessCardWalletContact: vi.fn(),
+  isPublicCircleCardTargetWithinOwnerPlan: vi.fn(async () => true),
   loadCircleCardAccessForUser: loadCircleCardAccessForUserMock,
   trackCircleCardEvent: trackCircleCardEventMock
 }));
@@ -70,6 +72,7 @@ import {
 } from "@/actions/circle-card.actions";
 import {
   CIRCLE_STUDIO_PRESETS,
+  buildCircleStudioMetadata,
   type CircleStudioTokens
 } from "@/lib/circle-card/identity-engine";
 import { initialCircleCardSaveActionState } from "@/lib/circle-card/save-action-state";
@@ -172,7 +175,12 @@ describe("updateCircleStudioAction", () => {
 
     expect(prismaMock.circleCard.findFirst).toHaveBeenCalledWith({
       where: { id: "business-card-id", userId: "user_123", archivedAt: null },
-      select: { id: true, slug: true }
+      select: {
+        id: true,
+        slug: true,
+        themeMetadata: true,
+        studioPreviousActiveMetadata: true
+      }
     });
     expect(prismaMock.circleCard.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -215,13 +223,44 @@ describe("updateCircleStudioAction", () => {
     });
     mockCircleCardAccess("free");
 
-    await expect(updateCircleStudioAction(circleStudioForm("personal-card-id"))).rejects.toThrow(
+    const formData = circleStudioForm("personal-card-id");
+    formData.set("studioIntent", "activate");
+
+    await expect(updateCircleStudioAction(formData)).rejects.toThrow(
       "REDIRECT:/dashboard/circle-card/studio?card=personal-card-id&error=studio-pro-required"
     );
 
     expect(prismaMock.circleCard.findFirst).not.toHaveBeenCalled();
     expect(prismaMock.circleCard.update).not.toHaveBeenCalled();
     expect(createCircleCardActivityMock).not.toHaveBeenCalled();
+  });
+
+  it("lets a Free user save a private Studio draft without changing the active theme", async () => {
+    mockCircleCardAccess("free");
+    prismaMock.circleCard.findFirst.mockResolvedValue({
+      id: "personal-card-id",
+      slug: "asha-personal"
+    });
+    prismaMock.circleCard.update.mockResolvedValue({});
+    const formData = circleStudioForm("personal-card-id");
+    formData.set("studioIntent", "save-draft");
+
+    await expect(updateCircleStudioAction(formData)).rejects.toThrow(
+      "REDIRECT:/dashboard/circle-card/studio?card=personal-card-id&notice=studio-draft-saved"
+    );
+
+    expect(prismaMock.circleCard.update).toHaveBeenCalledWith({
+      where: { id: "personal-card-id" },
+      data: {
+        studioDraftMetadata: expect.objectContaining({ source: "circle-studio" }),
+        studioDraftUpdatedAt: expect.any(Date)
+      }
+    });
+    expect(prismaMock.circleCard.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ themeMetadata: expect.anything() })
+      })
+    );
   });
 
   it("allows a standalone Circle Card Pro subscriber to activate Studio", async () => {
@@ -237,6 +276,104 @@ describe("updateCircleStudioAction", () => {
     );
 
     expect(prismaMock.circleCard.update).toHaveBeenCalled();
+  });
+
+  it("snapshots the current active Studio design before replacing it", async () => {
+    const currentActiveMetadata = buildCircleStudioMetadata(CIRCLE_STUDIO_PRESETS[0].tokens);
+    prismaMock.circleCard.findFirst.mockResolvedValue({
+      id: "replace-card",
+      slug: "replace-card",
+      themeMetadata: currentActiveMetadata,
+      studioPreviousActiveMetadata: null
+    });
+    prismaMock.circleCard.update.mockResolvedValue({});
+
+    await expect(updateCircleStudioAction(circleStudioForm("replace-card"))).rejects.toThrow(
+      /notice=studio-activated/
+    );
+
+    expect(prismaMock.circleCard.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "replace-card" },
+        data: expect.objectContaining({
+          studioPreviousActiveMetadata: currentActiveMetadata,
+          studioPreviousActiveAt: expect.any(Date),
+          themeMetadata: expect.objectContaining({
+            tokens: expect.objectContaining({ identityStyle: "LUXURY" })
+          })
+        })
+      })
+    );
+  });
+
+  it("lets Pro restore the previous active design without changing the private draft", async () => {
+    const currentActiveMetadata = buildCircleStudioMetadata(CIRCLE_STUDIO_PRESETS[3].tokens);
+    const previousActiveMetadata = buildCircleStudioMetadata(CIRCLE_STUDIO_PRESETS[0].tokens);
+    prismaMock.circleCard.findFirst.mockResolvedValue({
+      id: "revert-card",
+      slug: "revert-card",
+      themeMetadata: currentActiveMetadata,
+      studioPreviousActiveMetadata: previousActiveMetadata
+    });
+    prismaMock.circleCard.update.mockResolvedValue({});
+    const formData = circleStudioForm("revert-card");
+    formData.set("studioIntent", "revert");
+
+    await expect(updateCircleStudioAction(formData)).rejects.toThrow(
+      /notice=studio-reverted/
+    );
+
+    const update = prismaMock.circleCard.update.mock.calls[0]?.[0];
+    expect(update).toEqual(
+      expect.objectContaining({
+        where: { id: "revert-card" },
+        data: expect.objectContaining({
+          themePreset: previousActiveMetadata.tokens.identityStyle,
+          themeMetadata: previousActiveMetadata,
+          studioPreviousActiveMetadata: currentActiveMetadata,
+          studioPreviousActiveAt: expect.any(Date)
+        })
+      })
+    );
+    expect(update.data).not.toHaveProperty("studioDraftMetadata");
+    expect(update.data).not.toHaveProperty("studioDraftUpdatedAt");
+    expect(createCircleCardActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        circleCardId: "revert-card",
+        title: "Circle Studio identity restored"
+      })
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/card/revert-card");
+  });
+
+  it("rejects a direct Free request to restore a Studio design", async () => {
+    mockCircleCardAccess("free");
+    const formData = circleStudioForm("free-revert-card");
+    formData.set("studioIntent", "revert");
+
+    await expect(updateCircleStudioAction(formData)).rejects.toThrow(
+      "REDIRECT:/dashboard/circle-card/studio?card=free-revert-card&error=studio-pro-required"
+    );
+
+    expect(prismaMock.circleCard.findFirst).not.toHaveBeenCalled();
+    expect(prismaMock.circleCard.update).not.toHaveBeenCalled();
+  });
+
+  it("fails safely when no valid previous active Studio design exists", async () => {
+    prismaMock.circleCard.findFirst.mockResolvedValue({
+      id: "no-revert-card",
+      slug: "no-revert-card",
+      themeMetadata: buildCircleStudioMetadata(CIRCLE_STUDIO_PRESETS[3].tokens),
+      studioPreviousActiveMetadata: null
+    });
+    const formData = circleStudioForm("no-revert-card");
+    formData.set("studioIntent", "revert");
+
+    await expect(updateCircleStudioAction(formData)).rejects.toThrow(
+      "REDIRECT:/dashboard/circle-card/studio?card=no-revert-card&error=studio-revert-unavailable"
+    );
+
+    expect(prismaMock.circleCard.update).not.toHaveBeenCalled();
   });
 });
 
@@ -275,6 +412,34 @@ describe("upsertCircleCardAction", () => {
     });
     expect(result.message).not.toBe("The Circle Card could not be saved.");
     expect(prismaMock.circleCard.update).toHaveBeenCalled();
+  });
+
+  it("keeps a downgraded extra card read-only without deleting it", async () => {
+    mockCircleCardAccess("free");
+    prismaMock.circleCard.findFirst
+      .mockResolvedValueOnce({
+        id: "clx0000000000000000000099",
+        slug: "saved-extra-card",
+        isPublished: true,
+        isDefaultCard: false,
+        isPrimary: false,
+        showInDiscover: false,
+        discoverOptedInAt: null,
+        archivedAt: null
+      })
+      .mockResolvedValueOnce({ id: "free-default-card" });
+
+    const result = await upsertCircleCardAction(
+      initialCircleCardSaveActionState,
+      validCircleCardForm({ cardId: "clx0000000000000000000099" })
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      formError: "Your saved extra card is read-only until Circle Card Pro is restored."
+    });
+    expect(prismaMock.circleCard.update).not.toHaveBeenCalled();
+    expect(prismaMock.circleCard.create).not.toHaveBeenCalled();
   });
 
   it.each(["PERSONAL", "CREATOR", "BUSINESS"] as const)(

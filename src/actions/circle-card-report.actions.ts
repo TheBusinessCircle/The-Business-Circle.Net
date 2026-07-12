@@ -9,6 +9,7 @@ import {
   clientIpFromHeaders,
   consumeRateLimit
 } from "@/lib/security/rate-limit";
+import { isPublicCircleCardTargetWithinOwnerPlan } from "@/server/circle-card/plan-policy.service";
 
 function reportState(
   status: CircleCardReportActionState["status"],
@@ -48,7 +49,7 @@ export async function submitCircleCardReportAction(
     }
   });
 
-  if (!card) {
+  if (!card || !(await isPublicCircleCardTargetWithinOwnerPlan(card))) {
     return reportState("error", "This Circle Card could not be found.");
   }
 

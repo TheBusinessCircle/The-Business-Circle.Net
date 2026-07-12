@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BadgeCheck,
   BarChart3,
-  Building2,
   Crown,
   FileText,
   Handshake,
@@ -13,7 +12,6 @@ import {
   Palette,
   QrCode,
   ShieldCheck,
-  UsersRound,
   WalletCards
 } from "lucide-react";
 import { registerCircleCardProInterestAction } from "@/actions/circle-card-pro.actions";
@@ -24,14 +22,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
-import {
-  formatCircleCardAnnualDiscount,
-  formatCircleCardAnnualPrice,
-  formatCircleCardPrice,
-  getCircleCardBillingReadiness
-} from "@/lib/circle-card/pricing";
+import { formatCircleCardPrice, getCircleCardBillingReadiness } from "@/lib/circle-card/pricing";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { prisma } from "@/lib/prisma";
+import { loadCircleCardAccessForUser } from "@/server/circle-card";
 import { cn } from "@/lib/utils";
 
 type PageProps = {
@@ -111,30 +105,12 @@ const PLAN_COMPARISON: Array<{
       { label: "25 featured links", status: "Coming soon / early access" },
       { label: "Enhanced analytics", status: "Coming soon / early access" },
       { label: "Lead capture tools", status: "Coming soon / early access" },
-      { label: "Download/file links", status: "Available during early access" },
+      { label: "Uploaded/private file links (deferred)", status: "Coming soon / early access" },
       { label: "Advanced profile sections", status: "Available during early access" },
       { label: "Custom profile colours", status: "Available during early access" },
       { label: "Opportunity tracking", status: "Available during early access" },
       { label: "Priority visibility features", status: "Coming soon / early access" },
       { label: "Future verification eligibility", status: "Coming soon / early access" }
-    ]
-  },
-  {
-    name: "Teams",
-    fit: "Scale relationships with staff cards, shared contacts and team control",
-    icon: Building2,
-    status: "Coming soon / early access",
-    features: [
-      { label: "Staff cards", status: "Coming soon / early access" },
-      { label: "Shared company wallet", status: "Coming soon / early access" },
-      { label: "Shared contacts", status: "Coming soon / early access" },
-      { label: "Team analytics", status: "Coming soon / early access" },
-      { label: "Team management", status: "Coming soon / early access" },
-      { label: "Company profile", status: "Coming soon / early access" },
-      { label: "Department structures", status: "Coming soon / early access" },
-      { label: "Company verification", status: "Coming soon / early access" },
-      { label: "Team reporting", status: "Coming soon / early access" },
-      { label: "Shared relationship visibility", status: "Coming soon / early access" }
     ]
   }
 ];
@@ -206,6 +182,9 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
       })
     : null;
   const activeUser = userContext && !userContext.suspended ? userContext : null;
+  const circleCardAccess = activeUser
+    ? await loadCircleCardAccessForUser(activeUser.id)
+    : null;
   const primaryCard = activeUser?.circleCards[0] ?? null;
   const feedback = feedbackMessage({
     registered: firstValue(params.registered),
@@ -215,8 +194,10 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
   const defaultEmail = activeUser?.email || "";
   const defaultBusinessName = primaryCard?.businessName || "";
   const proPrice = formatCircleCardPrice("PRO");
-  const proAnnualPrice = formatCircleCardAnnualPrice("PRO");
-  const proAnnualDiscount = formatCircleCardAnnualDiscount("PRO");
+  const checkoutReady =
+    billingReadiness.billingEnabled &&
+    billingReadiness.proLaunchConfigured &&
+    !circleCardAccess?.hasProAccess;
 
   return (
     <div className="public-page-stack">
@@ -225,7 +206,6 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
           <div className="inline-flex items-center gap-2 rounded-full border border-gold/24 bg-gold/10 px-3 py-1 text-xs uppercase tracking-[0.08em] text-gold">
             <Crown size={14} />
             Circle Card Pro / {proPrice}
-            {proAnnualPrice ? ` / ${proAnnualPrice}` : ""}
           </div>
           <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-6xl">
             Turn your Circle Card into a stronger visibility tool.
@@ -234,14 +214,16 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
             Pro improves the card: identity, visibility, analytics, lead capture and relationship tools.
           </p>
           <Badge variant="outline" className="mt-4 w-fit border-gold/28 text-gold">
-            {billingReadiness.billingEnabled ? "Billing prepared" : "Early access"}
+            {checkoutReady ? "Monthly billing available" : "Early access"}
           </Badge>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            {billingReadiness.billingEnabled ? (
-              <CircleCardProCheckoutButtons
-                monthlyLabel="£9.99/month"
-                annualLabel={`£95.90/year${proAnnualDiscount ? " / 20% annual saving" : ""}`}
-              />
+            {circleCardAccess?.hasProAccess ? (
+              <div className="rounded-lg border border-emerald-400/24 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+                {circleCardAccess.entitlement.label} already includes Circle Card Pro. No separate
+                subscription is needed.
+              </div>
+            ) : checkoutReady ? (
+              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" />
             ) : (
               <a
                 href="#register-interest"
@@ -332,8 +314,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
           <h2 className="mt-4 font-display text-3xl text-foreground">Which option fits?</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
             Free starts relationships. Pro grows relationships with visibility, lead generation and
-            follow-up. Teams scales relationships across companies, staff, shared contacts and team
-            control.
+            follow-up. The controlled Pro launch is monthly-only.
           </p>
           <p className="mt-3 text-sm leading-relaxed text-muted">
             Pro does not replace BCN membership. It upgrades the Circle Card itself.
@@ -387,9 +368,9 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
             <p className="mt-3 text-sm leading-relaxed text-muted">
               Join the Pro early-access list. No payment, no Stripe checkout, no BCN membership change.
             </p>
-            {billingReadiness.billingEnabled ? (
+            {checkoutReady ? (
               <p className="mt-3 rounded-lg border border-gold/24 bg-gold/10 p-3 text-xs leading-relaxed text-gold">
-                Stripe test checkout is active for Circle Card Pro. BCN membership billing stays separate.
+                Monthly Stripe checkout is available for Circle Card Pro. BCN membership billing stays separate.
               </p>
             ) : null}
             <div className="mt-4 grid gap-2 text-sm text-muted">
@@ -400,10 +381,6 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
               <p className="inline-flex items-center gap-2">
                 <WalletCards size={15} className="text-gold" />
                 Logged-in card context attached automatically.
-              </p>
-              <p className="inline-flex items-center gap-2">
-                <UsersRound size={15} className="text-gold" />
-                Teams interest remains separate from Pro.
               </p>
             </div>
           </div>
