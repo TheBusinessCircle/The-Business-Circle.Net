@@ -7,134 +7,134 @@ datasource db {
 }
 
 model User {
-  id                                   String                        @id @default(cuid())
-  name                                 String?
-  email                                String                        @unique
-  emailVerified                        DateTime?
-  verificationEmailLastSentAt          DateTime?
-  verificationEmailSendCount           Int                           @default(0)
-  image                                String?
-  passwordHash                         String?
-  role                                 Role                          @default(MEMBER)
-  memberRoleTag                        MemberRoleTag                 @default(FOUNDER)
-  membershipTier                       MembershipTier                @default(FOUNDATION)
-  foundingMember                       Boolean                       @default(false)
-  foundingTier                         MembershipTier?
-  foundingPrice                        Int?
-  foundingClaimedAt                    DateTime?
-  acceptedTermsAt                      DateTime?
-  acceptedRulesAt                      DateTime?
-  communityStandardsAcceptedAt         DateTime?
-  minimumAgeConfirmedAt                DateTime?
-  acceptedTermsVersion                 String?
-  acceptedRulesVersion                 String?
-  registrationSource                   String?
-  circleCardReferralCode               String?                       @unique @db.VarChar(120)
-  suspended                            Boolean                       @default(false)
-  suspendedAt                          DateTime?
-  createdAt                            DateTime                      @default(now())
-  updatedAt                            DateTime                      @updatedAt
-  accounts                             Account[]
-  createdChannels                      Channel[]                     @relation("ChannelCreator")
-  handledContacts                      ContactSubmission[]           @relation("SubmissionHandler")
-  submittedContacts                    ContactSubmission[]           @relation("SubmissionAuthor")
-  leads                                Lead[]
-  hostedEvents                         Event[]                       @relation("EventHost")
-  communityComments                    CommunityComment[]
-  communityCommentLikes                CommunityCommentLike[]
-  communityPostLikes                   CommunityPostLike[]
-  communityPosts                       CommunityPost[]
-  communityPromptEvents                CommunityPromptEvent[]        @relation("CommunityPromptActor")
-  blueprintVotes                       BlueprintVote[]
-  blueprintDiscussionComments          BlueprintDiscussionComment[]
-  blueprintDiscussionLikes             BlueprintDiscussionLike[]
-  directMessageRequestsSent            DirectMessageRequest[]        @relation("DirectMessageRequestsSent")
-  directMessageRequestsReceived        DirectMessageRequest[]        @relation("DirectMessageRequestsReceived")
-  directMessageThreads                 DirectMessageParticipant[]
-  directMessagesSent                   DirectMessage[]               @relation("DirectMessagesSent")
-  directMessageBlocksCreated           DirectMessageBlock[]          @relation("DirectMessageBlocksCreated")
-  directMessageBlocksReceived          DirectMessageBlock[]          @relation("DirectMessageBlocksReceived")
-  directMessageReportsFiled            DirectMessageReport[]         @relation("DirectMessageReportsFiled")
-  directMessageReportsTargetUser       DirectMessageReport[]         @relation("DirectMessageReportsTargetUser")
-  directMessageReportsResolvedBy       DirectMessageReport[]         @relation("DirectMessageReportsResolvedBy")
-  winsAuthored                         Win[]                         @relation("WinsAuthored")
-  winParticipations                    WinParticipant[]
-  moderationActionsByAdmin             ModerationAuditLog[]          @relation("ModerationActionsByAdmin")
-  messages                             Message[]
-  founderServiceRequests               FounderServiceRequest[]
-  foundingMembership                   FoundingMember?
-  foundingReservations                 FoundingOfferReservation[]
-  inviteCodeRedemptions                InviteCodeRedemption[]
-  createdLaunchCodes                   LaunchCode[]                  @relation("LaunchCodeCreator")
-  launchCodeRedemptions                LaunchCodeRedemption[]
-  completedPendingRegistration         PendingRegistration?          @relation("PendingRegistrationCompletedUser")
-  memberInvite                         MemberInvite?
-  inviteReferralsSent                  InviteReferral[]              @relation("InviteReferrer")
-  inviteReferralReceived               InviteReferral?               @relation("InviteReferred")
-  reputationScore                      ReputationScore?
-  reputationEvents                     ReputationEvent[]
-  userBadges                           UserBadge[]
-  innerCircleQuestions                 InnerCircleQuestion[]         @relation("InnerCircleQuestionAuthor")
-  answeredInnerCircleQuestions         InnerCircleQuestion[]         @relation("InnerCircleQuestionAnswerer")
-  profile                              Profile?
-  resourcesAuthored                    Resource[]                    @relation("ResourceAuthor")
-  resourcesApproved                    Resource[]                    @relation("ResourceApprover")
-  resourcesRejected                    Resource[]                    @relation("ResourceRejector")
-  resourcesLocked                      Resource[]                    @relation("ResourceLocker")
-  siteVisitors                         SiteVisitor[]
-  sitePageViews                        SitePageView[]
-  siteEvents                           SiteEvent[]
-  founderAuditSubmissions              FounderAuditSubmission[]
-  dailyResourceBatchesGenerated        DailyResourceBatch[]          @relation("DailyResourceBatchGenerator")
-  dailyResourceBatchesApproved         DailyResourceBatch[]          @relation("DailyResourceBatchApprover")
-  resourceReads                        ResourceRead[]
-  passwordResetTokens                  PasswordResetToken[]
-  sessions                             Session[]
-  subscription                         Subscription?
-  circleCardSubscription               CircleCardSubscription?
-  createdCallRooms                     CallRoom[]                    @relation("CallRoomCreator")
-  hostedCallRooms                      CallRoom[]                    @relation("CallRoomHost")
-  callParticipations                   CallParticipant[]
-  callHostPermission                   CallHostPermission?
-  grantedCallHostPermissions           CallHostPermission[]          @relation("CallHostPermissionGrantor")
-  groupHostAccessRequests              GroupHostAccessRequest[]      @relation("GroupHostRequestUser")
-  reviewedGroupHostRequests            GroupHostAccessRequest[]      @relation("GroupHostRequestReviewer")
-  hostedCallSchedules                  CallSchedule[]                @relation("CallScheduleHost")
-  callAuditLogs                        CallAuditLog[]                @relation("CallAuditActor")
-  targetedCallAuditLogs                CallAuditLog[]                @relation("CallAuditTarget")
-  redeemedDiscounts                    BillingDiscount[]             @relation("BillingDiscountRedeemer")
-  memberTestimonials                   Testimonial[]                 @relation("MemberTestimonials")
-  requestedTestimonials                Testimonial[]                 @relation("TestimonialRequestedByAdmin")
-  approvedTestimonials                 Testimonial[]                 @relation("TestimonialApprovedByAdmin")
-  submittedTestimonials                Testimonial[]                 @relation("TestimonialSubmittedByUser")
-  reviewApprovedTestimonials           Testimonial[]                 @relation("TestimonialApprovedByUser")
-  circleCards                          CircleCard[]
-  circleWalletContacts                 CircleWalletContact[]
-  circleCardEvents                     CircleCardEvent[]
+  id                             String                       @id @default(cuid())
+  name                           String?
+  email                          String                       @unique
+  emailVerified                  DateTime?
+  verificationEmailLastSentAt    DateTime?
+  verificationEmailSendCount     Int                          @default(0)
+  image                          String?
+  passwordHash                   String?
+  role                           Role                         @default(MEMBER)
+  memberRoleTag                  MemberRoleTag                @default(FOUNDER)
+  membershipTier                 MembershipTier               @default(FOUNDATION)
+  foundingMember                 Boolean                      @default(false)
+  foundingTier                   MembershipTier?
+  foundingPrice                  Int?
+  foundingClaimedAt              DateTime?
+  acceptedTermsAt                DateTime?
+  acceptedRulesAt                DateTime?
+  communityStandardsAcceptedAt   DateTime?
+  minimumAgeConfirmedAt          DateTime?
+  acceptedTermsVersion           String?
+  acceptedRulesVersion           String?
+  registrationSource             String?
+  circleCardReferralCode         String?                      @unique @db.VarChar(120)
+  suspended                      Boolean                      @default(false)
+  suspendedAt                    DateTime?
+  createdAt                      DateTime                     @default(now())
+  updatedAt                      DateTime                     @updatedAt
+  accounts                       Account[]
+  createdChannels                Channel[]                    @relation("ChannelCreator")
+  handledContacts                ContactSubmission[]          @relation("SubmissionHandler")
+  submittedContacts              ContactSubmission[]          @relation("SubmissionAuthor")
+  leads                           Lead[]
+  hostedEvents                   Event[]                      @relation("EventHost")
+  communityComments              CommunityComment[]
+  communityCommentLikes          CommunityCommentLike[]
+  communityPostLikes             CommunityPostLike[]
+  communityPosts                 CommunityPost[]
+  communityPromptEvents          CommunityPromptEvent[]       @relation("CommunityPromptActor")
+  blueprintVotes                 BlueprintVote[]
+  blueprintDiscussionComments    BlueprintDiscussionComment[]
+  blueprintDiscussionLikes       BlueprintDiscussionLike[]
+  directMessageRequestsSent      DirectMessageRequest[]       @relation("DirectMessageRequestsSent")
+  directMessageRequestsReceived  DirectMessageRequest[]       @relation("DirectMessageRequestsReceived")
+  directMessageThreads           DirectMessageParticipant[]
+  directMessagesSent             DirectMessage[]              @relation("DirectMessagesSent")
+  directMessageBlocksCreated     DirectMessageBlock[]         @relation("DirectMessageBlocksCreated")
+  directMessageBlocksReceived    DirectMessageBlock[]         @relation("DirectMessageBlocksReceived")
+  directMessageReportsFiled      DirectMessageReport[]        @relation("DirectMessageReportsFiled")
+  directMessageReportsTargetUser DirectMessageReport[]        @relation("DirectMessageReportsTargetUser")
+  directMessageReportsResolvedBy DirectMessageReport[]        @relation("DirectMessageReportsResolvedBy")
+  winsAuthored                   Win[]                        @relation("WinsAuthored")
+  winParticipations              WinParticipant[]
+  moderationActionsByAdmin       ModerationAuditLog[]         @relation("ModerationActionsByAdmin")
+  messages                       Message[]
+  founderServiceRequests         FounderServiceRequest[]
+  foundingMembership             FoundingMember?
+  foundingReservations           FoundingOfferReservation[]
+  inviteCodeRedemptions          InviteCodeRedemption[]
+  createdLaunchCodes             LaunchCode[]                 @relation("LaunchCodeCreator")
+  launchCodeRedemptions          LaunchCodeRedemption[]
+  completedPendingRegistration   PendingRegistration?         @relation("PendingRegistrationCompletedUser")
+  memberInvite                   MemberInvite?
+  inviteReferralsSent            InviteReferral[]             @relation("InviteReferrer")
+  inviteReferralReceived         InviteReferral?              @relation("InviteReferred")
+  reputationScore                ReputationScore?
+  reputationEvents               ReputationEvent[]
+  userBadges                     UserBadge[]
+  innerCircleQuestions           InnerCircleQuestion[]        @relation("InnerCircleQuestionAuthor")
+  answeredInnerCircleQuestions   InnerCircleQuestion[]        @relation("InnerCircleQuestionAnswerer")
+  profile                        Profile?
+  resourcesAuthored              Resource[]                   @relation("ResourceAuthor")
+  resourcesApproved              Resource[]                   @relation("ResourceApprover")
+  resourcesRejected              Resource[]                   @relation("ResourceRejector")
+  resourcesLocked                Resource[]                   @relation("ResourceLocker")
+  siteVisitors                   SiteVisitor[]
+  sitePageViews                  SitePageView[]
+  siteEvents                     SiteEvent[]
+  founderAuditSubmissions        FounderAuditSubmission[]
+  dailyResourceBatchesGenerated  DailyResourceBatch[]         @relation("DailyResourceBatchGenerator")
+  dailyResourceBatchesApproved   DailyResourceBatch[]         @relation("DailyResourceBatchApprover")
+  resourceReads                  ResourceRead[]
+  passwordResetTokens            PasswordResetToken[]
+  sessions                       Session[]
+  subscription                   Subscription?
+  circleCardSubscription         CircleCardSubscription?
+  createdCallRooms               CallRoom[]                   @relation("CallRoomCreator")
+  hostedCallRooms                CallRoom[]                   @relation("CallRoomHost")
+  callParticipations             CallParticipant[]
+  callHostPermission             CallHostPermission?
+  grantedCallHostPermissions     CallHostPermission[]         @relation("CallHostPermissionGrantor")
+  groupHostAccessRequests        GroupHostAccessRequest[]     @relation("GroupHostRequestUser")
+  reviewedGroupHostRequests      GroupHostAccessRequest[]     @relation("GroupHostRequestReviewer")
+  hostedCallSchedules            CallSchedule[]               @relation("CallScheduleHost")
+  callAuditLogs                  CallAuditLog[]               @relation("CallAuditActor")
+  targetedCallAuditLogs          CallAuditLog[]               @relation("CallAuditTarget")
+  redeemedDiscounts              BillingDiscount[]            @relation("BillingDiscountRedeemer")
+  memberTestimonials             Testimonial[]                @relation("MemberTestimonials")
+  requestedTestimonials          Testimonial[]                @relation("TestimonialRequestedByAdmin")
+  approvedTestimonials           Testimonial[]                @relation("TestimonialApprovedByAdmin")
+  submittedTestimonials          Testimonial[]                @relation("TestimonialSubmittedByUser")
+  reviewApprovedTestimonials     Testimonial[]                @relation("TestimonialApprovedByUser")
+  circleCards                    CircleCard[]
+  circleWalletContacts           CircleWalletContact[]
+  circleCardEvents               CircleCardEvent[]
   circleCardConnectionRequestsSent     CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestsSent")
   circleCardConnectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestsReceived")
-  circleCardRecommendationsGiven       CircleCardRecommendation[]    @relation("CircleCardRecommendationRecommender")
-  circleCardRecommendationsReceived    CircleCardRecommendation[]    @relation("CircleCardRecommendationRecommendedUser")
+  circleCardRecommendationsGiven       CircleCardRecommendation[] @relation("CircleCardRecommendationRecommender")
+  circleCardRecommendationsReceived    CircleCardRecommendation[] @relation("CircleCardRecommendationRecommendedUser")
   circleCardWalletTestimonialsGiven    CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialReviewer")
   circleCardWalletTestimonialsReceived CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialTargetOwner")
-  circleCardIntroductionsMade          CircleCardIntroduction[]      @relation("CircleCardIntroductionIntroducer")
-  circleCardIntroductionsAsPersonA     CircleCardIntroduction[]      @relation("CircleCardIntroductionPersonA")
-  circleCardIntroductionsAsPersonB     CircleCardIntroduction[]      @relation("CircleCardIntroductionPersonB")
-  circleCardReferralsMade              CircleCardReferral[]          @relation("CircleCardReferralReferrer")
-  circleCardReferralsReceived          CircleCardReferral[]          @relation("CircleCardReferralRecipient")
-  circleCardGrowthReferralsMade        CircleCardGrowthReferral[]    @relation("CircleCardGrowthReferralReferrer")
-  circleCardGrowthReferralReceived     CircleCardGrowthReferral?     @relation("CircleCardGrowthReferralReferredUser")
+  circleCardIntroductionsMade          CircleCardIntroduction[] @relation("CircleCardIntroductionIntroducer")
+  circleCardIntroductionsAsPersonA     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonA")
+  circleCardIntroductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonB")
+  circleCardReferralsMade              CircleCardReferral[] @relation("CircleCardReferralReferrer")
+  circleCardReferralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipient")
+  circleCardGrowthReferralsMade        CircleCardGrowthReferral[] @relation("CircleCardGrowthReferralReferrer")
+  circleCardGrowthReferralReceived     CircleCardGrowthReferral? @relation("CircleCardGrowthReferralReferredUser")
   circleCardAmbassadorProfile          CircleCardAmbassadorProfile?
   circleCardAccessGrant                CircleCardAccessGrant?
-  circleCardCommissionsEarned          CircleCardCommissionLedger[]  @relation("CircleCardCommissionReferrer")
-  circleCardCommissionsGenerated       CircleCardCommissionLedger[]  @relation("CircleCardCommissionReferredUser")
-  circleCardCommissionsReviewed        CircleCardCommissionLedger[]  @relation("CircleCardCommissionReviewer")
+  circleCardCommissionsEarned          CircleCardCommissionLedger[] @relation("CircleCardCommissionReferrer")
+  circleCardCommissionsGenerated       CircleCardCommissionLedger[] @relation("CircleCardCommissionReferredUser")
+  circleCardCommissionsReviewed        CircleCardCommissionLedger[] @relation("CircleCardCommissionReviewer")
   opportunities                        Opportunity[]
   circleCardNotifications              CircleCardNotification[]
   circleCardActivities                 CircleCardActivity[]
-  circleCardReportsFiled               CircleCardReport[]            @relation("CircleCardReportsFiled")
-  circleCardReportsTargetUser          CircleCardReport[]            @relation("CircleCardReportsTargetUser")
-  circleCardReportsReviewedBy          CircleCardReport[]            @relation("CircleCardReportsReviewedBy")
+  circleCardReportsFiled               CircleCardReport[] @relation("CircleCardReportsFiled")
+  circleCardReportsTargetUser          CircleCardReport[] @relation("CircleCardReportsTargetUser")
+  circleCardReportsReviewedBy          CircleCardReport[] @relation("CircleCardReportsReviewedBy")
 
   @@index([role])
   @@index([memberRoleTag])
@@ -208,20 +208,20 @@ model VerificationToken {
 }
 
 model SiteVisitor {
-  id                      String                   @id @default(cuid())
-  anonymousId             String                   @unique
-  firstSeenAt             DateTime                 @default(now())
-  lastSeenAt              DateTime                 @default(now())
-  visitCount              Int                      @default(0)
-  userId                  String?
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  user                    User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  sessions                SiteSession[]
-  pageViews               SitePageView[]
-  events                  SiteEvent[]
+  id                     String                    @id @default(cuid())
+  anonymousId            String                    @unique
+  firstSeenAt            DateTime                  @default(now())
+  lastSeenAt             DateTime                  @default(now())
+  visitCount             Int                       @default(0)
+  userId                 String?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  user                   User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessions               SiteSession[]
+  pageViews              SitePageView[]
+  events                 SiteEvent[]
   founderAuditSubmissions FounderAuditSubmission[]
-  launchCodeRedemptions   LaunchCodeRedemption[]
+  launchCodeRedemptions LaunchCodeRedemption[]
 
   @@index([userId])
   @@index([createdAt])
@@ -229,27 +229,27 @@ model SiteVisitor {
 }
 
 model SiteSession {
-  id                      String                   @id @default(cuid())
-  visitorId               String
-  startedAt               DateTime                 @default(now())
-  endedAt                 DateTime?
-  entryPath               String
-  exitPath                String?
-  referrer                String?
-  source                  String?
-  medium                  String?
-  campaign                String?
-  deviceType              String?
-  browser                 String?
-  os                      String?
-  country                 String?
-  city                    String?
-  isBot                   Boolean                  @default(false)
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  visitor                 SiteVisitor              @relation(fields: [visitorId], references: [id], onDelete: Cascade)
-  pageViews               SitePageView[]
-  events                  SiteEvent[]
+  id                     String                    @id @default(cuid())
+  visitorId              String
+  startedAt              DateTime                  @default(now())
+  endedAt                DateTime?
+  entryPath              String
+  exitPath               String?
+  referrer               String?
+  source                 String?
+  medium                 String?
+  campaign               String?
+  deviceType             String?
+  browser                String?
+  os                     String?
+  country                String?
+  city                   String?
+  isBot                  Boolean                   @default(false)
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  visitor                SiteVisitor               @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  pageViews              SitePageView[]
+  events                 SiteEvent[]
   founderAuditSubmissions FounderAuditSubmission[]
 
   @@index([visitorId])
@@ -413,73 +413,73 @@ model Business {
 }
 
 model CircleCard {
-  id                           String                        @id @default(cuid())
-  userId                       String
-  slug                         String                        @unique
-  cardType                     CircleCardType                @default(PERSONAL)
-  displayOrder                 Int                           @default(0)
-  isDefaultCard                Boolean                       @default(false)
-  fullName                     String
-  businessName                 String?
-  accountType                  CircleCardAccountType?
-  identityTags                 String[]                      @default([])
-  profileLayout                CircleCardProfileLayout       @default(BUSINESS)
-  role                         String?
-  tagline                      String?
-  about                        String?                       @db.Text
-  profileImageUrl              String?
-  businessLogoUrl              String?
-  profileImagePositionX        Float?
-  profileImagePositionY        Float?
-  profileImageScale            Float?
-  businessLogoPositionX        Float?
-  businessLogoPositionY        Float?
-  businessLogoScale            Float?
-  themePrimaryColor            String?
-  themeAccentColor             String?
-  themeButtonColor             String?
-  themeSurfaceStyle            String                        @default("PREMIUM")
-  themePreset                  String?
-  themeMetadata                Json                          @default("{}")
-  websiteUrl                   String?
-  email                        String?
-  phone                        String?
-  location                     String?
-  socialLinks                  Json                          @default("{}")
-  contentBlocks                Json                          @default("{}")
-  studioDraftMetadata          Json?
-  studioDraftUpdatedAt         DateTime?
+  id              String                @id @default(cuid())
+  userId          String
+  slug            String                @unique
+  cardType        CircleCardType        @default(PERSONAL)
+  displayOrder    Int                   @default(0)
+  isDefaultCard   Boolean               @default(false)
+  fullName        String
+  businessName    String?
+  accountType     CircleCardAccountType?
+  identityTags    String[]              @default([])
+  profileLayout   CircleCardProfileLayout @default(BUSINESS)
+  role            String?
+  tagline         String?
+  about           String?               @db.Text
+  profileImageUrl String?
+  businessLogoUrl String?
+  profileImagePositionX Float?
+  profileImagePositionY Float?
+  profileImageScale     Float?
+  businessLogoPositionX Float?
+  businessLogoPositionY Float?
+  businessLogoScale     Float?
+  themePrimaryColor String?
+  themeAccentColor  String?
+  themeButtonColor  String?
+  themeSurfaceStyle String @default("PREMIUM")
+  themePreset       String?
+  themeMetadata     Json   @default("{}")
+  websiteUrl      String?
+  email           String?
+  phone           String?
+  location        String?
+  socialLinks     Json                  @default("{}")
+  contentBlocks   Json                  @default("{}")
+  studioDraftMetadata Json?
+  studioDraftUpdatedAt DateTime?
   studioPreviousActiveMetadata Json?
-  studioPreviousActiveAt       DateTime?
-  isPrimary                    Boolean                       @default(false)
-  isPublished                  Boolean                       @default(true)
-  showInDiscover               Boolean                       @default(false)
-  discoverOptedInAt            DateTime?
-  viewCount                    Int                           @default(0)
-  qrCodeUrl                    String?
-  archivedAt                   DateTime?
-  createdAt                    DateTime                      @default(now())
-  updatedAt                    DateTime                      @updatedAt
-  user                         User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  customLinks                  CircleCardLink[]
-  walletContacts               CircleWalletContact[]
-  events                       CircleCardEvent[]
-  connectionRequestsSent       CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRequesterCard")
-  connectionRequestsReceived   CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRecipientCard")
-  recommendationsGiven         CircleCardRecommendation[]    @relation("CircleCardRecommendationRecommenderCard")
-  recommendationsReceived      CircleCardRecommendation[]    @relation("CircleCardRecommendationRecommendedCard")
-  walletTestimonialsGiven      CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialReviewerCard")
-  walletTestimonialsReceived   CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialTargetCard")
-  introductionsMade            CircleCardIntroduction[]      @relation("CircleCardIntroductionIntroducerCard")
-  introductionsAsPersonA       CircleCardIntroduction[]      @relation("CircleCardIntroductionPersonACard")
-  introductionsAsPersonB       CircleCardIntroduction[]      @relation("CircleCardIntroductionPersonBCard")
-  referralsMade                CircleCardReferral[]          @relation("CircleCardReferralReferrerCard")
-  referralsReceived            CircleCardReferral[]          @relation("CircleCardReferralRecipientCard")
-  growthReferralsMade          CircleCardGrowthReferral[]    @relation("CircleCardGrowthReferralCard")
-  opportunities                Opportunity[]
-  notifications                CircleCardNotification[]
-  activities                   CircleCardActivity[]
-  reports                      CircleCardReport[]
+  studioPreviousActiveAt DateTime?
+  isPrimary       Boolean               @default(false)
+  isPublished     Boolean               @default(true)
+  showInDiscover  Boolean               @default(false)
+  discoverOptedInAt DateTime?
+  viewCount       Int                   @default(0)
+  qrCodeUrl       String?
+  archivedAt      DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customLinks     CircleCardLink[]
+  walletContacts  CircleWalletContact[]
+  events          CircleCardEvent[]
+  connectionRequestsSent     CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRequesterCard")
+  connectionRequestsReceived CircleCardConnectionRequest[] @relation("CircleCardConnectionRequestRecipientCard")
+  recommendationsGiven       CircleCardRecommendation[] @relation("CircleCardRecommendationRecommenderCard")
+  recommendationsReceived    CircleCardRecommendation[] @relation("CircleCardRecommendationRecommendedCard")
+  walletTestimonialsGiven    CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialReviewerCard")
+  walletTestimonialsReceived CircleCardWalletTestimonial[] @relation("CircleCardWalletTestimonialTargetCard")
+  introductionsMade          CircleCardIntroduction[] @relation("CircleCardIntroductionIntroducerCard")
+  introductionsAsPersonA     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonACard")
+  introductionsAsPersonB     CircleCardIntroduction[] @relation("CircleCardIntroductionPersonBCard")
+  referralsMade              CircleCardReferral[] @relation("CircleCardReferralReferrerCard")
+  referralsReceived          CircleCardReferral[] @relation("CircleCardReferralRecipientCard")
+  growthReferralsMade        CircleCardGrowthReferral[] @relation("CircleCardGrowthReferralCard")
+  opportunities              Opportunity[]
+  notifications              CircleCardNotification[]
+  activities                 CircleCardActivity[]
+  reports                    CircleCardReport[]
 
   @@index([userId])
   @@index([userId, archivedAt])
@@ -497,29 +497,29 @@ model CircleCard {
 }
 
 model CircleCardLink {
-  id                        String     @id @default(cuid())
-  cardId                    String
-  type                      String     @default("GENERAL")
-  label                     String
-  url                       String?
-  description               String?
-  icon                      String?
-  imageUrl                  String?
-  fileUrl                   String?
-  fileName                  String?
-  fileMimeType              String?
-  buttonText                String?
-  expiresAt                 DateTime?
-  actionMode                String     @default("AUTO")
-  visibility                String     @default("PUBLIC")
-  accessCodeHash            String?
+  id          String     @id @default(cuid())
+  cardId      String
+  type        String     @default("GENERAL")
+  label       String
+  url         String?
+  description String?
+  icon        String?
+  imageUrl    String?
+  fileUrl     String?
+  fileName    String?
+  fileMimeType String?
+  buttonText  String?
+  expiresAt   DateTime?
+  actionMode  String     @default("AUTO")
+  visibility  String     @default("PUBLIC")
+  accessCodeHash String?
   accessCodeLastGeneratedAt DateTime?
-  accessCodeHint            String?
-  sortOrder                 Int        @default(0)
-  isActive                  Boolean    @default(true)
-  createdAt                 DateTime   @default(now())
-  updatedAt                 DateTime   @updatedAt
-  card                      CircleCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  accessCodeHint String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  card        CircleCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@index([cardId])
   @@index([sortOrder])
@@ -546,39 +546,39 @@ model CircleCardEvent {
 }
 
 model CircleWalletContact {
-  id                    String                        @id @default(cuid())
-  userId                String
-  cardId                String?
-  source                CircleWalletContactSource     @default(CIRCLE_CARD)
-  savedAt               DateTime                      @default(now())
-  favourite             Boolean                       @default(false)
-  fullName              String?                       @db.VarChar(120)
-  businessName          String?                       @db.VarChar(140)
-  role                  String?                       @db.VarChar(120)
-  phone                 String?                       @db.VarChar(48)
-  mobilePhone           String?                       @db.VarChar(48)
-  email                 String?                       @db.VarChar(320)
-  websiteUrl            String?                       @db.VarChar(2048)
-  websiteDomain         String?                       @db.VarChar(255)
-  address               String?                       @db.Text
-  socialLinks           Json                          @default("{}")
-  originalCardImageUrl  String?                       @db.VarChar(2048)
-  claimToken            String?                       @unique
+  id                  String     @id @default(cuid())
+  userId              String
+  cardId              String?
+  source              CircleWalletContactSource @default(CIRCLE_CARD)
+  savedAt             DateTime   @default(now())
+  favourite           Boolean    @default(false)
+  fullName            String?    @db.VarChar(120)
+  businessName        String?    @db.VarChar(140)
+  role                String?    @db.VarChar(120)
+  phone               String?    @db.VarChar(48)
+  mobilePhone         String?    @db.VarChar(48)
+  email               String?    @db.VarChar(320)
+  websiteUrl          String?    @db.VarChar(2048)
+  websiteDomain       String?    @db.VarChar(255)
+  address             String?    @db.Text
+  socialLinks         Json       @default("{}")
+  originalCardImageUrl String?   @db.VarChar(2048)
+  claimToken          String?    @unique
   claimTokenGeneratedAt DateTime?
-  notes                 String?                       @db.Text
-  metAt                 String?                       @db.VarChar(140)
-  followUpDate          DateTime?                     @db.Date
-  lastInteractionDate   DateTime?                     @db.Date
-  category              String?                       @db.VarChar(80)
-  tags                  Json                          @default("[]")
-  relationshipContext   Json                          @default("{}")
-  createdAt             DateTime                      @default(now())
-  updatedAt             DateTime                      @updatedAt
-  user                  User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  card                  CircleCard?                   @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  recommendations       CircleCardRecommendation[]
-  walletTestimonials    CircleCardWalletTestimonial[]
-  opportunities         Opportunity[]
+  notes               String?    @db.Text
+  metAt               String?    @db.VarChar(140)
+  followUpDate        DateTime?  @db.Date
+  lastInteractionDate DateTime?  @db.Date
+  category            String?    @db.VarChar(80)
+  tags                Json       @default("[]")
+  relationshipContext Json       @default("{}")
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card                CircleCard? @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  recommendations     CircleCardRecommendation[]
+  walletTestimonials  CircleCardWalletTestimonial[]
+  opportunities       Opportunity[]
 
   @@unique([userId, cardId])
   @@index([userId])
@@ -625,28 +625,28 @@ model CircleCardRecommendation {
 }
 
 model CircleCardWalletTestimonial {
-  id                    String                                   @id @default(cuid())
+  id                    String                                  @id @default(cuid())
   reviewerUserId        String
   reviewerCardId        String?
-  reviewerName          String                                   @db.VarChar(120)
-  reviewerRoleOrCompany String?                                  @db.VarChar(160)
+  reviewerName          String                                  @db.VarChar(120)
+  reviewerRoleOrCompany String?                                 @db.VarChar(160)
   targetCardId          String
   targetOwnerId         String
   walletContactId       String?
-  testimonialText       String                                   @db.Text
+  testimonialText       String                                  @db.Text
   rating                Int?
   relationship          CircleCardWalletTestimonialRelationship?
-  status                CircleCardWalletTestimonialStatus        @default(PENDING)
-  walletVerifiedAt      DateTime                                 @default(now())
+  status                CircleCardWalletTestimonialStatus       @default(PENDING)
+  walletVerifiedAt      DateTime                                @default(now())
   approvedAt            DateTime?
   rejectedAt            DateTime?
-  createdAt             DateTime                                 @default(now())
-  updatedAt             DateTime                                 @updatedAt
-  reviewerUser          User                                     @relation("CircleCardWalletTestimonialReviewer", fields: [reviewerUserId], references: [id], onDelete: Cascade)
-  reviewerCard          CircleCard?                              @relation("CircleCardWalletTestimonialReviewerCard", fields: [reviewerCardId], references: [id], onDelete: SetNull)
-  targetCard            CircleCard                               @relation("CircleCardWalletTestimonialTargetCard", fields: [targetCardId], references: [id], onDelete: Cascade)
-  targetOwner           User                                     @relation("CircleCardWalletTestimonialTargetOwner", fields: [targetOwnerId], references: [id], onDelete: Cascade)
-  walletContact         CircleWalletContact?                     @relation(fields: [walletContactId], references: [id], onDelete: SetNull)
+  createdAt             DateTime                                @default(now())
+  updatedAt             DateTime                                @updatedAt
+  reviewerUser          User                                    @relation("CircleCardWalletTestimonialReviewer", fields: [reviewerUserId], references: [id], onDelete: Cascade)
+  reviewerCard          CircleCard?                             @relation("CircleCardWalletTestimonialReviewerCard", fields: [reviewerCardId], references: [id], onDelete: SetNull)
+  targetCard            CircleCard                              @relation("CircleCardWalletTestimonialTargetCard", fields: [targetCardId], references: [id], onDelete: Cascade)
+  targetOwner           User                                    @relation("CircleCardWalletTestimonialTargetOwner", fields: [targetOwnerId], references: [id], onDelete: Cascade)
+  walletContact         CircleWalletContact?                    @relation(fields: [walletContactId], references: [id], onDelete: SetNull)
 
   @@index([reviewerUserId])
   @@index([reviewerCardId])
@@ -726,26 +726,26 @@ model CircleCardReferral {
 }
 
 model CircleCardGrowthReferral {
-  id                String                       @id @default(cuid())
-  referrerUserId    String
-  referrerCardId    String?
-  referredUserId    String?                      @unique
-  referralCode      String                       @db.VarChar(120)
-  referralSource    String?                      @db.VarChar(80)
-  visitorId         String?                      @db.VarChar(120)
-  clickedAt         DateTime                     @default(now())
-  signedUpAt        DateTime?
-  activatedAt       DateTime?
-  activationStatus  String                       @default("CLICKED") @db.VarChar(40)
-  proInterestAt     DateTime?
-  teamsInterestAt   DateTime?
-  convertedToProAt  DateTime?
-  metadata          Json                         @default("{}")
-  createdAt         DateTime                     @default(now())
-  updatedAt         DateTime                     @updatedAt
-  referrerUser      User                         @relation("CircleCardGrowthReferralReferrer", fields: [referrerUserId], references: [id], onDelete: Cascade)
-  referrerCard      CircleCard?                  @relation("CircleCardGrowthReferralCard", fields: [referrerCardId], references: [id], onDelete: SetNull)
-  referredUser      User?                        @relation("CircleCardGrowthReferralReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+  id               String    @id @default(cuid())
+  referrerUserId   String
+  referrerCardId   String?
+  referredUserId   String?   @unique
+  referralCode     String    @db.VarChar(120)
+  referralSource   String?   @db.VarChar(80)
+  visitorId        String?   @db.VarChar(120)
+  clickedAt        DateTime  @default(now())
+  signedUpAt       DateTime?
+  activatedAt      DateTime?
+  activationStatus String    @default("CLICKED") @db.VarChar(40)
+  proInterestAt    DateTime?
+  teamsInterestAt  DateTime?
+  convertedToProAt DateTime?
+  metadata         Json      @default("{}")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  referrerUser     User      @relation("CircleCardGrowthReferralReferrer", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referrerCard     CircleCard? @relation("CircleCardGrowthReferralCard", fields: [referrerCardId], references: [id], onDelete: SetNull)
+  referredUser     User?     @relation("CircleCardGrowthReferralReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
   commissionEntries CircleCardCommissionLedger[]
 
   @@index([referrerUserId, createdAt])
@@ -775,17 +775,17 @@ model CircleCardAmbassadorProfile {
 }
 
 model CircleCardAccessGrant {
-  id        String                      @id @default(cuid())
-  userId    String                      @unique
-  plan      CircleCardSubscriptionPlan  @default(PRO)
-  source    CircleCardAccessGrantSource @default(GRANDFATHERED)
-  active    Boolean                     @default(true)
+  id        String                       @id @default(cuid())
+  userId    String                       @unique
+  plan      CircleCardSubscriptionPlan   @default(PRO)
+  source    CircleCardAccessGrantSource  @default(GRANDFATHERED)
+  active    Boolean                      @default(true)
   startsAt  DateTime?
   endsAt    DateTime?
-  note      String?                     @db.VarChar(240)
-  createdAt DateTime                    @default(now())
-  updatedAt DateTime                    @updatedAt
-  user      User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      String?                      @db.VarChar(240)
+  createdAt DateTime                     @default(now())
+  updatedAt DateTime                     @updatedAt
+  user      User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([source, active])
   @@index([plan, active])
@@ -793,27 +793,27 @@ model CircleCardAccessGrant {
 }
 
 model CircleCardCommissionLedger {
-  id             String                     @id @default(cuid())
+  id             String                      @id @default(cuid())
   referrerUserId String
   referredUserId String
   referralId     String
   reviewedById   String?
   periodMonth    DateTime
   amountPence    Int
-  currency       String                     @default("GBP") @db.VarChar(3)
+  currency       String                      @default("GBP") @db.VarChar(3)
   tierApplied    CircleCardCommissionTier
-  status         CircleCardCommissionStatus @default(PENDING)
-  reason         String                     @db.VarChar(160)
-  source         String                     @db.VarChar(80)
+  status         CircleCardCommissionStatus  @default(PENDING)
+  reason         String                      @db.VarChar(160)
+  source         String                      @db.VarChar(80)
   paidAt         DateTime?
   voidedAt       DateTime?
-  statusReason   String?                    @db.VarChar(240)
-  createdAt      DateTime                   @default(now())
-  updatedAt      DateTime                   @updatedAt
-  referrerUser   User                       @relation("CircleCardCommissionReferrer", fields: [referrerUserId], references: [id], onDelete: Cascade)
-  referredUser   User                       @relation("CircleCardCommissionReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
-  referral       CircleCardGrowthReferral   @relation(fields: [referralId], references: [id], onDelete: Restrict)
-  reviewedBy     User?                      @relation("CircleCardCommissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  statusReason   String?                     @db.VarChar(240)
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  referrerUser   User                        @relation("CircleCardCommissionReferrer", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referredUser   User                        @relation("CircleCardCommissionReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
+  referral       CircleCardGrowthReferral    @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  reviewedBy     User?                       @relation("CircleCardCommissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@unique([referrerUserId, referredUserId, periodMonth])
   @@index([periodMonth, status])
@@ -1356,45 +1356,45 @@ model Subscription {
 }
 
 model CircleCardSubscription {
-  id                        String                     @id @default(cuid())
-  userId                    String                     @unique
-  plan                      CircleCardSubscriptionPlan
-  status                    SubscriptionStatus         @default(INCOMPLETE)
-  billingInterval           BillingInterval
-  stripeCustomerId          String
-  stripeSubscriptionId      String?                    @unique
-  stripePriceId             String
-  stripeProductId           String?
-  currentPeriodStart        DateTime?
-  currentPeriodEnd          DateTime?
-  cancelAtPeriodEnd         Boolean                    @default(false)
-  cancelledAt               DateTime?
-  trialEndsAt               DateTime?
-  lastInvoicePaidAt         DateTime?
-  accessEndsAt              DateTime?
-  lastPaidPeriodStart       DateTime?
-  lastPaidPeriodEnd         DateTime?
-  lastPaidInvoiceId         String?                    @unique
-  paymentFailedAt           DateTime?
-  recoveryGraceEndsAt       DateTime?
-  paymentFailureInvoiceId   String?
+  id                   String                     @id @default(cuid())
+  userId               String                     @unique
+  plan                 CircleCardSubscriptionPlan
+  status               SubscriptionStatus         @default(INCOMPLETE)
+  billingInterval      BillingInterval
+  stripeCustomerId     String
+  stripeSubscriptionId String?                    @unique
+  stripePriceId        String
+  stripeProductId      String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean                    @default(false)
+  cancelledAt          DateTime?
+  trialEndsAt          DateTime?
+  lastInvoicePaidAt    DateTime?
+  accessEndsAt         DateTime?
+  lastPaidPeriodStart  DateTime?
+  lastPaidPeriodEnd    DateTime?
+  lastPaidInvoiceId    String?                    @unique
+  paymentFailedAt      DateTime?
+  recoveryGraceEndsAt  DateTime?
+  paymentFailureInvoiceId String?
   paymentFailurePeriodStart DateTime?
-  paymentFailurePeriodEnd   DateTime?
-  lastStripeEventCreatedAt  DateTime?
-  lastStripeEventId         String?
+  paymentFailurePeriodEnd DateTime?
+  lastStripeEventCreatedAt DateTime?
+  lastStripeEventId    String?
   lastPaymentEventCreatedAt DateTime?
-  lastPaymentEventId        String?
-  latestCheckoutSessionId   String?                    @unique
-  checkoutSessionExpiresAt  DateTime?
-  checkoutStartedAt         DateTime?
-  checkoutAttemptId         String?
-  cancellationEffectiveAt   DateTime?
-  recoveredAt               DateTime?
-  reconciliationRequiredAt  DateTime?
-  reconciliationReason      String?                    @db.VarChar(240)
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
-  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastPaymentEventId   String?
+  latestCheckoutSessionId String?                 @unique
+  checkoutSessionExpiresAt DateTime?
+  checkoutStartedAt    DateTime?
+  checkoutAttemptId    String?
+  cancellationEffectiveAt DateTime?
+  recoveredAt          DateTime?
+  reconciliationRequiredAt DateTime?
+  reconciliationReason String?                    @db.VarChar(240)
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  user                 User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([plan, status])
   @@index([billingInterval, status])
@@ -1429,34 +1429,34 @@ model StripeWebhookEvent {
 }
 
 model PendingRegistration {
-  id                           String                             @id @default(cuid())
-  email                        String
-  fullName                     String
-  passwordHash                 String
-  selectedTier                 MembershipTier
-  billingInterval              PendingRegistrationBillingInterval
-  businessName                 String?
-  businessStatus               BusinessStatus?
-  businessStage                BusinessStage?
-  companyNumber                String?
-  coreAccessConfirmed          Boolean                            @default(false)
-  acceptedTermsAt              DateTime?
-  acceptedRulesAt              DateTime?
+  id                      String                             @id @default(cuid())
+  email                   String
+  fullName                String
+  passwordHash            String
+  selectedTier            MembershipTier
+  billingInterval         PendingRegistrationBillingInterval
+  businessName            String?
+  businessStatus          BusinessStatus?
+  businessStage           BusinessStage?
+  companyNumber           String?
+  coreAccessConfirmed     Boolean                            @default(false)
+  acceptedTermsAt         DateTime?
+  acceptedRulesAt         DateTime?
   communityStandardsAcceptedAt DateTime?
-  minimumAgeConfirmedAt        DateTime?
-  acceptedTermsVersion         String?
-  acceptedRulesVersion         String?
-  inviteCode                   String?
-  status                       PendingRegistrationStatus          @default(PENDING)
-  stripeCheckoutSessionId      String?                            @unique
-  stripeCustomerId             String?
-  stripeSubscriptionId         String?                            @unique
-  completedUserId              String?                            @unique
-  expiresAt                    DateTime
-  createdAt                    DateTime                           @default(now())
-  updatedAt                    DateTime                           @updatedAt
-  completedUser                User?                              @relation("PendingRegistrationCompletedUser", fields: [completedUserId], references: [id], onDelete: SetNull)
-  foundingReservations         FoundingOfferReservation[]
+  minimumAgeConfirmedAt   DateTime?
+  acceptedTermsVersion    String?
+  acceptedRulesVersion    String?
+  inviteCode              String?
+  status                  PendingRegistrationStatus          @default(PENDING)
+  stripeCheckoutSessionId String?                            @unique
+  stripeCustomerId        String?
+  stripeSubscriptionId    String?                            @unique
+  completedUserId         String?                            @unique
+  expiresAt               DateTime
+  createdAt               DateTime                           @default(now())
+  updatedAt               DateTime                           @updatedAt
+  completedUser           User?                              @relation("PendingRegistrationCompletedUser", fields: [completedUserId], references: [id], onDelete: SetNull)
+  foundingReservations    FoundingOfferReservation[]
 
   @@index([email, createdAt])
   @@index([status, expiresAt])
@@ -1529,20 +1529,20 @@ model InviteCodeRedemption {
 }
 
 model LaunchCode {
-  id             String                 @id @default(cuid())
-  code           String                 @unique
+  id             String                   @id @default(cuid())
+  code           String                   @unique
   name           String
   platform       String
-  status         LaunchCodeStatus       @default(ACTIVE)
-  maxRedemptions Int                    @default(25)
-  trialDays      Int                    @default(90)
+  status         LaunchCodeStatus         @default(ACTIVE)
+  maxRedemptions Int                      @default(25)
+  trialDays      Int                      @default(90)
   startsAt       DateTime?
   endsAt         DateTime?
   description    String?
   createdById    String?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  createdBy      User?                  @relation("LaunchCodeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  createdBy      User?                    @relation("LaunchCodeCreator", fields: [createdById], references: [id], onDelete: SetNull)
   redemptions    LaunchCodeRedemption[]
 
   @@index([code])
@@ -1743,32 +1743,32 @@ model ContactSubmission {
 }
 
 model Lead {
-  id                  String             @id @default(cuid())
-  userId              String?
-  contactSubmissionId String?            @unique
-  name                String
-  email               String
-  businessName        String?
-  website             String?
-  source              LeadSource
-  sourceLabel         String?
-  consentSource       String?
-  essentialConsent    Boolean            @default(false)
-  marketingEmailOptIn Boolean            @default(false)
-  consentedAt         DateTime?
-  marketingConsentAt  DateTime?
-  termsAcceptedAt     DateTime?
-  privacyAcceptedAt   DateTime?
-  tags                String[]           @default([])
-  score               Int?
-  status              LeadStatus         @default(NEW)
-  lastEmailedAt       DateTime?
-  notes               String?            @db.Text
-  metadata            Json?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  contactSubmission   ContactSubmission? @relation(fields: [contactSubmissionId], references: [id], onDelete: SetNull)
-  user                User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id                   String             @id @default(cuid())
+  userId               String?
+  contactSubmissionId  String?            @unique
+  name                 String
+  email                String
+  businessName         String?
+  website              String?
+  source               LeadSource
+  sourceLabel          String?
+  consentSource        String?
+  essentialConsent     Boolean            @default(false)
+  marketingEmailOptIn  Boolean            @default(false)
+  consentedAt          DateTime?
+  marketingConsentAt   DateTime?
+  termsAcceptedAt      DateTime?
+  privacyAcceptedAt    DateTime?
+  tags                 String[]           @default([])
+  score                Int?
+  status               LeadStatus         @default(NEW)
+  lastEmailedAt        DateTime?
+  notes                String?            @db.Text
+  metadata             Json?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  contactSubmission    ContactSubmission? @relation(fields: [contactSubmissionId], references: [id], onDelete: SetNull)
+  user                 User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([email])
   @@index([source])
