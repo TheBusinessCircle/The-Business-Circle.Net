@@ -11,7 +11,6 @@ import {
   CIRCLE_CARD_PWA_METADATA
 } from "@/lib/circle-card/metadata";
 import { normalizeCircleCardReferralCode } from "@/lib/circle-card/referral-engine";
-import { getCircleCardAccountLabel } from "@/lib/circle-card/permissions";
 import { resolveCircleCardShareSource, type CircleCardShareSource } from "@/lib/circle-card/share-sources";
 import { prisma } from "@/lib/prisma";
 import { absoluteUrl } from "@/lib/utils";
@@ -247,11 +246,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
         })
       : null;
   const publicUrl = absoluteUrl(`/card/${card.slug}`);
-  const ownerAccountLabel = getCircleCardAccountLabel({
-    role: card.user.role,
-    membershipTier: card.user.membershipTier,
-    hasActiveSubscription: card.user.hasActiveSubscription
-  });
+  const ownerAccountLabel = card.user.circleCardAccountLabel;
   const ownerIsBcnMember = card.user.role === "ADMIN" || card.user.hasActiveSubscription;
 
   return (

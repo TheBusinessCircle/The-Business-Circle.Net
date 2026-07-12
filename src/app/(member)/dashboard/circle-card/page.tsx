@@ -372,7 +372,7 @@ import {
   markCircleCardReferralActivationForUser,
   syncCircleCardActivationLeadScore,
   trackCircleCardEvent,
-  loadCircleCardEntitlementForUser
+  loadCircleCardAccessForUser
 } from "@/server/circle-card";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
@@ -4245,13 +4245,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedOwnerCardTypePreviewMode = isPlatformOwner
     ? resolveCircleCardPlatformOwnerCardTypePreviewMode(firstValue(params.ownerCardType))
     : "personal";
-  const actualCircleCardEntitlement = await loadCircleCardEntitlementForUser({
-    userId: session.user.id,
-    role: session.user.role,
-    membershipTier: session.user.membershipTier,
-    hasActiveSubscription: session.user.hasActiveSubscription,
-    suspended: session.user.suspended
-  });
+  const actualCircleCardAccess = await loadCircleCardAccessForUser(session.user.id);
+  const actualCircleCardEntitlement = actualCircleCardAccess.entitlement;
   const circleCardEntitlement = isPlatformOwner
     ? resolveCircleCardPlatformOwnerPreviewEntitlement(
         selectedOwnerPreviewMode,
@@ -5560,7 +5555,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     });
   }
   const showCircleCardProSuccess =
-    firstValue(params.billing) === "success" && firstValue(params.plan) === "pro";
+    actualCircleCardAccess.hasProAccess &&
+    firstValue(params.billing) === "success" &&
+    firstValue(params.plan) === "pro";
 
   return (
     <div className="space-y-6">

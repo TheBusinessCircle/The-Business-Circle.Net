@@ -1,12 +1,98 @@
 import type { CircleCardAccountType } from "@prisma/client";
 
 export const CIRCLE_CARD_PLANS = ["FREE", "PRO", "TEAMS"] as const;
-export const CIRCLE_CARD_FREE_CARD_LIMIT = 1;
-export const CIRCLE_CARD_PRO_CARD_LIMIT = 2;
+export const CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED = false;
+export const CIRCLE_CARD_LAUNCH_LIMITS = {
+  FREE: {
+    circleCards: 1,
+    activeLinks: 5,
+    creatorFeaturedContent: 3,
+    creatorOffers: 2,
+    creatorPressProof: 2,
+    creatorBrandPartnerships: 2
+  },
+  PRO: {
+    circleCards: 2,
+    activeLinks: 25,
+    businessServices: 12,
+    businessProducts: 20,
+    businessPriceListItems: 25,
+    businessMenuOffers: 20,
+    businessDocuments: 10,
+    businessGalleryImages: 20,
+    businessReviews: 20,
+    creatorFeaturedContent: 25,
+    creatorOffers: 10,
+    creatorPressProof: 10,
+    creatorBrandPartnerships: 10
+  }
+} as const;
+
+export const CIRCLE_CARD_FREE_CARD_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.FREE.circleCards;
+export const CIRCLE_CARD_PRO_CARD_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.circleCards;
 export const CIRCLE_CARD_TEAMS_STAFF_CARD_LIMIT = 25;
 export const CIRCLE_CARD_TEAMS_CARD_LIMIT = "team" as const;
 
 export type CircleCardPlanKey = (typeof CIRCLE_CARD_PLANS)[number];
+
+export type CircleCardLaunchCapabilities = {
+  coreProfile: true;
+  qr: true;
+  share: true;
+  vCard: true;
+  wallet: true;
+  spin: true;
+  referrals: true;
+  basicAnalytics: true;
+  baseLayouts: true;
+  circleStudio: boolean;
+  businessBuilder: boolean;
+  creatorMediaKit: boolean;
+  creatorAudienceSnapshot: boolean;
+  expandedCreatorLimits: boolean;
+  uploadedPrivateFileLinks: false;
+};
+
+const FREE_LAUNCH_CAPABILITIES: CircleCardLaunchCapabilities = {
+  coreProfile: true,
+  qr: true,
+  share: true,
+  vCard: true,
+  wallet: true,
+  spin: true,
+  referrals: true,
+  basicAnalytics: true,
+  baseLayouts: true,
+  circleStudio: false,
+  businessBuilder: false,
+  creatorMediaKit: false,
+  creatorAudienceSnapshot: false,
+  expandedCreatorLimits: false,
+  uploadedPrivateFileLinks: false
+};
+
+const PRO_LAUNCH_CAPABILITIES: CircleCardLaunchCapabilities = {
+  ...FREE_LAUNCH_CAPABILITIES,
+  circleStudio: true,
+  businessBuilder: true,
+  creatorMediaKit: true,
+  creatorAudienceSnapshot: true,
+  expandedCreatorLimits: true
+};
+
+export const CIRCLE_CARD_LAUNCH_CAPABILITIES: Record<
+  CircleCardPlanKey,
+  CircleCardLaunchCapabilities
+> = {
+  FREE: FREE_LAUNCH_CAPABILITIES,
+  PRO: PRO_LAUNCH_CAPABILITIES,
+  // Compatibility only. Teams is not sold or implemented in this launch phase.
+  TEAMS: PRO_LAUNCH_CAPABILITIES
+};
+
+export function getCircleCardLaunchCapabilities(plan: CircleCardPlanKey) {
+  return CIRCLE_CARD_LAUNCH_CAPABILITIES[plan];
+}
 
 export type CircleCardPlanFeatureStatus =
   | "included"
@@ -193,12 +279,6 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
         status: "planned"
       },
       {
-        id: "download-file-links",
-        label: "Download/file links",
-        description: "Attach files, downloads and private resources to featured actions.",
-        status: "available-early-access"
-      },
-      {
         id: "advanced-profile-sections",
         label: "Advanced profile sections",
         description: "Richer profile areas for creators, founders, sales people and business operators.",
@@ -317,12 +397,6 @@ export const CIRCLE_CARD_PRO_FEATURE_PREVIEWS: CircleCardPlanFeature[] = [
     label: "Enhanced analytics",
     description: "Deeper visibility trends, source performance and conversion signals.",
     status: "pro-later"
-  },
-  {
-    id: "file-backed-links",
-    label: "Download/file links",
-    description: "Downloads and private file links attached to featured actions.",
-    status: "early-access"
   },
   {
     id: "custom-profile-colours",
@@ -571,9 +645,9 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
 };
 
 export const CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT =
-  CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.activeFeaturedLinks as number;
+  CIRCLE_CARD_LAUNCH_LIMITS.FREE.activeLinks;
 export const CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT =
-  CIRCLE_CARD_PLAN_DEFINITIONS.PRO.limits.activeFeaturedLinks as number;
+  CIRCLE_CARD_LAUNCH_LIMITS.PRO.activeLinks;
 
 export const CIRCLE_CARD_FEATURE_STATUS_LABELS: Record<CircleCardPlanFeatureStatus, string> = {
   included: "Included",

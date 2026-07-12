@@ -66,7 +66,9 @@ describe("Circle Studio activation live render contract", () => {
 
   it("returns saved metadata to the public root and uploaded background variables", () => {
     expect(publicService).toContain("themeMetadata: true");
-    expect(publicService).toContain("themeMetadata,");
+    expect(publicService).toContain(
+      "themeMetadata: circleCardAccess.capabilities.circleStudio ? storedThemeMetadata : {}"
+    );
     expect(publicProfile).toContain("resolveCircleCardLiveTheme(card)");
     expect(publicProfile).toContain("{...circleStudioAttributes}");
     expect(themeResolver).toContain('"data-cc-identity"');

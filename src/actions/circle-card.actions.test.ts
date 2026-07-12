@@ -10,6 +10,7 @@ const revalidatePathMock = vi.hoisted(() => vi.fn());
 const createCircleCardActivityMock = vi.hoisted(() => vi.fn());
 const trackCircleCardEventMock = vi.hoisted(() => vi.fn());
 const createCircleCardNotificationMock = vi.hoisted(() => vi.fn());
+const loadCircleCardAccessForUserMock = vi.hoisted(() => vi.fn());
 const prismaMock = vi.hoisted(() => ({
   user: {
     findUnique: vi.fn()
@@ -49,6 +50,7 @@ vi.mock("@/server/circle-card", () => ({
   createCircleCardNotification: createCircleCardNotificationMock,
   findBusinessCardCircleCardMatches: vi.fn(),
   findDuplicateBusinessCardWalletContact: vi.fn(),
+  loadCircleCardAccessForUser: loadCircleCardAccessForUserMock,
   trackCircleCardEvent: trackCircleCardEventMock
 }));
 
@@ -71,6 +73,29 @@ import {
   type CircleStudioTokens
 } from "@/lib/circle-card/identity-engine";
 import { initialCircleCardSaveActionState } from "@/lib/circle-card/save-action-state";
+import {
+  buildCircleCardAccessSnapshot,
+  resolveCircleCardEntitlement
+} from "@/lib/circle-card/permissions";
+
+function mockCircleCardAccess(source: "free" | "standalone" | "bcn" | "admin" = "admin") {
+  const entitlement = resolveCircleCardEntitlement(
+    source === "free"
+      ? { role: "MEMBER" }
+      : source === "standalone"
+        ? {
+            role: "MEMBER",
+            hasActiveCircleCardSubscription: true,
+            circleCardSubscriptionPlan: "PRO"
+          }
+        : source === "bcn"
+          ? { role: "MEMBER", hasActiveSubscription: true }
+          : { role: "ADMIN" }
+  );
+  loadCircleCardAccessForUserMock.mockResolvedValue(
+    buildCircleCardAccessSnapshot({ entitlement })
+  );
+}
 
 function validCircleCardForm(overrides: Record<string, string> = {}) {
   const formData = new FormData();
@@ -110,6 +135,7 @@ function mockSignedInUser() {
     suspended: false,
     subscription: null
   });
+  mockCircleCardAccess("admin");
 }
 
 function circleStudioForm(cardId: string, tokens: CircleStudioTokens = CIRCLE_STUDIO_PRESETS[3].tokens) {
@@ -187,6 +213,7 @@ describe("updateCircleStudioAction", () => {
       suspended: false,
       subscription: null
     });
+    mockCircleCardAccess("free");
 
     await expect(updateCircleStudioAction(circleStudioForm("personal-card-id"))).rejects.toThrow(
       "REDIRECT:/dashboard/circle-card/studio?card=personal-card-id&error=studio-pro-required"
@@ -195,6 +222,21 @@ describe("updateCircleStudioAction", () => {
     expect(prismaMock.circleCard.findFirst).not.toHaveBeenCalled();
     expect(prismaMock.circleCard.update).not.toHaveBeenCalled();
     expect(createCircleCardActivityMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a standalone Circle Card Pro subscriber to activate Studio", async () => {
+    mockCircleCardAccess("standalone");
+    prismaMock.circleCard.findFirst.mockResolvedValue({
+      id: "standalone-pro-card",
+      slug: "standalone-pro"
+    });
+    prismaMock.circleCard.update.mockResolvedValue({});
+
+    await expect(updateCircleStudioAction(circleStudioForm("standalone-pro-card"))).rejects.toThrow(
+      /notice=studio-activated/
+    );
+
+    expect(prismaMock.circleCard.update).toHaveBeenCalled();
   });
 });
 
@@ -354,6 +396,27 @@ describe("upsertCircleCardAction", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/dashboard/circle-card");
   });
 
+  it("allows a standalone Pro customer to create a second Circle Card", async () => {
+    mockCircleCardAccess("standalone");
+    prismaMock.circleCard.count.mockResolvedValueOnce(1).mockResolvedValueOnce(1);
+    prismaMock.circleCard.findFirst.mockResolvedValueOnce(null);
+    prismaMock.circleCard.create.mockResolvedValue({
+      id: "clx0000000000000000000005",
+      slug: "asha-second-card"
+    });
+
+    const result = await upsertCircleCardAction(
+      initialCircleCardSaveActionState,
+      validCircleCardForm({ slug: "asha-second-card" })
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      cardId: "clx0000000000000000000005"
+    });
+    expect(prismaMock.circleCard.create).toHaveBeenCalled();
+  });
+
   it("does not return the failure message after a saved update", async () => {
     prismaMock.circleCard.findFirst
       .mockResolvedValueOnce({
@@ -434,7 +497,8 @@ describe("Price List inline actions", () => {
     return formData;
   }
 
-  it("saves a price item for an entitled Business Card", async () => {
+  it("allows standalone Pro to save a Business Card Builder price item", async () => {
+    mockCircleCardAccess("standalone");
     prismaMock.circleCard.findFirst.mockResolvedValue({
       id: "clx0000000000000000000020",
       slug: "asha-business",
@@ -469,6 +533,7 @@ describe("Price List inline actions", () => {
       suspended: false,
       subscription: null
     });
+    mockCircleCardAccess("free");
 
     const result = await upsertCircleCardPriceListItemInlineAction(validPriceListForm());
 
@@ -536,6 +601,7 @@ describe("Menu & Offers inline actions", () => {
       suspended: false,
       subscription: null
     });
+    mockCircleCardAccess("free");
 
     const result = await upsertCircleCardMenuOfferItemInlineAction(validMenuOfferForm());
 

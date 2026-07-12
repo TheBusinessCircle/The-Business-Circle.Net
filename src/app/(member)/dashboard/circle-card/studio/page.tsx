@@ -15,6 +15,7 @@ import {
 } from "@/lib/circle-card/current-card-preference";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
+import { loadCircleCardAccessForUser } from "@/server/circle-card";
 
 export const metadata: Metadata = {
   title: "Circle Studio | Circle Card",
@@ -38,7 +39,7 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
   const persistedCardId = normalizeCircleCardCurrentCardId(
     (await cookies()).get(CIRCLE_CARD_CURRENT_CARD_COOKIE)?.value
   );
-  const cards = await prisma.circleCard.findMany({
+  const [cards, circleCardAccess] = await Promise.all([prisma.circleCard.findMany({
     where: { userId: session.user.id, archivedAt: null },
     orderBy: [{ isDefaultCard: "desc" }, { displayOrder: "asc" }, { createdAt: "asc" }],
     select: {
@@ -54,7 +55,7 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
       isPublished: true,
       themeMetadata: true
     }
-  });
+  }), loadCircleCardAccessForUser(session.user.id)]);
 
   if (!cards.length) redirect("/dashboard/circle-card?section=my-card");
   const liveCards = cards.filter((item) => item.isPublished);
@@ -66,7 +67,7 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
   ) ?? null;
   const defaultLiveCard = liveCards[0] ?? null;
   const card = requestedCard ?? persistedCard ?? defaultLiveCard ?? cards[0];
-  const canActivate = session.user.role === "ADMIN" || session.user.hasActiveSubscription;
+  const canActivate = circleCardAccess.capabilities.circleStudio;
 
   return (
     <div className="page-shell pb-16 pt-4 sm:pt-6">

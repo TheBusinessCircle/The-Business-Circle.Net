@@ -1,8 +1,11 @@
-import type { MembershipTier, Role } from "@prisma/client";
+import type { MembershipTier, Role, SubscriptionStatus } from "@prisma/client";
 import {
   CIRCLE_CARD_FREE_CARD_LIMIT,
+  CIRCLE_CARD_LAUNCH_LIMITS,
   CIRCLE_CARD_PRO_CARD_LIMIT,
   CIRCLE_CARD_TEAMS_STAFF_CARD_LIMIT,
+  getCircleCardLaunchCapabilities,
+  type CircleCardLaunchCapabilities,
   type CircleCardPlanKey
 } from "@/lib/circle-card/plans";
 
@@ -66,6 +69,109 @@ export type CircleCardEntitlement = {
   isAmbassadorFreePro: boolean;
   affectsBcnSubscription: false;
 };
+
+export const CIRCLE_CARD_ACCESS_SOURCES = [
+  "free",
+  "standalone_subscription",
+  "bcn_membership",
+  "admin",
+  "ambassador",
+  "grandfathered",
+  "teams"
+] as const;
+
+export type CircleCardAccessSource = (typeof CIRCLE_CARD_ACCESS_SOURCES)[number];
+
+export type CircleCardAccessLimits = {
+  circleCards: number;
+  activeLinks: number;
+  businessServices: number;
+  businessProducts: number;
+  businessPriceListItems: number;
+  businessMenuOffers: number;
+  businessDocuments: number;
+  businessGalleryImages: number;
+  businessReviews: number;
+  creatorFeaturedContent: number;
+  creatorOffers: number;
+  creatorPressProof: number;
+  creatorBrandPartnerships: number;
+};
+
+export type CircleCardAccessSnapshot = {
+  plan: CircleCardPlanKey;
+  source: CircleCardAccessSource;
+  hasProAccess: boolean;
+  accessEndsAt: Date | null;
+  subscriptionStatus: SubscriptionStatus | null;
+  isInRecoveryGrace: boolean;
+  limits: CircleCardAccessLimits;
+  capabilities: CircleCardLaunchCapabilities;
+  entitlement: CircleCardEntitlement;
+};
+
+function circleCardAccessSource(source: CircleCardEntitlementSource): CircleCardAccessSource {
+  switch (source) {
+    case "PRO_SUBSCRIPTION":
+      return "standalone_subscription";
+    case "TEAMS_SUBSCRIPTION":
+      return "teams";
+    case "BCN_INCLUDED_PRO":
+      return "bcn_membership";
+    case "ADMIN_OVERRIDE":
+      return "admin";
+    case "AMBASSADOR_FREE_PRO":
+      return "ambassador";
+    case "EARLY_ACCESS":
+      return "grandfathered";
+    case "FREE":
+    default:
+      return "free";
+  }
+}
+
+function circleCardAccessLimits(plan: CircleCardPlanKey): CircleCardAccessLimits {
+  if (plan === "FREE") {
+    return {
+      circleCards: CIRCLE_CARD_LAUNCH_LIMITS.FREE.circleCards,
+      activeLinks: CIRCLE_CARD_LAUNCH_LIMITS.FREE.activeLinks,
+      businessServices: 0,
+      businessProducts: 0,
+      businessPriceListItems: 0,
+      businessMenuOffers: 0,
+      businessDocuments: 0,
+      businessGalleryImages: 0,
+      businessReviews: 0,
+      creatorFeaturedContent: CIRCLE_CARD_LAUNCH_LIMITS.FREE.creatorFeaturedContent,
+      creatorOffers: CIRCLE_CARD_LAUNCH_LIMITS.FREE.creatorOffers,
+      creatorPressProof: CIRCLE_CARD_LAUNCH_LIMITS.FREE.creatorPressProof,
+      creatorBrandPartnerships: CIRCLE_CARD_LAUNCH_LIMITS.FREE.creatorBrandPartnerships
+    };
+  }
+
+  return {
+    ...CIRCLE_CARD_LAUNCH_LIMITS.PRO
+  };
+}
+
+export function buildCircleCardAccessSnapshot(input: {
+  entitlement: CircleCardEntitlement;
+  accessEndsAt?: Date | null;
+  subscriptionStatus?: SubscriptionStatus | null;
+  isInRecoveryGrace?: boolean;
+}): CircleCardAccessSnapshot {
+  return {
+    plan: input.entitlement.plan,
+    source: circleCardAccessSource(input.entitlement.source),
+    hasProAccess: input.entitlement.plan !== "FREE",
+    accessEndsAt: input.accessEndsAt ?? null,
+    subscriptionStatus: input.subscriptionStatus ?? null,
+    isInRecoveryGrace: input.isInRecoveryGrace ?? false,
+    limits: circleCardAccessLimits(input.entitlement.plan),
+    capabilities: getCircleCardLaunchCapabilities(input.entitlement.plan),
+    entitlement: input.entitlement
+  };
+}
 
 export const CIRCLE_CARD_ENTITLEMENT_SOURCE_LABELS: Record<
   CircleCardEntitlementSource,

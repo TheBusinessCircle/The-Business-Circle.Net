@@ -9,6 +9,7 @@ import {
 } from "@/lib/security/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { resolveCircleCardFileAction } from "@/lib/circle-card/file-actions";
+import { CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED } from "@/lib/circle-card/plans";
 import {
   isSafeCircleCardExternalUrl,
   isSafeCircleCardLinkDestination
@@ -74,6 +75,10 @@ function linkAccessMetadata(input: {
 }
 
 async function findPrivatePublicLink(linkId: string) {
+  if (!CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED) {
+    return null;
+  }
+
   return prisma.circleCardLink.findFirst({
     where: {
       id: linkId,

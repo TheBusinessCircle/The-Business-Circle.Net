@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { CIRCLE_CARD_LAUNCH_LIMITS } from "@/lib/circle-card/plans";
 import { isSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import {
   isSafeCircleCardExternalUrl,
@@ -195,7 +196,7 @@ export type CircleCardServiceItem = {
   sortOrder: number;
 };
 
-export const CIRCLE_CARD_SERVICE_LIMIT = 12;
+export const CIRCLE_CARD_SERVICE_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.businessServices;
 
 export const CIRCLE_CARD_FEATURED_CONTENT_PLATFORMS = [
   "TikTok",
@@ -233,8 +234,8 @@ export type CircleCardFeaturedContentItem = {
   sortOrder: number;
 };
 
-export const CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT = 3;
-export const CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT = 100;
+export const CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.FREE.creatorFeaturedContent;
+export const CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.creatorFeaturedContent;
 
 export const CIRCLE_CARD_BRAND_PARTNERSHIP_TYPES = [
   "Sponsored Content",
@@ -267,8 +268,8 @@ export type CircleCardBrandPartnership = {
   sortOrder: number;
 };
 
-export const CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT = 2;
-export const CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT = 100;
+export const CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.FREE.creatorBrandPartnerships;
+export const CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.creatorBrandPartnerships;
 export type CircleCardBrandPartnershipStatus = "Not Started" | "Active" | "Complete";
 
 export const CIRCLE_CARD_CREATOR_OFFER_TYPES = [
@@ -307,8 +308,8 @@ export type CircleCardCreatorOffer = {
   sortOrder: number;
 };
 
-export const CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT = 2;
-export const CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT = 100;
+export const CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.FREE.creatorOffers;
+export const CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.creatorOffers;
 export type CircleCardCreatorOfferStatus = "Not Started" | "Active" | "Complete";
 
 export const CIRCLE_CARD_PRESS_PROOF_TYPES = [
@@ -344,8 +345,8 @@ export type CircleCardPressProofItem = {
   sortOrder: number;
 };
 
-export const CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT = 2;
-export const CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT = 100;
+export const CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.FREE.creatorPressProof;
+export const CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.creatorPressProof;
 export type CircleCardPressProofStatus = "Not Started" | "Active" | "Complete";
 
 export const CIRCLE_CARD_MEDIA_KIT_WORK_TYPES = [
@@ -447,7 +448,8 @@ export type CircleCardProductItem = {
   sortOrder: number;
 };
 
-export const CIRCLE_CARD_PRODUCT_PRO_LIMIT = 100;
+export const CIRCLE_CARD_PRODUCT_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.businessProducts;
+export const CIRCLE_CARD_PRICE_LIST_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.businessPriceListItems;
 
 export type CircleCardPriceListItem = {
   id: string;
@@ -493,7 +495,7 @@ export type CircleCardMenuOfferItem = {
   sortOrder: number;
 };
 
-export const CIRCLE_CARD_MENU_OFFER_PRO_LIMIT = 100;
+export const CIRCLE_CARD_MENU_OFFER_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.businessMenuOffers;
 
 export type CircleCardDocumentItem = {
   id: string;
@@ -509,7 +511,7 @@ export type CircleCardDocumentItem = {
   sortOrder: number;
 };
 
-export const CIRCLE_CARD_DOCUMENT_PRO_LIMIT = 50;
+export const CIRCLE_CARD_DOCUMENT_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.businessDocuments;
 
 export type CircleCardBookingEnquiry = {
   heading: string;
@@ -536,7 +538,7 @@ export type CircleCardGalleryItem = {
   sortOrder: number;
 };
 
-export const CIRCLE_CARD_GALLERY_PRO_LIMIT = 20;
+export const CIRCLE_CARD_GALLERY_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.businessGalleryImages;
 export const CIRCLE_CARD_GALLERY_TEAMS_LIMIT = 100;
 
 export type CircleCardReviewItem = {
@@ -553,7 +555,7 @@ export type CircleCardReviewItem = {
   relationship?: string | null;
 };
 
-export const CIRCLE_CARD_REVIEW_PRO_LIMIT = 20;
+export const CIRCLE_CARD_REVIEW_PRO_LIMIT = CIRCLE_CARD_LAUNCH_LIMITS.PRO.businessReviews;
 export const CIRCLE_CARD_REVIEW_TEAMS_LIMIT = 100;
 
 export const CIRCLE_CARD_WEEKDAYS = [

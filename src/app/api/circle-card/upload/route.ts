@@ -3,11 +3,11 @@ import { requireApiUser } from "@/lib/auth/api";
 import { logServerError } from "@/lib/security/logging";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
+import { loadCircleCardAccessForUser } from "@/server/circle-card/billing.service";
 import {
   isCircleCardImageUploadKind,
   isCircleCardLinkFileUploadKind,
-  persistCircleCardImageUpload,
-  persistCircleCardLinkFileUpload
+  persistCircleCardImageUpload
 } from "@/server/circle-card/upload.service";
 
 export const runtime = "nodejs";
@@ -52,20 +52,23 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const kind = String(formData.get("kind") || "profile-photo");
     const image = formData.get("image");
+    const circleCardAccess = await loadCircleCardAccessForUser(authResult.user.id);
 
     if (isCircleCardLinkFileUploadKind(kind)) {
-      const file = formData.get("file");
-
-      if (!isFileValue(file) || file.size <= 0) {
-        return NextResponse.json({ error: "Choose a file to upload." }, { status: 400, headers });
-      }
-
-      const uploadedFile = await persistCircleCardLinkFileUpload({ file });
-
-      return NextResponse.json({ ok: true, ...uploadedFile }, { headers });
+      return NextResponse.json(
+        { error: "Circle Card file uploads are not included in the current launch entitlement." },
+        { status: 403, headers }
+      );
     }
 
     if (isCircleCardImageUploadKind(kind)) {
+      if (kind === "background-image" && !circleCardAccess.capabilities.circleStudio) {
+        return NextResponse.json({ error: "Circle Studio access is required." }, { status: 403, headers });
+      }
+
+      if (kind === "gallery-image" && !circleCardAccess.capabilities.businessBuilder) {
+        return NextResponse.json({ error: "Circle Card Pro access is required." }, { status: 403, headers });
+      }
       if (!isFileValue(image) || image.size <= 0) {
         return NextResponse.json({ error: "Choose an image to upload." }, { status: 400, headers });
       }
