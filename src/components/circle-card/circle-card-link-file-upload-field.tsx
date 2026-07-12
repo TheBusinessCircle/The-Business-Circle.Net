@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { CheckCircle2, FileUp, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CIRCLE_CARD_SUPPORTED_LINK_FILE_MIME_TYPES } from "@/lib/circle-card/file-actions";
+import { CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED } from "@/lib/circle-card/plans";
 import { cn } from "@/lib/utils";
 
 type UploadResponse = {
@@ -71,6 +72,21 @@ export function CircleCardLinkFileUploadField({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  if (!CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED) {
+    return (
+      <div className="space-y-2 rounded-2xl border border-silver/14 bg-background/18 p-4">
+        <input type="hidden" name="fileUrl" value={fileUrl} />
+        <input type="hidden" name="fileName" value={fileName} />
+        <input type="hidden" name="fileMimeType" value={fileMimeType} />
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-xs leading-relaxed text-muted">
+          File uploads are not included in the current Circle Card launch entitlement.
+          Existing saved file data is retained.
+        </p>
+      </div>
+    );
+  }
 
   function selectFile(file: File | null) {
     setNotice(null);

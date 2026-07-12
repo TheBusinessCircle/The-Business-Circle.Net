@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readCircleCardDocumentItems } from "@/lib/circle-card/content-blocks";
+import { CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED } from "@/lib/circle-card/plans";
 import { prisma } from "@/lib/prisma";
 import { buildCircleCardFileResponse } from "@/server/circle-card/file-response.service";
 import {
@@ -14,6 +15,10 @@ type RouteProps = {
 export const runtime = "nodejs";
 
 export async function GET(_request: Request, { params }: RouteProps) {
+  if (!CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED) {
+    return NextResponse.json({ error: "Circle Card file not found." }, { status: 404 });
+  }
+
   const { filename } = await params;
 
   if (!isCircleCardLinkFileName(filename)) {

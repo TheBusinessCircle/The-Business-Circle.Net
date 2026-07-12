@@ -1,7 +1,6 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import type { MembershipTier, Role } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -62,6 +61,7 @@ import {
   CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT,
   CIRCLE_CARD_GALLERY_PRO_LIMIT,
   CIRCLE_CARD_MENU_OFFER_PRO_LIMIT,
+  CIRCLE_CARD_PRICE_LIST_PRO_LIMIT,
   CIRCLE_CARD_PRODUCT_PRO_LIMIT,
   CIRCLE_CARD_REVIEW_PRO_LIMIT,
   CIRCLE_CARD_SERVICE_LIMIT,
@@ -184,16 +184,13 @@ import {
   circleCardNotificationMarkAllSchema
 } from "@/lib/circle-card/notifications";
 import {
-  canCreateCircleCard,
-  isCircleCardFreeAccount,
-  resolveCircleCardAccessLevel
+  type CircleCardAccessSnapshot
 } from "@/lib/circle-card/permissions";
 import {
-  CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
+  CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED,
   CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT
 } from "@/lib/circle-card/plans";
 import type { CircleCardSaveActionState } from "@/lib/circle-card/save-action-state";
-import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { absoluteUrl } from "@/lib/utils";
@@ -202,6 +199,7 @@ import {
   createCircleCardNotification,
   findBusinessCardCircleCardMatches,
   findDuplicateBusinessCardWalletContact,
+  loadCircleCardAccessForUser,
   trackCircleCardEvent
 } from "@/server/circle-card";
 import { hashCircleCardAccessCode } from "@/server/circle-card/link-access.service";
@@ -394,9 +392,7 @@ const CIRCLE_CARD_SMART_IMPORT_APPLY_LINK_LIMIT = 3;
 
 type CircleCardActionUser = {
   id: string;
-  role: Role;
-  membershipTier: MembershipTier;
-  hasActiveSubscription: boolean;
+  access: CircleCardAccessSnapshot;
 };
 
 async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
@@ -410,14 +406,7 @@ async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
     where: { id: session.user.id },
     select: {
       id: true,
-      role: true,
-      membershipTier: true,
-      suspended: true,
-      subscription: {
-        select: {
-          status: true
-        }
-      }
+      suspended: true
     }
   });
 
@@ -429,12 +418,11 @@ async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
     redirect("/login?error=suspended");
   }
 
+  const access = await loadCircleCardAccessForUser(user.id);
+
   return {
     id: user.id,
-    role: user.role,
-    membershipTier: user.membershipTier,
-    hasActiveSubscription:
-      user.role === "ADMIN" ? true : hasEntitledSubscription(user.subscription?.status ?? null)
+    access
   };
 }
 
@@ -873,15 +861,6 @@ async function ensureAcceptedIntroductionConnection(
   };
 }
 
-function isFreeCircleCardActionUser(user: CircleCardActionUser) {
-  return isCircleCardFreeAccount({
-    role: user.role,
-    membershipTier: user.membershipTier,
-    hasActiveSubscription: user.hasActiveSubscription,
-    suspended: false
-  });
-}
-
 function circleCardLinkIconForType(type: CircleCardLinkType) {
   switch (type) {
     case "BOOK_CALL":
@@ -1009,7 +988,7 @@ async function circleCardCustomLinkActivationLimitExceeded(input: {
   existingIsActive?: boolean;
   wantsActive: boolean;
 }) {
-  if (!input.wantsActive || input.existingIsActive || !isFreeCircleCardActionUser(input.user)) {
+  if (!input.wantsActive || input.existingIsActive) {
     return false;
   }
 
@@ -1021,7 +1000,7 @@ async function circleCardCustomLinkActivationLimitExceeded(input: {
     }
   });
 
-  return activeLinkCount >= CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT;
+  return activeLinkCount >= input.user.access.limits.activeLinks;
 }
 
 const CIRCLE_CARD_LINK_DASHBOARD_SELECT = {
@@ -1660,9 +1639,7 @@ export async function applyCircleCardSmartImportAction(formData: FormData) {
   }
 
   const activeLinkCount = card.customLinks.length;
-  let remainingFreeActiveSlots = isFreeCircleCardActionUser(user)
-    ? Math.max(0, CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT - activeLinkCount)
-    : Number.POSITIVE_INFINITY;
+  let remainingActiveSlots = Math.max(0, user.access.limits.activeLinks - activeLinkCount);
 
   if (hasCardUpdates) {
     await prisma.circleCard.update({
@@ -1677,11 +1654,8 @@ export async function applyCircleCardSmartImportAction(formData: FormData) {
     let nextSortOrder = card._count.customLinks;
 
     for (const link of selectedLinks) {
-      const isActive = remainingFreeActiveSlots > 0;
-
-      if (Number.isFinite(remainingFreeActiveSlots)) {
-        remainingFreeActiveSlots -= 1;
-      }
+      const isActive = remainingActiveSlots > 0;
+      remainingActiveSlots -= 1;
 
       await prisma.circleCardLink.create({
         data: {
@@ -1743,6 +1717,13 @@ export async function upsertCircleCardAction(
     formData.has("themePreset");
   const cardId = values.cardId || null;
 
+  if (shouldUpdateTheme && !shouldResetTheme && !user.access.capabilities.circleStudio) {
+    return circleCardSaveFailure({
+      message: "The Circle Card theme could not be saved.",
+      formError: "Circle Studio access is required to activate a custom presentation."
+    });
+  }
+
   if (!cardId && !values.accountType) {
     return circleCardSaveFailure({
       message: "The Circle Card could not be saved.",
@@ -1786,13 +1767,7 @@ export async function upsertCircleCardAction(
         archivedAt: null
       }
     });
-    const accessLevel = resolveCircleCardAccessLevel({
-      role: user.role,
-      membershipTier: user.membershipTier,
-      hasActiveSubscription: user.hasActiveSubscription
-    });
-
-    if (!canCreateCircleCard({ accessLevel, existingCardCount })) {
+    if (existingCardCount >= user.access.limits.circleCards) {
       return circleCardSaveFailure({
         message: "The Circle Card could not be saved.",
         formError: "You have reached the Circle Card limit for your current access."
@@ -2576,7 +2551,7 @@ export async function updateCircleStudioAction(formData: FormData) {
     redirectWithError(returnPath, "studio-contrast");
   }
 
-  if (!user.hasActiveSubscription && user.role !== "ADMIN") {
+  if (!user.access.capabilities.circleStudio) {
     redirectWithError(returnPath, "studio-pro-required");
   }
 
@@ -2653,6 +2628,8 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
           isActive: true,
           sortOrder: true,
           icon: true,
+          fileUrl: true,
+          visibility: true,
           accessCodeHash: true
         }
       })
@@ -2688,6 +2665,13 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
       where: { cardId: card.id }
     }));
   const visibility = circleCardLinkVisibilityForType(values.type, values.visibility);
+  if (
+    !CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED &&
+    ((visibility === "PRIVATE_CODE" && existingLink?.visibility !== "PRIVATE_CODE") ||
+      (values.fileUrl && values.fileUrl !== existingLink?.fileUrl))
+  ) {
+    redirectWithError(returnPath, "custom-link-file-feature-unavailable");
+  }
   const accessCodeHash =
     visibility === "PRIVATE_CODE"
       ? values.accessCodePlain
@@ -2841,11 +2825,7 @@ export async function deleteCircleCardLinkAction(formData: FormData) {
 }
 
 function canManageCircleCardBusinessBlocks(user: CircleCardActionUser) {
-  return resolveCircleCardAccessLevel({
-    role: user.role,
-    membershipTier: user.membershipTier,
-    hasActiveSubscription: user.hasActiveSubscription
-  }) !== "FREE";
+  return user.access.capabilities.businessBuilder;
 }
 
 async function getOwnedCircleCardForBusinessBlocks(cardId: string, userId: string) {
@@ -3815,6 +3795,12 @@ export async function upsertCircleCardPriceListItemInlineAction(
       "That price could not be found on this Business Card."
     );
   }
+  if (existingIndex < 0 && priceItems.length >= CIRCLE_CARD_PRICE_LIST_PRO_LIMIT) {
+    return inlineCircleCardPriceListError(
+      "price-list-limit",
+      `Circle Card Pro can keep up to ${CIRCLE_CARD_PRICE_LIST_PRO_LIMIT} price-list items.`
+    );
+  }
 
   const priceItem: CircleCardPriceListItem = {
     id: existingIndex >= 0 ? priceItems[existingIndex].id : randomBytes(12).toString("hex"),
@@ -4134,11 +4120,7 @@ export async function upsertCircleCardFeaturedContentItemInlineAction(
     );
   }
 
-  const hasProAccess = resolveCircleCardAccessLevel({
-    role: user.role,
-    membershipTier: user.membershipTier,
-    hasActiveSubscription: user.hasActiveSubscription
-  }) !== "FREE";
+  const hasProAccess = user.access.capabilities.expandedCreatorLimits;
   const itemLimit = hasProAccess
     ? CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT
     : CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT;
@@ -4291,11 +4273,7 @@ export async function upsertCircleCardCreatorOfferInlineAction(
     );
   }
 
-  const hasProAccess = resolveCircleCardAccessLevel({
-    role: user.role,
-    membershipTier: user.membershipTier,
-    hasActiveSubscription: user.hasActiveSubscription
-  }) !== "FREE";
+  const hasProAccess = user.access.capabilities.expandedCreatorLimits;
   const itemLimit = hasProAccess
     ? CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT
     : CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT;
@@ -4454,11 +4432,7 @@ export async function upsertCircleCardPressProofItemInlineAction(
     );
   }
 
-  const hasProAccess = resolveCircleCardAccessLevel({
-    role: user.role,
-    membershipTier: user.membershipTier,
-    hasActiveSubscription: user.hasActiveSubscription
-  }) !== "FREE";
+  const hasProAccess = user.access.capabilities.expandedCreatorLimits;
   const itemLimit = hasProAccess
     ? CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT
     : CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT;
@@ -4614,11 +4588,7 @@ export async function upsertCircleCardBrandPartnershipInlineAction(
       "That partnership could not be found on this Creator Card."
     );
   }
-  const hasProAccess = resolveCircleCardAccessLevel({
-    role: user.role,
-    membershipTier: user.membershipTier,
-    hasActiveSubscription: user.hasActiveSubscription
-  }) !== "FREE";
+  const hasProAccess = user.access.capabilities.expandedCreatorLimits;
   const itemLimit = hasProAccess
     ? CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT
     : CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT;
@@ -4764,7 +4734,7 @@ export async function saveCircleCardMediaKitInlineAction(
       parsed.error.issues[0]?.message ?? "Check the Media Kit details and try again."
     );
   }
-  if (!canManageCircleCardBusinessBlocks(user)) {
+  if (!user.access.capabilities.creatorMediaKit) {
     return inlineCircleCardMediaKitError("media-kit-locked", "Media Kit is included with Creator Pro.");
   }
 
@@ -4855,7 +4825,7 @@ export async function saveCircleCardAudienceSnapshotInlineAction(
       parsed.error.issues[0]?.message ?? "Check the audience details and try again."
     );
   }
-  if (!canManageCircleCardBusinessBlocks(user)) {
+  if (!user.access.capabilities.creatorAudienceSnapshot) {
     return inlineCircleCardAudienceSnapshotError(
       "audience-snapshot-locked",
       "Audience Snapshot is included with Creator Pro."
@@ -5492,6 +5462,8 @@ export async function upsertCircleCardLinkInlineAction(
           isActive: true,
           sortOrder: true,
           icon: true,
+          fileUrl: true,
+          visibility: true,
           accessCodeHash: true
         }
       })
@@ -5525,7 +5497,7 @@ export async function upsertCircleCardLinkInlineAction(
   if (activeLimitExceeded) {
     return inlineCircleCardError(
       "custom-link-active-limit",
-      `Free Circle Cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links in this phase.`
+      `This Circle Card can keep up to ${user.access.limits.activeLinks} active custom links on the current plan.`
     );
   }
 
@@ -5536,6 +5508,16 @@ export async function upsertCircleCardLinkInlineAction(
       where: { cardId: card.id }
     }));
   const visibility = circleCardLinkVisibilityForType(values.type, values.visibility);
+  if (
+    !CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED &&
+    ((visibility === "PRIVATE_CODE" && existingLink?.visibility !== "PRIVATE_CODE") ||
+      (values.fileUrl && values.fileUrl !== existingLink?.fileUrl))
+  ) {
+    return inlineCircleCardError(
+      "custom-link-file-feature-unavailable",
+      "Uploaded and private file links are not included in the current launch entitlement."
+    );
+  }
   const accessCodeHash =
     visibility === "PRIVATE_CODE"
       ? values.accessCodePlain
@@ -5651,7 +5633,7 @@ export async function toggleCircleCardLinkInlineAction(input: {
   if (activeLimitExceeded) {
     return inlineCircleCardError(
       "custom-link-active-limit",
-      `Free Circle Cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links in this phase.`
+      `This Circle Card can keep up to ${user.access.limits.activeLinks} active custom links on the current plan.`
     );
   }
 
@@ -5817,13 +5799,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
       archivedAt: null
     }
   });
-  const accessLevel = resolveCircleCardAccessLevel({
-    role: user.role,
-    membershipTier: user.membershipTier,
-    hasActiveSubscription: user.hasActiveSubscription
-  });
-
-  if (!canCreateCircleCard({ accessLevel, existingCardCount })) {
+  if (existingCardCount >= user.access.limits.circleCards) {
     redirectWithError(returnPath, "card-limit");
   }
 

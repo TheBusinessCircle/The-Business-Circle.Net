@@ -3,9 +3,7 @@ import "server-only";
 import {
   BillingInterval,
   CircleCardSubscriptionPlan,
-  type MembershipTier,
   Prisma,
-  type Role,
   SubscriptionStatus
 } from "@prisma/client";
 import type Stripe from "stripe";
@@ -16,11 +14,13 @@ import {
 } from "@/lib/circle-card/pricing";
 import type { CircleCardBillingPeriod } from "@/lib/circle-card/billing-blueprint";
 import {
+  buildCircleCardAccessSnapshot,
   resolveCircleCardEntitlement,
-  type CircleCardEntitlement
+  type CircleCardAccessSnapshot
 } from "@/lib/circle-card/permissions";
 import type { PaidCircleCardPlanKey } from "@/lib/circle-card/permissions";
 import { db } from "@/lib/db";
+import { hasEntitledSubscription } from "@/lib/membership/access";
 import { logServerWarning } from "@/lib/security/logging";
 import { absoluteUrl } from "@/lib/utils";
 import { requireStripeClient } from "@/server/stripe/client";
@@ -167,7 +167,11 @@ export function isCircleCardSubscriptionEntitled(
   subscription: CircleCardSubscriptionForAccess | null | undefined,
   now = new Date()
 ) {
-  if (!subscription || subscription.plan !== CircleCardSubscriptionPlan.PRO) {
+  if (
+    !subscription ||
+    (subscription.plan !== CircleCardSubscriptionPlan.PRO &&
+      subscription.plan !== CircleCardSubscriptionPlan.TEAMS)
+  ) {
     return false;
   }
 
@@ -612,44 +616,93 @@ export async function processCircleCardStripeWebhookEvent(event: Stripe.Event) {
   return true;
 }
 
-export async function loadCircleCardEntitlementForUser(input: {
-  userId: string;
-  role: Role;
-  membershipTier: MembershipTier;
-  hasActiveSubscription: boolean;
-  suspended: boolean;
-}): Promise<CircleCardEntitlement> {
-  const [circleCardSubscription, ambassadorProfile] = await Promise.all([
-    db.circleCardSubscription.findUnique({
-      where: { userId: input.userId },
-      select: {
-        plan: true,
-        status: true,
-        currentPeriodStart: true,
-        currentPeriodEnd: true,
-        lastInvoicePaidAt: true
+export async function loadCircleCardAccessForUser(
+  userId: string,
+  now = new Date()
+): Promise<CircleCardAccessSnapshot> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      membershipTier: true,
+      suspended: true,
+      subscription: { select: { status: true } },
+      circleCardSubscription: {
+        select: {
+          plan: true,
+          status: true,
+          currentPeriodStart: true,
+          currentPeriodEnd: true,
+          lastInvoicePaidAt: true
+        }
+      },
+      circleCardAmbassadorProfile: {
+        select: { freeProGranted: true, active: true }
+      },
+      circleCardAccessGrant: {
+        select: {
+          plan: true,
+          source: true,
+          active: true,
+          startsAt: true,
+          endsAt: true
+        }
       }
-    }),
-    db.circleCardAmbassadorProfile.findUnique({
-      where: { userId: input.userId },
-      select: { freeProGranted: true, active: true }
-    })
-  ]);
-  const hasPaidCircleCardSubscription = isCircleCardSubscriptionEntitled(circleCardSubscription);
+    }
+  });
+
+  if (!user) {
+    throw new Error("circle-card-access-user-not-found");
+  }
+
+  const circleCardSubscription = user.circleCardSubscription;
+  const hasPaidCircleCardSubscription = isCircleCardSubscriptionEntitled(
+    circleCardSubscription,
+    now
+  );
   const circleCardSubscriptionPlan = hasPaidCircleCardSubscription
     ? (circleCardSubscription?.plan as PaidCircleCardPlanKey)
     : null;
-
-  return resolveCircleCardEntitlement({
-    role: input.role,
-    membershipTier: input.membershipTier,
-    suspended: input.suspended,
-    hasActiveSubscription: input.hasActiveSubscription,
+  const grant = user.circleCardAccessGrant;
+  const hasGrandfatheredAccess = Boolean(
+    grant?.active &&
+      grant.source === "GRANDFATHERED" &&
+      (!grant.startsAt || grant.startsAt <= now) &&
+      (!grant.endsAt || grant.endsAt >= now)
+  );
+  const entitlement = resolveCircleCardEntitlement({
+    role: user.role,
+    membershipTier: user.membershipTier,
+    suspended: user.suspended,
+    hasActiveSubscription: hasEntitledSubscription(user.subscription?.status ?? null),
     hasActiveCircleCardSubscription: hasPaidCircleCardSubscription,
     circleCardSubscriptionPlan,
     circleCardAmbassadorFreePro:
-      Boolean(ambassadorProfile?.freeProGranted) && ambassadorProfile?.active !== false
+      Boolean(user.circleCardAmbassadorProfile?.freeProGranted) &&
+      user.circleCardAmbassadorProfile?.active !== false,
+    circleCardEarlyAccessPlan: hasGrandfatheredAccess
+      ? (grant?.plan as PaidCircleCardPlanKey)
+      : null
   });
+
+  const accessEndsAt = entitlement.hasPaidCircleCardSubscription
+    ? circleCardSubscription?.currentPeriodEnd ?? null
+    : entitlement.source === "EARLY_ACCESS"
+      ? grant?.endsAt ?? null
+      : null;
+
+  return buildCircleCardAccessSnapshot({
+    entitlement,
+    accessEndsAt,
+    subscriptionStatus: circleCardSubscription?.status ?? null,
+    isInRecoveryGrace:
+      hasPaidCircleCardSubscription && circleCardSubscription?.status === SubscriptionStatus.PAST_DUE
+  });
+}
+
+/** @deprecated Use loadCircleCardAccessForUser for every authorisation decision. */
+export async function loadCircleCardEntitlementForUser(userId: string) {
+  return (await loadCircleCardAccessForUser(userId)).entitlement;
 }
 
 export async function getCircleCardBillingAdminMetrics() {

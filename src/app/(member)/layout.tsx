@@ -19,10 +19,6 @@ import { getMembershipTierLabel } from "@/config/membership";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { getAccentThemeCssVariables, resolveAccentTheme } from "@/lib/accent-themes";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
-import {
-  getCircleCardAccountLabel,
-  isCircleCardFreeAccount
-} from "@/lib/circle-card/permissions";
 import { isCircleCardDashboardPath } from "@/lib/circle-card/routes";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -35,7 +31,8 @@ import { requireUser } from "@/lib/session";
 import {
   createCircleCardActivationNotificationsForUser,
   getCircleCardNotificationPanel,
-  getCircleCardNotificationUnreadCount
+  getCircleCardNotificationUnreadCount,
+  loadCircleCardAccessForUser
 } from "@/server/circle-card";
 import { getDirectMessageNavCounts } from "@/server/messages";
 
@@ -53,12 +50,9 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   const session = await requireUser({
     allowUnentitled: isCircleCardDashboardPath(currentPathname)
   });
+  const circleCardAccess = await loadCircleCardAccessForUser(session.user.id);
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
-  const circleCardFree = isCircleCardFreeAccount({
-    role: session.user.role,
-    hasActiveSubscription: session.user.hasActiveSubscription,
-    suspended: session.user.suspended
-  });
+  const circleCardFree = !circleCardAccess.hasProAccess;
   const isCircleCardWorkspaceRoute = isCircleCardDashboardPath(currentPathname);
   const showCircleCardShell = isCircleCardWorkspaceRoute || circleCardFree;
   const showCircleCardNotificationOrb = showCircleCardShell;
@@ -189,23 +183,13 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       }).map(applyMemberNavCounts);
 
   const membershipBadge = showCircleCardShell
-    ? getCircleCardAccountLabel({
-        role: session.user.role,
-        membershipTier: session.user.membershipTier,
-        hasActiveSubscription: session.user.hasActiveSubscription,
-        suspended: session.user.suspended
-      })
+    ? circleCardAccess.entitlement.label
     : `${getMembershipTierLabel(effectiveTier)} Active`;
   const workspaceTitle = showCircleCardShell ? "Circle Card" : "Member Workspace";
   const workspaceSubtitle = showCircleCardShell
     ? "Your cards, wallet, trust and insights"
     : "The Business Circle Network";
-  const circleCardAccountLabel = getCircleCardAccountLabel({
-    role: session.user.role,
-    membershipTier: session.user.membershipTier,
-    hasActiveSubscription: session.user.hasActiveSubscription,
-    suspended: session.user.suspended
-  });
+  const circleCardAccountLabel = circleCardAccess.entitlement.label;
   const premiumLinkLabel = canAccessTier(effectiveTier, MembershipTier.CORE)
     ? "Open Core Access"
     : "Open Inner Circle";

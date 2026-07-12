@@ -25,6 +25,17 @@ vi.mock("@/server/circle-card", () => ({
   createCircleCardNotification: vi.fn(),
   findBusinessCardCircleCardMatches: vi.fn(),
   findDuplicateBusinessCardWalletContact: vi.fn(),
+  loadCircleCardAccessForUser: vi.fn().mockResolvedValue({
+    hasProAccess: false,
+    limits: { circleCards: 1, activeLinks: 5 },
+    capabilities: {
+      circleStudio: false,
+      businessBuilder: false,
+      creatorMediaKit: false,
+      creatorAudienceSnapshot: false,
+      expandedCreatorLimits: false
+    }
+  }),
   trackCircleCardEvent: vi.fn()
 }));
 vi.mock("@/server/circle-card/link-access.service", () => ({ hashCircleCardAccessCode: vi.fn() }));

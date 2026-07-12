@@ -10,6 +10,7 @@ import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { normalizeSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
+import { loadCircleCardAccessForUser } from "@/server/circle-card";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Build My Circle Card",
@@ -22,7 +23,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CircleCardOnboardingPage() {
   const session = await requireCircleCardUser();
-  const [card, member] = await Promise.all([
+  const [card, member, circleCardAccess] = await Promise.all([
     prisma.circleCard.findFirst({
       where: { userId: session.user.id, archivedAt: null },
       orderBy: [{ isDefaultCard: "desc" }, { createdAt: "asc" }],
@@ -61,8 +62,6 @@ export default async function CircleCardOnboardingPage() {
       select: {
         name: true,
         image: true,
-        role: true,
-        membershipTier: true,
         profile: {
           select: {
             headline: true,
@@ -71,7 +70,8 @@ export default async function CircleCardOnboardingPage() {
           }
         }
       }
-    })
+    }),
+    loadCircleCardAccessForUser(session.user.id)
   ]);
 
   if (card?.isPublished) {
@@ -99,7 +99,7 @@ export default async function CircleCardOnboardingPage() {
       initialStep={firstIncompleteCircleCardStep(readiness)}
       initialReadiness={readiness}
       source={{ ...source, ownerName: sourceCard?.fullName ?? null }}
-      entitlement={member?.role === "ADMIN" || session.user.hasActiveSubscription ? "pro" : "free"}
+      entitlement={circleCardAccess.hasProAccess ? "pro" : "free"}
       defaults={{
         cardId: card?.id ?? "",
         slug: card?.slug ?? "",

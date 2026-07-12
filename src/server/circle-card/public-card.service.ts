@@ -7,6 +7,7 @@ import type {
   Prisma,
   Role
 } from "@prisma/client";
+import { cache } from "react";
 import { SITE_CONFIG } from "@/config/site";
 import {
   visibleCircleCardBookingEnquiry,
@@ -59,8 +60,10 @@ import {
   readCircleStudioMetadata
 } from "@/lib/circle-card/identity-engine";
 import { hasEntitledSubscription } from "@/lib/membership/access";
+import { CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED } from "@/lib/circle-card/plans";
 import { prisma } from "@/lib/prisma";
 import { resolvePublicUploadImageUrl } from "@/server/circle-card/public-upload-image-url";
+import { loadCircleCardAccessForUser } from "@/server/circle-card/billing.service";
 
 export type PublicCircleCardLink = {
   id: string;
@@ -172,6 +175,9 @@ export type PublicCircleCard = {
     membershipTier: MembershipTier;
     foundingTier: MembershipTier | null;
     hasActiveSubscription: boolean;
+    circleCardPlan: "FREE" | "PRO" | "TEAMS";
+    circleCardAccountLabel: string;
+    hasCircleCardProAccess: boolean;
   };
 };
 
@@ -296,7 +302,10 @@ export const DEMO_CIRCLE_CARD: PublicCircleCard = {
     role: "ADMIN",
     membershipTier: "CORE",
     foundingTier: "CORE",
-    hasActiveSubscription: true
+    hasActiveSubscription: true,
+    circleCardPlan: "PRO",
+    circleCardAccountLabel: "Admin Preview",
+    hasCircleCardProAccess: true
   }
 };
 
@@ -319,7 +328,7 @@ async function resolvePublicCircleCardThemeMetadataUploads(value: Prisma.JsonVal
   }) as Prisma.JsonValue;
 }
 
-export async function getPublicCircleCard(slug: string): Promise<PublicCircleCard | null> {
+const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | null> => {
   if (slug === "demo") {
     return DEMO_CIRCLE_CARD;
   }
@@ -502,6 +511,30 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     return null;
   }
 
+  const circleCardAccess = await loadCircleCardAccessForUser(card.userId);
+
+  if (!circleCardAccess.hasProAccess) {
+    const freePublicCard = await prisma.circleCard.findFirst({
+      where: {
+        userId: card.userId,
+        isPublished: true,
+        archivedAt: null,
+        user: { suspended: false }
+      },
+      orderBy: [
+        { isDefaultCard: "desc" },
+        { isPrimary: "desc" },
+        { displayOrder: "asc" },
+        { createdAt: "asc" }
+      ],
+      select: { id: true }
+    });
+
+    if (freePublicCard?.id !== card.id) {
+      return null;
+    }
+  }
+
   const rawOwnerCards = await prisma.circleCard.findMany({
     where: {
       userId: card.userId,
@@ -511,7 +544,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
         suspended: false
       }
     },
-    orderBy: [{ displayOrder: "asc" }, { isDefaultCard: "desc" }, { createdAt: "asc" }],
+    orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
       slug: true,
@@ -526,14 +559,22 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
   });
 
   const ownerCards = await Promise.all(
-    rawOwnerCards.map(async (ownerCard) => ({
+    rawOwnerCards.slice(0, circleCardAccess.limits.circleCards).map(async (ownerCard) => ({
       ...ownerCard,
       profileImageUrl: await resolvePublicUploadImageUrl(ownerCard.profileImageUrl, SITE_CONFIG.url)
     }))
   );
 
   const customLinks = (await Promise.all(
-    card.customLinks.map(async (link) => {
+    card.customLinks
+      .filter(
+        (link) =>
+          CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED ||
+          (link.visibility !== "PRIVATE_CODE" &&
+            !link.fileUrl?.startsWith("/api/circle-card/link-file/"))
+      )
+      .slice(0, circleCardAccess.limits.activeLinks)
+      .map(async (link) => {
       const { accessCodeHash, ...publicLink } = link;
       const visibility = (link.visibility || "PUBLIC") as CircleCardLinkVisibility;
       const isPrivate = visibility === "PRIVATE_CODE";
@@ -561,50 +602,64 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       };
     })
   )).filter((link): link is NonNullable<typeof link> => Boolean(link));
-  const services = await Promise.all(
+  const services = circleCardAccess.capabilities.businessBuilder ? await Promise.all(
     visibleCircleCardServices({
       cardType: card.cardType,
       contentBlocks: card.contentBlocks
-    }).map(async (service) => ({
+    }).slice(0, circleCardAccess.limits.businessServices).map(async (service) => ({
       ...service,
       imageUrl: await resolvePublicUploadImageUrl(service.imageUrl, SITE_CONFIG.url)
     }))
-  );
-  const products = await Promise.all(
+  ) : [];
+  const products = circleCardAccess.capabilities.businessBuilder ? await Promise.all(
     visibleCircleCardProductItems({
       cardType: card.cardType,
       contentBlocks: card.contentBlocks
-    }).map(async (product) => ({
+    }).slice(0, circleCardAccess.limits.businessProducts).map(async (product) => ({
       ...product,
       imageUrl: await resolvePublicUploadImageUrl(product.imageUrl, SITE_CONFIG.url)
     }))
-  );
-  const priceItems = visibleCircleCardPriceListItems({
+  ) : [];
+  const priceItems = circleCardAccess.capabilities.businessBuilder ? visibleCircleCardPriceListItems({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
-  });
-  const menuOfferItems = await Promise.all(
+  }).slice(0, circleCardAccess.limits.businessPriceListItems) : [];
+  const menuOfferItems = circleCardAccess.capabilities.businessBuilder ? await Promise.all(
     visibleCircleCardMenuOfferItems({
       cardType: card.cardType,
       contentBlocks: card.contentBlocks
-    }).map(async (item) => ({
+    }).slice(0, circleCardAccess.limits.businessMenuOffers).map(async (item) => ({
       ...item,
       imageUrl: await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url)
     }))
-  );
-  const mediaKit = visibleCircleCardMediaKit({
+  ) : [];
+  const storedMediaKit = circleCardAccess.capabilities.creatorMediaKit ? visibleCircleCardMediaKit({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
-  });
-  const documents = visibleCircleCardDocumentItems({
+  }) : null;
+  const mediaKit = storedMediaKit && !CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED
+    ? {
+        ...storedMediaKit,
+        mediaKitFileUrl: null,
+        mediaKitFileName: null,
+        mediaKitFileMimeType: null
+      }
+    : storedMediaKit;
+  const documents = circleCardAccess.capabilities.businessBuilder ? visibleCircleCardDocumentItems({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
-  });
+  })
+    .filter(
+      (document) =>
+        CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED ||
+        !document.fileUrl.startsWith("/api/circle-card/link-file/")
+    )
+    .slice(0, circleCardAccess.limits.businessDocuments) : [];
   const featuredContentItems = await Promise.all(
     visibleCircleCardFeaturedContentItems({
       cardType: card.cardType,
       contentBlocks: card.contentBlocks
-    }).map(async (item) => ({
+    }).slice(0, circleCardAccess.limits.creatorFeaturedContent).map(async (item) => ({
       ...item,
       thumbnailUrl: await resolvePublicUploadImageUrl(item.thumbnailUrl, SITE_CONFIG.url)
     }))
@@ -613,7 +668,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     visibleCircleCardBrandPartnerships({
       cardType: card.cardType,
       contentBlocks: card.contentBlocks
-    }).map(async (item) => ({
+    }).slice(0, circleCardAccess.limits.creatorBrandPartnerships).map(async (item) => ({
       ...item,
       brandLogo: await resolvePublicUploadImageUrl(item.brandLogo, SITE_CONFIG.url)
     }))
@@ -623,7 +678,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       visibleCircleCardCreatorOffers({
         cardType: card.cardType,
         contentBlocks: card.contentBlocks
-      }).map(async (item) => {
+      }).slice(0, circleCardAccess.limits.creatorOffers).map(async (item) => {
         const image = await resolvePublicUploadImageUrl(item.image, SITE_CONFIG.url);
         return image ? { ...item, image } : null;
       })
@@ -634,39 +689,39 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
       visibleCircleCardPressProofItems({
         cardType: card.cardType,
         contentBlocks: card.contentBlocks
-      }).map(async (item) => {
+      }).slice(0, circleCardAccess.limits.creatorPressProof).map(async (item) => {
         const image = await resolvePublicUploadImageUrl(item.image, SITE_CONFIG.url);
         return image ? { ...item, image } : null;
       })
     )
   ).filter((item): item is CircleCardPressProofItem => Boolean(item));
-  const bookingEnquiry = visibleCircleCardBookingEnquiry({
+  const bookingEnquiry = circleCardAccess.capabilities.businessBuilder ? visibleCircleCardBookingEnquiry({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
-  });
-  const audienceSnapshot = visibleCircleCardAudienceSnapshot({
+  }) : null;
+  const audienceSnapshot = circleCardAccess.capabilities.creatorAudienceSnapshot ? visibleCircleCardAudienceSnapshot({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
-  });
-  const galleryItems = (
+  }) : null;
+  const galleryItems = circleCardAccess.capabilities.businessBuilder ? (
     await Promise.all(
       visibleCircleCardGalleryItems({
         cardType: card.cardType,
         contentBlocks: card.contentBlocks
-      }).map(async (item) => {
+      }).slice(0, circleCardAccess.limits.businessGalleryImages).map(async (item) => {
         const imageUrl = await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url);
         return imageUrl ? { ...item, imageUrl } : null;
       })
     )
-  ).filter((item): item is CircleCardGalleryItem => Boolean(item));
-  const openingHours = visibleCircleCardOpeningHours({
+  ).filter((item): item is CircleCardGalleryItem => Boolean(item)) : [];
+  const openingHours = circleCardAccess.capabilities.businessBuilder ? visibleCircleCardOpeningHours({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
-  });
-  const manualReviews = visibleCircleCardReviewItems({
+  }) : null;
+  const manualReviews = circleCardAccess.capabilities.businessBuilder ? visibleCircleCardReviewItems({
     cardType: card.cardType,
     contentBlocks: card.contentBlocks
-  });
+  }).slice(0, circleCardAccess.limits.businessReviews) : [];
   const walletReviews: CircleCardReviewItem[] = card.walletTestimonialsReceived.map(
     (testimonial, index) => ({
       id: `wallet-${testimonial.id}`,
@@ -764,7 +819,7 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
   void walletTestimonialsReceived;
   void connectionRequestsSent;
   void connectionRequestsReceived;
-  const [profileImageUrl, businessLogoUrl, themeMetadata] = await Promise.all([
+  const [profileImageUrl, businessLogoUrl, storedThemeMetadata] = await Promise.all([
     resolvePublicUploadImageUrl(card.profileImageUrl, SITE_CONFIG.url),
     resolvePublicUploadImageUrl(card.businessLogoUrl, SITE_CONFIG.url),
     resolvePublicCircleCardThemeMetadataUploads(card.themeMetadata)
@@ -774,12 +829,19 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     ...publicCard,
     profileImageUrl,
     businessLogoUrl,
-    themeMetadata,
+    themePrimaryColor: circleCardAccess.capabilities.circleStudio ? card.themePrimaryColor : null,
+    themeAccentColor: circleCardAccess.capabilities.circleStudio ? card.themeAccentColor : null,
+    themeButtonColor: circleCardAccess.capabilities.circleStudio ? card.themeButtonColor : null,
+    themePreset: circleCardAccess.capabilities.circleStudio ? card.themePreset : null,
+    themeMetadata: circleCardAccess.capabilities.circleStudio ? storedThemeMetadata : {},
     user: {
       role: card.user.role,
       membershipTier: card.user.membershipTier,
       foundingTier: card.user.foundingTier,
-      hasActiveSubscription
+      hasActiveSubscription,
+      circleCardPlan: circleCardAccess.plan,
+      circleCardAccountLabel: circleCardAccess.entitlement.label,
+      hasCircleCardProAccess: circleCardAccess.hasProAccess
     },
     socialLinks: readCircleCardSocialLinks(card.socialLinks as Prisma.JsonValue),
     services,
@@ -807,7 +869,9 @@ export async function getPublicCircleCard(slug: string): Promise<PublicCircleCar
     customLinks,
     isDemo: false
   };
-}
+};
+
+export const getPublicCircleCard = cache(loadPublicCircleCard);
 
 function escapeVCardValue(value: string) {
   return value

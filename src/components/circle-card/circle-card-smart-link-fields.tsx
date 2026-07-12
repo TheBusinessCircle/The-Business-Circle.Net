@@ -16,6 +16,7 @@ import {
   recommendedCircleCardFileAction,
   type CircleCardLinkActionMode
 } from "@/lib/circle-card/file-actions";
+import { CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED } from "@/lib/circle-card/plans";
 import {
   CIRCLE_CARD_FILE_LINK_TYPES,
   CIRCLE_CARD_LINK_TYPES,
@@ -367,7 +368,12 @@ export function CircleCardSmartLinkFields({
                     value={visibility}
                     onChange={(event) => handleVisibilityChange(event.target.value)}
                   >
-                    {CIRCLE_CARD_LINK_VISIBILITIES.map((option) => (
+                    {CIRCLE_CARD_LINK_VISIBILITIES.filter(
+                      (option) =>
+                        CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED ||
+                        option === "PUBLIC" ||
+                        option === resolveVisibility(defaultVisibility)
+                    ).map((option) => (
                       <option key={option} value={option}>
                         {VISIBILITY_LABELS[option]}
                       </option>
