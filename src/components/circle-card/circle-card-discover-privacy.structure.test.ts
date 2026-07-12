@@ -22,7 +22,7 @@ describe("Circle Card Discover privacy controls", () => {
   it("requires opt-in for Discover while preserving public card sharing", () => {
     const privacy = readSource("src/lib/circle-card/privacy.ts");
     const dashboard = readSource("src/app/(member)/dashboard/circle-card/page.tsx");
-    const onboardingAction = readSource("src/actions/circle-card-onboarding.actions.ts");
+    const onboardingService = readSource("src/server/circle-card/onboarding.service.ts");
 
     expect(privacy).toContain("showInDiscover: true");
     expect(privacy).toContain("showContactMethods");
@@ -30,7 +30,7 @@ describe("Circle Card Discover privacy controls", () => {
     expect(dashboard).toContain("...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE");
     expect(dashboard).toContain("Show my Circle Card in Discover");
     expect(dashboard).toContain("CIRCLE_CARD_DISCOVER_SETTING_COPY");
-    expect(onboardingAction).toContain("showInDiscover: false");
+    expect(onboardingService).toContain("showInDiscover: false");
   });
 
   it("shows Discover privacy visibility in the admin command centre", () => {

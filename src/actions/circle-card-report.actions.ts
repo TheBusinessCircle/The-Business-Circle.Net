@@ -3,21 +3,12 @@
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { circleCardReportSubmitSchema } from "@/lib/circle-card/reports";
+import type { CircleCardReportActionState } from "@/lib/circle-card/report-action-state";
 import { prisma } from "@/lib/prisma";
 import {
   clientIpFromHeaders,
   consumeRateLimit
 } from "@/lib/security/rate-limit";
-
-export type CircleCardReportActionState = {
-  status: "idle" | "success" | "error";
-  message: string;
-};
-
-export const CIRCLE_CARD_REPORT_IDLE_STATE: CircleCardReportActionState = {
-  status: "idle",
-  message: ""
-};
 
 function reportState(
   status: CircleCardReportActionState["status"],

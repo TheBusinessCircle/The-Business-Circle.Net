@@ -3,15 +3,13 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { AlertTriangle, CheckCircle2, Flag, Loader2 } from "lucide-react";
-import {
-  CIRCLE_CARD_REPORT_IDLE_STATE,
-  submitCircleCardReportAction
-} from "@/actions/circle-card-report.actions";
+import { submitCircleCardReportAction } from "@/actions/circle-card-report.actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CIRCLE_CARD_REPORT_REASON_OPTIONS } from "@/lib/circle-card/reports";
+import { CIRCLE_CARD_REPORT_IDLE_STATE } from "@/lib/circle-card/report-action-state";
 import { cn } from "@/lib/utils";
 
 type CircleCardReportFormProps = {
