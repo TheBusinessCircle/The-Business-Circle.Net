@@ -61,9 +61,16 @@ import {
 } from "@/lib/circle-card/identity-engine";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED } from "@/lib/circle-card/plans";
+import {
+  CIRCLE_CARD_LINK_PLAN_ORDER,
+  CIRCLE_CARD_PLAN_ORDER,
+  selectCircleCardLinksWithinPlan,
+  selectCircleCardsWithinPlan
+} from "@/lib/circle-card/plan-policy";
 import { prisma } from "@/lib/prisma";
 import { resolvePublicUploadImageUrl } from "@/server/circle-card/public-upload-image-url";
 import { loadCircleCardAccessForUser } from "@/server/circle-card/billing.service";
+import { filterPublicCircleCardTargetsWithinOwnerPlans } from "@/server/circle-card/plan-policy.service";
 
 export type PublicCircleCardLink = {
   id: string;
@@ -384,7 +391,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
         where: {
           isActive: true
         },
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        orderBy: [...CIRCLE_CARD_LINK_PLAN_ORDER],
         select: {
           id: true,
           type: true,
@@ -402,7 +409,8 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
           expiresAt: true,
           accessCodeHint: true,
           accessCodeHash: true,
-          sortOrder: true
+          sortOrder: true,
+          createdAt: true
         }
       },
       walletTestimonialsReceived: {
@@ -462,6 +470,8 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
           createdAt: true,
           recommenderCard: {
             select: {
+              id: true,
+              userId: true,
               slug: true,
               fullName: true,
               businessName: true,
@@ -512,39 +522,25 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
   }
 
   const circleCardAccess = await loadCircleCardAccessForUser(card.userId);
-
-  if (!circleCardAccess.hasProAccess) {
-    const freePublicCard = await prisma.circleCard.findFirst({
-      where: {
-        userId: card.userId,
-        isPublished: true,
-        archivedAt: null,
-        user: { suspended: false }
-      },
-      orderBy: [
-        { isDefaultCard: "desc" },
-        { isPrimary: "desc" },
-        { displayOrder: "asc" },
-        { createdAt: "asc" }
-      ],
-      select: { id: true }
-    });
-
-    if (freePublicCard?.id !== card.id) {
-      return null;
-    }
-  }
+  const planVisibleRecommenderCards = await filterPublicCircleCardTargetsWithinOwnerPlans(
+    card.recommendationsReceived.map((recommendation) => recommendation.recommenderCard)
+  );
+  const planVisibleRecommenderCardIds = new Set(
+    planVisibleRecommenderCards.map((recommenderCard) => recommenderCard.id)
+  );
+  const publicRecommendations = card.recommendationsReceived.filter((recommendation) =>
+    planVisibleRecommenderCardIds.has(recommendation.recommenderCard.id)
+  );
 
   const rawOwnerCards = await prisma.circleCard.findMany({
     where: {
       userId: card.userId,
-      isPublished: true,
       archivedAt: null,
       user: {
         suspended: false
       }
     },
-    orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }, { createdAt: "asc" }],
+    orderBy: [...CIRCLE_CARD_PLAN_ORDER],
     select: {
       id: true,
       slug: true,
@@ -554,36 +550,48 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
       tagline: true,
       profileImageUrl: true,
       displayOrder: true,
-      isDefaultCard: true
+      isDefaultCard: true,
+      isPrimary: true,
+      isPublished: true,
+      createdAt: true
     }
   });
 
+  const planVisibleOwnerCards = selectCircleCardsWithinPlan(
+    rawOwnerCards,
+    circleCardAccess.limits.circleCards
+  ).filter((ownerCard) => ownerCard.isPublished);
+
+  if (!planVisibleOwnerCards.some((ownerCard) => ownerCard.id === card.id)) {
+    return null;
+  }
+
   const ownerCards = await Promise.all(
-    rawOwnerCards.slice(0, circleCardAccess.limits.circleCards).map(async (ownerCard) => ({
-      ...ownerCard,
-      profileImageUrl: await resolvePublicUploadImageUrl(ownerCard.profileImageUrl, SITE_CONFIG.url)
+    planVisibleOwnerCards.map(async (ownerCard) => ({
+      id: ownerCard.id,
+      slug: ownerCard.slug,
+      cardType: ownerCard.cardType,
+      fullName: ownerCard.fullName,
+      businessName: ownerCard.businessName,
+      tagline: ownerCard.tagline,
+      profileImageUrl: await resolvePublicUploadImageUrl(
+        ownerCard.profileImageUrl,
+        SITE_CONFIG.url
+      ),
+      displayOrder: ownerCard.displayOrder,
+      isDefaultCard: ownerCard.isDefaultCard
     }))
   );
 
   const customLinks = (await Promise.all(
-    card.customLinks
-      .filter(
-        (link) =>
-          CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED ||
-          (link.visibility !== "PRIVATE_CODE" &&
-            !link.fileUrl?.startsWith("/api/circle-card/link-file/"))
-      )
-      .slice(0, circleCardAccess.limits.activeLinks)
+    selectCircleCardLinksWithinPlan(card.customLinks, circleCardAccess.limits.activeLinks)
       .map(async (link) => {
-      const { accessCodeHash, ...publicLink } = link;
+      const { accessCodeHash, createdAt: _createdAt, ...publicLink } = link;
+      void _createdAt;
       const visibility = (link.visibility || "PUBLIC") as CircleCardLinkVisibility;
       const isPrivate = visibility === "PRIVATE_CODE";
       const safeUrl = isSafeCircleCardExternalUrl(link.url) ? link.url : null;
       const safeFileUrl = isSafeCircleCardLinkDestination(link.fileUrl) ? link.fileUrl : null;
-
-      if (!safeUrl && !safeFileUrl) {
-        return null;
-      }
 
       const imageUrl = isPrivate
         ? null
@@ -601,7 +609,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
         icon: link.icon as CircleCardCustomLinkIcon | null
       };
     })
-  )).filter((link): link is NonNullable<typeof link> => Boolean(link));
+  ));
   const services = circleCardAccess.capabilities.businessBuilder ? await Promise.all(
     visibleCircleCardServices({
       cardType: card.cardType,
@@ -822,7 +830,9 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
   const [profileImageUrl, businessLogoUrl, storedThemeMetadata] = await Promise.all([
     resolvePublicUploadImageUrl(card.profileImageUrl, SITE_CONFIG.url),
     resolvePublicUploadImageUrl(card.businessLogoUrl, SITE_CONFIG.url),
-    resolvePublicCircleCardThemeMetadataUploads(card.themeMetadata)
+    circleCardAccess.capabilities.circleStudio
+      ? resolvePublicCircleCardThemeMetadataUploads(card.themeMetadata)
+      : Promise.resolve({} as Prisma.JsonValue)
   ]);
 
   return {
@@ -863,7 +873,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
     trustScore,
     trust,
     openingHours,
-    recommendations: card.recommendationsReceived,
+    recommendations: publicRecommendations,
     successfulReferralCount: card._count.referralsReceived,
     ownerCards,
     customLinks,

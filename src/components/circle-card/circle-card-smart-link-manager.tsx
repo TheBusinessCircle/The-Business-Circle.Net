@@ -36,6 +36,11 @@ import {
   detectCircleCardFileKind,
   resolveCircleCardFileAction
 } from "@/lib/circle-card/file-actions";
+import {
+  compareCircleCardLinksForPlan,
+  isCircleCardLinkEligibleForPublicLaunch,
+  selectCircleCardLinksWithinPlan
+} from "@/lib/circle-card/plan-policy";
 import { cn } from "@/lib/utils";
 
 type PendingAction = "save" | "delete" | "toggle" | "up" | "down";
@@ -45,6 +50,8 @@ type CircleCardSmartLinkManagerProps = {
   cardSlug: string;
   initialLinks: CircleCardDashboardLinkPayload[];
   focusedLinkId?: string;
+  activeLinkLimit: number;
+  readOnly?: boolean;
 };
 
 type CircleCardSmartLinkCreateFormProps = {
@@ -71,7 +78,7 @@ const CUSTOM_LINK_TYPE_LABELS: Record<CircleCardLinkType, string> = {
 };
 
 function sortLinks(links: CircleCardDashboardLinkPayload[]) {
-  return [...links].sort((a, b) => a.sortOrder - b.sortOrder);
+  return [...links].sort(compareCircleCardLinksForPlan);
 }
 
 function resolveCustomLinkType(value: string | null | undefined): CircleCardLinkType {
@@ -347,13 +354,18 @@ export function CircleCardSmartLinkManager({
   cardId,
   cardSlug,
   initialLinks,
-  focusedLinkId = ""
+  focusedLinkId = "",
+  activeLinkLimit,
+  readOnly = false
 }: CircleCardSmartLinkManagerProps) {
   const [links, setLinks] = useState(() => sortLinks(initialLinks));
   const [openLinkId, setOpenLinkId] = useState(focusedLinkId);
   const [pendingActions, setPendingActions] = useState<Set<string>>(() => new Set());
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const planVisibleLinkIds = new Set(
+    selectCircleCardLinksWithinPlan(links, activeLinkLimit).map((link) => link.id)
+  );
 
   useEffect(() => {
     setLinks(sortLinks(initialLinks));
@@ -515,6 +527,11 @@ export function CircleCardSmartLinkManager({
 
   return (
     <div className="space-y-3">
+      {readOnly ? (
+        <p className="rounded-2xl border border-silver/14 bg-background/22 px-4 py-3 text-sm text-muted">
+          Links on this saved extra card are preserved read-only until Circle Card Pro is restored.
+        </p>
+      ) : null}
       {notice ? (
         <p className="rounded-2xl border border-gold/24 bg-gold/10 px-4 py-3 text-sm text-gold">
           {notice}
@@ -532,6 +549,9 @@ export function CircleCardSmartLinkManager({
         const saving = isPending(customLink.id, "save");
         const toggling = isPending(customLink.id, "toggle");
         const deleting = isPending(customLink.id, "delete");
+        const hiddenByPlan =
+          isCircleCardLinkEligibleForPublicLaunch(customLink) &&
+          !planVisibleLinkIds.has(customLink.id);
 
         return (
           <Card
@@ -569,6 +589,11 @@ export function CircleCardSmartLinkManager({
                           Private code
                         </Badge>
                       ) : null}
+                      {hiddenByPlan ? (
+                        <Badge variant="outline" className="border-gold/28 text-gold">
+                          Hidden by Free plan
+                        </Badge>
+                      ) : null}
                     </div>
                     <p className="mt-1 truncate text-sm text-silver">
                       {displayCustomLinkUrl(customLink.fileUrl || customLink.url)}
@@ -599,7 +624,7 @@ export function CircleCardSmartLinkManager({
                     variant="outline"
                     size="sm"
                     className="h-10 w-full gap-2 sm:w-10 sm:px-0"
-                    disabled={isFirst || isPending(customLink.id, "up")}
+                    disabled={readOnly || isFirst || isPending(customLink.id, "up")}
                     title="Move link up"
                     onClick={() => moveLink(customLink, "up")}
                   >
@@ -615,7 +640,7 @@ export function CircleCardSmartLinkManager({
                     variant="outline"
                     size="sm"
                     className="h-10 w-full gap-2 sm:w-10 sm:px-0"
-                    disabled={isLast || isPending(customLink.id, "down")}
+                    disabled={readOnly || isLast || isPending(customLink.id, "down")}
                     title="Move link down"
                     onClick={() => moveLink(customLink, "down")}
                   >
@@ -631,7 +656,7 @@ export function CircleCardSmartLinkManager({
                     variant="outline"
                     size="sm"
                     className="h-10 w-full gap-2 sm:w-auto"
-                    disabled={toggling}
+                    disabled={readOnly || toggling}
                     onClick={() => toggleLink(customLink)}
                   >
                     {toggling ? <Loader2 size={14} className="animate-spin" /> : null}
@@ -642,7 +667,7 @@ export function CircleCardSmartLinkManager({
                     variant="outline"
                     size="sm"
                     className="h-10 w-full gap-2 sm:w-auto"
-                    disabled={deleting}
+                    disabled={readOnly || deleting}
                     onClick={() => deleteLink(customLink)}
                   >
                     {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
@@ -667,6 +692,7 @@ export function CircleCardSmartLinkManager({
                     saveLink(customLink, new FormData(event.currentTarget));
                   }}
                 >
+                  <fieldset disabled={readOnly} className="contents">
                   <input type="hidden" name="cardId" value={cardId} />
                   <input type="hidden" name="linkId" value={customLink.id} />
                   <input type="hidden" name="sortOrder" value={customLink.sortOrder} />
@@ -713,6 +739,7 @@ export function CircleCardSmartLinkManager({
                     {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={16} />}
                     {saving ? "Saving..." : "Save link"}
                   </Button>
+                  </fieldset>
                 </form>
               </details>
             </CardContent>

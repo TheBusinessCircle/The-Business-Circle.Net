@@ -23,8 +23,10 @@ vi.mock("@/lib/security/rate-limit", () => ({ consumeRateLimit: consumeRateLimit
 vi.mock("@/server/circle-card", () => ({
   createCircleCardActivity: vi.fn(),
   createCircleCardNotification: vi.fn(),
+  filterPublicCircleCardTargetsWithinOwnerPlans: vi.fn(async (targets: unknown[]) => targets),
   findBusinessCardCircleCardMatches: vi.fn(),
   findDuplicateBusinessCardWalletContact: vi.fn(),
+  isPublicCircleCardTargetWithinOwnerPlan: vi.fn().mockResolvedValue(true),
   loadCircleCardAccessForUser: vi.fn().mockResolvedValue({
     hasProAccess: false,
     limits: { circleCards: 1, activeLinks: 5 },

@@ -190,6 +190,10 @@ import {
   CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED,
   CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT
 } from "@/lib/circle-card/plans";
+import {
+  CIRCLE_CARD_LINK_PLAN_ORDER,
+  CIRCLE_CARD_PLAN_ORDER
+} from "@/lib/circle-card/plan-policy";
 import type { CircleCardSaveActionState } from "@/lib/circle-card/save-action-state";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
@@ -197,8 +201,10 @@ import { absoluteUrl } from "@/lib/utils";
 import {
   createCircleCardActivity,
   createCircleCardNotification,
+  filterPublicCircleCardTargetsWithinOwnerPlans,
   findBusinessCardCircleCardMatches,
   findDuplicateBusinessCardWalletContact,
+  isPublicCircleCardTargetWithinOwnerPlan,
   loadCircleCardAccessForUser,
   trackCircleCardEvent
 } from "@/server/circle-card";
@@ -424,6 +430,43 @@ async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
     id: user.id,
     access
   };
+}
+
+async function isCircleCardLockedByPlan(user: CircleCardActionUser, cardId: string) {
+  if (user.access.hasProAccess) {
+    return false;
+  }
+
+  const freeCard = await prisma.circleCard.findFirst({
+    where: {
+      userId: user.id,
+      archivedAt: null
+    },
+    orderBy: [...CIRCLE_CARD_PLAN_ORDER],
+    select: { id: true }
+  });
+
+  return freeCard?.id !== cardId;
+}
+
+async function enforceCircleCardContentMutationAccess(input: {
+  user: CircleCardActionUser;
+  cardId: string;
+  returnPath: string;
+}) {
+  if (await isCircleCardLockedByPlan(input.user, input.cardId)) {
+    redirectWithError(input.returnPath, "card-plan-locked");
+  }
+}
+
+async function enforcePublicCircleCardTargetAccess(input: {
+  card: { id: string; userId: string };
+  returnPath: string;
+  error: string;
+}) {
+  if (!(await isPublicCircleCardTargetWithinOwnerPlan(input.card))) {
+    redirectWithError(input.returnPath, input.error);
+  }
 }
 
 function appendQueryParam(path: string, key: string, value: string) {
@@ -683,7 +726,7 @@ async function getPrimaryCircleCardForUser(userId: string) {
       userId,
       archivedAt: null
     },
-    orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
+    orderBy: [...CIRCLE_CARD_PLAN_ORDER],
     select: {
       id: true,
       slug: true,
@@ -1021,7 +1064,8 @@ const CIRCLE_CARD_LINK_DASHBOARD_SELECT = {
   accessCodeHint: true,
   accessCodeHash: true,
   sortOrder: true,
-  isActive: true
+  isActive: true,
+  createdAt: true
 } as const satisfies Prisma.CircleCardLinkSelect;
 
 type CircleCardDashboardLinkRecord = Prisma.CircleCardLinkGetPayload<{
@@ -1047,6 +1091,7 @@ export type CircleCardDashboardLinkPayload = {
   hasAccessCode: boolean;
   sortOrder: number;
   isActive: boolean;
+  createdAt: string;
 };
 
 export type CircleCardInlineActionResult =
@@ -1194,14 +1239,15 @@ function serializeCircleCardDashboardLink(
     accessCodeHint: link.accessCodeHint,
     hasAccessCode: Boolean(link.accessCodeHash),
     sortOrder: link.sortOrder,
-    isActive: link.isActive
+    isActive: link.isActive,
+    createdAt: link.createdAt.toISOString()
   };
 }
 
 async function readCircleCardDashboardLinks(cardId: string) {
   const links = await prisma.circleCardLink.findMany({
     where: { cardId },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    orderBy: [...CIRCLE_CARD_LINK_PLAN_ORDER],
     select: CIRCLE_CARD_LINK_DASHBOARD_SELECT
   });
 
@@ -1544,6 +1590,8 @@ export async function applyCircleCardSmartImportAction(formData: FormData) {
     redirectWithError(returnPath, "card-not-found");
   }
 
+  await enforceCircleCardContentMutationAccess({ user, cardId: card.id, returnPath });
+
   const data: Prisma.CircleCardUpdateInput = {};
   const tagline = readSmartImportTextField(formData, "taglineValue", 180);
   const profileImageUrl = readSmartImportHttpUrl(formData, "profileImageUrl");
@@ -1717,7 +1765,7 @@ export async function upsertCircleCardAction(
     formData.has("themePreset");
   const cardId = values.cardId || null;
 
-  if (shouldUpdateTheme && !shouldResetTheme && !user.access.capabilities.circleStudio) {
+  if (shouldUpdateTheme && !user.access.capabilities.circleStudio) {
     return circleCardSaveFailure({
       message: "The Circle Card theme could not be saved.",
       formError: "Circle Studio access is required to activate a custom presentation."
@@ -1757,6 +1805,13 @@ export async function upsertCircleCardAction(
     return circleCardSaveFailure({
       message: "The Circle Card could not be saved.",
       formError: "That Circle Card could not be found."
+    });
+  }
+
+  if (cardId && existingCard && (await isCircleCardLockedByPlan(user, existingCard.id))) {
+    return circleCardSaveFailure({
+      message: "This Circle Card is locked by your current plan.",
+      formError: "Your saved extra card is read-only until Circle Card Pro is restored."
     });
   }
 
@@ -2043,6 +2098,8 @@ export async function setDefaultCircleCardAction(formData: FormData) {
     redirectWithError(returnPath, "card-not-found");
   }
 
+  await enforceCircleCardContentMutationAccess({ user, cardId: card.id, returnPath });
+
   if (!card.isPublished) {
     redirectWithError(returnPath, "card-hidden-default");
   }
@@ -2128,6 +2185,8 @@ export async function setCircleCardVisibilityAction(formData: FormData) {
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
   }
+
+  await enforceCircleCardContentMutationAccess({ user, cardId: card.id, returnPath });
 
   const makeLive = visibility === "live";
 
@@ -2257,6 +2316,8 @@ export async function moveCircleCardDisplayOrderAction(formData: FormData) {
     redirectWithError(returnPath, "card-not-found");
   }
 
+  await enforceCircleCardContentMutationAccess({ user, cardId, returnPath });
+
   if (nextIndex < 0 || nextIndex >= cards.length) {
     redirectWithNotice(returnPath, "card-order-unchanged");
   }
@@ -2312,6 +2373,8 @@ export async function archiveCircleCardAction(formData: FormData) {
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
   }
+
+  await enforceCircleCardContentMutationAccess({ user, cardId: card.id, returnPath });
 
   await prisma.$transaction(async (tx) => {
     await tx.circleCard.update({
@@ -2437,6 +2500,14 @@ export async function updateCircleCardSocialLinksInlineAction(input: {
     };
   }
 
+  if (await isCircleCardLockedByPlan(user, card.id)) {
+    return {
+      ok: false,
+      error: "card-plan-locked",
+      message: "This saved extra card is read-only until Circle Card Pro is restored."
+    };
+  }
+
   const socialLinks = buildCircleCardSocialLinks({
     linkedinUrl: "",
     tiktokUrl: "",
@@ -2502,6 +2573,8 @@ export async function updateCircleCardIdentityAction(formData: FormData) {
     redirectWithError(returnPath, "card-not-found");
   }
 
+  await enforceCircleCardContentMutationAccess({ user, cardId: card.id, returnPath });
+
   await prisma.circleCard.update({
     where: { id: card.id },
     data: {
@@ -2518,6 +2591,85 @@ export async function updateCircleStudioAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
   const returnPath = resolveReturnPath(formData.get("returnPath"), "/dashboard/circle-card/studio");
   const cardId = String(formData.get("cardId") ?? "");
+  const saveDraftIntent = formData.get("studioIntent") === "save-draft";
+  const submittedIntent = formData.get("studioIntent");
+  const intent = saveDraftIntent
+    ? "save-draft"
+    : submittedIntent === "revert"
+      ? "revert"
+      : "activate";
+
+  if (!cardId) {
+    redirectWithError(returnPath, "studio-invalid");
+  }
+
+  if (
+    (intent === "activate" && !user.access.capabilities.circleStudio) ||
+    (intent === "revert" && !user.access.capabilities.circleStudio)
+  ) {
+    redirectWithError(returnPath, "studio-pro-required");
+  }
+
+  const card = await prisma.circleCard.findFirst({
+    where: { id: cardId, userId: user.id, archivedAt: null },
+    select: {
+      id: true,
+      slug: true,
+      themeMetadata: true,
+      studioPreviousActiveMetadata: true
+    }
+  });
+
+  if (!card) {
+    redirectWithError(returnPath, "card-not-found");
+  }
+
+  await enforceCircleCardContentMutationAccess({ user, cardId: card.id, returnPath });
+
+  if (intent === "revert") {
+    const previousMetadata = readCircleStudioMetadata(card.studioPreviousActiveMetadata);
+    const currentMetadata = readCircleStudioMetadata(card.themeMetadata);
+
+    // A revert is a lossless swap: the current active design becomes the next
+    // previous snapshot and the private draft remains untouched.
+    if (!previousMetadata || !currentMetadata) {
+      redirectWithError(returnPath, "studio-revert-unavailable");
+    }
+
+    const revertedAt = new Date();
+    const resolvedPreviousTheme = resolveCircleCardTheme({ themeMetadata: previousMetadata });
+
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: {
+        themePrimaryColor: resolvedPreviousTheme.primaryColor,
+        themeAccentColor: resolvedPreviousTheme.accentColor,
+        themeButtonColor: resolvedPreviousTheme.buttonColor,
+        themeSurfaceStyle: "PREMIUM",
+        themePreset: previousMetadata.tokens.identityStyle,
+        themeMetadata: previousMetadata as Prisma.InputJsonValue,
+        studioPreviousActiveMetadata: currentMetadata as Prisma.InputJsonValue,
+        studioPreviousActiveAt: revertedAt
+      }
+    });
+
+    await createCircleCardActivity({
+      userId: user.id,
+      circleCardId: card.id,
+      type: "CARD_UPDATED",
+      title: "Circle Studio identity restored",
+      message: `${previousMetadata.tokens.identityStyle.toLowerCase()} identity restored from the previous active design.`,
+      entityType: "CIRCLE_CARD",
+      entityId: card.id
+    });
+
+    revalidateCircleCardPaths(card.slug);
+    redirectWithNotice(
+      appendQueryParam(returnPath, "activatedAt", String(Date.now())),
+      "studio-reverted"
+    );
+  }
+
   const tokenKeys = Object.keys(CIRCLE_STUDIO_OPTIONS) as CircleStudioTokenKey[];
   const submittedMetadata = readCircleStudioActivationMetadata(formData);
   const fallbackTokens = Object.fromEntries(
@@ -2538,7 +2690,7 @@ export async function updateCircleStudioAction(formData: FormData) {
   const tokens = metadata.tokens;
   const fineTune = metadata.fineTune;
 
-  if (!cardId || tokenKeys.some((key) => !isCircleStudioToken(key, tokens[key]))) {
+  if (tokenKeys.some((key) => !isCircleStudioToken(key, tokens[key]))) {
     redirectWithError(returnPath, "studio-invalid");
   }
 
@@ -2551,20 +2703,34 @@ export async function updateCircleStudioAction(formData: FormData) {
     redirectWithError(returnPath, "studio-contrast");
   }
 
-  if (!user.access.capabilities.circleStudio) {
-    redirectWithError(returnPath, "studio-pro-required");
-  }
+  const draftSavedAt = new Date();
 
-  const card = await prisma.circleCard.findFirst({
-    where: { id: cardId, userId: user.id, archivedAt: null },
-    select: { id: true, slug: true }
-  });
+  if (intent === "save-draft") {
+    await prisma.circleCard.update({
+      where: { id: card.id },
+      data: {
+        studioDraftMetadata: metadata as Prisma.InputJsonValue,
+        studioDraftUpdatedAt: draftSavedAt
+      }
+    });
 
-  if (!card) {
-    redirectWithError(returnPath, "card-not-found");
+    await createCircleCardActivity({
+      userId: user.id,
+      circleCardId: card.id,
+      type: "CARD_UPDATED",
+      title: "Circle Studio draft saved",
+      message: `${tokens.identityStyle.toLowerCase()} identity saved privately.`,
+      entityType: "CIRCLE_CARD",
+      entityId: card.id
+    });
+
+    revalidatePath("/dashboard/circle-card");
+    revalidatePath("/dashboard/circle-card/studio");
+    redirectWithNotice(returnPath, "studio-draft-saved");
   }
 
   const resolvedTheme = resolveCircleCardTheme({ themeMetadata: metadata });
+  const currentActiveMetadata = readCircleStudioMetadata(card.themeMetadata);
   await prisma.circleCard.update({
     where: { id: card.id },
     data: {
@@ -2573,7 +2739,15 @@ export async function updateCircleStudioAction(formData: FormData) {
       themeButtonColor: resolvedTheme.buttonColor,
       themeSurfaceStyle: "PREMIUM",
       themePreset: tokens.identityStyle,
-      themeMetadata: metadata as Prisma.InputJsonValue
+      themeMetadata: metadata as Prisma.InputJsonValue,
+      studioDraftMetadata: metadata as Prisma.InputJsonValue,
+      studioDraftUpdatedAt: draftSavedAt,
+      ...(currentActiveMetadata
+        ? {
+            studioPreviousActiveMetadata: currentActiveMetadata as Prisma.InputJsonValue,
+            studioPreviousActiveAt: draftSavedAt
+          }
+        : {})
     }
   });
 
@@ -2615,6 +2789,8 @@ export async function upsertCircleCardLinkAction(formData: FormData) {
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
   }
+
+  await enforceCircleCardContentMutationAccess({ user, cardId: card.id, returnPath });
 
   const linkId = values.linkId || null;
   const existingLink = linkId
@@ -2765,6 +2941,8 @@ export async function toggleCircleCardLinkAction(formData: FormData) {
     redirectWithError(returnPath, "custom-link-not-found");
   }
 
+  await enforceCircleCardContentMutationAccess({ user, cardId: link.cardId, returnPath });
+
   await enforceCircleCardCustomLinkActivationLimit({
     user,
     cardId: link.cardId,
@@ -2816,6 +2994,12 @@ export async function deleteCircleCardLinkAction(formData: FormData) {
     redirectWithError(returnPath, "custom-link-not-found");
   }
 
+  await enforceCircleCardContentMutationAccess({
+    user,
+    cardId: parsed.data.cardId,
+    returnPath
+  });
+
   await prisma.circleCardLink.delete({
     where: { id: link.id }
   });
@@ -2828,9 +3012,9 @@ function canManageCircleCardBusinessBlocks(user: CircleCardActionUser) {
   return user.access.capabilities.businessBuilder;
 }
 
-async function getOwnedCircleCardForBusinessBlocks(cardId: string, userId: string) {
-  return prisma.circleCard.findFirst({
-    where: { id: cardId, userId, archivedAt: null },
+async function getOwnedCircleCardForBusinessBlocks(cardId: string, user: CircleCardActionUser) {
+  const card = await prisma.circleCard.findFirst({
+    where: { id: cardId, userId: user.id, archivedAt: null },
     select: {
       id: true,
       slug: true,
@@ -2838,6 +3022,12 @@ async function getOwnedCircleCardForBusinessBlocks(cardId: string, userId: strin
       contentBlocks: true
     }
   });
+
+  if (card && (await isCircleCardLockedByPlan(user, card.id))) {
+    return null;
+  }
+
+  return card;
 }
 
 export async function upsertCircleCardServiceAction(formData: FormData) {
@@ -2863,7 +3053,7 @@ export async function upsertCircleCardServiceAction(formData: FormData) {
     redirectWithError(returnPath, "services-locked");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
   }
@@ -2926,7 +3116,7 @@ export async function toggleCircleCardServiceAction(formData: FormData) {
     redirectWithError(returnPath, "services-locked");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     redirectWithError(returnPath, card ? "services-business-card-required" : "card-not-found");
   }
@@ -2963,7 +3153,7 @@ export async function deleteCircleCardServiceAction(formData: FormData) {
     redirectWithError(returnPath, "services-locked");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     redirectWithError(returnPath, card ? "services-business-card-required" : "card-not-found");
   }
@@ -3003,7 +3193,7 @@ export async function upsertCircleCardGalleryItemAction(formData: FormData) {
     redirectWithError(returnPath, "gallery-locked");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
   }
@@ -3064,7 +3254,7 @@ export async function toggleCircleCardGalleryItemAction(formData: FormData) {
     redirectWithError(returnPath, "gallery-locked");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     redirectWithError(returnPath, card ? "gallery-business-card-required" : "card-not-found");
   }
@@ -3105,7 +3295,7 @@ export async function deleteCircleCardGalleryItemAction(formData: FormData) {
     redirectWithError(returnPath, "gallery-locked");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     redirectWithError(returnPath, card ? "gallery-business-card-required" : "card-not-found");
   }
@@ -3149,7 +3339,7 @@ export async function upsertCircleCardGalleryItemInlineAction(
     return inlineCircleCardGalleryError("gallery-locked", "Gallery is included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card) {
     return inlineCircleCardGalleryError("card-not-found", "That Circle Card could not be found.");
   }
@@ -3229,7 +3419,7 @@ export async function toggleCircleCardGalleryItemInlineAction(input: {
     return inlineCircleCardGalleryError("gallery-locked", "Gallery is included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardGalleryError(
       card ? "gallery-business-card-required" : "card-not-found",
@@ -3274,7 +3464,7 @@ export async function deleteCircleCardGalleryItemInlineAction(input: {
     return inlineCircleCardGalleryError("gallery-locked", "Gallery is included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardGalleryError(
       card ? "gallery-business-card-required" : "card-not-found",
@@ -3332,7 +3522,7 @@ export async function upsertCircleCardBookingEnquiryInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card) {
     return inlineCircleCardBookingError("card-not-found", "That Circle Card could not be found.");
   }
@@ -3407,7 +3597,7 @@ export async function upsertCircleCardDocumentItemInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card) {
     return inlineCircleCardDocumentError("card-not-found", "That Circle Card could not be found.");
   }
@@ -3486,7 +3676,7 @@ export async function toggleCircleCardDocumentItemInlineAction(input: {
     return inlineCircleCardDocumentError("documents-locked", "Downloads are included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardDocumentError(
       card ? "documents-business-card-required" : "card-not-found",
@@ -3531,7 +3721,7 @@ export async function deleteCircleCardDocumentItemInlineAction(input: {
     return inlineCircleCardDocumentError("documents-locked", "Downloads are included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardDocumentError(
       card ? "documents-business-card-required" : "card-not-found",
@@ -3589,7 +3779,7 @@ export async function upsertCircleCardProductItemInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card) {
     return inlineCircleCardProductError("card-not-found", "That Circle Card could not be found.");
   }
@@ -3672,7 +3862,7 @@ export async function toggleCircleCardProductItemInlineAction(input: {
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardProductError(
       card ? "products-business-card-required" : "card-not-found",
@@ -3720,7 +3910,7 @@ export async function deleteCircleCardProductItemInlineAction(input: {
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardProductError(
       card ? "products-business-card-required" : "card-not-found",
@@ -3777,7 +3967,7 @@ export async function upsertCircleCardPriceListItemInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardPriceListError(
       card ? "price-list-business-card-required" : "card-not-found",
@@ -3850,7 +4040,7 @@ export async function toggleCircleCardPriceListItemInlineAction(input: {
     return inlineCircleCardPriceListError("price-list-locked", "Price List is included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardPriceListError(
       card ? "price-list-business-card-required" : "card-not-found",
@@ -3889,7 +4079,7 @@ export async function deleteCircleCardPriceListItemInlineAction(input: {
     return inlineCircleCardPriceListError("price-list-locked", "Price List is included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardPriceListError(
       card ? "price-list-business-card-required" : "card-not-found",
@@ -3944,7 +4134,7 @@ export async function upsertCircleCardMenuOfferItemInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardMenuOfferError(
       card ? "menu-offers-business-card-required" : "card-not-found",
@@ -4017,7 +4207,7 @@ export async function toggleCircleCardMenuOfferItemInlineAction(input: {
     return inlineCircleCardMenuOfferError("menu-offers-locked", "Menu & Offers are included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardMenuOfferError(
       card ? "menu-offers-business-card-required" : "card-not-found",
@@ -4056,7 +4246,7 @@ export async function deleteCircleCardMenuOfferItemInlineAction(input: {
     return inlineCircleCardMenuOfferError("menu-offers-locked", "Menu & Offers are included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardMenuOfferError(
       card ? "menu-offers-business-card-required" : "card-not-found",
@@ -4101,7 +4291,7 @@ export async function upsertCircleCardFeaturedContentItemInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardFeaturedContentError(
       card ? "featured-content-creator-card-required" : "card-not-found",
@@ -4173,7 +4363,7 @@ export async function toggleCircleCardFeaturedContentItemInlineAction(input: {
   if (!parsed.success) {
     return inlineCircleCardFeaturedContentError("featured-content-invalid", "Check the content item and try again.");
   }
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardFeaturedContentError(
       card ? "featured-content-creator-card-required" : "card-not-found",
@@ -4207,7 +4397,7 @@ export async function deleteCircleCardFeaturedContentItemInlineAction(input: {
   if (!parsed.success) {
     return inlineCircleCardFeaturedContentError("featured-content-invalid", "Check the content item and try again.");
   }
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardFeaturedContentError(
       card ? "featured-content-creator-card-required" : "card-not-found",
@@ -4254,7 +4444,7 @@ export async function upsertCircleCardCreatorOfferInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardCreatorOfferError(
       card ? "creator-offer-creator-card-required" : "card-not-found",
@@ -4334,7 +4524,7 @@ export async function toggleCircleCardCreatorOfferInlineAction(input: {
   if (!parsed.success) {
     return inlineCircleCardCreatorOfferError("creator-offer-invalid", "Check the offer and try again.");
   }
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardCreatorOfferError(
       card ? "creator-offer-creator-card-required" : "card-not-found",
@@ -4368,7 +4558,7 @@ export async function deleteCircleCardCreatorOfferInlineAction(input: {
   if (!parsed.success) {
     return inlineCircleCardCreatorOfferError("creator-offer-invalid", "Check the offer and try again.");
   }
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardCreatorOfferError(
       card ? "creator-offer-creator-card-required" : "card-not-found",
@@ -4413,7 +4603,7 @@ export async function upsertCircleCardPressProofItemInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardPressProofError(
       card ? "press-proof-creator-card-required" : "card-not-found",
@@ -4491,7 +4681,7 @@ export async function toggleCircleCardPressProofItemInlineAction(input: {
   if (!parsed.success) {
     return inlineCircleCardPressProofError("press-proof-invalid", "Check the proof item and try again.");
   }
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardPressProofError(
       card ? "press-proof-creator-card-required" : "card-not-found",
@@ -4525,7 +4715,7 @@ export async function deleteCircleCardPressProofItemInlineAction(input: {
   if (!parsed.success) {
     return inlineCircleCardPressProofError("press-proof-invalid", "Check the proof item and try again.");
   }
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardPressProofError(
       card ? "press-proof-creator-card-required" : "card-not-found",
@@ -4570,7 +4760,7 @@ export async function upsertCircleCardBrandPartnershipInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardBrandPartnershipError(
       card ? "brand-partnership-creator-card-required" : "card-not-found",
@@ -4643,7 +4833,7 @@ export async function toggleCircleCardBrandPartnershipInlineAction(input: {
   if (!parsed.success) {
     return inlineCircleCardBrandPartnershipError("brand-partnership-invalid", "Check the partnership and try again.");
   }
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardBrandPartnershipError(
       card ? "brand-partnership-creator-card-required" : "card-not-found",
@@ -4677,7 +4867,7 @@ export async function deleteCircleCardBrandPartnershipInlineAction(input: {
   if (!parsed.success) {
     return inlineCircleCardBrandPartnershipError("brand-partnership-invalid", "Check the partnership and try again.");
   }
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardBrandPartnershipError(
       card ? "brand-partnership-creator-card-required" : "card-not-found",
@@ -4738,7 +4928,7 @@ export async function saveCircleCardMediaKitInlineAction(
     return inlineCircleCardMediaKitError("media-kit-locked", "Media Kit is included with Creator Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardMediaKitError(
       card ? "media-kit-creator-card-required" : "card-not-found",
@@ -4832,7 +5022,7 @@ export async function saveCircleCardAudienceSnapshotInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "CREATOR") {
     return inlineCircleCardAudienceSnapshotError(
       card ? "audience-snapshot-creator-card-required" : "card-not-found",
@@ -4908,7 +5098,7 @@ export async function upsertCircleCardReviewItemInlineAction(
     );
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card) {
     return inlineCircleCardReviewError("card-not-found", "That Circle Card could not be found.");
   }
@@ -4989,7 +5179,7 @@ export async function toggleCircleCardReviewItemInlineAction(input: {
     return inlineCircleCardReviewError("reviews-locked", "Reviews are included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardReviewError(
       card ? "reviews-business-card-required" : "card-not-found",
@@ -5031,7 +5221,7 @@ export async function deleteCircleCardReviewItemInlineAction(input: {
     return inlineCircleCardReviewError("reviews-locked", "Reviews are included with Circle Card Pro.");
   }
 
-  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(parsed.data.cardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     return inlineCircleCardReviewError(
       card ? "reviews-business-card-required" : "card-not-found",
@@ -5119,6 +5309,14 @@ export async function submitCircleCardWalletTestimonialAction(
   });
 
   if (!walletContact?.card) {
+    return {
+      ok: false,
+      error: "wallet-testimonial-target-ineligible",
+      message: "Choose a live Business or Creator Circle Card saved in your Wallet."
+    };
+  }
+
+  if (!(await isPublicCircleCardTargetWithinOwnerPlan(walletContact.card))) {
     return {
       ok: false,
       error: "wallet-testimonial-target-ineligible",
@@ -5324,7 +5522,7 @@ export async function saveCircleCardOpeningHoursAction(formData: FormData) {
     : hoursParsed?.success
       ? hoursParsed.data.cardId
       : "";
-  const card = await getOwnedCircleCardForBusinessBlocks(validCardId, user.id);
+  const card = await getOwnedCircleCardForBusinessBlocks(validCardId, user);
   if (!card || card.cardType !== "BUSINESS") {
     redirectWithError(returnPath, card ? "opening-hours-business-card-required" : "card-not-found");
   }
@@ -5380,7 +5578,7 @@ export async function moveCircleCardLinkAction(formData: FormData) {
       id: true,
       slug: true,
       customLinks: {
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        orderBy: [...CIRCLE_CARD_LINK_PLAN_ORDER],
         select: {
           id: true
         }
@@ -5391,6 +5589,8 @@ export async function moveCircleCardLinkAction(formData: FormData) {
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
   }
+
+  await enforceCircleCardContentMutationAccess({ user, cardId: card.id, returnPath });
 
   const currentIndex = card.customLinks.findIndex((link) => link.id === parsed.data.linkId);
 
@@ -5448,6 +5648,13 @@ export async function upsertCircleCardLinkInlineAction(
 
   if (!card) {
     return inlineCircleCardError("card-not-found", "That Circle Card could not be found.");
+  }
+
+  if (await isCircleCardLockedByPlan(user, card.id)) {
+    return inlineCircleCardError(
+      "card-plan-locked",
+      "This saved extra card is read-only until Circle Card Pro is restored."
+    );
   }
 
   const linkId = values.linkId || null;
@@ -5621,6 +5828,13 @@ export async function toggleCircleCardLinkInlineAction(input: {
     return inlineCircleCardError("custom-link-not-found", "That custom link could not be found.");
   }
 
+  if (await isCircleCardLockedByPlan(user, link.cardId)) {
+    return inlineCircleCardError(
+      "card-plan-locked",
+      "This saved extra card is read-only until Circle Card Pro is restored."
+    );
+  }
+
   const wantsActive = !link.isActive;
   const activeLimitExceeded = await circleCardCustomLinkActivationLimitExceeded({
     user,
@@ -5687,6 +5901,13 @@ export async function deleteCircleCardLinkInlineAction(input: {
     return inlineCircleCardError("custom-link-not-found", "That custom link could not be found.");
   }
 
+  if (await isCircleCardLockedByPlan(user, parsed.data.cardId)) {
+    return inlineCircleCardError(
+      "card-plan-locked",
+      "This saved extra card is read-only until Circle Card Pro is restored."
+    );
+  }
+
   await prisma.circleCardLink.delete({
     where: { id: link.id }
   });
@@ -5720,7 +5941,7 @@ export async function moveCircleCardLinkInlineAction(input: {
       id: true,
       slug: true,
       customLinks: {
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        orderBy: [...CIRCLE_CARD_LINK_PLAN_ORDER],
         select: {
           id: true
         }
@@ -5730,6 +5951,13 @@ export async function moveCircleCardLinkInlineAction(input: {
 
   if (!card) {
     return inlineCircleCardError("card-not-found", "That Circle Card could not be found.");
+  }
+
+  if (await isCircleCardLockedByPlan(user, card.id)) {
+    return inlineCircleCardError(
+      "card-plan-locked",
+      "This saved extra card is read-only until Circle Card Pro is restored."
+    );
   }
 
   const currentIndex = card.customLinks.findIndex((link) => link.id === parsed.data.linkId);
@@ -5958,7 +6186,11 @@ export async function saveCircleWalletContactAction(formData: FormData) {
   const card = await prisma.circleCard.findFirst({
     where: {
       id: cardId,
-      isPublished: true
+      isPublished: true,
+      archivedAt: null,
+      user: {
+        suspended: false
+      }
     },
     select: {
       id: true,
@@ -5972,6 +6204,8 @@ export async function saveCircleWalletContactAction(formData: FormData) {
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
   }
+
+  await enforcePublicCircleCardTargetAccess({ card, returnPath, error: "card-not-found" });
 
   if (card.userId === user.id) {
     redirectWithNotice(returnPath, "own-card");
@@ -6081,6 +6315,8 @@ export async function spinToConnectCircleCardAction(formData: FormData) {
   if (!card) {
     redirectWithError(returnPath, "card-not-found");
   }
+
+  await enforcePublicCircleCardTargetAccess({ card, returnPath, error: "card-not-found" });
 
   if (card.userId === user.id || viewerPrimaryCard?.id === card.id) {
     redirectWithNotice(returnPath, "own-card");
@@ -6367,6 +6603,12 @@ export async function saveMatchedBusinessCardCircleCardAction(formData: FormData
     redirectWithError(returnPath, "connection-card-not-found");
   }
 
+  await enforcePublicCircleCardTargetAccess({
+    card,
+    returnPath,
+    error: "connection-card-not-found"
+  });
+
   if (card.userId === user.id) {
     redirectWithNotice(returnPath, "own-card");
   }
@@ -6475,6 +6717,12 @@ export async function saveMatchedBusinessCardAndSendConnectionRequestAction(form
   if (!recipientCard) {
     redirectWithError(returnPath, "connection-card-not-found");
   }
+
+  await enforcePublicCircleCardTargetAccess({
+    card: recipientCard,
+    returnPath,
+    error: "connection-card-not-found"
+  });
 
   if (recipientCard.userId === user.id || recipientCard.id === requesterCard.id) {
     redirectWithNotice(returnPath, "own-card");
@@ -6724,6 +6972,11 @@ export async function resolveCircleCardLinkAction(formData: FormData) {
     redirect("/dashboard/circle-card?section=network&error=card-link-not-found#connect-hub");
   }
 
+  if (!(await isPublicCircleCardTargetWithinOwnerPlan(resolvedCard))) {
+    await trackFailedResolve("plan_locked");
+    redirect("/dashboard/circle-card?section=network&error=card-link-not-found#connect-hub");
+  }
+
   await trackCircleCardEvent({
     cardId: primaryCard?.id ?? resolvedCard.id,
     eventType: "CARD_LINK_RESOLVED",
@@ -6786,6 +7039,12 @@ export async function sendCircleCardConnectionRequestAction(formData: FormData) 
   if (!recipientCard) {
     redirectWithError(returnPath, "connection-card-not-found");
   }
+
+  await enforcePublicCircleCardTargetAccess({
+    card: recipientCard,
+    returnPath,
+    error: "connection-card-not-found"
+  });
 
   if (recipientCard.userId === user.id || recipientCard.id === requesterCard.id) {
     redirectWithNotice(returnPath, "own-card");
@@ -7307,6 +7566,14 @@ export async function createCircleCardIntroductionAction(formData: FormData) {
   }
 
   if (personAContact.card.user.suspended || personBContact.card.user.suspended) {
+    redirectWithError(returnPath, "introduction-wallet-required");
+  }
+
+  const eligibleIntroductionTargets = await filterPublicCircleCardTargetsWithinOwnerPlans([
+    personAContact.card,
+    personBContact.card
+  ]);
+  if (eligibleIntroductionTargets.length !== 2) {
     redirectWithError(returnPath, "introduction-wallet-required");
   }
 
@@ -8043,6 +8310,14 @@ export async function createCircleCardReferralAction(formData: FormData) {
 
   if (recipientCard && (!recipientCard.isPublished || recipientCard.user.suspended)) {
     redirectWithError(returnPath, "referral-recipient-not-found");
+  }
+
+  if (recipientCard) {
+    await enforcePublicCircleCardTargetAccess({
+      card: recipientCard,
+      returnPath,
+      error: "referral-recipient-not-found"
+    });
   }
 
   if (recipientCard && (recipientCard.userId === user.id || recipientCard.id === primaryCard.id)) {
@@ -9078,6 +9353,13 @@ export async function upsertCircleCardRecommendationAction(formData: FormData) {
   }
 
   if (values.visibility === "PUBLIC" && walletContact.card?.user.suspended) {
+    redirectWithError(returnPath, "recommendation-public-card-required");
+  }
+
+  if (
+    walletContact.card &&
+    !(await isPublicCircleCardTargetWithinOwnerPlan(walletContact.card))
+  ) {
     redirectWithError(returnPath, "recommendation-public-card-required");
   }
 

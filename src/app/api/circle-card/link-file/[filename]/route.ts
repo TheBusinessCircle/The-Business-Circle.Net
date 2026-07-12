@@ -3,6 +3,7 @@ import { readCircleCardDocumentItems } from "@/lib/circle-card/content-blocks";
 import { CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED } from "@/lib/circle-card/plans";
 import { prisma } from "@/lib/prisma";
 import { buildCircleCardFileResponse } from "@/server/circle-card/file-response.service";
+import { isPublicCircleCardTargetWithinOwnerPlan } from "@/server/circle-card/plan-policy.service";
 import {
   isCircleCardLinkFileName,
   readCircleCardLinkFile
@@ -26,7 +27,7 @@ export async function GET(_request: Request, { params }: RouteProps) {
   }
 
   const fileUrl = `/api/circle-card/link-file/${filename}`;
-  const publicLink = await prisma.circleCardLink.findFirst({
+  const rawPublicLink = await prisma.circleCardLink.findFirst({
     where: {
       fileUrl,
       isActive: true,
@@ -41,9 +42,14 @@ export async function GET(_request: Request, { params }: RouteProps) {
     select: {
       actionMode: true,
       fileName: true,
-      fileMimeType: true
+      fileMimeType: true,
+      card: { select: { id: true, userId: true } }
     }
   });
+  const publicLink =
+    rawPublicLink && (await isPublicCircleCardTargetWithinOwnerPlan(rawPublicLink.card))
+      ? rawPublicLink
+      : null;
 
   const documentCard = publicLink
     ? null
@@ -58,13 +64,14 @@ export async function GET(_request: Request, { params }: RouteProps) {
             array_contains: [{ fileUrl }]
           }
         },
-        select: { contentBlocks: true }
+        select: { id: true, userId: true, contentBlocks: true }
       });
-  const publicDocument = documentCard
-    ? readCircleCardDocumentItems(documentCard.contentBlocks).find(
-        (document) => document.fileUrl === fileUrl && document.isActive
-      ) ?? null
-    : null;
+  const publicDocument =
+    documentCard && (await isPublicCircleCardTargetWithinOwnerPlan(documentCard))
+      ? readCircleCardDocumentItems(documentCard.contentBlocks).find(
+          (document) => document.fileUrl === fileUrl && document.isActive
+        ) ?? null
+      : null;
 
   if (!publicLink && !publicDocument) {
     const privateLink = await prisma.circleCardLink.findFirst({
@@ -80,11 +87,15 @@ export async function GET(_request: Request, { params }: RouteProps) {
         }
       },
       select: {
-        id: true
+        id: true,
+        card: { select: { id: true, userId: true } }
       }
     });
 
-    if (privateLink) {
+    if (
+      privateLink &&
+      (await isPublicCircleCardTargetWithinOwnerPlan(privateLink.card))
+    ) {
       return NextResponse.json({ error: "Access code required." }, { status: 403 });
     }
 

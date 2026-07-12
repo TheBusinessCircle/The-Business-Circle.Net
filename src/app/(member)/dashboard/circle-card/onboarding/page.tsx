@@ -11,6 +11,7 @@ import { normalizeSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
 import { loadCircleCardAccessForUser } from "@/server/circle-card";
+import { isPublicCircleCardTargetWithinOwnerPlan } from "@/server/circle-card/plan-policy.service";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Build My Circle Card",
@@ -87,12 +88,16 @@ export default async function CircleCardOnboardingPage() {
       : null
   );
   const source = readFirstCircleCardSource(card?.activities[0]?.metadata);
-  const sourceCard = source.sourceCardSlug
+  const rawSourceCard = source.sourceCardSlug
     ? await prisma.circleCard.findFirst({
         where: { slug: source.sourceCardSlug, isPublished: true, archivedAt: null },
-        select: { fullName: true }
+        select: { id: true, userId: true, fullName: true }
       })
     : null;
+  const sourceCard =
+    rawSourceCard && (await isPublicCircleCardTargetWithinOwnerPlan(rawSourceCard))
+      ? rawSourceCard
+      : null;
 
   return (
     <CircleCardOnboardingFlow

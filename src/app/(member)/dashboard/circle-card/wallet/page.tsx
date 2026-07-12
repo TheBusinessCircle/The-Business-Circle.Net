@@ -18,6 +18,7 @@ import { isEligibleCircleCardWalletTestimonialTarget } from "@/lib/circle-card/w
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
 import { absoluteUrl } from "@/lib/utils";
+import { filterPublicCircleCardTargetsWithinOwnerPlans } from "@/server/circle-card/plan-policy.service";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Circle Wallet",
@@ -311,6 +312,11 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
       })
     ]);
 
+  const planVisibleWalletCards = await filterPublicCircleCardTargetsWithinOwnerPlans(
+    walletContacts.flatMap((contact) => (contact.card ? [contact.card] : []))
+  );
+  const planVisibleWalletCardIds = new Set(planVisibleWalletCards.map((card) => card.id));
+
   const theme = resolveCircleCardTheme(card ?? undefined);
   const themeStyle = buildCircleCardThemeStyle(theme) as CSSProperties;
   const todayUtc = utcDateNumber(new Date());
@@ -333,6 +339,9 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
       contact.businessName ??
       contact.email ??
       "Saved relationship";
+    const publicTargetAvailable = Boolean(
+      contact.card && planVisibleWalletCardIds.has(contact.card.id)
+    );
     const display = {
       fullName,
       businessName: contact.card?.businessName ?? contact.businessName,
@@ -343,7 +352,8 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
       websiteUrl: contact.card?.websiteUrl ?? contact.websiteUrl,
       email: contact.card?.email ?? contact.email,
       phone: contact.card?.phone ?? contact.mobilePhone ?? contact.phone,
-      publicCardHref: contact.card?.slug ? `/card/${contact.card.slug}` : null,
+      publicCardHref:
+        contact.card?.slug && publicTargetAvailable ? `/card/${contact.card.slug}` : null,
       sourceLabel: walletContactSourceLabel(contact.source),
       isScannedBusinessCard: contact.source === "BUSINESS_CARD_SCAN"
     };
@@ -375,6 +385,7 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
       category: contact.category,
       tags,
       card: contact.card,
+      publicTargetAvailable,
       recommendations: contact.recommendations.map((recommendation) => ({
         id: recommendation.id,
         category: recommendation.category,
@@ -401,8 +412,10 @@ export default async function CircleWalletPage({ searchParams }: PageProps) {
     )
   );
   const walletTestimonialContacts: CircleCardWalletTestimonialContact[] = walletContacts
-    .filter((contact) =>
-      isEligibleCircleCardWalletTestimonialTarget(contact.card, session.user.id)
+    .filter(
+      (contact) =>
+        Boolean(contact.card && planVisibleWalletCardIds.has(contact.card.id)) &&
+        isEligibleCircleCardWalletTestimonialTarget(contact.card, session.user.id)
     )
     .map((contact) => ({
       walletContactId: contact.id,

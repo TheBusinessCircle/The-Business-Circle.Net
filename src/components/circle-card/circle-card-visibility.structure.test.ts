@@ -42,7 +42,7 @@ describe("Circle Card public visibility", () => {
       "isOnlyLiveCard={ownedCard.isPublished && liveCardCount === 1}"
     );
     expect(dashboard).toContain(
-      "disabled={ownedCard.isDefaultCard || !ownedCard.isPublished}"
+      "disabled={lockedByPlan || ownedCard.isDefaultCard || !ownedCard.isPublished}"
     );
     expect(control).toContain("Set Live");
     expect(control).toContain("Hide Card");

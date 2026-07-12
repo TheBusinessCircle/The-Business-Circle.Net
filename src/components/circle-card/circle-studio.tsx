@@ -13,6 +13,7 @@ import {
   LockKeyhole,
   Monitor,
   Play,
+  Save,
   Smartphone,
   Sparkles,
   Tablet,
@@ -59,6 +60,9 @@ type CircleStudioProps = {
   initialTokens: CircleStudioTokens;
   initialFineTune: CircleStudioFineTune;
   canActivate: boolean;
+  hasSavedDraft: boolean;
+  hasPreviousActiveDesign: boolean;
+  isPlanLocked: boolean;
   notice?: string | null;
   error?: string | null;
   activatedAt?: string | null;
@@ -86,7 +90,13 @@ function ActivateIdentityButton({ applied, disabled }: { applied: boolean; disab
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={disabled || pending} className="shrink-0 gap-2">
+    <Button
+      type="submit"
+      name="studioIntent"
+      value="activate"
+      disabled={disabled || pending}
+      className="shrink-0 gap-2"
+    >
       {pending ? (
         "Applying..."
       ) : applied ? (
@@ -98,6 +108,40 @@ function ActivateIdentityButton({ applied, disabled }: { applied: boolean; disab
           <WandSparkles size={16} /> Activate identity
         </>
       )}
+    </Button>
+  );
+}
+
+function SaveStudioDraftButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      name="studioIntent"
+      value="save-draft"
+      variant="outline"
+      disabled={disabled || pending}
+      className="shrink-0 gap-2"
+    >
+      <Save size={16} /> {pending ? "Saving..." : "Save private draft"}
+    </Button>
+  );
+}
+
+function RevertStudioDesignButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      name="studioIntent"
+      value="revert"
+      variant="outline"
+      disabled={pending}
+      className="shrink-0 gap-2"
+    >
+      <WandSparkles size={16} /> {pending ? "Restoring..." : "Restore previous design"}
     </Button>
   );
 }
@@ -158,7 +202,18 @@ function LiveCardPreview({ card, metadata, device }: { card: StudioCard; metadat
   );
 }
 
-export function CircleStudio({ card, initialTokens, initialFineTune, canActivate, notice, error, activatedAt }: CircleStudioProps) {
+export function CircleStudio({
+  card,
+  initialTokens,
+  initialFineTune,
+  canActivate,
+  hasSavedDraft,
+  hasPreviousActiveDesign,
+  isPlanLocked,
+  notice,
+  error,
+  activatedAt
+}: CircleStudioProps) {
   const [tokens, setTokens] = useState(initialTokens);
   const [fineTune, setFineTune] = useState(initialFineTune);
   const [device, setDevice] = useState<Device>("desktop");
@@ -166,7 +221,8 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
   const activePreset = CIRCLE_STUDIO_PRESETS.find((preset) => preset.key === tokens.identityStyle);
   const activeAccent = CIRCLE_STUDIO_ACCENTS[tokens.accentPalette];
   const fineTuneIssues = getCircleStudioFineTuneIssues(fineTune);
-  const applied = notice === "studio-activated";
+  const applied = notice === "studio-activated" || notice === "studio-reverted";
+  const draftSaved = notice === "studio-draft-saved" || hasSavedDraft;
   const previewMetadata = useMemo(() => buildCircleStudioMetadata(tokens, "CORE", fineTune), [tokens, fineTune]);
   const activationQuery = applied && activatedAt ? `?studio=${encodeURIComponent(activatedAt)}` : "";
   const tokenEntries = useMemo(() => Object.entries(CIRCLE_STUDIO_FIELD_COPY) as [Exclude<CircleStudioTokenKey, "identityStyle">, { label: string; description: string }][], []);
@@ -207,8 +263,40 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
           </div>
         </div>
       ) : null}
-      {error ? <div role="alert" className="rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error === "studio-pro-required" ? "Circle Studio activation is available with Circle Card Pro. Your preview is still yours to explore." : error === "studio-contrast" ? "That colour or background combination did not pass Circle Card readability checks. Adjust it and try again." : "That identity could not be activated. Please try again."}</div> : null}
+      {!canActivate && !isPlanLocked ? (
+        <div className="rounded-2xl border border-gold/24 bg-gold/[.08] px-4 py-4 text-sm text-muted">
+          <p className="font-semibold text-foreground">Studio Preview</p>
+          <p className="mt-1 leading-relaxed">
+            Experiment with your Circle Card design. Your public card will not change until you
+            unlock Circle Card Pro and apply it.
+          </p>
+        </div>
+      ) : null}
+      {draftSaved && !canActivate && !isPlanLocked ? (
+        <div role="status" className="rounded-2xl border border-silver/16 bg-white/[.035] px-4 py-3 text-sm text-silver">
+          <p className="font-semibold text-foreground">Your Studio design is saved privately.</p>
+          <p className="mt-1">Unlock Circle Card Pro to apply it to your public Circle Card.</p>
+        </div>
+      ) : null}
+      {hasPreviousActiveDesign ? (
+        <div role="status" className="rounded-2xl border border-silver/16 bg-white/[.035] px-4 py-3 text-sm text-silver">
+          <p className="font-semibold text-foreground">Previous active Studio design saved.</p>
+          <p className="mt-1">
+            {canActivate
+              ? "You can restore it without deleting your current design or private draft."
+              : "It remains stored privately and can be restored when Circle Card Pro is active."}
+          </p>
+        </div>
+      ) : null}
+      {isPlanLocked ? (
+        <div role="status" className="rounded-2xl border border-gold/24 bg-gold/[.08] px-4 py-3 text-sm text-gold">
+          <p className="flex items-center gap-2 font-semibold"><LockKeyhole size={15} /> Saved extra card locked by plan</p>
+          <p className="mt-1 text-muted">Its Studio draft and active design are preserved read-only. Restore Pro to continue editing this card.</p>
+        </div>
+      ) : null}
+      {error ? <div role="alert" className="rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error === "studio-pro-required" ? "Circle Studio activation is available with Circle Card Pro. Your preview is still yours to explore." : error === "card-plan-locked" ? "This saved extra card is read-only until Circle Card Pro is restored." : error === "studio-contrast" ? "That colour or background combination did not pass Circle Card readability checks. Adjust it and try again." : "That identity could not be saved. Please try again."}</div> : null}
 
+      <fieldset disabled={isPlanLocked} className="contents">
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(520px,.9fr)]">
         <div className="min-w-0 space-y-5">
           <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Circle Studio controls">
@@ -268,20 +356,27 @@ export function CircleStudio({ card, initialTokens, initialFineTune, canActivate
         <aside className="min-w-0 2xl:sticky 2xl:top-4 2xl:self-start">
           <div className="rounded-[1.65rem] border border-silver/12 bg-[#050a14]/80 p-3 shadow-panel-soft backdrop-blur-xl sm:p-4">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div><p className="flex items-center gap-2 text-sm font-semibold text-foreground"><Sparkles size={15} className="text-gold" /> Live public preview</p><p className="mt-1 text-xs text-muted">Exactly what visitors will see.</p></div>
+              <div><p className="flex items-center gap-2 text-sm font-semibold text-foreground"><Sparkles size={15} className="text-gold" /> Studio design preview</p><p className="mt-1 text-xs text-muted">Previewed with your real Circle Card data.</p></div>
               <div className="flex w-fit rounded-xl border border-silver/12 bg-background/30 p-1" aria-label="Preview device">
                 {([ ["desktop", Monitor], ["tablet", Tablet], ["mobile", Smartphone] ] as const).map(([value, Icon]) => <button key={value} type="button" aria-label={`${value} preview`} aria-pressed={device === value} onClick={() => setDevice(value)} className={cn("grid h-8 w-9 place-items-center rounded-lg transition", device === value ? "bg-gold/15 text-gold" : "text-muted hover:text-foreground")}><Icon size={15} /></button>)}
               </div>
             </div>
             <div className="max-h-[680px] overflow-auto rounded-[1.65rem] bg-black/20 p-1 sm:p-2"><LiveCardPreview card={card} metadata={previewMetadata} device={device} /></div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{activePreset?.label} · {circleStudioLabel(tokens.accentPalette)}</p><p className="mt-1 text-xs text-muted">Preview updates instantly. Activate when it feels like you.</p></div>
-              {canActivate ? <ActivateIdentityButton applied={applied} disabled={fineTuneIssues.length > 0} /> : <Link href="/circle-card/pro" className={cn(buttonVariants(), "shrink-0 gap-2")}><Crown size={16} /> Unlock with Pro <ArrowUpRight size={14} /></Link>}
+              <div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{activePreset?.label} · {circleStudioLabel(tokens.accentPalette)}</p><p className="mt-1 text-xs text-muted">Preview updates instantly. Save privately or apply when Pro is active.</p></div>
+              {!isPlanLocked ? (
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <SaveStudioDraftButton disabled={fineTuneIssues.length > 0} />
+                  {canActivate && hasPreviousActiveDesign ? <RevertStudioDesignButton /> : null}
+                  {canActivate ? <ActivateIdentityButton applied={applied} disabled={fineTuneIssues.length > 0} /> : <Link href="/circle-card/pro#register-interest" className={cn(buttonVariants(), "shrink-0 gap-2")}><Crown size={16} /> Apply My Design with Pro — £9.99/month <ArrowUpRight size={14} /></Link>}
+                </div>
+              ) : null}
             </div>
-            {!canActivate ? <p className="mt-3 flex items-center gap-2 rounded-xl border border-gold/18 bg-gold/[.06] px-3 py-2 text-xs text-gold"><LockKeyhole size={14} /> Upgrade to Pro to make this style live.</p> : null}
+            {!canActivate && !isPlanLocked ? <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold/18 bg-gold/[.06] px-3 py-2 text-xs text-gold"><span className="flex items-center gap-2"><LockKeyhole size={14} /> Your current public presentation stays unchanged.</span><Link href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">View My Current Live Card</Link></div> : null}
           </div>
         </aside>
       </div>
+      </fieldset>
     </form>
   );
 }

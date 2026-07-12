@@ -53,8 +53,8 @@ describe("Circle Card authoritative entitlement wiring", () => {
   it("applies Free downgrade visibility without deleting stored Pro configuration", () => {
     expect(publicService).toContain("loadCircleCardAccessForUser(card.userId)");
     expect(publicService).toContain("export const getPublicCircleCard = cache(loadPublicCircleCard)");
-    expect(publicService).toContain("freePublicCard?.id !== card.id");
-    expect(publicService).toContain("slice(0, circleCardAccess.limits.activeLinks)");
+    expect(publicService).toContain("planVisibleOwnerCards.some((ownerCard) => ownerCard.id === card.id)");
+    expect(publicService).toContain("selectCircleCardLinksWithinPlan(card.customLinks, circleCardAccess.limits.activeLinks)");
     expect(publicService).toContain("circleCardAccess.capabilities.businessBuilder ?");
     expect(publicService).toContain("circleCardAccess.capabilities.creatorMediaKit ?");
     expect(publicService).toContain("circleCardAccess.capabilities.creatorAudienceSnapshot ?");

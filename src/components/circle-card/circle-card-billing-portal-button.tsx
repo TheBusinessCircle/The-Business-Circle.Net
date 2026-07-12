@@ -6,9 +6,13 @@ import { Button } from "@/components/ui/button";
 
 type CircleCardBillingPortalButtonProps = {
   returnPath?: string;
+  label?: string;
 };
 
-export function CircleCardBillingPortalButton({ returnPath }: CircleCardBillingPortalButtonProps) {
+export function CircleCardBillingPortalButton({
+  returnPath,
+  label = "Manage Circle Card billing"
+}: CircleCardBillingPortalButtonProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -38,7 +42,7 @@ export function CircleCardBillingPortalButton({ returnPath }: CircleCardBillingP
     <div className="grid gap-2">
       <Button type="button" variant="outline" className="w-full justify-center gap-2" onClick={openPortal} disabled={isPending}>
         {isPending ? <Loader2 size={15} className="animate-spin" /> : <CreditCard size={15} />}
-        Manage Circle Card billing
+        {label}
       </Button>
       {error ? <p className="text-xs text-red-200">{error}</p> : null}
     </div>

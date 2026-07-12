@@ -26,6 +26,7 @@ import {
   verifyCircleCardLinkAccessToken
 } from "@/server/circle-card/link-access.service";
 import { readCircleCardLinkFile } from "@/server/circle-card/upload.service";
+import { isPublicCircleCardTargetWithinOwnerPlan } from "@/server/circle-card/plan-policy.service";
 
 export const runtime = "nodejs";
 
@@ -79,7 +80,7 @@ async function findPrivatePublicLink(linkId: string) {
     return null;
   }
 
-  return prisma.circleCardLink.findFirst({
+  const link = await prisma.circleCardLink.findFirst({
     where: {
       id: linkId,
       isActive: true,
@@ -101,9 +102,16 @@ async function findPrivatePublicLink(linkId: string) {
       fileName: true,
       fileMimeType: true,
       actionMode: true,
-      accessCodeHash: true
+      accessCodeHash: true,
+      card: { select: { id: true, userId: true } }
     }
   });
+
+  if (!link || !(await isPublicCircleCardTargetWithinOwnerPlan(link.card))) {
+    return null;
+  }
+
+  return link;
 }
 
 export async function POST(request: Request) {
