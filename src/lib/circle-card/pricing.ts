@@ -6,8 +6,9 @@ export type CircleCardPricingConfig = {
   key: CircleCardPlanKey;
   label: string;
   positioning: string;
+  launchAvailable: boolean;
   currency: CircleCardCurrency;
-  priceMonthly: number;
+  priceMonthly: number | null;
   priceAnnual: number | null;
   annualDiscountPercent?: number;
   pricePerExtraSeat: number | null;
@@ -18,6 +19,7 @@ export type CircleCardPricingConfig = {
     note: string;
   };
   stripe: {
+    productEnvVar?: string;
     monthlyPriceEnvVar?: string;
     annualPriceEnvVar?: string;
   };
@@ -39,21 +41,13 @@ export type CircleCardFeatureLockGroup = {
 };
 
 export const CIRCLE_CARD_BILLING_FLAG_ENV = "CIRCLE_CARD_BILLING_ENABLED";
-export const CIRCLE_CARD_PRO_ANNUAL_DISCOUNT_PERCENT = 20;
-export const CIRCLE_CARD_TEAMS_ANNUAL_DISCOUNT_PERCENT = 20;
-
-function discountedAnnualPrice(monthlyPrice: number, discountPercent: number) {
-  const annualTotal = monthlyPrice * 12;
-  const discountedTotal = annualTotal * ((100 - discountPercent) / 100);
-
-  return Math.round(discountedTotal * 100) / 100;
-}
 
 export const CIRCLE_CARD_PRICING_CONFIG: Record<CircleCardPlanKey, CircleCardPricingConfig> = {
   FREE: {
     key: "FREE",
     label: "Free",
     positioning: "personal/basic use",
+    launchAvailable: true,
     currency: "GBP",
     priceMonthly: 0,
     priceAnnual: 0,
@@ -66,14 +60,14 @@ export const CIRCLE_CARD_PRICING_CONFIG: Record<CircleCardPlanKey, CircleCardPri
     label: "Pro",
     positioning:
       "founders, creators, consultants, tradespeople, service providers and personal brands",
+    launchAvailable: true,
     currency: "GBP",
     priceMonthly: 9.99,
-    priceAnnual: discountedAnnualPrice(9.99, CIRCLE_CARD_PRO_ANNUAL_DISCOUNT_PERCENT),
-    annualDiscountPercent: CIRCLE_CARD_PRO_ANNUAL_DISCOUNT_PERCENT,
+    priceAnnual: null,
     pricePerExtraSeat: null,
     stripe: {
-      monthlyPriceEnvVar: "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID",
-      annualPriceEnvVar: "STRIPE_CIRCLE_CARD_PRO_ANNUAL_PRICE_ID"
+      productEnvVar: "STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID",
+      monthlyPriceEnvVar: "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID"
     },
     billingStatusLabel: "Early access / register interest"
   },
@@ -81,23 +75,13 @@ export const CIRCLE_CARD_PRICING_CONFIG: Record<CircleCardPlanKey, CircleCardPri
     key: "TEAMS",
     label: "Teams",
     positioning: "companies, staff, shared contacts and team control",
+    launchAvailable: false,
     currency: "GBP",
-    priceMonthly: 79.99,
-    priceAnnual: discountedAnnualPrice(79.99, CIRCLE_CARD_TEAMS_ANNUAL_DISCOUNT_PERCENT),
-    annualDiscountPercent: CIRCLE_CARD_TEAMS_ANNUAL_DISCOUNT_PERCENT,
+    priceMonthly: null,
+    priceAnnual: null,
     pricePerExtraSeat: null,
-    pricePrefix: "from",
-    bcnMemberDiscount: {
-      eligible: true,
-      affectsBcnSubscription: false,
-      note:
-        "Future BCN member Teams discounts must apply to Circle Card Teams billing only, without changing BCN subscription logic."
-    },
-    stripe: {
-      monthlyPriceEnvVar: "STRIPE_CIRCLE_CARD_TEAMS_MONTHLY_PRICE_ID",
-      annualPriceEnvVar: "STRIPE_CIRCLE_CARD_TEAMS_ANNUAL_PRICE_ID"
-    },
-    billingStatusLabel: "Early access / register interest"
+    stripe: {},
+    billingStatusLabel: "Deferred after the Pro launch"
   }
 };
 
@@ -157,7 +141,12 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
     features: [
       { id: "twenty-five-featured-links", label: "25 featured links", status: "future", enforcement: "messaging-only" },
       { id: "enhanced-analytics", label: "Enhanced analytics", status: "future", enforcement: "messaging-only" },
-      { id: "download-file-links", label: "Download/file links", status: "early-access", enforcement: "messaging-only" },
+      {
+        id: "download-file-links",
+        label: "Uploaded/private file links (deferred)",
+        status: "future",
+        enforcement: "active"
+      },
       { id: "custom-colours", label: "Custom colours", status: "early-access", enforcement: "messaging-only" },
       {
         id: "advanced-profile-sections",
@@ -240,23 +229,23 @@ export function isCircleCardBillingEnabled() {
 
 export function getCircleCardBillingReadiness() {
   const pro = CIRCLE_CARD_PRICING_CONFIG.PRO;
-  const teams = CIRCLE_CARD_PRICING_CONFIG.TEAMS;
+  const proProductConfigured = configuredEnvValue(pro.stripe.productEnvVar);
   const proMonthlyConfigured = configuredEnvValue(pro.stripe.monthlyPriceEnvVar);
-  const proAnnualConfigured = configuredEnvValue(pro.stripe.annualPriceEnvVar);
-  const teamsMonthlyConfigured = configuredEnvValue(teams.stripe.monthlyPriceEnvVar);
-  const teamsAnnualConfigured = configuredEnvValue(teams.stripe.annualPriceEnvVar);
 
   return {
     billingEnabled: isCircleCardBillingEnabled(),
-    proPriceConfigured: proMonthlyConfigured || proAnnualConfigured,
-    teamsPriceConfigured: teamsMonthlyConfigured || teamsAnnualConfigured,
+    proProductConfigured,
+    proPriceConfigured: proMonthlyConfigured,
+    proLaunchConfigured: proProductConfigured && proMonthlyConfigured,
+    teamsPriceConfigured: false,
     pro: {
+      productConfigured: proProductConfigured,
       monthlyPriceConfigured: proMonthlyConfigured,
-      annualPriceConfigured: proAnnualConfigured
+      annualPriceConfigured: false
     },
     teams: {
-      monthlyPriceConfigured: teamsMonthlyConfigured,
-      annualPriceConfigured: teamsAnnualConfigured
+      monthlyPriceConfigured: false,
+      annualPriceConfigured: false
     }
   };
 }
@@ -268,12 +257,12 @@ export function getCircleCardProBillingConfigurationErrorMessage() {
     return "Circle Card billing is disabled.";
   }
 
-  if (!readiness.pro.monthlyPriceConfigured) {
-    return "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID is required when Circle Card billing is enabled.";
+  if (!readiness.pro.productConfigured) {
+    return "STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID is required when Circle Card billing is enabled.";
   }
 
-  if (!readiness.pro.annualPriceConfigured) {
-    return "STRIPE_CIRCLE_CARD_PRO_ANNUAL_PRICE_ID is required when Circle Card billing is enabled.";
+  if (!readiness.pro.monthlyPriceConfigured) {
+    return "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID is required when Circle Card billing is enabled.";
   }
 
   return null;
@@ -282,6 +271,14 @@ export function getCircleCardProBillingConfigurationErrorMessage() {
 export function formatCircleCardPrice(plan: CircleCardPlanKey) {
   const config = CIRCLE_CARD_PRICING_CONFIG[plan];
   const prefix = config.pricePrefix ? `${config.pricePrefix} ` : "";
+
+  if (!config.launchAvailable) {
+    return "Pricing deferred";
+  }
+
+  if (config.priceMonthly === null) {
+    return "Pricing unavailable";
+  }
 
   if (config.priceMonthly === 0) {
     return "£0";

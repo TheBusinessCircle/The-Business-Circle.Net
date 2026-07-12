@@ -11,6 +11,8 @@
     "test:watch": "vitest",
     "test:spin-mobile": "node scripts/test-spin-to-connect-browser.mjs",
     "env:validate:production": "tsx scripts/validate-production-env.ts",
+    "circle-card:billing:validate-env": "tsx scripts/validate-circle-card-billing-env.ts",
+    "circle-card:billing:certify-stripe": "tsx scripts/verify-circle-card-stripe-config.ts",
     "stripe:webhook:upsert": "tsx scripts/stripe-webhook.ts",
     "deps:check:critical": "npm outdated next-auth @auth/prisma-adapter prisma @prisma/client @prisma/adapter-pg",
     "db:generate": "prisma generate",

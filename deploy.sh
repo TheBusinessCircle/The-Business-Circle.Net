@@ -112,7 +112,18 @@ else
   printf '%s\n' "No dependency changes detected."
 fi
 
-print_step 4 "Generate Prisma client and inspect migrations"
+print_step 4 "Validate production environment and billing safety gates"
+
+if ! npm run env:validate:production; then
+  abort "PRODUCTION ENVIRONMENT VALIDATION FAILED — no database migration or build was attempted"
+fi
+printf '%s\n' "✓ Production environment validated"
+
+if ! npm run circle-card:billing:certify-stripe -- --mode live --if-enabled; then
+  abort "CIRCLE CARD STRIPE CERTIFICATION FAILED — no database migration or build was attempted"
+fi
+
+print_step 5 "Generate Prisma client and inspect migrations"
 
 if ! npx prisma generate; then
   abort "PRISMA GENERATE FAILED"
@@ -171,7 +182,7 @@ if ! npm run db:verify:circle-card; then
   abort "CIRCLE CARD DATABASE SCHEMA VERIFICATION FAILED"
 fi
 
-print_step 5 "Build"
+print_step 6 "Build"
 
 if ! npm run build; then
   printf '\n%s\n' "BUILD FAILED" >&2
@@ -181,7 +192,7 @@ fi
 BUILD_RESULT="Success"
 printf '%s\n' "✓ Build Successful"
 
-print_step 6 "Restart"
+print_step 7 "Restart"
 
 if ! pm2 restart "$PM2_APP_NAME"; then
   abort "PM2 RESTART FAILED"
@@ -191,7 +202,7 @@ if ! pm2 save; then
 fi
 printf '%s\n' "✓ PM2 restarted and saved"
 
-print_step 7 "Health checks"
+print_step 8 "Health checks"
 
 PM2_RESULT="Not running"
 WEBSITE_RESULT="Offline"
@@ -255,7 +266,7 @@ fi
 FINAL_COMMIT="$(git rev-parse --short HEAD)"
 ELAPSED_TIME=$((SECONDS - START_TIME))
 
-print_step 8 "Summary"
+print_step 9 "Summary"
 
 printf '%s\n\n' "$SEPARATOR"
 if [[ "$DEPLOYMENT_WARNING" == true ]]; then

@@ -11,6 +11,8 @@ This runbook is the production checklist for deploying The Business Circle Netwo
 - Stripe products/prices created for:
   - Standard (`£30/month`)
   - Inner Circle (`£79/month`)
+- Circle Card Pro billing is a separate, disabled launch gate. Its only launch-ready price is
+  `GBP 9.99/month`; annual and Teams billing are deferred.
 - Resend domain configured and verified.
 - Ably API key created (if realtime chat is enabled).
 
@@ -54,6 +56,17 @@ Use a production environment (systemd, PM2, or host-level env manager) and set:
 - `STRIPE_WEBHOOK_SECRET=whsec_...`
 - `STRIPE_STANDARD_PRICE_ID=price_...`
 - `STRIPE_INNER_CIRCLE_PRICE_ID=price_...`
+
+### Circle Card Pro billing (disabled)
+
+- `CIRCLE_CARD_BILLING_ENABLED=false`
+- `STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID=` (set to `prod_...` before a later controlled launch)
+- `STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID=` (set to `price_...` before a later controlled launch)
+
+When Circle Card billing is disabled, the Circle Card product and price may be blank. Enabling the
+flag requires the Stripe secret, webhook secret, product ID and monthly price ID to be complete.
+Annual and Teams IDs are not required for the launch. Never commit real Stripe identifiers or
+secrets to this repository.
 
 ### Analytics (PostHog EU)
 
@@ -111,9 +124,10 @@ Use a production environment (systemd, PM2, or host-level env manager) and set:
 
 ### Circle Card link file uploads
 
-- Circle Card downloadable link files are stored under `.uploads/circle-card-link-files`.
-- Keep this directory on persistent server storage and include it in backups.
-- Do not expose the directory directly; files are served through `/api/circle-card/link-file/[filename]` so HTML uploads are treated as downloadable files.
+- Uploaded/private custom-link files are deferred beyond the initial Circle Card Pro launch.
+- Do not enable or expose `.uploads/circle-card-link-files` as part of launch activation.
+- Preserve and back up any existing data, but do not serve it publicly without a valid entitlement.
+- Normal profile-photo and business-logo uploads remain supported.
 
 ## 3) Deploy on VPS (no Docker)
 
@@ -121,13 +135,17 @@ From project root on the server:
 
 ```bash
 npm ci
+npm run env:validate:production
+npm run circle-card:billing:validate-env
 npx prisma generate
 npm run db:migrate:prod
 npm run build
 npm run start
 ```
 
-Recommended: run `npm run env:validate:production` locally (it requires dev dependencies).
+Environment validation must pass before any production database mutation or build. The repository
+`deploy.sh` assistant enforces this order. If Circle Card billing is ever deliberately enabled, it
+also runs the read-only live Stripe certification before migrations.
 
 Before the first deploy, place your TURN certificate files at `.secrets/coturn/fullchain.pem` and `.secrets/coturn/privkey.pem` on the server (or adjust the `TURN_TLS_*` paths if you use a different location).
 
@@ -175,10 +193,11 @@ In Stripe Dashboard:
    - `customer.subscription.deleted`
    - `invoice.paid`
    - `invoice.payment_failed`
+   - `invoice.payment_action_required`
    - `charge.refunded`
 3. Copy webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
 
-This single webhook endpoint handles both membership billing updates and founder-service payment updates.
+This single webhook endpoint handles membership, Circle Card and founder-service billing updates.
 
 You can also create or update the endpoint from the repo with:
 
@@ -187,6 +206,20 @@ npm run stripe:webhook:upsert -- --url https://thebusinesscircle.net
 ```
 
 Verify endpoint delivery in Stripe logs after first test payment.
+
+For Circle Card Pro, also configure Customer Portal to allow payment-method recovery, billing
+history and cancellation management. Portal access remains available to customers with a stored
+Stripe customer relationship even after paid entitlement expires.
+
+Before a later Circle Card billing enablement, run the deliberate read-only certification while the
+billing flag is still false:
+
+```bash
+npm run circle-card:billing:certify-stripe -- --env-file .env.production --mode live
+```
+
+The check must report an active product and active recurring GBP `999` monthly price linked to that
+product. It never creates or modifies Stripe resources and is not used during page rendering.
 
 ## 6) Production database migration strategy
 
@@ -216,6 +249,8 @@ Rules:
 - Admin pages load (`/admin`, `/admin/resources`, `/admin/community`).
 - `/admin/security` and `/admin/system-health` show `Shared Redis` for rate limiting.
 - Stripe checkout + portal redirect correctly.
+- With `CIRCLE_CARD_BILLING_ENABLED=false`, Circle Card checkout fails closed and Pro interest paths
+  remain available. Do not test a live Circle Card charge during an ordinary deployment.
 - PostHog captures `$pageview` on `/`, `/home`, `/membership`, `/audit`, join/auth routes, and `/dashboard` after analytics consent is granted.
 - PostHog session replay appears for sampled sessions without readable password, message, admin, or payment fields.
 - Contact form sends to `contact@thebusinesscircle.net`.
@@ -241,6 +276,12 @@ If deploy fails:
 2. Restore previous env file if variables changed.
 3. If migration caused issues, restore DB backup.
 4. Restart the app process (systemd/PM2) after rollback.
+
+For an urgent Circle Card billing stop, set `CIRCLE_CARD_BILLING_ENABLED=false` and restart every app
+instance. Leave webhook processing online so confirmed payment, cancellation and recovery evidence
+continues to arrive. Do not delete subscriptions or user content. See
+[circle-card-pro-billing-blueprint.md](./circle-card-pro-billing-blueprint.md) for the full lifecycle,
+controlled-launch and emergency checklist.
 
 ## Docker (local/dev only)
 

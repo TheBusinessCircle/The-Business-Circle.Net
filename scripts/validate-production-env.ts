@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
+import { validateCircleCardBillingEnvironment } from "./circle-card-billing-config";
 
 type Severity = "error" | "warning";
 
@@ -19,7 +20,7 @@ function loadEnvFileIfAvailable(filePath: string) {
     loadEnvFile?: (path?: string) => void;
   }).loadEnvFile;
 
-  if (typeof loadEnvFile === "function") {
+  if (typeof loadEnvFile === "function" && existsSync(filePath)) {
     loadEnvFile(filePath);
   }
 }
@@ -265,6 +266,10 @@ function validateProductionEnv() {
 
   if (!stripeWebhookSecret.startsWith("whsec_")) {
     addIssue(issues, "error", "STRIPE_WEBHOOK_SECRET is missing or invalid.");
+  }
+
+  for (const circleCardBillingIssue of validateCircleCardBillingEnvironment()) {
+    addIssue(issues, "error", circleCardBillingIssue.message);
   }
 
   for (const missingPriceId of listMissingMembershipStripePriceIds()) {
