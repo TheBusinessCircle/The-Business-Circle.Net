@@ -3,6 +3,7 @@ import {
   publishFirstCircleCardAction,
   saveFirstCircleCardStepAction
 } from "@/actions/circle-card-onboarding.actions";
+import * as onboardingActions from "@/actions/circle-card-onboarding.actions";
 
 const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
@@ -58,6 +59,14 @@ describe("first Circle Card save and publish actions", () => {
     mocks.findFirst.mockResolvedValue({ id: "card_1", slug: "ada-lovelace", isPublished: false });
     mocks.updateCard.mockResolvedValue({ id: "card_1" });
     mocks.updateUser.mockResolvedValue({ id: "user_1" });
+  });
+
+  it("loads the action entrypoint with only executable async actions", () => {
+    expect(Object.keys(onboardingActions).sort()).toEqual([
+      "publishFirstCircleCardAction",
+      "saveFirstCircleCardStepAction"
+    ]);
+    expect(Object.values(onboardingActions).every((action) => action.constructor.name === "AsyncFunction")).toBe(true);
   });
 
   it("saves progress to the existing server-backed starter card", async () => {

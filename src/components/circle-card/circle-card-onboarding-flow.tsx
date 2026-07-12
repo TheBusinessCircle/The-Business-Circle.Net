@@ -12,6 +12,7 @@ import {
   Check,
   Eye,
   Link2,
+  Loader2,
   QrCode,
   Rocket,
   Share2,
@@ -37,6 +38,7 @@ import {
   FIRST_CIRCLE_CARD_MISSING_COPY,
   type FirstCircleCardReadiness
 } from "@/lib/circle-card/first-card-readiness";
+import { stepAfterFirstCircleCardSave } from "@/lib/circle-card/onboarding-flow-state";
 import { cn } from "@/lib/utils";
 
 type Values = {
@@ -217,7 +219,7 @@ export function CircleCardOnboardingFlow({
           completion_percentage: 100
         });
       }
-      if (step < 2) setStep((current) => current + 1);
+      if (step < 2) setStep((current) => stepAfterFirstCircleCardSave(current, true));
     });
   }
 
@@ -348,7 +350,7 @@ export function CircleCardOnboardingFlow({
   const previewPurpose = values.tagline.trim() || "Your short description will appear here.";
 
   return (
-    <main className="mx-auto min-h-[100dvh] w-full max-w-6xl overflow-x-hidden px-3 py-4 pb-[max(6rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:pb-8">
+    <main className="mx-auto min-h-[100dvh] w-full max-w-6xl overflow-x-hidden px-3 py-4 pb-[max(9rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:pb-8">
       <header className="sticky top-0 z-20 -mx-3 border-b border-silver/12 bg-background/90 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <CircleCardLogoMark className="h-9 w-9 shrink-0" alt="Circle Card" />
@@ -435,13 +437,19 @@ export function CircleCardOnboardingFlow({
               )}
             </div>
 
-            <div aria-live="polite" className="mt-5 min-h-6 text-sm">
-              {saveStatus === "saving" || isPending ? <span className="text-muted">Saving…</span> : null}
-              {saveStatus === "saved" ? <span className="text-emerald-300">Saved</span> : null}
-              {saveStatus === "error" && message ? <span role="alert" className="text-destructive">{message}</span> : null}
-            </div>
-
             <div className="fixed inset-x-0 bottom-0 z-30 border-t border-silver/14 bg-card/95 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:mt-5 lg:border-0 lg:bg-transparent lg:p-0">
+              <div aria-live="polite" className="mx-auto mb-2 min-h-6 max-w-6xl text-sm lg:mb-3">
+                {saveStatus === "saving" || isPending ? (
+                  <span role="status" className="inline-flex items-center gap-2 text-muted">
+                    <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+                    Saving...
+                  </span>
+                ) : null}
+                {saveStatus === "saved" ? <span className="text-emerald-300">Saved</span> : null}
+                {saveStatus === "error" && message ? (
+                  <span role="alert" className="block text-destructive">{message}</span>
+                ) : null}
+              </div>
               <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)] gap-3 sm:grid-cols-[auto_auto_minmax(0,1fr)]">
                 <Button type="button" variant="outline" className="min-h-11" disabled={step === 0 || isPending} onClick={() => setStep((current) => Math.max(0, current - 1))}><ArrowLeft size={16} /><span className="sr-only sm:not-sr-only sm:ml-2">Back</span></Button>
                 <Button type="button" variant="outline" className="hidden min-h-11 sm:inline-flex" onClick={openPreview}><Eye size={16} />{readiness.publishReady ? "Preview My Circle Card" : "Preview My Progress"}</Button>
