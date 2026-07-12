@@ -242,7 +242,15 @@ async function resolveSubscriptionPlanStateFromPriceId(
 }
 
 function webhookErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message.slice(0, 1000) : "Unknown webhook error";
+  if (!(error instanceof Error)) return "Unknown webhook error";
+
+  return error.message
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")
+    .replace(/(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+/g, "[redacted Stripe key]")
+    .replace(/whsec_[A-Za-z0-9]+/g, "[redacted webhook secret]")
+    .replace(/\b(?:pm|card|src|ba|tok)_[A-Za-z0-9]+\b/g, "[redacted payment method]")
+    .replace(/\b(?:\d[ -]*?){13,19}\b/g, "[redacted payment number]")
+    .slice(0, 1000);
 }
 
 function resolvePendingRegistrationIdFromSession(
@@ -1922,10 +1930,11 @@ export async function acquireWebhookProcessingLease(event: Stripe.Event) {
 
     return true;
   } catch (error) {
-    if (
-      !(error instanceof Prisma.PrismaClientKnownRequestError) &&
-      (!error || typeof error !== "object" || !("code" in error) || error.code !== "P2002")
-    ) {
+    const isUniqueConflict =
+      error instanceof Prisma.PrismaClientKnownRequestError
+        ? error.code === "P2002"
+        : Boolean(error && typeof error === "object" && "code" in error && error.code === "P2002");
+    if (!isUniqueConflict) {
       throw error;
     }
   }

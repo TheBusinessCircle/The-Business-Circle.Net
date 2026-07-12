@@ -10,6 +10,7 @@ const WEBHOOK_EVENTS = [
   "customer.subscription.deleted",
   "invoice.paid",
   "invoice.payment_failed",
+  "invoice.payment_action_required",
   "charge.refunded"
 ] as const;
 

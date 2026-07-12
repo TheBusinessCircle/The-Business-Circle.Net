@@ -11,12 +11,21 @@ function compactDetails(details?: SafeLogDetails) {
   return entries.length ? Object.fromEntries(entries) : undefined;
 }
 
+function redactSensitiveLogText(value: string) {
+  return value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")
+    .replace(/(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+/g, "[redacted Stripe key]")
+    .replace(/whsec_[A-Za-z0-9]+/g, "[redacted webhook secret]")
+    .replace(/\b(?:pm|card|src|ba|tok)_[A-Za-z0-9]+\b/g, "[redacted payment method]")
+    .replace(/\b(?:\d[ -]*?){13,19}\b/g, "[redacted payment number]");
+}
+
 function summarizeErrorCause(error: Error) {
   const causeChain: string[] = [];
   let current: unknown = error;
 
   while (current instanceof Error && causeChain.length < 4) {
-    causeChain.push(`${current.name}: ${current.message}`);
+    causeChain.push(`${current.name}: ${redactSensitiveLogText(current.message)}`);
     current = current.cause;
   }
 
@@ -35,12 +44,12 @@ function summarizeError(error: unknown): SafeLogDetails {
 
     return {
       errorName: error.name,
-      errorMessage: error.message,
+      errorMessage: redactSensitiveLogText(error.message),
       errorCode: typeof errorWithCode.code === "string" ? errorWithCode.code : undefined,
       ...causeSummary,
       errorStack:
         process.env.NODE_ENV !== "production"
-          ? error.stack
+          ? redactSensitiveLogText(error.stack ?? "")
               ?.split("\n")
               .map((line) => line.trim())
               .slice(0, 8)
@@ -74,4 +83,15 @@ export function logServerWarning(event: string, details?: SafeLogDetails) {
   }
 
   console.warn(`[server] ${event}`);
+}
+
+export function logServerInfo(event: string, details?: SafeLogDetails) {
+  const payload = compactDetails(details);
+
+  if (payload) {
+    console.info(`[server] ${event}`, payload);
+    return;
+  }
+
+  console.info(`[server] ${event}`);
 }

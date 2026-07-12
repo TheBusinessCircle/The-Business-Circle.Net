@@ -60,6 +60,7 @@ describe("Circle Card commission ledger generation", () => {
             status: SubscriptionStatus.ACTIVE,
             currentPeriodStart: new Date("2026-06-15T00:00:00.000Z"),
             currentPeriodEnd: new Date("2026-08-15T00:00:00.000Z"),
+            accessEndsAt: new Date("2026-08-15T00:00:00.000Z"),
             lastInvoicePaidAt: new Date("2026-06-15T00:00:00.000Z"),
             createdAt: new Date("2026-06-15T00:00:00.000Z")
           },
