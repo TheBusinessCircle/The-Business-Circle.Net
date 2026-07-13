@@ -68,7 +68,7 @@ Before a session is created, the service:
 2. validates required server configuration;
 3. rejects standalone Checkout when Pro is already supplied by BCN, admin, ambassador or grandfathered access;
 4. reuses a persisted, unexpired, open Checkout session only after revalidating its server-authored contract and exact monthly line item;
-5. reuses only a Stripe customer already bound to the user's stored Circle Card/BCN relationship, and never adopts a customer from an email search;
+5. reuses only a Stripe customer already bound to the user's stored Circle Card relationship, creates a dedicated idempotent Circle Card customer otherwise, and never adopts a BCN or email-matched customer;
 6. adopts only a single server-authored open Checkout session whose user, plan, billing period, source and exact monthly line item still match, and expires safe duplicates;
 7. stops on an existing non-terminal subscription or reconciliation conflict;
 8. atomically claims the single user subscription row so concurrent clicks cannot create independent sessions;
@@ -103,6 +103,8 @@ Subscription status chronology and payment chronology are separate:
 - conflicting Stripe subscription IDs set reconciliation-required metadata instead of silently replacing the relationship;
 - an exact stored subscription continues to accept its stored price ID after a controlled price rotation, while unknown subscriptions still require the currently configured price; and
 - Circle Card never claims a BCN/founder invoice or Checkout merely because it shares the same Stripe customer.
+- BCN Checkout handling retrieves the server-side line items and mutates membership state only for exactly one quantity-one managed membership price.
+- the Circle Card Portal fails closed for any legacy relationship that shares its Stripe customer with BCN, because a general Portal session cannot safely product-scope cancellation.
 
 Safe structured logs contain event IDs, event types, user IDs and lifecycle outcomes only. Never log Stripe secrets, customer emails, payment methods or complete webhook payloads.
 

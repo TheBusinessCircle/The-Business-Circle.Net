@@ -97,6 +97,7 @@ vi.mock("@/lib/utils", () => ({
 import {
   createCircleCardBillingPortalSession,
   createCircleCardProCheckoutSession,
+  ensureCircleCardStripeCustomerId,
   processCircleCardStripeWebhookEvent,
   reconcileCircleCardSubscriptionForUser
 } from "@/server/circle-card/billing.service";
@@ -321,14 +322,51 @@ describe("Circle Card billing lifecycle service", () => {
     );
   });
 
+  it("creates a dedicated Circle Card customer instead of reusing a BCN customer", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(null);
+    bcnSubscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_bcn_1" });
+    customerCreateMock.mockResolvedValue({ id: "cus_circle_1" });
+
+    await expect(
+      ensureCircleCardStripeCustomerId({
+        userId: "user-1",
+        email: "member@example.com"
+      })
+    ).resolves.toBe("cus_circle_1");
+
+    expect(customerCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { userId: "user-1" } }),
+      { idempotencyKey: "circle-card-customer:user-1" }
+    );
+  });
+
+  it("refuses Checkout customer resolution for a legacy shared BCN relationship", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_shared" });
+    bcnSubscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_shared" });
+
+    await expect(
+      ensureCircleCardStripeCustomerId({
+        userId: "user-1",
+        email: "member@example.com"
+      })
+    ).rejects.toThrow("circle-card-billing-customer-isolation-required");
+
+    expect(customerCreateMock).not.toHaveBeenCalled();
+  });
+
   it("reuses an open unexpired Checkout session", async () => {
     const pending = {
       latestCheckoutSessionId: "cs_pending",
       checkoutSessionExpiresAt: new Date(Date.now() + 600_000)
     };
-    subscriptionFindUniqueMock
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(pending);
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select: Record<string, boolean> }) => {
+        if (select?.plan) return null;
+        if (select?.stripeCustomerId) return { stripeCustomerId: "cus_pro_1" };
+        if (select?.latestCheckoutSessionId) return pending;
+        return null;
+      }
+    );
     checkoutRetrieveMock.mockResolvedValue(openCheckoutSession({
       id: "cs_pending",
       url: "https://checkout.stripe.test/pending",
@@ -342,6 +380,31 @@ describe("Circle Card billing lifecycle service", () => {
 
     expect(result).toMatchObject({ id: "cs_pending", reused: true });
     expect(checkoutCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("does not return a reusable Checkout URL for a legacy shared BCN customer", async () => {
+    const pending = {
+      latestCheckoutSessionId: "cs_shared_customer",
+      checkoutSessionExpiresAt: new Date(Date.now() + 600_000)
+    };
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select: Record<string, boolean> }) => {
+        if (select?.plan) return storedRow({ stripeCustomerId: "cus_shared" });
+        if (select?.stripeCustomerId) return { stripeCustomerId: "cus_shared" };
+        if (select?.latestCheckoutSessionId) return pending;
+        return null;
+      }
+    );
+    bcnSubscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_shared" });
+
+    await expect(
+      createCircleCardProCheckoutSession({
+        userId: "user-1",
+        email: "member@example.com"
+      })
+    ).rejects.toThrow("circle-card-billing-customer-isolation-required");
+
+    expect(checkoutRetrieveMock).not.toHaveBeenCalled();
   });
 
   it("does not create a new Checkout when Stripe already has a past-due subscription", async () => {
@@ -401,9 +464,14 @@ describe("Circle Card billing lifecycle service", () => {
       latestCheckoutSessionId: "cs_wrong_price",
       checkoutSessionExpiresAt: new Date(Date.now() + 600_000)
     };
-    subscriptionFindUniqueMock
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(pending);
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select: Record<string, boolean> }) => {
+        if (select?.plan) return null;
+        if (select?.stripeCustomerId) return { stripeCustomerId: "cus_pro_1" };
+        if (select?.latestCheckoutSessionId) return pending;
+        return null;
+      }
+    );
     checkoutRetrieveMock.mockResolvedValue(openCheckoutSession({
       id: "cs_wrong_price",
       line_items: { data: [{ price: { id: "price_not_circle_card" }, quantity: 1 }] }
@@ -1202,6 +1270,21 @@ describe("Circle Card billing lifecycle service", () => {
         configuration: "bpc_circle_card_pro"
       })
     );
+  });
+
+  it("fails closed when a legacy Circle Card relationship shares its BCN customer", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow({ stripeCustomerId: "cus_shared" }));
+    bcnSubscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_shared" });
+
+    await expect(
+      createCircleCardBillingPortalSession({
+        userId: "user-1",
+        email: "member@example.com"
+      })
+    ).rejects.toThrow("circle-card-billing-customer-isolation-required");
+
+    expect(subscriptionsListMock).not.toHaveBeenCalled();
+    expect(portalCreateMock).not.toHaveBeenCalled();
   });
 
   it("fails closed when the dedicated Circle Card Portal configuration is missing", async () => {

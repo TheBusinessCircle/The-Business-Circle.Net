@@ -409,17 +409,6 @@ function resolveStripeProductId(
   return null;
 }
 
-async function findStripeCustomerIdByEmail(email: string) {
-  const stripe = requireStripeClient();
-  const customers = await stripe.customers.list({
-    email,
-    limit: 10
-  });
-
-  const exactMatch = customers.data.find((customer) => customer.email?.trim().toLowerCase() === email);
-  return exactMatch?.id ?? null;
-}
-
 async function ensureStripeCustomerId(input: {
   userId: string;
   email: string;
@@ -435,22 +424,16 @@ async function ensureStripeCustomerId(input: {
   }
 
   const stripe = requireStripeClient();
-  const matchedCustomerId = await findStripeCustomerIdByEmail(input.email);
-  const customer = matchedCustomerId
-    ? await stripe.customers.update(matchedCustomerId, {
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: {
-          userId: input.userId
-        }
-      })
-    : await stripe.customers.create({
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: {
-          userId: input.userId
-        }
-      });
+  const customer = await stripe.customers.create(
+    {
+      email: input.email,
+      name: input.name ?? undefined,
+      metadata: {
+        userId: input.userId
+      }
+    },
+    { idempotencyKey: `bcn-membership-customer:${input.userId}` }
+  );
 
   await db.subscription.upsert({
     where: { userId: input.userId },
@@ -487,22 +470,16 @@ async function ensureStripeCustomerIdForPendingRegistration(input: {
   }
 
   const stripe = requireStripeClient();
-  const matchedCustomerId = await findStripeCustomerIdByEmail(input.email);
-  const customer = matchedCustomerId
-    ? await stripe.customers.update(matchedCustomerId, {
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: {
-          pendingRegistrationId: input.pendingRegistrationId
-        }
-      })
-    : await stripe.customers.create({
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: {
-          pendingRegistrationId: input.pendingRegistrationId
-        }
-      });
+  const customer = await stripe.customers.create(
+    {
+      email: input.email,
+      name: input.name ?? undefined,
+      metadata: {
+        pendingRegistrationId: input.pendingRegistrationId
+      }
+    },
+    { idempotencyKey: `bcn-pending-registration-customer:${input.pendingRegistrationId}` }
+  );
 
   await db.pendingRegistration.update({
     where: {
@@ -1025,14 +1002,47 @@ async function upsertSubscriptionFromStripeSubscription(
   return persisted;
 }
 
+async function isKnownManagedMembershipCheckoutSession(
+  session: Stripe.Checkout.Session
+) {
+  if (session.mode !== "subscription") {
+    return false;
+  }
+
+  const stripe = requireStripeClient();
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+    limit: 2
+  });
+  const lineItem = lineItems.data[0];
+  const priceId = lineItem?.price?.id ?? null;
+
+  if (
+    lineItems.has_more ||
+    lineItems.data.length !== 1 ||
+    lineItem?.quantity !== 1 ||
+    !(await isKnownManagedMembershipStripePriceId(priceId))
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 async function upsertSubscriptionFromCheckoutSession(
   session: Stripe.Checkout.Session
 ) {
+  if (!(await isKnownManagedMembershipCheckoutSession(session))) {
+    logServerWarning("stripe-membership-checkout-price-unmanaged");
+    return false;
+  }
+
   if (resolvePendingRegistrationIdFromSession(session)) {
-    await completePendingRegistrationFromCheckoutSession(session);
-    await redeemBillingDiscountFromCheckoutSession(session);
-    await completeLaunchCodeRedemptionFromStripe(session);
-    return;
+    const completed = await completePendingRegistrationFromCheckoutSession(session);
+    if (completed) {
+      await redeemBillingDiscountFromCheckoutSession(session);
+      await completeLaunchCodeRedemptionFromStripe(session);
+    }
+    return true;
   }
 
   const context = await resolveSubscriptionContext({
@@ -1044,7 +1054,7 @@ async function upsertSubscriptionFromCheckoutSession(
   });
 
   if (!context.userId) {
-    return;
+    return true;
   }
 
   const foundingReservationId = session.metadata?.foundingReservationId ?? null;
@@ -1085,9 +1095,12 @@ async function upsertSubscriptionFromCheckoutSession(
       });
     }
 
-    await redeemBillingDiscountFromCheckoutSession(session);
-    await completeLaunchCodeRedemptionFromStripe(session);
-    return;
+    if (persisted?.id) {
+      await redeemBillingDiscountFromCheckoutSession(session);
+      await completeLaunchCodeRedemptionFromStripe(session);
+      return true;
+    }
+    return false;
   }
 
   const requestedTier = resolveRequestedTier(session.metadata?.targetTier);
@@ -1132,6 +1145,7 @@ async function upsertSubscriptionFromCheckoutSession(
   await syncUserMembershipTier(context.userId, MembershipTier.FOUNDATION);
   await redeemBillingDiscountFromCheckoutSession(session);
   await completeLaunchCodeRedemptionFromStripe(session);
+  return true;
 }
 
 function invoiceAmountAsCurrency(
@@ -1295,8 +1309,12 @@ async function syncSubscriptionFromInvoice(invoice: Stripe.Invoice) {
 }
 
 type StripeWebhookProcessors = {
-  handleCheckoutSessionCompleted: (session: Stripe.Checkout.Session) => Promise<void>;
-  handleCheckoutSessionExpired: (session: Stripe.Checkout.Session) => Promise<void>;
+  handleCheckoutSessionCompleted: (
+    session: Stripe.Checkout.Session
+  ) => Promise<boolean | void>;
+  handleCheckoutSessionExpired: (
+    session: Stripe.Checkout.Session
+  ) => Promise<boolean | void>;
   handleSubscriptionChanged: (subscription: Stripe.Subscription) => Promise<void>;
   handleInvoiceEvent: (invoice: Stripe.Invoice) => Promise<boolean | void>;
 };
@@ -1304,6 +1322,11 @@ type StripeWebhookProcessors = {
 const defaultWebhookProcessors: StripeWebhookProcessors = {
   handleCheckoutSessionCompleted: upsertSubscriptionFromCheckoutSession,
   handleCheckoutSessionExpired: async (session) => {
+    if (!(await isKnownManagedMembershipCheckoutSession(session))) {
+      logServerWarning("stripe-membership-checkout-price-unmanaged");
+      return false;
+    }
+
     await releaseFoundingReservation({
       reservationId: session.metadata?.foundingReservationId ?? null,
       checkoutSessionId: session.id
@@ -1318,6 +1341,7 @@ const defaultWebhookProcessors: StripeWebhookProcessors = {
       ),
       status: PendingRegistrationStatus.EXPIRED
     });
+    return true;
   },
   handleSubscriptionChanged: async (subscription) => {
     if (!(await isKnownManagedMembershipSubscription(subscription))) {
@@ -2095,8 +2119,10 @@ export async function processStripeWebhookEvent(
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await resolvedProcessors.handleCheckoutSessionCompleted(session);
-        await recordCheckoutCompletedSignal(session);
+        const handled = await resolvedProcessors.handleCheckoutSessionCompleted(session);
+        if (handled !== false) {
+          await recordCheckoutCompletedSignal(session);
+        }
         break;
       }
       case "checkout.session.expired":

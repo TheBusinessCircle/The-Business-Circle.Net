@@ -151,7 +151,12 @@ SELECT
   ag.active AS "grantActive",
   cc.status AS "circleStatus",
   cc."accessEndsAt",
-  cc."reconciliationRequiredAt"
+  cc."reconciliationRequiredAt",
+  (
+    cc."stripeCustomerId" IS NOT NULL
+    AND ms."stripeCustomerId" IS NOT NULL
+    AND cc."stripeCustomerId" = ms."stripeCustomerId"
+  ) AS "sharedBillingCustomer"
 FROM "User" u
 LEFT JOIN "Subscription" ms ON ms."userId" = u.id
 LEFT JOIN "CircleCardAmbassadorProfile" ap ON ap."userId" = u.id
@@ -160,7 +165,7 @@ LEFT JOIN "CircleCardSubscription" cc ON cc."userId" = u.id
 WHERE u.id = :'operator_user_id';
 ```
 
-The result must be one row with `emailVerified=true`, `role=MEMBER`, `suspended=false`, no active/trialling membership, no active free-Pro/grandfathered source, and no existing non-terminal or paid-through Circle Card relationship. Also confirm the server-rendered dashboard says Free. If any result is unclear, choose a different account; do not edit entitlement rows to make the account eligible.
+The result must be one row with `emailVerified=true`, `role=MEMBER`, `suspended=false`, `sharedBillingCustomer=false`, no active/trialling membership, no active free-Pro/grandfathered source, and no existing non-terminal or paid-through Circle Card relationship. Also confirm the server-rendered dashboard says Free. If a legacy shared billing customer is reported, stop: the Circle Card Portal deliberately fails closed until an authorised Stripe/customer migration separates the products. If any result is unclear, choose a different account; do not edit entitlement rows to make the account eligible.
 
 Set only that internal ID in `CIRCLE_CARD_BILLING_OPERATOR_USER_IDS`. Keep `CIRCLE_CARD_BILLING_ACCESS_MODE=operator`. A second verified non-allowlisted account should remain available for the negative gate check.
 
@@ -277,9 +282,10 @@ The controlled payment succeeds only when all of these are true:
 - Pro appears only from authoritative server entitlement;
 - cancellation/Portal behaviour is correct and stored content remains intact;
 - BCN membership billing and unrelated Stripe resources are unchanged; and
+- Circle Card and BCN use distinct Stripe customers, so the dedicated Portal cannot expose or cancel a BCN subscription; and
 - logs contain no token, full authentication URL, complete email, secret, payment detail or payload.
 
-Stop and run section 11 if any validation/certification fails; hosts disagree; an unverified or non-allowlisted user reaches Checkout; price/period/quantity/trial is wrong; a duplicate session/subscription/charge appears; webhook processing is failed, stuck or repeatedly retried; Pro appears before paid evidence; reconciliation is required; BCN billing changes; content disappears; or sensitive data appears in logs.
+Stop and run section 11 if any validation/certification fails; hosts disagree; an unverified or non-allowlisted user reaches Checkout; price/period/quantity/trial is wrong; a duplicate session/subscription/charge appears; webhook processing is failed, stuck or repeatedly retried; Pro appears before paid evidence; reconciliation is required; a shared Circle Card/BCN Stripe customer is detected; BCN billing changes; content disappears; or sensitive data appears in logs.
 
 ## 11. Immediate billing shutoff
 

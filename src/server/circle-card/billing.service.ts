@@ -214,9 +214,17 @@ async function resolveCircleCardStripeCustomerContext(input: {
     })
   ]);
 
+  if (
+    circleCardSubscription?.stripeCustomerId &&
+    circleCardSubscription.stripeCustomerId === bcnSubscription?.stripeCustomerId
+  ) {
+    throw new Error("circle-card-billing-customer-isolation-required");
+  }
+
   const stripe = requireStripeClient();
-  const storedCustomerId =
-    circleCardSubscription?.stripeCustomerId ?? bcnSubscription?.stripeCustomerId ?? null;
+  // Keep Circle Card billing on its own Stripe customer. A shared customer would
+  // let a general Customer Portal session expose unrelated BCN subscriptions.
+  const storedCustomerId = circleCardSubscription?.stripeCustomerId ?? null;
   const customer = storedCustomerId
     ? { id: storedCustomerId }
     : await stripe.customers.create(
@@ -667,6 +675,9 @@ export async function createCircleCardProCheckoutSession(
     throw new Error("circle-card-pro-already-active");
   }
 
+  // Resolve and validate product ownership before returning any persisted or
+  // recovered Checkout URL. Legacy shared BCN customers must fail closed.
+  const customerContext = await resolveCircleCardStripeCustomerContext(input);
   const reusable = await reusableCheckoutSession(input.userId, now, priceId);
   if (reusable?.url) {
     return {
@@ -678,7 +689,6 @@ export async function createCircleCardProCheckoutSession(
     };
   }
 
-  const customerContext = await resolveCircleCardStripeCustomerContext(input);
   const customerId = customerContext.customerId;
   let existingStripeSubscription: Stripe.Subscription | null;
   try {
@@ -865,12 +875,21 @@ export async function createCircleCardProCheckoutSession(
 }
 
 export async function createCircleCardBillingPortalSession(input: CircleCardPortalInput) {
-  const relationship = await db.circleCardSubscription.findUnique({
-    where: { userId: input.userId },
-    select: { stripeCustomerId: true }
-  });
+  const [relationship, bcnRelationship] = await Promise.all([
+    db.circleCardSubscription.findUnique({
+      where: { userId: input.userId },
+      select: { stripeCustomerId: true }
+    }),
+    db.subscription.findUnique({
+      where: { userId: input.userId },
+      select: { stripeCustomerId: true }
+    })
+  ]);
   if (!relationship?.stripeCustomerId) {
     throw new Error("circle-card-billing-relationship-not-found");
+  }
+  if (relationship.stripeCustomerId === bcnRelationship?.stripeCustomerId) {
+    throw new Error("circle-card-billing-customer-isolation-required");
   }
 
   await reconcileCircleCardSubscriptionForUser(input.userId);
