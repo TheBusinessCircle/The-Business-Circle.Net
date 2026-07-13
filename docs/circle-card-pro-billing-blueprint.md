@@ -67,9 +67,9 @@ Before a session is created, the service:
 1. rejects while `CIRCLE_CARD_BILLING_ENABLED=false`;
 2. validates required server configuration;
 3. rejects standalone Checkout when Pro is already supplied by BCN, admin, ambassador or grandfathered access;
-4. reuses a persisted, unexpired, open Checkout session;
-5. resolves all exact-email/stored Stripe customers and inspects each for relevant subscriptions;
-6. adopts a single server-authored open Checkout session that survived a local persistence interruption and expires safe duplicates;
+4. reuses a persisted, unexpired, open Checkout session only after revalidating its server-authored contract and exact monthly line item;
+5. reuses only a Stripe customer already bound to the user's stored Circle Card/BCN relationship, and never adopts a customer from an email search;
+6. adopts only a single server-authored open Checkout session whose user, plan, billing period, source and exact monthly line item still match, and expires safe duplicates;
 7. stops on an existing non-terminal subscription or reconciliation conflict;
 8. atomically claims the single user subscription row so concurrent clicks cannot create independent sessions;
 9. creates a 35-minute monthly Checkout session with a persisted server idempotency attempt;
@@ -153,6 +153,8 @@ While billing is disabled, upgrade calls to action must lead to the existing Pro
 Required only for a future enabled monthly launch:
 
 - `CIRCLE_CARD_BILLING_ENABLED=true`
+- `CIRCLE_CARD_BILLING_ACCESS_MODE=operator` for a controlled payment, or `public` only for a separately approved public launch
+- `CIRCLE_CARD_BILLING_OPERATOR_USER_IDS=<verified-internal-user-id>` while access mode is `operator`
 - `STRIPE_SECRET_KEY=sk_live_...`
 - `STRIPE_WEBHOOK_SECRET=whsec_...`
 - `STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID=prod_...`
@@ -177,8 +179,8 @@ Before a later controlled enablement:
 2. After explicit approval, run the same command with `--execute`; it idempotently creates or reuses the product, monthly price, dedicated Portal and shared webhook while billing remains false.
 3. If an existing shared webhook was reused, manually confirm its stored signing secret because Stripe does not return it through the endpoint API.
 4. Run disabled environment validation and deliberate live certification.
-7. Confirm expired/cancelled customers can still open Portal when a Stripe customer relationship exists.
-8. Run environment validation, Stripe certification and a full test-mode lifecycle before any live enablement.
+5. Confirm expired/cancelled customers can still open Portal when a Stripe customer relationship exists.
+6. Run environment validation, Stripe certification and a full test-mode lifecycle before any live enablement.
 
 ## Controlled launch checklist
 
@@ -191,7 +193,8 @@ Before a later controlled enablement:
 7. Run `npm run env:validate:production`.
 8. Run live read-only certification with billing still disabled.
 9. Inspect webhook deliveries and ensure no duplicate subscription exists.
-10. Enable billing only in a later, separately authorised change window with rollback ownership and monitoring.
+10. Enable billing first in `operator` mode for only a verified, authoritative-Free internal user; prove a non-allowlisted user cannot obtain Checkout.
+11. Change access mode to `public` only in a later, separately authorised change window with rollback ownership and monitoring.
 
 ## Emergency billing disable
 
@@ -203,8 +206,12 @@ If Checkout or entitlement behaviour is unsafe:
 4. Leave webhook processing enabled so legitimate renewals/cancellations continue to reconcile.
 5. Do not delete Stripe subscriptions or stored content as an emergency shortcut.
 6. Inspect safe logs and Stripe event delivery, reconcile affected users deliberately, and record the incident.
+7. Remember that an already issued open Stripe Checkout Session can remain payable after the flag is false. If the stop requires zero further charges, identify only server-authored Circle Card sessions and expire them in Stripe; never bulk-expire BCN/founder sessions.
 
-The flag stops new Circle Card Checkout. It is not a substitute for webhook processing or customer support.
+The flag stops new Circle Card Checkout. It cannot revoke an existing Checkout URL and is not a
+substitute for webhook processing or customer support. The exact multi-instance PM2, observation,
+controlled-payment and session-expiry procedure is in
+[circle-card-pro-stripe-launch-checklist.md](./circle-card-pro-stripe-launch-checklist.md).
 
 ## Migration and rollback
 

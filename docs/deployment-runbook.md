@@ -60,12 +60,17 @@ Use a production environment (systemd, PM2, or host-level env manager) and set:
 ### Circle Card Pro billing (disabled)
 
 - `CIRCLE_CARD_BILLING_ENABLED=false`
+- `CIRCLE_CARD_BILLING_ACCESS_MODE=` (set to `operator` for the controlled payment, then `public` only for a separately approved launch)
+- `CIRCLE_CARD_BILLING_OPERATOR_USER_IDS=` (comma-separated internal `User.id` values; required when enabled in `operator` mode)
 - `STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID=` (set to `prod_...` before a later controlled launch)
 - `STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID=` (set to `price_...` before a later controlled launch)
 - `CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID=` (set to `bpc_...` before a later controlled launch)
 
 When Circle Card billing is disabled, the Circle Card product and price may be blank. Enabling the
-flag requires the Stripe secret, webhook secret, product ID, monthly price ID and dedicated Portal ID to be complete.
+flag requires an explicit `operator` or `public` access mode plus the Stripe secret, webhook secret,
+product ID, monthly price ID and dedicated Portal ID. Controlled payment must use `operator` mode
+and a verified internal user allowlist; setting the billing flag alone must not expose Checkout to
+the public.
 Annual and Teams IDs are not required for the launch. Never commit real Stripe identifiers or
 secrets to this repository.
 
