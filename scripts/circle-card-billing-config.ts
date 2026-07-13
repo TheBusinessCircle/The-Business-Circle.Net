@@ -1,5 +1,7 @@
 export const CIRCLE_CARD_BILLING_ENV_NAMES = {
   enabled: "CIRCLE_CARD_BILLING_ENABLED",
+  accessMode: "CIRCLE_CARD_BILLING_ACCESS_MODE",
+  operatorUserIds: "CIRCLE_CARD_BILLING_OPERATOR_USER_IDS",
   stripeSecretKey: "STRIPE_SECRET_KEY",
   stripeWebhookSecret: "STRIPE_WEBHOOK_SECRET",
   productId: "STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID",
@@ -51,6 +53,24 @@ export function validateCircleCardBillingEnvironment(
 
   if (!TRUE_VALUES.has(rawEnabled)) {
     return issues;
+  }
+
+  const accessMode = value(environment, CIRCLE_CARD_BILLING_ENV_NAMES.accessMode).toLowerCase();
+  if (accessMode !== "operator" && accessMode !== "public") {
+    issues.push({
+      variable: CIRCLE_CARD_BILLING_ENV_NAMES.accessMode,
+      message:
+        "CIRCLE_CARD_BILLING_ACCESS_MODE must be explicitly set to operator or public when billing is enabled."
+    });
+  } else if (
+    accessMode === "operator" &&
+    !value(environment, CIRCLE_CARD_BILLING_ENV_NAMES.operatorUserIds)
+  ) {
+    issues.push({
+      variable: CIRCLE_CARD_BILLING_ENV_NAMES.operatorUserIds,
+      message:
+        "CIRCLE_CARD_BILLING_OPERATOR_USER_IDS is required during controlled operator billing."
+    });
   }
 
   const requiredValues = [

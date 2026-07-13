@@ -199,6 +199,7 @@ import {
   selectCircleCardsWithinPlan
 } from "@/lib/circle-card/plan-policy";
 import {
+  canUserStartCircleCardCheckout,
   CIRCLE_CARD_BILLING_FLAG_ENV,
   getCircleCardBillingReadiness
 } from "@/lib/circle-card/pricing";
@@ -5167,6 +5168,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     }
   ];
   const circleCardBillingReadiness = getCircleCardBillingReadiness();
+  const circleCardCheckoutAvailable =
+    circleCardBillingReadiness.billingEnabled &&
+    circleCardBillingReadiness.proLaunchConfigured &&
+    canUserStartCircleCardCheckout(session.user.id);
   const showPlatformOwnerDiagnostics = platformOwnerDiagnostics.hasAdminAccess;
   const platformOwnerDiagnosticItems = [
     {
@@ -6093,7 +6098,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   Your default card stays public. Saved extra cards are kept privately and become
                   read-only until the plan that includes them is restored.
                 </p>
-                <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured} authenticated intent={{ source: "second_card", capability: "create_second_card", returnPath: createCardHref }} label="Create a second card with Pro" earlyAccessLabel="Register for a second card" showPrice={false} className="mt-3" />
+                <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={circleCardCheckoutAvailable} authenticated intent={{ source: "second_card", capability: "create_second_card", returnPath: createCardHref }} label="Create a second card with Pro" earlyAccessLabel="Register for a second card" showPrice={false} className="mt-3" />
               </div>
             )}
             <details className="group rounded-xl border border-silver/12 bg-card/42">
@@ -6262,7 +6267,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         />
         <CircleCardBillingStatusPanel
           access={actualCircleCardAccess}
-          billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured}
+          billingEnabled={circleCardCheckoutAvailable}
         />
       </CircleCardDashboardSection>
 
@@ -9580,7 +9585,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           previewLabel={businessBuilderPreviewLabel}
           cardId={card.id}
           publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
-          billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured}
+          billingEnabled={circleCardCheckoutAvailable}
           fullName={card.fullName}
           servicesMode={servicesBuilderMode}
           services={selectedCardServices}
@@ -9639,7 +9644,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           audienceSnapshot={selectedCardAudienceSnapshot}
           brandPartnerships={selectedCardBrandPartnerships}
           publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
-          billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured}
+          billingEnabled={circleCardCheckoutAvailable}
           className={activeSection === "my-card" ? undefined : "hidden"}
         />
       ) : null}
@@ -9699,7 +9704,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 The first five eligible active links stay public in the order shown. Hidden links
                 remain saved and return automatically when Pro is restored.
               </p>
-              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured} authenticated intent={{ source: "link_limit", capability: "activate_more_links", cardId: card?.id, returnPath: card ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "custom-links" }) : "/dashboard/circle-card?section=my-card#custom-links" }} label="Activate more links with Pro" earlyAccessLabel="Register for more active links" showPrice={false} className="mt-3" />
+              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={circleCardCheckoutAvailable} authenticated intent={{ source: "link_limit", capability: "activate_more_links", cardId: card?.id, returnPath: card ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "custom-links" }) : "/dashboard/circle-card?section=my-card#custom-links" }} label="Activate more links with Pro" earlyAccessLabel="Register for more active links" showPrice={false} className="mt-3" />
             </div>
           ) : null}
 

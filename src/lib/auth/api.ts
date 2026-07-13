@@ -11,6 +11,7 @@ type ApiAuthOptions = {
   adminOnly?: boolean;
   requiredTier?: MembershipTier;
   allowUnentitled?: boolean;
+  requireVerifiedEmail?: boolean;
 };
 
 type ApiAuthSuccess = {
@@ -58,6 +59,8 @@ async function refreshUserEntitlement(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },
     select: {
+      email: true,
+      name: true,
       role: true,
       membershipTier: true,
       registrationSource: true,
@@ -99,6 +102,8 @@ export async function requireApiUser(options: ApiAuthOptions = {}): Promise<ApiA
 
   const resolvedUser: SessionUser = {
     ...user,
+    email: fresh.email,
+    name: fresh.name,
     role: fresh.role,
     membershipTier: fresh.membershipTier,
     registrationSource: fresh.registrationSource,
@@ -111,6 +116,10 @@ export async function requireApiUser(options: ApiAuthOptions = {}): Promise<ApiA
 
   if (options.adminOnly && !isAdminRole(resolvedUser.role)) {
     return { response: forbidden() };
+  }
+
+  if (options.requireVerifiedEmail && !resolvedUser.emailVerified) {
+    return { response: forbidden("Verified email required") };
   }
 
   if (!options.allowUnentitled && !isAdminRole(resolvedUser.role) && !resolvedUser.hasActiveSubscription) {

@@ -35,7 +35,11 @@ import {
   type CircleCardProSource
 } from "@/lib/circle-card/pro-intent";
 import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
-import { formatCircleCardPrice, getCircleCardBillingReadiness } from "@/lib/circle-card/pricing";
+import {
+  canUserStartCircleCardCheckout,
+  formatCircleCardPrice,
+  getCircleCardBillingReadiness
+} from "@/lib/circle-card/pricing";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { loadCircleCardAccessForUser } from "@/server/circle-card";
@@ -160,7 +164,10 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
     cardId: ownedRequestedCard?.id
   });
   const primaryCard = activeUser?.circleCards[0] ?? null;
-  const checkoutReady = billingReadiness.billingEnabled && billingReadiness.proLaunchConfigured;
+  const checkoutReady =
+    billingReadiness.billingEnabled &&
+    billingReadiness.proLaunchConfigured &&
+    Boolean(activeUser?.id && canUserStartCircleCardCheckout(activeUser.id));
   const feedback = feedbackMessage({
     registered: firstValue(params.registered),
     error: firstValue(params.error),
@@ -281,7 +288,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
 
       <section id="register-interest" className="scroll-mt-24 rounded-[1.75rem] border border-gold/26 bg-card/72 p-5 shadow-panel-soft sm:p-7">
         {checkoutReady && !circleCardAccess?.hasProAccess ? (
-          <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center"><div><p className="premium-kicker">Ready when you are</p><h2 className="mt-3 font-display text-3xl text-foreground">Put your Circle Card to work.</h2><p className="mt-2 text-sm text-muted">£9.99 per month. Monthly only. No trial. Your return to {intentLabel} is preserved.</p></div><CircleCardProCheckoutButtons monthlyLabel={proPrice} billingEnabled authenticated={Boolean(activeUser)} intent={intent} label="Unlock Circle Card Pro — £9.99/month" showPrice={false} /></div>
+          <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center"><div><p className="premium-kicker">Ready when you are</p><h2 className="mt-3 font-display text-3xl text-foreground">Put your Circle Card to work.</h2><p className="mt-2 text-sm text-muted">£9.99 per month. Monthly only. No trial. Your return to {intentLabel} is preserved.</p></div><CircleCardProCheckoutButtons monthlyLabel={proPrice} billingEnabled={checkoutReady} authenticated={Boolean(activeUser)} intent={intent} label="Unlock Circle Card Pro — £9.99/month" showPrice={false} /></div>
         ) : circleCardAccess?.hasProAccess ? (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="premium-kicker">Pro is confirmed</p><h2 className="mt-2 font-display text-3xl text-foreground">Your account already has the working layer.</h2><p className="mt-2 text-sm text-muted">{entitlementCopy}</p></div><Link href={intent.returnPath} className={cn(buttonVariants({ size: "lg" }), "gap-2")}>Continue to {intentLabel}<ArrowRight size={16} /></Link></div>
         ) : (

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CIRCLE_CARD_PRICING_CONFIG,
+  canUserStartCircleCardCheckout,
   formatCircleCardAnnualPrice,
   formatCircleCardPrice,
   getCircleCardBillingReadiness,
@@ -31,6 +32,9 @@ describe("Circle Card Pro controlled launch pricing", () => {
     vi.stubEnv("CIRCLE_CARD_BILLING_ENABLED", "true");
     vi.stubEnv("STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID", "prod_circle_card_pro");
     vi.stubEnv("STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID", "price_circle_card_pro_monthly");
+    vi.stubEnv("CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID", "bpc_circle_card_pro");
+    vi.stubEnv("CIRCLE_CARD_BILLING_ACCESS_MODE", "operator");
+    vi.stubEnv("CIRCLE_CARD_BILLING_OPERATOR_USER_IDS", "operator-user-1");
     vi.stubEnv("STRIPE_CIRCLE_CARD_PRO_ANNUAL_PRICE_ID", "");
     vi.stubEnv("STRIPE_CIRCLE_CARD_TEAMS_MONTHLY_PRICE_ID", "");
 
@@ -41,8 +45,10 @@ describe("Circle Card Pro controlled launch pricing", () => {
       pro: {
         productConfigured: true,
         monthlyPriceConfigured: true,
+        portalConfigured: true,
         annualPriceConfigured: false
-      }
+      },
+      billingAccessMode: "operator"
     });
   });
 
@@ -52,5 +58,21 @@ describe("Circle Card Pro controlled launch pricing", () => {
     expect(getCircleCardProBillingConfigurationErrorMessage()).toBe(
       "Circle Card billing is disabled."
     );
+  });
+
+  it("limits controlled Checkout to the explicit operator IDs", () => {
+    vi.stubEnv("CIRCLE_CARD_BILLING_ACCESS_MODE", "operator");
+    vi.stubEnv("CIRCLE_CARD_BILLING_OPERATOR_USER_IDS", "operator-1, operator-2");
+
+    expect(canUserStartCircleCardCheckout("operator-1")).toBe(true);
+    expect(canUserStartCircleCardCheckout("operator-2")).toBe(true);
+    expect(canUserStartCircleCardCheckout("ordinary-user")).toBe(false);
+  });
+
+  it("requires an explicit public mode before ordinary users can start Checkout", () => {
+    vi.stubEnv("CIRCLE_CARD_BILLING_ACCESS_MODE", "public");
+    vi.stubEnv("CIRCLE_CARD_BILLING_OPERATOR_USER_IDS", "");
+
+    expect(canUserStartCircleCardCheckout("ordinary-user")).toBe(true);
   });
 });

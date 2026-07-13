@@ -12,7 +12,8 @@ import type Stripe from "stripe";
 import {
   CIRCLE_CARD_PRICING_CONFIG,
   getCircleCardProBillingConfigurationErrorMessage,
-  isCircleCardBillingEnabled
+  isCircleCardBillingEnabled,
+  canUserStartCircleCardCheckout
 } from "@/lib/circle-card/pricing";
 import type { CircleCardBillingPeriod } from "@/lib/circle-card/billing-blueprint";
 import {
@@ -197,22 +198,12 @@ export function isPaidCircleCardProCommissionEligibleForMonth(
   return accessStart < periodEnd && accessEnd >= periodMonth;
 }
 
-async function findStripeCustomerIdsByEmail(email: string) {
-  const stripe = requireStripeClient();
-  const customers = await stripe.customers.list({ email, limit: 100 });
-  const normalized = email.trim().toLowerCase();
-
-  return customers.data
-    .filter((customer) => customer.email?.trim().toLowerCase() === normalized)
-    .map((customer) => customer.id);
-}
-
 async function resolveCircleCardStripeCustomerContext(input: {
   userId: string;
   email: string;
   name?: string | null;
 }) {
-  const [circleCardSubscription, bcnSubscription, exactEmailCustomerIds] = await Promise.all([
+  const [circleCardSubscription, bcnSubscription] = await Promise.all([
     db.circleCardSubscription.findUnique({
       where: { userId: input.userId },
       select: { stripeCustomerId: true }
@@ -220,33 +211,27 @@ async function resolveCircleCardStripeCustomerContext(input: {
     db.subscription.findUnique({
       where: { userId: input.userId },
       select: { stripeCustomerId: true }
-    }),
-    findStripeCustomerIdsByEmail(input.email)
+    })
   ]);
 
   const stripe = requireStripeClient();
   const storedCustomerId =
     circleCardSubscription?.stripeCustomerId ?? bcnSubscription?.stripeCustomerId ?? null;
-  const matchedCustomerId = exactEmailCustomerIds[0] ?? null;
   const customer = storedCustomerId
     ? { id: storedCustomerId }
-    : matchedCustomerId
-      ? await stripe.customers.update(matchedCustomerId, {
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: { userId: input.userId }
-      })
-    : await stripe.customers.create({
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: { userId: input.userId }
-      });
+    : await stripe.customers.create(
+        {
+          email: input.email,
+          name: input.name ?? undefined,
+          metadata: { userId: input.userId }
+        },
+        { idempotencyKey: `circle-card-customer:${input.userId}` }
+      );
 
   return {
     customerId: customer.id,
     customerIdsToInspect: [...new Set([
       customer.id,
-      ...exactEmailCustomerIds,
       circleCardSubscription?.stripeCustomerId,
       bcnSubscription?.stripeCustomerId
     ].filter((customerId): customerId is string => Boolean(customerId)))]
@@ -304,7 +289,51 @@ function stripeSubscriptionMatchesCircleCardPro(
   );
 }
 
-async function reusableCheckoutSession(userId: string, now: Date) {
+function checkoutSessionMatchesMonthlyProContract(input: {
+  session: Stripe.Checkout.Session;
+  userId: string;
+  priceId: string;
+  now: Date;
+}) {
+  const { session, userId, priceId, now } = input;
+  const lineItems = session.line_items?.data ?? [];
+  return (
+    session.mode === "subscription" &&
+    session.status === "open" &&
+    Boolean(session.url) &&
+    Boolean(session.expires_at) &&
+    (session.expires_at ?? 0) * 1000 > now.getTime() &&
+    session.client_reference_id === userId &&
+    session.metadata?.userId === userId &&
+    session.metadata?.circleCardPlan === "PRO" &&
+    session.metadata?.billingPeriod === "monthly" &&
+    session.metadata?.source === "circle_card_pro_checkout" &&
+    lineItems.length === 1 &&
+    lineItems[0]?.price?.id === priceId &&
+    lineItems[0]?.quantity === 1
+  );
+}
+
+function isServerAuthoredCircleCardCheckoutSession(
+  session: Stripe.Checkout.Session,
+  userId: string,
+  now: Date
+) {
+  return (
+    session.mode === "subscription" &&
+    session.status === "open" &&
+    Boolean(session.url) &&
+    Boolean(session.expires_at) &&
+    (session.expires_at ?? 0) * 1000 > now.getTime() &&
+    session.client_reference_id === userId &&
+    session.metadata?.userId === userId &&
+    session.metadata?.circleCardPlan === "PRO" &&
+    session.metadata?.billingPeriod === "monthly" &&
+    session.metadata?.source === "circle_card_pro_checkout"
+  );
+}
+
+async function reusableCheckoutSession(userId: string, now: Date, priceId: string) {
   const existing = await db.circleCardSubscription.findUnique({
     where: { userId },
     select: {
@@ -331,13 +360,28 @@ async function reusableCheckoutSession(userId: string, now: Date) {
   }
 
   const stripe = requireStripeClient();
-  const session = await stripe.checkout.sessions.retrieve(existing.latestCheckoutSessionId);
-  if (
-    session.status !== "open" ||
-    !session.url ||
-    !session.expires_at ||
-    session.expires_at * 1000 <= now.getTime()
-  ) {
+  const session = await stripe.checkout.sessions.retrieve(existing.latestCheckoutSessionId, {
+    expand: ["line_items"]
+  });
+  if (!checkoutSessionMatchesMonthlyProContract({ session, userId, priceId, now })) {
+    if (session.status === "open") {
+      try {
+        await stripe.checkout.sessions.expire(session.id);
+      } catch (error) {
+        await db.circleCardSubscription.updateMany({
+          where: { userId },
+          data: {
+            reconciliationRequiredAt: now,
+            reconciliationReason: "A mismatched open Circle Card Checkout session could not be expired."
+          }
+        });
+        logServerWarning("circle-card-mismatched-checkout-session-expiry-failed", {
+          checkoutSessionId: session.id,
+          reason: error instanceof Error ? error.name : "unknown"
+        });
+        throw new Error(CIRCLE_CARD_RECONCILIATION_CONFLICT);
+      }
+    }
     await db.circleCardSubscription.updateMany({
       where: {
         userId,
@@ -383,37 +427,42 @@ async function inspectExistingStripeCircleCardSubscriptions(
 async function findRecoverableStripeCheckoutSession(input: {
   customerIds: string[];
   userId: string;
+  priceId: string;
   now: Date;
 }) {
   const stripe = requireStripeClient();
   const pages = await Promise.all(
     input.customerIds.map((customerId) =>
-      stripe.checkout.sessions.list({ customer: customerId, status: "open", limit: 100 })
+      stripe.checkout.sessions.list({
+        customer: customerId,
+        status: "open",
+        limit: 100,
+        expand: ["data.line_items"]
+      })
     )
   );
-  const sessions = pages
+  const serverAuthoredSessions = pages
     .flatMap((page) => page.data)
+    .filter((session) => isServerAuthoredCircleCardCheckoutSession(session, input.userId, input.now));
+  const sessions = serverAuthoredSessions
     .filter(
-      (session) =>
-        session.mode === "subscription" &&
-        session.status === "open" &&
-        session.url &&
-        session.expires_at &&
-        session.expires_at * 1000 > input.now.getTime() &&
-        session.client_reference_id === input.userId &&
-        session.metadata?.userId === input.userId &&
-        session.metadata?.circleCardPlan === "PRO" &&
-        session.metadata?.billingPeriod === "monthly" &&
-        session.metadata?.source === "circle_card_pro_checkout"
+      (session) => checkoutSessionMatchesMonthlyProContract({
+        session,
+        userId: input.userId,
+        priceId: input.priceId,
+        now: input.now
+      })
     )
     .sort((left, right) => (right.created ?? 0) - (left.created ?? 0) || right.id.localeCompare(left.id));
 
   const [selected, ...duplicates] = sessions;
+  const mismatched = serverAuthoredSessions.filter((session) => !sessions.includes(session));
+  const sessionsToExpire = [...duplicates, ...mismatched];
   const duplicateExpiryResults = await Promise.all(
-    duplicates.map(async (session) => {
+    sessionsToExpire.map(async (session) => {
       try {
         await stripe.checkout.sessions.expire(session.id);
-        logServerInfo("circle-card-duplicate-checkout-session-expired", {
+        logServerInfo("circle-card-nonselected-checkout-session-expired", {
           checkoutSessionId: session.id,
           userId: input.userId
         });
@@ -580,6 +629,10 @@ export async function createCircleCardProCheckoutSession(
     throw new Error(configurationError);
   }
 
+  if (!canUserStartCircleCardCheckout(input.userId)) {
+    throw new Error("circle-card-billing-operator-restricted");
+  }
+
   const authoritativeAccess = await loadCircleCardAccessForUser(input.userId);
   if (authoritativeAccess.hasProAccess) {
     throw new Error(
@@ -614,7 +667,7 @@ export async function createCircleCardProCheckoutSession(
     throw new Error("circle-card-pro-already-active");
   }
 
-  const reusable = await reusableCheckoutSession(input.userId, now);
+  const reusable = await reusableCheckoutSession(input.userId, now, priceId);
   if (reusable?.url) {
     return {
       id: reusable.id,
@@ -664,6 +717,7 @@ export async function createCircleCardProCheckoutSession(
   const recoveredStripeSession = await findRecoverableStripeCheckoutSession({
     customerIds: customerContext.customerIdsToInspect,
     userId: input.userId,
+    priceId,
     now
   });
   if (recoveredStripeSession?.url) {
@@ -691,7 +745,7 @@ export async function createCircleCardProCheckoutSession(
     now
   });
   if (!claim) {
-    const session = await reusableCheckoutSession(input.userId, now);
+    const session = await reusableCheckoutSession(input.userId, now, priceId);
     if (session?.url) {
       return {
         id: session.id,
@@ -822,10 +876,13 @@ export async function createCircleCardBillingPortalSession(input: CircleCardPort
   await reconcileCircleCardSubscriptionForUser(input.userId);
   const stripe = requireStripeClient();
   const portalConfigurationId = process.env.CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID?.trim();
+  if (!portalConfigurationId) {
+    throw new Error("circle-card-billing-portal-configuration-missing");
+  }
   const session = await stripe.billingPortal.sessions.create({
     customer: relationship.stripeCustomerId,
     return_url: absoluteUrl(input.returnPath ?? "/dashboard/circle-card?billing=portal-return"),
-    ...(portalConfigurationId ? { configuration: portalConfigurationId } : {})
+    configuration: portalConfigurationId
   });
 
   return { url: session.url };
@@ -1479,13 +1536,20 @@ export async function processCircleCardStripeWebhookEvent(event: Stripe.Event) {
     return false;
   }
 
-  const shouldProcess = await acquireWebhookProcessingLease(event);
-  if (!shouldProcess) {
+  const processingLease = await acquireWebhookProcessingLease(event);
+  if (processingLease === "processed") {
     logServerInfo("circle-card-stripe-event-already-completed", {
       eventId: event.id,
       eventType: event.type
     });
     return true;
+  }
+  if (processingLease === "busy") {
+    logServerWarning("circle-card-stripe-event-processing-in-progress", {
+      eventId: event.id,
+      eventType: event.type
+    });
+    throw new Error("stripe-webhook-event-processing-in-progress");
   }
 
   logServerInfo("circle-card-stripe-event-accepted", {

@@ -6,7 +6,8 @@ import {
 } from "@/lib/circle-card/billing-blueprint";
 import {
   getCircleCardBillingReadiness,
-  getCircleCardProBillingConfigurationErrorMessage
+  getCircleCardProBillingConfigurationErrorMessage,
+  canUserStartCircleCardCheckout
 } from "@/lib/circle-card/pricing";
 import { requireApiUser } from "@/lib/auth/api";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
@@ -43,7 +44,10 @@ async function handlePost(request: Request) {
       );
     }
 
-    const authResult = await requireApiUser({ allowUnentitled: true });
+    const authResult = await requireApiUser({
+      allowUnentitled: true,
+      requireVerifiedEmail: true
+    });
     if ("response" in authResult) {
       return authResult.response;
     }
@@ -115,6 +119,17 @@ async function handlePost(request: Request) {
           checkoutReady: false
         },
         { status: 500, headers }
+      );
+    }
+
+    if (!canUserStartCircleCardCheckout(authResult.user.id)) {
+      return NextResponse.json(
+        {
+          error: "Circle Card billing is currently limited to the controlled operator account.",
+          billingEnabled: true,
+          checkoutReady: false
+        },
+        { status: 403, headers }
       );
     }
 

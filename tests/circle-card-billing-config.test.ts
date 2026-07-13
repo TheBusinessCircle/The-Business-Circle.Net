@@ -6,6 +6,8 @@ import {
 
 const completeEnabledEnvironment = {
   CIRCLE_CARD_BILLING_ENABLED: "true",
+  CIRCLE_CARD_BILLING_ACCESS_MODE: "operator",
+  CIRCLE_CARD_BILLING_OPERATOR_USER_IDS: "user_operator_1",
   STRIPE_SECRET_KEY: "sk_live_example",
   STRIPE_WEBHOOK_SECRET: "whsec_example",
   STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID: "prod_circle_card_pro",
@@ -31,6 +33,7 @@ describe("Circle Card production billing environment validation", () => {
     });
 
     expect(issues.map((issue) => issue.variable)).toEqual([
+      "CIRCLE_CARD_BILLING_ACCESS_MODE",
       "STRIPE_WEBHOOK_SECRET",
       "STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID",
       "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID",
@@ -40,6 +43,21 @@ describe("Circle Card production billing environment validation", () => {
 
   it("passes enabled launch configuration without annual or Teams values", () => {
     expect(validateCircleCardBillingEnvironment(completeEnabledEnvironment)).toEqual([]);
+  });
+
+  it("requires an explicit operator allowlist and explicit public launch mode", () => {
+    expect(validateCircleCardBillingEnvironment({
+      ...completeEnabledEnvironment,
+      CIRCLE_CARD_BILLING_OPERATOR_USER_IDS: ""
+    })).toEqual([
+      expect.objectContaining({ variable: "CIRCLE_CARD_BILLING_OPERATOR_USER_IDS" })
+    ]);
+
+    expect(validateCircleCardBillingEnvironment({
+      ...completeEnabledEnvironment,
+      CIRCLE_CARD_BILLING_ACCESS_MODE: "public",
+      CIRCLE_CARD_BILLING_OPERATOR_USER_IDS: ""
+    })).toEqual([]);
   });
 
   it("rejects blank and malformed configured Stripe identifiers", () => {

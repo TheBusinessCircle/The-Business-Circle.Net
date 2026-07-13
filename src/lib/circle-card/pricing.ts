@@ -197,6 +197,27 @@ function configuredEnvValue(name: string | undefined) {
   return name ? Boolean(process.env[name]?.trim()) : false;
 }
 
+export type CircleCardBillingAccessMode = "operator" | "public";
+
+export function getCircleCardBillingAccessMode(): CircleCardBillingAccessMode | null {
+  const mode = process.env.CIRCLE_CARD_BILLING_ACCESS_MODE?.trim().toLowerCase();
+  return mode === "operator" || mode === "public" ? mode : null;
+}
+
+export function getCircleCardBillingOperatorUserIds() {
+  return new Set(
+    (process.env.CIRCLE_CARD_BILLING_OPERATOR_USER_IDS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
+}
+
+export function canUserStartCircleCardCheckout(userId: string) {
+  const mode = getCircleCardBillingAccessMode();
+  return mode === "public" || (mode === "operator" && getCircleCardBillingOperatorUserIds().has(userId));
+}
+
 export function isCircleCardBillingEnabled() {
   return parseBoolean(process.env[CIRCLE_CARD_BILLING_FLAG_ENV]);
 }
@@ -205,16 +226,24 @@ export function getCircleCardBillingReadiness() {
   const pro = CIRCLE_CARD_PRICING_CONFIG.PRO;
   const proProductConfigured = configuredEnvValue(pro.stripe.productEnvVar);
   const proMonthlyConfigured = configuredEnvValue(pro.stripe.monthlyPriceEnvVar);
+  const portalConfigured = configuredEnvValue("CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID");
+  const accessMode = getCircleCardBillingAccessMode();
+  const operatorUserConfigured =
+    accessMode !== "operator" || getCircleCardBillingOperatorUserIds().size > 0;
 
   return {
     billingEnabled: isCircleCardBillingEnabled(),
     proProductConfigured,
     proPriceConfigured: proMonthlyConfigured,
-    proLaunchConfigured: proProductConfigured && proMonthlyConfigured,
+    proPortalConfigured: portalConfigured,
+    billingAccessMode: accessMode,
+    proLaunchConfigured:
+      proProductConfigured && proMonthlyConfigured && portalConfigured && Boolean(accessMode) && operatorUserConfigured,
     teamsPriceConfigured: false,
     pro: {
       productConfigured: proProductConfigured,
       monthlyPriceConfigured: proMonthlyConfigured,
+      portalConfigured,
       annualPriceConfigured: false
     },
     teams: {
@@ -237,6 +266,21 @@ export function getCircleCardProBillingConfigurationErrorMessage() {
 
   if (!readiness.pro.monthlyPriceConfigured) {
     return "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID is required when Circle Card billing is enabled.";
+  }
+
+  if (!readiness.pro.portalConfigured) {
+    return "CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID is required when Circle Card billing is enabled.";
+  }
+
+  if (!readiness.billingAccessMode) {
+    return "CIRCLE_CARD_BILLING_ACCESS_MODE must be explicitly set to operator or public when billing is enabled.";
+  }
+
+  if (
+    readiness.billingAccessMode === "operator" &&
+    getCircleCardBillingOperatorUserIds().size === 0
+  ) {
+    return "CIRCLE_CARD_BILLING_OPERATOR_USER_IDS is required in controlled operator mode.";
   }
 
   return null;

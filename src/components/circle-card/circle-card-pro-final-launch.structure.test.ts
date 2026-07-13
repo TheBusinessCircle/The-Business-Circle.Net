@@ -26,6 +26,8 @@ describe("Circle Card Pro final launch controls", () => {
   it("cannot call Checkout while billing is disabled and uses the protected route when enabled", () => {
     const checkout = source("src/components/circle-card/circle-card-pro-checkout-buttons.tsx");
     const route = source("src/app/api/stripe/circle-card/checkout/route.ts");
+    const proPage = source("src/app/(public)/circle-card/pro/page.tsx");
+    const dashboard = source("src/app/(member)/dashboard/circle-card/page.tsx");
 
     expect(checkout.indexOf("if (!billingEnabled || !authenticated)")).toBeGreaterThan(
       checkout.indexOf("function startCheckout()")
@@ -35,6 +37,10 @@ describe("Circle Card Pro final launch controls", () => {
     expect(route).toContain("getCircleCardBillingReadiness");
     expect(route).toContain("findFirst");
     expect(route).toContain("userId: authResult.user.id");
+    expect(route).toContain("canUserStartCircleCardCheckout(authResult.user.id)");
+    expect(proPage).toContain("canUserStartCircleCardCheckout(activeUser.id)");
+    expect(proPage).not.toMatch(/CircleCardProCheckoutButtons[^>]*\sbillingEnabled\s+authenticated=/);
+    expect(dashboard).toContain("canUserStartCircleCardCheckout(session.user.id)");
   });
 
   it("keeps authoritative success and non-Stripe access server-derived", () => {
