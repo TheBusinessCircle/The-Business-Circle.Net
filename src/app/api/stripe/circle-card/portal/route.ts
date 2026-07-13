@@ -6,6 +6,7 @@ import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { logServerError } from "@/lib/security/logging";
 import { createCircleCardBillingPortalSession } from "@/server/circle-card";
+import { measureCircleCardAction } from "@/server/circle-card/performance";
 
 export const runtime = "nodejs";
 
@@ -13,7 +14,7 @@ const portalPayloadSchema = z.object({
   returnPath: z.string().optional()
 }).strict();
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   let headers: HeadersInit | undefined;
 
   try {
@@ -86,4 +87,12 @@ export async function POST(request: Request) {
       { status: 502, headers }
     );
   }
+}
+
+export async function POST(request: Request) {
+  return measureCircleCardAction(
+    "portal_opened",
+    () => handlePost(request),
+    request.headers.get("x-request-id")
+  );
 }

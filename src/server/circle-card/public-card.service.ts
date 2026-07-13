@@ -521,41 +521,42 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
     return null;
   }
 
-  const circleCardAccess = await loadCircleCardAccessForUser(card.userId);
-  const planVisibleRecommenderCards = await filterPublicCircleCardTargetsWithinOwnerPlans(
-    card.recommendationsReceived.map((recommendation) => recommendation.recommenderCard)
-  );
+  const [circleCardAccess, planVisibleRecommenderCards, rawOwnerCards] = await Promise.all([
+    loadCircleCardAccessForUser(card.userId),
+    filterPublicCircleCardTargetsWithinOwnerPlans(
+      card.recommendationsReceived.map((recommendation) => recommendation.recommenderCard)
+    ),
+    prisma.circleCard.findMany({
+      where: {
+        userId: card.userId,
+        archivedAt: null,
+        user: {
+          suspended: false
+        }
+      },
+      orderBy: [...CIRCLE_CARD_PLAN_ORDER],
+      select: {
+        id: true,
+        slug: true,
+        cardType: true,
+        fullName: true,
+        businessName: true,
+        tagline: true,
+        profileImageUrl: true,
+        displayOrder: true,
+        isDefaultCard: true,
+        isPrimary: true,
+        isPublished: true,
+        createdAt: true
+      }
+    })
+  ]);
   const planVisibleRecommenderCardIds = new Set(
     planVisibleRecommenderCards.map((recommenderCard) => recommenderCard.id)
   );
   const publicRecommendations = card.recommendationsReceived.filter((recommendation) =>
     planVisibleRecommenderCardIds.has(recommendation.recommenderCard.id)
   );
-
-  const rawOwnerCards = await prisma.circleCard.findMany({
-    where: {
-      userId: card.userId,
-      archivedAt: null,
-      user: {
-        suspended: false
-      }
-    },
-    orderBy: [...CIRCLE_CARD_PLAN_ORDER],
-    select: {
-      id: true,
-      slug: true,
-      cardType: true,
-      fullName: true,
-      businessName: true,
-      tagline: true,
-      profileImageUrl: true,
-      displayOrder: true,
-      isDefaultCard: true,
-      isPrimary: true,
-      isPublished: true,
-      createdAt: true
-    }
-  });
 
   const planVisibleOwnerCards = selectCircleCardsWithinPlan(
     rawOwnerCards,
