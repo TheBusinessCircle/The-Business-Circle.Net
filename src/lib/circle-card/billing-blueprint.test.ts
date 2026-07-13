@@ -7,11 +7,12 @@ import {
 } from "@/lib/circle-card/billing-blueprint";
 
 describe("Circle Card launch billing blueprint", () => {
-  it("requires only product and monthly price configuration for Circle Card Pro", () => {
+  it("requires product, monthly price and dedicated Portal configuration for Circle Card Pro", () => {
     expect(CIRCLE_CARD_PRO_BILLING_ENV_VARS).toEqual([
       "CIRCLE_CARD_BILLING_ENABLED",
       "STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID",
-      "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID"
+      "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID",
+      "CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID"
     ]);
   });
 

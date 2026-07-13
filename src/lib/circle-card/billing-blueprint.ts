@@ -5,7 +5,8 @@ export const CIRCLE_CARD_CHECKOUT_ROUTE_BLUEPRINT = "/api/stripe/circle-card/che
 export const CIRCLE_CARD_PRO_BILLING_ENV_VARS = [
   "CIRCLE_CARD_BILLING_ENABLED",
   "STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID",
-  "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID"
+  "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID",
+  "CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID"
 ] as const;
 
 // Annual remains in the compatibility type so historical data can still be read safely.
