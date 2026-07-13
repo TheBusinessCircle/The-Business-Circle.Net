@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "@prisma/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { prismaMock, sendTransactionalEmailMock, hashPasswordMock } = vi.hoisted(() => ({
   prismaMock: (() => {
@@ -47,6 +48,8 @@ import {
 } from "@/lib/auth/password-reset";
 
 describe("password reset", () => {
+  let consoleSpies: Array<ReturnType<typeof vi.spyOn>>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES = "60";
@@ -61,6 +64,15 @@ describe("password reset", () => {
     prismaMock.session.deleteMany.mockResolvedValue({ count: 1 });
     sendTransactionalEmailMock.mockResolvedValue({ sent: true, skipped: false, id: "email-1" });
     hashPasswordMock.mockResolvedValue("hashed-password");
+    consoleSpies = [
+      vi.spyOn(console, "info").mockImplementation(() => undefined),
+      vi.spyOn(console, "warn").mockImplementation(() => undefined),
+      vi.spyOn(console, "error").mockImplementation(() => undefined)
+    ];
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("creates deterministic token hash and expiry window", () => {
@@ -104,9 +116,28 @@ describe("password reset", () => {
     const token = new URL(resetLink as string).searchParams.get("token");
     expect(token).toBeTruthy();
     expect(hashPasswordResetToken(token as string)).toBe(storedTokenHash);
+    expect(storedTokenHash).not.toBe(token);
+    expect(prismaMock.passwordResetToken.deleteMany).toHaveBeenCalledWith({
+      where: { userId: "user-1" }
+    });
+    expect(
+      prismaMock.passwordResetToken.deleteMany.mock.invocationCallOrder[0]
+    ).toBeLessThan(prismaMock.passwordResetToken.create.mock.invocationCallOrder[0]);
+    expect(prismaMock.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+
+    const logs = consoleSpies
+      .flatMap((spy) => spy.mock.calls)
+      .map((call) => JSON.stringify(call))
+      .join("\n");
+    expect(logs).not.toContain(token as string);
+    expect(logs).not.toContain(resetLink as string);
+    expect(logs).not.toContain("member@example.com");
   });
 
-  it("prevents token replay after first successful reset", async () => {
+  it("prevents concurrent token replay with one atomic claim", async () => {
     const state = {
       used: false
     };
@@ -117,30 +148,79 @@ describe("password reset", () => {
       name: "Member"
     });
 
-    prismaMock.passwordResetToken.findFirst.mockImplementation(async () => {
-      return state.used ? null : { id: "token-1" };
-    });
+    prismaMock.passwordResetToken.findFirst.mockResolvedValue({ id: "token-1" });
 
-    prismaMock.passwordResetToken.updateMany.mockImplementation(async () => {
-      state.used = true;
+    prismaMock.passwordResetToken.updateMany.mockImplementation(async ({ where }) => {
+      if (where.id) {
+        if (state.used) return { count: 0 };
+        state.used = true;
+        return { count: 1 };
+      }
       return { count: 1 };
     });
 
-    const first = await confirmPasswordReset({
-      email: "member@example.com",
-      token: "raw-token",
-      password: "MyNewPassword!123"
+    const [first, second] = await Promise.all([
+      confirmPasswordReset({
+        email: "member@example.com",
+        token: "synthetic-reset-token",
+        password: "MyNewPassword!123"
+      }),
+      confirmPasswordReset({
+        email: "member@example.com",
+        token: "synthetic-reset-token",
+        password: "MyNewPassword!123"
+      })
+    ]);
+
+    expect([first.ok, second.ok].sort()).toEqual([false, true]);
+    expect(prismaMock.user.update).toHaveBeenCalledTimes(1);
+    expect(prismaMock.session.deleteMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.passwordResetToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", usedAt: null },
+      data: { usedAt: expect.any(Date) }
     });
-    const second = await confirmPasswordReset({
+  });
+
+  it("enforces expiry before and during token consumption", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user-1",
       email: "member@example.com",
-      token: "raw-token",
-      password: "MyNewPassword!123"
+      name: "Member"
+    });
+    prismaMock.passwordResetToken.findFirst.mockResolvedValue({ id: "token-1" });
+    prismaMock.passwordResetToken.updateMany.mockImplementation(async ({ where }) => {
+      if (where.id) {
+        expect(where).toEqual({
+          id: "token-1",
+          userId: "user-1",
+          tokenHash: hashPasswordResetToken("expired-synthetic-token"),
+          usedAt: null,
+          expiresAt: { gt: expect.any(Date) }
+        });
+        return { count: 0 };
+      }
+      return { count: 1 };
     });
 
-    expect(first.ok).toBe(true);
-    expect(second).toEqual({
+    await expect(
+      confirmPasswordReset({
+        email: "member@example.com",
+        token: "expired-synthetic-token",
+        password: "MyNewPassword!123"
+      })
+    ).resolves.toEqual({
       ok: false,
       error: "Reset link is invalid or has expired."
     });
+    expect(prismaMock.passwordResetToken.findFirst).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        tokenHash: hashPasswordResetToken("expired-synthetic-token"),
+        usedAt: null,
+        expiresAt: { gt: expect.any(Date) }
+      },
+      select: { id: true }
+    });
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
 });

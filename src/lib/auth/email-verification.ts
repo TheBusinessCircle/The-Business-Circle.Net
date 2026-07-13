@@ -1,14 +1,16 @@
 import { createHash, randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { createElement } from "react";
 import { VerifyEmailAddressEmail } from "@/emails";
 import { renderEmailHtml } from "@/emails/render";
 import { buildBrandedEmailText } from "@/emails/text";
 import { db } from "@/lib/db";
 import { sendTransactionalEmailOrThrow } from "@/lib/email/resend";
-import { logServerError, logServerWarning } from "@/lib/security/logging";
+import { logServerError, logServerInfo, logServerWarning } from "@/lib/security/logging";
 import { getBaseUrl } from "@/lib/utils";
 
 const DEFAULT_VERIFICATION_TOKEN_TTL_HOURS = 48;
+const SERIALIZABLE_RETRY_ATTEMPTS = 3;
 
 type SendVerificationEmailInput = {
   userId: string;
@@ -46,6 +48,28 @@ function resolveVerificationTokenTtlHours() {
 
 function createVerificationToken() {
   return randomBytes(32).toString("hex");
+}
+
+function isSerializableConflictError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
+}
+
+async function runSerializableVerificationTokenTransaction<T>(
+  callback: (tx: Prisma.TransactionClient) => Promise<T>
+) {
+  for (let attempt = 1; attempt <= SERIALIZABLE_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await db.$transaction(callback, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      });
+    } catch (error) {
+      if (!isSerializableConflictError(error) || attempt === SERIALIZABLE_RETRY_ATTEMPTS) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("Unable to replace the email verification token.");
 }
 
 export function hashEmailVerificationToken(token: string) {
@@ -93,10 +117,7 @@ async function sendVerificationEmailMessage(input: {
   });
   const html = await renderEmailHtml(emailTemplate);
 
-  console.info("[verify-email] starting send", {
-    userId: input.userId,
-    email: input.email
-  });
+  logServerInfo("verify-email-send-started", { userId: input.userId });
 
   try {
     const result = await sendTransactionalEmailOrThrow({
@@ -117,21 +138,11 @@ async function sendVerificationEmailMessage(input: {
       messageId: result.id
     };
   } catch (error) {
-    const reactErrorMessage = error instanceof Error ? error.message : "Unknown verification email error.";
-    console.error("[verify-email] send failed", {
-      userId: input.userId,
-      email: input.email,
-      stage: "react",
-      error: reactErrorMessage
-    });
     logServerError("verify-email-send-react-failed", error, {
       userId: input.userId,
-      email: input.email
+      stage: "react"
     });
-    console.info("[verify-email] retrying send with html/text fallback", {
-      userId: input.userId,
-      email: input.email
-    });
+    logServerInfo("verify-email-send-fallback-started", { userId: input.userId });
 
     try {
       const fallbackResult = await sendTransactionalEmailOrThrow({
@@ -152,23 +163,15 @@ async function sendVerificationEmailMessage(input: {
         messageId: fallbackResult.id
       };
     } catch (fallbackError) {
-      const fallbackErrorMessage =
-        fallbackError instanceof Error ? fallbackError.message : "Unknown fallback email error.";
-      console.error("[verify-email] send failed", {
-        userId: input.userId,
-        email: input.email,
-        stage: "fallback",
-        error: fallbackErrorMessage
-      });
       logServerError("verify-email-send-fallback-failed", fallbackError, {
         userId: input.userId,
-        email: input.email
+        stage: "fallback"
       });
 
       return {
         sent: false,
         skipped: false,
-        reason: fallbackErrorMessage
+        reason: "Email delivery is temporarily unavailable."
       };
     }
   }
@@ -181,10 +184,7 @@ export async function sendEmailVerificationForUser(
   const identifier = verificationIdentifier(input.userId);
   const firstName = input.firstName?.trim() || "Member";
 
-  console.info("[verify-email] generating token", {
-    userId: input.userId,
-    email: input.email
-  });
+  logServerInfo("verify-email-token-generation-started", { userId: input.userId });
 
   let rawToken: string;
   let tokenHash: string;
@@ -195,7 +195,7 @@ export async function sendEmailVerificationForUser(
     tokenHash = hashEmailVerificationToken(rawToken);
     expires = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
 
-    await db.$transaction(async (tx) => {
+    await runSerializableVerificationTokenTransaction(async (tx) => {
       await tx.verificationToken.deleteMany({
         where: {
           identifier
@@ -211,30 +211,19 @@ export async function sendEmailVerificationForUser(
       });
     });
   } catch (error) {
-    console.error("[verify-email] token creation failed", {
-      userId: input.userId,
-      email: input.email,
-      error: error instanceof Error ? error.message : "Unknown token generation error."
-    });
     logServerError("verify-email-token-create-failed", error, {
-      userId: input.userId,
-      email: input.email
+      userId: input.userId
     });
     throw error;
   }
 
-  console.info("[verify-email] token created", {
+  logServerInfo("verify-email-token-created", {
     userId: input.userId,
-    email: input.email,
     expiresAt: expires.toISOString()
   });
 
   const verificationUrl = buildVerificationUrl(input.userId, rawToken);
-  console.info("[verify-email] verification url ready", {
-    userId: input.userId,
-    email: input.email,
-    verificationUrl
-  });
+  logServerInfo("verify-email-url-created", { userId: input.userId });
 
   const sendResult = await sendVerificationEmailMessage({
     userId: input.userId,
@@ -247,7 +236,6 @@ export async function sendEmailVerificationForUser(
   if (!sendResult.sent) {
     logServerWarning("verification-email-delivery-failed", {
       userId: input.userId,
-      email: input.email,
       skipped: sendResult.skipped,
       reason: sendResult.reason
     });
@@ -263,10 +251,9 @@ export async function sendEmailVerificationForUser(
         }
       }
     });
-    console.info("[verify-email] send success", {
+    logServerInfo("verify-email-send-succeeded", {
       userId: input.userId,
-      email: input.email,
-      messageId: sendResult.messageId ?? null
+      hasMessageId: Boolean(sendResult.messageId)
     });
   }
 
@@ -287,7 +274,7 @@ export async function resendVerificationEmail(userId: string): Promise<ResendVer
   });
 
   if (!user) {
-    console.warn("[verify-email] resend skipped", {
+    logServerWarning("verify-email-resend-skipped", {
       userId,
       reason: "user-not-found"
     });
@@ -299,9 +286,8 @@ export async function resendVerificationEmail(userId: string): Promise<ResendVer
   }
 
   if (user.emailVerified) {
-    console.info("[verify-email] resend skipped", {
+    logServerInfo("verify-email-resend-skipped", {
       userId: user.id,
-      email: user.email,
       reason: "already-verified"
     });
     return {
@@ -319,9 +305,7 @@ export async function resendVerificationEmail(userId: string): Promise<ResendVer
 }
 
 export async function verifyEmailToken(input: VerifyEmailTokenInput) {
-  console.info("[verify-email] token received", {
-    userId: input.userId
-  });
+  logServerInfo("verify-email-token-received", { userId: input.userId });
 
   const tokenHash = hashEmailVerificationToken(input.token);
   const identifier = verificationIdentifier(input.userId);
@@ -329,13 +313,12 @@ export async function verifyEmailToken(input: VerifyEmailTokenInput) {
     where: { id: input.userId },
     select: {
       id: true,
-      email: true,
       emailVerified: true
     }
   });
 
   if (!user) {
-    console.warn("[verify-email] verification failed", {
+    logServerWarning("verify-email-verification-failed", {
       userId: input.userId,
       reason: "user-not-found"
     });
@@ -348,45 +331,22 @@ export async function verifyEmailToken(input: VerifyEmailTokenInput) {
         identifier
       }
     });
-    console.info("[verify-email] verification already complete", {
-      userId: input.userId,
-      email: user.email
-    });
-    return true;
-  }
-
-  const token = await db.verificationToken.findFirst({
-    where: {
-      identifier,
-      token: tokenHash,
-      expires: {
-        gt: new Date()
-      }
-    },
-    select: {
-      token: true
-    }
-  });
-
-  if (!token) {
-    console.warn("[verify-email] verification failed", {
-      userId: input.userId,
-      email: user.email,
-      reason: "token-invalid-or-expired"
+    logServerInfo("verify-email-verification-already-complete", {
+      userId: input.userId
     });
     return false;
   }
 
-  console.info("[verify-email] token valid", {
-    userId: input.userId,
-    email: user.email
-  });
-  console.info("[verify-email] marking user verified", {
-    userId: input.userId,
-    email: user.email
-  });
+  const verified = await db.$transaction(async (tx) => {
+    const consumed = await tx.verificationToken.deleteMany({
+      where: {
+        identifier,
+        token: tokenHash,
+        expires: { gt: new Date() }
+      }
+    });
+    if (consumed.count !== 1) return false;
 
-  await db.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: input.userId },
       data: {
@@ -399,11 +359,17 @@ export async function verifyEmailToken(input: VerifyEmailTokenInput) {
         identifier
       }
     });
+    return true;
   });
 
-  console.info("[verify-email] user verified", {
-    userId: input.userId,
-    email: user.email
-  });
-  return true;
+  if (!verified) {
+    logServerWarning("verify-email-verification-failed", {
+      userId: input.userId,
+      reason: "token-invalid-expired-or-consumed"
+    });
+    return false;
+  }
+
+  logServerInfo("verify-email-user-verified", { userId: input.userId });
+  return verified;
 }

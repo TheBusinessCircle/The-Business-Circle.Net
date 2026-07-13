@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { createElement } from "react";
 import { PasswordChangedEmail, PasswordResetEmail } from "@/emails";
 import { renderEmailHtml } from "@/emails/render";
@@ -13,6 +14,7 @@ import { getBaseUrl } from "@/lib/utils";
 const DEFAULT_RESET_TOKEN_TTL_MINUTES = 60;
 const MIN_RESET_TOKEN_TTL_MINUTES = 15;
 const MAX_RESET_TOKEN_TTL_MINUTES = 180;
+const SERIALIZABLE_RETRY_ATTEMPTS = 3;
 
 type RequestPasswordResetInput = {
   email: string;
@@ -42,6 +44,28 @@ function resolveResetTokenTtlMinutes() {
 
 function createRawResetToken() {
   return randomBytes(32).toString("hex");
+}
+
+function isSerializableConflictError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
+}
+
+async function runSerializablePasswordResetTokenTransaction<T>(
+  callback: (tx: Prisma.TransactionClient) => Promise<T>
+) {
+  for (let attempt = 1; attempt <= SERIALIZABLE_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await db.$transaction(callback, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      });
+    } catch (error) {
+      if (!isSerializableConflictError(error) || attempt === SERIALIZABLE_RETRY_ATTEMPTS) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("Unable to replace the password reset token.");
 }
 
 export function hashPasswordResetToken(token: string) {
@@ -95,7 +119,7 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
 
   const tokenPair = createPasswordResetTokenPair();
 
-  await db.$transaction(async (tx) => {
+  await runSerializablePasswordResetTokenTransaction(async (tx) => {
     await tx.passwordResetToken.deleteMany({
       where: { userId: user.id }
     });
@@ -183,9 +207,20 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
   }
 
   const passwordHash = await hashPassword(input.password);
-  const usedAt = new Date();
+  const resetApplied = await db.$transaction(async (tx) => {
+    const usedAt = new Date();
+    const consumed = await tx.passwordResetToken.updateMany({
+      where: {
+        id: token.id,
+        userId: user.id,
+        tokenHash,
+        usedAt: null,
+        expiresAt: { gt: usedAt }
+      },
+      data: { usedAt }
+    });
+    if (consumed.count !== 1) return false;
 
-  await db.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
       data: { passwordHash }
@@ -199,7 +234,12 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
     await tx.session.deleteMany({
       where: { userId: user.id }
     });
+    return true;
   });
+
+  if (!resetApplied) {
+    return { ok: false as const, error: "Reset link is invalid or has expired." };
+  }
 
   const recipientName = user.name?.trim() || "Member";
   const loginUrl = new URL("/login", getBaseUrl()).toString();
