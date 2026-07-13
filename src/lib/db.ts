@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "@prisma/client";
+import { prismaLogLevelsForEnvironment } from "@/lib/security/prisma-log-policy";
 
 declare global {
   var __businessCircleDb: PrismaClient | undefined;
@@ -17,7 +18,7 @@ export const db: PrismaClient =
   globalThis.__businessCircleDb ??
   new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === "development" ? ["query", "warn"] : ["error"]
+    log: prismaLogLevelsForEnvironment(process.env.NODE_ENV)
   });
 
 if (process.env.NODE_ENV !== "production") {

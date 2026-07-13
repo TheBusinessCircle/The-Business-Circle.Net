@@ -118,6 +118,20 @@ export type UpdateLaunchCodeInput = Partial<Omit<CreateLaunchCodeInput, "created
   status?: LaunchCodeStatus;
 };
 
+export function buildLaunchCodeAnalyticsMetadata(input: {
+  platform: string | null;
+  selectedTier: MembershipTier | string | null;
+  launchCodeId: string;
+  trialDays: number | string | null;
+}) {
+  return {
+    platform: input.platform,
+    selectedTier: input.selectedTier,
+    launchCodeId: input.launchCodeId,
+    trialDays: input.trialDays
+  };
+}
+
 function isSerializableConflictError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
 }
@@ -403,13 +417,12 @@ export async function reserveLaunchCodePlace(
         visitorId: input.visitorId ?? undefined,
         eventName: "launch_code_checkout_started",
         path: input.sourcePath ?? "/checkout",
-        metadata: {
-          code: launchCode.code,
+        metadata: buildLaunchCodeAnalyticsMetadata({
           platform: launchCode.platform,
           selectedTier: input.selectedTier,
           launchCodeId: launchCode.id,
           trialDays: launchCode.trialDays
-        }
+        })
       }
     }).catch(() => null);
 
@@ -532,13 +545,12 @@ export async function completeLaunchCodeRedemptionFromStripe(
       userId: userId ?? undefined,
       eventName: "launch_code_checkout_completed",
       path: "/checkout",
-      metadata: {
-        code: launchCodeValue,
+      metadata: buildLaunchCodeAnalyticsMetadata({
         platform: session.metadata?.sourcePlatform ?? null,
         selectedTier: selectedTier ?? null,
         launchCodeId: redemption.launchCodeId,
         trialDays: session.metadata?.trialDays ?? null
-      }
+      })
     }
   }).catch(() => null);
 
@@ -614,13 +626,12 @@ export async function updateLaunchCodeSubscriptionFromStripe(
             ? "launch_code_subscription_trialing"
             : "launch_code_subscription_active",
         path: "/checkout",
-        metadata: {
-          code,
+        metadata: buildLaunchCodeAnalyticsMetadata({
           platform: subscription.metadata?.sourcePlatform ?? null,
           selectedTier: subscription.metadata?.selectedTier ?? null,
           launchCodeId: launchCode.id,
           trialDays: subscription.metadata?.trialDays ?? null
-        }
+        })
       }
     }).catch(() => null);
   }

@@ -35,6 +35,9 @@ describe("safe server logging", () => {
     const rawToken = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     const verificationUrl = `https://thebusinesscircle.net/api/auth/verify-email?uid=user-1&token=${rawToken}`;
     const inviteUrl = "https://thebusinesscircle.net/invite/PRIVATE-INVITE-CODE";
+    const relativeInviteUrl = "/invite/RELATIVE-PRIVATE-INVITE";
+    const joinInviteUrl = "/join?invite=QUERY-PRIVATE-INVITE";
+    const referralInviteUrl = "/membership?referralCode=REFERRAL-PRIVATE-INVITE";
 
     if (consoleMethod === "error") {
       (logger as (event: string, details: Record<string, string>) => void)("auth-log-test", {
@@ -42,7 +45,8 @@ describe("safe server logging", () => {
         token: rawToken,
         verificationUrl,
         inviteLink: inviteUrl,
-        reason: `${verificationUrl} private.person@example.com`
+        referralCode: "DETAIL-PRIVATE-INVITE",
+        reason: `${verificationUrl} ${relativeInviteUrl} ${joinInviteUrl} ${referralInviteUrl} private.person@example.com`
       });
     } else {
       (logger as typeof logServerInfo)("auth-log-test", {
@@ -50,7 +54,8 @@ describe("safe server logging", () => {
         token: rawToken,
         verificationUrl,
         inviteLink: inviteUrl,
-        reason: `${verificationUrl} private.person@example.com`
+        referralCode: "DETAIL-PRIVATE-INVITE",
+        reason: `${verificationUrl} ${relativeInviteUrl} ${joinInviteUrl} ${referralInviteUrl} private.person@example.com`
       });
     }
 
@@ -58,6 +63,10 @@ describe("safe server logging", () => {
     expect(rendered).not.toContain(rawToken);
     expect(rendered).not.toContain(verificationUrl);
     expect(rendered).not.toContain(inviteUrl);
+    expect(rendered).not.toContain("RELATIVE-PRIVATE-INVITE");
+    expect(rendered).not.toContain("QUERY-PRIVATE-INVITE");
+    expect(rendered).not.toContain("REFERRAL-PRIVATE-INVITE");
+    expect(rendered).not.toContain("DETAIL-PRIVATE-INVITE");
     expect(rendered).not.toContain("private.person@example.com");
     expect(rendered).toContain("[redacted");
   });

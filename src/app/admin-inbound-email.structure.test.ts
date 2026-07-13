@@ -26,6 +26,8 @@ describe("admin inbound email inbox wiring", () => {
     expect(route).toContain("request.text()");
     expect(route).toContain("verifyResendWebhookEvent");
     expect(route).toContain("processResendInboundWebhookEvent");
+    expect(route).toContain("logServerError");
+    expect(route).not.toContain("console.error");
     expect(service).toContain('event as ResendInboundWebhookEvent).type === "email.received"');
     expect(service).toContain("resend.emails.receiving.get(emailId)");
     expect(service).toContain("resend.emails.receiving.forward");

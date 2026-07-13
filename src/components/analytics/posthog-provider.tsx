@@ -16,6 +16,11 @@ import {
   hasConsentForCategory,
   parseCookieConsentFromCookieString
 } from "@/lib/cookie-consent";
+import {
+  ANALYTICS_SESSION_REPLAY_ENABLED,
+  isAnalyticsLocationProperty,
+  sanitizeAnalyticsLocation
+} from "@/lib/analytics/privacy";
 
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim() ?? "";
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || "https://eu.i.posthog.com";
@@ -28,22 +33,12 @@ const SENSITIVE_PROPERTY_PATTERNS = [
   /token/i,
   /secret/i,
   /authorization/i,
+  /invite/i,
   /stripe/i,
   /checkout[_-]?session/i,
   /email/i,
   /phone/i,
   /address/i
-];
-
-const SENSITIVE_URL_PARAMS = [
-  "token",
-  "auth",
-  "code",
-  "email",
-  "password",
-  "session_id",
-  "checkout_session_id",
-  "stripe_session_id"
 ];
 
 const SENSITIVE_NETWORK_PATHS = [
@@ -133,7 +128,7 @@ function sanitizeProperties(properties: CaptureResult["properties"]) {
     const value = sanitized[key];
     if (
       typeof value === "string" &&
-      (key === "$current_url" || key === "$referrer" || key.toLowerCase().includes("url"))
+      (key === "$current_url" || key === "$referrer" || isAnalyticsLocationProperty(key))
     ) {
       sanitized[key] = redactUrl(value);
     }
@@ -154,18 +149,7 @@ const sanitizeBeforeSend: BeforeSendFn = (event) => {
 };
 
 function redactUrl(value: string) {
-  try {
-    const url = new URL(value, window.location.origin);
-    for (const param of SENSITIVE_URL_PARAMS) {
-      if (url.searchParams.has(param)) {
-        url.searchParams.set(param, "[redacted]");
-      }
-    }
-
-    return url.toString();
-  } catch {
-    return value.split("?")[0] ?? value;
-  }
+  return sanitizeAnalyticsLocation(value) ?? "/";
 }
 
 function maskCapturedNetworkRequest(request: CapturedNetworkRequest) {
@@ -196,27 +180,15 @@ function createPostHogConfig(replayEnabled: boolean): Partial<PostHogConfig> {
     api_host: POSTHOG_HOST,
     defaults: "2026-01-30",
     debug: POSTHOG_DEBUG,
-    autocapture: {
-      dom_event_allowlist: ["click", "submit"],
-      element_allowlist: ["a", "button", "form", "input", "select", "textarea", "label"],
-      element_attribute_ignorelist: [
-        "value",
-        "placeholder",
-        "data-token",
-        "data-secret",
-        "data-email",
-        "data-user-id",
-        "data-customer-id"
-      ],
-      capture_copied_text: false
-    },
+    // PostHog nests clicked anchor hrefs inside $elements, where shallow
+    // before_send scrubbing cannot protect bearer invitation/access codes.
+    autocapture: false,
     capture_pageview: false,
     capture_pageleave: true,
-    capture_performance: {
-      network_timing: true,
-      web_vitals: true,
-      web_vitals_attribution: false
-    },
+    // Both features can emit nested URL/error objects that bypass top-level
+    // property scrubbing. Keep them explicitly off for this safety release.
+    capture_performance: false,
+    capture_exceptions: false,
     disable_session_recording: !replayEnabled,
     mask_all_element_attributes: true,
     mask_personal_data_properties: true,
@@ -224,6 +196,7 @@ function createPostHogConfig(replayEnabled: boolean): Partial<PostHogConfig> {
       "email",
       "phone",
       "token",
+      "invite",
       "session_id",
       "checkout_session_id"
     ],
@@ -231,6 +204,7 @@ function createPostHogConfig(replayEnabled: boolean): Partial<PostHogConfig> {
       "password",
       "confirmPassword",
       "token",
+      "inviteCode",
       "secret",
       "email",
       "stripeCustomerId",
@@ -363,7 +337,12 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
     }
 
     if (analyticsConsent && !initializedRef.current) {
-      posthog.init(POSTHOG_KEY, createPostHogConfig(shouldSampleReplay()));
+      posthog.init(
+        POSTHOG_KEY,
+        createPostHogConfig(
+          ANALYTICS_SESSION_REPLAY_ENABLED && shouldSampleReplay()
+        )
+      );
       initializedRef.current = true;
       setIsInitialized(true);
       return;

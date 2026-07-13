@@ -3,7 +3,7 @@ type SafeLogValue = string | number | boolean | null | undefined;
 export type SafeLogDetails = Record<string, SafeLogValue>;
 
 const SENSITIVE_DETAIL_KEY =
-  /(?:token|secret|password|authorization|cookie|signature|invite.?code)/i;
+  /(?:token|secret|password|authorization|cookie|signature|(?:invite|launch|referral|request|access).?code)/i;
 const EMAIL_DETAIL_KEY = /email(?:address)?$/i;
 const AUTHENTICATION_URL_KEY = /(?:verification|verify|reset|magic|invite).*(?:url|uri|link)/i;
 
@@ -21,11 +21,11 @@ function compactDetails(details?: SafeLogDetails) {
 function redactSensitiveLogText(value: string) {
   return value
     .replace(
-      /https?:\/\/[^\s"'<>]*(?:\/api\/auth\/verify-email|\/reset-password|\/invite\/)[^\s"'<>]*/gi,
+      /(?:https?:\/\/[^\s"'<>]*)?(?:\/api\/auth\/verify-email|\/reset-password|\/invite\/)[^\s"'<>]*/gi,
       "[redacted authentication URL]"
     )
     .replace(
-      /([?&](?:token|code|secret|key|signature|email)=)[^&\s"'<>]*/gi,
+      /([?&](?:token|code|secret|key|signature|email|invite|inviteCode|launchCode|referralCode|referredBy|requestToken|resetToken|verificationToken)=)[^&\s"'<>]*/gi,
       "$1[redacted]"
     )
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")

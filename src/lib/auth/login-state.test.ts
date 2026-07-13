@@ -39,10 +39,13 @@ describe("parseLoginSearchParams", () => {
 
   it("logs and ignores malformed verified and from params", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const tokenCanary = "a".repeat(64);
+    const emailCanary = "secret-owner@example.test";
+    const urlCanary = `https://evil.invalid/reset-password?email=${emailCanary}&token=${tokenCanary}`;
 
     const parsed = parseLoginSearchParams({
-      verified: "true",
-      from: "membership"
+      verified: tokenCanary,
+      from: urlCanary
     });
 
     expect(parsed).toEqual({
@@ -52,5 +55,9 @@ describe("parseLoginSearchParams", () => {
       initialNotice: undefined
     });
     expect(warn).toHaveBeenCalledTimes(2);
+    const logged = JSON.stringify(warn.mock.calls);
+    expect(logged).not.toContain(tokenCanary);
+    expect(logged).not.toContain(emailCanary);
+    expect(logged).not.toContain(urlCanary);
   });
 });
