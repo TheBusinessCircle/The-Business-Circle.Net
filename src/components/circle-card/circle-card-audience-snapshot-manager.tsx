@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { BarChart3, ChevronDown, Loader2, Lock, Save, Users } from "lucide-react";
 import { saveCircleCardAudienceSnapshotInlineAction } from "@/actions/circle-card.actions";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { CircleCardProCheckoutButtons } from "@/components/circle-card/circle-card-pro-checkout-buttons";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,12 +54,14 @@ export function CircleCardAudienceSnapshotManager({
   cardId,
   cardName,
   initialSnapshot,
-  locked
+  locked,
+  billingEnabled
 }: {
   cardId: string;
   cardName: string;
   initialSnapshot: CircleCardAudienceSnapshot | null;
   locked: boolean;
+  billingEnabled: boolean;
 }) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [formKey, setFormKey] = useState(0);
@@ -114,7 +116,7 @@ export function CircleCardAudienceSnapshotManager({
                 <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><Lock size={15} />Audience Snapshot is included with Creator Pro.</p>
                 <p className="mt-1 text-sm text-muted">Give brands a clear, creator-controlled overview without connecting social APIs.</p>
               </div>
-              <Link href="/circle-card/pro" className={`${buttonVariants({ variant: "outline" })} h-11 w-full sm:w-auto`}>Explore Creator Pro</Link>
+              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={billingEnabled} authenticated intent={{ source: "audience_snapshot", capability: "open_audience_snapshot", cardId, returnPath: `/dashboard/circle-card?section=my-card&cardId=${encodeURIComponent(cardId)}#creator-audience` }} label="Unlock Audience Snapshot" earlyAccessLabel="Register for Audience Snapshot" showPrice={false} />
             </div>
           ) : (
             <form key={formKey} onSubmit={save} className="space-y-5" noValidate>

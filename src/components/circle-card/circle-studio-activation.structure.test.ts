@@ -60,7 +60,8 @@ describe("Circle Studio activation live render contract", () => {
 
   it("prevents Free users from activating while preserving the preview", () => {
     expect(studio).toContain("canActivate ? <ActivateIdentityButton");
-    expect(studio).toContain('href="/circle-card/pro#register-interest"');
+    expect(studio).toContain("<CircleCardProCheckoutButtons");
+    expect(studio).toContain('capability: "apply_studio_design"');
     expect(studio).toContain("Apply My Design with Pro — £9.99/month");
     expect(studio).toContain("View My Current Live Card");
     expect(action).toContain('redirectWithError(returnPath, "studio-pro-required")');

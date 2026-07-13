@@ -289,6 +289,9 @@ export function CircleCardPlanPanel({
   const proPlan = CIRCLE_CARD_PLAN_DEFINITIONS.PRO;
   const teamsPlan = CIRCLE_CARD_PLAN_DEFINITIONS.TEAMS;
   const currentCapabilityMap = CIRCLE_CARD_CAPABILITY_MAP[displayedPlanKey];
+  const visibleNextCapabilities = platformOwnerPreviewEnabled
+    ? currentCapabilityMap.next
+    : currentCapabilityMap.next.filter((item) => !item.id.includes("teams"));
   const currentPricing = CIRCLE_CARD_PRICING_CONFIG[displayedPlanKey];
   const proPricing = CIRCLE_CARD_PRICING_CONFIG.PRO;
   const teamsPricing = CIRCLE_CARD_PRICING_CONFIG.TEAMS;
@@ -448,17 +451,17 @@ export function CircleCardPlanPanel({
             />
             <CapabilityList
               title="What becomes available next"
-              items={currentCapabilityMap.next}
+              items={visibleNextCapabilities}
               empty="This plan already represents the current top-level Circle Card capability map."
             />
           </div>
         </details>
 
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className={cn("grid gap-3", platformOwnerPreviewEnabled && "xl:grid-cols-2")}>
           <PlanPreviewPanel
             eyebrow="Upgrade preview"
             title={proPlan.shortLabel}
-            description="Individual visibility, analytics, lead capture and relationship growth."
+            description="A second card, Circle Studio activation, Business Builder and expanded Creator presentation tools."
             icon={Crown}
             features={CIRCLE_CARD_PRO_FEATURE_PREVIEWS}
             href="/circle-card/pro"
@@ -466,7 +469,7 @@ export function CircleCardPlanPanel({
             priceLabel={formatCircleCardPrice("PRO")}
             statusLabel={proPricing.billingStatusLabel}
           />
-          <PlanPreviewPanel
+          {platformOwnerPreviewEnabled ? <PlanPreviewPanel
             eyebrow="Teams preview"
             title={teamsPlan.shortLabel}
             description="Company cards, staff, shared contacts, team analytics and owner control."
@@ -479,7 +482,7 @@ export function CircleCardPlanPanel({
             annualDiscountLabel={teamsAnnualDiscount}
             statusLabel={teamsPricing.billingStatusLabel}
             iconClassName="border-silver/18 bg-silver/10 text-silver"
-          />
+          /> : null}
         </div>
       </div>
     </section>

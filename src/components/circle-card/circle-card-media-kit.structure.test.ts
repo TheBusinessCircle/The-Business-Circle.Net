@@ -16,10 +16,11 @@ describe("Creator Media Kit structure", () => {
     expect(manager).toContain("Live Media Kit is included with Creator Pro.");
   });
 
-  it("reuses managed uploads for PDF or external URL", () => {
-    expect(manager).toContain("CircleCardLinkFileUploadField");
-    expect(manager).toContain('helperText="PDF only, up to 10MB"');
-    expect(manager).toContain('name="externalMediaKitUrl"');
+  it("keeps file delivery out of launch without deleting stored values", () => {
+    expect(manager).not.toContain("CircleCardLinkFileUploadField");
+    expect(manager).not.toContain('helperText="PDF only, up to 10MB"');
+    expect(manager).toContain('type="hidden" name="fileUrl"');
+    expect(manager).toContain('type="hidden" name="externalMediaKitUrl"');
   });
 
   it("renders populated Creator media kit data without changing other layouts", () => {

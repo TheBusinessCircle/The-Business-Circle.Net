@@ -107,6 +107,8 @@ import {
   CircleCardMenuOffersManager,
   CircleCardMediaKitManager,
   CircleCardPlanPanel,
+  CircleCardAuthoritativeProAnalytics,
+  CircleCardProCheckoutButtons,
   CircleCardPressProofManager,
   CircleCardProductsManager,
   CircleCardPriceListManager,
@@ -179,6 +181,12 @@ import {
   CIRCLE_CARD_CURRENT_CARD_COOKIE,
   normalizeCircleCardCurrentCardId
 } from "@/lib/circle-card/current-card-preference";
+import {
+  buildCircleCardProHref,
+  circleCardProCapabilityLabel,
+  normalizeCircleCardProIntent,
+  type CircleCardProCapability
+} from "@/lib/circle-card/pro-intent";
 import {
   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
   CIRCLE_CARD_PLAN_DEFINITIONS,
@@ -1625,6 +1633,7 @@ function BusinessCardBuilderFoundation({
   businessLogoUrl,
   email,
   phone,
+  billingEnabled,
   className
 }: {
   access: BusinessCardBuilderAccess;
@@ -1664,6 +1673,7 @@ function BusinessCardBuilderFoundation({
   businessLogoUrl?: string | null;
   email?: string | null;
   phone?: string | null;
+  billingEnabled: boolean;
   className?: string;
 }) {
   const locked = access === "locked";
@@ -1931,17 +1941,14 @@ function BusinessCardBuilderFoundation({
                   Business Card Builder is a Pro feature.
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-muted">
-                  Free keeps your personal identity card, 5 featured links and basic analytics. Pro prepares a
-                  second business card with services, products, stronger customisation and deeper insight.
+                  Free keeps a useful identity card, five active links and basic analytics. Pro opens a
+                  second card and the working business presentation modules for services, products, pricing and enquiries.
                 </p>
                 <p className="mt-2 text-xs font-medium text-gold">
                   Completing these modules helps strengthen your Circle Trust. Pro access does not add points by itself.
                 </p>
               </div>
-              <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 sm:w-auto")}>
-                Explore Pro
-                <ArrowUpRight size={16} />
-              </Link>
+              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={billingEnabled} authenticated intent={{ source: "business_builder", capability: "open_business_builder", cardId, returnPath: `/dashboard/circle-card?section=business&cardId=${encodeURIComponent(cardId)}#business-card-builder` }} label="Unlock Business Card Builder" earlyAccessLabel="Register for Business Builder" showPrice={false} />
             </div>
           </div>
         <CircleCardServicesBuilder
@@ -2323,6 +2330,7 @@ function CreatorProStudio({
   creatorOffers,
   pressProofItems,
   publicUrl,
+  billingEnabled,
   className
 }: {
   mode: CreatorStudioMode;
@@ -2344,6 +2352,7 @@ function CreatorProStudio({
   creatorOffers: ReturnType<typeof readCircleCardCreatorOffers>;
   pressProofItems: ReturnType<typeof readCircleCardPressProofItems>;
   publicUrl: string;
+  billingEnabled: boolean;
   className?: string;
 }) {
   if (mode === "hidden") return null;
@@ -2563,7 +2572,7 @@ function CreatorProStudio({
                 <p className="text-sm font-semibold text-foreground">Creator Pro helps you showcase content, attract collaborations and build Circle Trust.</p>
                 <p className="mt-1 text-sm text-muted">Your Creator Card stays live on Free. Upgrade when you are ready to open the full studio.</p>
               </div>
-              <Link href="/circle-card/pro" className={cn(buttonVariants({ variant: "outline" }), "h-10 w-full gap-2 sm:w-auto")}>Explore Creator Pro<ArrowUpRight size={15} /></Link>
+              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={billingEnabled} authenticated intent={{ source: "locked_module", capability: "explore_pro", cardId, returnPath: cardHref("creator-pro-studio") }} label="Unlock Creator Pro" earlyAccessLabel="Register for Creator Pro" showPrice={false} />
             </div>
           </div>
         ) : null}
@@ -2620,6 +2629,7 @@ function CreatorProStudio({
             cardName={fullName}
             initialMediaKit={mediaKit}
             locked={locked}
+            billingEnabled={billingEnabled}
           />
         ) : null}
 
@@ -2629,6 +2639,7 @@ function CreatorProStudio({
             cardName={fullName}
             initialSnapshot={audienceSnapshot}
             locked={locked}
+            billingEnabled={billingEnabled}
           />
         ) : null}
 
@@ -2715,14 +2726,12 @@ function UpgradeTriggerColumn({
 
 function CircleCardUpgradeSignalsPanel({
   metrics,
-  proTriggers,
-  teamsTriggers
+  proTriggers
 }: {
   metrics: CircleCardUsageMetric[];
   proTriggers: CircleCardUpgradeTrigger[];
-  teamsTriggers: CircleCardUpgradeTrigger[];
 }) {
-  const allTriggers = [...proTriggers, ...teamsTriggers].sort((a, b) => b.priority - a.priority);
+  const allTriggers = [...proTriggers].sort((a, b) => b.priority - a.priority);
   const primaryTrigger = allTriggers[0];
 
   return (
@@ -2733,7 +2742,7 @@ function CircleCardUpgradeSignalsPanel({
           <h2 className="mt-1 font-display text-xl text-foreground">Your Circle Card signals</h2>
         </div>
         <Badge variant="outline" className="w-fit border-gold/28 text-gold">
-          Early access
+          Plan guidance
         </Badge>
       </div>
 
@@ -2761,7 +2770,7 @@ function CircleCardUpgradeSignalsPanel({
             <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
               {primaryTrigger
                 ? `${primaryTrigger.title}. ${primaryTrigger.message}`
-                : "Keep building usage signals. Pro and Teams prompts appear as your card gets busier."}
+                : "Keep building usage signals. Pro prompts appear when a working capability becomes useful."}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -2771,20 +2780,13 @@ function CircleCardUpgradeSignalsPanel({
             <ChevronDown size={16} className="text-silver transition-transform group-open:rotate-180" />
           </div>
         </summary>
-        <div className="grid gap-2 border-t border-border/70 p-3 lg:grid-cols-2">
+        <div className="grid gap-2 border-t border-border/70 p-3">
           <UpgradeTriggerColumn
             title="Pro signals"
             triggers={proTriggers}
-            href="/circle-card/pro"
+            href={buildCircleCardProHref({ source: "dashboard", capability: "explore_pro", returnPath: "/dashboard/circle-card?section=settings#upgrade-signals" })}
             ctaLabel="Explore Pro"
             empty="Pro prompts appear when your card starts driving visibility, traffic and lead signals."
-          />
-          <UpgradeTriggerColumn
-            title="Teams signals"
-            triggers={teamsTriggers}
-            href="/circle-card/teams"
-            ctaLabel="Explore Teams"
-            empty="Teams prompts appear when company, staff or shared relationship signals grow."
           />
         </div>
       </details>
@@ -3735,7 +3737,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     unreadNotificationCount,
     activityItems,
     referralCentre,
-    commissionEarnings
+    commissionEarnings,
+    actualCircleCardAccess
   ] = await Promise.all([
     prisma.circleCard.findMany({
       where: {
@@ -4240,7 +4243,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       }
     }),
     getCircleCardReferralCentreForUser(session.user.id),
-    getCircleCardCommissionEarningsForUser(session.user.id)
+    getCircleCardCommissionEarningsForUser(session.user.id),
+    loadCircleCardAccessForUser(session.user.id)
   ]);
   const planVisibleExternalCards = await filterPublicCircleCardTargetsWithinOwnerPlans([
     ...(rawConnectHubCard ? [rawConnectHubCard] : []),
@@ -4270,7 +4274,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const selectedOwnerCardTypePreviewMode = isPlatformOwner
     ? resolveCircleCardPlatformOwnerCardTypePreviewMode(firstValue(params.ownerCardType))
     : "personal";
-  const actualCircleCardAccess = await loadCircleCardAccessForUser(session.user.id);
   const actualCircleCardEntitlement = actualCircleCardAccess.entitlement;
   const circleCardEntitlement = isPlatformOwner
     ? resolveCircleCardPlatformOwnerPreviewEntitlement(
@@ -5621,6 +5624,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     actualCircleCardAccess.lifecycleStatus === "active" &&
     firstValue(params.billing) === "success" &&
     firstValue(params.plan) === "pro";
+  const confirmedProCapability = normalizeCircleCardProIntent({
+    capability: firstValue(params.capability) as CircleCardProCapability
+  }).capability;
 
   return (
     <div className="space-y-6">
@@ -5705,6 +5711,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
       {showCircleCardProSuccess ? (
         <section className="rounded-2xl border border-emerald-400/28 bg-emerald-400/10 p-4 sm:p-5">
+          <CircleCardAuthoritativeProAnalytics capability={confirmedProCapability} />
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <Badge variant="outline" className="border-emerald-400/30 text-emerald-100">
@@ -5713,6 +5720,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <h2 className="mt-3 font-display text-2xl text-foreground">
                 Your Pro workspace is ready.
               </h2>
+              <p className="mt-2 text-sm text-muted">Unlocked: {circleCardProCapabilityLabel(confirmedProCapability)}. Access is confirmed from the server, not the return URL.</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <Link
@@ -6085,6 +6093,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   Your default card stays public. Saved extra cards are kept privately and become
                   read-only until the plan that includes them is restored.
                 </p>
+                <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured} authenticated intent={{ source: "second_card", capability: "create_second_card", returnPath: createCardHref }} label="Create a second card with Pro" earlyAccessLabel="Register for a second card" showPrice={false} className="mt-3" />
               </div>
             )}
             <details className="group rounded-xl border border-silver/12 bg-card/42">
@@ -6253,7 +6262,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         />
         <CircleCardBillingStatusPanel
           access={actualCircleCardAccess}
-          billingEnabled={circleCardBillingReadiness.billingEnabled}
+          billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured}
         />
       </CircleCardDashboardSection>
 
@@ -6657,7 +6666,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
         <CircleCardUpgradeSignalsPanel
           metrics={circleCardUsageMetrics}
           proTriggers={circleCardUpgradeTriggers.pro}
-          teamsTriggers={circleCardUpgradeTriggers.teams}
         />
       </CircleCardDashboardSection>
 
@@ -9541,7 +9549,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 <CardDescription>
                   {isCircleCardFree
                     ? "Free is your personal identity card. Pro is where the Business Card Builder becomes useful."
-                    : "Pro and Teams benefits are prepared in the access layer without activating billing here."}
+                    : "Pro is active from authoritative account access and opens the working presentation layer."}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -9556,13 +9564,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     <p className="font-semibold text-foreground">Pro</p>
                     <p className="mt-1 text-xs leading-relaxed text-muted">
                       Second card, Business Card Builder, services/products sections, stronger customisation,
-                      stronger analytics and referral earning eligibility when billing is live.
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-silver/14 bg-background/22 p-3">
-                    <p className="font-semibold text-foreground">Teams</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted">
-                      Company cards, staff cards, shared branding and team analytics.
+                      Circle Studio activation, Media Kit and Audience Snapshot.
                     </p>
                   </div>
                 </div>
@@ -9578,6 +9580,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           previewLabel={businessBuilderPreviewLabel}
           cardId={card.id}
           publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
+          billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured}
           fullName={card.fullName}
           servicesMode={servicesBuilderMode}
           services={selectedCardServices}
@@ -9636,6 +9639,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
           audienceSnapshot={selectedCardAudienceSnapshot}
           brandPartnerships={selectedCardBrandPartnerships}
           publicUrl={publicUrl ?? absoluteUrl(`/card/${card.slug}`)}
+          billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured}
           className={activeSection === "my-card" ? undefined : "hidden"}
         />
       ) : null}
@@ -9695,6 +9699,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 The first five eligible active links stay public in the order shown. Hidden links
                 remain saved and return automatically when Pro is restored.
               </p>
+              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={circleCardBillingReadiness.billingEnabled && circleCardBillingReadiness.proLaunchConfigured} authenticated intent={{ source: "link_limit", capability: "activate_more_links", cardId: card?.id, returnPath: card ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "custom-links" }) : "/dashboard/circle-card?section=my-card#custom-links" }} label="Activate more links with Pro" earlyAccessLabel="Register for more active links" showPrice={false} className="mt-3" />
             </div>
           ) : null}
 
@@ -10131,9 +10136,9 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
 
                 <Card className="border-gold/18 bg-gold/8">
                   <CardHeader>
-                    <CardTitle className="text-lg">Coming soon</CardTitle>
+                    <CardTitle className="text-lg">Activity foundation</CardTitle>
                     <CardDescription>
-                      Future Pro and Teams analytics can build from the events now being captured.
+                      These events keep today&apos;s analytics useful and provide a safe base for future insights.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>

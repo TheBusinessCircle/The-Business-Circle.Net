@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import {
@@ -9,7 +9,6 @@ import {
   BriefcaseBusiness,
   Check,
   ChevronRight,
-  Crown,
   LockKeyhole,
   Monitor,
   Play,
@@ -21,6 +20,7 @@ import {
 } from "lucide-react";
 import { updateCircleStudioAction } from "@/actions/circle-card.actions";
 import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
+import { CircleCardProCheckoutButtons } from "@/components/circle-card/circle-card-pro-checkout-buttons";
 import { CircleStudioFineTune as CircleStudioFineTuneControls } from "@/components/circle-card/circle-studio-fine-tune";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -41,6 +41,7 @@ import {
   resolveCircleCardLiveTheme
 } from "@/lib/circle-card/theme";
 import { cn } from "@/lib/utils";
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 
 type StudioCard = {
   id: string;
@@ -63,6 +64,8 @@ type CircleStudioProps = {
   hasSavedDraft: boolean;
   hasPreviousActiveDesign: boolean;
   isPlanLocked: boolean;
+  billingEnabled: boolean;
+  authoritativeProConfirmed?: boolean;
   notice?: string | null;
   error?: string | null;
   activatedAt?: string | null;
@@ -98,7 +101,7 @@ function ActivateIdentityButton({ applied, disabled }: { applied: boolean; disab
       className="shrink-0 gap-2"
     >
       {pending ? (
-        "Applying..."
+        "Applying design…"
       ) : applied ? (
         <>
           <Check size={16} /> Applied
@@ -124,7 +127,7 @@ function SaveStudioDraftButton({ disabled }: { disabled: boolean }) {
       disabled={disabled || pending}
       className="shrink-0 gap-2"
     >
-      <Save size={16} /> {pending ? "Saving..." : "Save private draft"}
+      <Save size={16} /> {pending ? "Saving…" : "Save private draft"}
     </Button>
   );
 }
@@ -141,7 +144,7 @@ function RevertStudioDesignButton() {
       disabled={pending}
       className="shrink-0 gap-2"
     >
-      <WandSparkles size={16} /> {pending ? "Restoring..." : "Restore previous design"}
+      <WandSparkles size={16} /> {pending ? "Reverting design…" : "Restore previous design"}
     </Button>
   );
 }
@@ -210,6 +213,8 @@ export function CircleStudio({
   hasSavedDraft,
   hasPreviousActiveDesign,
   isPlanLocked,
+  billingEnabled,
+  authoritativeProConfirmed = false,
   notice,
   error,
   activatedAt
@@ -218,6 +223,7 @@ export function CircleStudio({
   const [fineTune, setFineTune] = useState(initialFineTune);
   const [device, setDevice] = useState<Device>("desktop");
   const [panel, setPanel] = useState<Panel>("styles");
+  const analyticsSent = useRef({ preview: false, draft: false, confirmed: false, locked: false });
   const activePreset = CIRCLE_STUDIO_PRESETS.find((preset) => preset.key === tokens.identityStyle);
   const activeAccent = CIRCLE_STUDIO_ACCENTS[tokens.accentPalette];
   const fineTuneIssues = getCircleStudioFineTuneIssues(fineTune);
@@ -240,8 +246,36 @@ export function CircleStudio({
     if (card.isPublished) persistCircleCardCurrentCardPreference(card.id);
   }, [card.id, card.isPublished]);
 
+  useEffect(() => {
+    if (!analyticsSent.current.preview) {
+      analyticsSent.current.preview = true;
+      trackAnalyticsEvent(ANALYTICS_EVENTS.studioPreviewStarted, {
+        cardType: card.cardType,
+        canActivate
+      });
+    }
+    if (notice === "studio-draft-saved" && !analyticsSent.current.draft) {
+      analyticsSent.current.draft = true;
+      trackAnalyticsEvent(ANALYTICS_EVENTS.studioDraftSaved, { cardType: card.cardType });
+    }
+    if (authoritativeProConfirmed && !analyticsSent.current.confirmed) {
+      analyticsSent.current.confirmed = true;
+      trackAnalyticsEvent(ANALYTICS_EVENTS.authoritativeProConfirmed, {
+        source: "studio",
+        capability: "apply_studio_design"
+      });
+    }
+    if ((!canActivate || isPlanLocked) && !analyticsSent.current.locked) {
+      analyticsSent.current.locked = true;
+      trackAnalyticsEvent(ANALYTICS_EVENTS.proFeatureLockedViewed, {
+        source: "studio",
+        capability: isPlanLocked ? "restore_pro" : "apply_studio_design"
+      });
+    }
+  }, [authoritativeProConfirmed, canActivate, card.cardType, isPlanLocked, notice]);
+
   return (
-    <form action={updateCircleStudioAction} className="space-y-6">
+    <form action={updateCircleStudioAction} className="space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-6">
       <input type="hidden" name="cardId" value={card.id} />
       <input type="hidden" name="returnPath" value={`/dashboard/circle-card/studio?card=${card.id}`} />
       <input type="hidden" name="studioMetadataJson" value={JSON.stringify(previewMetadata)} />
@@ -261,6 +295,12 @@ export function CircleStudio({
             <Link href={`/card/${card.slug}/trust${activationQuery}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2 border-emerald-300/30 text-emerald-100 hover:bg-emerald-300/10")}>Open Circle Trust <ArrowUpRight size={13} /></Link>
             <a href="#circle-styles-heading" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "border-emerald-300/30 text-emerald-100 hover:bg-emerald-300/10")}>Continue Editing</a>
           </div>
+        </div>
+      ) : null}
+      {authoritativeProConfirmed ? (
+        <div role="status" className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+          <p className="font-semibold">Circle Card Pro is confirmed.</p>
+          <p className="mt-1">Your private Studio design is ready to apply. Server-confirmed access controls activation.</p>
         </div>
       ) : null}
       {!canActivate && !isPlanLocked ? (
@@ -292,6 +332,16 @@ export function CircleStudio({
         <div role="status" className="rounded-2xl border border-gold/24 bg-gold/[.08] px-4 py-3 text-sm text-gold">
           <p className="flex items-center gap-2 font-semibold"><LockKeyhole size={15} /> Saved extra card locked by plan</p>
           <p className="mt-1 text-muted">Its Studio draft and active design are preserved read-only. Restore Pro to continue editing this card.</p>
+          <CircleCardProCheckoutButtons
+            monthlyLabel="£9.99/month"
+            billingEnabled={billingEnabled}
+            authenticated
+            intent={{ source: "studio", capability: "restore_pro", cardId: card.id, returnPath: `/dashboard/circle-card/studio?card=${encodeURIComponent(card.id)}` }}
+            label="Restore Circle Card Pro"
+            earlyAccessLabel="Register to restore Pro"
+            showPrice={false}
+            className="mt-3"
+          />
         </div>
       ) : null}
       {error ? <div role="alert" className="rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error === "studio-pro-required" ? "Circle Studio activation is available with Circle Card Pro. Your preview is still yours to explore." : error === "card-plan-locked" ? "This saved extra card is read-only until Circle Card Pro is restored." : error === "studio-contrast" ? "That colour or background combination did not pass Circle Card readability checks. Adjust it and try again." : "That identity could not be saved. Please try again."}</div> : null}
@@ -368,7 +418,7 @@ export function CircleStudio({
                 <div className="flex flex-wrap gap-2 sm:justify-end">
                   <SaveStudioDraftButton disabled={fineTuneIssues.length > 0} />
                   {canActivate && hasPreviousActiveDesign ? <RevertStudioDesignButton /> : null}
-                  {canActivate ? <ActivateIdentityButton applied={applied} disabled={fineTuneIssues.length > 0} /> : <Link href="/circle-card/pro#register-interest" className={cn(buttonVariants(), "shrink-0 gap-2")}><Crown size={16} /> Apply My Design with Pro — £9.99/month <ArrowUpRight size={14} /></Link>}
+                  {canActivate ? <ActivateIdentityButton applied={applied} disabled={fineTuneIssues.length > 0} /> : <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={billingEnabled} authenticated intent={{ source: "studio", capability: "apply_studio_design", cardId: card.id, returnPath: `/dashboard/circle-card/studio?card=${encodeURIComponent(card.id)}` }} label="Apply My Design with Pro — £9.99/month" earlyAccessLabel="Apply My Design with Pro — £9.99/month" showPrice={false} />}
                 </div>
               ) : null}
             </div>
