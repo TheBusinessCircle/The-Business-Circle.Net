@@ -62,9 +62,10 @@ Use a production environment (systemd, PM2, or host-level env manager) and set:
 - `CIRCLE_CARD_BILLING_ENABLED=false`
 - `STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID=` (set to `prod_...` before a later controlled launch)
 - `STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID=` (set to `price_...` before a later controlled launch)
+- `CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID=` (set to `bpc_...` before a later controlled launch)
 
 When Circle Card billing is disabled, the Circle Card product and price may be blank. Enabling the
-flag requires the Stripe secret, webhook secret, product ID and monthly price ID to be complete.
+flag requires the Stripe secret, webhook secret, product ID, monthly price ID and dedicated Portal ID to be complete.
 Annual and Teams IDs are not required for the launch. Never commit real Stripe identifiers or
 secrets to this repository.
 
@@ -199,10 +200,10 @@ In Stripe Dashboard:
 
 This single webhook endpoint handles membership, Circle Card and founder-service billing updates.
 
-You can also create or update the endpoint from the repo with:
+The shared helper preserves unrelated existing events. Circle Card production setup should use the guarded, dry-run-first operator workflow documented in `docs/circle-card-pro-stripe-launch-checklist.md`:
 
 ```bash
-npm run stripe:webhook:upsert -- --url https://thebusinesscircle.net
+npm run circle-card:stripe:setup-live -- --env-file .env.production --mode live
 ```
 
 Verify endpoint delivery in Stripe logs after first test payment.
@@ -218,8 +219,9 @@ billing flag is still false:
 npm run circle-card:billing:certify-stripe -- --env-file .env.production --mode live
 ```
 
-The check must report an active product and active recurring GBP `999` monthly price linked to that
-product. It never creates or modifies Stripe resources and is not used during page rendering.
+The check must report the exact active product and recurring GBP `999` monthly price, dedicated
+Portal contract, and one enabled exact-URL webhook containing all required events without rejecting
+additional BCN events. It never creates or modifies Stripe resources and is not used during page rendering.
 
 ## 6) Production database migration strategy
 
