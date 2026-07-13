@@ -821,9 +821,11 @@ export async function createCircleCardBillingPortalSession(input: CircleCardPort
 
   await reconcileCircleCardSubscriptionForUser(input.userId);
   const stripe = requireStripeClient();
+  const portalConfigurationId = process.env.CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID?.trim();
   const session = await stripe.billingPortal.sessions.create({
     customer: relationship.stripeCustomerId,
-    return_url: absoluteUrl(input.returnPath ?? "/dashboard/circle-card?billing=portal-return")
+    return_url: absoluteUrl(input.returnPath ?? "/dashboard/circle-card?billing=portal-return"),
+    ...(portalConfigurationId ? { configuration: portalConfigurationId } : {})
   });
 
   return { url: session.url };

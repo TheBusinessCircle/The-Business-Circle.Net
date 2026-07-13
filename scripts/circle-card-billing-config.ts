@@ -3,7 +3,8 @@ export const CIRCLE_CARD_BILLING_ENV_NAMES = {
   stripeSecretKey: "STRIPE_SECRET_KEY",
   stripeWebhookSecret: "STRIPE_WEBHOOK_SECRET",
   productId: "STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID",
-  monthlyPriceId: "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID"
+  monthlyPriceId: "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID",
+  portalConfigurationId: "CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID"
 } as const;
 
 export type CircleCardBillingEnvironmentIssue = {
@@ -74,6 +75,12 @@ export function validateCircleCardBillingEnvironment(
       prefix: "price_",
       message:
         "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID is required when Circle Card billing is enabled."
+    },
+    {
+      variable: CIRCLE_CARD_BILLING_ENV_NAMES.portalConfigurationId,
+      prefix: "bpc_",
+      message:
+        "CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID is required when Circle Card billing is enabled."
     }
   ] as const;
 

@@ -9,7 +9,8 @@ const completeEnabledEnvironment = {
   STRIPE_SECRET_KEY: "sk_live_example",
   STRIPE_WEBHOOK_SECRET: "whsec_example",
   STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID: "prod_circle_card_pro",
-  STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID: "price_circle_card_pro_monthly"
+  STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID: "price_circle_card_pro_monthly",
+  CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID: "bpc_circle_card_pro"
 };
 
 describe("Circle Card production billing environment validation", () => {
@@ -32,7 +33,8 @@ describe("Circle Card production billing environment validation", () => {
     expect(issues.map((issue) => issue.variable)).toEqual([
       "STRIPE_WEBHOOK_SECRET",
       "STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID",
-      "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID"
+      "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID",
+      "CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID"
     ]);
   });
 

@@ -157,6 +157,7 @@ Required only for a future enabled monthly launch:
 - `STRIPE_WEBHOOK_SECRET=whsec_...`
 - `STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID=prod_...`
 - `STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID=price_...`
+- `CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID=bpc_...`
 
 Annual and Teams price IDs are not required.
 
@@ -166,18 +167,16 @@ The deliberate verifier is read-only:
 npm run circle-card:billing:certify-stripe -- --env-file .env.production --mode live
 ```
 
-It retrieves, but never creates or updates, the product and monthly price. It verifies secret/resource mode, active product, active recurring price, GBP currency, `999` unit amount, one-month interval and product linkage. It is not called during page rendering. Test-mode certification must be requested explicitly with `--mode test` and is not production certification.
+It retrieves, but never creates or updates, the product, monthly price, dedicated Circle Card Portal configuration and shared webhook. It verifies live/test mode, exact active monthly price contract, stable metadata, Portal features/URLs and the required webhook event superset while allowing BCN-only events. It is not called during page rendering. Test-mode certification must be requested explicitly with `--mode test` and is not production certification.
 
 ## Stripe Dashboard requirements
 
 Before a later controlled enablement:
 
-1. Create or select one active **Circle Card Pro** product in the correct Stripe account mode.
-2. Attach one active recurring GBP 9.99 price with monthly interval and interval count `1`.
-3. Configure the shared webhook endpoint with all events listed above.
-4. Put the correct endpoint signing secret in `STRIPE_WEBHOOK_SECRET`.
-5. Enable Customer Portal features needed for payment-method updates, invoice/billing history and cancellation management.
-6. Set a production portal return URL under `https://thebusinesscircle.net`.
+1. Run the required read-only plan from the production repository root: `npm run circle-card:stripe:setup-live -- --env-file .env.production --mode live`.
+2. After explicit approval, run the same command with `--execute`; it idempotently creates or reuses the product, monthly price, dedicated Portal and shared webhook while billing remains false.
+3. If an existing shared webhook was reused, manually confirm its stored signing secret because Stripe does not return it through the endpoint API.
+4. Run disabled environment validation and deliberate live certification.
 7. Confirm expired/cancelled customers can still open Portal when a Stripe customer relationship exists.
 8. Run environment validation, Stripe certification and a full test-mode lifecycle before any live enablement.
 

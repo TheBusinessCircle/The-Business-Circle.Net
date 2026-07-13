@@ -1,18 +1,14 @@
 import Stripe from "stripe";
+import { resolve } from "node:path";
+import { updateEnvironmentFileSafely } from "./circle-card-env-file";
+import {
+  SHARED_STRIPE_WEBHOOK_REQUIRED_EVENTS,
+  maskStripeIdentifier,
+  mergeWebhookEvents,
+  requiredWebhookEventsPresent
+} from "./circle-card-stripe-operator-config";
 
 const STRIPE_API_VERSION: Stripe.LatestApiVersion = "2025-02-24.acacia";
-const WEBHOOK_EVENTS = [
-  "checkout.session.completed",
-  "checkout.session.expired",
-  "checkout.session.async_payment_failed",
-  "customer.subscription.created",
-  "customer.subscription.updated",
-  "customer.subscription.deleted",
-  "invoice.paid",
-  "invoice.payment_failed",
-  "invoice.payment_action_required",
-  "charge.refunded"
-] as const;
 
 type Options = {
   url?: string;
@@ -64,7 +60,8 @@ function printHelp() {
 Behavior:
   - creates / updates the Stripe webhook endpoint for this app
   - uses APP_URL when --url is omitted
-  - prints the webhook signing secret only when creating a brand new endpoint
+  - preserves unrelated events on a shared endpoint
+  - writes a new signing secret to the selected environment file without printing it
 `);
 }
 
@@ -88,13 +85,6 @@ function ensureStripeSecretKey() {
   return secretKey;
 }
 
-function compareEventSets(left: readonly string[], right: readonly string[]) {
-  const leftSorted = [...left].sort();
-  const rightSorted = [...right].sort();
-
-  return JSON.stringify(leftSorted) === JSON.stringify(rightSorted);
-}
-
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   loadEnvFileIfAvailable(options.envFile ?? ".env");
@@ -112,21 +102,28 @@ async function main() {
   });
 
   const existingEndpoints = await stripe.webhookEndpoints.list({ limit: 100 });
-  const existingEndpoint = existingEndpoints.data.find((endpoint) => endpoint.url === webhookUrl);
+  const matchingEndpoints = existingEndpoints.data.filter((endpoint) => endpoint.url === webhookUrl);
+  const enabledEndpoints = matchingEndpoints.filter((endpoint) => endpoint.status === "enabled");
+  if (enabledEndpoints.length > 1) {
+    throw new Error("Multiple enabled webhook endpoints use this exact URL; refusing to guess.");
+  }
+  const existingEndpoint = enabledEndpoints[0] ?? (matchingEndpoints.length === 1 ? matchingEndpoints[0] : null);
+  if (!existingEndpoint && matchingEndpoints.length > 1) {
+    throw new Error("Multiple disabled webhook endpoints use this exact URL; refusing to guess.");
+  }
 
   if (existingEndpoint) {
-    const needsUpdate =
-      !compareEventSets(existingEndpoint.enabled_events, WEBHOOK_EVENTS) ||
-      existingEndpoint.description !== "The Business Circle webhook";
+    const needsUpdate = existingEndpoint.status !== "enabled" ||
+      !requiredWebhookEventsPresent(existingEndpoint.enabled_events);
 
     if (needsUpdate) {
       await stripe.webhookEndpoints.update(existingEndpoint.id, {
-        enabled_events: [...WEBHOOK_EVENTS],
-        description: "The Business Circle webhook"
+        disabled: false,
+        enabled_events: mergeWebhookEvents(existingEndpoint.enabled_events) as Stripe.WebhookEndpointUpdateParams.EnabledEvent[]
       });
-      console.info(`Updated Stripe webhook endpoint ${existingEndpoint.id}`);
+      console.info(`Updated Stripe webhook endpoint ${maskStripeIdentifier(existingEndpoint.id)} without removing existing events.`);
     } else {
-      console.info(`Stripe webhook endpoint already up to date: ${existingEndpoint.id}`);
+      console.info(`Stripe webhook endpoint already up to date: ${maskStripeIdentifier(existingEndpoint.id)}`);
     }
 
     console.info(`Endpoint URL: ${webhookUrl}`);
@@ -136,18 +133,22 @@ async function main() {
     return;
   }
 
+  if (!options.envFile) {
+    throw new Error("--env-file is required before creating an endpoint so its signing secret can be stored safely.");
+  }
+
   const created = await stripe.webhookEndpoints.create({
     url: webhookUrl,
-    enabled_events: [...WEBHOOK_EVENTS],
+    enabled_events: [...SHARED_STRIPE_WEBHOOK_REQUIRED_EVENTS],
     description: "The Business Circle webhook"
   });
 
-  console.info(`Created Stripe webhook endpoint ${created.id}`);
+  console.info(`Created Stripe webhook endpoint ${maskStripeIdentifier(created.id)}`);
   console.info(`Endpoint URL: ${webhookUrl}`);
 
   if (created.secret) {
-    console.info(`Webhook signing secret: ${created.secret}`);
-    console.info("Copy that value into STRIPE_WEBHOOK_SECRET.");
+    updateEnvironmentFileSafely(resolve(options.envFile), { STRIPE_WEBHOOK_SECRET: created.secret });
+    console.info("The new signing secret was written to the selected environment file without being printed.");
   } else {
     console.info(
       "Stripe did not return a signing secret. Open the endpoint in Stripe Workbench and reveal the secret, then set STRIPE_WEBHOOK_SECRET."

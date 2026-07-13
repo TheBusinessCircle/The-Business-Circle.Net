@@ -221,6 +221,7 @@ describe("Circle Card billing lifecycle service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID = "price_pro_monthly";
+    process.env.CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID = "";
     process.env.STRIPE_CIRCLE_CARD_PRO_ANNUAL_PRICE_ID = "";
     process.env.STRIPE_CIRCLE_CARD_TEAMS_MONTHLY_PRICE_ID = "";
     process.env.STRIPE_CIRCLE_CARD_TEAMS_ANNUAL_PRICE_ID = "";
@@ -1055,6 +1056,24 @@ describe("Circle Card billing lifecycle service", () => {
     ).resolves.toMatchObject({ url: "https://billing.stripe.test/session" });
     expect(portalCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({ customer: "cus_pro_1" })
+    );
+  });
+
+  it("uses the dedicated Circle Card Portal configuration without changing BCN Portal behavior", async () => {
+    process.env.CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID = "bpc_circle_card_pro";
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionsListMock.mockResolvedValue({ data: [stripeSubscription()] });
+
+    await createCircleCardBillingPortalSession({
+      userId: "user-1",
+      email: "member@example.com"
+    });
+
+    expect(portalCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer: "cus_pro_1",
+        configuration: "bpc_circle_card_pro"
+      })
     );
   });
 
