@@ -19,6 +19,13 @@ const attachFoundingReservationToCheckoutSessionMock = vi.hoisted(() => vi.fn(as
 const releaseFoundingReservationMock = vi.hoisted(() => vi.fn(async () => {}));
 const claimFoundingReservationMock = vi.hoisted(() => vi.fn(async () => {}));
 const resolveManagedMembershipPlanMock = vi.hoisted(() => vi.fn());
+const isKnownManagedMembershipStripePriceIdMock = vi.hoisted(() =>
+  vi.fn(async () => true)
+);
+const stripeSubscriptionsRetrieveMock = vi.hoisted(() => vi.fn());
+const sendTransactionalEmailMock = vi.hoisted(() =>
+  vi.fn(async () => ({ sent: true, skipped: false }))
+);
 const validateInviteCodeForCheckoutMock = vi.hoisted(() =>
   vi.fn(async () => ({ valid: false, reason: "missing" }))
 );
@@ -84,15 +91,19 @@ vi.mock("@/server/stripe/client", () => ({
       list: stripeCustomersListMock,
       create: stripeCustomersCreateMock,
       update: stripeCustomersUpdateMock
+    },
+    subscriptions: {
+      retrieve: stripeSubscriptionsRetrieveMock
     }
   }))
 }));
 
 vi.mock("@/lib/email/resend", () => ({
-  sendTransactionalEmail: vi.fn(async () => ({ sent: true, skipped: false }))
+  sendTransactionalEmail: sendTransactionalEmailMock
 }));
 
 vi.mock("@/server/products-pricing", () => ({
+  isKnownManagedMembershipStripePriceId: isKnownManagedMembershipStripePriceIdMock,
   resolveManagedMembershipPlan: resolveManagedMembershipPlanMock,
   resolveManagedMembershipPlanFromStripePriceId: vi.fn(async () => ({
     tier: "FOUNDATION",
@@ -129,9 +140,11 @@ vi.mock("@/server/admin/launch-codes.service", () => ({
 
 import {
   getMembershipBillingPlan,
+  isConfiguredMembershipStripePriceId,
   resolveBillingIntervalFromPriceId
 } from "@/config/membership";
 import {
+  acquireWebhookProcessingLease,
   createStripeCheckoutSessionForPendingRegistration,
   getTierFromStripePriceId,
   isSubscriptionEntitled,
@@ -176,6 +189,12 @@ describe("subscription service", () => {
     expect(resolveBillingIntervalFromPriceId("price_foundation_test")).toBe("monthly");
     expect(resolveBillingIntervalFromPriceId("price_foundation_annual_test")).toBe("annual");
     expect(resolveBillingIntervalFromPriceId("price_founding_core_annual_test")).toBe("annual");
+  });
+
+  it("recognises only explicitly configured membership Stripe price IDs", () => {
+    expect(isConfiguredMembershipStripePriceId("price_foundation_test")).toBe(true);
+    expect(isConfiguredMembershipStripePriceId("price_circle_card_pro")).toBe(false);
+    expect(isConfiguredMembershipStripePriceId(null)).toBe(false);
   });
 
   it("maps Stripe subscription statuses into internal status enum", () => {
@@ -284,6 +303,151 @@ describe("subscription service", () => {
     );
 
     expect(processors.handleCheckoutSessionCompleted).not.toHaveBeenCalled();
+  });
+
+  it("throws while another webhook worker holds an active processing lease", async () => {
+    vi.mocked(db.stripeWebhookEvent.create).mockRejectedValueOnce({ code: "P2002" });
+    vi.mocked(db.stripeWebhookEvent.findUnique).mockResolvedValueOnce({
+      id: "evt_busy",
+      type: "customer.subscription.updated",
+      status: "PROCESSING",
+      processingStartedAt: new Date(),
+      processedAt: null,
+      attemptCount: 1,
+      lastError: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    vi.mocked(db.stripeWebhookEvent.updateMany).mockResolvedValueOnce({ count: 0 });
+
+    const handleSubscriptionChanged = vi.fn(async () => {});
+    await expect(
+      processStripeWebhookEvent(
+        {
+          id: "evt_busy",
+          type: "customer.subscription.updated",
+          data: { object: { id: "sub_busy" } }
+        } as unknown as Stripe.Event,
+        { handleSubscriptionChanged }
+      )
+    ).rejects.toThrow("stripe-webhook-event-processing-in-progress");
+
+    expect(handleSubscriptionChanged).not.toHaveBeenCalled();
+    expect(stripeWebhookEventUpdateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "evt_busy" } })
+    );
+  });
+
+  it("reclaims a stale webhook processing lease and completes the retry", async () => {
+    vi.mocked(db.stripeWebhookEvent.create).mockRejectedValueOnce({ code: "P2002" });
+    vi.mocked(db.stripeWebhookEvent.findUnique).mockResolvedValueOnce({
+      id: "evt_stale",
+      type: "customer.subscription.updated",
+      status: "PROCESSING",
+      processingStartedAt: new Date(Date.now() - 11 * 60 * 1000),
+      processedAt: null,
+      attemptCount: 1,
+      lastError: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    vi.mocked(db.stripeWebhookEvent.updateMany).mockResolvedValueOnce({ count: 1 });
+
+    const handleSubscriptionChanged = vi.fn(async () => {});
+    await processStripeWebhookEvent(
+      {
+        id: "evt_stale",
+        type: "customer.subscription.updated",
+        data: { object: { id: "sub_stale" } }
+      } as unknown as Stripe.Event,
+      { handleSubscriptionChanged }
+    );
+
+    expect(handleSubscriptionChanged).toHaveBeenCalledTimes(1);
+    expect(stripeWebhookEventUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "evt_stale" },
+        data: expect.objectContaining({ status: "PROCESSED" })
+      })
+    );
+  });
+
+  it("reclaims a previously failed webhook lease", async () => {
+    vi.mocked(db.stripeWebhookEvent.create).mockRejectedValueOnce({ code: "P2002" });
+    vi.mocked(db.stripeWebhookEvent.findUnique).mockResolvedValueOnce({
+      id: "evt_failed_retry",
+      type: "invoice.payment_failed",
+      status: "FAILED",
+      processingStartedAt: new Date(),
+      processedAt: null,
+      attemptCount: 1,
+      lastError: "synthetic failure",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    vi.mocked(db.stripeWebhookEvent.updateMany).mockResolvedValueOnce({ count: 1 });
+
+    await expect(
+      acquireWebhookProcessingLease({
+        id: "evt_failed_retry",
+        type: "invoice.payment_failed"
+      } as Stripe.Event)
+    ).resolves.toBe("acquired");
+  });
+
+  it("ignores subscription events whose price is not a managed BCN membership price", async () => {
+    isKnownManagedMembershipStripePriceIdMock.mockResolvedValueOnce(false);
+    pendingRegistrationUpdateMock.mockClear();
+    updateLaunchCodeSubscriptionFromStripeMock.mockClear();
+
+    await processStripeWebhookEvent({
+      id: "evt_unmanaged_subscription",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_unmanaged",
+          customer: "cus_shared",
+          status: "active",
+          metadata: { userId: "user_1" },
+          items: { data: [{ price: { id: "price_circle_card_pro" } }] }
+        }
+      }
+    } as unknown as Stripe.Event);
+
+    expect(isKnownManagedMembershipStripePriceIdMock).toHaveBeenCalledWith(
+      "price_circle_card_pro"
+    );
+    expect(pendingRegistrationUpdateMock).not.toHaveBeenCalled();
+    expect(updateLaunchCodeSubscriptionFromStripeMock).not.toHaveBeenCalled();
+  });
+
+  it("does not sync or email receipts for invoices on unmanaged subscriptions", async () => {
+    stripeSubscriptionsRetrieveMock.mockResolvedValueOnce({
+      id: "sub_unmanaged_invoice",
+      customer: "cus_shared",
+      status: "active",
+      metadata: { userId: "user_1" },
+      items: { data: [{ price: { id: "price_circle_card_pro" } }] }
+    });
+    isKnownManagedMembershipStripePriceIdMock.mockResolvedValueOnce(false);
+    sendTransactionalEmailMock.mockClear();
+
+    await processStripeWebhookEvent({
+      id: "evt_unmanaged_invoice",
+      type: "invoice.paid",
+      data: {
+        object: {
+          id: "in_unmanaged",
+          subscription: "sub_unmanaged_invoice",
+          customer: "cus_shared",
+          customer_email: "synthetic@example.test",
+          paid: true,
+          lines: { data: [{ price: { id: "price_circle_card_pro" } }] }
+        }
+      }
+    } as unknown as Stripe.Event);
+
+    expect(sendTransactionalEmailMock).not.toHaveBeenCalled();
   });
 
   it("includes Terms acceptance metadata on pending registration checkout sessions", async () => {

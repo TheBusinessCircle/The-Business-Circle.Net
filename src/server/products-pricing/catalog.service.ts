@@ -18,6 +18,7 @@ import {
   getMembershipBillingPlan,
   getMembershipPlanKey,
   getMembershipTierContent,
+  isConfiguredMembershipStripePriceId,
   resolveMembershipPriceFromStripePriceId
 } from "@/config/membership";
 import type {
@@ -820,6 +821,29 @@ export async function resolveManagedMembershipPlanFromStripePriceId(
     stripePriceId: row.stripePriceId ?? priceId,
     planKey: getMembershipPlanKey(row.product.membershipTier, billingVariant, billingInterval)
   };
+}
+
+export async function isKnownManagedMembershipStripePriceId(
+  priceId: string | null | undefined
+): Promise<boolean> {
+  if (!priceId) {
+    return false;
+  }
+
+  const row = await db.billingPrice.findFirst({
+    where: {
+      stripePriceId: priceId
+    },
+    select: {
+      product: {
+        select: {
+          membershipTier: true
+        }
+      }
+    }
+  });
+
+  return Boolean(row?.product.membershipTier) || isConfiguredMembershipStripePriceId(priceId);
 }
 
 export async function resolveManagedMembershipTierFromStripePriceId(

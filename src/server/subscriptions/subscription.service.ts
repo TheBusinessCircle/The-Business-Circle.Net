@@ -44,6 +44,7 @@ import {
   reserveFoundingSlot
 } from "@/server/founding";
 import {
+  isKnownManagedMembershipStripePriceId,
   resolveManagedMembershipPlan,
   resolveManagedMembershipPlanFromStripePriceId,
   resolveManagedMembershipTierFromStripePriceId,
@@ -631,6 +632,13 @@ function resolvePrimaryPrice(
   return subscription.items.data[0] ?? null;
 }
 
+async function isKnownManagedMembershipSubscription(
+  subscription: Stripe.Subscription
+): Promise<boolean> {
+  const priceId = resolvePrimaryPrice(subscription)?.price.id ?? null;
+  return isKnownManagedMembershipStripePriceId(priceId);
+}
+
 async function findPendingRegistrationForStripeReferences(input: {
   pendingRegistrationId?: string | null;
   checkoutSessionId?: string | null;
@@ -751,8 +759,16 @@ async function completePendingRegistrationFromStripeSubscription(
   input: {
     pendingRegistrationId?: string | null;
     checkoutSessionId?: string | null;
-  } = {}
+  } = {},
+  managedMembershipPriceConfirmed = false
 ) {
+  if (
+    !managedMembershipPriceConfirmed &&
+    !(await isKnownManagedMembershipSubscription(subscription))
+  ) {
+    return false;
+  }
+
   const normalizedStatus = stripeStatusToSubscriptionStatus(subscription.status);
   if (!isSubscriptionEntitled(normalizedStatus)) {
     return false;
@@ -784,7 +800,8 @@ async function completePendingRegistrationFromStripeSubscription(
 
   const persistedSubscription = await upsertSubscriptionFromStripeSubscription(
     subscription,
-    provisioned.user.id
+    provisioned.user.id,
+    true
   );
 
   if (!persistedSubscription?.id) {
@@ -922,10 +939,20 @@ async function resolveSubscriptionContext(
 
 async function upsertSubscriptionFromStripeSubscription(
   subscription: Stripe.Subscription,
-  knownUserId?: string
+  knownUserId?: string,
+  managedMembershipPriceConfirmed = false
 ) {
   const priceItem = resolvePrimaryPrice(subscription);
   const priceId = priceItem?.price.id ?? null;
+
+  if (
+    !managedMembershipPriceConfirmed &&
+    !(await isKnownManagedMembershipStripePriceId(priceId))
+  ) {
+    logServerWarning("stripe-membership-subscription-price-unmanaged");
+    return null;
+  }
+
   const planState = await resolveSubscriptionPlanStateFromPriceId(priceId);
   const billedTier = planState.tier;
   const normalizedStatus = stripeStatusToSubscriptionStatus(subscription.status);
@@ -1249,23 +1276,29 @@ async function syncSubscriptionFromInvoice(invoice: Stripe.Invoice) {
 
   const stripe = requireStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  if (!(await isKnownManagedMembershipSubscription(subscription))) {
+    logServerWarning("stripe-membership-invoice-price-unmanaged");
+    return false;
+  }
+
   const completedPendingRegistration =
-    await completePendingRegistrationFromStripeSubscription(subscription);
+    await completePendingRegistrationFromStripeSubscription(subscription, {}, true);
 
   if (completedPendingRegistration) {
     await recordInvoiceSyncState(invoice, invoice.paid ? "paid" : "failed");
-    return;
+    return true;
   }
 
-  await upsertSubscriptionFromStripeSubscription(subscription);
+  await upsertSubscriptionFromStripeSubscription(subscription, undefined, true);
   await recordInvoiceSyncState(invoice, invoice.paid ? "paid" : "failed");
+  return true;
 }
 
 type StripeWebhookProcessors = {
   handleCheckoutSessionCompleted: (session: Stripe.Checkout.Session) => Promise<void>;
   handleCheckoutSessionExpired: (session: Stripe.Checkout.Session) => Promise<void>;
   handleSubscriptionChanged: (subscription: Stripe.Subscription) => Promise<void>;
-  handleInvoiceEvent: (invoice: Stripe.Invoice) => Promise<void>;
+  handleInvoiceEvent: (invoice: Stripe.Invoice) => Promise<boolean | void>;
 };
 
 const defaultWebhookProcessors: StripeWebhookProcessors = {
@@ -1287,15 +1320,20 @@ const defaultWebhookProcessors: StripeWebhookProcessors = {
     });
   },
   handleSubscriptionChanged: async (subscription) => {
+    if (!(await isKnownManagedMembershipSubscription(subscription))) {
+      logServerWarning("stripe-membership-subscription-price-unmanaged");
+      return;
+    }
+
     const completedPendingRegistration =
-      await completePendingRegistrationFromStripeSubscription(subscription);
+      await completePendingRegistrationFromStripeSubscription(subscription, {}, true);
 
     if (completedPendingRegistration) {
       await updateLaunchCodeSubscriptionFromStripe(subscription);
       return;
     }
 
-    await upsertSubscriptionFromStripeSubscription(subscription);
+    await upsertSubscriptionFromStripeSubscription(subscription, undefined, true);
     await updateLaunchCodeSubscriptionFromStripe(subscription);
   },
   handleInvoiceEvent: syncSubscriptionFromInvoice
@@ -1915,7 +1953,11 @@ export async function createStripeBillingPortalSessionForUser(
   };
 }
 
-export async function acquireWebhookProcessingLease(event: Stripe.Event) {
+export type StripeWebhookProcessingLease = "acquired" | "processed" | "busy";
+
+export async function acquireWebhookProcessingLease(
+  event: Stripe.Event
+): Promise<StripeWebhookProcessingLease> {
   const now = new Date();
 
   try {
@@ -1928,7 +1970,7 @@ export async function acquireWebhookProcessingLease(event: Stripe.Event) {
       }
     });
 
-    return true;
+    return "acquired";
   } catch (error) {
     const isUniqueConflict =
       error instanceof Prisma.PrismaClientKnownRequestError
@@ -1950,11 +1992,11 @@ export async function acquireWebhookProcessingLease(event: Stripe.Event) {
   });
 
   if (!existing) {
-    return false;
+    return "busy";
   }
 
   if (existing.status === StripeWebhookEventStatus.PROCESSED) {
-    return false;
+    return "processed";
   }
 
   const staleBefore = new Date(now.getTime() - WEBHOOK_PROCESSING_STALE_MS);
@@ -1984,7 +2026,7 @@ export async function acquireWebhookProcessingLease(event: Stripe.Event) {
     }
   });
 
-  return claimed.count > 0;
+  return claimed.count > 0 ? "acquired" : "busy";
 }
 
 export async function markWebhookProcessed(eventId: string) {
@@ -2036,9 +2078,12 @@ export async function processStripeWebhookEvent(
   event: Stripe.Event,
   processors: Partial<StripeWebhookProcessors> = {}
 ) {
-  const shouldProcess = await acquireWebhookProcessingLease(event);
-  if (!shouldProcess) {
+  const lease = await acquireWebhookProcessingLease(event);
+  if (lease === "processed") {
     return;
+  }
+  if (lease === "busy") {
+    throw new Error("stripe-webhook-event-processing-in-progress");
   }
 
   const resolvedProcessors: StripeWebhookProcessors = {
@@ -2075,11 +2120,13 @@ export async function processStripeWebhookEvent(
       }
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-        await resolvedProcessors.handleInvoiceEvent(invoice);
-        try {
-          await sendBillingReceiptForInvoice(invoice);
-        } catch (error) {
-          logServerError("billing-receipt-email-send-failed", error);
+        const managedMembershipInvoice = await resolvedProcessors.handleInvoiceEvent(invoice);
+        if (managedMembershipInvoice !== false) {
+          try {
+            await sendBillingReceiptForInvoice(invoice);
+          } catch (error) {
+            logServerError("billing-receipt-email-send-failed", error);
+          }
         }
         break;
       }

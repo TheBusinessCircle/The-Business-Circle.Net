@@ -582,6 +582,30 @@ export function getMembershipStripePriceId(
   return MEMBERSHIP_STRIPE_PRICE_IDS[tier][billingVariant][billingInterval];
 }
 
+export function isConfiguredMembershipStripePriceId(
+  priceId: string | null | undefined
+): boolean {
+  if (!priceId) {
+    return false;
+  }
+
+  for (const tier of MEMBERSHIP_TIER_ORDER) {
+    const variants = MEMBERSHIP_STRIPE_PRICE_IDS[tier];
+
+    for (const variant of Object.keys(variants) as MembershipBillingVariant[]) {
+      for (const interval of Object.keys(
+        variants[variant]
+      ) as MembershipBillingInterval[]) {
+        if (priceId === variants[variant][interval]) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 export function resolveTierFromPriceId(priceId: string | null | undefined): MembershipTier {
   if (!priceId) {
     return "FOUNDATION";
