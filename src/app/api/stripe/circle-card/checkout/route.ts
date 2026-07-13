@@ -12,13 +12,27 @@ import { requireApiUser } from "@/lib/auth/api";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { logServerError } from "@/lib/security/logging";
+import {
+  CIRCLE_CARD_PRO_CAPABILITIES,
+  CIRCLE_CARD_PRO_SOURCES,
+  normalizeCircleCardProIntent
+} from "@/lib/circle-card/pro-intent";
+import { prisma } from "@/lib/prisma";
 import { createCircleCardProCheckoutSession } from "@/server/circle-card";
+import { measureCircleCardAction } from "@/server/circle-card/performance";
 
 export const runtime = "nodejs";
 
-const circleCardCheckoutPayloadSchema = z.object({}).strict();
+const circleCardCheckoutPayloadSchema = z.object({
+  intent: z.object({
+    source: z.enum(CIRCLE_CARD_PRO_SOURCES),
+    capability: z.enum(CIRCLE_CARD_PRO_CAPABILITIES),
+    returnPath: z.string().max(600),
+    cardId: z.string().max(64).optional()
+  }).strict().optional()
+}).strict();
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   let headers: HeadersInit | undefined;
 
   try {
@@ -59,6 +73,24 @@ export async function POST(request: Request) {
       );
     }
 
+    const intent = normalizeCircleCardProIntent(parsedPayload.data.intent);
+    if (intent.cardId) {
+      const ownedCard = await prisma.circleCard.findFirst({
+        where: {
+          id: intent.cardId,
+          userId: authResult.user.id,
+          archivedAt: null
+        },
+        select: { id: true }
+      });
+      if (!ownedCard) {
+        return NextResponse.json(
+          { error: "That Circle Card upgrade context is not available." },
+          { status: 400, headers }
+        );
+      }
+    }
+
     const readiness = getCircleCardBillingReadiness();
     if (!readiness.billingEnabled) {
       return NextResponse.json(
@@ -89,7 +121,8 @@ export async function POST(request: Request) {
     const checkout = await createCircleCardProCheckoutSession({
       userId: authResult.user.id,
       email: authResult.user.email,
-      name: authResult.user.name
+      name: authResult.user.name,
+      intent
     });
 
     return NextResponse.json({
@@ -136,4 +169,12 @@ export async function POST(request: Request) {
       { status: 502, headers }
     );
   }
+}
+
+export async function POST(request: Request) {
+  return measureCircleCardAction(
+    "checkout_requested",
+    () => handlePost(request),
+    request.headers.get("x-request-id")
+  );
 }

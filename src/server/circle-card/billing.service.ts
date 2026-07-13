@@ -31,6 +31,12 @@ import { db } from "@/lib/db";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { logServerInfo, logServerWarning } from "@/lib/security/logging";
 import { absoluteUrl } from "@/lib/utils";
+import {
+  appendCircleCardProResultParams,
+  buildCircleCardProHref,
+  normalizeCircleCardProIntent,
+  type CircleCardProIntent
+} from "@/lib/circle-card/pro-intent";
 import { requireStripeClient } from "@/server/stripe/client";
 import {
   acquireWebhookProcessingLease,
@@ -75,6 +81,7 @@ type CircleCardCheckoutInput = {
   userId: string;
   email: string;
   name?: string | null;
+  intent?: Partial<CircleCardProIntent>;
 };
 
 type CircleCardCheckoutResult = {
@@ -699,6 +706,7 @@ export async function createCircleCardProCheckoutSession(
   const { attemptId, checkoutStartedAt } = claim;
 
   const attribution = await loadServerDerivedReferralAttribution(input.userId);
+  const proIntent = normalizeCircleCardProIntent(input.intent);
   const metadata: Stripe.MetadataParam = {
     userId: input.userId,
     circleCardPlan: "PRO",
@@ -707,8 +715,16 @@ export async function createCircleCardProCheckoutSession(
     referralCode: attribution.referralCode ?? "",
     referralClickId: attribution.referralClickId ?? "",
     referralId: attribution.referralId ?? "",
-    referralSource: attribution.referralSource ?? ""
+    referralSource: attribution.referralSource ?? "",
+    upgradeSource: proIntent.source,
+    requestedCapability: proIntent.capability
   };
+
+  const successPath = appendCircleCardProResultParams(proIntent.returnPath, {
+    billing: "success",
+    capability: proIntent.capability
+  });
+  const cancelPath = `${buildCircleCardProHref(proIntent).split("#")[0]}&billing=cancelled`;
 
   let session: Stripe.Checkout.Session;
   try {
@@ -718,8 +734,8 @@ export async function createCircleCardProCheckoutSession(
         payment_method_types: ["card"],
         customer: customerId,
         line_items: [{ price: priceId, quantity: 1 }],
-        success_url: absoluteUrl("/dashboard/circle-card?billing=success&plan=pro"),
-        cancel_url: absoluteUrl("/circle-card/pro?billing=cancelled"),
+        success_url: absoluteUrl(successPath),
+        cancel_url: absoluteUrl(cancelPath),
         client_reference_id: input.userId,
         expires_at:
           Math.floor(checkoutStartedAt.getTime() / 1000) +

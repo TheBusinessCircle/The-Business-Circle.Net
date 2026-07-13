@@ -24,6 +24,8 @@ export * from "@/components/circle-card/circle-card-menu-offers-manager";
 export * from "@/components/circle-card/circle-card-media-kit-manager";
 export * from "@/components/circle-card/circle-card-plan-panel";
 export * from "@/components/circle-card/circle-card-pro-checkout-buttons";
+export * from "@/components/circle-card/circle-card-interest-submit-button";
+export * from "@/components/circle-card/circle-card-pro-analytics";
 export * from "@/components/circle-card/circle-card-press-proof-manager";
 export * from "@/components/circle-card/circle-card-products-manager";
 export * from "@/components/circle-card/circle-card-price-list-manager";

@@ -16,10 +16,10 @@ describe("circle card plan boundaries", () => {
     expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.notFor).toContain("Team analytics");
   });
 
-  it("keeps Pro and Teams placeholders separate from Free", () => {
+  it("keeps launched Pro capabilities and deferred Teams capabilities separate from Free", () => {
     expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.lockedFeatures).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "enhanced-analytics", status: "pro-later" }),
+        expect.objectContaining({ id: "circle-studio", status: "included" }),
         expect.objectContaining({ id: "staff-cards", status: "coming-soon" })
       ])
     );

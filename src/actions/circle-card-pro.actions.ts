@@ -18,6 +18,12 @@ import {
 } from "@/lib/security/rate-limit";
 import { recordLead } from "@/server/lead-generation";
 import { markCircleCardReferralProductInterest } from "@/server/circle-card";
+import {
+  buildCircleCardProHref,
+  normalizeCircleCardProIntent,
+  type CircleCardProCapability,
+  type CircleCardProSource
+} from "@/lib/circle-card/pro-intent";
 
 const CIRCLE_CARD_PRO_INTEREST_SOURCE = "CIRCLE_CARD_PRO_INTEREST";
 const CIRCLE_CARD_PRO_INTEREST_PATH = "/circle-card/pro";
@@ -29,7 +35,11 @@ const proInterestSchema = z.object({
   email: z.string().trim().email().max(180),
   businessName: z.string().trim().max(160).optional().or(z.literal("")),
   contactConsent: z.literal("on"),
-  marketingEmailOptIn: z.string().optional()
+  marketingEmailOptIn: z.string().optional(),
+  source: z.string().optional(),
+  capability: z.string().optional(),
+  returnTo: z.string().max(600).optional(),
+  card: z.string().max(64).optional()
 });
 const teamsInterestSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -45,11 +55,12 @@ function redirectWithStatus(
   path: string,
   status: "registered" | "invalid" | "rate-limited" | "failed"
 ): never {
+  const separator = path.includes("?") ? "&" : "?";
   if (status === "registered") {
-    redirect(`${path}?registered=1#register-interest`);
+    redirect(`${path}${separator}registered=1#register-interest`);
   }
 
-  redirect(`${path}?error=${status}#register-interest`);
+  redirect(`${path}${separator}error=${status}#register-interest`);
 }
 
 async function readCircleCardReferralContext() {
@@ -70,7 +81,11 @@ export async function registerCircleCardProInterestAction(formData: FormData) {
     contactConsent: formData.get("contactConsent"),
     marketingEmailOptIn: formData.has("marketingEmailOptIn")
       ? formData.get("marketingEmailOptIn")
-      : undefined
+      : undefined,
+    source: formData.has("source") ? formData.get("source") : undefined,
+    capability: formData.has("capability") ? formData.get("capability") : undefined,
+    returnTo: formData.has("returnTo") ? formData.get("returnTo") : undefined,
+    card: formData.has("card") ? formData.get("card") : undefined
   });
 
   if (!parsed.success) {
@@ -91,7 +106,6 @@ export async function registerCircleCardProInterestAction(formData: FormData) {
           circleCards: {
             where: { archivedAt: null },
             orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
-            take: 1,
             select: {
               id: true,
               slug: true,
@@ -105,6 +119,20 @@ export async function registerCircleCardProInterestAction(formData: FormData) {
     : null;
   const activeUserContext = userContext && !userContext.suspended ? userContext : null;
   const primaryCard = activeUserContext?.circleCards[0] ?? null;
+  const requestedIntent = normalizeCircleCardProIntent({
+    source: values.source as CircleCardProSource,
+    capability: values.capability as CircleCardProCapability,
+    returnPath: values.returnTo,
+    cardId: values.card
+  });
+  const ownedRequestedCard = activeUserContext?.circleCards.find(
+    (card) => card.id === requestedIntent.cardId
+  );
+  const interestIntent = normalizeCircleCardProIntent({
+    ...requestedIntent,
+    cardId: ownedRequestedCard?.id
+  });
+  const interestPath = buildCircleCardProHref(interestIntent).split("#")[0];
   const clientIp = clientIpFromHeaders(requestHeaders);
   const rateLimit = await consumeRateLimit({
     key: `circle-card-pro-interest:${activeUserContext?.id ?? clientIp}:${values.email.toLowerCase()}`,
@@ -113,7 +141,7 @@ export async function registerCircleCardProInterestAction(formData: FormData) {
   });
 
   if (!rateLimit.allowed) {
-    redirectWithStatus(CIRCLE_CARD_PRO_INTEREST_PATH, "rate-limited");
+    redirectWithStatus(interestPath, "rate-limited");
   }
 
   const marketingEmailOptIn = values.marketingEmailOptIn === "on";
@@ -143,6 +171,9 @@ export async function registerCircleCardProInterestAction(formData: FormData) {
         source: CIRCLE_CARD_PRO_INTEREST_SOURCE,
         product: "circle-card-pro",
         sourcePath: CIRCLE_CARD_PRO_INTEREST_PATH,
+        upgradeSource: interestIntent.source,
+        requestedCapability: interestIntent.capability,
+        returnPath: interestIntent.returnPath,
         marketingEmailOptIn,
         loggedIn: Boolean(activeUserContext),
         user: activeUserContext
@@ -179,10 +210,10 @@ export async function registerCircleCardProInterestAction(formData: FormData) {
       });
     }
   } catch {
-    redirectWithStatus(CIRCLE_CARD_PRO_INTEREST_PATH, "failed");
+    redirectWithStatus(interestPath, "failed");
   }
 
-  redirectWithStatus(CIRCLE_CARD_PRO_INTEREST_PATH, "registered");
+  redirectWithStatus(interestPath, "registered");
 }
 
 export async function registerCircleCardTeamsInterestAction(formData: FormData) {

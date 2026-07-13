@@ -224,14 +224,6 @@ export default async function CircleCardLandingPage({
             </p>
           </div>
           <div className="rounded-2xl border border-silver/14 bg-background/22 p-5">
-            <UsersRound size={18} className="text-silver" />
-            <h3 className="mt-4 font-display text-xl text-foreground">Teams preview</h3>
-            <p className="mt-2 text-sm text-muted">
-              Company cards, staff cards, shared branding and team analytics are prepared for a
-              later release.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-silver/14 bg-background/22 p-5 sm:col-span-2">
             <div className="flex flex-wrap items-center gap-2">
               <BadgeCheck size={18} className="text-gold" />
               <Star size={18} className="text-silver" />

@@ -1,442 +1,295 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
   BadgeCheck,
-  BarChart3,
+  BriefcaseBusiness,
+  Check,
+  CircleHelp,
   Crown,
-  FileText,
+  Eye,
   Handshake,
-  Link as LinkIcon,
+  Layers3,
   Palette,
-  QrCode,
+  RotateCcw,
   ShieldCheck,
-  WalletCards
+  Sparkles,
+  UserRound
 } from "lucide-react";
 import { registerCircleCardProInterestAction } from "@/actions/circle-card-pro.actions";
 import { auth } from "@/auth";
-import { CircleCardProCheckoutButtons } from "@/components/circle-card";
+import {
+  CircleCardInterestSubmitButton,
+  CircleCardProCheckoutButtons,
+  CircleCardProPageAnalytics
+} from "@/components/circle-card";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
+import {
+  circleCardProCapabilityLabel,
+  normalizeCircleCardProIntent,
+  type CircleCardProCapability,
+  type CircleCardProSource
+} from "@/lib/circle-card/pro-intent";
 import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
 import { formatCircleCardPrice, getCircleCardBillingReadiness } from "@/lib/circle-card/pricing";
-import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { prisma } from "@/lib/prisma";
-import { loadCircleCardAccessForUser } from "@/server/circle-card";
 import { cn } from "@/lib/utils";
+import { loadCircleCardAccessForUser } from "@/server/circle-card";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type FeatureStatus = "Available" | "Available during early access" | "Coming soon / early access";
-
 export const metadata: Metadata = createCircleCardPageMetadata({
-  title: "Circle Card Pro",
+  title: "Circle Card Pro — £9.99/month",
   description:
-    "Register interest in Circle Card Pro, the personal visibility and relationship upgrade for Circle Card.",
+    "Circle Card Pro is the active working layer for a living professional identity: two cards, Circle Studio, Business Builder and expanded Creator tools.",
   path: "/circle-card/pro",
-  keywords: [
-    "Circle Card Pro",
-    "digital business card analytics",
-    "personal brand visibility",
-    "lead capture card",
-    "business networking profile"
-  ]
+  keywords: ["Circle Card Pro", "professional identity platform", "creator media kit", "business card builder"]
 });
 
-const DECISION_STEPS = [
+const FREE_FEATURES = [
+  "One useful Circle Card",
+  "Five active links",
+  "Personal, Business and Creator base layouts",
+  "Profile image and business logo",
+  "Contact and social details",
+  "QR, sharing, vCard and wallet",
+  "Spin to Connect",
+  "Referrals and introductions",
+  "Core Circle Trust signals",
+  "Basic analytics"
+] as const;
+
+const PRO_FEATURES = [
+  "Two Circle Cards",
+  "25 active links",
+  "Circle Studio public activation",
+  "Private Studio drafts and real-card preview",
+  "Business Card Builder",
+  "Creator Media Kit",
+  "Audience Snapshot",
+  "Expanded creator content, offers, proof and partnerships",
+  "Paid business presentation modules",
+  "Subscription management",
+  "Automatic downgrade preservation and restoration"
+] as const;
+
+const FAQS = [
   {
-    label: "What",
-    title: "A stronger Circle Card.",
-    body: "Pro turns Circle Card into a sharper visibility, lead generation and relationship tool."
+    question: "Is there a trial?",
+    answer: "No. Circle Card Pro launches as a straightforward £9.99 monthly subscription with no trial."
   },
   {
-    label: "Who",
-    title: "Built for active operators.",
-    body: "Relationship builders, networkers, creators, sales people and founders."
+    question: "Can I cancel?",
+    answer: "Yes. Manage or cancel the monthly subscription through the secure Stripe Customer Portal."
   },
   {
-    label: "How",
-    title: "More control, more signal.",
-    body: "Better links, analytics, profile control, lead capture, trust signals and verification prep."
+    question: "What happens if a payment fails?",
+    answer: "A seven-day recovery period gives you time to update your payment method. Your saved content is not deleted."
   },
   {
-    label: "When",
-    title: "Upgrade when the card drives work.",
-    body: "When your Circle Card helps you network, sell, get referrals or build your public profile."
+    question: "What happens after I downgrade?",
+    answer: "Your public card safely follows Free limits while Pro cards, links, Studio designs and presentation content remain stored. Reactivating Pro restores them automatically."
+  },
+  {
+    question: "Do I need Pro for Circle Trust or networking?",
+    answer: "No. Referrals, introductions, Spin to Connect and core Circle Trust remain useful parts of Free."
+  },
+  {
+    question: "Is BCN membership the same subscription?",
+    answer: "No. Circle Card billing is separate. Where an active BCN membership already includes Pro, no separate Circle Card checkout is needed."
   }
 ] as const;
 
-const PLAN_COMPARISON: Array<{
-  name: string;
-  fit: string;
-  icon: typeof Crown;
-  status: FeatureStatus;
-  features: Array<{ label: string; status: FeatureStatus }>;
-}> = [
-  {
-    name: "Free",
-    fit: "Personal/basic use",
-    icon: QrCode,
-    status: "Available",
-    features: [
-      { label: "1 card", status: "Available" },
-      { label: "Public profile", status: "Available" },
-      { label: "QR sharing", status: "Available" },
-      { label: "Share card", status: "Available" },
-      { label: "Save contacts", status: "Available" },
-      { label: "Wallet", status: "Available" },
-      { label: "5 active featured links", status: "Available" },
-      { label: "Basic analytics summary", status: "Available" },
-      { label: "Spin to Connect", status: "Available" },
-      { label: "Auto connect where applicable", status: "Available" }
-    ]
-  },
-  {
-    name: "Pro",
-    fit: "Grow relationships with visibility, leads and relationship management",
-    icon: Crown,
-    status: "Coming soon / early access",
-    features: [
-      { label: "25 featured links", status: "Coming soon / early access" },
-      { label: "Enhanced analytics", status: "Coming soon / early access" },
-      { label: "Lead capture tools", status: "Coming soon / early access" },
-      { label: "Uploaded/private file links (deferred)", status: "Coming soon / early access" },
-      { label: "Advanced profile sections", status: "Available during early access" },
-      { label: "Custom profile colours", status: "Available during early access" },
-      { label: "Opportunity tracking", status: "Available during early access" },
-      { label: "Priority visibility features", status: "Coming soon / early access" },
-      { label: "Future verification eligibility", status: "Coming soon / early access" }
-    ]
-  }
-];
-
-const PRO_OUTCOMES = [
-  { label: "Identity", detail: "Sharper profile control", icon: Palette },
-  { label: "Visibility", detail: "Better links and analytics", icon: BarChart3 },
-  { label: "Leads", detail: "Capture stronger intent", icon: FileText },
-  { label: "Relationships", detail: "More useful follow-up", icon: Handshake }
-] as const;
-
-function firstValue(value: string | string[] | undefined): string {
+function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
-function statusClassName(status: FeatureStatus) {
-  if (status === "Available") {
-    return "border-emerald-500/28 bg-emerald-500/10 text-emerald-200";
-  }
-
-  if (status === "Available during early access") {
-    return "border-gold/28 bg-gold/10 text-gold";
-  }
-
-  return "border-silver/18 bg-silver/10 text-silver";
-}
-
-function feedbackMessage(input: { registered: string; error: string }) {
+function feedbackMessage(input: { registered: string; error: string; billing: string }) {
   if (input.registered === "1") {
-    return {
-      type: "notice" as const,
-      message: "Interest registered. We have logged this as Circle Card Pro interest."
-    };
+    return { type: "notice" as const, message: "Your Pro interest is registered. We’ll keep your intended next step ready." };
   }
-
+  if (input.billing === "cancelled") {
+    return { type: "notice" as const, message: "Checkout was cancelled. No paid access was opened and your Circle Card is unchanged." };
+  }
   const errors: Record<string, string> = {
     invalid: "Check the form and confirm contact permission.",
     "rate-limited": "Too many interest requests were submitted recently. Try again later.",
-    failed: "The interest form could not be saved. Please try again."
+    failed: "The interest form could not be saved. Your details remain in the form; please try again."
   };
-
-  return input.error && errors[input.error]
-    ? { type: "error" as const, message: errors[input.error] }
-    : null;
+  return input.error && errors[input.error] ? { type: "error" as const, message: errors[input.error] } : null;
 }
 
 export default async function CircleCardProPage({ searchParams }: PageProps) {
   const [params, session] = await Promise.all([searchParams, auth()]);
   const billingReadiness = getCircleCardBillingReadiness();
-  const userContext = session?.user?.id
-    ? await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          suspended: true,
-          circleCards: {
-            where: { archivedAt: null },
-            orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
-            take: 1,
-            select: {
-              slug: true,
-              fullName: true,
-              businessName: true
+  const requestedIntent = normalizeCircleCardProIntent({
+    source: firstValue(params.source) as CircleCardProSource,
+    capability: firstValue(params.capability) as CircleCardProCapability,
+    returnPath: firstValue(params.returnTo),
+    cardId: firstValue(params.card) || undefined
+  });
+  const [userContext, circleCardAccess] = session?.user?.id
+    ? await Promise.all([
+        prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            suspended: true,
+            circleCards: {
+              where: { archivedAt: null },
+              orderBy: [{ isDefaultCard: "desc" }, { isPrimary: "desc" }, { displayOrder: "asc" }],
+              select: { id: true, slug: true, fullName: true, businessName: true }
             }
           }
-        }
-      })
-    : null;
+        }),
+        loadCircleCardAccessForUser(session.user.id)
+      ])
+    : [null, null];
   const activeUser = userContext && !userContext.suspended ? userContext : null;
-  const circleCardAccess = activeUser
-    ? await loadCircleCardAccessForUser(activeUser.id)
-    : null;
+  const ownedRequestedCard = activeUser?.circleCards.find((card) => card.id === requestedIntent.cardId);
+  const intent = normalizeCircleCardProIntent({
+    ...requestedIntent,
+    cardId: ownedRequestedCard?.id
+  });
   const primaryCard = activeUser?.circleCards[0] ?? null;
+  const checkoutReady = billingReadiness.billingEnabled && billingReadiness.proLaunchConfigured;
   const feedback = feedbackMessage({
     registered: firstValue(params.registered),
-    error: firstValue(params.error)
+    error: firstValue(params.error),
+    billing: firstValue(params.billing)
   });
-  const defaultName = activeUser?.name || primaryCard?.fullName || "";
-  const defaultEmail = activeUser?.email || "";
-  const defaultBusinessName = primaryCard?.businessName || "";
   const proPrice = formatCircleCardPrice("PRO");
-  const checkoutReady =
-    billingReadiness.billingEnabled &&
-    billingReadiness.proLaunchConfigured &&
-    !circleCardAccess?.hasProAccess;
+  const intentLabel = circleCardProCapabilityLabel(intent.capability);
+  const entitlementCopy = circleCardAccess?.hasProAccess
+    ? `${circleCardAccess.entitlement.label} already includes Circle Card Pro. No separate checkout is needed.`
+    : null;
 
   return (
     <div className="public-page-stack">
-      <section className="grid gap-6 py-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.55fr)] lg:items-center lg:py-8">
+      <CircleCardProPageAnalytics
+        source={intent.source}
+        capability={intent.capability}
+        billingEnabled={checkoutReady}
+        authenticated={Boolean(activeUser)}
+        hasProAccess={Boolean(circleCardAccess?.hasProAccess)}
+      />
+
+      <section className="relative overflow-hidden rounded-[2rem] border border-gold/24 bg-[radial-gradient(circle_at_80%_10%,rgba(212,175,55,.18),transparent_34%),linear-gradient(145deg,rgba(9,19,43,.98),rgba(4,9,20,.98))] p-6 shadow-panel-soft sm:p-9 lg:p-12">
         <div className="max-w-4xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-gold/24 bg-gold/10 px-3 py-1 text-xs uppercase tracking-[0.08em] text-gold">
-            <Crown size={14} />
-            Circle Card Pro / {proPrice}
-          </div>
-          <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-6xl">
-            Turn your Circle Card into a stronger visibility tool.
-          </h1>
-          <p className="mt-4 max-w-3xl text-base leading-relaxed text-silver sm:text-lg">
-            Pro improves the card: identity, visibility, analytics, lead capture and relationship tools.
-          </p>
-          <Badge variant="outline" className="mt-4 w-fit border-gold/28 text-gold">
-            {checkoutReady ? "Monthly billing available" : "Early access"}
+          <Badge variant="outline" className="border-gold/32 bg-gold/10 text-gold">
+            <Crown size={13} className="mr-1.5" /> Circle Card Pro
           </Badge>
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            {circleCardAccess?.hasProAccess ? (
-              <div className="rounded-lg border border-emerald-400/24 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-                {circleCardAccess.entitlement.label} already includes Circle Card Pro. No separate
-                subscription is needed.
+          <h1 className="mt-5 font-display text-4xl leading-[1.04] text-foreground sm:text-6xl lg:text-7xl">
+            Your professional identity should keep working after the introduction.
+          </h1>
+          <p className="mt-5 max-w-3xl text-base leading-relaxed text-silver sm:text-xl">
+            Circle Card is a living professional identity, connection and relationship platform. Pro is the active working layer for people who need more than one card, a stronger public presentation, and focused Business or Creator tools.
+          </p>
+          <div className="mt-6 flex flex-wrap items-end gap-3">
+            <p className="font-display text-4xl font-semibold text-foreground">£9.99</p>
+            <p className="pb-1 text-sm text-muted">per month · monthly only · no trial</p>
+          </div>
+          {intent.capability !== "explore_pro" ? (
+            <p className="mt-4 rounded-xl border border-gold/22 bg-gold/8 px-4 py-3 text-sm text-gold">
+              You came here to {intentLabel}. We’ll keep that next step attached to your journey.
+            </p>
+          ) : null}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-start">
+            {entitlementCopy ? (
+              <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+                <BadgeCheck size={16} className="mr-2 inline" />{entitlementCopy}
               </div>
-            ) : checkoutReady ? (
-              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" />
             ) : (
-              <a
-                href="#register-interest"
-                className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 sm:w-auto")}
-              >
-                Register Pro Interest
-                <ArrowRight size={16} />
-              </a>
+              <CircleCardProCheckoutButtons
+                monthlyLabel={proPrice}
+                billingEnabled={checkoutReady}
+                authenticated={Boolean(activeUser)}
+                intent={intent}
+                label="Unlock Circle Card Pro — £9.99/month"
+                earlyAccessLabel="Register for Pro early access"
+                showPrice={false}
+              />
             )}
-            <Link
-              href={CIRCLE_CARD_DASHBOARD_PATH}
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full gap-2 sm:w-auto")}
-            >
-              Open Circle Card
-              <QrCode size={16} />
+            <Link href={CIRCLE_CARD_DASHBOARD_PATH} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "gap-2")}>
+              Open Circle Card <ArrowRight size={16} />
             </Link>
           </div>
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
-            The Business Circle membership stays separate. BCN gives the community, support,
-            resources and business relationships behind the card.
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-silver/14 bg-card/72 p-4 shadow-panel-soft">
-          <div className="rounded-lg border border-gold/24 bg-[linear-gradient(145deg,rgba(9,19,43,0.96),rgba(6,12,27,0.9))] p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Pro preview</p>
-                <h2 className="mt-2 font-display text-2xl text-foreground">Visibility layer</h2>
-              </div>
-              <Image
-                src="/branding/circle-card-logo.png"
-                width={52}
-                height={52}
-                alt="Circle Card logo"
-                className="h-12 w-12 object-contain"
-              />
-            </div>
-            <div className="mt-5 grid gap-2">
-              {PRO_OUTCOMES.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <div key={item.label} className="flex items-center gap-3 rounded-lg border border-silver/12 bg-background/24 px-3 py-2">
-                    <Icon size={16} className="text-gold" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{item.label}</p>
-                      <p className="text-xs text-muted">{item.detail}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {!checkoutReady && !entitlementCopy ? (
+            <p className="mt-3 text-sm text-muted">Pro payments are opening shortly. The early-access journey never calls Stripe and takes no payment.</p>
+          ) : null}
         </div>
       </section>
 
       {feedback ? (
-        <section
-          className={cn(
-            "rounded-xl border p-4",
-            feedback.type === "error"
-              ? "border-red-500/40 bg-red-500/10 text-red-100"
-              : "border-gold/30 bg-gold/10 text-gold"
-          )}
-        >
-          <p className="text-sm">{feedback.message}</p>
-        </section>
+        <section role={feedback.type === "error" ? "alert" : "status"} className={cn("rounded-xl border p-4 text-sm", feedback.type === "error" ? "border-red-400/35 bg-red-400/10 text-red-100" : "border-emerald-400/25 bg-emerald-400/10 text-emerald-100")}>{feedback.message}</section>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {DECISION_STEPS.map((step) => (
-          <article key={step.label} className="rounded-xl border border-silver/14 bg-card/62 p-4">
-            <Badge variant="outline" className="border-gold/25 text-gold">
-              {step.label}
-            </Badge>
-            <h2 className="mt-3 text-lg font-semibold text-foreground">{step.title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[0.88fr_1.12fr]">
-        <div className="rounded-xl border border-gold/24 bg-gold/10 p-5">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gold/28 bg-background/24 text-gold">
-            <LinkIcon size={18} />
-          </div>
-          <h2 className="mt-4 font-display text-3xl text-foreground">Which option fits?</h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted">
-            Free starts relationships. Pro grows relationships with visibility, lead generation and
-            follow-up. The controlled Pro launch is monthly-only.
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-muted">
-            Pro does not replace BCN membership. It upgrades the Circle Card itself.
-          </p>
+      <section className="grid gap-4 lg:grid-cols-[.72fr_1.28fr] lg:items-center">
+        <div>
+          <p className="premium-kicker">Why Pro exists</p>
+          <h2 className="mt-3 font-display text-3xl text-foreground sm:text-4xl">Free introduces you. Pro helps you work from that identity.</h2>
+          <p className="mt-3 text-sm leading-relaxed text-muted">A useful card should be generous before payment. Pro becomes relevant when your identity needs distinct roles, richer proof, active presentation control or a clearer route from interest to conversation.</p>
         </div>
-
-        <div className="grid gap-3">
-          {PLAN_COMPARISON.map((plan) => {
-            const Icon = plan.icon;
-
-            return (
-              <article key={plan.name} className="rounded-xl border border-silver/14 bg-card/62 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Icon size={17} className="text-gold" />
-                      <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
-                    </div>
-                    <p className="mt-1 text-sm text-muted">{plan.fit}</p>
-                  </div>
-                  <Badge variant="outline" className={cn("normal-case tracking-normal", statusClassName(plan.status))}>
-                    {plan.status}
-                  </Badge>
-                </div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {plan.features.map((feature) => (
-                    <div key={feature.label} className="rounded-lg border border-silver/12 bg-background/24 p-3">
-                      <div className="flex items-start gap-2">
-                        <BadgeCheck size={15} className="mt-0.5 shrink-0 text-gold" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground">{feature.label}</p>
-                          <p className="mt-1 text-xs text-muted">{feature.status}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </article>
-            );
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            [Layers3, "Separate contexts", "Use a second card for a distinct professional role."],
+            [Palette, "Shape the experience", "Build privately in Studio, then apply with authority."],
+            [Handshake, "Support real work", "Present services, creator proof and partnership context clearly."]
+          ].map(([Icon, title, body]) => {
+            const FeatureIcon = Icon as typeof Layers3;
+            return <article key={String(title)} className="rounded-2xl border border-silver/14 bg-card/62 p-5"><FeatureIcon size={20} className="text-gold" /><h3 className="mt-4 font-semibold text-foreground">{String(title)}</h3><p className="mt-2 text-sm leading-relaxed text-muted">{String(body)}</p></article>;
           })}
         </div>
       </section>
 
-      <section id="register-interest" className="scroll-mt-24 rounded-xl border border-gold/24 bg-card/72 p-5 shadow-panel-soft sm:p-6">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(320px,0.65fr)]">
-          <div>
-            <Badge variant="outline" className="border-gold/28 text-gold">
-              Where next
-            </Badge>
-            <h2 className="mt-3 font-display text-3xl text-foreground">Register Pro Interest</h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
-              Join the Pro early-access list. No payment, no Stripe checkout, no BCN membership change.
-            </p>
-            {checkoutReady ? (
-              <p className="mt-3 rounded-lg border border-gold/24 bg-gold/10 p-3 text-xs leading-relaxed text-gold">
-                Monthly Stripe checkout is available for Circle Card Pro. BCN membership billing stays separate.
-              </p>
-            ) : null}
-            <div className="mt-4 grid gap-2 text-sm text-muted">
-              <p className="inline-flex items-center gap-2">
-                <ShieldCheck size={15} className="text-gold" />
-                Source logged as Circle Card Pro interest.
-              </p>
-              <p className="inline-flex items-center gap-2">
-                <WalletCards size={15} className="text-gold" />
-                Logged-in card context attached automatically.
-              </p>
-            </div>
-          </div>
-
-          <form action={registerCircleCardProInterestAction} className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" defaultValue={defaultName} required autoComplete="name" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" defaultValue={defaultEmail} required autoComplete="email" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="businessName">Business name optional</Label>
-              <Input id="businessName" name="businessName" defaultValue={defaultBusinessName} autoComplete="organization" />
-            </div>
-            {primaryCard ? (
-              <div className="rounded-lg border border-silver/14 bg-background/24 p-3 text-xs text-muted">
-                Logged-in card: /card/{primaryCard.slug}
-              </div>
-            ) : null}
-            <label
-              htmlFor="contactConsent"
-              className="flex items-start gap-3 rounded-lg border border-silver/14 bg-background/24 p-3 text-sm text-muted"
-            >
-              <input
-                id="contactConsent"
-                name="contactConsent"
-                type="checkbox"
-                value="on"
-                required
-                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-              />
-              <span>You may contact me about Circle Card Pro early access.</span>
-            </label>
-            <label
-              htmlFor="marketingEmailOptIn"
-              className="flex items-start gap-3 rounded-lg border border-silver/14 bg-background/24 p-3 text-sm text-muted"
-            >
-              <input
-                id="marketingEmailOptIn"
-                name="marketingEmailOptIn"
-                type="checkbox"
-                value="on"
-                className="mt-1 h-4 w-4 rounded border-border bg-background accent-primary"
-              />
-              <span>Send occasional Circle Card and Business Circle updates.</span>
-            </label>
-            <Button type="submit" className="w-full gap-2">
-              Register Pro Interest
-              <ArrowRight size={16} />
-            </Button>
-          </form>
+      <section aria-labelledby="comparison-heading" className="rounded-[1.75rem] border border-silver/14 bg-card/58 p-5 sm:p-7">
+        <div className="max-w-3xl"><p className="premium-kicker">Free versus Pro</p><h2 id="comparison-heading" className="mt-3 font-display text-3xl text-foreground sm:text-4xl">Choose the layer your work needs now.</h2><p className="mt-3 text-sm text-muted">Free remains a complete, useful professional card. Pro adds working depth; it does not remove the relationship tools that make Free valuable.</p></div>
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <article className="rounded-2xl border border-silver/16 bg-background/25 p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-display text-2xl text-foreground">Circle Card Free</h3><Badge variant="outline">£0</Badge></div><ul className="mt-5 grid gap-2 sm:grid-cols-2">{FREE_FEATURES.map((feature) => <li key={feature} className="flex gap-2 text-sm text-silver"><Check size={15} className="mt-0.5 shrink-0 text-emerald-300" />{feature}</li>)}</ul></article>
+          <article className="rounded-2xl border border-gold/30 bg-gold/[.07] p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-display text-2xl text-foreground">Circle Card Pro</h3><Badge variant="premium">£9.99/month</Badge></div><ul className="mt-5 grid gap-2 sm:grid-cols-2">{PRO_FEATURES.map((feature) => <li key={feature} className="flex gap-2 text-sm text-silver"><Sparkles size={15} className="mt-0.5 shrink-0 text-gold" />{feature}</li>)}</ul></article>
         </div>
       </section>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <article className="rounded-2xl border border-gold/22 bg-card/62 p-6"><BriefcaseBusiness size={22} className="text-gold" /><h2 className="mt-4 font-display text-2xl text-foreground">For a business people need to understand quickly</h2><p className="mt-3 text-sm leading-relaxed text-muted">Use Business Card Builder to present services, products, prices, opening hours, booking routes, galleries and reviews as one coherent professional identity.</p></article>
+        <article className="rounded-2xl border border-cyan-300/20 bg-card/62 p-6"><UserRound size={22} className="text-cyan-200" /><h2 className="mt-4 font-display text-2xl text-foreground">For a creator brands need to assess clearly</h2><p className="mt-3 text-sm leading-relaxed text-muted">Build a live Media Kit and Audience Snapshot, then add creator content, offers, proof and partnership context without turning your card into a generic landing page.</p></article>
+        <article className="rounded-2xl border border-silver/16 bg-card/62 p-6"><Layers3 size={22} className="text-silver" /><h2 className="mt-4 font-display text-2xl text-foreground">For one person with more than one professional context</h2><p className="mt-3 text-sm leading-relaxed text-muted">Keep two Circle Cards under one account: for example, a personal relationship card and a focused Business or Creator card. Each remains intentional.</p></article>
+      </section>
+
+      <section className="grid gap-5 rounded-[1.75rem] border border-gold/24 bg-[linear-gradient(135deg,rgba(212,175,55,.1),rgba(6,12,27,.7))] p-6 lg:grid-cols-[.9fr_1.1fr] lg:items-center sm:p-8">
+        <div><Palette size={24} className="text-gold" /><h2 className="mt-4 font-display text-3xl text-foreground">Circle Studio is a safe place to experiment before anything goes live.</h2><p className="mt-3 text-sm leading-relaxed text-muted">Everyone can edit colours and typography, explore layouts, preview their actual card and save a private draft. Pro activates that saved design publicly, replaces it later, or reverts it — always through server-authorised entitlement.</p></div>
+        <div className="grid gap-3 sm:grid-cols-2">{["Real-card preview", "Private draft saving", "Public activation with Pro", "Revert and automatic restoration"].map((item) => <div key={item} className="rounded-xl border border-silver/14 bg-background/28 p-4 text-sm font-medium text-foreground"><BadgeCheck size={16} className="mb-2 text-gold" />{item}</div>)}</div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[.06] p-6"><ShieldCheck size={22} className="text-emerald-300" /><h2 className="mt-4 font-display text-2xl text-foreground">Trust and relationships stay Free</h2><p className="mt-3 text-sm leading-relaxed text-muted">Core Circle Trust, referrals, introductions, wallet, QR, sharing, vCard and Spin to Connect remain available on Free. Connection is not a paid gate.</p></article>
+        <article className="rounded-2xl border border-gold/22 bg-gold/[.06] p-6"><RotateCcw size={22} className="text-gold" /><h2 className="mt-4 font-display text-2xl text-foreground">Your work is preserved through change</h2><p className="mt-3 text-sm leading-relaxed text-muted">Cancel through Stripe Customer Portal. Failed payments receive seven days to recover. After downgrade, Free styling and limits apply publicly while Pro content stays stored; confirmed reactivation restores it automatically.</p></article>
+      </section>
+
+      <section aria-labelledby="faq-heading" className="rounded-[1.75rem] border border-silver/14 bg-card/58 p-5 sm:p-7">
+        <div className="flex items-center gap-3"><CircleHelp size={22} className="text-gold" /><h2 id="faq-heading" className="font-display text-3xl text-foreground">Questions before you choose</h2></div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">{FAQS.map((item) => <details key={item.question} className="group rounded-xl border border-silver/14 bg-background/22 p-4"><summary className="cursor-pointer list-none font-semibold text-foreground">{item.question}</summary><p className="mt-3 text-sm leading-relaxed text-muted">{item.answer}</p></details>)}</div>
+      </section>
+
+      <section id="register-interest" className="scroll-mt-24 rounded-[1.75rem] border border-gold/26 bg-card/72 p-5 shadow-panel-soft sm:p-7">
+        {checkoutReady && !circleCardAccess?.hasProAccess ? (
+          <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center"><div><p className="premium-kicker">Ready when you are</p><h2 className="mt-3 font-display text-3xl text-foreground">Put your Circle Card to work.</h2><p className="mt-2 text-sm text-muted">£9.99 per month. Monthly only. No trial. Your return to {intentLabel} is preserved.</p></div><CircleCardProCheckoutButtons monthlyLabel={proPrice} billingEnabled authenticated={Boolean(activeUser)} intent={intent} label="Unlock Circle Card Pro — £9.99/month" showPrice={false} /></div>
+        ) : circleCardAccess?.hasProAccess ? (
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="premium-kicker">Pro is confirmed</p><h2 className="mt-2 font-display text-3xl text-foreground">Your account already has the working layer.</h2><p className="mt-2 text-sm text-muted">{entitlementCopy}</p></div><Link href={intent.returnPath} className={cn(buttonVariants({ size: "lg" }), "gap-2")}>Continue to {intentLabel}<ArrowRight size={16} /></Link></div>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[.85fr_1.15fr]"><div><p className="premium-kicker">Payments opening shortly</p><h2 className="mt-3 font-display text-3xl text-foreground">Register Pro interest</h2><p className="mt-3 text-sm leading-relaxed text-muted">Tell us you want Circle Card Pro. No payment is taken, Stripe Checkout is not called, and your intended return to {intentLabel} is kept with this journey.</p></div><form action={registerCircleCardProInterestAction} className="grid gap-4"><input type="hidden" name="source" value={intent.source} /><input type="hidden" name="capability" value={intent.capability} /><input type="hidden" name="returnTo" value={intent.returnPath} />{intent.cardId ? <input type="hidden" name="card" value={intent.cardId} /> : null}<div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" name="name" defaultValue={activeUser?.name || primaryCard?.fullName || ""} required autoComplete="name" /></div><div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" defaultValue={activeUser?.email || ""} required autoComplete="email" /></div></div><div className="space-y-2"><Label htmlFor="businessName">Business name optional</Label><Input id="businessName" name="businessName" defaultValue={primaryCard?.businessName || ""} autoComplete="organization" /></div><label className="flex items-start gap-3 rounded-xl border border-silver/14 bg-background/24 p-3 text-sm text-muted"><input name="contactConsent" type="checkbox" value="on" required className="mt-1 h-4 w-4 accent-primary" /><span>You may contact me about Circle Card Pro opening.</span></label><label className="flex items-start gap-3 rounded-xl border border-silver/14 bg-background/24 p-3 text-sm text-muted"><input name="marketingEmailOptIn" type="checkbox" value="on" className="mt-1 h-4 w-4 accent-primary" /><span>Send occasional Circle Card and Business Circle updates.</span></label><CircleCardInterestSubmitButton /></form></div>
+        )}
+      </section>
+
+      <section className="pb-4 text-center text-xs leading-relaxed text-muted"><Eye size={14} className="mr-1.5 inline" />Billing status and Pro access are always confirmed by the server. A URL or browser message cannot grant paid access.</section>
     </div>
   );
 }
