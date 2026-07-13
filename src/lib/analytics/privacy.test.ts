@@ -48,6 +48,18 @@ describe("analytics location privacy", () => {
     expect(`${relative}${absolute}`).not.toContain(inviteCode);
   });
 
+  it("redacts testimonial request tokens from relative and absolute paths", () => {
+    const requestToken = "PRIVATE-TESTIMONIAL-REQUEST-TOKEN";
+    const relative = sanitizeAnalyticsLocation(`/testimonial/${requestToken}`);
+    const absolute = sanitizeAnalyticsLocation(
+      `https://thebusinesscircle.net/testimonial/${requestToken}?source=email`
+    );
+
+    expect(relative).toBe("/testimonial/[redacted]");
+    expect(absolute).toBe("https://thebusinesscircle.net/testimonial/[redacted]");
+    expect(`${relative}${absolute}`).not.toContain(requestToken);
+  });
+
   it("keeps ordinary campaign attribution while removing credential parameters", () => {
     const value = sanitizeAnalyticsLocation(
       `/membership?utm_source=partner&session_id=${token}&next=${encodeURIComponent(`/invite/${inviteCode}`)}`

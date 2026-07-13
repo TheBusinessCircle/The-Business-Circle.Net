@@ -59,6 +59,7 @@ describe("first-party analytics privacy boundary", () => {
     const token = "0123456789abcdef".repeat(4);
     const email = "private.owner@example.test";
     const inviteCode = "PRIVATE-INVITE-CODE";
+    const testimonialToken = "PRIVATE-TESTIMONIAL-REQUEST-TOKEN";
 
     await collectFirstPartyAnalytics({
       anonymousId: "anonymous-test-id",
@@ -72,7 +73,7 @@ describe("first-party analytics privacy boundary", () => {
     await collectFirstPartyAnalytics({
       anonymousId: "anonymous-test-id",
       eventName: "spin_to_connect_started",
-      path: "/login",
+      path: `/testimonial/${testimonialToken}`,
       metadata: {
         destination: `/invite/${inviteCode}`,
         inviteCode,
@@ -90,6 +91,7 @@ describe("first-party analytics privacy boundary", () => {
     expect(persisted).not.toContain(token);
     expect(persisted).not.toContain(email);
     expect(persisted).not.toContain(inviteCode);
+    expect(persisted).not.toContain(testimonialToken);
     expect(persisted).not.toContain("reset-password?");
   });
 });

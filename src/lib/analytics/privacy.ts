@@ -1,6 +1,6 @@
 const ANALYTICS_URL_BASE = "https://analytics.invalid";
 
-// Replay snapshots serialize DOM attributes, including invite-bearing hrefs.
+// Replay snapshots serialize DOM attributes, including bearer-link hrefs.
 // Keep replay off until those attributes can be proven scrubbed before capture.
 export const ANALYTICS_SESSION_REPLAY_ENABLED = false;
 
@@ -31,8 +31,10 @@ function isAuthenticationPath(pathname: string) {
   );
 }
 
-function redactInvitationPath(pathname: string) {
-  return pathname.replace(/^\/invite\/[^/]+/i, "/invite/[redacted]");
+function redactBearerPath(pathname: string) {
+  return pathname
+    .replace(/^\/invite\/[^/]+/i, "/invite/[redacted]")
+    .replace(/^\/testimonial\/[^/]+/i, "/testimonial/[redacted]");
 }
 
 export function isAnalyticsLocationProperty(key: string) {
@@ -52,9 +54,13 @@ export function sanitizeAnalyticsLocation(
     const protocolRelative = candidate.startsWith("//");
     const url = new URL(candidate, ANALYTICS_URL_BASE);
     url.hash = "";
-    url.pathname = redactInvitationPath(url.pathname);
+    url.pathname = redactBearerPath(url.pathname);
 
-    if (isAuthenticationPath(url.pathname) || url.pathname.startsWith("/invite/")) {
+    if (
+      isAuthenticationPath(url.pathname) ||
+      url.pathname.startsWith("/invite/") ||
+      url.pathname.startsWith("/testimonial/")
+    ) {
       url.search = "";
     } else {
       for (const key of [...url.searchParams.keys()]) {
@@ -83,6 +89,6 @@ export function sanitizeAnalyticsLocation(
     return relative;
   } catch {
     const pathOnly = candidate.split(/[?#]/, 1)[0] || "/";
-    return redactInvitationPath(pathOnly);
+    return redactBearerPath(pathOnly);
   }
 }
