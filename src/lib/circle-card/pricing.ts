@@ -69,7 +69,7 @@ export const CIRCLE_CARD_PRICING_CONFIG: Record<CircleCardPlanKey, CircleCardPri
       productEnvVar: "STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID",
       monthlyPriceEnvVar: "STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID"
     },
-    billingStatusLabel: "Early access / register interest"
+    billingStatusLabel: "£9.99 monthly launch"
   },
   TEAMS: {
     key: "TEAMS",
@@ -125,52 +125,26 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
         status: "available",
         enforcement: "active"
       },
-      {
-        id: "basic-layouts-early-access",
-        label: "Basic layouts during early access",
-        status: "early-access",
-        enforcement: "messaging-only"
-      }
+      { id: "base-layouts", label: "Personal, Business and Creator base layouts", status: "available", enforcement: "active" }
     ],
     enforcementNote:
-      "Free locks are partly enforced today. Other items remain messaging-only to avoid disrupting existing early-access users."
+      "Free remains fully usable, with card and active-link limits enforced by authoritative server policy."
   },
   PRO: {
     plan: "PRO",
     positioning: "individual visibility, creator/founder/business growth tools",
     features: [
-      { id: "twenty-five-featured-links", label: "25 featured links", status: "future", enforcement: "messaging-only" },
-      { id: "enhanced-analytics", label: "Enhanced analytics", status: "future", enforcement: "messaging-only" },
-      {
-        id: "download-file-links",
-        label: "Uploaded/private file links (deferred)",
-        status: "future",
-        enforcement: "active"
-      },
-      { id: "custom-colours", label: "Custom colours", status: "early-access", enforcement: "messaging-only" },
-      {
-        id: "advanced-profile-sections",
-        label: "Advanced profile sections",
-        status: "early-access",
-        enforcement: "messaging-only"
-      },
-      { id: "opportunity-tracking", label: "Opportunity tracking", status: "early-access", enforcement: "messaging-only" },
-      { id: "lead-capture-tools", label: "Lead capture tools", status: "future", enforcement: "messaging-only" },
-      {
-        id: "priority-visibility-features",
-        label: "Priority visibility features",
-        status: "future",
-        enforcement: "messaging-only"
-      },
-      {
-        id: "future-verification-eligibility",
-        label: "Future verification eligibility",
-        status: "future",
-        enforcement: "messaging-only"
-      }
+      { id: "two-cards", label: "2 Circle Cards", status: "available", enforcement: "active" },
+      { id: "twenty-five-featured-links", label: "25 active links", status: "available", enforcement: "active" },
+      { id: "circle-studio", label: "Circle Studio public activation", status: "available", enforcement: "active" },
+      { id: "business-builder", label: "Business Card Builder", status: "available", enforcement: "active" },
+      { id: "creator-media-kit", label: "Creator Media Kit", status: "available", enforcement: "active" },
+      { id: "audience-snapshot", label: "Audience Snapshot", status: "available", enforcement: "active" },
+      { id: "creator-presentation", label: "Expanded creator presentation", status: "available", enforcement: "active" },
+      { id: "preservation", label: "Downgrade preservation and automatic restoration", status: "available", enforcement: "active" }
     ],
     enforcementNote:
-      "Pro locks are prepared for future billing, but existing early-access features stay available until billing is activated deliberately."
+      "Pro capabilities are enforced from authoritative server entitlement; billing activation remains controlled by the environment flag."
   },
   TEAMS: {
     plan: "TEAMS",

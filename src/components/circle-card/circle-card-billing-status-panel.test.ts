@@ -133,7 +133,8 @@ describe("Circle Card customer billing status", () => {
 
     expect(component).toContain("access.hasBillingRelationship");
     expect(component).toContain("Update Payment Method");
-    expect(component).toContain('"/circle-card/pro#register-interest"');
+    expect(component).toContain("<CircleCardProCheckoutButtons");
+    expect(component).toContain("billingEnabled={billingEnabled}");
     expect(dashboard).toContain('actualCircleCardAccess.source === "standalone_subscription"');
     expect(dashboard).toContain('actualCircleCardAccess.lifecycleStatus === "active"');
     expect(dashboard).toContain("<CircleCardBillingStatusPanel");

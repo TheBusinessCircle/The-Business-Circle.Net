@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
-import { ChevronDown, Download, Loader2, Lock, Save, Sparkles } from "lucide-react";
+import { ChevronDown, Loader2, Lock, Save, Sparkles } from "lucide-react";
 import { saveCircleCardMediaKitInlineAction } from "@/actions/circle-card.actions";
-import { CircleCardLinkFileUploadField } from "@/components/circle-card/circle-card-link-file-upload-field";
+import { CircleCardProCheckoutButtons } from "@/components/circle-card/circle-card-pro-checkout-buttons";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,15 +52,16 @@ export function CircleCardMediaKitManager({
   cardId,
   cardName,
   initialMediaKit,
-  locked
+  locked,
+  billingEnabled
 }: {
   cardId: string;
   cardName: string;
   initialMediaKit: CircleCardMediaKit | null;
   locked: boolean;
+  billingEnabled: boolean;
 }) {
   const [mediaKit, setMediaKit] = useState(initialMediaKit);
-  const [externalMediaKitUrl, setExternalMediaKitUrl] = useState(initialMediaKit?.externalMediaKitUrl ?? "");
   const [formKey, setFormKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -69,7 +69,6 @@ export function CircleCardMediaKitManager({
 
   useEffect(() => {
     setMediaKit(initialMediaKit);
-    setExternalMediaKitUrl(initialMediaKit?.externalMediaKitUrl ?? "");
   }, [initialMediaKit]);
 
   const status = circleCardMediaKitStatus(mediaKit);
@@ -83,7 +82,6 @@ export function CircleCardMediaKitManager({
       const result = await saveCircleCardMediaKitInlineAction(new FormData(event.currentTarget));
       if (result.ok) {
         setMediaKit(result.mediaKit);
-        setExternalMediaKitUrl(result.mediaKit?.externalMediaKitUrl ?? "");
         setNotice(result.notice);
         setFormKey((current) => current + 1);
       } else {
@@ -119,11 +117,17 @@ export function CircleCardMediaKitManager({
                 <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><Lock size={15} />Live Media Kit is included with Creator Pro.</p>
                 <p className="mt-1 text-sm text-muted">Your always up-to-date creator profile for brands, built into your Circle Card.</p>
               </div>
-              <Link href="/circle-card/pro" className={`${buttonVariants({ variant: "outline" })} h-11 w-full sm:w-auto`}>Explore Creator Pro</Link>
+              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={billingEnabled} authenticated intent={{ source: "media_kit", capability: "open_media_kit", cardId, returnPath: `/dashboard/circle-card?section=my-card&cardId=${encodeURIComponent(cardId)}#creator-media-kit` }} label="Unlock Creator Media Kit" earlyAccessLabel="Register for Media Kit access" showPrice={false} />
             </div>
           ) : (
             <form key={formKey} onSubmit={save} className="space-y-5" noValidate>
               <input type="hidden" name="cardId" value={cardId} />
+              {/* File delivery is not in the paid launch. Preserve any existing values without
+                  exposing an upload/download control or clearing stored customer content. */}
+              <input type="hidden" name="fileUrl" value={mediaKit?.mediaKitFileUrl ?? ""} />
+              <input type="hidden" name="fileName" value={mediaKit?.mediaKitFileName ?? ""} />
+              <input type="hidden" name="fileMimeType" value={mediaKit?.mediaKitFileMimeType ?? ""} />
+              <input type="hidden" name="externalMediaKitUrl" value={mediaKit?.externalMediaKitUrl ?? ""} />
               <div>
                 <p className="text-[11px] uppercase tracking-[0.08em] text-cyan-200">Creator profile: {cardName}</p>
                 <h3 className="mt-2 text-lg font-semibold text-foreground">Your creator profile for brands</h3>
@@ -179,31 +183,6 @@ export function CircleCardMediaKitManager({
                   <Field label="Subscribers (optional)" name="subscribers" defaultValue={mediaKit?.subscribers} placeholder="42K" maxLength={40} />
                   <Field label="Monthly Views (optional)" name="monthlyViews" defaultValue={mediaKit?.monthlyViews} placeholder="1.2M" maxLength={40} />
                   <Field label="Average Reach (optional)" name="averageReach" defaultValue={mediaKit?.averageReach} placeholder="85K" maxLength={40} />
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-silver/14 bg-background/18 p-3 sm:p-4">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><Download size={15} className="text-cyan-200" />Optional downloadable Media Kit</h3>
-                <p className="mt-1 text-xs text-muted">Your live profile is the main Media Kit. You can also attach an existing PDF or safe external HTTPS version.</p>
-                <div className="mt-3">
-                  <CircleCardLinkFileUploadField
-                    defaultFileUrl={mediaKit?.mediaKitFileUrl ?? ""}
-                    defaultFileName={mediaKit?.mediaKitFileName ?? ""}
-                    defaultFileMimeType={mediaKit?.mediaKitFileMimeType ?? ""}
-                    label="Upload Media Kit PDF"
-                    helperText="PDF only, up to 10MB"
-                    uploadSuccessMessage="PDF uploaded. Save your Media Kit below."
-                    documentOnly
-                    onFileMetadataChange={(metadata) => {
-                      if (metadata.fileUrl) setExternalMediaKitUrl("");
-                      setError("");
-                    }}
-                  />
-                </div>
-                <div className="mt-3 space-y-2">
-                  <Label htmlFor="media-kit-external-url">Or External Media Kit URL</Label>
-                  <Input id="media-kit-external-url" name="externalMediaKitUrl" type="url" value={externalMediaKitUrl} onChange={(event) => setExternalMediaKitUrl(event.target.value)} maxLength={2048} placeholder="https://..." />
-                  <p className="text-xs text-muted">Clear the uploaded file before using an external URL.</p>
                 </div>
               </div>
 

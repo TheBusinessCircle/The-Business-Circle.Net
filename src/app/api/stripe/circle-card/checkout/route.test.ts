@@ -7,6 +7,7 @@ const rateLimitHeadersMock = vi.hoisted(() => vi.fn());
 const readinessMock = vi.hoisted(() => vi.fn());
 const configurationErrorMock = vi.hoisted(() => vi.fn());
 const createCheckoutMock = vi.hoisted(() => vi.fn());
+const findOwnedCardMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/security/origin", () => ({ isTrustedOrigin: isTrustedOriginMock }));
 vi.mock("@/lib/auth/api", () => ({ requireApiUser: requireApiUserMock }));
@@ -20,6 +21,12 @@ vi.mock("@/lib/circle-card/pricing", () => ({
 }));
 vi.mock("@/server/circle-card", () => ({
   createCircleCardProCheckoutSession: createCheckoutMock
+}));
+vi.mock("@/server/circle-card/performance", () => ({
+  measureCircleCardAction: (_action: string, operation: (correlationId: string) => Promise<unknown>) => operation("test-request")
+}));
+vi.mock("@/lib/prisma", () => ({
+  prisma: { circleCard: { findFirst: findOwnedCardMock } }
 }));
 vi.mock("@/lib/security/logging", () => ({ logServerError: vi.fn() }));
 
@@ -50,6 +57,7 @@ describe("Circle Card Checkout route", () => {
     rateLimitHeadersMock.mockReturnValue({ "X-RateLimit-Limit": "5" });
     readinessMock.mockReturnValue({ billingEnabled: true });
     configurationErrorMock.mockReturnValue(null);
+    findOwnedCardMock.mockResolvedValue({ id: "card-owned-1" });
     createCheckoutMock.mockResolvedValue({
       id: "cs_test_1",
       url: "https://checkout.stripe.test/session",
@@ -117,8 +125,27 @@ describe("Circle Card Checkout route", () => {
     expect(createCheckoutMock).toHaveBeenCalledWith({
       userId: "user-1",
       email: "member@example.com",
-      name: "Member"
+      name: "Member",
+      intent: {
+        source: "pro_page",
+        capability: "explore_pro",
+        returnPath: "/dashboard/circle-card"
+      }
     });
+  });
+
+  it("rejects a card context that is not owned by the authenticated user", async () => {
+    findOwnedCardMock.mockResolvedValue(null);
+    const response = await POST(request({
+      intent: {
+        source: "studio",
+        capability: "apply_studio_design",
+        returnPath: "/dashboard/circle-card/studio",
+        cardId: "card-not-owned-1"
+      }
+    }));
+    expect(response.status).toBe(400);
+    expect(createCheckoutMock).not.toHaveBeenCalled();
   });
 
   it.each([

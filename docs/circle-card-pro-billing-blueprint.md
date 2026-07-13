@@ -215,4 +215,4 @@ During rollback, leave the added columns and indexes in place until all applicat
 
 ## Deferred work
 
-Do not add annual/Teams checkout, trials, commissions, payouts, Stripe Connect, aggressive reconciliation polling, uploaded/private file links or a public Pro sales-page redesign as part of initial launch activation.
+Do not add annual/Teams checkout, trials, commissions, payouts, Stripe Connect, aggressive reconciliation polling or uploaded/private file links as part of initial launch activation. The final public Pro offer and operator sequence are documented in [circle-card-pro-stripe-launch-checklist.md](./circle-card-pro-stripe-launch-checklist.md).

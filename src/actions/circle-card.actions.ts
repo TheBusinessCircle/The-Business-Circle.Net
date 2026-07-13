@@ -2724,7 +2724,6 @@ export async function updateCircleStudioAction(formData: FormData) {
       entityId: card.id
     });
 
-    revalidatePath("/dashboard/circle-card");
     revalidatePath("/dashboard/circle-card/studio");
     redirectWithNotice(returnPath, "studio-draft-saved");
   }
@@ -3391,7 +3390,7 @@ export async function upsertCircleCardGalleryItemInlineAction(
       data: { contentBlocks: writeCircleCardGalleryItems(card.contentBlocks, nextGalleryItems) }
     });
 
-    revalidateCircleCardPaths(card.slug);
+    revalidateCircleCardPublicPaths(card.slug);
     return {
       ok: true,
       notice: existingIndex >= 0 ? "Gallery image updated" : "Gallery image added",
@@ -4972,7 +4971,7 @@ export async function saveCircleCardMediaKitInlineAction(
   try {
     const contentBlocks = writeCircleCardMediaKit(card.contentBlocks, mediaKit);
     await prisma.circleCard.update({ where: { id: card.id }, data: { contentBlocks } });
-    revalidateCircleCardPaths(card.slug);
+    revalidateCircleCardPublicPaths(card.slug);
     return {
       ok: true,
       notice: "Live Media Kit updated",
@@ -5055,7 +5054,7 @@ export async function saveCircleCardAudienceSnapshotInlineAction(
   try {
     const contentBlocks = writeCircleCardAudienceSnapshot(card.contentBlocks, snapshot);
     await prisma.circleCard.update({ where: { id: card.id }, data: { contentBlocks } });
-    revalidateCircleCardPaths(card.slug);
+    revalidateCircleCardPublicPaths(card.slug);
     return {
       ok: true,
       notice: "Audience Snapshot saved",

@@ -1,8 +1,7 @@
-import { AlertTriangle, ArrowUpRight, CheckCircle2, Crown, ShieldCheck } from "lucide-react";
-import Link from "next/link";
+import { AlertTriangle, CheckCircle2, Crown, ShieldCheck } from "lucide-react";
 import { CircleCardBillingPortalButton } from "@/components/circle-card/circle-card-billing-portal-button";
+import { CircleCardProCheckoutButtons } from "@/components/circle-card/circle-card-pro-checkout-buttons";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import type { CircleCardAccessSnapshot } from "@/lib/circle-card/permissions";
 import { cn } from "@/lib/utils";
 
@@ -133,7 +132,7 @@ export function buildCircleCardBillingStatusView(
         label: "Payment needs attention",
         title: `${planLabel} is in recovery grace`,
         description:
-          "A payment failed. Pro remains available only through the current recovery deadline; use the billing portal to update payment details.",
+          "A payment failed, but there is time to put it right. Pro remains available through the recovery deadline, your content stays preserved, and the billing portal is ready when you want to update payment details.",
         tone: "warning",
         dateLabel: graceEndsAt ? "Recovery access ends" : null,
         date: graceEndsAt,
@@ -242,10 +241,6 @@ export function CircleCardBillingStatusPanel({
         : access.hasProAccess
           ? ShieldCheck
           : Crown;
-  const upgradeHref = billingEnabled
-    ? "/circle-card/pro"
-    : "/circle-card/pro#register-interest";
-
   return (
     <section
       aria-labelledby="circle-card-billing-status-title"
@@ -288,13 +283,15 @@ export function CircleCardBillingStatusPanel({
             />
           ) : null}
           {view.showUpgrade ? (
-            <Link
-              href={upgradeHref}
-              className={cn(buttonVariants({ variant: "outline" }), "w-full justify-center gap-2")}
-            >
-              {billingEnabled ? view.upgradeLabel : "Register interest in Pro"}
-              <ArrowUpRight size={14} />
-            </Link>
+            <CircleCardProCheckoutButtons
+              monthlyLabel="£9.99/month"
+              billingEnabled={billingEnabled}
+              authenticated
+              intent={{ source: "dashboard", capability: view.upgradeLabel === "Restore Pro" ? "restore_pro" : "explore_pro", returnPath: "/dashboard/circle-card?section=settings#circle-card-plan" }}
+              label={view.upgradeLabel}
+              earlyAccessLabel={view.upgradeLabel === "Restore Pro" ? "Register to restore Pro" : "Register interest in Pro"}
+              showPrice={false}
+            />
           ) : null}
         </div>
       </div>

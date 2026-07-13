@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ContactRound, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -51,12 +51,15 @@ export function CircleCardCurrentCardSelector({
 }: CircleCardCurrentCardSelectorProps) {
   const router = useRouter();
   const [pendingCardId, setPendingCardId] = useState(selectedCardId || cards[0]?.id || "");
+  const [isPending, startTransition] = useTransition();
+  const switchingRef = useRef(false);
   const selectedCard = useMemo(
     () => cards.find((candidate) => candidate.id === pendingCardId) ?? cards[0] ?? null,
     [cards, pendingCardId]
   );
 
   useEffect(() => {
+    switchingRef.current = false;
     if (selectedCardId && hasExplicitSelection) {
       const explicitCard = cards.find((candidate) => candidate.id === selectedCardId);
       if (explicitCard?.isLive) {
@@ -83,10 +86,14 @@ export function CircleCardCurrentCardSelector({
   }, [cards, currentSection, hasExplicitSelection, router, selectedCardId]);
 
   function switchCard(cardId: string) {
+    if (switchingRef.current || isPending || cardId === selectedCardId) return;
+    switchingRef.current = true;
     setPendingCardId(cardId);
     const selected = cards.find((candidate) => candidate.id === cardId);
     if (selected?.isLive) persistCircleCardCurrentCardPreference(cardId);
-    router.replace(cardSwitchUrl(cardId, currentSection), { scroll: false });
+    startTransition(() => {
+      router.replace(cardSwitchUrl(cardId, currentSection), { scroll: false });
+    });
   }
 
   if (!cards.length || !selectedCard) {
@@ -138,6 +145,7 @@ export function CircleCardCurrentCardSelector({
           <Select
             aria-label="Switch current Circle Card"
             value={pendingCardId}
+            disabled={isPending}
             onChange={(event) => switchCard(event.target.value)}
           >
             {cards.map((option) => (
@@ -150,10 +158,11 @@ export function CircleCardCurrentCardSelector({
             type="button"
             variant="outline"
             className="gap-2"
+            disabled={isPending || pendingCardId === selectedCardId}
             onClick={() => switchCard(pendingCardId)}
           >
-            <RefreshCw size={15} />
-            Switch
+            <RefreshCw size={15} className={isPending ? "animate-spin" : undefined} />
+            {isPending ? "Switching card…" : "Switch card"}
           </Button>
         </div>
       </div>

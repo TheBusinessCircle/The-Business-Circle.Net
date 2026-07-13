@@ -388,51 +388,51 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
 export const CIRCLE_CARD_PRO_FEATURE_PREVIEWS: CircleCardPlanFeature[] = [
   {
     id: "twenty-five-featured-links",
-    label: "25 featured links",
-    description: "More public actions for offers, booking, reviews, downloads and sales paths.",
-    status: "pro-later"
+    label: "25 active links",
+    description: "More public actions for your work, offers, booking routes and proof.",
+    status: "included"
   },
   {
-    id: "enhanced-analytics",
-    label: "Enhanced analytics",
-    description: "Deeper visibility trends, source performance and conversion signals.",
-    status: "pro-later"
+    id: "two-cards",
+    label: "Two Circle Cards",
+    description: "Keep distinct professional contexts under one account.",
+    status: "included"
   },
   {
-    id: "custom-profile-colours",
-    label: "Custom profile colours",
-    description: "Brand-aware public card colour controls.",
-    status: "early-access"
+    id: "circle-studio",
+    label: "Circle Studio activation",
+    description: "Preview and save privately, then apply your design publicly.",
+    status: "included"
   },
   {
-    id: "enhanced-layout-sections",
-    label: "Advanced profile sections",
-    description: "Richer layout sections for creators, founders and business profiles.",
-    status: "early-access"
+    id: "business-builder",
+    label: "Business Card Builder",
+    description: "Present services, products, pricing, booking, hours, galleries and reviews.",
+    status: "included"
   },
   {
-    id: "opportunity-tracking",
-    label: "Opportunity tracking",
-    description: "Relationship follow-up and opportunity tracking during early access.",
-    status: "early-access"
+    id: "creator-media-kit",
+    label: "Creator Media Kit",
+    description: "Keep a brand-ready creator profile inside your Circle Card.",
+    status: "included"
   },
   {
-    id: "lead-capture",
-    label: "Lead capture tools",
-    description: "Capture and qualify public-card interest directly from the card.",
-    status: "pro-later"
+    id: "audience-snapshot",
+    label: "Audience Snapshot",
+    description: "Share creator-controlled audience context with brands.",
+    status: "included"
   },
   {
-    id: "priority-profile-visibility",
-    label: "Priority profile visibility",
-    description: "More visibility in discovery and relationship surfaces.",
-    status: "pro-later"
+    id: "expanded-creator-presentation",
+    label: "Expanded creator presentation",
+    description: "Add more content, offers, proof and partnership context.",
+    status: "included"
   },
   {
-    id: "verified-founder-business-badge",
-    label: "Verified founder/business badge preparation",
-    description: "Preparation for verified founder and business trust signals.",
-    status: "pro-later"
+    id: "preserved-restoration",
+    label: "Preserved downgrade and restoration",
+    description: "Keep saved Pro content through downgrade and restore it automatically with confirmed access.",
+    status: "included"
   }
 ];
 

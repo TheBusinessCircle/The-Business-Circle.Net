@@ -15,6 +15,9 @@ vi.mock("@/lib/security/rate-limit", () => ({
 vi.mock("@/server/circle-card", () => ({
   createCircleCardBillingPortalSession: createPortalMock
 }));
+vi.mock("@/server/circle-card/performance", () => ({
+  measureCircleCardAction: (_action: string, operation: (correlationId: string) => Promise<unknown>) => operation("test-request")
+}));
 vi.mock("@/lib/security/logging", () => ({ logServerError: vi.fn() }));
 
 import { POST } from "@/app/api/stripe/circle-card/portal/route";
