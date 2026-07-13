@@ -78,7 +78,7 @@ secrets to this repository.
 
 - `NEXT_PUBLIC_POSTHOG_KEY=phc_...`
 - `NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com`
-- `NEXT_PUBLIC_POSTHOG_REPLAY_SAMPLE_RATE=0.25`
+- `NEXT_PUBLIC_POSTHOG_REPLAY_SAMPLE_RATE=0`
 - `NEXT_PUBLIC_POSTHOG_DEBUG=false`
 
 ### Email (Resend)
@@ -259,7 +259,7 @@ Rules:
 - With `CIRCLE_CARD_BILLING_ENABLED=false`, Circle Card checkout fails closed and Pro interest paths
   remain available. Do not test a live Circle Card charge during an ordinary deployment.
 - PostHog captures `$pageview` on `/`, `/home`, `/membership`, `/audit`, join/auth routes, and `/dashboard` after analytics consent is granted.
-- PostHog session replay appears for sampled sessions without readable password, message, admin, or payment fields.
+- PostHog DOM autocapture, session replay, browser exception autocapture and performance capture remain disabled. No replay or automatic element-click event should be created during this safety release.
 - Contact form sends to `contact@thebusinesscircle.net`.
 
 ## 8) Calling network and firewall notes
