@@ -136,7 +136,7 @@ Stop immediately on any stop condition in section 10. The stop owner does not ne
    COMMIT;
    ```
 
-10. In PostHog, an authorised privacy administrator must restrict access to affected historical recordings/events immediately, preserve only incident evidence required by the approved retention policy, and delete the exposed telemetry for the incident window through the organisation's approved PostHog deletion process. Do not export, search by, or paste a credential. Old PM2 logs require the same restricted-evidence and approved-retention treatment described in section 7. The payment window remains blocked until exposed credentials are invalidated or independently expired and historical telemetry/log access is contained.
+10. In PostHog, an authorised privacy administrator must verify whether Session Replay, Browser Logs, exception capture, performance capture or autocapture was active during the incident window. Restrict access to affected historical recordings/events/logs immediately, preserve only incident evidence required by the approved retention policy, and delete the exposed telemetry for the incident window through the organisation's approved PostHog deletion process. Do not export, search by, or paste a credential. Old PM2 logs require the same restricted-evidence and approved-retention treatment described in section 7. The payment window remains blocked until exposed credentials are invalidated or independently expired and historical telemetry/log access is contained.
 
 ## 3. Stripe resource setup while billing is disabled
 

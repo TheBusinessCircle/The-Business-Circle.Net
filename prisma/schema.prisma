@@ -1361,7 +1361,7 @@ model CircleCardSubscription {
   plan                 CircleCardSubscriptionPlan
   status               SubscriptionStatus         @default(INCOMPLETE)
   billingInterval      BillingInterval
-  stripeCustomerId     String
+  stripeCustomerId     String                     @unique
   stripeSubscriptionId String?                    @unique
   stripePriceId        String
   stripeProductId      String?
@@ -1398,7 +1398,6 @@ model CircleCardSubscription {
 
   @@index([plan, status])
   @@index([billingInterval, status])
-  @@index([stripeCustomerId])
   @@index([stripePriceId])
   @@index([currentPeriodEnd])
   @@index([cancelAtPeriodEnd, currentPeriodEnd])

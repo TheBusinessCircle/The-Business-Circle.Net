@@ -4,7 +4,6 @@ import { PostHogProvider as PostHogReactProvider } from "posthog-js/react";
 import posthog from "posthog-js";
 import type {
   BeforeSendFn,
-  CaptureResult,
   CapturedNetworkRequest,
   PostHogConfig
 } from "posthog-js";
@@ -18,8 +17,8 @@ import {
 } from "@/lib/cookie-consent";
 import {
   ANALYTICS_SESSION_REPLAY_ENABLED,
-  isAnalyticsLocationProperty,
-  sanitizeAnalyticsLocation
+  sanitizeAnalyticsLocation,
+  sanitizeAnalyticsPayload
 } from "@/lib/analytics/privacy";
 
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim() ?? "";
@@ -27,19 +26,6 @@ const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || "https://eu
 const POSTHOG_DEBUG = process.env.NEXT_PUBLIC_POSTHOG_DEBUG === "true";
 const REPLAY_SAMPLE_STORAGE_KEY = "bcn_posthog_replay_sampled_v1";
 const DEFAULT_PRODUCTION_REPLAY_SAMPLE_RATE = 0.25;
-
-const SENSITIVE_PROPERTY_PATTERNS = [
-  /password/i,
-  /token/i,
-  /secret/i,
-  /authorization/i,
-  /invite/i,
-  /stripe/i,
-  /checkout[_-]?session/i,
-  /email/i,
-  /phone/i,
-  /address/i
-];
 
 const SENSITIVE_NETWORK_PATHS = [
   "/api/auth",
@@ -108,44 +94,12 @@ function shouldSampleReplay() {
   return sampledIn;
 }
 
-function propertyLooksSensitive(propertyName: string) {
-  return SENSITIVE_PROPERTY_PATTERNS.some((pattern) => pattern.test(propertyName));
-}
-
-function sanitizeProperties(properties: CaptureResult["properties"]) {
-  if (!properties) {
-    return properties;
-  }
-
-  const sanitized = { ...properties };
-
-  for (const key of Object.keys(sanitized)) {
-    if (propertyLooksSensitive(key)) {
-      delete sanitized[key];
-      continue;
-    }
-
-    const value = sanitized[key];
-    if (
-      typeof value === "string" &&
-      (key === "$current_url" || key === "$referrer" || isAnalyticsLocationProperty(key))
-    ) {
-      sanitized[key] = redactUrl(value);
-    }
-  }
-
-  return sanitized;
-}
-
 const sanitizeBeforeSend: BeforeSendFn = (event) => {
   if (!event) {
     return null;
   }
 
-  return {
-    ...event,
-    properties: sanitizeProperties(event.properties)
-  };
+  return sanitizeAnalyticsPayload(event);
 };
 
 function redactUrl(value: string) {
@@ -175,14 +129,26 @@ function isPostHogReady() {
   return Boolean(POSTHOG_KEY && posthog.__loaded);
 }
 
-function createPostHogConfig(replayEnabled: boolean): Partial<PostHogConfig> {
+export function createPostHogConfig(replayEnabled: boolean): Partial<PostHogConfig> {
   return {
     api_host: POSTHOG_HOST,
     defaults: "2026-01-30",
     debug: POSTHOG_DEBUG,
+    // Remote-loaded browser-log extensions can attach the raw current href to
+    // console events. Do not let project remote config load those extensions.
+    disable_external_dependency_loading: true,
+    logs: { captureConsoleLogs: false },
+    // Initial person properties include the raw initial URL and referrer and
+    // are sent to /flags outside before_send. This application does not use
+    // PostHog flags, so keep that network path and remote config fail closed.
+    advanced_disable_flags: true,
+    save_referrer: false,
+    save_campaign_params: false,
     // PostHog nests clicked anchor hrefs inside $elements, where shallow
     // before_send scrubbing cannot protect bearer invitation/access codes.
     autocapture: false,
+    capture_heatmaps: false,
+    capture_dead_clicks: false,
     capture_pageview: false,
     capture_pageleave: true,
     // Both features can emit nested URL/error objects that bypass top-level

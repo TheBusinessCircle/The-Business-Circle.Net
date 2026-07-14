@@ -259,7 +259,7 @@ Rules:
 - With `CIRCLE_CARD_BILLING_ENABLED=false`, Circle Card checkout fails closed and Pro interest paths
   remain available. Do not test a live Circle Card charge during an ordinary deployment.
 - PostHog captures `$pageview` on `/`, `/home`, `/membership`, `/audit`, join/auth routes, and `/dashboard` after analytics consent is granted.
-- PostHog DOM autocapture, session replay, browser exception autocapture and performance capture remain disabled. No replay or automatic element-click event should be created during this safety release.
+- PostHog DOM autocapture, session replay, browser console capture, browser exception autocapture, performance capture and remote extension loading remain disabled. No replay, automatic element-click event or browser-log event should be created during this safety release.
 - Contact form sends to `contact@thebusinesscircle.net`.
 
 ## 8) Calling network and firewall notes

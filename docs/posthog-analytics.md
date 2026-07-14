@@ -22,7 +22,7 @@ Use `NEXT_PUBLIC_POSTHOG_DEBUG=true` only in development or a short staging chec
 
 ## Privacy Notes
 
-DOM click/submit autocapture, session replay, browser exception autocapture and performance capture are explicitly disabled for the payment-safety release. Anchor attributes, hidden form fields and nested third-party payloads can contain reset, invitation or return-path credentials that ordinary input/query masks do not reliably cover. Keep the environment sample rate at `0`; changing it does not override the application safety lock.
+DOM click/submit autocapture, session replay, browser console capture, browser exception autocapture, performance capture and remote extension loading are explicitly disabled for the payment-safety release. Anchor attributes, hidden form fields, current URLs and nested third-party payloads can contain reset, invitation or return-path credentials that ordinary input/query masks do not reliably cover. Keep the environment sample rate at `0`; changing it or PostHog project remote config does not override the application safety lock.
 
 Pageview and custom-event destinations pass through the shared analytics location sanitizer. Keep private values out of event properties at the call site as well as at the persistence/capture boundary.
 

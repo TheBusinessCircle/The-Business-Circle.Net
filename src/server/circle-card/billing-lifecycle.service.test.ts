@@ -16,6 +16,7 @@ const checkoutExpireMock = vi.hoisted(() => vi.fn());
 const checkoutListMock = vi.hoisted(() => vi.fn());
 const customerListMock = vi.hoisted(() => vi.fn());
 const customerCreateMock = vi.hoisted(() => vi.fn());
+const customerRetrieveMock = vi.hoisted(() => vi.fn());
 const customerUpdateMock = vi.hoisted(() => vi.fn());
 const subscriptionsListMock = vi.hoisted(() => vi.fn());
 const subscriptionRetrieveMock = vi.hoisted(() => vi.fn());
@@ -67,6 +68,7 @@ vi.mock("@/server/stripe/client", () => ({
     customers: {
       list: customerListMock,
       create: customerCreateMock,
+      retrieve: customerRetrieveMock,
       update: customerUpdateMock
     },
     subscriptions: { list: subscriptionsListMock, retrieve: subscriptionRetrieveMock },
@@ -130,6 +132,15 @@ function stripeSubscription(overrides: Record<string, unknown> = {}) {
     },
     ...overrides
   } as unknown as Stripe.Subscription;
+}
+
+function stripeCustomer(id = "cus_pro_1", userId = "user-1") {
+  return {
+    id,
+    object: "customer",
+    deleted: false,
+    metadata: { userId }
+  } as unknown as Stripe.Customer;
 }
 
 function paidInvoice(overrides: Record<string, unknown> = {}) {
@@ -272,7 +283,8 @@ describe("Circle Card billing lifecycle service", () => {
     referralUpdateManyMock.mockResolvedValue({ count: 0 });
     bcnSubscriptionFindUniqueMock.mockResolvedValue(null);
     customerListMock.mockResolvedValue({ data: [] });
-    customerCreateMock.mockResolvedValue({ id: "cus_pro_1" });
+    customerCreateMock.mockResolvedValue(stripeCustomer());
+    customerRetrieveMock.mockResolvedValue(stripeCustomer());
     customerUpdateMock.mockResolvedValue({ id: "cus_pro_1" });
     subscriptionsListMock.mockResolvedValue({ data: [] });
     subscriptionRetrieveMock.mockResolvedValue(stripeSubscription());
@@ -294,12 +306,11 @@ describe("Circle Card billing lifecycle service", () => {
       if (select?.stripeCustomerId) return null;
       return null;
     });
-    checkoutCreateMock.mockResolvedValue({
+    checkoutCreateMock.mockResolvedValue(openCheckoutSession({
       id: "cs_new",
       url: "https://checkout.stripe.test/new",
-      status: "open",
       expires_at: nowSeconds + 1800
-    });
+    }));
 
     const result = await createCircleCardProCheckoutSession({
       userId: "user-1",
@@ -325,7 +336,7 @@ describe("Circle Card billing lifecycle service", () => {
   it("creates a dedicated Circle Card customer instead of reusing a BCN customer", async () => {
     subscriptionFindUniqueMock.mockResolvedValue(null);
     bcnSubscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_bcn_1" });
-    customerCreateMock.mockResolvedValue({ id: "cus_circle_1" });
+    customerCreateMock.mockResolvedValue(stripeCustomer("cus_circle_1"));
 
     await expect(
       ensureCircleCardStripeCustomerId({
@@ -405,6 +416,66 @@ describe("Circle Card billing lifecycle service", () => {
     ).rejects.toThrow("circle-card-billing-customer-isolation-required");
 
     expect(checkoutRetrieveMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for a tracked Circle Checkout session owned by another customer", async () => {
+    const pending = {
+      latestCheckoutSessionId: "cs_wrong_customer",
+      checkoutSessionExpiresAt: new Date(Date.now() + 600_000)
+    };
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select: Record<string, boolean> }) => {
+        if (select?.plan) return null;
+        if (select?.stripeCustomerId) return { stripeCustomerId: "cus_pro_1" };
+        if (select?.latestCheckoutSessionId) return pending;
+        return null;
+      }
+    );
+    bcnSubscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_bcn_1" });
+    checkoutRetrieveMock.mockResolvedValue(
+      openCheckoutSession({ id: "cs_wrong_customer", customer: "cus_bcn_1" })
+    );
+    await expect(
+      createCircleCardProCheckoutSession({
+        userId: "user-1",
+        email: "member@example.com"
+      })
+    ).rejects.toThrow("circle-card-reconciliation-conflict");
+
+    expect(checkoutExpireMock).not.toHaveBeenCalled();
+    expect(checkoutCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for a completed tracked Checkout owned by another customer", async () => {
+    const pending = {
+      latestCheckoutSessionId: "cs_completed_wrong_customer",
+      checkoutSessionExpiresAt: new Date(Date.now() + 600_000)
+    };
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select: Record<string, boolean> }) => {
+        if (select?.plan) return null;
+        if (select?.stripeCustomerId) return { stripeCustomerId: "cus_pro_1" };
+        if (select?.latestCheckoutSessionId) return pending;
+        return null;
+      }
+    );
+    checkoutRetrieveMock.mockResolvedValue(
+      openCheckoutSession({
+        id: "cs_completed_wrong_customer",
+        customer: "cus_other",
+        status: "complete",
+        url: null
+      })
+    );
+
+    await expect(
+      createCircleCardProCheckoutSession({
+        userId: "user-1",
+        email: "member@example.com"
+      })
+    ).rejects.toThrow("circle-card-reconciliation-conflict");
+
+    expect(checkoutCreateMock).not.toHaveBeenCalled();
   });
 
   it("does not create a new Checkout when Stripe already has a past-due subscription", async () => {
@@ -547,12 +618,11 @@ describe("Circle Card billing lifecycle service", () => {
       latestCheckoutSessionId: null,
       checkoutSessionExpiresAt: null
     });
-    checkoutCreateMock.mockResolvedValueOnce({
+    checkoutCreateMock.mockResolvedValueOnce(openCheckoutSession({
       id: "cs_recovered",
       url: "https://checkout.stripe.test/recovered",
-      status: "open",
       expires_at: Math.floor(startedAt.getTime() / 1000) + 35 * 60
-    });
+    }));
 
     const recovered = await createCircleCardProCheckoutSession({
       userId: "user-1",
@@ -591,6 +661,58 @@ describe("Circle Card billing lifecycle service", () => {
     expect(checkoutCreateMock).not.toHaveBeenCalled();
   });
 
+  it("fails closed instead of adopting an open Circle session from the BCN customer", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(null);
+    bcnSubscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_bcn_1" });
+    checkoutListMock.mockImplementation(async ({ customer }: { customer: string }) => ({
+      data:
+        customer === "cus_bcn_1"
+          ? [
+              openCheckoutSession({
+                id: "cs_legacy_shared_customer",
+                customer: "cus_bcn_1"
+              })
+            ]
+          : []
+    }));
+    await expect(
+      createCircleCardProCheckoutSession({
+        userId: "user-1",
+        email: "member@example.com"
+      })
+    ).rejects.toThrow("circle-card-reconciliation-conflict");
+
+    expect(checkoutListMock).toHaveBeenCalledWith(
+      expect.objectContaining({ customer: "cus_bcn_1" })
+    );
+    expect(customerCreateMock).not.toHaveBeenCalled();
+    expect(checkoutCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for a non-terminal Circle subscription on the BCN customer", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(null);
+    bcnSubscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_bcn_1" });
+    subscriptionsListMock.mockImplementation(async ({ customer }: { customer: string }) => ({
+      data:
+        customer === "cus_bcn_1"
+          ? [stripeSubscription({ customer: "cus_bcn_1" })]
+          : []
+    }));
+
+    await expect(
+      createCircleCardProCheckoutSession({
+        userId: "user-1",
+        email: "member@example.com"
+      })
+    ).rejects.toThrow("circle-card-reconciliation-conflict");
+
+    expect(subscriptionsListMock).toHaveBeenCalledWith(
+      expect.objectContaining({ customer: "cus_bcn_1" })
+    );
+    expect(customerCreateMock).not.toHaveBeenCalled();
+    expect(checkoutCreateMock).not.toHaveBeenCalled();
+  });
+
   it("expires an orphaned server-authored session whose monthly price contract no longer matches", async () => {
     subscriptionFindUniqueMock.mockResolvedValue(null);
     checkoutListMock.mockResolvedValue({
@@ -609,38 +731,31 @@ describe("Circle Card billing lifecycle service", () => {
     expect(checkoutCreateMock).toHaveBeenCalledOnce();
   });
 
-  it("replaces an old ambiguous attempt after open-session recovery finds nothing", async () => {
+  it("reuses an ambiguous attempt through the full payable Checkout lifetime", async () => {
     const originalStart = new Date("2026-07-12T12:00:00.000Z");
     vi.useFakeTimers();
     vi.setSystemTime(new Date(originalStart.getTime() + 5 * 60 * 1000));
     subscriptionFindUniqueMock.mockResolvedValue(null);
-    subscriptionUpsertMock
-      .mockResolvedValueOnce({
-        checkoutAttemptId: "attempt_old",
-        checkoutStartedAt: originalStart,
-        latestCheckoutSessionId: null,
-        checkoutSessionExpiresAt: null
-      })
-      .mockResolvedValueOnce({
-        checkoutAttemptId: null,
-        checkoutStartedAt: null,
-        latestCheckoutSessionId: null,
-        checkoutSessionExpiresAt: null
-      });
-    checkoutCreateMock.mockResolvedValue({
-      id: "cs_new_after_ambiguity",
-      url: "https://checkout.stripe.test/new-after-ambiguity",
-      status: "open",
-      expires_at: Math.floor(Date.now() / 1000) + 35 * 60
+    subscriptionUpsertMock.mockResolvedValueOnce({
+      checkoutAttemptId: "attempt_old",
+      checkoutStartedAt: originalStart,
+      latestCheckoutSessionId: null,
+      checkoutSessionExpiresAt: null,
+      stripeSubscriptionId: null
     });
+    checkoutCreateMock.mockResolvedValue(openCheckoutSession({
+      id: "cs_recovered_after_ambiguity",
+      url: "https://checkout.stripe.test/recovered-after-ambiguity",
+      expires_at: Math.floor(originalStart.getTime() / 1000) + 35 * 60
+    }));
 
     const result = await createCircleCardProCheckoutSession({
       userId: "user-1",
       email: "member@example.com"
     });
 
-    expect(result.id).toBe("cs_new_after_ambiguity");
-    expect(checkoutCreateMock.mock.calls[0]?.[1].idempotencyKey).not.toContain("attempt_old");
+    expect(result.id).toBe("cs_recovered_after_ambiguity");
+    expect(checkoutCreateMock.mock.calls[0]?.[1].idempotencyKey).toContain("attempt_old");
   });
 
   it("expires a Checkout session that cannot be persisted or verified as tracked", async () => {
@@ -662,12 +777,11 @@ describe("Circle Card billing lifecycle service", () => {
     subscriptionUpdateManyMock
       .mockResolvedValueOnce({ count: 1 })
       .mockResolvedValueOnce({ count: 0 });
-    checkoutCreateMock.mockResolvedValue({
+    checkoutCreateMock.mockResolvedValue(openCheckoutSession({
       id: "cs_untracked",
       url: "https://checkout.stripe.test/untracked",
-      status: "open",
       expires_at: Math.floor(Date.now() / 1000) + 2100
-    });
+    }));
 
     await expect(
       createCircleCardProCheckoutSession({ userId: "user-1", email: "member@example.com" })

@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { createPostHogConfig } from "@/components/analytics/posthog-provider";
 import {
   ANALYTICS_SESSION_REPLAY_ENABLED,
-  sanitizeAnalyticsLocation
+  sanitizeAnalyticsLocation,
+  sanitizeAnalyticsPayload
 } from "@/lib/analytics/privacy";
 
 describe("analytics location privacy", () => {
@@ -16,15 +16,52 @@ describe("analytics location privacy", () => {
   });
 
   it("keeps nested PostHog URL and exception capture disabled", () => {
-    const providerSource = readFileSync(
-      resolve(process.cwd(), "src/components/analytics/posthog-provider.tsx"),
-      "utf8"
-    );
+    const config = createPostHogConfig(false);
 
-    expect(providerSource).toMatch(/capture_performance:\s*false/);
-    expect(providerSource).toMatch(/capture_exceptions:\s*false/);
-    expect(providerSource).toMatch(/autocapture:\s*false/);
-    expect(providerSource).toMatch(/disable_session_recording:\s*!replayEnabled/);
+    expect(config).toMatchObject({
+      capture_performance: false,
+      capture_exceptions: false,
+      autocapture: false,
+      capture_heatmaps: false,
+      capture_dead_clicks: false,
+      disable_external_dependency_loading: true,
+      advanced_disable_flags: true,
+      save_referrer: false,
+      save_campaign_params: false,
+      logs: { captureConsoleLogs: false },
+      disable_session_recording: true
+    });
+    expect(config.before_send).toBeTypeOf("function");
+  });
+
+  it("scrubs secrets from properties, person updates and nested location fields", () => {
+    const timestamp = new Date("2026-07-13T00:00:00.000Z");
+    const payload = sanitizeAnalyticsPayload({
+      timestamp,
+      properties: {
+        $current_url: `https://thebusinesscircle.net/invite/${inviteCode}`,
+        nested: {
+          reset_path: `/reset-password?email=${email}&token=${token}`
+        }
+      },
+      $set: {
+        email,
+        return_url: `/testimonial/${token}`
+      },
+      $set_once: {
+        $initial_current_url: `https://thebusinesscircle.net/invite/${inviteCode}`,
+        $initial_pathname: `/testimonial/${token}`,
+        $initial_referrer: `https://thebusinesscircle.net/reset-password?email=${email}&token=${token}`
+      }
+    });
+    const serialized = JSON.stringify(payload);
+
+    expect(serialized).not.toContain(email);
+    expect(serialized).not.toContain(token);
+    expect(serialized).not.toContain(inviteCode);
+    expect(serialized).toContain("/invite/[redacted]");
+    expect(serialized).toContain("/testimonial/[redacted]");
+    expect(payload.timestamp).toBe(timestamp);
   });
 
   it("removes all query data from authentication and reset locations", () => {
