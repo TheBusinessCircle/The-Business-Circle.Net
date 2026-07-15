@@ -60,12 +60,17 @@ Use a production environment (systemd, PM2, or host-level env manager) and set:
 ### Circle Card Pro billing (disabled)
 
 - `CIRCLE_CARD_BILLING_ENABLED=false`
+- `CIRCLE_CARD_BILLING_ACCESS_MODE=` (set to `operator` for the controlled payment, then `public` only for a separately approved launch)
+- `CIRCLE_CARD_BILLING_OPERATOR_USER_IDS=` (comma-separated internal `User.id` values; required when enabled in `operator` mode)
 - `STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID=` (set to `prod_...` before a later controlled launch)
 - `STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID=` (set to `price_...` before a later controlled launch)
 - `CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID=` (set to `bpc_...` before a later controlled launch)
 
 When Circle Card billing is disabled, the Circle Card product and price may be blank. Enabling the
-flag requires the Stripe secret, webhook secret, product ID, monthly price ID and dedicated Portal ID to be complete.
+flag requires an explicit `operator` or `public` access mode plus the Stripe secret, webhook secret,
+product ID, monthly price ID and dedicated Portal ID. Controlled payment must use `operator` mode
+and a verified internal user allowlist; setting the billing flag alone must not expose Checkout to
+the public.
 Annual and Teams IDs are not required for the launch. Never commit real Stripe identifiers or
 secrets to this repository.
 
@@ -73,7 +78,7 @@ secrets to this repository.
 
 - `NEXT_PUBLIC_POSTHOG_KEY=phc_...`
 - `NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com`
-- `NEXT_PUBLIC_POSTHOG_REPLAY_SAMPLE_RATE=0.25`
+- `NEXT_PUBLIC_POSTHOG_REPLAY_SAMPLE_RATE=0`
 - `NEXT_PUBLIC_POSTHOG_DEBUG=false`
 
 ### Email (Resend)
@@ -151,6 +156,25 @@ also runs the read-only live Stripe certification before migrations.
 Before the first deploy, place your TURN certificate files at `.secrets/coturn/fullchain.pem` and `.secrets/coturn/privkey.pem` on the server (or adjust the `TURN_TLS_*` paths if you use a different location).
 
 ## 4) Run database migrations (required)
+
+Before applying `20260713010000_circle_card_customer_ownership`, run this read-only preflight. It returns counts only and must report zero for both rows:
+
+```sql
+SELECT COUNT(*) AS "duplicateCircleCustomerGroups"
+FROM (
+  SELECT "stripeCustomerId"
+  FROM "CircleCardSubscription"
+  GROUP BY "stripeCustomerId"
+  HAVING COUNT(*) > 1
+) duplicates;
+
+SELECT COUNT(*) AS "circleBcnSharedCustomers"
+FROM "CircleCardSubscription" cc
+JOIN "Subscription" bcn
+  ON bcn."stripeCustomerId" = cc."stripeCustomerId";
+```
+
+Stop if either count is non-zero; reconcile ownership under an approved data/Stripe procedure without deleting application content. The migration is explicitly transactional and contains no record rewrite. If duplicates exist, creation of the unique index fails and PostgreSQL rolls back the preceding index drop.
 
 ```bash
 npm run db:migrate:prod
@@ -254,7 +278,7 @@ Rules:
 - With `CIRCLE_CARD_BILLING_ENABLED=false`, Circle Card checkout fails closed and Pro interest paths
   remain available. Do not test a live Circle Card charge during an ordinary deployment.
 - PostHog captures `$pageview` on `/`, `/home`, `/membership`, `/audit`, join/auth routes, and `/dashboard` after analytics consent is granted.
-- PostHog session replay appears for sampled sessions without readable password, message, admin, or payment fields.
+- PostHog DOM autocapture, session replay, browser console capture, browser exception autocapture, performance capture, heatmaps, dead-click capture, feature-flag requests and remote extension loading remain disabled. No replay, automatic element-click, browser-log, heatmap or dead-click event should be created during this safety release.
 - Contact form sends to `contact@thebusinesscircle.net`.
 
 ## 8) Calling network and firewall notes

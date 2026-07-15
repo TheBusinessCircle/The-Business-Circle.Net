@@ -1,5 +1,6 @@
 import { db } from "../src/lib/db";
 import { resendVerificationEmail } from "../src/lib/auth/email-verification";
+import { logServerError, logServerInfo } from "../src/lib/security/logging";
 
 const loadEnvFile = (process as typeof process & {
   loadEnvFile?: (path?: string) => void;
@@ -40,18 +41,16 @@ async function main() {
   }
 
   const result = await resendVerificationEmail(user.id);
-  console.info("[email:test:verification] Result", {
+  logServerInfo("verification-email-test-completed", {
     userId: user.id,
-    email: user.email,
     alreadyVerified: Boolean(user.emailVerified),
-    ...result
+    sent: result.sent,
+    skipped: result.skipped,
+    hasMessageId: Boolean(result.messageId)
   });
 }
 
 main().catch((error) => {
-  console.error(
-    "[email:test:verification] Failed:",
-    error instanceof Error ? error.message : error
-  );
+  logServerError("verification-email-test-failed", error);
   process.exit(1);
 });

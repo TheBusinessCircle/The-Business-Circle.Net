@@ -3,6 +3,7 @@ import { BcnEmailLayout, EmailNote } from "../src/emails";
 import { renderEmailHtml } from "../src/emails/render";
 import { buildBrandedEmailText } from "../src/emails/text";
 import { sendTransactionalEmail } from "../src/lib/email/resend";
+import { logServerError } from "../src/lib/security/logging";
 
 const loadEnvFile = (process as typeof process & {
   loadEnvFile?: (path?: string) => void;
@@ -50,10 +51,10 @@ async function main() {
     throw new Error(result.reason || "Email send failed.");
   }
 
-  console.info(`[email:test] Sent successfully to ${recipient}. Message ID: ${result.id ?? "unknown"}`);
+  console.info(`[email:test] Sent successfully. Message ID returned: ${result.id ? "yes" : "no"}`);
 }
 
 main().catch((error) => {
-  console.error("[email:test] Failed:", error instanceof Error ? error.message : error);
+  logServerError("email-test-failed", error);
   process.exit(1);
 });

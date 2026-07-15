@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { isLikelyBot, parseDevice } from "@/lib/analytics/first-party";
 import { parseTrafficSource, parseUtmValue } from "@/lib/analytics/source";
+import {
+  isAnalyticsLocationProperty,
+  sanitizeAnalyticsLocation
+} from "@/lib/analytics/privacy";
 import { prisma } from "@/lib/prisma";
 
 export const FIRST_PARTY_ANALYTICS_EVENTS = [
@@ -73,23 +77,35 @@ function normalizeEventName(eventName: FirstPartyAnalyticsEvent) {
   return eventName;
 }
 
-function safeMetadata(metadata: Record<string, unknown> | null | undefined) {
+export function safeAnalyticsMetadata(metadata: Record<string, unknown> | null | undefined) {
   if (!metadata) {
     return null;
   }
 
   return Object.fromEntries(
-    Object.entries(metadata).filter(([key, value]) => {
-      if (/password|token|secret|authorization|email|phone|address|stripe|checkoutSession/i.test(key)) {
-        return false;
+    Object.entries(metadata).flatMap(([key, value]) => {
+      if (/password|token|secret|authorization|invite|email|phone|address|stripe|checkoutSession/i.test(key)) {
+        return [];
       }
-      return value !== undefined;
+
+      if (value === undefined) {
+        return [];
+      }
+
+      if (typeof value === "string" && isAnalyticsLocationProperty(key)) {
+        return [[key, sanitizeAnalyticsLocation(value)]];
+      }
+
+      return [[key, value]];
     })
   );
 }
 
 export async function collectFirstPartyAnalytics(input: CollectInput) {
-  if (isLikelyBot(input.userAgent) || input.path?.startsWith("/admin")) {
+  const path = sanitizeAnalyticsLocation(input.path) ?? "/";
+  const referrer = sanitizeAnalyticsLocation(input.referrer);
+
+  if (isLikelyBot(input.userAgent) || path.startsWith("/admin")) {
     return { stored: false, reason: "ignored" as const };
   }
 
@@ -97,9 +113,8 @@ export async function collectFirstPartyAnalytics(input: CollectInput) {
   const userId = session?.user?.id ?? null;
   const device = parseDevice(input.userAgent);
   const eventName = normalizeEventName(input.eventName);
-  const path = input.path || "/";
-  const source = parseTrafficSource(input.referrer, path);
-  const metadata = safeMetadata(input.metadata);
+  const source = parseTrafficSource(referrer, path);
+  const metadata = safeAnalyticsMetadata(input.metadata);
 
   const visitor = await prisma.siteVisitor.upsert({
     where: { anonymousId: input.anonymousId },
@@ -129,7 +144,7 @@ export async function collectFirstPartyAnalytics(input: CollectInput) {
       data: {
         visitorId: visitor.id,
         entryPath: path,
-        referrer: input.referrer || null,
+        referrer,
         source,
         medium: parseUtmValue(path, "utm_medium"),
         campaign: parseUtmValue(path, "utm_campaign"),
@@ -157,7 +172,7 @@ export async function collectFirstPartyAnalytics(input: CollectInput) {
         userId,
         path,
         title: input.title || null,
-        referrer: input.referrer || null,
+        referrer,
         searchParams: path.includes("?") ? path.split("?").slice(1).join("?") : null,
         deviceType: device.deviceType,
         browser: device.browser,
@@ -198,7 +213,7 @@ export async function collectFirstPartyAnalytics(input: CollectInput) {
           ? (metadata.weaknesses as Prisma.InputJsonValue)
           : undefined,
         sourcePath: path,
-        referrer: input.referrer || null
+        referrer
       }
     });
   }

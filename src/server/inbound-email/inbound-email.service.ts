@@ -9,6 +9,7 @@ import {
   sendTransactionalEmailOrThrow
 } from "@/lib/email/resend";
 import { db } from "@/lib/db";
+import { logServerError } from "@/lib/security/logging";
 
 export type ResendWebhookHeaders = {
   id: string | null;
@@ -360,7 +361,7 @@ export async function forwardInboundEmail(resendEmailId: string, inboundEmailId:
   });
 
   if (result.error) {
-    const message = truncate(result.error.message || "Inbound email forwarding failed.", 1000);
+    const message = "Inbound email forwarding failed.";
     await db.inboundEmail.update({
       where: { id: inboundEmailId },
       data: { forwardedTo: forwardTo, forwardError: message }
@@ -394,8 +395,8 @@ export async function processResendInboundWebhookEvent(event: unknown) {
   try {
     const forwardResult = await forwardInboundEmail(email.resendEmailId, email.id);
     return { ignored: false, created, forwarded: forwardResult.forwarded };
-  } catch (error) {
-    const message = truncate(error instanceof Error ? error.message : "Inbound email forwarding failed.", 1000);
+  } catch {
+    const message = "Inbound email forwarding failed.";
     await db.inboundEmail.update({
       where: { id: email.id },
       data: {
@@ -403,10 +404,9 @@ export async function processResendInboundWebhookEvent(event: unknown) {
         forwardError: message
       }
     });
-    console.error("[resend-inbound-forward-failed]", {
+    logServerError("resend-inbound-forward-failed", new Error(message), {
       inboundEmailId: email.id,
-      resendEmailId: email.resendEmailId,
-      message
+      resendEmailId: email.resendEmailId
     });
     return { ignored: false, created, forwarded: false };
   }

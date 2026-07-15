@@ -6,6 +6,7 @@ const consumeRateLimitMock = vi.hoisted(() => vi.fn());
 const rateLimitHeadersMock = vi.hoisted(() => vi.fn());
 const readinessMock = vi.hoisted(() => vi.fn());
 const configurationErrorMock = vi.hoisted(() => vi.fn());
+const canStartCheckoutMock = vi.hoisted(() => vi.fn());
 const createCheckoutMock = vi.hoisted(() => vi.fn());
 const findOwnedCardMock = vi.hoisted(() => vi.fn());
 
@@ -17,7 +18,8 @@ vi.mock("@/lib/security/rate-limit", () => ({
 }));
 vi.mock("@/lib/circle-card/pricing", () => ({
   getCircleCardBillingReadiness: readinessMock,
-  getCircleCardProBillingConfigurationErrorMessage: configurationErrorMock
+  getCircleCardProBillingConfigurationErrorMessage: configurationErrorMock,
+  canUserStartCircleCardCheckout: canStartCheckoutMock
 }));
 vi.mock("@/server/circle-card", () => ({
   createCircleCardProCheckoutSession: createCheckoutMock
@@ -57,6 +59,7 @@ describe("Circle Card Checkout route", () => {
     rateLimitHeadersMock.mockReturnValue({ "X-RateLimit-Limit": "5" });
     readinessMock.mockReturnValue({ billingEnabled: true });
     configurationErrorMock.mockReturnValue(null);
+    canStartCheckoutMock.mockReturnValue(true);
     findOwnedCardMock.mockResolvedValue({ id: "card-owned-1" });
     createCheckoutMock.mockResolvedValue({
       id: "cs_test_1",
@@ -81,11 +84,36 @@ describe("Circle Card Checkout route", () => {
     expect(createCheckoutMock).not.toHaveBeenCalled();
   });
 
+  it("requires a freshly verified authenticated user", async () => {
+    requireApiUserMock.mockResolvedValue({
+      response: Response.json({ error: "Verify your email before starting Checkout." }, { status: 403 })
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(403);
+    expect(requireApiUserMock).toHaveBeenCalledWith({
+      allowUnentitled: true,
+      requireVerifiedEmail: true
+    });
+    expect(createCheckoutMock).not.toHaveBeenCalled();
+  });
+
   it("keeps billing disabled without creating a Stripe session", async () => {
     readinessMock.mockReturnValue({ billingEnabled: false });
     const response = await POST(request());
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchObject({ billingEnabled: false, checkoutReady: false });
+    expect(createCheckoutMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks non-operator users while controlled billing mode is enabled", async () => {
+    canStartCheckoutMock.mockReturnValue(false);
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ billingEnabled: true, checkoutReady: false });
     expect(createCheckoutMock).not.toHaveBeenCalled();
   });
 

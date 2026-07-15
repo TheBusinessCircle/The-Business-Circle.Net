@@ -1,89 +1,398 @@
-# Circle Card Pro automated Stripe operator runbook
+# Circle Card Pro controlled Stripe operator runbook
 
-Status: operator procedure only. Keep `CIRCLE_CARD_BILLING_ENABLED=false` until a separately authorised public launch. Do not run these commands from a developer machine, commit `.env.production`, create Checkout sessions during setup, or add annual, trial, Teams, Connect, commission or payout resources.
+Status: operator procedure only. This document is not permission to deploy, enable billing or modify live Stripe. Keep `CIRCLE_CARD_BILLING_ENABLED=false` until a separately authorised change window.
 
-The launch contract is one live **Circle Card Pro** product and one active GBP `999` pence monthly, licensed, flat-rate price with no trial. The dedicated Circle Card Portal permits payment-method updates, invoices and period-end cancellation, but no plan or quantity switching. The shared webhook URL is `https://thebusinesscircle.net/api/stripe/webhook`.
+The launch contract is one live **Circle Card Pro** product and one active GBP `999` pence monthly, licensed, flat-rate price. There is no annual price, trial, Teams billing, commission, payout, Stripe Connect or uploaded/private-link launch. The dedicated Circle Card Portal permits payment-method updates, invoices and period-end cancellation, but no plan or quantity switching. The shared webhook URL is `https://thebusinesscircle.net/api/stripe/webhook`.
 
-## 1. Production-server preflight
+## 1. People, evidence and stop authority
 
-1. Deploy the reviewed code with billing still disabled; do not execute the operator during application build or startup.
-2. Sign in to the production server as the restricted application operator and change to the checked-out repository root.
-3. Confirm `.env.production` exists at the repository root, is ignored and untracked, is readable only by the operator where the platform supports Unix permissions, and contains:
+Name these roles in the restricted change record before starting:
+
+- change approver;
+- production operator;
+- Stripe Dashboard observer;
+- database/log observer; and
+- stop/rollback owner.
+
+Record only the approved release SHA, UTC timestamps, the internal operator test `User.id`, Stripe event IDs (`evt_...`), pass/fail outcomes and the final disable/public decision. Do not put email addresses, Checkout URLs, verification/reset links, tokens, Stripe secrets, payment details, full request bodies or card/profile content in the record or logs.
+
+Stop immediately on any stop condition in section 10. The stop owner does not need separate approval to disable new Checkout.
+
+## 2. Production-server preflight
+
+1. Deploy only the approved release while billing is disabled. Do not execute Stripe setup during build or startup.
+2. Sign in to every production application host as the restricted operator and change to the checked-out repository root.
+3. Confirm the PM2 application name. The repository deployment assistant defaults to `the-business-circle-network`; use `PM2_APP_NAME` only if production deliberately overrides it.
+4. Confirm the working tree/revision and protected environment file without printing its contents:
+
+   ```bash
+   git status --short
+   git rev-parse HEAD
+   git check-ignore .env.production
+   ```
+
+   The status must be clean, the SHA must be approved, and `.env.production` must be ignored and untracked. Never run `env`, `printenv`, `pm2 env`, `set -x` or any command that dumps the environment into a terminal or log.
+
+5. In the authoritative production secret/environment manager, confirm these keys exist. Placeholder values below are examples, not live identifiers:
 
    ```text
    APP_URL=https://thebusinesscircle.net
    STRIPE_SECRET_KEY=sk_live_...
-   STRIPE_WEBHOOK_SECRET=whsec_... # existing shared endpoint, if one exists
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID=prod_...
+   STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID=price_...
+   CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID=bpc_...
    CIRCLE_CARD_BILLING_ENABLED=false
+   CIRCLE_CARD_BILLING_ACCESS_MODE=operator
+   CIRCLE_CARD_BILLING_OPERATOR_USER_IDS=<approved-internal-user-id>
+   NEXT_PUBLIC_POSTHOG_REPLAY_SAMPLE_RATE=0
    ```
 
-4. Confirm the working tree/revision is the approved release and that no Stripe resource identifiers or secrets are in Git, the change ticket, shell history or logs.
+   If PM2 or an ecosystem file supplies a key directly, update that same authoritative source; do not assume `.env.production` overrides an inherited PM2 value. The environment file and its backups must remain untracked and operator-readable only.
 
-## 2. Required dry run
+6. Confirm a recent PostgreSQL backup and a tested restore owner. Do not use destructive database repair as a billing rollback.
 
-Run exactly:
+7. Close the authentication-link logging incident before accepting payment. After the safe logging/token release is running, an explicitly authorised database operator should invalidate all outstanding pre-release email-verification links without selecting or printing a token:
+
+   ```sql
+   BEGIN;
+   DELETE FROM "VerificationToken"
+   WHERE identifier LIKE 'verify-email:%';
+   COMMIT;
+   ```
+
+   The command reports a row count only; it makes every old verification link unusable, and affected users can request a new link generated by the fixed release.
+
+8. Determine from configuration history whether PostHog was initialised and Session Replay was active during the affected release. If it was, reset links were exposed by hidden form fields even when ordinary input masking was enabled. In that case, invalidate every outstanding password-reset credential without selecting or printing one:
+
+   ```sql
+   BEGIN;
+   DELETE FROM "PasswordResetToken"
+   WHERE "usedAt" IS NULL;
+   COMMIT;
+   ```
+
+   Users can request a new reset link after the fixed release is running. Also invalidate uncompleted external testimonial request tokens, which were rendered in hidden inputs, without deleting testimonial content:
+
+   ```sql
+   BEGIN;
+   UPDATE "Testimonial"
+   SET "requestToken" = NULL
+   WHERE "requestToken" IS NOT NULL
+     AND "completedAt" IS NULL;
+   COMMIT;
+   ```
+
+   Use the same incident window to identify affected launch/invitation and other bearer-code records by internal row ID and status only. Pause or rotate only records proven exposed through the approved admin workflow; never print the credential, blanket-delete referrals, or delete user/domain content.
+
+9. Sanitize first-party telemetry created before this release. The following transaction does not select or print stored values; PostgreSQL reports row counts only. Run it from an approved console after a backup, and keep the literal patterns intact:
+
+   ```sql
+   \set ON_ERROR_STOP on
+   \set sensitive_location_pattern '([?&](token|email|invite|inviteCode|launchCode|referralCode|referredBy|requestToken|resetToken|verificationToken|code|secret|key|signature|session_id|checkout_session_id|stripe_session_id)=|/(invite|testimonial|r|reset-password|forgot-password|api/auth)(/|[?]|$))'
+   \set sensitive_query_pattern '(^|&)(token|email|invite|inviteCode|launchCode|referralCode|referredBy|requestToken|resetToken|verificationToken|code|secret|key|signature|session_id|checkout_session_id|stripe_session_id)='
+   \set sensitive_metadata_pattern '"(code|inviteCode|launchCode|referralCode|requestToken|accessCode|token|email|destination|from|referrer|url|href)"[[:space:]]*:'
+
+   BEGIN;
+
+   UPDATE "SiteSession"
+   SET
+     "entryPath" = CASE WHEN "entryPath" ~* :'sensitive_location_pattern' THEN '/redacted-sensitive-location' ELSE "entryPath" END,
+     "exitPath" = CASE WHEN COALESCE("exitPath", '') ~* :'sensitive_location_pattern' THEN '/redacted-sensitive-location' ELSE "exitPath" END,
+     "referrer" = CASE WHEN COALESCE("referrer", '') ~* :'sensitive_location_pattern' THEN NULL ELSE "referrer" END
+   WHERE "entryPath" ~* :'sensitive_location_pattern'
+      OR COALESCE("exitPath", '') ~* :'sensitive_location_pattern'
+      OR COALESCE("referrer", '') ~* :'sensitive_location_pattern';
+
+   UPDATE "SitePageView"
+   SET
+     "path" = CASE WHEN "path" ~* :'sensitive_location_pattern' THEN '/redacted-sensitive-location' ELSE "path" END,
+     "referrer" = CASE WHEN COALESCE("referrer", '') ~* :'sensitive_location_pattern' THEN NULL ELSE "referrer" END,
+     "searchParams" = CASE WHEN COALESCE("searchParams", '') ~* :'sensitive_query_pattern' THEN NULL ELSE "searchParams" END
+   WHERE "path" ~* :'sensitive_location_pattern'
+      OR COALESCE("referrer", '') ~* :'sensitive_location_pattern'
+      OR COALESCE("searchParams", '') ~* :'sensitive_query_pattern';
+
+   UPDATE "SiteEvent"
+   SET
+     "path" = CASE WHEN COALESCE("path", '') ~* :'sensitive_location_pattern' THEN '/redacted-sensitive-location' ELSE "path" END,
+     "metadata" = CASE
+       WHEN COALESCE("metadata"::text, '') ~* :'sensitive_metadata_pattern'
+         OR COALESCE("metadata"::text, '') ~* :'sensitive_location_pattern'
+       THEN '{}'::jsonb
+       ELSE "metadata"
+     END
+   WHERE COALESCE("path", '') ~* :'sensitive_location_pattern'
+      OR COALESCE("metadata"::text, '') ~* :'sensitive_metadata_pattern'
+      OR COALESCE("metadata"::text, '') ~* :'sensitive_location_pattern';
+
+   UPDATE "FounderAuditSubmission"
+   SET
+     "sourcePath" = CASE WHEN COALESCE("sourcePath", '') ~* :'sensitive_location_pattern' THEN '/redacted-sensitive-location' ELSE "sourcePath" END,
+     "referrer" = CASE WHEN COALESCE("referrer", '') ~* :'sensitive_location_pattern' THEN NULL ELSE "referrer" END
+   WHERE COALESCE("sourcePath", '') ~* :'sensitive_location_pattern'
+      OR COALESCE("referrer", '') ~* :'sensitive_location_pattern';
+
+   COMMIT;
+   ```
+
+10. In PostHog, an authorised privacy administrator must verify whether Session Replay, Browser Logs, exception capture, performance capture, autocapture, heatmaps, dead-click capture or feature-flag/person-property collection was active during the incident window. Inspection and deletion scope must include event payloads and person/profile properties such as `$initial_referrer`, `$initial_current_url` and `$initial_pathname`; an earlier identify or flags request could have persisted a bearer path or same-origin reset URL outside an ordinary event's `properties`. Restrict access to affected historical recordings/events/logs/person data immediately, preserve only incident evidence required by the approved retention policy, and delete the exposed telemetry for the incident window through the organisation's approved PostHog deletion process. Do not export, search by, or paste a credential. Old PM2 logs require the same restricted-evidence and approved-retention treatment described in section 7. The payment window remains blocked until exposed credentials are invalidated or independently expired and historical telemetry/log access is contained.
+
+## 3. Stripe resource setup while billing is disabled
+
+Run the masked, read-only plan from the production repository root:
 
 ```bash
 npm run circle-card:stripe:setup-live -- --env-file .env.production --mode live
 ```
 
-This command reads all matching products, prices, Portal configurations and webhooks and prints a masked change plan. It makes no Stripe or file mutation without `--execute`. Review every `create`, `reuse`, `adopt-metadata`, `update` or `reactivate` action. Stop on any reported duplicate or ambiguous resource; correct the account deliberately rather than rerunning until it succeeds.
+It makes no Stripe or file mutation without `--execute`. Review every `create`, `reuse`, `adopt-metadata`, `update` or `reactivate` action. Stop on a duplicate or ambiguous product, price, Portal or exact-URL webhook.
 
-The resolver uses stable metadata (`product_key=circle_card_pro`, `price_key=circle_card_pro_monthly_gbp`, and `configuration_key=circle_card_pro_portal`). One exact legacy price without the price key may be adopted by adding metadata; it is not duplicated. Creation calls use stable idempotency keys, and the script re-inspects live state before mutation.
-
-## 3. Explicit live execution
-
-After an authorised operator approves the dry-run plan, run exactly:
+Only after explicit setup approval, run:
 
 ```bash
 npm run circle-card:stripe:setup-live -- --env-file .env.production --mode live --execute
 ```
 
-The command refuses to proceed unless the mode is explicitly live, the key starts `sk_live_`, the origin is exactly `https://thebusinesscircle.net`, billing is explicitly false, the command is at the Git root, and root `.env.production` is ignored and untracked.
+The command refuses a non-live key/origin, a tracked environment file or billing other than explicit `false`. It creates or reuses only the monthly Circle Card resources, never archives/deletes Stripe resources, never creates Checkout and never charges a customer. Stable metadata identifies the product (`product_key=circle_card_pro`), monthly price (`price_key=circle_card_pro_monthly_gbp`) and dedicated Portal (`configuration_key=circle_card_pro_portal`).
 
-It creates or reuses only the Circle Card resources in the launch contract. It never archives or deletes Stripe resources. It creates a separate Circle Card Portal configuration and records its `bpc_...` identifier so Circle Card sessions select it explicitly; existing BCN Portal behaviour continues to use its existing/default configuration.
+For the shared webhook, setup preserves the union of existing BCN and Circle Card events. If it reuses an endpoint, manually confirm the stored `STRIPE_WEBHOOK_SECRET` belongs to that exact endpoint because Stripe does not return an existing signing secret. A newly returned secret is stored without being printed.
 
-For the exact shared webhook URL, the command reuses one enabled endpoint, reactivates one unambiguous disabled endpoint, or creates one endpoint. Updating takes the union of existing and required events, so BCN-only events are preserved. More than one enabled endpoint at the exact URL is a hard conflict. Stripe does not reveal an existing endpoint's signing secret through this API; manually confirm that the stored `STRIPE_WEBHOOK_SECRET` belongs to the reused endpoint. A newly created secret is written to `.env.production` and is never printed.
-
-## 4. Environment update and recovery
-
-The operator writes only these managed values, without duplicate keys and while preserving unrelated values and comments:
+The setup tool safely records only these managed values and leaves billing false:
 
 ```text
 STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID=prod_...
 STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID=price_...
 CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID=bpc_...
-STRIPE_WEBHOOK_SECRET=whsec_... # only when Stripe returned a new endpoint secret
+STRIPE_WEBHOOK_SECRET=whsec_... # only for a newly created endpoint
 CIRCLE_CARD_BILLING_ENABLED=false
 ```
 
-Before a changed file is replaced, the script creates `.env.production.backup-<UTC timestamp>` and applies permission mode `600` to the backup and resulting environment file where supported. Store/handle that backup as a secret and remove it only under the normal secret-retention procedure.
+It writes a permission-restricted `.env.production.backup-<UTC timestamp>` before replacement. Treat that backup as a secret. Never commit, paste or attach it.
 
-To revert the file, stop application processes that could reload it, compare the timestamped backup, copy the approved backup contents back to `.env.production`, restore mode `600`, and rerun environment validation. Do not automatically delete or deactivate the newly created Stripe resources; record them and decide rollback separately so BCN resources cannot be removed accidentally.
+## 4. Disabled-mode certification and all-instance rollout
 
-## 5. Read-only certification while disabled
-
-Run:
+With billing still false, run exactly:
 
 ```bash
+npm run env:validate:production -- --env-file .env.production
 npm run circle-card:billing:validate-env -- --env-file .env.production
 npm run circle-card:billing:certify-stripe -- --env-file .env.production --mode live
 ```
 
-Certification retrieves and verifies the configured product, price, dedicated Portal and one enabled exact-URL shared webhook. It checks live mode; active state; stable identity metadata; GBP `999`; monthly interval count `1`; licensed flat-rate billing; no trial; product relationship; Portal URLs and allowed features; and the required webhook event superset. Extra BCN webhook events are valid and must remain. Certification is read-only, does not create Checkout, and does not enable billing.
+Certification is read-only. It verifies live mode, active product, active GBP `999` monthly recurrence, interval count `1`, licensed flat-rate billing, no trial, expected product relationship, dedicated Portal contract and the required shared-webhook event superset. Extra BCN events are valid and must remain.
 
-## 6. Controlled launch sequence
+Roll the disabled environment to every application host. On each host run:
 
-In a later separately approved deployment/launch window:
+```bash
+PM2_APP_NAME="${PM2_APP_NAME:-the-business-circle-network}"
+pm2 restart "$PM2_APP_NAME" --update-env
+pm2 save
+pm2 jlist | node -e '
+let input = "";
+process.stdin.on("data", chunk => input += chunk);
+process.stdin.on("end", () => {
+  const target = process.argv[1];
+  const rows = JSON.parse(input).filter(item => item.name === target);
+  const online = rows.length > 0 && rows.every(item => item.pm2_env?.status === "online");
+  console.log(`${online ? "PASS" : "FAIL"} ${target}: ${rows.length} instance(s)`);
+  process.exit(online ? 0 : 1);
+});
+' "$PM2_APP_NAME"
+curl --fail --silent --location --max-time 10 --output /dev/null https://thebusinesscircle.net
+```
 
-1. Back up the database and deploy the approved application configuration with `CIRCLE_CARD_BILLING_ENABLED=false`.
-2. Restart every application instance and run disabled-mode validation plus live read-only certification.
-3. Confirm public CTAs still use the interest journey, the protected Checkout route fails closed, Portal uses the dedicated Circle Card configuration, normal uploads work, and the shared webhook remains healthy.
-4. During a controlled operator checkout window only, enable billing on all instances, use an operator-owned account, verify £9.99 monthly/no trial in Checkout, pay once, and require successful webhooks plus authoritative server entitlement before treating Pro as active.
-5. Verify duplicate Checkout protection, intended return journey, cancellation, payment recovery, downgrade preservation and restoration. If public launch is not immediate, disable billing again.
-6. For an authorised refund, use Stripe's normal payment refund flow, retain the audit reason, and confirm `charge.refunded` delivery. Cancel through Portal or the approved Stripe operator flow; never delete application subscription rows or user content.
-7. Publicly enable billing only after sign-off from the launch, monitoring and rollback owners.
+Repeat the validation commands on each host after restart. Do not proceed until all configured PM2 instances are online. Through the public load balancer, confirm Circle Card Pro CTAs use the interest journey, the protected Checkout route fails closed, the shared webhook is healthy, Portal uses the dedicated configuration, and normal profile-photo/business-logo uploads still work.
 
-## 7. Emergency shutoff
+## 5. Select and verify the internal payment account
 
-Set `CIRCLE_CARD_BILLING_ENABLED=false`, restart every instance, and confirm new Checkout requests fail closed. Leave webhooks and Portal operating so legitimate subscription evidence continues to reconcile. Do not delete Stripe subscriptions, shared webhook events, or stored Circle Card content. Investigate with privacy-safe application logs and Stripe delivery records before any account correction.
+Use a production account controlled by the operator, created for this payment check and verified out of band. Never identify it by email in logs or the change record. The account must be a verified, unsuspended `MEMBER` whose authoritative Circle Card source is Free. It must not be an admin, active BCN subscriber, free-Pro ambassador, grandfathered grant holder or existing non-terminal Circle Card subscriber, because those sources correctly bypass Checkout.
+
+In the approved production database console, set the internal ID and run this read-only query. It returns no email, Stripe customer or payment data:
+
+```sql
+\set ON_ERROR_STOP on
+\set operator_user_id 'approved-internal-user-id'
+
+SELECT
+  u.id,
+  (u."emailVerified" IS NOT NULL) AS "emailVerified",
+  u.role,
+  u.suspended,
+  ms.status AS "membershipStatus",
+  ap."freeProGranted",
+  ap.active AS "ambassadorActive",
+  ag.plan AS "grantPlan",
+  ag.source AS "grantSource",
+  ag.active AS "grantActive",
+  cc.status AS "circleStatus",
+  cc."accessEndsAt",
+  cc."reconciliationRequiredAt",
+  (
+    cc."stripeCustomerId" IS NOT NULL
+    AND ms."stripeCustomerId" IS NOT NULL
+    AND cc."stripeCustomerId" = ms."stripeCustomerId"
+  ) AS "sharedBillingCustomer"
+FROM "User" u
+LEFT JOIN "Subscription" ms ON ms."userId" = u.id
+LEFT JOIN "CircleCardAmbassadorProfile" ap ON ap."userId" = u.id
+LEFT JOIN "CircleCardAccessGrant" ag ON ag."userId" = u.id
+LEFT JOIN "CircleCardSubscription" cc ON cc."userId" = u.id
+WHERE u.id = :'operator_user_id';
+```
+
+The result must be one row with `emailVerified=true`, `role=MEMBER`, `suspended=false`, `sharedBillingCustomer=false`, no active/trialling membership, no active free-Pro/grandfathered source, and no existing non-terminal or paid-through Circle Card relationship. Also confirm the server-rendered dashboard says Free. If a legacy shared billing customer is reported, stop: the Circle Card Portal deliberately fails closed until an authorised Stripe/customer migration separates the products. If any result is unclear, choose a different account; do not edit entitlement rows to make the account eligible.
+
+Set only that internal ID in `CIRCLE_CARD_BILLING_OPERATOR_USER_IDS`. Keep `CIRCLE_CARD_BILLING_ACCESS_MODE=operator`. A second verified non-allowlisted account should remain available for the negative gate check.
+
+## 6. Controlled operator-only live payment
+
+Obtain the explicit live-charge approval, then use this order:
+
+1. While billing is still false, rerun the three validation/certification commands in section 4 and record pass/fail only.
+2. In the authoritative environment source on **every** host, set exactly:
+
+   ```text
+   CIRCLE_CARD_BILLING_ENABLED=true
+   CIRCLE_CARD_BILLING_ACCESS_MODE=operator
+   CIRCLE_CARD_BILLING_OPERATOR_USER_IDS=<approved-internal-user-id>
+   ```
+
+3. Run environment validation before restart. It must fail if access mode or the allowlist is missing:
+
+   ```bash
+   npm run env:validate:production -- --env-file .env.production
+   npm run circle-card:billing:validate-env -- --env-file .env.production
+   npm run circle-card:billing:certify-stripe -- --env-file .env.production --mode live
+   ```
+
+4. Run the PM2 restart, all-instance check and health check from section 4 on every host. Do not mix enabled and disabled instances.
+5. With the non-allowlisted verified account, confirm the protected Checkout request is refused and no Stripe-hosted URL is returned.
+6. With the allowlisted account, sign in afresh, open the intended Circle Card Pro feature and press its CTA once. Confirm immediate “Preparing secure checkout…” feedback and that repeat presses do not create another request.
+7. On Stripe Checkout, verify **Circle Card Pro**, GBP **£9.99 per month**, quantity `1`, no annual option and no trial. Stop before payment on any mismatch.
+8. Complete exactly one authorised payment. Do not copy the Checkout URL or payment details into a ticket, terminal or chat.
+9. On return, do not treat a success query parameter as payment proof. The dashboard may remain pending until a valid signed `invoice.paid` webhook advances authoritative paid-through evidence.
+10. Using Stripe Dashboard delivery details, record only relevant `evt_...` IDs and delivery outcomes. Confirm one Checkout Session, one Circle Card subscription and one charge for the operator account. Confirm no BCN subscription or price was changed.
+11. Immediately observe the safe application and database evidence in sections 7 and 8.
+
+If public launch is not part of the same separately approved window, restore disabled mode immediately after the controlled checks.
+
+## 7. Privacy-safe webhook and PM2 observation
+
+Use the Stripe Dashboard to inspect signature-verified deliveries and response codes. Correlate by `evt_...` ID, event type and UTC time only. Never paste a full webhook payload.
+
+On each application host, restrict PM2 output to the expected safe event names:
+
+```bash
+PM2_APP_NAME="${PM2_APP_NAME:-the-business-circle-network}"
+pm2 logs "$PM2_APP_NAME" --lines 500 --nostream \
+  | grep -E '\[server\] (circle-card-stripe-event-(accepted|already-completed)|circle-card-entitlement-advanced|circle-card-payment-(failed|recovered)|circle-card-cancellation-scheduled|stripe-webhook-processing-failed)'
+```
+
+Expected useful fields are event ID/type, internal user ID, lifecycle outcome and safe timing information. Do not search by email, token, URL, customer name or card content. Do not attach raw PM2 log files. If output contains a complete email address, verification/reset/invitation URL, token, Stripe secret, payment method, full payload or request body, stop the launch and handle it as a security incident.
+
+Old PM2 log files may contain data emitted before the security fix. Preserve any required incident evidence under restricted access, remove ordinary access to those files under the approved retention procedure, and never replay exposed links. Do not use `pm2 flush` as an undocumented substitute for incident retention.
+
+## 8. Privacy-safe database observation
+
+In the approved production database console, use only the internal user ID and Stripe event IDs from section 7:
+
+```sql
+\set ON_ERROR_STOP on
+\set operator_user_id 'approved-internal-user-id'
+\set stripe_event_id 'evt_from_stripe_dashboard'
+
+SELECT
+  id,
+  type,
+  status,
+  "attemptCount",
+  "processingStartedAt",
+  "processedAt",
+  ("lastError" IS NOT NULL) AS "hasError"
+FROM "StripeWebhookEvent"
+WHERE id = :'stripe_event_id';
+
+SELECT
+  "userId",
+  plan,
+  status,
+  "billingInterval",
+  "cancelAtPeriodEnd",
+  "lastInvoicePaidAt",
+  "accessEndsAt",
+  "paymentFailedAt",
+  "recoveryGraceEndsAt",
+  "lastStripeEventId",
+  "lastPaymentEventId",
+  "reconciliationRequiredAt"
+FROM "CircleCardSubscription"
+WHERE "userId" = :'operator_user_id';
+```
+
+Do not select `lastError`, email, customer details, payment data or application content. The relevant webhook rows must reach `PROCESSED` without unresolved retries. Pro is confirmed only after paid invoice evidence produces a future `accessEndsAt`; subscription status or a browser return alone is insufficient. `reconciliationRequiredAt` must remain null.
+
+## 9. Cancellation, refund and content-preservation checks
+
+Before the controlled payment, note only non-sensitive assertions such as “Studio draft exists”, “second card exists” and “more than five links are stored”; do not copy their content.
+
+1. Open the dedicated Customer Portal from the Circle Card dashboard and schedule cancellation at period end.
+2. Confirm a signed subscription update is processed, `cancelAtPeriodEnd=true`, the dashboard shows the paid-through date and Pro remains available through authoritative `accessEndsAt`.
+3. Confirm the saved Studio draft, active presentation, additional card/link data and paid modules remain stored. Cancellation and downgrade must never delete content.
+4. If the approved live-payment procedure requires a refund, perform it in Stripe Dashboard using the organisation’s refund authority and reason controls. Record the resulting `evt_...` ID only and confirm `charge.refunded` delivery. A refund and subscription cancellation are separate operations; never delete application rows or content as a refund shortcut, and do not infer entitlement from the refund browser state.
+5. At eventual paid-through expiry (or in the completed test-mode lifecycle), confirm the live card falls back deterministically to Free while Pro content remains private/stored. After an authorised reactivation payment, confirm the stored presentation is restored from authoritative entitlement.
+
+If the commercial policy for a live full refund and its entitlement end has not been approved, stop before refunding. Content preservation is mandatory regardless of that policy.
+
+## 10. Success and stop conditions
+
+The controlled payment succeeds only when all of these are true:
+
+- all environment and live certification checks pass;
+- every PM2 instance is on the same operator-only configuration and healthy;
+- a non-allowlisted user cannot obtain Checkout;
+- the allowlisted user is freshly authenticated, email-verified and authoritative Free before payment;
+- Checkout is monthly GBP `999`, quantity one and has no trial;
+- there is one intended charge and no duplicate Circle Card subscription/session conflict;
+- signed webhook events reach `PROCESSED` and a paid invoice advances `accessEndsAt`;
+- Pro appears only from authoritative server entitlement;
+- cancellation/Portal behaviour is correct and stored content remains intact;
+- BCN membership billing and unrelated Stripe resources are unchanged; and
+- Circle Card and BCN use distinct Stripe customers, so the dedicated Portal cannot expose or cancel a BCN subscription; and
+- logs contain no token, full authentication URL, complete email, secret, payment detail or payload.
+
+Stop and run section 11 if any validation/certification fails; hosts disagree; an unverified or non-allowlisted user reaches Checkout; price/period/quantity/trial is wrong; a duplicate session/subscription/charge appears; webhook processing is failed, stuck or repeatedly retried; Pro appears before paid evidence; reconciliation is required; a shared Circle Card/BCN Stripe customer is detected; BCN billing changes; content disappears; or sensitive data appears in logs.
+
+## 11. Immediate billing shutoff
+
+The flag blocks **new** Checkout requests. It does not stop signed webhooks, Portal access, existing subscriptions or an already issued Stripe-hosted Checkout URL.
+
+1. In the authoritative environment source on every host set:
+
+   ```text
+   CIRCLE_CARD_BILLING_ENABLED=false
+   CIRCLE_CARD_BILLING_ACCESS_MODE=operator
+   CIRCLE_CARD_BILLING_OPERATOR_USER_IDS=<approved-internal-user-id>
+   ```
+
+2. On every host run:
+
+   ```bash
+   npm run circle-card:billing:validate-env -- --env-file .env.production
+   PM2_APP_NAME="${PM2_APP_NAME:-the-business-circle-network}"
+   pm2 restart "$PM2_APP_NAME" --update-env
+   pm2 save
+   ```
+
+3. Run the all-instance and health checks from section 4. Confirm through the load balancer that repeated new protected Checkout requests fail closed and public CTAs return to the interest journey.
+4. Leave the shared webhook and Portal operating so legitimate payment, cancellation and recovery evidence continues to reconcile. Never delete Stripe subscriptions, webhook rows or Circle Card content as an emergency action.
+5. **Previously issued open Checkout Sessions may remain payable after the flag becomes false.** They normally expire at their configured lifetime, but the flag cannot revoke their URLs. If the incident requires zero further charges, use Stripe Dashboard to identify only open sessions whose server-authored metadata and monthly price prove they are Circle Card Pro sessions, then use **Expire session** for every match. Do not expire BCN/founder sessions. Confirm `checkout.session.expired` deliveries by event ID. If identity is ambiguous, stop and escalate rather than bulk-expiring.
+6. Re-run the privacy-safe log/database checks, record the incident and reconcile affected users deliberately.
+
+## 12. Separately authorised public activation
+
+Public activation is a new change, not a continuation of the operator payment. It requires all controlled success criteria, support/refund ownership and explicit approval.
+
+While still disabled, change `CIRCLE_CARD_BILLING_ACCESS_MODE=public`, rerun environment validation and live certification, roll the environment to all instances, and verify the protected route is still disabled. Only then set `CIRCLE_CARD_BILLING_ENABLED=true`, restart/verify every instance, and run the approved public smoke checks. Keep the immediate stop owner present.
+
+Do not add or activate annual pricing, trials, Teams, recurring commissions/payouts, Stripe Connect or uploaded/private file links during this change.

@@ -17,17 +17,25 @@ function setNodeEnv(value: string) {
 }
 
 describe("verify email route", () => {
+  let consoleSpies: Array<ReturnType<typeof vi.spyOn>>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     setNodeEnv("production");
     process.env.APP_URL = "https://thebusinesscircle.net";
     process.env.NEXTAUTH_URL = "https://thebusinesscircle.net";
+    consoleSpies = [
+      vi.spyOn(console, "info").mockImplementation(() => undefined),
+      vi.spyOn(console, "warn").mockImplementation(() => undefined),
+      vi.spyOn(console, "error").mockImplementation(() => undefined)
+    ];
   });
 
   afterEach(() => {
     setNodeEnv(originalNodeEnv ?? "test");
     process.env.APP_URL = originalAppUrl;
     process.env.NEXTAUTH_URL = originalNextAuthUrl;
+    vi.restoreAllMocks();
   });
 
   it("redirects successful verification to the canonical live login url", async () => {
@@ -54,5 +62,27 @@ describe("verify email route", () => {
     expect(response.headers.get("location")).toBe(
       "https://thebusinesscircle.net/login?error=invalid-verification"
     );
+  });
+
+  it("never logs a raw verification token, complete URL, or email on failure", async () => {
+    const token = "a".repeat(64);
+    const email = "route-log-canary@example.invalid";
+    const requestUrl =
+      `http://localhost/api/auth/verify-email?uid=user_123&token=${token}` +
+      `&email=${encodeURIComponent(email)}`;
+    verifyEmailTokenMock.mockRejectedValue(
+      new Error(`Verification failed for ${requestUrl} and ${email}`)
+    );
+
+    const response = await GET(new Request(requestUrl));
+
+    expect(response.status).toBe(307);
+    const logs = consoleSpies
+      .flatMap((spy) => spy.mock.calls)
+      .map((call) => JSON.stringify(call))
+      .join("\n");
+    expect(logs).not.toContain(token);
+    expect(logs).not.toContain(requestUrl);
+    expect(logs).not.toContain(email);
   });
 });

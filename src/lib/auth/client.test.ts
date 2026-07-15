@@ -14,9 +14,11 @@ describe("resolveAuthErrorMessage", () => {
 
   it("returns a safe fallback for unknown codes", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const canary = `https://evil.invalid/reset-password?token=${"b".repeat(64)}`;
 
-    expect(resolveAuthErrorMessage("anything-random")).toBe(DEFAULT_AUTH_ERROR_MESSAGE);
+    expect(resolveAuthErrorMessage(canary)).toBe(DEFAULT_AUTH_ERROR_MESSAGE);
     expect(warn).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(canary);
   });
 
   it("does not walk the prototype chain for lookup keys", () => {

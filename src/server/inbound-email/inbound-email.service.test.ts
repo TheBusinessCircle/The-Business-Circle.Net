@@ -194,9 +194,35 @@ describe("inbound email service", () => {
       where: { id: "inbound_1" },
       data: {
         forwardedTo: "viberiseycdi@gmail.com",
-        forwardError: "Forward failed"
+        forwardError: "Inbound email forwarding failed."
       }
     });
+  });
+
+  it("does not log or persist provider errors containing email addresses or secrets", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const token = "0123456789abcdef".repeat(4);
+    const providerError = `Forward for private.sender@example.test failed: ${token}`;
+    dbMock.inboundEmail.findUnique.mockResolvedValue(null);
+    dbMock.inboundEmail.create.mockResolvedValue(storedEmail);
+    dbMock.inboundEmail.update.mockResolvedValue({});
+    resendClientMock.emails.receiving.forward.mockRejectedValue(new Error(providerError));
+
+    const result = await processResendInboundWebhookEvent(receivedEvent);
+
+    expect(result).toEqual({ ignored: false, created: true, forwarded: false });
+    expect(dbMock.inboundEmail.update).toHaveBeenCalledWith({
+      where: { id: "inbound_1" },
+      data: {
+        forwardedTo: "viberiseycdi@gmail.com",
+        forwardError: "Inbound email forwarding failed."
+      }
+    });
+    const rendered = JSON.stringify(errorSpy.mock.calls);
+    expect(rendered).not.toContain("private.sender@example.test");
+    expect(rendered).not.toContain(token);
+    expect(rendered).not.toContain(providerError);
+    expect(rendered).toContain("resend-inbound-forward-failed");
   });
 
   it("mirrors contact form submissions into the admin inbox", async () => {

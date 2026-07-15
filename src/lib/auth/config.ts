@@ -4,6 +4,7 @@ import type { NextAuthConfig } from "next-auth";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { prisma } from "@/lib/prisma";
 import { buildAuthProviders } from "@/lib/auth/providers";
+import { safeAuthLogger } from "@/lib/auth/logger";
 import { normalizeEmail } from "@/lib/auth/utils";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
@@ -14,6 +15,7 @@ if (process.env.NODE_ENV === "production" && !authSecret) {
 
 export const authConfig = {
   adapter: PrismaAdapter(prisma),
+  logger: safeAuthLogger,
   session: {
     strategy: "jwt",
     maxAge: SESSION_MAX_AGE_SECONDS

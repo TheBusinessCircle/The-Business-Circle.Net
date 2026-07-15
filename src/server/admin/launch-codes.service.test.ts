@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LaunchCodeStatus } from "@prisma/client";
+import { LaunchCodeStatus, MembershipTier } from "@prisma/client";
 
 const dbMock = vi.hoisted(() => {
   const tx = {
@@ -28,6 +28,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import {
+  buildLaunchCodeAnalyticsMetadata,
   DEFAULT_LAUNCH_CODES,
   seedDefaultLaunchCodes,
   validateLaunchCode
@@ -77,6 +78,20 @@ describe("launch-codes.service", () => {
         remainingUses: 25
       }
     });
+  });
+
+  it("never includes the redeemable launch code in analytics metadata", () => {
+    const codeCanary = "PRIVATE-LAUNCH-CODE";
+    const metadata = buildLaunchCodeAnalyticsMetadata({
+      platform: "PARTNER",
+      selectedTier: MembershipTier.FOUNDATION,
+      launchCodeId: "launch_code_1",
+      trialDays: 30,
+      code: codeCanary
+    } as Parameters<typeof buildLaunchCodeAnalyticsMetadata>[0] & { code: string });
+
+    expect(metadata).not.toHaveProperty("code");
+    expect(JSON.stringify(metadata)).not.toContain(codeCanary);
   });
 
   it("rejects an invalid code", async () => {

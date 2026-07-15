@@ -16,7 +16,10 @@ import {
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { loadCircleCardAccessForUser } from "@/server/circle-card";
-import { getCircleCardBillingReadiness } from "@/lib/circle-card/pricing";
+import {
+  canUserStartCircleCardCheckout,
+  getCircleCardBillingReadiness
+} from "@/lib/circle-card/pricing";
 import {
   CIRCLE_CARD_PLAN_ORDER,
   selectCircleCardsWithinPlan
@@ -86,7 +89,10 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
   const canActivate = circleCardAccess.capabilities.circleStudio && !isPlanLocked;
   const studioMetadata = card.studioDraftMetadata ?? card.themeMetadata;
   const billingReadiness = getCircleCardBillingReadiness();
-  const billingEnabled = billingReadiness.billingEnabled && billingReadiness.proLaunchConfigured;
+  const billingEnabled =
+    billingReadiness.billingEnabled &&
+    billingReadiness.proLaunchConfigured &&
+    canUserStartCircleCardCheckout(session.user.id);
   const authoritativeProConfirmed =
     firstValue(params.billing) === "success" &&
     firstValue(params.plan) === "pro" &&

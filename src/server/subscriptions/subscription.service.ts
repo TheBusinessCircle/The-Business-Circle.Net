@@ -44,6 +44,7 @@ import {
   reserveFoundingSlot
 } from "@/server/founding";
 import {
+  isKnownManagedMembershipStripePriceId,
   resolveManagedMembershipPlan,
   resolveManagedMembershipPlanFromStripePriceId,
   resolveManagedMembershipTierFromStripePriceId,
@@ -408,48 +409,56 @@ function resolveStripeProductId(
   return null;
 }
 
-async function findStripeCustomerIdByEmail(email: string) {
-  const stripe = requireStripeClient();
-  const customers = await stripe.customers.list({
-    email,
-    limit: 10
-  });
-
-  const exactMatch = customers.data.find((customer) => customer.email?.trim().toLowerCase() === email);
-  return exactMatch?.id ?? null;
-}
-
 async function ensureStripeCustomerId(input: {
   userId: string;
   email: string;
   name?: string | null;
 }): Promise<string> {
-  const existing = await db.subscription.findUnique({
-    where: { userId: input.userId },
-    select: { stripeCustomerId: true }
-  });
+  const [existing, circleCardRelationship] = await Promise.all([
+    db.subscription.findUnique({
+      where: { userId: input.userId },
+      select: { stripeCustomerId: true }
+    }),
+    db.circleCardSubscription.findUnique({
+      where: { userId: input.userId },
+      select: { stripeCustomerId: true }
+    })
+  ]);
 
   if (existing?.stripeCustomerId) {
+    if (existing.stripeCustomerId === circleCardRelationship?.stripeCustomerId) {
+      throw new Error("circle-card-billing-customer-isolation-required");
+    }
+    await assertBcnStripeCustomerOwnership({
+      userId: input.userId,
+      customerId: existing.stripeCustomerId,
+      verifyStripeCustomer: true
+    });
     return existing.stripeCustomerId;
   }
 
   const stripe = requireStripeClient();
-  const matchedCustomerId = await findStripeCustomerIdByEmail(input.email);
-  const customer = matchedCustomerId
-    ? await stripe.customers.update(matchedCustomerId, {
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: {
-          userId: input.userId
-        }
-      })
-    : await stripe.customers.create({
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: {
-          userId: input.userId
-        }
-      });
+  const customer = await stripe.customers.create(
+    {
+      email: input.email,
+      name: input.name ?? undefined,
+      metadata: {
+        userId: input.userId
+      }
+    },
+    { idempotencyKey: `bcn-membership-customer:${input.userId}` }
+  );
+  if (
+    ("deleted" in customer && customer.deleted) ||
+    customer.metadata?.userId?.trim() !== input.userId
+  ) {
+    throw new Error("bcn-billing-customer-isolation-required");
+  }
+  await assertBcnStripeCustomerOwnership({
+    userId: input.userId,
+    customerId: customer.id,
+    verifyStripeCustomer: false
+  });
 
   await db.subscription.upsert({
     where: { userId: input.userId },
@@ -467,6 +476,138 @@ async function ensureStripeCustomerId(input: {
   return customer.id;
 }
 
+async function assertBcnStripeCustomerOwnership(input: {
+  userId: string;
+  customerId: string;
+  verifyStripeCustomer: boolean;
+  expectedPendingRegistrationId?: string | null;
+}) {
+  const stripe = requireStripeClient();
+  const [bcnForUser, bcnOwner, circleOwner, stripeCustomer] = await Promise.all([
+    db.subscription.findUnique({
+      where: { userId: input.userId },
+      select: { stripeCustomerId: true }
+    }),
+    db.subscription.findUnique({
+      where: { stripeCustomerId: input.customerId },
+      select: { userId: true, stripeCustomerId: true }
+    }),
+    db.circleCardSubscription.findUnique({
+      where: { stripeCustomerId: input.customerId },
+      select: { userId: true, stripeCustomerId: true }
+    }),
+    input.verifyStripeCustomer
+      ? stripe.customers.retrieve(input.customerId)
+      : Promise.resolve(null)
+  ]);
+  const stripeMetadataMatches = Boolean(
+    stripeCustomer &&
+      !("deleted" in stripeCustomer && stripeCustomer.deleted) &&
+      (stripeCustomer.metadata?.userId?.trim() === input.userId ||
+        (input.expectedPendingRegistrationId &&
+          stripeCustomer.metadata?.pendingRegistrationId?.trim() ===
+            input.expectedPendingRegistrationId))
+  );
+  const wrongStoredCustomer = Boolean(
+    bcnForUser?.stripeCustomerId && bcnForUser.stripeCustomerId !== input.customerId
+  );
+  const ownedByAnotherBcnUser = Boolean(
+    bcnOwner?.stripeCustomerId === input.customerId &&
+      bcnOwner.userId &&
+      bcnOwner.userId !== input.userId
+  );
+  const ownedByCircle = circleOwner?.stripeCustomerId === input.customerId;
+  const stripeOwnershipMismatch = input.verifyStripeCustomer && !stripeMetadataMatches;
+
+  if (
+    !wrongStoredCustomer &&
+    !ownedByAnotherBcnUser &&
+    !ownedByCircle &&
+    !stripeOwnershipMismatch
+  ) {
+    return;
+  }
+
+  logServerWarning("bcn-billing-customer-isolation-required", {
+    userId: input.userId,
+    wrongStoredCustomer,
+    ownedByAnotherBcnUser,
+    ownedByCircle,
+    stripeOwnershipMismatch
+  });
+  throw new Error("bcn-billing-customer-isolation-required");
+}
+
+function subscriptionContainsCircleCardPrice(subscription: Stripe.Subscription) {
+  const circleCardPriceId = process.env.STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID?.trim();
+  return Boolean(
+    (circleCardPriceId &&
+      subscription.items.data.some((item) => item.price.id === circleCardPriceId)) ||
+      subscription.metadata?.circleCardPlan === "PRO" ||
+      subscription.metadata?.product === "circle-card-pro" ||
+      subscription.metadata?.source === "circle_card_pro_checkout"
+  );
+}
+
+function checkoutContainsCircleCardPrice(session: Stripe.Checkout.Session) {
+  const circleCardPriceId = process.env.STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID?.trim();
+  return Boolean(
+    session.metadata?.circleCardPlan === "PRO" ||
+      session.metadata?.product === "circle-card-pro" ||
+      session.metadata?.source === "circle_card_pro_checkout" ||
+      (circleCardPriceId &&
+        session.line_items?.data.some((item) => item.price?.id === circleCardPriceId))
+  );
+}
+
+async function assertBcnStripeCustomerContainsNoCircleCardBilling(input: {
+  userId: string;
+  customerId: string;
+}) {
+  const stripe = requireStripeClient();
+  const [localCircleRelationship, subscriptions, checkoutSessions] = await Promise.all([
+    db.circleCardSubscription.findUnique({
+      where: { stripeCustomerId: input.customerId },
+      select: { userId: true, stripeCustomerId: true }
+    }),
+    stripe.subscriptions.list({
+      customer: input.customerId,
+      status: "all",
+      limit: 100
+    }),
+    stripe.checkout.sessions.list({
+      customer: input.customerId,
+      limit: 100,
+      expand: ["data.line_items"]
+    })
+  ]);
+  const hasCircleCardSubscription = subscriptions.data.some(
+    subscriptionContainsCircleCardPrice
+  );
+  const hasCircleCardCheckout = checkoutSessions.data.some(checkoutContainsCircleCardPrice);
+  const hasPaginationAmbiguity = Boolean(subscriptions.has_more || checkoutSessions.has_more);
+
+  const ownsBcnCustomer = localCircleRelationship?.stripeCustomerId === input.customerId;
+
+  if (
+    !ownsBcnCustomer &&
+    !hasCircleCardSubscription &&
+    !hasCircleCardCheckout &&
+    !hasPaginationAmbiguity
+  ) {
+    return;
+  }
+
+  logServerWarning("bcn-billing-customer-isolation-required", {
+    userId: input.userId,
+    hasLocalCircleRelationship: ownsBcnCustomer,
+    hasCircleCardSubscription,
+    hasCircleCardCheckout,
+    hasPaginationAmbiguity
+  });
+  throw new Error("circle-card-billing-customer-isolation-required");
+}
+
 async function ensureStripeCustomerIdForPendingRegistration(input: {
   pendingRegistrationId: string;
   email: string;
@@ -482,26 +623,36 @@ async function ensureStripeCustomerIdForPendingRegistration(input: {
   });
 
   if (existing?.stripeCustomerId) {
+    await assertPendingRegistrationStripeCustomerOwnership({
+      pendingRegistrationId: input.pendingRegistrationId,
+      customerId: existing.stripeCustomerId,
+      verifyStripeCustomer: true
+    });
     return existing.stripeCustomerId;
   }
 
   const stripe = requireStripeClient();
-  const matchedCustomerId = await findStripeCustomerIdByEmail(input.email);
-  const customer = matchedCustomerId
-    ? await stripe.customers.update(matchedCustomerId, {
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: {
-          pendingRegistrationId: input.pendingRegistrationId
-        }
-      })
-    : await stripe.customers.create({
-        email: input.email,
-        name: input.name ?? undefined,
-        metadata: {
-          pendingRegistrationId: input.pendingRegistrationId
-        }
-      });
+  const customer = await stripe.customers.create(
+    {
+      email: input.email,
+      name: input.name ?? undefined,
+      metadata: {
+        pendingRegistrationId: input.pendingRegistrationId
+      }
+    },
+    { idempotencyKey: `bcn-pending-registration-customer:${input.pendingRegistrationId}` }
+  );
+  if (
+    ("deleted" in customer && customer.deleted) ||
+    customer.metadata?.pendingRegistrationId?.trim() !== input.pendingRegistrationId
+  ) {
+    throw new Error("bcn-billing-customer-isolation-required");
+  }
+  await assertPendingRegistrationStripeCustomerOwnership({
+    pendingRegistrationId: input.pendingRegistrationId,
+    customerId: customer.id,
+    verifyStripeCustomer: false
+  });
 
   await db.pendingRegistration.update({
     where: {
@@ -513,6 +664,45 @@ async function ensureStripeCustomerIdForPendingRegistration(input: {
   });
 
   return customer.id;
+}
+
+async function assertPendingRegistrationStripeCustomerOwnership(input: {
+  pendingRegistrationId: string;
+  customerId: string;
+  verifyStripeCustomer: boolean;
+}) {
+  const stripe = requireStripeClient();
+  const [bcnOwner, circleOwner, stripeCustomer] = await Promise.all([
+    db.subscription.findUnique({
+      where: { stripeCustomerId: input.customerId },
+      select: { stripeCustomerId: true }
+    }),
+    db.circleCardSubscription.findUnique({
+      where: { stripeCustomerId: input.customerId },
+      select: { stripeCustomerId: true }
+    }),
+    input.verifyStripeCustomer
+      ? stripe.customers.retrieve(input.customerId)
+      : Promise.resolve(null)
+  ]);
+  const stripeOwnershipMismatch = Boolean(
+    input.verifyStripeCustomer &&
+      (!stripeCustomer ||
+        ("deleted" in stripeCustomer && stripeCustomer.deleted) ||
+        stripeCustomer.metadata?.pendingRegistrationId?.trim() !== input.pendingRegistrationId)
+  );
+
+  if (!bcnOwner && !circleOwner && !stripeOwnershipMismatch) {
+    return;
+  }
+
+  logServerWarning("bcn-billing-customer-isolation-required", {
+    pendingRegistration: true,
+    ownedByBcn: Boolean(bcnOwner),
+    ownedByCircle: Boolean(circleOwner),
+    stripeOwnershipMismatch
+  });
+  throw new Error("bcn-billing-customer-isolation-required");
 }
 
 function crossesIntoInnerCircle(previousTier: MembershipTier, nextTier: MembershipTier) {
@@ -629,6 +819,13 @@ function resolvePrimaryPrice(
   subscription: Stripe.Subscription
 ): Stripe.SubscriptionItem | null {
   return subscription.items.data[0] ?? null;
+}
+
+async function isKnownManagedMembershipSubscription(
+  subscription: Stripe.Subscription
+): Promise<boolean> {
+  const priceId = resolvePrimaryPrice(subscription)?.price.id ?? null;
+  return isKnownManagedMembershipStripePriceId(priceId);
 }
 
 async function findPendingRegistrationForStripeReferences(input: {
@@ -751,8 +948,16 @@ async function completePendingRegistrationFromStripeSubscription(
   input: {
     pendingRegistrationId?: string | null;
     checkoutSessionId?: string | null;
-  } = {}
+  } = {},
+  managedMembershipPriceConfirmed = false
 ) {
+  if (
+    !managedMembershipPriceConfirmed &&
+    !(await isKnownManagedMembershipSubscription(subscription))
+  ) {
+    return false;
+  }
+
   const normalizedStatus = stripeStatusToSubscriptionStatus(subscription.status);
   if (!isSubscriptionEntitled(normalizedStatus)) {
     return false;
@@ -784,7 +989,8 @@ async function completePendingRegistrationFromStripeSubscription(
 
   const persistedSubscription = await upsertSubscriptionFromStripeSubscription(
     subscription,
-    provisioned.user.id
+    provisioned.user.id,
+    true
   );
 
   if (!persistedSubscription?.id) {
@@ -922,10 +1128,20 @@ async function resolveSubscriptionContext(
 
 async function upsertSubscriptionFromStripeSubscription(
   subscription: Stripe.Subscription,
-  knownUserId?: string
+  knownUserId?: string,
+  managedMembershipPriceConfirmed = false
 ) {
   const priceItem = resolvePrimaryPrice(subscription);
   const priceId = priceItem?.price.id ?? null;
+
+  if (
+    !managedMembershipPriceConfirmed &&
+    !(await isKnownManagedMembershipStripePriceId(priceId))
+  ) {
+    logServerWarning("stripe-membership-subscription-price-unmanaged");
+    return null;
+  }
+
   const planState = await resolveSubscriptionPlanStateFromPriceId(priceId);
   const billedTier = planState.tier;
   const normalizedStatus = stripeStatusToSubscriptionStatus(subscription.status);
@@ -939,6 +1155,26 @@ async function upsertSubscriptionFromStripeSubscription(
   if (!context.userId) {
     return null;
   }
+  if (!context.customerId) {
+    logServerWarning("bcn-billing-customer-isolation-required", {
+      userId: context.userId,
+      missingCustomer: true
+    });
+    throw new Error("bcn-billing-customer-isolation-required");
+  }
+  if (
+    knownUserId &&
+    subscription.metadata?.userId &&
+    knownUserId !== subscription.metadata.userId
+  ) {
+    throw new Error("bcn-billing-customer-isolation-required");
+  }
+  await assertBcnStripeCustomerOwnership({
+    userId: context.userId,
+    customerId: context.customerId,
+    verifyStripeCustomer: true,
+    expectedPendingRegistrationId: subscription.metadata?.pendingRegistrationId ?? null
+  });
 
   const persisted = await db.subscription.upsert({
     where: {
@@ -998,14 +1234,47 @@ async function upsertSubscriptionFromStripeSubscription(
   return persisted;
 }
 
+async function isKnownManagedMembershipCheckoutSession(
+  session: Stripe.Checkout.Session
+) {
+  if (session.mode !== "subscription") {
+    return false;
+  }
+
+  const stripe = requireStripeClient();
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+    limit: 2
+  });
+  const lineItem = lineItems.data[0];
+  const priceId = lineItem?.price?.id ?? null;
+
+  if (
+    lineItems.has_more ||
+    lineItems.data.length !== 1 ||
+    lineItem?.quantity !== 1 ||
+    !(await isKnownManagedMembershipStripePriceId(priceId))
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 async function upsertSubscriptionFromCheckoutSession(
   session: Stripe.Checkout.Session
 ) {
+  if (!(await isKnownManagedMembershipCheckoutSession(session))) {
+    logServerWarning("stripe-membership-checkout-price-unmanaged");
+    return false;
+  }
+
   if (resolvePendingRegistrationIdFromSession(session)) {
-    await completePendingRegistrationFromCheckoutSession(session);
-    await redeemBillingDiscountFromCheckoutSession(session);
-    await completeLaunchCodeRedemptionFromStripe(session);
-    return;
+    const completed = await completePendingRegistrationFromCheckoutSession(session);
+    if (completed) {
+      await redeemBillingDiscountFromCheckoutSession(session);
+      await completeLaunchCodeRedemptionFromStripe(session);
+    }
+    return true;
   }
 
   const context = await resolveSubscriptionContext({
@@ -1017,7 +1286,7 @@ async function upsertSubscriptionFromCheckoutSession(
   });
 
   if (!context.userId) {
-    return;
+    return true;
   }
 
   const foundingReservationId = session.metadata?.foundingReservationId ?? null;
@@ -1058,9 +1327,12 @@ async function upsertSubscriptionFromCheckoutSession(
       });
     }
 
-    await redeemBillingDiscountFromCheckoutSession(session);
-    await completeLaunchCodeRedemptionFromStripe(session);
-    return;
+    if (persisted?.id) {
+      await redeemBillingDiscountFromCheckoutSession(session);
+      await completeLaunchCodeRedemptionFromStripe(session);
+      return true;
+    }
+    return false;
   }
 
   const requestedTier = resolveRequestedTier(session.metadata?.targetTier);
@@ -1105,6 +1377,7 @@ async function upsertSubscriptionFromCheckoutSession(
   await syncUserMembershipTier(context.userId, MembershipTier.FOUNDATION);
   await redeemBillingDiscountFromCheckoutSession(session);
   await completeLaunchCodeRedemptionFromStripe(session);
+  return true;
 }
 
 function invoiceAmountAsCurrency(
@@ -1249,28 +1522,43 @@ async function syncSubscriptionFromInvoice(invoice: Stripe.Invoice) {
 
   const stripe = requireStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  if (!(await isKnownManagedMembershipSubscription(subscription))) {
+    logServerWarning("stripe-membership-invoice-price-unmanaged");
+    return false;
+  }
+
   const completedPendingRegistration =
-    await completePendingRegistrationFromStripeSubscription(subscription);
+    await completePendingRegistrationFromStripeSubscription(subscription, {}, true);
 
   if (completedPendingRegistration) {
     await recordInvoiceSyncState(invoice, invoice.paid ? "paid" : "failed");
-    return;
+    return true;
   }
 
-  await upsertSubscriptionFromStripeSubscription(subscription);
+  await upsertSubscriptionFromStripeSubscription(subscription, undefined, true);
   await recordInvoiceSyncState(invoice, invoice.paid ? "paid" : "failed");
+  return true;
 }
 
 type StripeWebhookProcessors = {
-  handleCheckoutSessionCompleted: (session: Stripe.Checkout.Session) => Promise<void>;
-  handleCheckoutSessionExpired: (session: Stripe.Checkout.Session) => Promise<void>;
+  handleCheckoutSessionCompleted: (
+    session: Stripe.Checkout.Session
+  ) => Promise<boolean | void>;
+  handleCheckoutSessionExpired: (
+    session: Stripe.Checkout.Session
+  ) => Promise<boolean | void>;
   handleSubscriptionChanged: (subscription: Stripe.Subscription) => Promise<void>;
-  handleInvoiceEvent: (invoice: Stripe.Invoice) => Promise<void>;
+  handleInvoiceEvent: (invoice: Stripe.Invoice) => Promise<boolean | void>;
 };
 
 const defaultWebhookProcessors: StripeWebhookProcessors = {
   handleCheckoutSessionCompleted: upsertSubscriptionFromCheckoutSession,
   handleCheckoutSessionExpired: async (session) => {
+    if (!(await isKnownManagedMembershipCheckoutSession(session))) {
+      logServerWarning("stripe-membership-checkout-price-unmanaged");
+      return false;
+    }
+
     await releaseFoundingReservation({
       reservationId: session.metadata?.foundingReservationId ?? null,
       checkoutSessionId: session.id
@@ -1285,17 +1573,23 @@ const defaultWebhookProcessors: StripeWebhookProcessors = {
       ),
       status: PendingRegistrationStatus.EXPIRED
     });
+    return true;
   },
   handleSubscriptionChanged: async (subscription) => {
+    if (!(await isKnownManagedMembershipSubscription(subscription))) {
+      logServerWarning("stripe-membership-subscription-price-unmanaged");
+      return;
+    }
+
     const completedPendingRegistration =
-      await completePendingRegistrationFromStripeSubscription(subscription);
+      await completePendingRegistrationFromStripeSubscription(subscription, {}, true);
 
     if (completedPendingRegistration) {
       await updateLaunchCodeSubscriptionFromStripe(subscription);
       return;
     }
 
-    await upsertSubscriptionFromStripeSubscription(subscription);
+    await upsertSubscriptionFromStripeSubscription(subscription, undefined, true);
     await updateLaunchCodeSubscriptionFromStripe(subscription);
   },
   handleInvoiceEvent: syncSubscriptionFromInvoice
@@ -1904,6 +2198,18 @@ export async function createStripeBillingPortalSessionForUser(
     email: input.email,
     name: input.name
   });
+  const circleCardRelationship = await db.circleCardSubscription.findUnique({
+    where: { userId: input.userId },
+    select: { stripeCustomerId: true }
+  });
+  if (customerId === circleCardRelationship?.stripeCustomerId) {
+    throw new Error("circle-card-billing-customer-isolation-required");
+  }
+
+  await assertBcnStripeCustomerContainsNoCircleCardBilling({
+    userId: input.userId,
+    customerId
+  });
 
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
@@ -1915,7 +2221,11 @@ export async function createStripeBillingPortalSessionForUser(
   };
 }
 
-export async function acquireWebhookProcessingLease(event: Stripe.Event) {
+export type StripeWebhookProcessingLease = "acquired" | "processed" | "busy";
+
+export async function acquireWebhookProcessingLease(
+  event: Stripe.Event
+): Promise<StripeWebhookProcessingLease> {
   const now = new Date();
 
   try {
@@ -1928,7 +2238,7 @@ export async function acquireWebhookProcessingLease(event: Stripe.Event) {
       }
     });
 
-    return true;
+    return "acquired";
   } catch (error) {
     const isUniqueConflict =
       error instanceof Prisma.PrismaClientKnownRequestError
@@ -1950,11 +2260,11 @@ export async function acquireWebhookProcessingLease(event: Stripe.Event) {
   });
 
   if (!existing) {
-    return false;
+    return "busy";
   }
 
   if (existing.status === StripeWebhookEventStatus.PROCESSED) {
-    return false;
+    return "processed";
   }
 
   const staleBefore = new Date(now.getTime() - WEBHOOK_PROCESSING_STALE_MS);
@@ -1984,7 +2294,7 @@ export async function acquireWebhookProcessingLease(event: Stripe.Event) {
     }
   });
 
-  return claimed.count > 0;
+  return claimed.count > 0 ? "acquired" : "busy";
 }
 
 export async function markWebhookProcessed(eventId: string) {
@@ -2036,9 +2346,12 @@ export async function processStripeWebhookEvent(
   event: Stripe.Event,
   processors: Partial<StripeWebhookProcessors> = {}
 ) {
-  const shouldProcess = await acquireWebhookProcessingLease(event);
-  if (!shouldProcess) {
+  const lease = await acquireWebhookProcessingLease(event);
+  if (lease === "processed") {
     return;
+  }
+  if (lease === "busy") {
+    throw new Error("stripe-webhook-event-processing-in-progress");
   }
 
   const resolvedProcessors: StripeWebhookProcessors = {
@@ -2050,8 +2363,10 @@ export async function processStripeWebhookEvent(
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await resolvedProcessors.handleCheckoutSessionCompleted(session);
-        await recordCheckoutCompletedSignal(session);
+        const handled = await resolvedProcessors.handleCheckoutSessionCompleted(session);
+        if (handled !== false) {
+          await recordCheckoutCompletedSignal(session);
+        }
         break;
       }
       case "checkout.session.expired":
@@ -2075,11 +2390,13 @@ export async function processStripeWebhookEvent(
       }
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-        await resolvedProcessors.handleInvoiceEvent(invoice);
-        try {
-          await sendBillingReceiptForInvoice(invoice);
-        } catch (error) {
-          logServerError("billing-receipt-email-send-failed", error);
+        const managedMembershipInvoice = await resolvedProcessors.handleInvoiceEvent(invoice);
+        if (managedMembershipInvoice !== false) {
+          try {
+            await sendBillingReceiptForInvoice(invoice);
+          } catch (error) {
+            logServerError("billing-receipt-email-send-failed", error);
+          }
         }
         break;
       }

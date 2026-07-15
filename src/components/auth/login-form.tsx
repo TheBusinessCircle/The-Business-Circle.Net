@@ -110,11 +110,8 @@ export function LoginForm({
         });
         router.push(targetPath);
         router.refresh();
-      } catch (error) {
-        console.error("[auth] Login submission failed", {
-          from: from ?? null,
-          error: error instanceof Error ? error.message : "Unknown login submission error."
-        });
+      } catch {
+        console.error("[auth] Login submission failed");
         setNotice(DEFAULT_AUTH_ERROR_MESSAGE);
       }
     });

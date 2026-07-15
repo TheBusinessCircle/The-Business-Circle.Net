@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { sanitizeAnalyticsLocation } from "@/lib/analytics/privacy";
 
 const VISITOR_KEY = "bcn_anon_id";
 const SESSION_KEY = "bcn_session_id";
@@ -71,7 +72,12 @@ export function FirstPartyAnalytics() {
     const sessionId = readOrCreateStoredId(SESSION_KEY, "sess");
 
     const collect = (payload: AnalyticsPayload) => {
-      const path = payload.path || `${window.location.pathname}${window.location.search}`;
+      const path = sanitizeAnalyticsLocation(
+        payload.path || `${window.location.pathname}${window.location.search}`
+      ) ?? "/";
+      const referrer = sanitizeAnalyticsLocation(
+        payload.referrer ?? (document.referrer || null)
+      );
       if (shouldIgnorePath(path)) {
         return;
       }
@@ -87,7 +93,7 @@ export function FirstPartyAnalytics() {
             eventName: payload.eventName,
             path,
             title: payload.title ?? document.title,
-            referrer: payload.referrer ?? (document.referrer || null),
+            referrer,
             metadata: payload.metadata ?? null
           })
         })
@@ -120,7 +126,9 @@ export function FirstPartyAnalytics() {
   }, []);
 
   useEffect(() => {
-    const path = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
+    const path = sanitizeAnalyticsLocation(
+      `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`
+    ) ?? "/";
     if (!pathname || shouldIgnorePath(path) || lastPageViewRef.current === path) {
       return;
     }
@@ -130,7 +138,7 @@ export function FirstPartyAnalytics() {
       eventName: "page_view",
       path,
       title: document.title,
-      referrer: document.referrer || null
+      referrer: sanitizeAnalyticsLocation(document.referrer || null)
     });
   }, [pathname, searchParams]);
 

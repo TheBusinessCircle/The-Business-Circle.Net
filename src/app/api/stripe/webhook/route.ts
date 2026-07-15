@@ -23,8 +23,13 @@ export async function POST(request: Request) {
   let event;
   try {
     event = constructStripeWebhookEvent(rawBody, signature, webhookSecret);
-  } catch (error) {
-    logServerError("stripe-webhook-verification-failed", error);
+  } catch {
+    // Do not pass Stripe's verification error through to logging. Parser errors can
+    // contain excerpts of the raw request or signature header.
+    logServerError(
+      "stripe-webhook-verification-failed",
+      new Error("Stripe webhook signature verification failed.")
+    );
     return new Response("Invalid Stripe webhook signature.", { status: 400 });
   }
 
@@ -36,10 +41,17 @@ export async function POST(request: Request) {
 
     await processStripeWebhookEvent(event);
     await processFounderStripeWebhookEvent(event);
-  } catch (error) {
-    logServerError("stripe-webhook-processing-failed", error, {
-      eventType: event.type
-    });
+  } catch {
+    // Processor errors may include request-derived values. Keep the operational
+    // correlation fields while logging only a fixed classification.
+    logServerError(
+      "stripe-webhook-processing-failed",
+      new Error("Stripe webhook processing failed."),
+      {
+        eventId: event.id,
+        eventType: event.type
+      }
+    );
     return new Response("Webhook processing error.", { status: 500 });
   }
 

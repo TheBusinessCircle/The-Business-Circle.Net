@@ -133,10 +133,10 @@ Client analytics are initialized through `src/components/analytics/posthog-provi
 
 - `NEXT_PUBLIC_POSTHOG_KEY=phc_...`
 - `NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com`
-- `NEXT_PUBLIC_POSTHOG_REPLAY_SAMPLE_RATE=0.25`
+- `NEXT_PUBLIC_POSTHOG_REPLAY_SAMPLE_RATE=0`
 - `NEXT_PUBLIC_POSTHOG_DEBUG=false`
 
-Pageviews are captured manually for App Router navigation, session replay masks inputs and member-sensitive surfaces, and server-side billing events should use `captureServerAnalyticsEvent` when they are intentionally wired into Stripe webhook handling.
+Pageviews are captured manually for App Router navigation. DOM click/submit autocapture, session replay, browser console capture, browser exception autocapture, performance capture, heatmaps, dead-click capture, feature-flag requests and remote extension loading are explicitly disabled for the payment-safety release because third-party nested payloads, anchor attributes, current URLs and hidden form fields can contain authentication or invitation credentials. Server-side billing events should use `captureServerAnalyticsEvent` when they are intentionally wired into Stripe webhook handling.
 
 ## Local setup
 

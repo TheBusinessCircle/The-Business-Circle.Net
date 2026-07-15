@@ -1,4 +1,5 @@
 import { safeRedirectPath } from "@/lib/auth/utils";
+import { logServerWarning } from "@/lib/security/logging";
 
 type LoginSearchParamValue = string | string[] | undefined;
 
@@ -36,15 +37,11 @@ export function parseLoginSearchParams(params: LoginSearchParams) {
   const from = normalizeFrom(params.from);
 
   if (rawVerified && rawVerified !== "1") {
-    console.warn("[auth] Ignoring unexpected login verified param", {
-      verified: rawVerified
-    });
+    logServerWarning("auth-login-verified-param-ignored");
   }
 
   if (rawFrom && !from) {
-    console.warn("[auth] Ignoring unsafe login from param", {
-      from: rawFrom
-    });
+    logServerWarning("auth-login-return-path-rejected");
   }
 
   return {

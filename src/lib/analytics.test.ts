@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 
 describe("analytics event layer", () => {
@@ -79,5 +79,23 @@ describe("analytics event layer", () => {
         ignored: undefined
       })
     ).not.toThrow();
+  });
+
+  it("does not print invitation return secrets in analytics debug output", () => {
+    const previous = process.env.ANALYTICS_DEBUG;
+    process.env.ANALYTICS_DEBUG = "true";
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const inviteCode = "PRIVATE-INVITE-CODE";
+
+    try {
+      trackAnalyticsEvent(ANALYTICS_EVENTS.loginSuccess, {
+        destination: `/invite/${inviteCode}`
+      });
+
+      expect(JSON.stringify(info.mock.calls)).not.toContain(inviteCode);
+    } finally {
+      process.env.ANALYTICS_DEBUG = previous;
+      info.mockRestore();
+    }
   });
 });

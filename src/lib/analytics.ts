@@ -1,3 +1,8 @@
+import {
+  isAnalyticsLocationProperty,
+  sanitizeAnalyticsLocation
+} from "@/lib/analytics/privacy";
+
 export const ANALYTICS_EVENTS = {
   rootEntry: "root_entry",
   joinMobileStepInside: "join_mobile_step_inside",
@@ -97,6 +102,7 @@ const SENSITIVE_PROPERTY_PATTERNS = [
   /token/i,
   /secret/i,
   /authorization/i,
+  /invite/i,
   /email/i,
   /phone/i,
   /address/i,
@@ -126,11 +132,19 @@ function isSafeAnalyticsPropertyName(name: string) {
 
 function sanitizeProperties(properties: AnalyticsProperties = {}) {
   return Object.fromEntries(
-    Object.entries(properties).filter((entry): entry is [string, Exclude<AnalyticsValue, undefined>] => {
+    Object.entries(properties).flatMap((entry) => {
       const [key, value] = entry;
-      return value !== undefined && isSafeAnalyticsPropertyName(key);
+      if (value === undefined || !isSafeAnalyticsPropertyName(key)) {
+        return [];
+      }
+
+      if (typeof value === "string" && isAnalyticsLocationProperty(key)) {
+        return [[key, sanitizeAnalyticsLocation(value)]];
+      }
+
+      return [[key, value]];
     })
-  );
+  ) as Record<string, Exclude<AnalyticsValue, undefined>>;
 }
 
 function shouldLogAnalyticsEvents() {

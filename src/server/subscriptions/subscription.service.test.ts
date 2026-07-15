@@ -1,5 +1,5 @@
 import { MembershipTier, SubscriptionStatus } from "@prisma/client";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type Stripe from "stripe";
 import { TERMS_VERSION } from "@/config/legal";
 
@@ -10,15 +10,30 @@ const stripeWebhookEventUpdateMock = vi.hoisted(() => vi.fn(async () => ({})));
 const pendingRegistrationFindUniqueMock = vi.hoisted(() => vi.fn());
 const pendingRegistrationFindFirstMock = vi.hoisted(() => vi.fn());
 const pendingRegistrationUpdateMock = vi.hoisted(() => vi.fn(async () => ({})));
+const subscriptionFindUniqueMock = vi.hoisted(() => vi.fn());
+const subscriptionUpsertMock = vi.hoisted(() => vi.fn());
+const circleCardSubscriptionFindUniqueMock = vi.hoisted(() => vi.fn());
 const stripeCheckoutCreateMock = vi.hoisted(() => vi.fn());
+const stripeCheckoutListLineItemsMock = vi.hoisted(() => vi.fn());
 const stripeCustomersListMock = vi.hoisted(() => vi.fn());
 const stripeCustomersCreateMock = vi.hoisted(() => vi.fn());
+const stripeCustomersRetrieveMock = vi.hoisted(() => vi.fn());
 const stripeCustomersUpdateMock = vi.hoisted(() => vi.fn());
 const reserveFoundingSlotMock = vi.hoisted(() => vi.fn());
 const attachFoundingReservationToCheckoutSessionMock = vi.hoisted(() => vi.fn(async () => {}));
 const releaseFoundingReservationMock = vi.hoisted(() => vi.fn(async () => {}));
 const claimFoundingReservationMock = vi.hoisted(() => vi.fn(async () => {}));
 const resolveManagedMembershipPlanMock = vi.hoisted(() => vi.fn());
+const isKnownManagedMembershipStripePriceIdMock = vi.hoisted(() =>
+  vi.fn(async () => true)
+);
+const stripeSubscriptionsRetrieveMock = vi.hoisted(() => vi.fn());
+const stripeSubscriptionsListMock = vi.hoisted(() => vi.fn());
+const stripeCheckoutSessionsListMock = vi.hoisted(() => vi.fn());
+const stripeBillingPortalCreateMock = vi.hoisted(() => vi.fn());
+const sendTransactionalEmailMock = vi.hoisted(() =>
+  vi.fn(async () => ({ sent: true, skipped: false }))
+);
 const validateInviteCodeForCheckoutMock = vi.hoisted(() =>
   vi.fn(async () => ({ valid: false, reason: "missing" }))
 );
@@ -30,6 +45,7 @@ const attachLaunchCodeReservationToCheckoutSessionMock = vi.hoisted(() => vi.fn(
 const failLaunchCodeReservationMock = vi.hoisted(() => vi.fn(async () => {}));
 const completeLaunchCodeRedemptionFromStripeMock = vi.hoisted(() => vi.fn(async () => null));
 const updateLaunchCodeSubscriptionFromStripeMock = vi.hoisted(() => vi.fn(async () => null));
+const siteEventCreateMock = vi.hoisted(() => vi.fn(async () => ({})));
 
 vi.hoisted(() => {
   process.env.STRIPE_SECRET_KEY = "sk_test_subscriptions";
@@ -69,7 +85,15 @@ vi.mock("@/lib/db", () => ({
       findUnique: pendingRegistrationFindUniqueMock,
       findFirst: pendingRegistrationFindFirstMock,
       update: pendingRegistrationUpdateMock
-    }
+    },
+    subscription: {
+      findUnique: subscriptionFindUniqueMock,
+      upsert: subscriptionUpsertMock
+    },
+    circleCardSubscription: {
+      findUnique: circleCardSubscriptionFindUniqueMock
+    },
+    siteEvent: { create: siteEventCreateMock }
   }
 }));
 
@@ -77,22 +101,35 @@ vi.mock("@/server/stripe/client", () => ({
   requireStripeClient: vi.fn(() => ({
     checkout: {
       sessions: {
-        create: stripeCheckoutCreateMock
+        create: stripeCheckoutCreateMock,
+        listLineItems: stripeCheckoutListLineItemsMock,
+        list: stripeCheckoutSessionsListMock
       }
     },
     customers: {
       list: stripeCustomersListMock,
       create: stripeCustomersCreateMock,
+      retrieve: stripeCustomersRetrieveMock,
       update: stripeCustomersUpdateMock
+    },
+    subscriptions: {
+      retrieve: stripeSubscriptionsRetrieveMock,
+      list: stripeSubscriptionsListMock
+    },
+    billingPortal: {
+      sessions: {
+        create: stripeBillingPortalCreateMock
+      }
     }
   }))
 }));
 
 vi.mock("@/lib/email/resend", () => ({
-  sendTransactionalEmail: vi.fn(async () => ({ sent: true, skipped: false }))
+  sendTransactionalEmail: sendTransactionalEmailMock
 }));
 
 vi.mock("@/server/products-pricing", () => ({
+  isKnownManagedMembershipStripePriceId: isKnownManagedMembershipStripePriceIdMock,
   resolveManagedMembershipPlan: resolveManagedMembershipPlanMock,
   resolveManagedMembershipPlanFromStripePriceId: vi.fn(async () => ({
     tier: "FOUNDATION",
@@ -129,9 +166,13 @@ vi.mock("@/server/admin/launch-codes.service", () => ({
 
 import {
   getMembershipBillingPlan,
+  isConfiguredMembershipStripePriceId,
   resolveBillingIntervalFromPriceId
 } from "@/config/membership";
 import {
+  acquireWebhookProcessingLease,
+  createStripeBillingPortalSessionForUser,
+  createStripeCheckoutSessionForUser,
   createStripeCheckoutSessionForPendingRegistration,
   getTierFromStripePriceId,
   isSubscriptionEntitled,
@@ -141,6 +182,174 @@ import {
 import { db } from "@/lib/db";
 
 describe("subscription service", () => {
+  beforeEach(() => {
+    subscriptionFindUniqueMock.mockReset().mockResolvedValue(null);
+    subscriptionUpsertMock.mockReset();
+    circleCardSubscriptionFindUniqueMock.mockReset().mockResolvedValue(null);
+    stripeCustomersRetrieveMock.mockReset();
+    stripeSubscriptionsListMock.mockReset().mockResolvedValue({ data: [], has_more: false });
+    stripeCheckoutSessionsListMock.mockReset().mockResolvedValue({ data: [], has_more: false });
+  });
+
+  it("refuses the BCN Portal when a legacy customer is shared with Circle Card", async () => {
+    subscriptionFindUniqueMock.mockReset();
+    circleCardSubscriptionFindUniqueMock.mockReset();
+    stripeBillingPortalCreateMock.mockReset();
+    subscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_shared" });
+    circleCardSubscriptionFindUniqueMock.mockResolvedValue({
+      stripeCustomerId: "cus_shared"
+    });
+
+    await expect(
+      createStripeBillingPortalSessionForUser({
+        userId: "user_shared",
+        email: "member@example.test",
+        returnPath: "/dashboard"
+      })
+    ).rejects.toThrow("circle-card-billing-customer-isolation-required");
+
+    expect(stripeBillingPortalCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("opens the BCN Portal only for a distinct BCN customer", async () => {
+    subscriptionFindUniqueMock.mockReset();
+    circleCardSubscriptionFindUniqueMock.mockReset();
+    stripeBillingPortalCreateMock.mockReset();
+    stripeSubscriptionsListMock.mockReset();
+    stripeCheckoutSessionsListMock.mockReset();
+    subscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_bcn" });
+    circleCardSubscriptionFindUniqueMock.mockImplementation(async ({ where }) => {
+      return where.userId ? { stripeCustomerId: "cus_circle" } : null;
+    });
+    stripeSubscriptionsListMock.mockResolvedValue({ data: [], has_more: false });
+    stripeCheckoutSessionsListMock.mockResolvedValue({ data: [], has_more: false });
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_bcn",
+      metadata: { userId: "user_distinct" }
+    });
+    stripeBillingPortalCreateMock.mockResolvedValue({
+      url: "https://billing.stripe.test/bcn"
+    });
+
+    await expect(
+      createStripeBillingPortalSessionForUser({
+        userId: "user_distinct",
+        email: "member@example.test",
+        returnPath: "/dashboard"
+      })
+    ).resolves.toEqual({ url: "https://billing.stripe.test/bcn" });
+
+    expect(stripeBillingPortalCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ customer: "cus_bcn" })
+    );
+  });
+
+  it("blocks the BCN Portal when its actual customer contains a legacy Circle subscription", async () => {
+    process.env.STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID = "price_circle_pro";
+    subscriptionFindUniqueMock.mockReset();
+    circleCardSubscriptionFindUniqueMock.mockReset();
+    stripeSubscriptionsListMock.mockReset();
+    stripeCheckoutSessionsListMock.mockReset();
+    stripeBillingPortalCreateMock.mockReset();
+    subscriptionFindUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_bcn_legacy" });
+    circleCardSubscriptionFindUniqueMock.mockResolvedValue(null);
+    stripeSubscriptionsListMock.mockResolvedValue({
+      data: [
+        {
+          id: "sub_circle_legacy",
+          metadata: { circleCardPlan: "PRO" },
+          items: { data: [{ price: { id: "price_circle_pro" } }] }
+        }
+      ],
+      has_more: false
+    });
+    stripeCheckoutSessionsListMock.mockResolvedValue({ data: [], has_more: false });
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_bcn_legacy",
+      metadata: { userId: "user_legacy" }
+    });
+
+    await expect(
+      createStripeBillingPortalSessionForUser({
+        userId: "user_legacy",
+        email: "member@example.test",
+        returnPath: "/dashboard"
+      })
+    ).rejects.toThrow("circle-card-billing-customer-isolation-required");
+
+    expect(stripeBillingPortalCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks BCN Checkout when its customer belongs to another user's Circle Card", async () => {
+    subscriptionFindUniqueMock.mockImplementation(async ({ where }) =>
+      where.userId
+        ? { stripeCustomerId: "cus_cross_product" }
+        : { userId: "user_bcn", stripeCustomerId: "cus_cross_product" }
+    );
+    circleCardSubscriptionFindUniqueMock.mockImplementation(async ({ where }) =>
+      where.userId
+        ? null
+        : { userId: "user_circle", stripeCustomerId: "cus_cross_product" }
+    );
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_cross_product",
+      metadata: { userId: "user_bcn" }
+    });
+
+    await expect(
+      createStripeCheckoutSessionForUser({
+        userId: "user_bcn",
+        email: "member@example.test",
+        targetTier: MembershipTier.FOUNDATION,
+        billingInterval: "monthly"
+      })
+    ).rejects.toThrow("bcn-billing-customer-isolation-required");
+
+    expect(stripeCheckoutCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a managed BCN webhook retryable when its customer belongs to Circle Card", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(null);
+    circleCardSubscriptionFindUniqueMock.mockImplementation(async ({ where }) =>
+      where.stripeCustomerId
+        ? { userId: "user_circle", stripeCustomerId: "cus_cross_product" }
+        : null
+    );
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_cross_product",
+      metadata: { userId: "user_bcn" }
+    });
+    pendingRegistrationFindUniqueMock.mockResolvedValue(null);
+    pendingRegistrationFindFirstMock.mockResolvedValue(null);
+    const managedSubscription = {
+      id: "sub_bcn_cross_product",
+      object: "subscription",
+      status: "active",
+      customer: "cus_cross_product",
+      metadata: { userId: "user_bcn" },
+      items: {
+        data: [{ price: { id: "price_foundation_test", product: "prod_bcn" } }]
+      },
+      cancel_at_period_end: false
+    } as unknown as Stripe.Subscription;
+
+    await expect(
+      processStripeWebhookEvent({
+        id: "evt_bcn_cross_product",
+        type: "customer.subscription.updated",
+        data: { object: managedSubscription }
+      } as Stripe.Event)
+    ).rejects.toThrow("bcn-billing-customer-isolation-required");
+
+    expect(subscriptionUpsertMock).not.toHaveBeenCalled();
+    expect(stripeWebhookEventUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "evt_bcn_cross_product" },
+        data: expect.objectContaining({ status: "FAILED" })
+      })
+    );
+  });
+
   it("maps Stripe price IDs to membership tiers", () => {
     const innerPriceId = getMembershipBillingPlan(
       MembershipTier.INNER_CIRCLE,
@@ -176,6 +385,12 @@ describe("subscription service", () => {
     expect(resolveBillingIntervalFromPriceId("price_foundation_test")).toBe("monthly");
     expect(resolveBillingIntervalFromPriceId("price_foundation_annual_test")).toBe("annual");
     expect(resolveBillingIntervalFromPriceId("price_founding_core_annual_test")).toBe("annual");
+  });
+
+  it("recognises only explicitly configured membership Stripe price IDs", () => {
+    expect(isConfiguredMembershipStripePriceId("price_foundation_test")).toBe(true);
+    expect(isConfiguredMembershipStripePriceId("price_circle_card_pro")).toBe(false);
+    expect(isConfiguredMembershipStripePriceId(null)).toBe(false);
   });
 
   it("maps Stripe subscription statuses into internal status enum", () => {
@@ -286,6 +501,292 @@ describe("subscription service", () => {
     expect(processors.handleCheckoutSessionCompleted).not.toHaveBeenCalled();
   });
 
+  it("throws while another webhook worker holds an active processing lease", async () => {
+    vi.mocked(db.stripeWebhookEvent.create).mockRejectedValueOnce({ code: "P2002" });
+    vi.mocked(db.stripeWebhookEvent.findUnique).mockResolvedValueOnce({
+      id: "evt_busy",
+      type: "customer.subscription.updated",
+      status: "PROCESSING",
+      processingStartedAt: new Date(),
+      processedAt: null,
+      attemptCount: 1,
+      lastError: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    vi.mocked(db.stripeWebhookEvent.updateMany).mockResolvedValueOnce({ count: 0 });
+
+    const handleSubscriptionChanged = vi.fn(async () => {});
+    await expect(
+      processStripeWebhookEvent(
+        {
+          id: "evt_busy",
+          type: "customer.subscription.updated",
+          data: { object: { id: "sub_busy" } }
+        } as unknown as Stripe.Event,
+        { handleSubscriptionChanged }
+      )
+    ).rejects.toThrow("stripe-webhook-event-processing-in-progress");
+
+    expect(handleSubscriptionChanged).not.toHaveBeenCalled();
+    expect(stripeWebhookEventUpdateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "evt_busy" } })
+    );
+  });
+
+  it("reclaims a stale webhook processing lease and completes the retry", async () => {
+    vi.mocked(db.stripeWebhookEvent.create).mockRejectedValueOnce({ code: "P2002" });
+    vi.mocked(db.stripeWebhookEvent.findUnique).mockResolvedValueOnce({
+      id: "evt_stale",
+      type: "customer.subscription.updated",
+      status: "PROCESSING",
+      processingStartedAt: new Date(Date.now() - 11 * 60 * 1000),
+      processedAt: null,
+      attemptCount: 1,
+      lastError: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    vi.mocked(db.stripeWebhookEvent.updateMany).mockResolvedValueOnce({ count: 1 });
+
+    const handleSubscriptionChanged = vi.fn(async () => {});
+    await processStripeWebhookEvent(
+      {
+        id: "evt_stale",
+        type: "customer.subscription.updated",
+        data: { object: { id: "sub_stale" } }
+      } as unknown as Stripe.Event,
+      { handleSubscriptionChanged }
+    );
+
+    expect(handleSubscriptionChanged).toHaveBeenCalledTimes(1);
+    expect(stripeWebhookEventUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "evt_stale" },
+        data: expect.objectContaining({ status: "PROCESSED" })
+      })
+    );
+  });
+
+  it("reclaims a previously failed webhook lease", async () => {
+    vi.mocked(db.stripeWebhookEvent.create).mockRejectedValueOnce({ code: "P2002" });
+    vi.mocked(db.stripeWebhookEvent.findUnique).mockResolvedValueOnce({
+      id: "evt_failed_retry",
+      type: "invoice.payment_failed",
+      status: "FAILED",
+      processingStartedAt: new Date(),
+      processedAt: null,
+      attemptCount: 1,
+      lastError: "synthetic failure",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    vi.mocked(db.stripeWebhookEvent.updateMany).mockResolvedValueOnce({ count: 1 });
+
+    await expect(
+      acquireWebhookProcessingLease({
+        id: "evt_failed_retry",
+        type: "invoice.payment_failed"
+      } as Stripe.Event)
+    ).resolves.toBe("acquired");
+  });
+
+  it("ignores subscription events whose price is not a managed BCN membership price", async () => {
+    isKnownManagedMembershipStripePriceIdMock.mockResolvedValueOnce(false);
+    pendingRegistrationUpdateMock.mockClear();
+    updateLaunchCodeSubscriptionFromStripeMock.mockClear();
+
+    await processStripeWebhookEvent({
+      id: "evt_unmanaged_subscription",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_unmanaged",
+          customer: "cus_shared",
+          status: "active",
+          metadata: { userId: "user_1" },
+          items: { data: [{ price: { id: "price_circle_card_pro" } }] }
+        }
+      }
+    } as unknown as Stripe.Event);
+
+    expect(isKnownManagedMembershipStripePriceIdMock).toHaveBeenCalledWith(
+      "price_circle_card_pro"
+    );
+    expect(pendingRegistrationUpdateMock).not.toHaveBeenCalled();
+    expect(updateLaunchCodeSubscriptionFromStripeMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores completed Checkout sessions whose line item is not a managed BCN price", async () => {
+    stripeCheckoutListLineItemsMock.mockResolvedValueOnce({
+      data: [{ price: { id: "price_circle_card_pro" }, quantity: 1 }],
+      has_more: false
+    });
+    isKnownManagedMembershipStripePriceIdMock.mockResolvedValueOnce(false);
+
+    await processStripeWebhookEvent({
+      id: "evt_unmanaged_checkout",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_unmanaged",
+          mode: "subscription",
+          customer: "cus_shared",
+          metadata: {
+            userId: "user_1",
+            pendingRegistrationId: "pending_1",
+            foundingReservationId: "founding_1",
+            launchCodeRedemptionId: "launch_1"
+          }
+        }
+      }
+    } as unknown as Stripe.Event);
+
+    expect(pendingRegistrationUpdateMock).not.toHaveBeenCalled();
+    expect(stripeSubscriptionsRetrieveMock).not.toHaveBeenCalled();
+    expect(claimFoundingReservationMock).not.toHaveBeenCalled();
+    expect(completeLaunchCodeRedemptionFromStripeMock).not.toHaveBeenCalled();
+    expect(siteEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("does not release BCN reservations for an unmanaged expired Checkout session", async () => {
+    stripeCheckoutListLineItemsMock.mockResolvedValueOnce({
+      data: [{ price: { id: "price_circle_card_pro" }, quantity: 1 }],
+      has_more: false
+    });
+    isKnownManagedMembershipStripePriceIdMock.mockResolvedValueOnce(false);
+
+    await processStripeWebhookEvent({
+      id: "evt_unmanaged_expired_checkout",
+      type: "checkout.session.expired",
+      data: {
+        object: {
+          id: "cs_unmanaged_expired",
+          mode: "subscription",
+          metadata: {
+            pendingRegistrationId: "pending_1",
+            foundingReservationId: "founding_1",
+            launchCodeRedemptionId: "launch_1"
+          }
+        }
+      }
+    } as unknown as Stripe.Event);
+
+    expect(releaseFoundingReservationMock).not.toHaveBeenCalled();
+    expect(failLaunchCodeReservationMock).not.toHaveBeenCalled();
+    expect(pendingRegistrationUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      label: "multiple line items",
+      lineItems: {
+        data: [
+          { price: { id: "price_foundation_test" }, quantity: 1 },
+          { price: { id: "price_extra" }, quantity: 1 }
+        ],
+        has_more: false
+      }
+    },
+    {
+      label: "wrong quantity",
+      lineItems: {
+        data: [{ price: { id: "price_foundation_test" }, quantity: 2 }],
+        has_more: false
+      }
+    }
+  ])("fails closed for a BCN Checkout session with $label", async ({ lineItems }) => {
+    stripeCheckoutListLineItemsMock.mockResolvedValueOnce(lineItems);
+
+    await processStripeWebhookEvent({
+      id: `evt_bad_shape_${lineItems.data.length}_${lineItems.data[0]?.quantity}`,
+      type: "checkout.session.expired",
+      data: {
+        object: {
+          id: "cs_bad_shape",
+          mode: "subscription",
+          metadata: { foundingReservationId: "founding_1" }
+        }
+      }
+    } as unknown as Stripe.Event);
+
+    expect(releaseFoundingReservationMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the webhook retryable when Checkout line-item classification fails", async () => {
+    stripeCheckoutListLineItemsMock.mockRejectedValueOnce(new Error("temporary Stripe failure"));
+
+    await expect(
+      processStripeWebhookEvent({
+        id: "evt_checkout_lookup_failure",
+        type: "checkout.session.completed",
+        data: { object: { id: "cs_lookup_failure", mode: "subscription" } }
+      } as unknown as Stripe.Event)
+    ).rejects.toThrow("temporary Stripe failure");
+
+    expect(stripeWebhookEventUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "evt_checkout_lookup_failure" },
+        data: expect.objectContaining({ status: "FAILED" })
+      })
+    );
+    expect(siteEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("handles a single managed BCN Checkout line with quantity one", async () => {
+    stripeCheckoutListLineItemsMock.mockResolvedValueOnce({
+      data: [{ price: { id: "price_foundation_test" }, quantity: 1 }],
+      has_more: false
+    });
+    isKnownManagedMembershipStripePriceIdMock.mockResolvedValueOnce(true);
+
+    await processStripeWebhookEvent({
+      id: "evt_managed_expired_checkout",
+      type: "checkout.session.expired",
+      data: {
+        object: {
+          id: "cs_managed_expired",
+          mode: "subscription",
+          metadata: { foundingReservationId: "founding_1" }
+        }
+      }
+    } as unknown as Stripe.Event);
+
+    expect(releaseFoundingReservationMock).toHaveBeenCalledWith({
+      reservationId: "founding_1",
+      checkoutSessionId: "cs_managed_expired"
+    });
+  });
+
+  it("does not sync or email receipts for invoices on unmanaged subscriptions", async () => {
+    stripeSubscriptionsRetrieveMock.mockResolvedValueOnce({
+      id: "sub_unmanaged_invoice",
+      customer: "cus_shared",
+      status: "active",
+      metadata: { userId: "user_1" },
+      items: { data: [{ price: { id: "price_circle_card_pro" } }] }
+    });
+    isKnownManagedMembershipStripePriceIdMock.mockResolvedValueOnce(false);
+    sendTransactionalEmailMock.mockClear();
+
+    await processStripeWebhookEvent({
+      id: "evt_unmanaged_invoice",
+      type: "invoice.paid",
+      data: {
+        object: {
+          id: "in_unmanaged",
+          subscription: "sub_unmanaged_invoice",
+          customer: "cus_shared",
+          customer_email: "synthetic@example.test",
+          paid: true,
+          lines: { data: [{ price: { id: "price_circle_card_pro" } }] }
+        }
+      }
+    } as unknown as Stripe.Event);
+
+    expect(sendTransactionalEmailMock).not.toHaveBeenCalled();
+  });
+
   it("includes Terms acceptance metadata on pending registration checkout sessions", async () => {
     const acceptedAt = new Date("2026-04-25T10:15:00.000Z");
 
@@ -300,7 +801,8 @@ describe("subscription service", () => {
       data: []
     });
     stripeCustomersCreateMock.mockResolvedValueOnce({
-      id: "cus_pending_123"
+      id: "cus_pending_123",
+      metadata: { pendingRegistrationId: "pending_123" }
     });
     pendingRegistrationFindUniqueMock
       .mockResolvedValueOnce({
@@ -344,6 +846,14 @@ describe("subscription service", () => {
     });
     expect(checkoutPayload.metadata).not.toHaveProperty("acceptedRules");
     expect(checkoutPayload.subscription_data.metadata).not.toHaveProperty("acceptedRules");
+    expect(stripeCustomersListMock).not.toHaveBeenCalled();
+    expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "trev@example.com",
+        metadata: { pendingRegistrationId: "pending_123" }
+      }),
+      { idempotencyKey: "bcn-pending-registration-customer:pending_123" }
+    );
   });
 
   it("applies launch code trial metadata to pending registration checkout sessions", async () => {
@@ -362,7 +872,10 @@ describe("subscription service", () => {
       trialDays: 90
     });
     stripeCustomersListMock.mockResolvedValueOnce({ data: [] });
-    stripeCustomersCreateMock.mockResolvedValueOnce({ id: "cus_launch_123" });
+    stripeCustomersCreateMock.mockResolvedValueOnce({
+      id: "cus_launch_123",
+      metadata: { pendingRegistrationId: "pending_launch_123" }
+    });
     pendingRegistrationFindUniqueMock
       .mockResolvedValueOnce({ stripeCustomerId: null })
       .mockResolvedValueOnce({

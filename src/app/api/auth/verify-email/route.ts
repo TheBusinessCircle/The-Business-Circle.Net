@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyEmailToken } from "@/lib/auth/email-verification";
-import { logServerError } from "@/lib/security/logging";
+import { logServerError, logServerInfo, logServerWarning } from "@/lib/security/logging";
 import { getBaseUrl } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -22,21 +22,16 @@ export async function GET(request: Request) {
   const userId = requestUrl.searchParams.get("uid")?.trim() || "";
   const token = requestUrl.searchParams.get("token")?.trim() || "";
 
-  console.info("[verify-email] token received", {
+  logServerInfo("verify-email-route-token-received", {
     userId,
     hasToken: Boolean(token)
   });
 
   if (!userId || !token) {
-    console.warn("[verify-email] verification route rejected", {
+    logServerWarning("verify-email-route-rejected", {
       reason: "missing-parameters"
     });
     const redirectUrl = toRedirectUrl("invalid");
-    console.info("[verify-email] redirect target", {
-      userId,
-      status: "invalid",
-      redirectUrl: redirectUrl.toString()
-    });
     return NextResponse.redirect(redirectUrl);
   }
 
@@ -46,33 +41,19 @@ export async function GET(request: Request) {
       token
     });
 
-    console.info("[verify-email] verification route completed", {
+    logServerInfo("verify-email-route-completed", {
       userId,
       verified
     });
-    console.info("[verify-email] redirecting", {
-      userId,
-      status: verified ? "success" : "invalid"
-    });
     const redirectUrl = toRedirectUrl(verified ? "success" : "invalid");
-    console.info("[verify-email] redirect target", {
-      userId,
-      status: verified ? "success" : "invalid",
-      redirectUrl: redirectUrl.toString()
-    });
 
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
-    console.warn("[verify-email] verification failed", {
+    logServerWarning("verify-email-route-failed", {
       userId
     });
     logServerError("email-verification-route-failed", error);
     const redirectUrl = toRedirectUrl("invalid");
-    console.info("[verify-email] redirect target", {
-      userId,
-      status: "invalid",
-      redirectUrl: redirectUrl.toString()
-    });
     return NextResponse.redirect(redirectUrl);
   }
 }

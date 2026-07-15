@@ -42,10 +42,7 @@ export function resolveAuthErrorMessage(
     return null;
   }
 
-  console.warn("[auth] Unrecognized login error code", {
-    errorCode,
-    detailCode: detailCode ?? null
-  });
+  console.warn("[auth] Unrecognized login error code");
 
   return DEFAULT_AUTH_ERROR_MESSAGE;
 }

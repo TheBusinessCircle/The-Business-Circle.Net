@@ -15,6 +15,7 @@ import {
 import { renderEmailHtml } from "@/emails/render";
 import { buildBrandedEmailText } from "@/emails/text";
 import { sendTransactionalEmailOrThrow } from "@/lib/email/resend";
+import { logServerError, logServerInfo } from "@/lib/security/logging";
 import { absoluteUrl, getBaseUrl } from "@/lib/utils";
 
 export const ADMIN_EMAIL_TEST_TYPE_IDS = [
@@ -477,7 +478,7 @@ export function listAdminEmailTestDefinitions(): AdminEmailTestDefinition[] {
 }
 
 export async function sendAdminEmailTest(input: SendAdminEmailTestInput) {
-  console.info("[admin-email-test] requested", {
+  logServerInfo("admin-email-test-requested", {
     adminUserId: input.adminUserId,
     emailType: input.emailType,
     recipientEmail: input.recipientEmail
@@ -487,26 +488,23 @@ export async function sendAdminEmailTest(input: SendAdminEmailTestInput) {
 
   try {
     payload = await buildAdminEmailTestPayload(input.emailType);
-    console.info("[admin-email-test] render success", {
+    logServerInfo("admin-email-test-render-succeeded", {
       adminUserId: input.adminUserId,
       emailType: input.emailType,
       recipientEmail: input.recipientEmail,
       subject: payload.subject
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown admin email preview render error.";
-    console.error("[admin-email-test] failed", {
+    logServerError("admin-email-test-render-failed", error, {
       adminUserId: input.adminUserId,
       emailType: input.emailType,
       recipientEmail: input.recipientEmail,
-      stage: "render",
-      error: errorMessage
+      stage: "render"
     });
     throw error;
   }
 
-  console.info("[admin-email-test] sending", {
+  logServerInfo("admin-email-test-sending", {
     adminUserId: input.adminUserId,
     emailType: input.emailType,
     recipientEmail: input.recipientEmail,
@@ -527,7 +525,7 @@ export async function sendAdminEmailTest(input: SendAdminEmailTestInput) {
     });
 
     const sentAt = new Date().toISOString();
-    console.info("[admin-email-test] success", {
+    logServerInfo("admin-email-test-succeeded", {
       adminUserId: input.adminUserId,
       emailType: input.emailType,
       recipientEmail: input.recipientEmail,
@@ -542,13 +540,10 @@ export async function sendAdminEmailTest(input: SendAdminEmailTestInput) {
       definition: payload.definition
     };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown admin email test error.";
-    console.error("[admin-email-test] failed", {
+    logServerError("admin-email-test-send-failed", error, {
       adminUserId: input.adminUserId,
       emailType: input.emailType,
-      recipientEmail: input.recipientEmail,
-      error: errorMessage
+      recipientEmail: input.recipientEmail
     });
     throw error;
   }
