@@ -623,6 +623,11 @@ async function ensureStripeCustomerIdForPendingRegistration(input: {
   });
 
   if (existing?.stripeCustomerId) {
+    await assertPendingRegistrationStripeCustomerOwnership({
+      pendingRegistrationId: input.pendingRegistrationId,
+      customerId: existing.stripeCustomerId,
+      verifyStripeCustomer: true
+    });
     return existing.stripeCustomerId;
   }
 
@@ -637,6 +642,17 @@ async function ensureStripeCustomerIdForPendingRegistration(input: {
     },
     { idempotencyKey: `bcn-pending-registration-customer:${input.pendingRegistrationId}` }
   );
+  if (
+    ("deleted" in customer && customer.deleted) ||
+    customer.metadata?.pendingRegistrationId?.trim() !== input.pendingRegistrationId
+  ) {
+    throw new Error("bcn-billing-customer-isolation-required");
+  }
+  await assertPendingRegistrationStripeCustomerOwnership({
+    pendingRegistrationId: input.pendingRegistrationId,
+    customerId: customer.id,
+    verifyStripeCustomer: false
+  });
 
   await db.pendingRegistration.update({
     where: {
@@ -648,6 +664,45 @@ async function ensureStripeCustomerIdForPendingRegistration(input: {
   });
 
   return customer.id;
+}
+
+async function assertPendingRegistrationStripeCustomerOwnership(input: {
+  pendingRegistrationId: string;
+  customerId: string;
+  verifyStripeCustomer: boolean;
+}) {
+  const stripe = requireStripeClient();
+  const [bcnOwner, circleOwner, stripeCustomer] = await Promise.all([
+    db.subscription.findUnique({
+      where: { stripeCustomerId: input.customerId },
+      select: { stripeCustomerId: true }
+    }),
+    db.circleCardSubscription.findUnique({
+      where: { stripeCustomerId: input.customerId },
+      select: { stripeCustomerId: true }
+    }),
+    input.verifyStripeCustomer
+      ? stripe.customers.retrieve(input.customerId)
+      : Promise.resolve(null)
+  ]);
+  const stripeOwnershipMismatch = Boolean(
+    input.verifyStripeCustomer &&
+      (!stripeCustomer ||
+        ("deleted" in stripeCustomer && stripeCustomer.deleted) ||
+        stripeCustomer.metadata?.pendingRegistrationId?.trim() !== input.pendingRegistrationId)
+  );
+
+  if (!bcnOwner && !circleOwner && !stripeOwnershipMismatch) {
+    return;
+  }
+
+  logServerWarning("bcn-billing-customer-isolation-required", {
+    pendingRegistration: true,
+    ownedByBcn: Boolean(bcnOwner),
+    ownedByCircle: Boolean(circleOwner),
+    stripeOwnershipMismatch
+  });
+  throw new Error("bcn-billing-customer-isolation-required");
 }
 
 function crossesIntoInnerCircle(previousTier: MembershipTier, nextTier: MembershipTier) {

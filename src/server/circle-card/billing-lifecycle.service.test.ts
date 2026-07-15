@@ -449,7 +449,7 @@ describe("Circle Card billing lifecycle service", () => {
   it("fails closed for a completed tracked Checkout owned by another customer", async () => {
     const pending = {
       latestCheckoutSessionId: "cs_completed_wrong_customer",
-      checkoutSessionExpiresAt: new Date(Date.now() + 600_000)
+      checkoutSessionExpiresAt: new Date(Date.now() - 600_000)
     };
     subscriptionFindUniqueMock.mockImplementation(
       async ({ select }: { select: Record<string, boolean> }) => {
@@ -1053,6 +1053,92 @@ describe("Circle Card billing lifecycle service", () => {
     expect(
       subscriptionUpdateManyMock.mock.calls.some(([call]) => "accessEndsAt" in (call.data ?? {}))
     ).toBe(false);
+  });
+
+  it("fails a legacy Checkout webhook instead of adopting the BCN customer", async () => {
+    subscriptionFindFirstMock.mockResolvedValue({ id: "ccs_legacy_checkout" });
+    subscriptionFindUniqueMock.mockResolvedValue(null);
+    bcnSubscriptionFindUniqueMock.mockImplementation(async ({ where }) =>
+      where.stripeCustomerId
+        ? { userId: "user-1", stripeCustomerId: "cus_bcn_legacy" }
+        : null
+    );
+    customerRetrieveMock.mockResolvedValue(stripeCustomer("cus_bcn_legacy"));
+    subscriptionRetrieveMock.mockResolvedValue(
+      stripeSubscription({ customer: "cus_bcn_legacy" })
+    );
+
+    await expect(
+      processCircleCardStripeWebhookEvent(
+        event("checkout.session.completed", {
+          id: "cs_legacy_bcn",
+          object: "checkout.session",
+          metadata: { userId: "user-1", circleCardPlan: "PRO" },
+          subscription: "sub_pro_1",
+          customer: "cus_bcn_legacy"
+        })
+      )
+    ).rejects.toThrow("circle-card-reconciliation-conflict");
+
+    expect(subscriptionUpsertMock).not.toHaveBeenCalled();
+    expect(markFailedMock).toHaveBeenCalledWith(
+      "evt_checkout_session_completed",
+      expect.any(Error)
+    );
+  });
+
+  it.each([
+    [
+      "subscription",
+      () => event("customer.subscription.updated", stripeSubscription({ customer: "cus_wrong" }))
+    ],
+    [
+      "invoice",
+      () => event("invoice.paid", paidInvoice({ customer: "cus_wrong" }))
+    ]
+  ])("fails a %s webhook when its customer differs from the stored Circle customer", async (_kind, makeEvent) => {
+    subscriptionFindUniqueMock.mockImplementation(async ({ where }) => {
+      if (where.stripeSubscriptionId) return null;
+      if (where.userId) return storedRow();
+      if (where.stripeCustomerId) return null;
+      return null;
+    });
+    customerRetrieveMock.mockResolvedValue(stripeCustomer("cus_wrong"));
+    subscriptionRetrieveMock.mockResolvedValue(stripeSubscription({ customer: "cus_wrong" }));
+
+    await expect(processCircleCardStripeWebhookEvent(makeEvent())).rejects.toThrow(
+      "circle-card-reconciliation-conflict"
+    );
+
+    expect(subscriptionUpsertMock).not.toHaveBeenCalled();
+    expect(markFailedMock).toHaveBeenCalled();
+  });
+
+  it("fails a Circle webhook when another application user owns its customer", async () => {
+    subscriptionFindUniqueMock.mockImplementation(async ({ where }) => {
+      if (where.stripeSubscriptionId || where.userId) return null;
+      if (where.stripeCustomerId) {
+        return storedRow({
+          userId: "user-2",
+          stripeCustomerId: "cus_cross_user",
+          stripeSubscriptionId: "sub_other"
+        });
+      }
+      return null;
+    });
+    customerRetrieveMock.mockResolvedValue(stripeCustomer("cus_cross_user"));
+
+    await expect(
+      processCircleCardStripeWebhookEvent(
+        event(
+          "customer.subscription.updated",
+          stripeSubscription({ customer: "cus_cross_user" })
+        )
+      )
+    ).rejects.toThrow("circle-card-reconciliation-conflict");
+
+    expect(subscriptionUpsertMock).not.toHaveBeenCalled();
+    expect(markFailedMock).toHaveBeenCalled();
   });
 
   it("applies subscription deletion while preserving confirmed paid-through evidence", async () => {
