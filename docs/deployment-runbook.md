@@ -157,6 +157,25 @@ Before the first deploy, place your TURN certificate files at `.secrets/coturn/f
 
 ## 4) Run database migrations (required)
 
+Before applying `20260713010000_circle_card_customer_ownership`, run this read-only preflight. It returns counts only and must report zero for both rows:
+
+```sql
+SELECT COUNT(*) AS "duplicateCircleCustomerGroups"
+FROM (
+  SELECT "stripeCustomerId"
+  FROM "CircleCardSubscription"
+  GROUP BY "stripeCustomerId"
+  HAVING COUNT(*) > 1
+) duplicates;
+
+SELECT COUNT(*) AS "circleBcnSharedCustomers"
+FROM "CircleCardSubscription" cc
+JOIN "Subscription" bcn
+  ON bcn."stripeCustomerId" = cc."stripeCustomerId";
+```
+
+Stop if either count is non-zero; reconcile ownership under an approved data/Stripe procedure without deleting application content. The migration is explicitly transactional and contains no record rewrite. If duplicates exist, creation of the unique index fails and PostgreSQL rolls back the preceding index drop.
+
 ```bash
 npm run db:migrate:prod
 ```
@@ -259,7 +278,7 @@ Rules:
 - With `CIRCLE_CARD_BILLING_ENABLED=false`, Circle Card checkout fails closed and Pro interest paths
   remain available. Do not test a live Circle Card charge during an ordinary deployment.
 - PostHog captures `$pageview` on `/`, `/home`, `/membership`, `/audit`, join/auth routes, and `/dashboard` after analytics consent is granted.
-- PostHog DOM autocapture, session replay, browser console capture, browser exception autocapture, performance capture and remote extension loading remain disabled. No replay, automatic element-click event or browser-log event should be created during this safety release.
+- PostHog DOM autocapture, session replay, browser console capture, browser exception autocapture, performance capture, heatmaps, dead-click capture, feature-flag requests and remote extension loading remain disabled. No replay, automatic element-click, browser-log, heatmap or dead-click event should be created during this safety release.
 - Contact form sends to `contact@thebusinesscircle.net`.
 
 ## 8) Calling network and firewall notes
