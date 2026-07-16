@@ -8,7 +8,7 @@ describe("resolveAuthErrorMessage", () => {
 
   it("returns known detail-code messages before generic error codes", () => {
     expect(resolveAuthErrorMessage("CredentialsSignin", "invalid-verification")).toBe(
-      "This verification link is invalid or has expired."
+      "This link has already been used or has expired. Try signing in first. If you still cannot access your account, request a new verification email."
     );
   });
 
