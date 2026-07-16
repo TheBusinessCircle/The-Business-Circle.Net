@@ -2,7 +2,7 @@ export const DEFAULT_AUTH_ERROR_MESSAGE = "Authentication failed. Please try aga
 
 const AUTH_ERROR_MESSAGES = {
   suspended: "Your account is currently suspended. Contact support for reactivation.",
-  "invalid-verification": "This verification link is invalid or has expired.",
+  "invalid-verification": "This link has already been used or has expired. Try signing in first. If you still cannot access your account, request a new verification email.",
   database_unavailable:
     "Sign-in is temporarily unavailable because the local database connection failed.",
   CredentialsSignin: "Invalid email or password.",

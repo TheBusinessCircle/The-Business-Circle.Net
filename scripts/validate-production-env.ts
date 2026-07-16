@@ -280,18 +280,21 @@ function validateProductionEnv() {
     );
   }
 
-  if (!posthogKey || !posthogKey.startsWith("phc_")) {
-    addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_KEY is missing or does not look like a PostHog project key.");
-  } else if (posthogKey === "phc_your_real_key_here") {
-    addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_KEY is still the placeholder value.");
-  }
+  const posthogConfigured = Boolean(posthogKey || posthogHost);
 
-  if (!isSecureWebUrl(posthogHost)) {
-    addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_HOST must use https:// in production.");
-  } else if (isLoopbackUrl(posthogHost)) {
-    addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_HOST cannot use localhost in production.");
-  }
+  if (posthogConfigured) {
+    if (!posthogKey || !posthogKey.startsWith("phc_")) {
+      addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_KEY does not look like a PostHog project key.");
+    } else if (posthogKey === "phc_your_real_key_here") {
+      addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_KEY is still the placeholder value.");
+    }
 
+    if (!posthogHost || !isSecureWebUrl(posthogHost)) {
+      addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_HOST must use https:// when PostHog is configured.");
+    } else if (isLoopbackUrl(posthogHost)) {
+      addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_HOST cannot use localhost in production.");
+    }
+  }
   if (!resendApiKey.startsWith("re_")) {
     addIssue(issues, "error", "RESEND_API_KEY is missing or invalid.");
   }
