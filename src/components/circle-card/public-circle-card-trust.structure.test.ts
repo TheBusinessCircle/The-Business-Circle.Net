@@ -113,7 +113,7 @@ describe("public Circle Card trust journey", () => {
   it("preserves testimonial intent through login, registration, and legacy wallet links", () => {
     expect(profile).toContain("testimonialLoginHref");
     expect(loginForm).toContain("returnTo=${encodeURIComponent(safeFrom)}");
-    expect(loginPage).toContain("returnTo=${encodeURIComponent(from)}");
+    expect(loginPage).toContain("returnTo=${encodeURIComponent(resolvedFrom)}");
     expect(sectionRouter).toContain('requestedSection === "wallet" ? "network"');
   });
 

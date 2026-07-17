@@ -10,7 +10,7 @@ import {
   UsersRound,
   WalletCards
 } from "lucide-react";
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

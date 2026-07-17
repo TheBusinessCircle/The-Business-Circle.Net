@@ -3,7 +3,7 @@ import {
   TERMS_LAST_UPDATED,
   TERMS_OF_SERVICE_CONTENT
 } from "@/config/legal";
-import { SITE_CONFIG } from "@/config/site";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { LegalDocument } from "@/components/public";
 import { createPageMetadata } from "@/lib/seo";
 
@@ -20,7 +20,7 @@ export default function TermsOfServicePage() {
       title={TERMS_OF_SERVICE_CONTENT.title}
       intro={TERMS_OF_SERVICE_CONTENT.intro}
       updatedAt={TERMS_LAST_UPDATED}
-      supportEmail={SITE_CONFIG.supportEmail}
+      supportEmail={getRuntimeBrand().supportEmail}
       sections={TERMS_OF_SERVICE_CONTENT.sections}
     />
   );

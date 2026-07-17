@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Share2 } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
+import { useRuntimeBrand } from "@/components/runtime-brand-provider";
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
 import { trackCircleCardEvent } from "@/lib/circle-card/analytics-client";
 import { cn } from "@/lib/utils";
@@ -44,7 +45,7 @@ export function CircleCardShareButton({
   title,
   publicUrl,
   cardId,
-  text = "Save or share this Circle Card from The Business Circle.",
+  text,
   label = "Share Card",
   analyticsSource = "public_card",
   eventType = "SHARE",
@@ -55,6 +56,12 @@ export function CircleCardShareButton({
   statusClassName,
   hideStatus = false
 }: CircleCardShareButtonProps) {
+  const runtimeBrand = useRuntimeBrand();
+  const shareText =
+    text ??
+    (runtimeBrand === "circle-card"
+      ? "Save or share this Circle Card."
+      : "Save or share this Circle Card from The Business Circle.");
   const [status, setStatus] = useState<string | null>(null);
 
   async function shareCard() {
@@ -62,7 +69,7 @@ export function CircleCardShareButton({
       if (navigator.share) {
         await navigator.share({
           title,
-          text,
+          text: shareText,
           url: publicUrl
         });
         if (cardId) {

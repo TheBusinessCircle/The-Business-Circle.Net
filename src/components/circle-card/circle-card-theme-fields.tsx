@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { ArrowUpRight, Palette, Sparkles } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { CIRCLE_STUDIO_ACCENTS, circleStudioLabel, readCircleStudioMetadata } from "@/lib/circle-card/identity-engine";

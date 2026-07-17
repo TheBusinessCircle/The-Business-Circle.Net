@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import {
@@ -179,7 +179,7 @@ import {
 import { isAdminRole } from "@/lib/auth/permissions";
 import {
   CIRCLE_CARD_CURRENT_CARD_COOKIE,
-  normalizeCircleCardCurrentCardId
+  resolveCircleCardCurrentCardCookieValues
 } from "@/lib/circle-card/current-card-preference";
 import {
   buildCircleCardProHref,
@@ -377,6 +377,8 @@ import {
 } from "@/lib/circle-card/profile-layout";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import { getCircleCardRoutes } from "@/lib/circle-card/routes";
 import { absoluteUrl, cn, formatCurrency, formatDate, slugify } from "@/lib/utils";
 import {
   calculateCircleCardCompletionForCard,
@@ -3648,6 +3650,8 @@ function circleCardActivityIcon(type: string) {
 }
 
 export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
+  const runtimeBrand = getRuntimeBrand();
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand.key);
   const session = await requireCircleCardUser();
   const existingCard = await prisma.circleCard.findFirst({
     where: {
@@ -3674,7 +3678,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   });
 
   if (!existingCard) {
-    redirect("/dashboard/circle-card/onboarding");
+    redirect(circleCardRoutes.onboarding);
   }
 
   const firstCardReadiness = calculateFirstCircleCardReadiness({
@@ -3683,15 +3687,15 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   });
 
   if (firstCardReadiness.state !== "published") {
-    redirect("/dashboard/circle-card/onboarding");
+    redirect(circleCardRoutes.onboarding);
   }
 
   const params = await searchParams;
   const cookieStore = await cookies();
   const activeSection = resolveCircleCardAppSection(firstValue(params.section));
   const selectedCardId = firstValue(params.cardId) ?? "";
-  const persistedCardId = normalizeCircleCardCurrentCardId(
-    cookieStore.get(CIRCLE_CARD_CURRENT_CARD_COOKIE)?.value
+  const persistedCardId = resolveCircleCardCurrentCardCookieValues(
+    cookieStore.getAll(CIRCLE_CARD_CURRENT_CARD_COOKIE).map((cookie) => cookie.value)
   );
   const createCardRequested = firstValue(params.newCard) === "1";
   const notice = firstValue(params.notice);
@@ -8788,7 +8792,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                   <Input
                     name="cardLookup"
                     defaultValue={connectHubCard ? `/card/${connectHubCard.slug}` : ""}
-                    placeholder="https://thebusinesscircle.net/card/rhys"
+                    placeholder={`${runtimeBrand.canonicalOrigin}/card/rhys`}
                     aria-label="Circle Card link or slug"
                   />
                   <Button type="submit" className="w-full gap-2 sm:w-auto">
@@ -11978,7 +11982,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
               <CardContent className="space-y-3 text-sm text-muted">
                 <p>
                   Use the standards page for public-card expectations. If a card or interaction needs review,
-                  report it from the relevant public surface or contact BCN support.
+                  report it from the relevant public surface or contact {runtimeBrand.displayName} support.
                 </p>
                 <Link href="/circle-card/community-standards" className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2")}>
                   Review Standards

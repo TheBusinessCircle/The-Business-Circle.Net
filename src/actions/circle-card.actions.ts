@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth/utils";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import { getCircleCardRoutes } from "@/lib/circle-card/routes";
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
 import {
   buildCircleCardSlugBase,
@@ -683,6 +685,8 @@ async function resolveAvailableSlug(input: {
 function revalidateCircleCardPaths(slug?: string | null) {
   revalidatePath("/dashboard/circle-card");
   revalidatePath("/dashboard/circle-card/studio");
+  revalidatePath("/app");
+  revalidatePath("/app/studio");
   revalidatePath("/circle-card");
 
   if (slug) {
@@ -711,6 +715,7 @@ function readCircleStudioActivationMetadata(formData: FormData) {
 
 function revalidateCircleCardConnectionPaths(slugs: Array<string | null | undefined>) {
   revalidatePath("/dashboard/circle-card");
+  revalidatePath("/app");
 
   for (const slug of slugs) {
     if (slug) {
@@ -5999,7 +6004,8 @@ export async function moveCircleCardLinkInlineAction(input: {
 
 export async function completeCircleCardOnboardingAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
-  const returnPath = "/dashboard/circle-card/onboarding";
+  const circleCardRoutes = getCircleCardRoutes(getRuntimeBrand().key);
+  const returnPath = circleCardRoutes.onboarding;
   const parsed = circleCardOnboardingSchema.safeParse(readCircleCardOnboardingFormData(formData));
 
   if (!parsed.success) {
@@ -6017,7 +6023,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
 
   if (existingCard) {
     revalidateCircleCardPaths(existingCard.slug);
-    redirect("/dashboard/circle-card?created=1");
+    redirect(`${circleCardRoutes.dashboard}?created=1`);
   }
 
   const existingCardCount = await prisma.circleCard.count({
@@ -6169,7 +6175,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
   }
 
   revalidateCircleCardPaths(createdSlug);
-  redirect("/dashboard/circle-card?created=1");
+  redirect(`${circleCardRoutes.dashboard}?created=1`);
 }
 
 export async function saveCircleWalletContactAction(formData: FormData) {
@@ -6926,6 +6932,7 @@ export async function generateBusinessCardClaimLinkAction(formData: FormData) {
 
 export async function resolveCircleCardLinkAction(formData: FormData) {
   const user = await requireCircleCardActionUser();
+  const dashboardPath = getCircleCardRoutes(getRuntimeBrand().key).dashboard;
   const rawLookup = String(formData.get("cardLookup") || "");
   const slug = resolveCircleCardLookupSlug(rawLookup);
   const primaryCard = await getPrimaryCircleCardForUser(user.id);
@@ -6948,7 +6955,7 @@ export async function resolveCircleCardLinkAction(formData: FormData) {
 
   if (!slug) {
     await trackFailedResolve("invalid_input");
-    redirect("/dashboard/circle-card?section=network&error=card-link-invalid#connect-hub");
+    redirect(`${dashboardPath}?section=network&error=card-link-invalid#connect-hub`);
   }
 
   const resolvedCard = await prisma.circleCard.findFirst({
@@ -6968,12 +6975,12 @@ export async function resolveCircleCardLinkAction(formData: FormData) {
 
   if (!resolvedCard) {
     await trackFailedResolve("not_found");
-    redirect("/dashboard/circle-card?section=network&error=card-link-not-found#connect-hub");
+    redirect(`${dashboardPath}?section=network&error=card-link-not-found#connect-hub`);
   }
 
   if (!(await isPublicCircleCardTargetWithinOwnerPlan(resolvedCard))) {
     await trackFailedResolve("plan_locked");
-    redirect("/dashboard/circle-card?section=network&error=card-link-not-found#connect-hub");
+    redirect(`${dashboardPath}?section=network&error=card-link-not-found#connect-hub`);
   }
 
   await trackCircleCardEvent({
@@ -6987,7 +6994,7 @@ export async function resolveCircleCardLinkAction(formData: FormData) {
     }
   });
 
-  redirect(`/dashboard/circle-card?section=network&connectCard=${encodeURIComponent(resolvedCard.slug)}#connect-hub`);
+  redirect(`${dashboardPath}?section=network&connectCard=${encodeURIComponent(resolvedCard.slug)}#connect-hub`);
 }
 
 export async function sendCircleCardConnectionRequestAction(formData: FormData) {

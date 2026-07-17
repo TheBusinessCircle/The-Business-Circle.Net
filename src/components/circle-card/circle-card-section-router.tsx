@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { isCircleCardDashboardPath } from "@/lib/circle-card/routes";
 
 const CIRCLE_CARD_SECTIONS = new Set([
   "home",
@@ -105,7 +106,7 @@ export function CircleCardSectionRouter() {
       }
 
       const url = new URL(anchor.href);
-      if (url.origin !== window.location.origin || url.pathname !== "/dashboard/circle-card") {
+      if (url.origin !== window.location.origin || !isCircleCardDashboardPath(url.pathname)) {
         return;
       }
 

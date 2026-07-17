@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Sora, Plus_Jakarta_Sans } from "next/font/google";
 import { CookieConsent } from "@/components/privacy/cookie-consent";
 import { Providers } from "@/components/providers";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { SITE_CONFIG } from "@/config/site";
 import { getOpenGraphShareImage, getTwitterShareImage } from "@/lib/seo";
 import "./globals.css";
@@ -94,13 +95,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const runtimeBrand = getRuntimeBrand().key;
+
   return (
     <html lang="en-GB" suppressHydrationWarning>
       <body
         suppressHydrationWarning
         className={`${display.variable} ${sans.variable} font-sans bg-background text-foreground`}
       >
-        <Providers>{children}</Providers>
+        <Providers runtimeBrand={runtimeBrand}>{children}</Providers>
         <CookieConsent />
       </body>
     </html>

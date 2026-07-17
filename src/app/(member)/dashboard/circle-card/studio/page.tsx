@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { cookies } from "next/headers";
 import { CircleUserRound, Sparkles } from "lucide-react";
 import { auth } from "@/auth";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import { getCircleCardRoutes } from "@/lib/circle-card/routes";
 import { CircleCardPageHeader } from "@/components/circle-card/circle-card-page-header";
 import { CircleStudio } from "@/components/circle-card/circle-studio";
 import { buttonVariants } from "@/components/ui/button";
@@ -11,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { resolveCircleStudioFineTune, resolveCircleStudioTokens } from "@/lib/circle-card/theme";
 import {
   CIRCLE_CARD_CURRENT_CARD_COOKIE,
-  normalizeCircleCardCurrentCardId
+  resolveCircleCardCurrentCardCookieValues
 } from "@/lib/circle-card/current-card-preference";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
@@ -39,13 +41,17 @@ function firstValue(value: string | string[] | undefined) {
 }
 
 export default async function CircleStudioPage({ searchParams }: PageProps) {
+  const circleCardRoutes = getCircleCardRoutes(getRuntimeBrand().key);
   const session = await auth();
-  if (!session?.user?.id) redirect("/login?from=/dashboard/circle-card/studio");
+  if (!session?.user?.id) {
+    redirect(`/login?from=${encodeURIComponent(circleCardRoutes.studio)}`);
+  }
 
   const params = await searchParams;
   const requestedCardId = firstValue(params.card);
-  const persistedCardId = normalizeCircleCardCurrentCardId(
-    (await cookies()).get(CIRCLE_CARD_CURRENT_CARD_COOKIE)?.value
+  const cookieStore = await cookies();
+  const persistedCardId = resolveCircleCardCurrentCardCookieValues(
+    cookieStore.getAll(CIRCLE_CARD_CURRENT_CARD_COOKIE).map((cookie) => cookie.value)
   );
   const [cards, circleCardAccess] = await Promise.all([prisma.circleCard.findMany({
     where: { userId: session.user.id, archivedAt: null },
@@ -72,7 +78,7 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
     }
   }), loadCircleCardAccessForUser(session.user.id)]);
 
-  if (!cards.length) redirect("/dashboard/circle-card?section=my-card");
+  if (!cards.length) redirect(`${circleCardRoutes.dashboard}?section=my-card`);
   const liveCards = cards.filter((item) => item.isPublished);
   const requestedCard = cards.find(
     (item) => item.id === requestedCardId && (item.isPublished || !liveCards.length)

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { RuntimeBrandKey } from "@/config/runtime-brand";
 import { SITE_CONFIG } from "@/config/site";
 
 export const CIRCLE_CARD_APP_NAME = "Circle Card";
@@ -11,6 +12,12 @@ export const CIRCLE_CARD_ICON_512 = "/circle-card-icon-512.png";
 export const CIRCLE_CARD_APPLE_TOUCH_ICON = "/circle-card-apple-touch-icon.png";
 export const CIRCLE_CARD_THEME_COLOR = "#0b1f4f";
 export const CIRCLE_CARD_BACKGROUND_COLOR = "#070e1f";
+
+export function getRuntimeManifestPath(runtimeBrand: RuntimeBrandKey) {
+  return runtimeBrand === "circle-card"
+    ? CIRCLE_CARD_MANIFEST_PATH
+    : "/manifest.webmanifest";
+}
 
 export const CIRCLE_CARD_PWA_METADATA: Metadata = {
   applicationName: CIRCLE_CARD_APP_NAME,

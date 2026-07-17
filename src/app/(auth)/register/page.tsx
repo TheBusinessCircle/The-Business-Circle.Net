@@ -6,6 +6,8 @@ import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { normalizeCircleCardReferralCode } from "@/lib/circle-card/referral-engine";
 import { firstValue } from "@/lib/join/routing";
 import { prisma } from "@/lib/prisma";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import { getCircleCardRoutes, resolveCircleCardAuthReturnPath } from "@/lib/circle-card/routes";
 
 type RegisterPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -22,12 +24,22 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RegisterPage({ searchParams }: RegisterPageProps) {
   const params = await searchParams;
+  const runtimeBrand = getRuntimeBrand().key;
+  const circleCardRuntime = runtimeBrand === "circle-card";
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand);
 
   const claimToken = firstValue(params.claim);
-  const returnTo = safeRedirectPath(
+  const safeReturnTo = safeRedirectPath(
     firstValue(params.returnTo),
-    "/dashboard/circle-card/onboarding"
+    circleCardRoutes.onboarding
   );
+  const returnTo = circleCardRuntime
+    ? resolveCircleCardAuthReturnPath(
+        safeReturnTo,
+        runtimeBrand,
+        circleCardRoutes.onboarding
+      )
+    : safeReturnTo;
   const sourceCardSlugCandidate = firstValue(params.sourceCardSlug);
   const referralCode = normalizeCircleCardReferralCode(
     firstValue(params.ref) || firstValue(params.referralCode)
@@ -53,7 +65,9 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
       <Card className="border-silver/16 bg-card/62">
         <CardHeader>
           <CardTitle className="font-display text-3xl">
-            Circle Card is free. BCN membership stays separate.
+            {circleCardRuntime
+              ? "Create your free Circle Card"
+              : "Circle Card is free. BCN membership stays separate."}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm leading-relaxed text-muted">
@@ -61,10 +75,14 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
             Create a public card, save contacts into Circle Wallet, track basic activity and
             install the mobile web app with the same secure account system.
           </p>
-          <p>
-            Community, calls, resources, messaging, founder rooms and member dashboards remain
-            for paid BCN members.
-          </p>
+          {circleCardRuntime ? (
+            <p>Your account keeps your Circle Card, wallet and relationship tools together.</p>
+          ) : (
+            <p>
+              Community, calls, resources, messaging, founder rooms and member dashboards remain
+              for paid BCN members.
+            </p>
+          )}
         </CardContent>
       </Card>
 

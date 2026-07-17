@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { ArrowUpRight, Building2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useRuntimeBrand } from "@/components/runtime-brand-provider";
 
 export function CircleCardBcnDiscoveryPanel() {
+  const runtimeBrand = useRuntimeBrand();
+
+  if (runtimeBrand === "circle-card") {
+    return null;
+  }
+
   return (
     <section className="rounded-2xl border border-primary/24 bg-[linear-gradient(135deg,hsl(var(--primary)/0.14),hsl(var(--card)/0.72)_48%,hsl(var(--background)/0.62))] p-5 shadow-panel-soft sm:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">

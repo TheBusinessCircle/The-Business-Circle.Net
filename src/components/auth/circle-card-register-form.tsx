@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { ArrowRight, ContactRound, LockKeyhole, WalletCards } from "lucide-react";
+import { useRuntimeBrand } from "@/components/runtime-brand-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import {
   type CircleCardRegistrationFormInput,
   circleCardRegistrationFormSchema
 } from "@/lib/auth/schemas";
+import { getCircleCardRoutes, resolveCircleCardAuthReturnPath } from "@/lib/circle-card/routes";
 
 type CircleCardRegisterResponse = {
   ok?: boolean;
@@ -42,6 +44,9 @@ export function CircleCardRegisterForm({
   referralCode
 }: CircleCardRegisterFormProps = {}) {
   const router = useRouter();
+  const runtimeBrand = useRuntimeBrand();
+  const circleCardRuntime = runtimeBrand === "circle-card";
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand);
   const [notice, setNotice] = useState<string | null>(null);
   const [accountCreated, setAccountCreated] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -124,7 +129,13 @@ export function CircleCardRegisterForm({
           })
         }).catch(() => undefined);
 
-        router.push(data.redirectTo ?? "/dashboard/circle-card/onboarding");
+        router.push(
+          resolveCircleCardAuthReturnPath(
+            data.redirectTo ?? circleCardRoutes.onboarding,
+            runtimeBrand,
+            circleCardRoutes.onboarding
+          )
+        );
         router.refresh();
       } catch {
         setNotice("We could not reach the registration service. Your details are still here; please try again.");
@@ -144,7 +155,7 @@ export function CircleCardRegisterForm({
           </Badge>
           <Badge variant="outline" className="border-border/80 bg-background/35 text-silver">
             <LockKeyhole size={12} className="mr-1" />
-            One BCN login
+            {circleCardRuntime ? "Secure Circle Card login" : "One BCN login"}
           </Badge>
         </div>
         <div>
@@ -152,8 +163,9 @@ export function CircleCardRegisterForm({
             Create your free Circle Card
           </CardTitle>
           <CardDescription className="mt-2 max-w-xl text-sm">
-            Start with a public card, Circle Wallet, QR sharing and basic analytics. BCN member
-            rooms stay locked until you choose a membership.
+            {circleCardRuntime
+              ? "Start with a public card, Circle Wallet, QR sharing and basic analytics."
+              : "Start with a public card, Circle Wallet, QR sharing and basic analytics. BCN member rooms stay locked until you choose a membership."}
           </CardDescription>
         </div>
       </CardHeader>
@@ -281,7 +293,7 @@ export function CircleCardRegisterForm({
               />
               <span className="min-w-0">
                 I confirm I am at least 13 years old and agree to the{" "}
-                <Link href="/circle-card/community-standards" className="text-primary hover:underline">
+                <Link href={circleCardRoutes.communityStandards} className="text-primary hover:underline">
                   Circle Card Community Standards
                 </Link>
                 .
@@ -303,7 +315,9 @@ export function CircleCardRegisterForm({
                 {...form.register("marketingEmailOptIn")}
               />
               <span className="min-w-0">
-                Send me BCN updates, business growth tips and opportunities by email.
+                {circleCardRuntime
+                  ? "Send me Circle Card updates, product tips and opportunities by email."
+                  : "Send me BCN updates, business growth tips and opportunities by email."}
               </span>
             </label>
             <p className="text-xs leading-relaxed text-muted">
@@ -323,18 +337,22 @@ export function CircleCardRegisterForm({
           <p className="flex items-start gap-2">
             <WalletCards size={15} className="mt-0.5 shrink-0 text-silver" />
             <span>
-              Already have a BCN account?{" "}
+              {circleCardRuntime
+                ? "Already have a Circle Card account?"
+                : "Already have a BCN account?"}{" "}
               <Link
                 href={`/login?from=${encodeURIComponent(
                   accountCreated
-                    ? "/dashboard/circle-card/onboarding"
-                    : returnTo || "/dashboard/circle-card"
+                    ? circleCardRoutes.onboarding
+                    : returnTo || circleCardRoutes.dashboard
                 )}`}
                 className="text-primary hover:underline"
               >
                 Sign in
               </Link>{" "}
-              and Circle Card will be available from your dashboard.
+              {circleCardRuntime
+                ? "and continue to your Circle Card app."
+                : "and Circle Card will be available from your dashboard."}
             </span>
           </p>
         </div>

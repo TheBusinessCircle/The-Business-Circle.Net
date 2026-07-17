@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import {
   ArrowRight,
   BadgeCheck,
@@ -43,6 +43,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { loadCircleCardAccessForUser } from "@/server/circle-card";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -131,6 +132,7 @@ function feedbackMessage(input: { registered: string; error: string; billing: st
 
 export default async function CircleCardProPage({ searchParams }: PageProps) {
   const [params, session] = await Promise.all([searchParams, auth()]);
+  const circleCardRuntime = getRuntimeBrand().key === "circle-card";
   const billingReadiness = getCircleCardBillingReadiness();
   const requestedIntent = normalizeCircleCardProIntent({
     source: firstValue(params.source) as CircleCardProSource,
@@ -283,7 +285,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
 
       <section aria-labelledby="faq-heading" className="rounded-[1.75rem] border border-silver/14 bg-card/58 p-5 sm:p-7">
         <div className="flex items-center gap-3"><CircleHelp size={22} className="text-gold" /><h2 id="faq-heading" className="font-display text-3xl text-foreground">Questions before you choose</h2></div>
-        <div className="mt-5 grid gap-3 lg:grid-cols-2">{FAQS.map((item) => <details key={item.question} className="group rounded-xl border border-silver/14 bg-background/22 p-4"><summary className="cursor-pointer list-none font-semibold text-foreground">{item.question}</summary><p className="mt-3 text-sm leading-relaxed text-muted">{item.answer}</p></details>)}</div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">{FAQS.filter((item) => !circleCardRuntime || !item.question.includes("BCN")).map((item) => <details key={item.question} className="group rounded-xl border border-silver/14 bg-background/22 p-4"><summary className="cursor-pointer list-none font-semibold text-foreground">{item.question}</summary><p className="mt-3 text-sm leading-relaxed text-muted">{item.answer}</p></details>)}</div>
       </section>
 
       <section id="register-interest" className="scroll-mt-24 rounded-[1.75rem] border border-gold/26 bg-card/72 p-5 shadow-panel-soft sm:p-7">
@@ -292,7 +294,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
         ) : circleCardAccess?.hasProAccess ? (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="premium-kicker">Pro is confirmed</p><h2 className="mt-2 font-display text-3xl text-foreground">Your account already has the working layer.</h2><p className="mt-2 text-sm text-muted">{entitlementCopy}</p></div><Link href={intent.returnPath} className={cn(buttonVariants({ size: "lg" }), "gap-2")}>Continue to {intentLabel}<ArrowRight size={16} /></Link></div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[.85fr_1.15fr]"><div><p className="premium-kicker">Payments opening shortly</p><h2 className="mt-3 font-display text-3xl text-foreground">Register Pro interest</h2><p className="mt-3 text-sm leading-relaxed text-muted">Tell us you want Circle Card Pro. No payment is taken, Stripe Checkout is not called, and your intended return to {intentLabel} is kept with this journey.</p></div><form action={registerCircleCardProInterestAction} className="grid gap-4"><input type="hidden" name="source" value={intent.source} /><input type="hidden" name="capability" value={intent.capability} /><input type="hidden" name="returnTo" value={intent.returnPath} />{intent.cardId ? <input type="hidden" name="card" value={intent.cardId} /> : null}<div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" name="name" defaultValue={activeUser?.name || primaryCard?.fullName || ""} required autoComplete="name" /></div><div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" defaultValue={activeUser?.email || ""} required autoComplete="email" /></div></div><div className="space-y-2"><Label htmlFor="businessName">Business name optional</Label><Input id="businessName" name="businessName" defaultValue={primaryCard?.businessName || ""} autoComplete="organization" /></div><label className="flex items-start gap-3 rounded-xl border border-silver/14 bg-background/24 p-3 text-sm text-muted"><input name="contactConsent" type="checkbox" value="on" required className="mt-1 h-4 w-4 accent-primary" /><span>You may contact me about Circle Card Pro opening.</span></label><label className="flex items-start gap-3 rounded-xl border border-silver/14 bg-background/24 p-3 text-sm text-muted"><input name="marketingEmailOptIn" type="checkbox" value="on" className="mt-1 h-4 w-4 accent-primary" /><span>Send occasional Circle Card and Business Circle updates.</span></label><CircleCardInterestSubmitButton /></form></div>
+          <div className="grid gap-6 lg:grid-cols-[.85fr_1.15fr]"><div><p className="premium-kicker">Payments opening shortly</p><h2 className="mt-3 font-display text-3xl text-foreground">Register Pro interest</h2><p className="mt-3 text-sm leading-relaxed text-muted">Tell us you want Circle Card Pro. No payment is taken, Stripe Checkout is not called, and your intended return to {intentLabel} is kept with this journey.</p></div><form action={registerCircleCardProInterestAction} className="grid gap-4"><input type="hidden" name="source" value={intent.source} /><input type="hidden" name="capability" value={intent.capability} /><input type="hidden" name="returnTo" value={intent.returnPath} />{intent.cardId ? <input type="hidden" name="card" value={intent.cardId} /> : null}<div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" name="name" defaultValue={activeUser?.name || primaryCard?.fullName || ""} required autoComplete="name" /></div><div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" defaultValue={activeUser?.email || ""} required autoComplete="email" /></div></div><div className="space-y-2"><Label htmlFor="businessName">Business name optional</Label><Input id="businessName" name="businessName" defaultValue={primaryCard?.businessName || ""} autoComplete="organization" /></div><label className="flex items-start gap-3 rounded-xl border border-silver/14 bg-background/24 p-3 text-sm text-muted"><input name="contactConsent" type="checkbox" value="on" required className="mt-1 h-4 w-4 accent-primary" /><span>You may contact me about Circle Card Pro opening.</span></label><label className="flex items-start gap-3 rounded-xl border border-silver/14 bg-background/24 p-3 text-sm text-muted"><input name="marketingEmailOptIn" type="checkbox" value="on" className="mt-1 h-4 w-4 accent-primary" /><span>{circleCardRuntime ? "Send occasional Circle Card updates." : "Send occasional Circle Card and Business Circle updates."}</span></label><CircleCardInterestSubmitButton /></form></div>
         )}
       </section>
 

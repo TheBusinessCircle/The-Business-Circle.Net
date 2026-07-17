@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -37,11 +37,13 @@ import {
 } from "@/actions/circle-card.actions";
 import { CircleCardFramedImage, CircleCardShareButton } from "@/components/circle-card";
 import { CircleCardPageHeader } from "@/components/circle-card/circle-card-page-header";
+import { useRuntimeBrand } from "@/components/runtime-brand-provider";
 import {
   CircleCardWalletTestimonialForm,
   type CircleCardWalletTestimonialContact
 } from "@/components/circle-card/circle-card-wallet-testimonial-form";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { getCircleCardRoutes, preferCircleCardRuntimePath } from "@/lib/circle-card/routes";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -520,6 +522,8 @@ export function CircleWalletOsClient({
   noticeMessage,
   errorMessage
 }: CircleWalletOsClientProps) {
+  const runtimeBrand = useRuntimeBrand();
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand);
   const [view, setView] = useState<WalletOsTab>(initialView);
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState(initialCategory);
@@ -632,12 +636,15 @@ export function CircleWalletOsClient({
           contact.card.isPublished
       )
     : [];
-  const walletReturnPath = buildWalletOsHref({
-    view,
-    q: query,
-    category,
-    contactId: selectedContact?.id ?? null
-  });
+  const walletReturnPath = preferCircleCardRuntimePath(
+    buildWalletOsHref({
+      view,
+      q: query,
+      category,
+      contactId: selectedContact?.id ?? null
+    }),
+    runtimeBrand
+  );
   const allRelationshipCountsAreZero =
     !selectedContact?.recommendations.length &&
     !selectedIntroductions.length &&
@@ -824,7 +831,7 @@ export function CircleWalletOsClient({
           >
             <div className="sticky top-2 z-20 rounded-[1rem] border border-[color:var(--cc-theme-secondary-border)] bg-[var(--cc-theme-secondary-bg)] p-2 shadow-[var(--cc-theme-secondary-shadow)] backdrop-blur">
               <form
-                action="/dashboard/circle-card/wallet"
+                action={circleCardRoutes.wallet}
                 className="grid gap-2"
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -1076,7 +1083,7 @@ export function CircleWalletOsClient({
                     </Button>
                     <form action={removeCircleWalletContactAction} className="min-w-0">
                       <input type="hidden" name="walletContactId" value={selectedContact.id} />
-                      <input type="hidden" name="returnPath" value="/dashboard/circle-card/wallet" />
+                      <input type="hidden" name="returnPath" value={circleCardRoutes.wallet} />
                       <Button type="submit" variant="outline" className="w-full min-w-0 justify-start gap-2 rounded-2xl border-destructive/30 bg-destructive/10 px-3 text-destructive hover:bg-destructive/15">
                         <Trash2 size={16} />
                         <span className="truncate">Remove</span>

@@ -4,6 +4,7 @@ import { CheckCircle2, ShieldCheck, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Circle Card Community Standards",
@@ -38,6 +39,12 @@ const NOT_ALLOWED_ITEMS = [
 ];
 
 export default function CircleCardCommunityStandardsPage() {
+  const runtimeBrand = getRuntimeBrand();
+  const contactHref =
+    runtimeBrand.key === "circle-card"
+      ? `mailto:${runtimeBrand.supportEmail}`
+      : "/contact";
+
   return (
     <main className="public-page-shell">
       <section className="public-page-stack py-14 sm:py-20">
@@ -104,7 +111,7 @@ export default function CircleCardCommunityStandardsPage() {
             </p>
             <p className="text-sm text-muted">
               Questions about these standards can be sent through{" "}
-              <Link href="/contact" className="text-primary hover:underline">
+              <Link href={contactHref} className="text-primary hover:underline">
                 contact
               </Link>
               .

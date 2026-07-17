@@ -1,11 +1,15 @@
 import { auth } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import {
-  CIRCLE_CARD_DASHBOARD_PATH,
+  getCircleCardRoutes,
   isCircleCardFirstAccount,
   isCircleCardDashboardPath,
-  isCircleCardRegistrationSource
+  isCircleCardRegistrationSource,
+  preferCircleCardRuntimePath,
+  resolveCircleCardAuthReturnPath
 } from "@/lib/circle-card/routes";
+import { evaluateCustomerRuntimeRoute } from "@/lib/circle-card/runtime-route-policy";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { validateRuntimeOriginEnvironment } from "@/config/runtime-origin";
 import { membershipAccessBillingQuery } from "@/lib/membership/access";
 import { validateRuntimeRequestHost } from "@/lib/security/host";
@@ -27,6 +31,7 @@ const AUTH_ROUTES = [
   "/reset-password"
 ];
 const MEMBER_ROUTE_PREFIXES = [
+  "/app",
   "/blueprint",
   "/dashboard",
   "/directory",
@@ -133,10 +138,21 @@ const authenticatedMiddleware = auth((req, _event: NextFetchEvent) => {
     pathname === "/join" || pathname === "/join-desktop" || pathname === "/join-mobile";
   const authFromPath = safeRedirectPath(nextUrl.searchParams.get("from"), "");
   const shouldPreferCircleCard = isCircleCardFirstAccount(session?.user);
+  const runtimeBrand = getRuntimeBrand().key;
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand);
 
   if (isAuthRoute && session?.user && !session.user.suspended) {
     if (isJoinRoute) {
       return nextWithCurrentPath(req, pathname);
+    }
+
+    if (runtimeBrand === "circle-card") {
+      const circleCardDestination = resolveCircleCardAuthReturnPath(
+        authFromPath,
+        runtimeBrand,
+        circleCardRoutes.dashboard
+      );
+      return NextResponse.redirect(new URL(circleCardDestination, nextUrl));
     }
 
     if (
@@ -144,7 +160,14 @@ const authenticatedMiddleware = auth((req, _event: NextFetchEvent) => {
       isCircleCardDashboardPath(authFromPath) ||
       authFromPath.startsWith("/card/")
     ) {
-      return NextResponse.redirect(new URL(authFromPath || CIRCLE_CARD_DASHBOARD_PATH, nextUrl));
+      return NextResponse.redirect(
+        new URL(
+          authFromPath
+            ? preferCircleCardRuntimePath(authFromPath, runtimeBrand)
+            : circleCardRoutes.dashboard,
+          nextUrl
+        )
+      );
     }
 
     if (
@@ -152,7 +175,7 @@ const authenticatedMiddleware = auth((req, _event: NextFetchEvent) => {
       session.user.role !== "ADMIN" &&
       !session.user.hasActiveSubscription
     ) {
-      return NextResponse.redirect(new URL(CIRCLE_CARD_DASHBOARD_PATH, nextUrl));
+      return NextResponse.redirect(new URL(circleCardRoutes.dashboard, nextUrl));
     }
 
     if (session.user.role !== "ADMIN" && !session.user.hasActiveSubscription) {
@@ -188,7 +211,7 @@ const authenticatedMiddleware = auth((req, _event: NextFetchEvent) => {
     !session.user.hasActiveSubscription
   ) {
     if (shouldPreferCircleCard) {
-      return NextResponse.redirect(new URL(CIRCLE_CARD_DASHBOARD_PATH, nextUrl));
+      return NextResponse.redirect(new URL(circleCardRoutes.dashboard, nextUrl));
     }
 
     return NextResponse.redirect(
@@ -231,6 +254,22 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
       }))
     });
     return new NextResponse("Runtime Configuration Error", { status: 503 });
+  }
+
+  const runtimeRouteDecision = evaluateCustomerRuntimeRoute(
+    getRuntimeBrand().key,
+    req.nextUrl.pathname,
+    req.method
+  );
+  if (runtimeRouteDecision.action === "redirect") {
+    return NextResponse.redirect(
+      new URL(runtimeRouteDecision.destination, req.nextUrl),
+      307
+    );
+  }
+
+  if (runtimeRouteDecision.action === "reject") {
+    return new NextResponse("Not Found", { status: runtimeRouteDecision.status });
   }
 
   if (!requiresAuthenticatedMiddleware(req.nextUrl.pathname)) {

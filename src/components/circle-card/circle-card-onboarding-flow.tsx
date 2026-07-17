@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CircleCardType } from "@prisma/client";
 import {

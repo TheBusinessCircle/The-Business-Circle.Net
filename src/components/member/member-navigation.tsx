@@ -48,7 +48,10 @@ type MemberNavigationProps = {
 };
 
 function iconForHref(href: string) {
-  if (href.includes("/dashboard/circle-card/wallet")) {
+  if (
+    href.includes("/dashboard/circle-card/wallet") ||
+    href.includes("/app/wallet")
+  ) {
     return WalletCards;
   }
 
@@ -75,7 +78,7 @@ function iconForHref(href: string) {
   if (href.startsWith("/dashboard/resources")) {
     return Search;
   }
-  if (href.startsWith("/dashboard/circle-card")) {
+  if (href.startsWith("/dashboard/circle-card") || href.startsWith("/app")) {
     return ContactRound;
   }
   if (href.startsWith("/dashboard")) {

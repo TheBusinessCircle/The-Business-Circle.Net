@@ -42,7 +42,7 @@ describe("Circle Studio activation live render contract", () => {
 
   it("keeps Personal and Business card activations scoped to the selected card", () => {
     expect(studio).toContain('name="cardId" value={card.id}');
-    expect(studio).toContain('name="returnPath" value={`/dashboard/circle-card/studio?card=${card.id}`}');
+    expect(studio).toContain('name="returnPath" value={`${circleCardRoutes.studio}?card=${card.id}`}');
     expect(studioPage).toContain("const card = requestedCard ?? persistedCard ?? defaultLiveCard ?? cards[0]");
     expect(action).toContain("where: { id: card.id }");
   });

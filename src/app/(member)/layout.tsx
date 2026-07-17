@@ -15,11 +15,12 @@ import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Separator } from "@/components/ui/separator";
 import { SITE_CONFIG } from "@/config/site";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { getMembershipTierLabel } from "@/config/membership";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { getAccentThemeCssVariables, resolveAccentTheme } from "@/lib/accent-themes";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
-import { isCircleCardDashboardPath } from "@/lib/circle-card/routes";
+import { getCircleCardRoutes, isCircleCardDashboardPath } from "@/lib/circle-card/routes";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
@@ -47,14 +48,17 @@ export const metadata: Metadata = {
 export default async function MemberLayout({ children }: { children: ReactNode }) {
   const requestHeaders = await headers();
   const currentPathname = requestHeaders.get("x-bcn-pathname") ?? "";
+  const runtimeBrand = getRuntimeBrand().key;
+  const isCircleCardRuntime = runtimeBrand === "circle-card";
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand);
   const session = await requireUser({
-    allowUnentitled: isCircleCardDashboardPath(currentPathname)
+    allowUnentitled: isCircleCardRuntime || isCircleCardDashboardPath(currentPathname)
   });
   const circleCardAccess = await loadCircleCardAccessForUser(session.user.id);
   const effectiveTier = roleToTier(session.user.role, session.user.membershipTier);
   const circleCardFree = !circleCardAccess.hasProAccess;
   const isCircleCardWorkspaceRoute = isCircleCardDashboardPath(currentPathname);
-  const showCircleCardShell = isCircleCardWorkspaceRoute || circleCardFree;
+  const showCircleCardShell = isCircleCardRuntime || isCircleCardWorkspaceRoute || circleCardFree;
   const showCircleCardNotificationOrb = showCircleCardShell;
 
   if (showCircleCardNotificationOrb) {
@@ -128,23 +132,23 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   const circleCardNavItems = [
     {
       label: "Your Cards",
-      href: "/dashboard/circle-card?section=my-card#my-cards",
+      href: `${circleCardRoutes.dashboard}?section=my-card#my-cards`,
       badgeCount: circleCardUnreadCount
     },
     {
       label: "Studio",
-      href: "/dashboard/circle-card/studio",
+      href: circleCardRoutes.studio,
       description: "Make your Circle Card unmistakably yours."
     },
-    { label: "Wallet", href: "/dashboard/circle-card/wallet" },
+    { label: "Wallet", href: circleCardRoutes.wallet },
     {
       label: "Trust",
-      href: "/dashboard/circle-card?section=my-card#circle-trust",
+      href: `${circleCardRoutes.dashboard}?section=my-card#circle-trust`,
       description: "Build your Circle Trust."
     },
-    { label: "Insights", href: "/dashboard/circle-card?section=my-card#analytics" },
-    { label: "Referrals", href: "/dashboard/circle-card?section=referrals#referral-centre" },
-    { label: "Settings", href: "/dashboard/circle-card?section=settings#circle-card-settings" },
+    { label: "Insights", href: `${circleCardRoutes.dashboard}?section=my-card#analytics` },
+    { label: "Referrals", href: `${circleCardRoutes.dashboard}?section=referrals#referral-centre` },
+    { label: "Settings", href: `${circleCardRoutes.dashboard}?section=settings#circle-card-settings` },
   ];
   const circleCardOnlyDiscoveryNavItems = [
     {
@@ -160,9 +164,11 @@ export default async function MemberLayout({ children }: { children: ReactNode }
       description: "Switch to the member workspace."
     }
   ];
-  const circleCardSecondaryNavItems = circleCardFree
-    ? circleCardOnlyDiscoveryNavItems
-    : circleCardMemberSwitchNavItems;
+  const circleCardSecondaryNavItems = isCircleCardRuntime
+    ? []
+    : circleCardFree
+      ? circleCardOnlyDiscoveryNavItems
+      : circleCardMemberSwitchNavItems;
   const circleCardSecondaryLabel = circleCardFree ? "The Business Circle" : "Workspace switch";
   const circleCardSecondaryDescription = circleCardFree
     ? "Discover the founder community behind Circle Card."
@@ -205,7 +211,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
           <div className="bcn-container-wide flex flex-col gap-4 py-4">
             <div className="flex items-center justify-between gap-4">
               <Link
-                href={showCircleCardShell ? "/dashboard/circle-card" : "/dashboard"}
+                href={showCircleCardShell ? circleCardRoutes.dashboard : "/dashboard"}
                 className="inline-flex min-w-0 items-center gap-3"
               >
                 <BrandMark placement="workspace" brand={showCircleCardShell ? "circle-card" : "bcn"} />
@@ -230,7 +236,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                   <CircleCardNotificationOrb
                     unreadCount={circleCardUnreadCount}
                     notifications={circleCardOrbNotifications}
-                    returnPath={currentPathname || "/dashboard/circle-card"}
+                    returnPath={currentPathname || circleCardRoutes.dashboard}
                   />
                 ) : null}
                 <MemberNavigation
@@ -242,7 +248,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                   }
                   orientation="horizontal"
                   accentThemeStyle={memberShellStyle}
-                  showAdminLink={session.user.role === "ADMIN"}
+                  showAdminLink={!isCircleCardRuntime && session.user.role === "ADMIN"}
                   workspaceEyebrow={showCircleCardShell ? membershipBadge : undefined}
                   workspaceTitle={showCircleCardShell ? "Circle Card" : undefined}
                   workspaceDescription={
@@ -253,7 +259,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
                   dialogLabel={showCircleCardShell ? "Circle Card navigation" : undefined}
                   workspaceBrand={showCircleCardShell ? "circle-card" : "bcn"}
                 />
-                {session.user.role === "ADMIN" ? (
+                {!isCircleCardRuntime && session.user.role === "ADMIN" ? (
                   <Link href="/admin" className="hidden lg:inline-flex">
                     <Button variant="outline" size="sm">
                       Admin
@@ -345,7 +351,17 @@ export default async function MemberLayout({ children }: { children: ReactNode }
         className="overflow-x-clip"
         header={header}
         sidebar={sidebar}
-        footer={<MemberFooter variant={showCircleCardShell ? "circle-card-free" : "member"} />}
+        footer={
+          <MemberFooter
+            variant={
+              isCircleCardRuntime
+                ? "circle-card-runtime"
+                : showCircleCardShell
+                  ? "circle-card-free"
+                  : "member"
+            }
+          />
+        }
         contentClassName="py-6 sm:py-7 lg:py-8"
       >
         <div className="member-page-stack">

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { CTASection, FeatureGrid, SectionHeading } from "@/components/public";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { SITE_CONFIG } from "@/config/site";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -86,7 +86,10 @@ const SAFEGUARD_ITEMS = [
 ] as const;
 
 export default function DpiaPage() {
-  const publicSupportEmail = SITE_CONFIG.supportEmail;
+  const runtimeBrand = getRuntimeBrand();
+  const circleCardRuntime = runtimeBrand.key === "circle-card";
+  const publicSupportEmail = runtimeBrand.supportEmail;
+  const contactHref = circleCardRuntime ? `mailto:${publicSupportEmail}` : "/contact";
 
   return (
     <div className="public-page-stack">
@@ -98,7 +101,7 @@ export default function DpiaPage() {
           <SectionHeading
             label="Trust & Privacy"
             title="DPIA & Data Protection"
-            description="The Business Circle takes privacy and responsible data handling seriously. This page explains, in plain English, how data protection impact thinking fits into the way the platform is planned, reviewed, and operated."
+            description={`${runtimeBrand.displayName} takes privacy and responsible data handling seriously. This page explains, in plain English, how data protection impact thinking fits into the way the platform is planned, reviewed, and operated.`}
           />
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -130,7 +133,7 @@ export default function DpiaPage() {
           </h2>
           <div className="mt-5 space-y-4 text-sm leading-relaxed text-muted">
             <p>
-              The Business Circle considers privacy and data protection as part of platform
+              {runtimeBrand.displayName} considers privacy and data protection as part of platform
               planning, feature changes, and operational decisions. That means thinking through the
               effect on people as services evolve, not only after something is already live.
             </p>
@@ -228,7 +231,7 @@ export default function DpiaPage() {
             How this connects to the rest of our trust framework
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-muted">
-            This page explains the way The Business Circle approaches privacy impact thinking. For
+            This page explains the way {runtimeBrand.displayName} approaches privacy impact thinking. For
             more detail on personal information, cookies, and wider platform terms, the related
             policies below provide the broader picture.
           </p>
@@ -254,7 +257,7 @@ export default function DpiaPage() {
           <div className="mt-5 space-y-4 text-sm leading-relaxed text-muted">
             <p>
               If you want to ask about how data is handled on the platform, or how privacy is
-              considered in practice, you can contact the Business Circle team directly.
+              considered in practice, you can contact the {runtimeBrand.displayName} team directly.
             </p>
             <p>
               For general support and trust-related questions, email{" "}
@@ -269,7 +272,7 @@ export default function DpiaPage() {
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href="/contact">
+            <Link href={contactHref}>
               <Button>Contact Us</Button>
             </Link>
             <a
@@ -284,9 +287,9 @@ export default function DpiaPage() {
 
       <CTASection
         title="Trust should feel visible, not hidden in small print"
-        description="The Business Circle is designed to feel more considered, more credible, and more responsible as the platform grows. That includes how privacy and data protection are approached."
+        description={`${runtimeBrand.displayName} is designed to feel more considered, more credible, and more responsible as the platform grows. That includes how privacy and data protection are approached.`}
         primaryAction={{ href: "/privacy-policy", label: "Read Privacy Policy" }}
-        secondaryAction={{ href: "/contact", label: "Contact The Team", variant: "outline" }}
+        secondaryAction={{ href: contactHref, label: "Contact The Team", variant: "outline" }}
       />
     </div>
   );

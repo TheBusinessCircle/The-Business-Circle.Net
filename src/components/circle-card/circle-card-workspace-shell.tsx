@@ -3,18 +3,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CircleCardBackButton } from "@/components/circle-card/circle-card-back-button";
+import { useRuntimeBrand } from "@/components/runtime-brand-provider";
 import { BackToTopButton } from "@/components/ui/back-to-top-button";
-import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
+import { getCircleCardRoutes, isCircleCardDashboardPath } from "@/lib/circle-card/routes";
 
 const NAVIGATION_ORIGIN_KEY = "circle-card:navigation-origin";
 const RESTORE_TARGET_KEY = "circle-card:restore-target";
 const SCROLL_KEY_PREFIX = "circle-card:scroll:";
-const PREFETCH_ROUTES = [
-  CIRCLE_CARD_DASHBOARD_PATH,
-  `${CIRCLE_CARD_DASHBOARD_PATH}/studio`,
-  `${CIRCLE_CARD_DASHBOARD_PATH}/wallet`
-] as const;
-
 function locationKey() {
   return `${window.location.pathname}${window.location.search}`;
 }
@@ -26,15 +21,14 @@ function scrollStorageKey(key: string) {
 function internalCircleCardUrl(anchor: HTMLAnchorElement) {
   if (anchor.target || anchor.hasAttribute("download")) return null;
   const url = new URL(anchor.href, window.location.href);
-  const isCircleCardPath =
-    url.pathname === CIRCLE_CARD_DASHBOARD_PATH ||
-    url.pathname.startsWith(`${CIRCLE_CARD_DASHBOARD_PATH}/`);
-  return url.origin === window.location.origin && isCircleCardPath
+  return url.origin === window.location.origin && isCircleCardDashboardPath(url.pathname)
     ? url
     : null;
 }
 
 export function CircleCardWorkspaceShell({ children }: { children: ReactNode }) {
+  const runtimeBrand = useRuntimeBrand();
+  const routes = getCircleCardRoutes(runtimeBrand);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -42,13 +36,14 @@ export function CircleCardWorkspaceShell({ children }: { children: ReactNode }) 
   const pendingRef = useRef(false);
   const pendingAnchorRef = useRef<HTMLAnchorElement | null>(null);
   const routeKey = `${pathname}?${searchParams.toString()}`;
-  const nestedPage = pathname !== CIRCLE_CARD_DASHBOARD_PATH;
+  const nestedPage = pathname !== routes.dashboard;
 
   useEffect(() => {
-    const prefetch = () => PREFETCH_ROUTES.forEach((route) => router.prefetch(route));
+    const prefetch = () =>
+      [routes.dashboard, routes.studio, routes.wallet].forEach((route) => router.prefetch(route));
     const timeoutId = window.setTimeout(prefetch, 250);
     return () => window.clearTimeout(timeoutId);
-  }, [router]);
+  }, [router, routes.dashboard, routes.studio, routes.wallet]);
 
   useEffect(() => {
     pendingRef.current = false;

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { CheckCircle2, ChevronDown, Circle, LockKeyhole, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import type {
   CircleTrustSummary
 } from "@/lib/circle-card/circle-trust";
 import { cn } from "@/lib/utils";
+import { getRuntimeBrand, type RuntimeBrandKey } from "@/config/runtime-brand";
+import { getCircleCardRoutes } from "@/lib/circle-card/routes";
 
 type CircleTrustProgressPanelProps = {
   trust: CircleTrustSummary;
@@ -22,7 +24,12 @@ function manageHref(cardId: string, section: string, hash: string) {
   return `/dashboard/circle-card?cardId=${encodeURIComponent(cardId)}&section=${section}#${hash}`;
 }
 
-function actionForSignal(cardId: string, signal: CircleTrustOpportunity) {
+function actionForSignal(
+  cardId: string,
+  signal: CircleTrustOpportunity,
+  runtimeBrand: RuntimeBrandKey
+) {
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand);
   const actions: Partial<Record<CircleTrustSignalId, { href: string; label: string }>> = {
     "verified-connections": {
       href: manageHref(cardId, "wallet", "circle-wallet"),
@@ -44,12 +51,14 @@ function actionForSignal(cardId: string, signal: CircleTrustOpportunity) {
       href: manageHref(cardId, "my-card", "card-identity"),
       label: "Complete Profile"
     },
-    "verified-account-email": { href: "/dashboard", label: "Verify Email" },
+    "verified-account-email": { href: circleCardRoutes.dashboard, label: "Verify Email" },
     "website-added": {
       href: manageHref(cardId, "my-card", "card-contact-details"),
       label: "Add Website"
     },
-    "bcn-member": { href: "/join", label: "Explore Membership" }
+    ...(runtimeBrand === "bcn"
+      ? { "bcn-member": { href: "/join", label: "Explore Membership" } }
+      : {})
   };
 
   return actions[signal.id] ?? null;
@@ -76,8 +85,9 @@ export function CircleTrustProgressPanel({
   hasProAccess,
   publicUrl
 }: CircleTrustProgressPanelProps) {
+  const runtimeBrand = getRuntimeBrand().key;
   const actionableSignals = trust.availableSignals
-    .map((signal) => ({ signal, action: actionForSignal(cardId, signal) }))
+    .map((signal) => ({ signal, action: actionForSignal(cardId, signal, runtimeBrand) }))
     .filter((item): item is { signal: CircleTrustOpportunity; action: { href: string; label: string } } => Boolean(item.action));
   const nextAction = actionableSignals[0] ?? null;
   const creator = cardType === "CREATOR";

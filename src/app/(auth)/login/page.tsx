@@ -5,6 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { parseLoginSearchParams } from "@/lib/auth/login-state";
 import { withFromParam } from "@/lib/auth/utils";
 import { createPageMetadata } from "@/lib/seo";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import {
+  getCircleCardRoutes,
+  isCircleCardDashboardPath,
+  resolveCircleCardAuthReturnPath
+} from "@/lib/circle-card/routes";
 
 type LoginPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -21,10 +27,18 @@ export const metadata: Metadata = createPageMetadata({
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const { from, errorCode, errorDetailCode, initialNotice } = parseLoginSearchParams(params);
+  const runtimeBrand = getRuntimeBrand().key;
+  const circleCardRuntime = runtimeBrand === "circle-card";
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand);
+  const resolvedFrom = circleCardRuntime
+    ? resolveCircleCardAuthReturnPath(from, runtimeBrand, circleCardRoutes.dashboard)
+    : from;
   const isCircleCardLogin =
-    from?.startsWith("/dashboard/circle-card") === true || from?.startsWith("/card/") === true;
-  const circleCardRegisterHref = from
-    ? `/register?source=circle-card&returnTo=${encodeURIComponent(from)}`
+    circleCardRuntime ||
+    (resolvedFrom ? isCircleCardDashboardPath(resolvedFrom) : false) ||
+    resolvedFrom?.startsWith("/card/") === true;
+  const circleCardRegisterHref = resolvedFrom
+    ? `/register?source=circle-card&returnTo=${encodeURIComponent(resolvedFrom)}`
     : "/register?source=circle-card";
 
   return (
@@ -68,7 +82,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       </Card>
 
       <LoginForm
-        from={from}
+        from={resolvedFrom}
         errorCode={errorCode}
         errorDetailCode={errorDetailCode}
         initialNotice={initialNotice}

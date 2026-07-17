@@ -1,12 +1,22 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import CircleCardLandingPage from "@/app/(public)/circle-card/page";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { shouldUseMobileJoin } from "@/lib/join/routing";
 
 export const dynamic = "force-dynamic";
 
-export default async function SocialEntryPage() {
+type SocialEntryPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function SocialEntryPage({ searchParams }: SocialEntryPageProps) {
+  if (getRuntimeBrand().key === "circle-card") {
+    return <CircleCardLandingPage searchParams={searchParams} />;
+  }
+
   const session = await auth();
 
   if (session?.user && !session.user.suspended) {

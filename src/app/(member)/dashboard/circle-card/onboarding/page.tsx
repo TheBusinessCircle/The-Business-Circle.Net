@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
 import { loadCircleCardAccessForUser } from "@/server/circle-card";
 import { isPublicCircleCardTargetWithinOwnerPlan } from "@/server/circle-card/plan-policy.service";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import { getCircleCardRoutes } from "@/lib/circle-card/routes";
 
 export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Build My Circle Card",
@@ -23,6 +25,7 @@ export const metadata: Metadata = createCircleCardPageMetadata({
 export const dynamic = "force-dynamic";
 
 export default async function CircleCardOnboardingPage() {
+  const circleCardRoutes = getCircleCardRoutes(getRuntimeBrand().key);
   const session = await requireCircleCardUser();
   const [card, member, circleCardAccess] = await Promise.all([
     prisma.circleCard.findFirst({
@@ -76,7 +79,7 @@ export default async function CircleCardOnboardingPage() {
   ]);
 
   if (card?.isPublished) {
-    redirect("/dashboard/circle-card");
+    redirect(circleCardRoutes.dashboard);
   }
 
   const readiness = calculateFirstCircleCardReadiness(

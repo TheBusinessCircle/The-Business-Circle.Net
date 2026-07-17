@@ -4,6 +4,34 @@ export const CIRCLE_CARD_CURRENT_CARD_COOKIE = "circle_card_workspace_card";
 const CARD_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
 const LEGACY_SESSION_STORAGE_KEY = "circle-card.dashboard.current-card-id";
+export const CIRCLE_CARD_LEGACY_CURRENT_CARD_COOKIE_PATH = "/dashboard/circle-card";
+export const CIRCLE_CARD_CURRENT_CARD_COOKIE_PATH = "/";
+
+export function buildCircleCardCurrentCardCookie(
+  value: string,
+  path: string,
+  maxAge: number,
+  secure: boolean
+) {
+  return `${CIRCLE_CARD_CURRENT_CARD_COOKIE}=${value}; Path=${path}; Max-Age=${maxAge}; SameSite=Lax${secure ? "; Secure" : ""}`;
+}
+
+export function buildCircleCardCurrentCardCookieMigration(value: string, secure: boolean) {
+  return [
+    buildCircleCardCurrentCardCookie(
+      "",
+      CIRCLE_CARD_LEGACY_CURRENT_CARD_COOKIE_PATH,
+      0,
+      secure
+    ),
+    buildCircleCardCurrentCardCookie(
+      value,
+      CIRCLE_CARD_CURRENT_CARD_COOKIE_PATH,
+      ONE_YEAR_SECONDS,
+      secure
+    )
+  ] as const;
+}
 
 export function normalizeCircleCardCurrentCardId(value: unknown) {
   if (typeof value !== "string") return null;
@@ -16,7 +44,10 @@ export function readCircleCardCurrentCardPreference() {
     const stored = normalizeCircleCardCurrentCardId(
       window.localStorage.getItem(CIRCLE_CARD_CURRENT_CARD_STORAGE_KEY)
     );
-    if (stored) return stored;
+    if (stored) {
+      persistCircleCardCurrentCardPreference(stored);
+      return stored;
+    }
 
     const legacy = normalizeCircleCardCurrentCardId(
       window.sessionStorage.getItem(LEGACY_SESSION_STORAGE_KEY)
@@ -39,7 +70,14 @@ export function persistCircleCardCurrentCardPreference(cardId: string) {
   }
 
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${CIRCLE_CARD_CURRENT_CARD_COOKIE}=${encodeURIComponent(normalized)}; Path=/dashboard/circle-card; Max-Age=${ONE_YEAR_SECONDS}; SameSite=Lax${secure}`;
+  const isSecure = Boolean(secure);
+  const migrationCookies = buildCircleCardCurrentCardCookieMigration(
+    encodeURIComponent(normalized),
+    isSecure
+  );
+  migrationCookies.forEach((cookie) => {
+    document.cookie = cookie;
+  });
 }
 
 export function clearCircleCardCurrentCardPreference() {
@@ -50,5 +88,26 @@ export function clearCircleCardCurrentCardPreference() {
   }
 
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${CIRCLE_CARD_CURRENT_CARD_COOKIE}=; Path=/dashboard/circle-card; Max-Age=0; SameSite=Lax${secure}`;
+  const isSecure = Boolean(secure);
+  document.cookie = buildCircleCardCurrentCardCookie(
+    "",
+    CIRCLE_CARD_LEGACY_CURRENT_CARD_COOKIE_PATH,
+    0,
+    isSecure
+  );
+  document.cookie = buildCircleCardCurrentCardCookie(
+    "",
+    CIRCLE_CARD_CURRENT_CARD_COOKIE_PATH,
+    0,
+    isSecure
+  );
+}
+
+export function resolveCircleCardCurrentCardCookieValues(values: readonly unknown[]) {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const cardId = normalizeCircleCardCurrentCardId(values[index]);
+    if (cardId) return cardId;
+  }
+
+  return null;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, CheckCircle2, Sparkles, X } from "lucide-react";
 import {

@@ -1,5 +1,5 @@
 import type { AnchorHTMLAttributes, CSSProperties, ReactNode } from "react";
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import {
   acceptCircleCardConnectionRequestAction,
   cancelCircleCardConnectionRequestAction,
@@ -26,6 +26,7 @@ import {
 } from "@/components/circle-card/circle-card-spin-to-connect";
 import { CircleCardTrackedLink } from "@/components/circle-card/circle-card-tracked-link";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { Textarea } from "@/components/ui/textarea";
 import type { CircleCardEventTypeValue } from "@/lib/circle-card/analytics-events";
 import type { CircleCardShareSource } from "@/lib/circle-card/share-sources";
@@ -1009,9 +1010,15 @@ type TrustAreaProps = {
   card: PublicCircleCard;
   ownerAccountLabel: string;
   ownerIsBcnMember: boolean;
+  standaloneBranding: boolean;
 };
 
-function TrustArea({ card, ownerAccountLabel, ownerIsBcnMember }: TrustAreaProps) {
+function TrustArea({
+  card,
+  ownerAccountLabel,
+  ownerIsBcnMember,
+  standaloneBranding
+}: TrustAreaProps) {
   const membershipLabel = membershipBadgeLabel(card, ownerIsBcnMember);
 
   return (
@@ -1023,7 +1030,9 @@ function TrustArea({ card, ownerAccountLabel, ownerIsBcnMember }: TrustAreaProps
         <CircleCardLogoMark className="h-11 w-11" alt="" />
         <div>
           <p className="text-sm font-semibold text-foreground">Powered by Circle Card</p>
-          <p className="text-xs text-muted">Powered by The Business Circle</p>
+          <p className="text-xs text-muted">
+            {standaloneBranding ? "Professional identity and relationship tools" : "Powered by The Business Circle"}
+          </p>
         </div>
       </div>
 
@@ -1166,6 +1175,7 @@ export function PublicCircleCardProfile({
   notice,
   error
 }: PublicCircleCardProfileProps) {
+  const standaloneBranding = getRuntimeBrand().key === "circle-card";
   const telHref = phoneHref(card.phone);
   const displayRole = roleLine(card);
   const noticeMessage = notice ? NOTICE_MESSAGES[notice] : null;
@@ -3120,7 +3130,11 @@ export function PublicCircleCardProfile({
                   <CircleCardLogoMark className="h-9 w-9" alt="" />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">Powered by Circle Card</p>
-                    <p className="text-xs text-muted">Trusted identity from The Business Circle</p>
+                    <p className="text-xs text-muted">
+                      {standaloneBranding
+                        ? "Professional identity and relationship tools"
+                        : "Trusted identity from The Business Circle"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -3426,6 +3440,7 @@ export function PublicCircleCardProfile({
               card={card}
               ownerAccountLabel={ownerAccountLabel}
               ownerIsBcnMember={ownerIsBcnMember}
+              standaloneBranding={standaloneBranding}
             />
             <section className={cn(circleCardPublicThemeClasses.sectionCard, "shadow-inner-surface")}>
               <div className="flex items-center gap-3">

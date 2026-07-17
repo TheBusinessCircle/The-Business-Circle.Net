@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import {
   ArrowRight,
   BadgeCheck,
@@ -25,6 +25,7 @@ import { formatCircleCardPrice } from "@/lib/circle-card/pricing";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -130,6 +131,7 @@ function feedbackMessage(input: { registered: string; error: string }) {
 
 export default async function CircleCardTeamsPage({ searchParams }: PageProps) {
   const [params, session] = await Promise.all([searchParams, auth()]);
+  const circleCardRuntime = getRuntimeBrand().key === "circle-card";
   const userContext = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
@@ -199,8 +201,9 @@ export default async function CircleCardTeamsPage({ searchParams }: PageProps) {
             </Link>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
-            Teams upgrades the company card system. BCN membership stays separate as the founder
-            environment and community behind the wider ecosystem.
+            {circleCardRuntime
+              ? "Teams upgrades the company card system while keeping staff identities and relationship tools together."
+              : "Teams upgrades the company card system. BCN membership stays separate as the founder environment and community behind the wider ecosystem."}
           </p>
         </div>
 
@@ -272,7 +275,7 @@ export default async function CircleCardTeamsPage({ searchParams }: PageProps) {
           </div>
           <h2 className="mt-4 font-display text-3xl text-foreground">Which option fits?</h2>
           <div className="mt-4 grid gap-2">
-            {PLAN_BOUNDARY.map((plan) => {
+            {PLAN_BOUNDARY.filter((plan) => !circleCardRuntime || plan.name !== "BCN").map((plan) => {
               const Icon = plan.icon;
 
               return (
@@ -324,7 +327,9 @@ export default async function CircleCardTeamsPage({ searchParams }: PageProps) {
             </Badge>
             <h2 className="mt-3 font-display text-3xl text-foreground">Register Teams Interest</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              Join the Teams early-access list. No payment, no Stripe checkout, no BCN membership change.
+              {circleCardRuntime
+                ? "Join the Teams early-access list. No payment or Stripe checkout."
+                : "Join the Teams early-access list. No payment, no Stripe checkout, no BCN membership change."}
             </p>
             <p className="mt-3 rounded-lg border border-gold/24 bg-gold/10 p-3 text-xs leading-relaxed text-gold">
               Teams billing and checkout are deferred beyond the monthly Circle Card Pro launch.

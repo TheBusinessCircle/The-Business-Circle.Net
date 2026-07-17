@@ -3,15 +3,34 @@ import { ReactNode, Suspense } from "react";
 import { FirstPartyAnalytics } from "@/components/analytics/first-party-analytics";
 import { JsonLd } from "@/components/public";
 import { PublicSiteShell } from "@/components/public/public-site-shell";
+import { CircleCardPublicShell } from "@/components/circle-card/circle-card-public-shell";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import { getCustomerShellKind } from "@/lib/circle-card/runtime-route-policy";
+import { getRuntimeManifestPath } from "@/lib/circle-card/metadata";
 import { SITE_CONFIG } from "@/config/site";
 import { buildPublicSiteSchemaGraph } from "@/lib/structured-data";
 
-export const revalidate = 3600;
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_CONFIG.url)
-};
+export const dynamic = "force-dynamic";
+export function generateMetadata(): Metadata {
+  const runtimeBrand = getRuntimeBrand().key;
+  return {
+    metadataBase: new URL(SITE_CONFIG.url),
+    manifest: getRuntimeManifestPath(runtimeBrand)
+  };
+}
 
 export default async function PublicLayout({ children }: { children: ReactNode }) {
+  if (getCustomerShellKind(getRuntimeBrand().key) === "circle-card") {
+    return (
+      <>
+        <Suspense fallback={null}>
+          <FirstPartyAnalytics />
+        </Suspense>
+        <CircleCardPublicShell>{children}</CircleCardPublicShell>
+      </>
+    );
+  }
+
   return (
     <>
       <JsonLd data={buildPublicSiteSchemaGraph({ supportEmail: SITE_CONFIG.supportEmail })} />

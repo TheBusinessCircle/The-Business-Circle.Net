@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { type ChangeEvent, type MouseEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -27,6 +27,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useRuntimeBrand } from "@/components/runtime-brand-provider";
+import { getCircleCardRoutes } from "@/lib/circle-card/routes";
 
 type SocialHandles = {
   linkedin?: string;
@@ -446,6 +448,7 @@ function friendlyImageError(error: unknown) {
 }
 
 export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardScannerProps) {
+  const circleCardRoutes = getCircleCardRoutes(useRuntimeBrand());
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [inputHost, setInputHost] = useState<HTMLElement | null>(null);
@@ -594,8 +597,8 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
   const stageLabel = scannerStageLabel(stage);
   const firstMatch = scan?.matches[0] ?? null;
   const returnPath = firstMatch
-    ? `/dashboard/circle-card?section=network&connectCard=${encodeURIComponent(firstMatch.slug)}#connect-hub`
-    : "/dashboard/circle-card?section=network#connect-hub";
+    ? `${circleCardRoutes.dashboard}?section=network&connectCard=${encodeURIComponent(firstMatch.slug)}#connect-hub`
+    : `${circleCardRoutes.dashboard}?section=network#connect-hub`;
   const fileInputs = (
     <>
       <input
@@ -852,7 +855,7 @@ export function BusinessCardScanner({ canSendConnectionRequest }: BusinessCardSc
 
             {!firstMatch && !scan.duplicateContact ? (
               <form action={saveBusinessCardScanWalletContactAction} className="space-y-4">
-                <input type="hidden" name="returnPath" value="/dashboard/circle-card?section=network#connect-hub" />
+                <input type="hidden" name="returnPath" value={`${circleCardRoutes.dashboard}?section=network#connect-hub`} />
                 <input type="hidden" name="originalCardImageUrl" value={scan.originalCardImageUrl} />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">

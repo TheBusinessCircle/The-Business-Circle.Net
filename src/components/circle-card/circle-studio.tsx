@@ -21,8 +21,10 @@ import {
 import { updateCircleStudioAction } from "@/actions/circle-card.actions";
 import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
 import { CircleCardProCheckoutButtons } from "@/components/circle-card/circle-card-pro-checkout-buttons";
+import { useRuntimeBrand } from "@/components/runtime-brand-provider";
 import { CircleStudioFineTune as CircleStudioFineTuneControls } from "@/components/circle-card/circle-studio-fine-tune";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { getCircleCardRoutes } from "@/lib/circle-card/routes";
 import {
   CIRCLE_STUDIO_ACCENTS,
   CIRCLE_STUDIO_FIELD_COPY,
@@ -219,6 +221,7 @@ export function CircleStudio({
   error,
   activatedAt
 }: CircleStudioProps) {
+  const circleCardRoutes = getCircleCardRoutes(useRuntimeBrand());
   const [tokens, setTokens] = useState(initialTokens);
   const [fineTune, setFineTune] = useState(initialFineTune);
   const [device, setDevice] = useState<Device>("desktop");
@@ -277,7 +280,7 @@ export function CircleStudio({
   return (
     <form action={updateCircleStudioAction} className="space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-6">
       <input type="hidden" name="cardId" value={card.id} />
-      <input type="hidden" name="returnPath" value={`/dashboard/circle-card/studio?card=${card.id}`} />
+      <input type="hidden" name="returnPath" value={`${circleCardRoutes.studio}?card=${card.id}`} />
       <input type="hidden" name="studioMetadataJson" value={JSON.stringify(previewMetadata)} />
       {(Object.keys(tokens) as CircleStudioTokenKey[]).map((key) => <input key={key} type="hidden" name={key} value={tokens[key]} />)}
       <input type="hidden" name="fineTuneAccentColor" value={fineTune.accentColor ?? ""} />

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import type { ReactNode } from "react";
 import {
   ArrowUpRight,

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { ArrowRight, CheckCircle2, ChevronDown, Quote, ShieldCheck, Star } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import type { CircleTrustSummary } from "@/lib/circle-card/circle-trust";

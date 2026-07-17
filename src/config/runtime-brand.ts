@@ -50,13 +50,13 @@ export const RUNTIME_BRANDS: Readonly<Record<RuntimeBrandKey, RuntimeBrandConfig
   "circle-card": {
     key: "circle-card",
     displayName: "Circle Card",
-    legalOperatorName: COMPANY_CONFIG.displayLegalName,
+    legalOperatorName: COMPANY_CONFIG.legalName,
     canonicalOrigin: "https://circlecard.co.uk",
     canonicalHostname: "circlecard.co.uk",
     wwwHostnamePolicy: null,
     supportEmail: "support@circlecard.co.uk",
     defaultLoginPath: "/login",
-    defaultAuthenticatedHomePath: "/dashboard/circle-card",
+    defaultAuthenticatedHomePath: "/app",
     publicContactEmail: "hello@circlecard.co.uk",
     assets: {
       logoPath: "/branding/circle-card-logo.png",

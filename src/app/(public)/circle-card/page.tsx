@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
+import { CircleCardRuntimeLink as Link } from "@/components/circle-card/circle-card-runtime-link";
 import { redirect } from "next/navigation";
 import {
   ArrowRight,
@@ -14,11 +14,11 @@ import {
   WalletCards
 } from "lucide-react";
 import { auth } from "@/auth";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { CircleCardInstallPrompt } from "@/components/circle-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
-  CIRCLE_CARD_DASHBOARD_PATH,
-  CIRCLE_CARD_ONBOARDING_PATH
+  getCircleCardRoutes
 } from "@/lib/circle-card/routes";
 import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { normalizeCircleCardReferralCode } from "@/lib/circle-card/referral-engine";
@@ -77,6 +77,9 @@ export default async function CircleCardLandingPage({
   }
 
   const session = await auth();
+  const runtimeBrand = getRuntimeBrand();
+  const circleCardRuntime = runtimeBrand.key === "circle-card";
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand.key);
   const existingCard = session?.user && !session.user.suspended
     ? await prisma.circleCard.findFirst({
         where: { userId: session.user.id, archivedAt: null },
@@ -85,9 +88,9 @@ export default async function CircleCardLandingPage({
     : null;
   const primaryCtaHref = session?.user && !session.user.suspended
     ? existingCard
-      ? CIRCLE_CARD_DASHBOARD_PATH
-      : CIRCLE_CARD_ONBOARDING_PATH
-    : "/register?source=circle-card";
+      ? circleCardRoutes.dashboard
+      : circleCardRoutes.onboarding
+    : `/register?source=circle-card&returnTo=${encodeURIComponent(circleCardRoutes.onboarding)}`;
   const primaryCtaLabel = session?.user && !session.user.suspended
     ? existingCard
       ? "Open My Circle Card"
@@ -106,7 +109,9 @@ export default async function CircleCardLandingPage({
             Circle Card
           </h1>
           <p className="mt-5 max-w-3xl text-lg leading-relaxed text-silver sm:text-xl">
-            More than a digital business card. The relationship layer of The Business Circle.
+            {circleCardRuntime
+              ? "More than a digital business card. Your professional identity and relationship workspace."
+              : "More than a digital business card. The relationship layer of The Business Circle."}
           </p>
           <p className="mt-5 max-w-3xl text-base leading-relaxed text-muted">
             Circle Card helps professionals and business owners create a professional digital
@@ -143,7 +148,9 @@ export default async function CircleCardLandingPage({
                   <h2 className="mt-3 font-display text-3xl leading-tight text-foreground">
                     Trev Clarke
                   </h2>
-                  <p className="mt-2 text-sm text-silver">Founder, The Business Circle</p>
+                  <p className="mt-2 text-sm text-silver">
+                    {circleCardRuntime ? "Founder, Circle Card" : "Founder, The Business Circle"}
+                  </p>
                 </div>
                 <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-gold/25 bg-background/40">
                   <Image
@@ -175,13 +182,13 @@ export default async function CircleCardLandingPage({
                 </div>
                 <div className="space-y-2">
                   <div className="rounded-xl border border-silver/12 bg-background/24 px-3 py-2 text-xs text-silver">
-                    thebusinesscircle.net/card/demo
+                    {circleCardRuntime ? "circlecard.co.uk/card/demo" : "thebusinesscircle.net/card/demo"}
                   </div>
                   <div className="rounded-xl border border-silver/12 bg-background/24 px-3 py-2 text-xs text-muted">
                     Save, favourite, remember.
                   </div>
                   <div className="rounded-xl border border-gold/22 bg-gold/10 px-3 py-2 text-xs text-gold">
-                    BCN member signal ready.
+                    {circleCardRuntime ? "Circle Card trust signal ready." : "BCN member signal ready."}
                   </div>
                 </div>
               </div>
@@ -217,10 +224,13 @@ export default async function CircleCardLandingPage({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-silver/14 bg-background/22 p-5">
             <Building2 size={18} className="text-silver" />
-            <h3 className="mt-4 font-display text-xl text-foreground">Built into BCN</h3>
+            <h3 className="mt-4 font-display text-xl text-foreground">
+              {circleCardRuntime ? "Built for real relationships" : "Built into BCN"}
+            </h3>
             <p className="mt-2 text-sm text-muted">
-              One login, one ecosystem, one network. Circle Card sits inside the member
-              environment instead of creating a second identity layer.
+              {circleCardRuntime
+                ? "One secure account keeps your card, wallet, trust and relationship context together."
+                : "One login, one ecosystem, one network. Circle Card sits inside the member environment instead of creating a second identity layer."}
             </p>
           </div>
           <div className="rounded-2xl border border-silver/14 bg-background/22 p-5">
