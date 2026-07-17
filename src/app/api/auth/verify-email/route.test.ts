@@ -11,6 +11,7 @@ import { GET } from "@/app/api/auth/verify-email/route";
 const originalNodeEnv = process.env.NODE_ENV;
 const originalAppUrl = process.env.APP_URL;
 const originalNextAuthUrl = process.env.NEXTAUTH_URL;
+const originalAppBrand = process.env.APP_BRAND;
 
 function setNodeEnv(value: string) {
   (process.env as Record<string, string | undefined>).NODE_ENV = value;
@@ -24,6 +25,7 @@ describe("verify email route", () => {
     setNodeEnv("production");
     process.env.APP_URL = "https://thebusinesscircle.net";
     process.env.NEXTAUTH_URL = "https://thebusinesscircle.net";
+    delete process.env.APP_BRAND;
     consoleSpies = [
       vi.spyOn(console, "info").mockImplementation(() => undefined),
       vi.spyOn(console, "warn").mockImplementation(() => undefined),
@@ -35,6 +37,11 @@ describe("verify email route", () => {
     setNodeEnv(originalNodeEnv ?? "test");
     process.env.APP_URL = originalAppUrl;
     process.env.NEXTAUTH_URL = originalNextAuthUrl;
+    if (originalAppBrand === undefined) {
+      delete process.env.APP_BRAND;
+    } else {
+      process.env.APP_BRAND = originalAppBrand;
+    }
     vi.restoreAllMocks();
   });
 
@@ -48,6 +55,44 @@ describe("verify email route", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
       "https://thebusinesscircle.net/login?verified=1"
+    );
+    expect(verifyEmailTokenMock).toHaveBeenCalledWith({
+      brand: "bcn",
+      userId: "user_123",
+      token: "test_token"
+    });
+  });
+
+  it("binds Circle Card verification and its result to the Circle Card origin", async () => {
+    process.env.APP_BRAND = "circle-card";
+    process.env.APP_URL = "https://circlecard.co.uk";
+    process.env.NEXTAUTH_URL = "https://circlecard.co.uk";
+    verifyEmailTokenMock.mockResolvedValue(true);
+
+    const response = await GET(
+      new Request("https://circlecard.co.uk/api/auth/verify-email?uid=user_123&token=test_token")
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "https://circlecard.co.uk/login?verified=1"
+    );
+    expect(verifyEmailTokenMock).toHaveBeenCalledWith({
+      brand: "circle-card",
+      userId: "user_123",
+      token: "test_token"
+    });
+  });
+
+  it("returns Circle Card verification failures to the Circle Card login", async () => {
+    process.env.APP_BRAND = "circle-card";
+    verifyEmailTokenMock.mockResolvedValue(false);
+
+    const response = await GET(
+      new Request("https://circlecard.co.uk/api/auth/verify-email?uid=user_123&token=test_token")
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "https://circlecard.co.uk/login?error=invalid-verification"
     );
   });
 

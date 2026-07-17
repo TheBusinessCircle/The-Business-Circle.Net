@@ -15,8 +15,9 @@ import {
 import { renderEmailHtml } from "@/emails/render";
 import { buildBrandedEmailText } from "@/emails/text";
 import { sendTransactionalEmailOrThrow } from "@/lib/email/resend";
+import { buildAuthenticationUrl } from "@/lib/auth/brand";
 import { logServerError, logServerInfo } from "@/lib/security/logging";
-import { absoluteUrl, getBaseUrl } from "@/lib/utils";
+import { absoluteUrl } from "@/lib/utils";
 
 export const ADMIN_EMAIL_TEST_TYPE_IDS = [
   "verification-email",
@@ -63,7 +64,7 @@ type SendAdminEmailTestInput = {
 };
 
 function buildVerificationPreviewUrl() {
-  const url = new URL("/api/auth/verify-email", getBaseUrl());
+  const url = buildAuthenticationUrl("bcn", "/api/auth/verify-email");
   url.searchParams.set("uid", "test_member_preview");
   url.searchParams.set("token", "bcn_test_preview_token_do_not_use");
   url.searchParams.set("preview", "1");
@@ -71,7 +72,7 @@ function buildVerificationPreviewUrl() {
 }
 
 function buildPasswordResetPreviewUrl() {
-  const url = new URL("/reset-password", getBaseUrl());
+  const url = buildAuthenticationUrl("bcn", "/reset-password");
   url.searchParams.set("email", "preview@thebusinesscircle.net");
   url.searchParams.set("token", "bcn_test_preview_token_do_not_use");
   url.searchParams.set("preview", "1");
@@ -199,11 +200,14 @@ async function buildAdminEmailTestPayload(
   const resetUrl = buildPasswordResetPreviewUrl();
   const dashboardUrl = absoluteUrl("/dashboard?email-test=1");
   const innerCircleUrl = absoluteUrl("/inner-circle?email-test=1");
-  const loginUrl = absoluteUrl("/login?email-test=1");
+  const loginUrl = buildAuthenticationUrl("bcn", "/login", {
+    "email-test": "1"
+  }).toString();
 
   switch (emailType) {
     case "verification-email": {
       const react = createElement(VerifyEmailAddressEmail, {
+        brand: "bcn",
         firstName: "Trevor",
         verificationUrl,
         ttlHours: 48
@@ -288,6 +292,7 @@ async function buildAdminEmailTestPayload(
     }
     case "password-reset-email": {
       const react = createElement(PasswordResetEmail, {
+        brand: "bcn",
         firstName: "Trevor",
         resetUrl,
         ttlMinutes: 60
@@ -318,6 +323,7 @@ async function buildAdminEmailTestPayload(
     }
     case "password-changed-email": {
       const react = createElement(PasswordChangedEmail, {
+        brand: "bcn",
         firstName: "Trevor",
         loginUrl
       });

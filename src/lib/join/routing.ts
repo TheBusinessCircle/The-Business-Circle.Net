@@ -1,4 +1,4 @@
-import { safeRedirectPath } from "@/lib/auth/utils";
+import { safeAuthenticationRedirectPath } from "@/lib/auth/utils";
 import { getMembershipTierSlug, resolveMembershipTierInput } from "@/config/membership";
 
 export type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
@@ -60,7 +60,9 @@ function buildSelectionHref(
   coreAccessConfirmed?: string | boolean;
 }) {
   const search = new URLSearchParams();
-  const from = input.from ? safeRedirectPath(input.from, "") : "";
+  const from = input.from
+    ? safeAuthenticationRedirectPath(input.from, "")
+    : "";
   const tier = input.tier ? resolveTier(input.tier) : undefined;
   const interval = resolveBillingInterval(input.period ?? input.interval);
   const auth = input.auth === "register" ? "register" : undefined;

@@ -57,17 +57,27 @@ describe("Circle Card runtime routes", () => {
   it("allows only Circle Card destinations after standalone authentication", () => {
     expect(
       resolveCircleCardAuthReturnPath(
-        "/dashboard/circle-card?section=settings#circle-card-plan",
+        "/dashboard/circle-card?section=settings",
         "circle-card"
       )
-    ).toBe("/app?section=settings#circle-card-plan");
+    ).toBe("/app?section=settings");
     expect(resolveCircleCardAuthReturnPath("/circle-card/pro?source=dashboard", "circle-card"))
       .toBe("/pro?source=dashboard");
     expect(resolveCircleCardAuthReturnPath("/card/example?spin=return", "circle-card"))
       .toBe("/card/example?spin=return");
   });
 
-  it.each(["/admin", "/membership", "/messages", "//attacker.example", "https://attacker.example"])(
+  it.each([
+    "/admin",
+    "/membership",
+    "/messages",
+    "//attacker.example",
+    "https://attacker.example",
+    "/%2f%2fattacker.example",
+    "/app/%255c%255cattacker.example",
+    "/app/../../admin",
+    "/app#settings"
+  ])(
     "falls back to /app for disallowed standalone auth return %s",
     (path) => {
       expect(resolveCircleCardAuthReturnPath(path, "circle-card")).toBe("/app");

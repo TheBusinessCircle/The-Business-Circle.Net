@@ -7,13 +7,18 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { useRuntimeBrand } from "@/components/runtime-brand-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from "@/lib/analytics";
 import { DEFAULT_AUTH_ERROR_MESSAGE, resolveAuthErrorMessage } from "@/lib/auth/client";
 import { type CredentialsSignInInput, credentialsSignInSchema } from "@/lib/auth/schemas";
-import { safeRedirectPath } from "@/lib/auth/utils";
+import { safeAuthenticationRedirectPath } from "@/lib/auth/utils";
+import {
+  getCircleCardRoutes,
+  resolveCircleCardAuthReturnPath
+} from "@/lib/circle-card/routes";
 
 type LoginFormProps = {
   from?: string;
@@ -25,7 +30,7 @@ type LoginFormProps = {
 };
 
 function withFrom(pathname: string, from?: string) {
-  const target = from ? safeRedirectPath(from, "") : "";
+  const target = from ? safeAuthenticationRedirectPath(from, "") : "";
   if (!target) {
     return pathname;
   }
@@ -48,13 +53,45 @@ export function LoginForm({
   mode = "default"
 }: LoginFormProps) {
   const router = useRouter();
+  const runtimeBrand = useRuntimeBrand();
+  const circleCardRoutes = getCircleCardRoutes(runtimeBrand);
+  const circleCardMode = mode === "circle-card";
   const [isPending, startTransition] = useTransition();
   const [notice, setNotice] = useState<string | null>(
     initialNotice ?? resolveAuthErrorMessage(errorCode, errorDetailCode)
   );
-  const targetPath = useMemo(() => safeRedirectPath(from), [from]);
+  const targetPath = useMemo(() => {
+    const safeFrom = safeAuthenticationRedirectPath(
+      from,
+      circleCardMode ? circleCardRoutes.dashboard : "/"
+    );
+    return circleCardMode
+      ? resolveCircleCardAuthReturnPath(
+          safeFrom,
+          runtimeBrand,
+          circleCardRoutes.dashboard
+        )
+      : safeFrom;
+  }, [circleCardMode, circleCardRoutes.dashboard, from, runtimeBrand]);
   const circleCardRegistrationHref = useMemo(() => {
-    const safeFrom = safeRedirectPath(from, "");
+    const safeFrom = safeAuthenticationRedirectPath(from, "");
+
+    if (circleCardMode) {
+      const registrationReturnTo = safeFrom.startsWith("/card/")
+        ? safeFrom
+        : circleCardRoutes.onboarding;
+      const params = new URLSearchParams({
+        source: "circle-card",
+        returnTo: registrationReturnTo
+      });
+      const sourceCardSlug = cardSlugFromPath(registrationReturnTo);
+
+      if (sourceCardSlug) {
+        params.set("sourceCardSlug", sourceCardSlug);
+      }
+
+      return `/register?${params.toString()}`;
+    }
 
     if (safeFrom.startsWith("/card/")) {
       const params = new URLSearchParams({
@@ -73,13 +110,11 @@ export function LoginForm({
     return safeFrom.startsWith("/dashboard/circle-card")
       ? `/register?source=circle-card&returnTo=${encodeURIComponent(safeFrom)}`
       : withFrom("/membership", from);
-  }, [from]);
+  }, [circleCardMode, circleCardRoutes.onboarding, from]);
   const circleCardRegistrationLabel =
     circleCardRegistrationHref.startsWith("/register")
       ? "Create a free Circle Card"
       : "Create one";
-  const circleCardMode = mode === "circle-card";
-
   const form = useForm<CredentialsSignInInput>({
     resolver: zodResolver(credentialsSignInSchema),
     defaultValues: {

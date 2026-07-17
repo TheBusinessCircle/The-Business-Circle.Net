@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 
 type ResetPasswordPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -12,17 +13,28 @@ function firstValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export const metadata: Metadata = createPageMetadata({
-  title: "Reset Password",
-  description: "Set a new password for your Business Circle account.",
-  path: "/reset-password",
-  noIndex: true
-});
+export function generateMetadata(): Metadata {
+  if (getRuntimeBrand().key === "circle-card") {
+    return {
+      title: "Reset Your Circle Card Password",
+      description: "Set a new password for your Circle Card account.",
+      robots: { index: false, follow: false }
+    };
+  }
+
+  return createPageMetadata({
+    title: "Reset Password",
+    description: "Set a new password for your Business Circle account.",
+    path: "/reset-password",
+    noIndex: true
+  });
+}
 
 export default async function ResetPasswordPage({ searchParams }: ResetPasswordPageProps) {
   const params = await searchParams;
   const token = firstValue(params.token);
   const email = firstValue(params.email);
+  const runtimeBrand = getRuntimeBrand();
 
   return (
     <div className="grid w-full min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
@@ -44,7 +56,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
         </CardContent>
       </Card>
 
-      <ResetPasswordForm token={token} email={email} />
+      <ResetPasswordForm token={token} email={email} brand={runtimeBrand.key} />
     </div>
   );
 }

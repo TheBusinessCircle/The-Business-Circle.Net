@@ -1,4 +1,4 @@
-import { safeRedirectPath } from "@/lib/auth/utils";
+import { safeAuthenticationRedirectPath } from "@/lib/auth/utils";
 import { logServerWarning } from "@/lib/security/logging";
 
 type LoginSearchParamValue = string | string[] | undefined;
@@ -27,7 +27,7 @@ function normalizeFrom(value: LoginSearchParamValue): string | undefined {
     return undefined;
   }
 
-  const safeFrom = safeRedirectPath(candidate, "");
+  const safeFrom = safeAuthenticationRedirectPath(candidate, "");
   return safeFrom || undefined;
 }
 

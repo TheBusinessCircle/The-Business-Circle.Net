@@ -17,6 +17,7 @@ export function CircleCardWelcomeEmail({
 }: CircleCardWelcomeEmailProps) {
   return (
     <BcnEmailLayout
+      brand="circle-card"
       previewText="Welcome to Circle Card. Complete your profile to start sharing."
       eyebrow="CIRCLE CARD"
       heading="Welcome to Circle Card"

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { getStoredUserAuthenticationBrand } from "@/lib/auth/brand";
 import { resendVerificationEmail } from "@/lib/auth/email-verification";
 import { requireApiUser } from "@/lib/auth/api";
+import { prisma } from "@/lib/prisma";
 import { logServerError, logServerInfo, logServerWarning } from "@/lib/security/logging";
+import { isTrustedOrigin } from "@/lib/security/origin";
 
 export const runtime = "nodejs";
 
@@ -9,7 +12,14 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function POST(_request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
+  if (!isTrustedOrigin(request)) {
+    return NextResponse.json(
+      { ok: false, error: "Untrusted request origin." },
+      { status: 403 }
+    );
+  }
+
   const authResult = await requireApiUser({ adminOnly: true, allowUnentitled: true });
 
   if ("response" in authResult) {
@@ -28,7 +38,14 @@ export async function POST(_request: Request, context: RouteContext) {
       adminUserId: authResult.user.id
     });
 
-    const result = await resendVerificationEmail(id);
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+      select: { registrationSource: true }
+    });
+    const targetBrand = getStoredUserAuthenticationBrand(
+      targetUser?.registrationSource
+    );
+    const result = await resendVerificationEmail(id, targetBrand.key);
 
     if (result.skipped && result.reason === "User not found.") {
       logServerWarning("admin-resend-verification-failed", {

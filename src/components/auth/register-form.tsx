@@ -28,7 +28,7 @@ import {
   trackAnalyticsEvent,
   trackMembershipCheckoutStarted
 } from "@/lib/analytics";
-import { safeRedirectPath } from "@/lib/auth/utils";
+import { safeAuthenticationRedirectPath } from "@/lib/auth/utils";
 import { cn } from "@/lib/utils";
 
 type MembershipTier = "FOUNDATION" | "INNER_CIRCLE" | "CORE";
@@ -80,7 +80,7 @@ type RegisterResponse = {
 };
 
 function withFrom(pathname: string, from?: string) {
-  const target = from ? safeRedirectPath(from, "") : "";
+  const target = from ? safeAuthenticationRedirectPath(from, "") : "";
   if (!target) {
     return pathname;
   }
@@ -190,7 +190,7 @@ export function RegisterForm({
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const loginTargetPath = useMemo(
-    () => safeRedirectPath(loginFrom ?? from),
+    () => safeAuthenticationRedirectPath(loginFrom ?? from),
     [from, loginFrom]
   );
   const resolvedTierOptions = tierOptions ?? DEFAULT_TIER_OPTIONS;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { safeRedirectPath } from "@/lib/auth/utils";
+import { safeAuthenticationRedirectPath } from "@/lib/auth/utils";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -20,7 +20,7 @@ function firstValue(value: string | string[] | undefined) {
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const params = await searchParams;
-  const from = safeRedirectPath(firstValue(params.from), "");
+  const from = safeAuthenticationRedirectPath(firstValue(params.from), "");
 
   if (!from) {
     redirect("/login");

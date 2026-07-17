@@ -1,4 +1,5 @@
 import type { RuntimeBrandKey } from "@/config/runtime-brand";
+import { safeAuthenticationRedirectPath } from "@/lib/auth/utils";
 
 export const CIRCLE_CARD_REGISTRATION_SOURCE = "circle-card";
 export const CIRCLE_CARD_SPIN_REGISTRATION_SOURCE = "circle-card-spin";
@@ -94,21 +95,14 @@ export function resolveCircleCardAuthReturnPath(
   runtimeBrand: RuntimeBrandKey,
   fallback = getCircleCardRoutes(runtimeBrand).dashboard
 ) {
-  if (
-    !path ||
-    !path.startsWith("/") ||
-    path.startsWith("//") ||
-    path.includes("\\") ||
-    /[\u0000-\u001f\u007f]/.test(path)
-  ) {
-    return fallback;
-  }
+  const safePath = safeAuthenticationRedirectPath(path, "");
+  if (!safePath) return fallback;
 
   let preferredPath: string;
   let pathname: string;
 
   try {
-    preferredPath = preferCircleCardRuntimePath(path, runtimeBrand);
+    preferredPath = preferCircleCardRuntimePath(safePath, runtimeBrand);
     const parsed = new URL(preferredPath, "http://circle-card.internal");
     if (parsed.origin !== "http://circle-card.internal") {
       return fallback;

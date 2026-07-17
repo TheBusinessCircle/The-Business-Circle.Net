@@ -229,7 +229,8 @@ describe("register route", () => {
       expect.objectContaining({
         source: "circle-card",
         email: "card@example.com"
-      })
+      }),
+      "bcn"
     );
     expect(createPendingRegistrationMock).not.toHaveBeenCalled();
     expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();

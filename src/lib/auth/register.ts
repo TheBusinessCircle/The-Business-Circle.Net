@@ -20,6 +20,11 @@ import {
   TERMS_VERSION
 } from "@/config/legal";
 import { getMembershipPlan, type MembershipBillingInterval } from "@/config/membership";
+import type { RuntimeBrandKey } from "@/config/runtime-brand";
+import {
+  buildAuthenticationUrl,
+  requireAuthenticationBrand
+} from "@/lib/auth/brand";
 import { sendEmailVerificationForUser } from "@/lib/auth/email-verification";
 import { hashPassword } from "@/lib/auth/password";
 import {
@@ -33,6 +38,10 @@ import { normalizeEmail, safeRedirectPath } from "@/lib/auth/utils";
 import { createEmptyCircleCardContentBlocks } from "@/lib/circle-card/content-blocks";
 import { DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT } from "@/lib/circle-card/profile-layout";
 import { buildCircleCardSlugBase } from "@/lib/circle-card/schema";
+import {
+  getCircleCardRoutes,
+  resolveCircleCardAuthReturnPath
+} from "@/lib/circle-card/routes";
 import {
   buildCircleCardThemeMetadata,
   buildCircleCardThemeStorage
@@ -446,10 +455,15 @@ async function sendWelcomeMemberEmail(input: {
 }
 
 async function sendCircleCardWelcomeEmail(input: {
+  brand: RuntimeBrandKey;
   email: string;
   firstName: string;
 }) {
-  const dashboardUrl = new URL("/dashboard/circle-card/onboarding", getBaseUrl()).toString();
+  const brand = requireAuthenticationBrand(input.brand);
+  const dashboardUrl = buildAuthenticationUrl(
+    brand.key,
+    getCircleCardRoutes(brand.key).onboarding
+  ).toString();
   const emailTemplate = createElement(CircleCardWelcomeEmail, {
     firstName: input.firstName,
     dashboardUrl
@@ -470,7 +484,8 @@ async function sendCircleCardWelcomeEmail(input: {
       ],
       ctaLabel: "Complete Your Circle Card",
       ctaUrl: dashboardUrl,
-      fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
+      footerName: brand.displayName
     }),
     html,
     react: emailTemplate,
@@ -488,6 +503,7 @@ async function sendCircleCardWelcomeEmail(input: {
 }
 
 async function dispatchCircleCardLeadAndWelcomeEmail(input: {
+  brand: RuntimeBrandKey;
   userId: string;
   name: string;
   email: string;
@@ -503,10 +519,12 @@ async function dispatchCircleCardLeadAndWelcomeEmail(input: {
     const [leadResult, welcomeResult, verificationResult] = await Promise.allSettled([
       recordCircleCardSignupLead(input),
       sendCircleCardWelcomeEmail({
+        brand: input.brand,
         email: input.email,
         firstName
       }),
       sendEmailVerificationForUser({
+        brand: input.brand,
         userId: input.userId,
         email: input.email,
         firstName
@@ -840,8 +858,10 @@ export async function createPendingRegistration(
 }
 
 export async function createCircleCardFreeRegistration(
-  rawInput: unknown
+  rawInput: unknown,
+  brandKey: RuntimeBrandKey
 ): Promise<CreateCircleCardFreeRegistrationResult> {
+  const brand = requireAuthenticationBrand(brandKey);
   const parsed = circleCardRegistrationSchema.safeParse(rawInput);
 
   if (!parsed.success) {
@@ -873,9 +893,14 @@ export async function createCircleCardFreeRegistration(
   const passwordHash = await hashPassword(input.password);
   const acceptedAt = new Date();
   const businessName = normalizeCircleCardBusinessName(input.businessName);
-  const returnTo = safeRedirectPath(
+  const safeReturnTo = safeRedirectPath(
     input.returnTo,
-    "/dashboard/circle-card/onboarding"
+    getCircleCardRoutes(brand.key).onboarding
+  );
+  const returnTo = resolveCircleCardAuthReturnPath(
+    safeReturnTo,
+    brand.key,
+    getCircleCardRoutes(brand.key).onboarding
   );
   const shouldProvisionReturnCard = shouldProvisionCircleCardForReturnPath(returnTo);
   const sourceCardSlug =
@@ -970,6 +995,7 @@ export async function createCircleCardFreeRegistration(
     });
 
     await dispatchCircleCardLeadAndWelcomeEmail({
+      brand: brand.key,
       userId: user.id,
       name: input.name,
       email,
@@ -983,7 +1009,7 @@ export async function createCircleCardFreeRegistration(
 
     return {
       user,
-      redirectTo: "/dashboard/circle-card/onboarding"
+      redirectTo: getCircleCardRoutes(brand.key).onboarding
     };
   } catch (error) {
     if (isUniqueEmailError(error)) {
@@ -1246,6 +1272,7 @@ export async function finalizePendingRegistrationAccess(input: {
       foundingAccess
     }),
     sendEmailVerificationForUser({
+      brand: "bcn",
       userId: input.userId,
       email: input.email,
       firstName

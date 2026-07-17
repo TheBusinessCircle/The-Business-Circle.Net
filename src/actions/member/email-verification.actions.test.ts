@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const redirectMock = vi.hoisted(() =>
   vi.fn((path: string) => {
@@ -37,14 +37,25 @@ vi.mock("@/lib/security/logging", () => ({
 
 import { resendEmailVerificationAction } from "@/actions/member/email-verification.actions";
 
+const originalAppBrand = process.env.APP_BRAND;
+
 describe("resendEmailVerificationAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.APP_BRAND;
     requireUserMock.mockResolvedValue({
       user: {
         id: "user_123"
       }
     });
+  });
+
+  afterEach(() => {
+    if (originalAppBrand === undefined) {
+      delete process.env.APP_BRAND;
+    } else {
+      process.env.APP_BRAND = originalAppBrand;
+    }
   });
 
   it("sends a verification email and redirects with a success notice", async () => {
@@ -66,7 +77,7 @@ describe("resendEmailVerificationAction", () => {
     await expect(resendEmailVerificationAction(formData)).rejects.toThrow(
       "REDIRECT:/dashboard?notice=verification-email-sent"
     );
-    expect(resendVerificationEmailMock).toHaveBeenCalledWith("user_123");
+    expect(resendVerificationEmailMock).toHaveBeenCalledWith("user_123", "bcn");
   });
 
   it("does not resend for an already verified member", async () => {
@@ -85,6 +96,31 @@ describe("resendEmailVerificationAction", () => {
       "REDIRECT:/dashboard?notice=verification-already-complete"
     );
     expect(resendVerificationEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("uses Circle Card brand and rejects a BCN return path on Circle Card runtime", async () => {
+    process.env.APP_BRAND = "circle-card";
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user_123",
+      email: "member@example.com",
+      name: "Asha Founder",
+      emailVerified: null,
+      role: "MEMBER"
+    });
+    resendVerificationEmailMock.mockResolvedValue({
+      sent: true,
+      skipped: false
+    });
+    const formData = new FormData();
+    formData.set("returnPath", "/admin");
+
+    await expect(resendEmailVerificationAction(formData)).rejects.toThrow(
+      "REDIRECT:/app?notice=verification-email-sent"
+    );
+    expect(resendVerificationEmailMock).toHaveBeenCalledWith(
+      "user_123",
+      "circle-card"
+    );
   });
 
   it("redirects with an error and logs when delivery is unavailable", async () => {

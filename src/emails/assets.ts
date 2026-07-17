@@ -1,5 +1,5 @@
-import { getBaseUrl } from "@/lib/utils";
+import { RUNTIME_BRANDS, type RuntimeBrandKey } from "@/config/runtime-brand";
 
-export function resolveEmailAssetUrl(path: string) {
-  return new URL(path, getBaseUrl()).toString();
+export function resolveEmailAssetUrl(path: string, brand: RuntimeBrandKey) {
+  return new URL(path, RUNTIME_BRANDS[brand].canonicalOrigin).toString();
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { passwordResetRequestSchema } from "@/lib/auth/schemas";
 import { normalizeEmail } from "@/lib/auth/utils";
 import { requestPasswordReset } from "@/lib/auth/password-reset";
+import { getRuntimeAuthenticationBrand } from "@/lib/auth/brand";
 import {
   clientIpFromHeaders,
   consumeRateLimit,
@@ -65,9 +66,11 @@ export async function POST(request: Request) {
   }
 
   const email = normalizeEmail(parsed.data.email);
+  const brand = getRuntimeAuthenticationBrand();
 
   try {
     const result = await requestPasswordReset({
+      brand: brand.key,
       email,
       requestedIp: clientIp
     });

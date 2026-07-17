@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { safeRedirectPath } from "@/lib/auth/utils";
+import { safeAuthenticationRedirectPath } from "@/lib/auth/utils";
 import {
   getCircleCardRoutes,
   isCircleCardFirstAccount,
@@ -88,7 +88,7 @@ function requiresAuthenticatedMiddleware(pathname: string) {
 
 function toLoginRedirect(requestUrl: URL, fromPath: string, error?: string) {
   const loginUrl = new URL("/login", requestUrl);
-  loginUrl.searchParams.set("from", safeRedirectPath(fromPath));
+  loginUrl.searchParams.set("from", safeAuthenticationRedirectPath(fromPath));
 
   if (error) {
     loginUrl.searchParams.set("error", error);
@@ -136,7 +136,10 @@ const authenticatedMiddleware = auth((req, _event: NextFetchEvent) => {
   const isVerifiedRoute = startsWithPath(pathname, VERIFIED_MEMBER_ROUTE_PREFIXES);
   const isJoinRoute =
     pathname === "/join" || pathname === "/join-desktop" || pathname === "/join-mobile";
-  const authFromPath = safeRedirectPath(nextUrl.searchParams.get("from"), "");
+  const authFromPath = safeAuthenticationRedirectPath(
+    nextUrl.searchParams.get("from"),
+    ""
+  );
   const shouldPreferCircleCard = isCircleCardFirstAccount(session?.user);
   const runtimeBrand = getRuntimeBrand().key;
   const circleCardRoutes = getCircleCardRoutes(runtimeBrand);

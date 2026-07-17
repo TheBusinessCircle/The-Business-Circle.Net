@@ -22,7 +22,7 @@ class DatabaseUnavailableCredentialsError extends CredentialsSignin {
   code = "database_unavailable";
 }
 
-function credentialsProvider() {
+export function credentialsProvider() {
   return Credentials({
     name: "Email and Password",
     credentials: {

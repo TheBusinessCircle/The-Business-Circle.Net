@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { passwordResetRequestSchema } from "@/lib/auth/schemas";
+import type { RuntimeBrandKey } from "@/config/runtime-brand";
 
 const formSchema = passwordResetRequestSchema;
 type Values = z.infer<typeof formSchema>;
@@ -21,7 +22,8 @@ type ForgotPasswordApiResponse = {
   fieldErrors?: Partial<Record<keyof Values, string[]>>;
 };
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ brand }: { brand: RuntimeBrandKey }) {
+  const circleCardRuntime = brand === "circle-card";
   const [isPending, startTransition] = useTransition();
   const [notice, setNotice] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -77,9 +79,12 @@ export function ForgotPasswordForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Forgot Password</CardTitle>
+        <CardTitle>
+          {circleCardRuntime ? "Forgot your Circle Card password?" : "Forgot Password"}
+        </CardTitle>
         <CardDescription>
-          Enter your email address and we will send a secure reset link.
+          Enter your email address and we will send a secure reset link for your
+          {circleCardRuntime ? " Circle Card" : " Business Circle"} account.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">

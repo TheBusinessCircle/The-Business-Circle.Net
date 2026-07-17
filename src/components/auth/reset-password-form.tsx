@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { passwordResetConfirmSchema } from "@/lib/auth/schemas";
 import { normalizeEmail } from "@/lib/auth/utils";
+import type { RuntimeBrandKey } from "@/config/runtime-brand";
 
 const formSchema = passwordResetConfirmSchema;
 type Values = z.infer<typeof formSchema>;
@@ -23,11 +24,13 @@ type ResetPasswordApiResponse = {
 };
 
 type ResetPasswordFormProps = {
+  brand: RuntimeBrandKey;
   token?: string;
   email?: string;
 };
 
-export function ResetPasswordForm({ token, email }: ResetPasswordFormProps) {
+export function ResetPasswordForm({ brand, token, email }: ResetPasswordFormProps) {
+  const circleCardRuntime = brand === "circle-card";
   const [isPending, startTransition] = useTransition();
   const [notice, setNotice] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -101,7 +104,9 @@ export function ResetPasswordForm({ token, email }: ResetPasswordFormProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Reset Password</CardTitle>
+          <CardTitle>
+            {circleCardRuntime ? "Reset Circle Card Password" : "Reset Password"}
+          </CardTitle>
           <CardDescription>Reset link is missing required details.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -119,8 +124,13 @@ export function ResetPasswordForm({ token, email }: ResetPasswordFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Set New Password</CardTitle>
-        <CardDescription>Choose a strong new password for your account.</CardDescription>
+        <CardTitle>
+          {circleCardRuntime ? "Set a New Circle Card Password" : "Set New Password"}
+        </CardTitle>
+        <CardDescription>
+          Choose a strong new password for your
+          {circleCardRuntime ? " Circle Card" : " Business Circle"} account.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <form className="space-y-4" onSubmit={onSubmit}>

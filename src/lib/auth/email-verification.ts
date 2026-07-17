@@ -4,21 +4,27 @@ import { createElement } from "react";
 import { VerifyEmailAddressEmail } from "@/emails";
 import { renderEmailHtml } from "@/emails/render";
 import { buildBrandedEmailText } from "@/emails/text";
+import type { RuntimeBrandKey } from "@/config/runtime-brand";
+import {
+  buildAuthenticationUrl,
+  requireAuthenticationBrand
+} from "@/lib/auth/brand";
 import { db } from "@/lib/db";
 import { sendTransactionalEmailOrThrow } from "@/lib/email/resend";
 import { logServerError, logServerInfo, logServerWarning } from "@/lib/security/logging";
-import { getBaseUrl } from "@/lib/utils";
 
 const DEFAULT_VERIFICATION_TOKEN_TTL_HOURS = 48;
 const SERIALIZABLE_RETRY_ATTEMPTS = 3;
 
 type SendVerificationEmailInput = {
+  brand: RuntimeBrandKey;
   userId: string;
   email: string;
   firstName?: string | null;
 };
 
 type VerifyEmailTokenInput = {
+  brand: RuntimeBrandKey;
   userId: string;
   token: string;
 };
@@ -30,8 +36,11 @@ type ResendVerificationEmailResult = {
   messageId?: string | null;
 };
 
-function verificationIdentifier(userId: string) {
-  return `verify-email:${userId}`;
+function verificationIdentifier(userId: string, brand: RuntimeBrandKey) {
+  requireAuthenticationBrand(brand);
+  return brand === "bcn"
+    ? `verify-email:${userId}`
+    : `verify-email:${brand}:${userId}`;
 }
 
 function resolveVerificationTokenTtlHours() {
@@ -76,21 +85,35 @@ export function hashEmailVerificationToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-function buildVerificationUrl(userId: string, token: string) {
-  const url = new URL("/api/auth/verify-email", getBaseUrl());
-  url.searchParams.set("uid", userId);
-  url.searchParams.set("token", token);
-  return url.toString();
+export function buildEmailVerificationUrl(
+  brand: RuntimeBrandKey,
+  userId: string,
+  token: string
+) {
+  return buildAuthenticationUrl(brand, "/api/auth/verify-email", {
+    uid: userId,
+    token
+  }).toString();
 }
 
-function buildVerificationEmailText(firstName: string, verificationUrl: string, ttlHours: number) {
+function buildVerificationEmailText(
+  brand: RuntimeBrandKey,
+  firstName: string,
+  verificationUrl: string,
+  ttlHours: number
+) {
+  const productName = requireAuthenticationBrand(brand).displayName;
   return buildBrandedEmailText({
     greeting: `Hi ${firstName},`,
     eyebrow: "Email verification",
     heading: "Confirm your email address",
     bodyLines: [
-      "You are one step away from full access to The Business Circle Network.",
-      "Confirm your email address to unlock your member access and continue inside the platform."
+      brand === "circle-card"
+        ? "You are one step away from completing your Circle Card account."
+        : "You are one step away from full access to The Business Circle Network.",
+      brand === "circle-card"
+        ? "Confirm your email address to continue to your card, wallet and relationship tools."
+        : "Confirm your email address to unlock your member access and continue inside the platform."
     ],
     ctaLabel: "Verify your email",
     ctaUrl: verificationUrl,
@@ -98,19 +121,28 @@ function buildVerificationEmailText(firstName: string, verificationUrl: string, 
     noteLines: [
       `This verification link expires in ${ttlHours} hours.`,
       "For security, only the most recent verification email remains valid. Older links expire automatically."
-    ]
+    ],
+    footerName: productName
   });
 }
 
 async function sendVerificationEmailMessage(input: {
   userId: string;
+  brand: RuntimeBrandKey;
   email: string;
   firstName: string;
   verificationUrl: string;
   ttlHours: number;
 }): Promise<ResendVerificationEmailResult> {
-  const text = buildVerificationEmailText(input.firstName, input.verificationUrl, input.ttlHours);
+  const brand = requireAuthenticationBrand(input.brand);
+  const text = buildVerificationEmailText(
+    brand.key,
+    input.firstName,
+    input.verificationUrl,
+    input.ttlHours
+  );
   const emailTemplate = createElement(VerifyEmailAddressEmail, {
+    brand: brand.key,
     firstName: input.firstName,
     verificationUrl: input.verificationUrl,
     ttlHours: input.ttlHours
@@ -122,7 +154,10 @@ async function sendVerificationEmailMessage(input: {
   try {
     const result = await sendTransactionalEmailOrThrow({
       to: input.email,
-      subject: "Verify your Business Circle email",
+      subject:
+        brand.key === "circle-card"
+          ? "Verify your Circle Card email"
+          : "Verify your Business Circle email",
       text,
       html,
       react: emailTemplate,
@@ -147,7 +182,10 @@ async function sendVerificationEmailMessage(input: {
     try {
       const fallbackResult = await sendTransactionalEmailOrThrow({
         to: input.email,
-        subject: "Verify your Business Circle email",
+        subject:
+          brand.key === "circle-card"
+            ? "Verify your Circle Card email"
+            : "Verify your Business Circle email",
         text,
         html,
         tags: [
@@ -180,8 +218,9 @@ async function sendVerificationEmailMessage(input: {
 export async function sendEmailVerificationForUser(
   input: SendVerificationEmailInput
 ) {
+  const brand = requireAuthenticationBrand(input.brand);
   const ttlHours = resolveVerificationTokenTtlHours();
-  const identifier = verificationIdentifier(input.userId);
+  const identifier = verificationIdentifier(input.userId, brand.key);
   const firstName = input.firstName?.trim() || "Member";
 
   logServerInfo("verify-email-token-generation-started", { userId: input.userId });
@@ -222,11 +261,16 @@ export async function sendEmailVerificationForUser(
     expiresAt: expires.toISOString()
   });
 
-  const verificationUrl = buildVerificationUrl(input.userId, rawToken);
+  const verificationUrl = buildEmailVerificationUrl(
+    brand.key,
+    input.userId,
+    rawToken
+  );
   logServerInfo("verify-email-url-created", { userId: input.userId });
 
   const sendResult = await sendVerificationEmailMessage({
     userId: input.userId,
+    brand: brand.key,
     email: input.email,
     firstName,
     verificationUrl,
@@ -260,7 +304,11 @@ export async function sendEmailVerificationForUser(
   return sendResult;
 }
 
-export async function resendVerificationEmail(userId: string): Promise<ResendVerificationEmailResult> {
+export async function resendVerificationEmail(
+  userId: string,
+  brand: RuntimeBrandKey
+): Promise<ResendVerificationEmailResult> {
+  requireAuthenticationBrand(brand);
   const user = await db.user.findUnique({
     where: {
       id: userId
@@ -298,6 +346,7 @@ export async function resendVerificationEmail(userId: string): Promise<ResendVer
   }
 
   return sendEmailVerificationForUser({
+    brand,
     userId: user.id,
     email: user.email,
     firstName: user.name?.trim().split(/\s+/)[0] || "Member"
@@ -305,10 +354,11 @@ export async function resendVerificationEmail(userId: string): Promise<ResendVer
 }
 
 export async function verifyEmailToken(input: VerifyEmailTokenInput) {
+  const brand = requireAuthenticationBrand(input.brand);
   logServerInfo("verify-email-token-received", { userId: input.userId });
 
   const tokenHash = hashEmailVerificationToken(input.token);
-  const identifier = verificationIdentifier(input.userId);
+  const identifier = verificationIdentifier(input.userId, brand.key);
   const user = await db.user.findUnique({
     where: { id: input.userId },
     select: {

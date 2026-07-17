@@ -4,12 +4,16 @@ import { createElement } from "react";
 import { PasswordChangedEmail, PasswordResetEmail } from "@/emails";
 import { renderEmailHtml } from "@/emails/render";
 import { buildBrandedEmailText } from "@/emails/text";
+import type { RuntimeBrandKey } from "@/config/runtime-brand";
+import {
+  buildAuthenticationUrl,
+  requireAuthenticationBrand
+} from "@/lib/auth/brand";
 import { hashPassword } from "@/lib/auth/password";
 import { normalizeEmail } from "@/lib/auth/utils";
 import { db } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 import { logServerWarning } from "@/lib/security/logging";
-import { getBaseUrl } from "@/lib/utils";
 
 const DEFAULT_RESET_TOKEN_TTL_MINUTES = 60;
 const MIN_RESET_TOKEN_TTL_MINUTES = 15;
@@ -17,11 +21,13 @@ const MAX_RESET_TOKEN_TTL_MINUTES = 180;
 const SERIALIZABLE_RETRY_ATTEMPTS = 3;
 
 type RequestPasswordResetInput = {
+  brand: RuntimeBrandKey;
   email: string;
   requestedIp?: string | null;
 };
 
 type ConfirmPasswordResetInput = {
+  brand: RuntimeBrandKey;
   email: string;
   token: string;
   password: string;
@@ -72,9 +78,23 @@ export function hashPasswordResetToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export function createPasswordResetTokenPair(now = new Date()) {
+export function hashPasswordResetTokenForBrand(
+  token: string,
+  brand: RuntimeBrandKey
+) {
+  requireAuthenticationBrand(brand);
+  return brand === "bcn"
+    ? hashPasswordResetToken(token)
+    : hashPasswordResetToken(`${brand}:${token}`);
+}
+
+export function createPasswordResetTokenPair(
+  brand: RuntimeBrandKey,
+  now = new Date()
+) {
+  requireAuthenticationBrand(brand);
   const token = createRawResetToken();
-  const tokenHash = hashPasswordResetToken(token);
+  const tokenHash = hashPasswordResetTokenForBrand(token, brand);
   const ttlMinutes = resolveResetTokenTtlMinutes();
   const expiresAt = new Date(now.getTime() + ttlMinutes * 60 * 1000);
 
@@ -86,11 +106,15 @@ export function createPasswordResetTokenPair(now = new Date()) {
   };
 }
 
-function buildResetUrl(email: string, token: string) {
-  const url = new URL("/reset-password", getBaseUrl());
-  url.searchParams.set("email", email);
-  url.searchParams.set("token", token);
-  return url.toString();
+export function buildPasswordResetUrl(
+  brand: RuntimeBrandKey,
+  email: string,
+  token: string
+) {
+  return buildAuthenticationUrl(brand, "/reset-password", {
+    email,
+    token
+  }).toString();
 }
 
 function genericPasswordResetEmailNotice() {
@@ -101,6 +125,7 @@ function genericPasswordResetEmailNotice() {
 }
 
 export async function requestPasswordReset(input: RequestPasswordResetInput) {
+  const brand = requireAuthenticationBrand(input.brand);
   const email = normalizeEmail(input.email);
   const user = await db.user.findUnique({
     where: { email },
@@ -117,7 +142,7 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
     return genericPasswordResetEmailNotice();
   }
 
-  const tokenPair = createPasswordResetTokenPair();
+  const tokenPair = createPasswordResetTokenPair(brand.key);
 
   await runSerializablePasswordResetTokenTransaction(async (tx) => {
     await tx.passwordResetToken.deleteMany({
@@ -134,9 +159,10 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
     });
   });
 
-  const resetUrl = buildResetUrl(user.email, tokenPair.token);
+  const resetUrl = buildPasswordResetUrl(brand.key, user.email, tokenPair.token);
   const recipientName = user.name?.trim() || "Member";
   const emailTemplate = createElement(PasswordResetEmail, {
+    brand: brand.key,
     firstName: recipientName,
     resetUrl,
     ttlMinutes: tokenPair.ttlMinutes
@@ -145,13 +171,18 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
 
   const sendResult = await sendTransactionalEmail({
     to: user.email,
-    subject: "Reset your Business Circle password",
+    subject:
+      brand.key === "circle-card"
+        ? "Reset your Circle Card password"
+        : "Reset your Business Circle password",
     text: buildBrandedEmailText({
       greeting: `Hi ${recipientName},`,
       eyebrow: "Password reset",
       heading: "Reset your password",
       bodyLines: [
-        "We received a request to reset your password.",
+        brand.key === "circle-card"
+          ? "We received a request to reset your Circle Card password."
+          : "We received a request to reset your password.",
         "Use the secure link below to set a new password and return to the platform."
       ],
       ctaLabel: "Reset your password",
@@ -160,7 +191,8 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
       noteLines: [
         `This reset link expires in ${tokenPair.ttlMinutes} minutes.`,
         "If you did not request this, you can safely ignore this email."
-      ]
+      ],
+      footerName: brand.displayName
     }),
     html,
     react: emailTemplate,
@@ -178,6 +210,7 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
 }
 
 export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
+  const brand = requireAuthenticationBrand(input.brand);
   const email = normalizeEmail(input.email);
   const user = await db.user.findUnique({
     where: { email },
@@ -188,7 +221,7 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
     return { ok: false as const, error: "Reset link is invalid or has expired." };
   }
 
-  const tokenHash = hashPasswordResetToken(input.token);
+  const tokenHash = hashPasswordResetTokenForBrand(input.token, brand.key);
   const now = new Date();
   const token = await db.passwordResetToken.findFirst({
     where: {
@@ -231,6 +264,10 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
       data: { usedAt }
     });
 
+    // SECURITY FOLLOW-UP: Auth.js currently uses JWT sessions, so deleting
+    // adapter rows does not revoke already-issued JWT cookies. Add a per-user
+    // session version/password-changed epoch in a dedicated session-hardening
+    // change rather than rotating the global auth secret here.
     await tx.session.deleteMany({
       where: { userId: user.id }
     });
@@ -242,8 +279,12 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
   }
 
   const recipientName = user.name?.trim() || "Member";
-  const loginUrl = new URL("/login", getBaseUrl()).toString();
+  const loginUrl = buildAuthenticationUrl(
+    brand.key,
+    brand.defaultLoginPath
+  ).toString();
   const emailTemplate = createElement(PasswordChangedEmail, {
+    brand: brand.key,
     firstName: recipientName,
     loginUrl
   });
@@ -258,12 +299,15 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
       heading: "Your password was changed",
       bodyLines: [
         "Your password was changed successfully.",
-        "You can now sign back in to The Business Circle Network."
+        brand.key === "circle-card"
+          ? "You can now sign back in to Circle Card."
+          : "You can now sign back in to The Business Circle Network."
       ],
       ctaLabel: "Sign in",
       ctaUrl: loginUrl,
       fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
-      noteLines: ["If this was not you, contact support immediately."]
+      noteLines: ["If this was not you, contact support immediately."],
+      footerName: brand.displayName
     }),
     html,
     react: emailTemplate,

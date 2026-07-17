@@ -1,4 +1,4 @@
-import { safeRedirectPath } from "@/lib/auth/utils";
+import { safeAuthenticationRedirectPath } from "@/lib/auth/utils";
 import {
   buildJoinConfirmationHref,
   buildMembershipDecisionHref,
@@ -12,7 +12,7 @@ export type Join2SceneStage = "intro" | "entering" | "choices";
 export const JOIN2_FALLBACK_TIMEOUT_MS = 4700;
 
 export function sanitizeJoin2From(from?: string) {
-  const safeFrom = from ? safeRedirectPath(from, "") : "";
+  const safeFrom = from ? safeAuthenticationRedirectPath(from, "") : "";
   return safeFrom || undefined;
 }
 

@@ -16,13 +16,23 @@ type LoginPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export const metadata: Metadata = createPageMetadata({
-  title: "Sign In",
-  description:
-    "Sign in to access your Circle Card or The Business Circle Network workspace.",
-  path: "/login",
-  noIndex: true
-});
+export function generateMetadata(): Metadata {
+  if (getRuntimeBrand().key === "circle-card") {
+    return {
+      title: "Sign In to Circle Card",
+      description: "Sign in to your Circle Card account.",
+      robots: { index: false, follow: false }
+    };
+  }
+
+  return createPageMetadata({
+    title: "Sign In",
+    description:
+      "Sign in to access your Circle Card or The Business Circle Network workspace.",
+    path: "/login",
+    noIndex: true
+  });
+}
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
@@ -40,6 +50,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const circleCardRegisterHref = resolvedFrom
     ? `/register?source=circle-card&returnTo=${encodeURIComponent(resolvedFrom)}`
     : "/register?source=circle-card";
+  const verificationNotice = circleCardRuntime
+    ? initialNotice
+      ? "Circle Card email verified successfully. You can sign in now."
+      : errorCode === "invalid-verification"
+        ? "This Circle Card verification link has already been used or has expired. Try signing in or request a new verification email."
+        : undefined
+    : initialNotice;
 
   return (
     <div className="grid w-full min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
@@ -83,9 +100,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
       <LoginForm
         from={resolvedFrom}
-        errorCode={errorCode}
+        errorCode={verificationNotice ? undefined : errorCode}
         errorDetailCode={errorDetailCode}
-        initialNotice={initialNotice}
+        initialNotice={verificationNotice}
         mode={isCircleCardLogin ? "circle-card" : "default"}
       />
     </div>

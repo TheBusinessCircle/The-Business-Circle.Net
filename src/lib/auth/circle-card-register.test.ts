@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createCircleCardFreeRegistration, RegistrationServiceError } from "@/lib/auth/register";
 
@@ -8,7 +9,8 @@ const mocks = vi.hoisted(() => ({
   circleCardCreate: vi.fn(),
   activityCreate: vi.fn(),
   transaction: vi.fn(),
-  hashPassword: vi.fn()
+  hashPassword: vi.fn(),
+  sendEmailVerification: vi.fn()
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -25,7 +27,7 @@ vi.mock("@/lib/email/resend", () => ({
 }));
 
 vi.mock("@/lib/auth/email-verification", () => ({
-  sendEmailVerificationForUser: vi.fn(async () => ({ sent: false, skipped: true }))
+  sendEmailVerificationForUser: mocks.sendEmailVerification
 }));
 
 vi.mock("@/server/lead-generation", () => ({
@@ -47,6 +49,7 @@ describe("Circle Card free registration", () => {
     vi.clearAllMocks();
     mocks.userFindUnique.mockResolvedValue(null);
     mocks.hashPassword.mockResolvedValue("hashed-password");
+    mocks.sendEmailVerification.mockResolvedValue({ sent: false, skipped: true });
     mocks.userCreate.mockResolvedValue({
       id: "user_1",
       email: "new@example.com",
@@ -75,7 +78,7 @@ describe("Circle Card free registration", () => {
       password: "ValidPassword1!",
       acceptedTerms: true,
       minimumAgeConfirmed: true
-    });
+    }, "bcn");
 
     expect(mocks.userCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -104,9 +107,55 @@ describe("Circle Card free registration", () => {
         password: "ValidPassword1!",
         acceptedTerms: true,
         minimumAgeConfirmed: true
-      })
+      }, "bcn")
     ).rejects.toMatchObject({ code: "EMAIL_IN_USE" } satisfies Partial<RegistrationServiceError>);
     expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("maps a concurrent database email collision without creating a second card", async () => {
+    mocks.transaction.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "test"
+      })
+    );
+
+    await expect(
+      createCircleCardFreeRegistration({
+        source: "circle-card",
+        name: "New Person",
+        email: "new@example.com",
+        password: "ValidPassword1!",
+        acceptedTerms: true,
+        minimumAgeConfirmed: true
+      }, "circle-card")
+    ).rejects.toMatchObject({ code: "EMAIL_IN_USE" } satisfies Partial<RegistrationServiceError>);
+    expect(mocks.circleCardCreate).not.toHaveBeenCalled();
+    expect(mocks.sendEmailVerification).not.toHaveBeenCalled();
+  });
+
+  it("uses the standalone paths and verification brand for Circle Card runtime", async () => {
+    const result = await createCircleCardFreeRegistration(
+      {
+        source: "circle-card",
+        name: "New Person",
+        email: "new@example.com",
+        password: "ValidPassword1!",
+        acceptedTerms: true,
+        minimumAgeConfirmed: true,
+        returnTo: "/dashboard/circle-card/onboarding"
+      },
+      "circle-card"
+    );
+
+    expect(result.redirectTo).toBe("/app/onboarding");
+    expect(mocks.sendEmailVerification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        brand: "circle-card",
+        userId: "user_1",
+        email: "new@example.com"
+      })
+    );
   });
 
   it("rejects invalid input before touching the database", async () => {
@@ -116,7 +165,7 @@ describe("Circle Card free registration", () => {
         name: "N",
         email: "not-an-email",
         password: "weak"
-      })
+      }, "bcn")
     ).rejects.toMatchObject({ code: "INVALID_INPUT" } satisfies Partial<RegistrationServiceError>);
     expect(mocks.userFindUnique).not.toHaveBeenCalled();
   });
@@ -133,7 +182,7 @@ describe("Circle Card free registration", () => {
       sourceCardSlug: "origin-card"
     } as const;
 
-    const result = await createCircleCardFreeRegistration(payload);
+    const result = await createCircleCardFreeRegistration(payload, "bcn");
 
     expect(mocks.circleCardCreate).toHaveBeenCalledTimes(1);
     expect(mocks.circleCardCreate).toHaveBeenCalledWith(
@@ -149,7 +198,7 @@ describe("Circle Card free registration", () => {
     expect(result.redirectTo).toBe("/dashboard/circle-card/onboarding");
 
     mocks.userFindUnique.mockResolvedValueOnce({ id: "user_1", suspended: false });
-    await expect(createCircleCardFreeRegistration(payload)).rejects.toMatchObject({
+    await expect(createCircleCardFreeRegistration(payload, "bcn")).rejects.toMatchObject({
       code: "EMAIL_IN_USE"
     });
     expect(mocks.circleCardCreate).toHaveBeenCalledTimes(1);

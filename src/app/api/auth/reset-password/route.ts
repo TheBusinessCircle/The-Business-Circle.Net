@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { passwordResetConfirmSchema } from "@/lib/auth/schemas";
 import { confirmPasswordReset } from "@/lib/auth/password-reset";
+import { getRuntimeAuthenticationBrand } from "@/lib/auth/brand";
 import {
   clientIpFromHeaders,
   consumeRateLimit,
@@ -65,7 +66,9 @@ export async function POST(request: Request) {
   }
 
   try {
+    const brand = getRuntimeAuthenticationBrand();
     const result = await confirmPasswordReset({
+      brand: brand.key,
       email: parsed.data.email,
       token: parsed.data.token,
       password: parsed.data.password
@@ -84,7 +87,10 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: true,
-        message: "Password updated. You can now sign in."
+        message:
+          brand.key === "circle-card"
+            ? "Your Circle Card password was updated. You can now sign in."
+            : "Password updated. You can now sign in."
       },
       { headers }
     );

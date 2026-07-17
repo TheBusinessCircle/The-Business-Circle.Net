@@ -127,12 +127,17 @@ describe("email verification token security", () => {
     );
 
     await sendEmailVerificationForUser({
+      brand: "bcn",
       userId: USER_ID,
       email: SYNTHETIC_EMAIL,
       firstName: "Security"
     });
 
     const { rawToken, verificationUrl } = tokenFromVerificationEmail();
+    const outbound = sendTransactionalEmailOrThrowMock.mock.calls.at(-1)?.[0];
+    expect(new URL(verificationUrl).origin).toBe("https://thebusinesscircle.net");
+    expect(outbound.subject).toBe("Verify your Business Circle email");
+    expect(outbound.text).toContain("The Business Circle Network");
     expect(storedTokenHash).toBe(hashEmailVerificationToken(rawToken));
     expect(storedTokenHash).not.toBe(rawToken);
     expect(prismaMock.verificationToken.deleteMany).toHaveBeenCalledWith({
@@ -150,6 +155,33 @@ describe("email verification token security", () => {
     expect(logs).not.toContain(rawToken);
     expect(logs).not.toContain(verificationUrl);
     expect(logs).not.toContain(SYNTHETIC_EMAIL);
+  });
+
+  it("creates a Circle Card verification URL and brand-scoped token identifier", async () => {
+    const circleIdentifier = `verify-email:circle-card:${USER_ID}`;
+    prismaMock.verificationToken.create.mockResolvedValue({
+      identifier: circleIdentifier
+    });
+
+    await sendEmailVerificationForUser({
+      brand: "circle-card",
+      userId: USER_ID,
+      email: SYNTHETIC_EMAIL,
+      firstName: "Security"
+    });
+
+    const { verificationUrl } = tokenFromVerificationEmail();
+    const outbound = sendTransactionalEmailOrThrowMock.mock.calls.at(-1)?.[0];
+    expect(new URL(verificationUrl).origin).toBe("https://circlecard.co.uk");
+    expect(outbound.subject).toBe("Verify your Circle Card email");
+    expect(outbound.text).toContain("completing your Circle Card account");
+    expect(outbound.text).not.toContain("The Business Circle Network");
+    expect(prismaMock.verificationToken.deleteMany).toHaveBeenCalledWith({
+      where: { identifier: circleIdentifier }
+    });
+    expect(prismaMock.verificationToken.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ identifier: circleIdentifier })
+    });
   });
 
   it("makes a newly generated token replace every prior unused token", async () => {
@@ -170,12 +202,14 @@ describe("email verification token security", () => {
     );
 
     await sendEmailVerificationForUser({
+      brand: "bcn",
       userId: USER_ID,
       email: SYNTHETIC_EMAIL
     });
     const firstToken = tokenFromVerificationEmail().rawToken;
 
     await sendEmailVerificationForUser({
+      brand: "bcn",
       userId: USER_ID,
       email: SYNTHETIC_EMAIL
     });
@@ -202,8 +236,8 @@ describe("email verification token security", () => {
     );
 
     const [first, second] = await Promise.all([
-      verifyEmailToken({ userId: USER_ID, token: "synthetic-token" }),
-      verifyEmailToken({ userId: USER_ID, token: "synthetic-token" })
+      verifyEmailToken({ brand: "bcn", userId: USER_ID, token: "synthetic-token" }),
+      verifyEmailToken({ brand: "bcn", userId: USER_ID, token: "synthetic-token" })
     ]);
 
     expect([first, second].sort()).toEqual([false, true]);
@@ -229,6 +263,7 @@ describe("email verification token security", () => {
 
     await expect(
       verifyEmailToken({
+        brand: "bcn",
         userId: USER_ID,
         token: "expired-synthetic-token"
       })
@@ -244,7 +279,11 @@ describe("email verification token security", () => {
     });
 
     await expect(
-      verifyEmailToken({ userId: USER_ID, token: "arbitrary-synthetic-token" })
+      verifyEmailToken({
+        brand: "bcn",
+        userId: USER_ID,
+        token: "arbitrary-synthetic-token"
+      })
     ).resolves.toBe(false);
     expect(prismaMock.verificationToken.deleteMany).toHaveBeenCalledWith({
       where: { identifier: IDENTIFIER }

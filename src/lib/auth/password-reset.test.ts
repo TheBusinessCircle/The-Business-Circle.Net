@@ -44,6 +44,7 @@ import {
   confirmPasswordReset,
   createPasswordResetTokenPair,
   hashPasswordResetToken,
+  hashPasswordResetTokenForBrand,
   requestPasswordReset
 } from "@/lib/auth/password-reset";
 
@@ -77,7 +78,7 @@ describe("password reset", () => {
 
   it("creates deterministic token hash and expiry window", () => {
     const now = new Date("2026-03-11T00:00:00.000Z");
-    const tokenPair = createPasswordResetTokenPair(now);
+    const tokenPair = createPasswordResetTokenPair("bcn", now);
 
     expect(tokenPair.token).toHaveLength(64);
     expect(hashPasswordResetToken(tokenPair.token)).toBe(tokenPair.tokenHash);
@@ -101,6 +102,7 @@ describe("password reset", () => {
     });
 
     await requestPasswordReset({
+      brand: "bcn",
       email: "Member@Example.com",
       requestedIp: "127.0.0.1"
     });
@@ -113,6 +115,8 @@ describe("password reset", () => {
       .find((line: string) => line.startsWith("https://"));
 
     expect(resetLink).toBeTruthy();
+    expect(new URL(resetLink as string).origin).toBe("https://thebusinesscircle.net");
+    expect(outbound.subject).toBe("Reset your Business Circle password");
     const token = new URL(resetLink as string).searchParams.get("token");
     expect(token).toBeTruthy();
     expect(hashPasswordResetToken(token as string)).toBe(storedTokenHash);
@@ -135,6 +139,47 @@ describe("password reset", () => {
     expect(logs).not.toContain(token as string);
     expect(logs).not.toContain(resetLink as string);
     expect(logs).not.toContain("member@example.com");
+  });
+
+  it("creates a Circle Card reset link, wording, and brand-bound token hash", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "member@example.com",
+      name: "Member",
+      suspended: false,
+      passwordHash: "existing-hash"
+    });
+
+    let storedTokenHash = "";
+    prismaMock.passwordResetToken.create.mockImplementation(
+      async ({ data }: { data: { tokenHash: string } }) => {
+        storedTokenHash = data.tokenHash;
+        return { id: "token-1" };
+      }
+    );
+
+    await requestPasswordReset({
+      brand: "circle-card",
+      email: "member@example.com"
+    });
+
+    const outbound = sendTransactionalEmailMock.mock.calls.at(-1)?.[0];
+    const resetLink = outbound.text
+      .split("\n")
+      .map((line: string) => line.trim())
+      .find((line: string) => line.startsWith("https://"));
+    expect(resetLink).toBeTruthy();
+    const rawToken = new URL(resetLink as string).searchParams.get("token");
+    expect(rawToken).toBeTruthy();
+
+    expect(new URL(resetLink).origin).toBe("https://circlecard.co.uk");
+    expect(outbound.subject).toBe("Reset your Circle Card password");
+    expect(outbound.text).toContain("Circle Card password");
+    expect(outbound.text).not.toContain("The Business Circle Network");
+    expect(storedTokenHash).toBe(
+      hashPasswordResetTokenForBrand(rawToken as string, "circle-card")
+    );
+    expect(storedTokenHash).not.toBe(hashPasswordResetToken(rawToken as string));
   });
 
   it("prevents concurrent token replay with one atomic claim", async () => {
@@ -161,11 +206,13 @@ describe("password reset", () => {
 
     const [first, second] = await Promise.all([
       confirmPasswordReset({
+        brand: "bcn",
         email: "member@example.com",
         token: "synthetic-reset-token",
         password: "MyNewPassword!123"
       }),
       confirmPasswordReset({
+        brand: "bcn",
         email: "member@example.com",
         token: "synthetic-reset-token",
         password: "MyNewPassword!123"
@@ -204,6 +251,7 @@ describe("password reset", () => {
 
     await expect(
       confirmPasswordReset({
+        brand: "bcn",
         email: "member@example.com",
         token: "expired-synthetic-token",
         password: "MyNewPassword!123"
@@ -222,5 +270,28 @@ describe("password reset", () => {
       select: { id: true }
     });
     expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
+
+  it("returns the password-changed confirmation to the Circle Card login", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "member@example.com",
+      name: "Member"
+    });
+    prismaMock.passwordResetToken.findFirst.mockResolvedValue({ id: "token-1" });
+
+    await expect(
+      confirmPasswordReset({
+        brand: "circle-card",
+        email: "member@example.com",
+        token: "synthetic-reset-token",
+        password: "MyNewPassword!123"
+      })
+    ).resolves.toEqual({ ok: true });
+
+    const outbound = sendTransactionalEmailMock.mock.calls.at(-1)?.[0];
+    expect(outbound.text).toContain("https://circlecard.co.uk/login");
+    expect(outbound.text).toContain("sign back in to Circle Card");
+    expect(outbound.text).not.toContain("The Business Circle Network");
   });
 });

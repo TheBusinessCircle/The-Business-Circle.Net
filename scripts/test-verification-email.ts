@@ -8,7 +8,6 @@ const loadEnvFile = (process as typeof process & {
 
 if (typeof loadEnvFile === "function") {
   loadEnvFile(".env");
-  loadEnvFile(".env.production");
 }
 
 async function main() {
@@ -40,7 +39,7 @@ async function main() {
     throw new Error("User not found.");
   }
 
-  const result = await resendVerificationEmail(user.id);
+  const result = await resendVerificationEmail(user.id, "bcn");
   logServerInfo("verification-email-test-completed", {
     userId: user.id,
     alreadyVerified: Boolean(user.emailVerified),

@@ -1,24 +1,33 @@
 import React from "react";
 import { BcnEmailLayout, EmailNote } from "@/emails/bcn-email-layout";
+import type { RuntimeBrandKey } from "@/config/runtime-brand";
 
 type PasswordChangedEmailProps = {
+  brand: RuntimeBrandKey;
   firstName: string;
   loginUrl: string;
 };
 
 export function PasswordChangedEmail({
+  brand,
   firstName,
   loginUrl
 }: PasswordChangedEmailProps) {
   return (
     <BcnEmailLayout
-      previewText="Your BCN password has been updated."
+      brand={brand}
+      previewText={
+        brand === "circle-card"
+          ? "Your Circle Card password has been updated."
+          : "Your BCN password has been updated."
+      }
       eyebrow="SECURITY UPDATE"
       heading="Your password was changed"
       lead={
         <>
           Hi {firstName}, your password has been changed successfully. You can now sign back in to
-          The Business Circle Network using the link below.
+          {brand === "circle-card" ? " Circle Card" : " The Business Circle Network"} using the
+          link below.
         </>
       }
       ctaLabel="Sign in"

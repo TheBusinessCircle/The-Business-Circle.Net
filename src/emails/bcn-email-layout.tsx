@@ -190,7 +190,8 @@ export function BcnEmailLayout({
 }: BcnEmailLayoutProps) {
   const circleCardBrand = brand === "circle-card";
   const logoUrl = resolveEmailAssetUrl(
-    circleCardBrand ? "/branding/circle-card-logo.png" : "/branding/the-business-circle-logo.png"
+    circleCardBrand ? "/branding/circle-card-logo.png" : "/branding/the-business-circle-logo.png",
+    brand
   );
   const brandName = circleCardBrand ? "Circle Card" : BCN_EMAIL_FOOTER_NAME;
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRuntimeAuthenticationBrand } from "@/lib/auth/brand";
 import {
   createCircleCardFreeRegistration,
   createPendingRegistration,
@@ -122,7 +123,10 @@ export async function POST(request: NextRequest) {
       payload !== null &&
       isCircleCardRegistrationSource((payload as { source?: string }).source)
     ) {
-      const result = await createCircleCardFreeRegistration(payload);
+      const result = await createCircleCardFreeRegistration(
+        payload,
+        getRuntimeAuthenticationBrand().key
+      );
       const response = NextResponse.json(
         {
           ok: true,

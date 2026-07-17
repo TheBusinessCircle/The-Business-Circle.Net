@@ -2,7 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { resendVerificationEmail } from "@/lib/auth/email-verification";
+import { getRuntimeAuthenticationBrand } from "@/lib/auth/brand";
 import { safeRedirectPath } from "@/lib/auth/utils";
+import {
+  getCircleCardRoutes,
+  resolveCircleCardAuthReturnPath
+} from "@/lib/circle-card/routes";
 import { prisma } from "@/lib/prisma";
 import { logServerWarning } from "@/lib/security/logging";
 import { requireUser } from "@/lib/session";
@@ -23,7 +28,16 @@ function redirectWithError(path: string, errorCode: string): never {
 
 export async function resendEmailVerificationAction(formData: FormData) {
   const session = await requireUser();
-  const returnPath = safeRedirectPath(String(formData.get("returnPath") || ""), "/dashboard");
+  const brand = getRuntimeAuthenticationBrand();
+  const safeReturnPath = safeRedirectPath(
+    String(formData.get("returnPath") || ""),
+    brand.defaultAuthenticatedHomePath
+  );
+  const returnPath = resolveCircleCardAuthReturnPath(
+    safeReturnPath,
+    brand.key,
+    getCircleCardRoutes(brand.key).dashboard
+  );
 
   const user = await prisma.user.findUnique({
     where: {
@@ -46,7 +60,10 @@ export async function resendEmailVerificationAction(formData: FormData) {
     redirectWithNotice(returnPath, "verification-already-complete");
   }
 
-  const result = await resendVerificationEmail(user.id);
+  const result = await resendVerificationEmail(
+    user.id,
+    brand.key
+  );
 
   if (!result.sent) {
     logServerWarning("verification-email-resend-failed", {
