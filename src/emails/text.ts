@@ -1,4 +1,5 @@
 import { BCN_EMAIL_FOOTER_NAME } from "@/emails/theme";
+import { resolveEmailBrandIdentity, type EmailBrandKey } from "@/lib/email/brand";
 
 type BuildBrandedEmailTextInput = {
   greeting?: string | null;
@@ -43,4 +44,24 @@ export function buildBrandedEmailText(input: BuildBrandedEmailTextInput) {
   lines.push("", input.footerName?.trim() || BCN_EMAIL_FOOTER_NAME);
 
   return lines.join("\n");
+}
+
+export function buildEmailBrandText(
+  brand: EmailBrandKey,
+  input: BuildBrandedEmailTextInput
+) {
+  if (brand === "bcn") {
+    return buildBrandedEmailText(input);
+  }
+
+  const identity = resolveEmailBrandIdentity(brand);
+  return buildBrandedEmailText({
+    ...input,
+    noteLines: [
+      ...(input.noteLines ?? []),
+      `Support: ${identity.supportEmail}`,
+      `${identity.productName} is operated by ${identity.legalOperatorName}.`
+    ],
+    footerName: identity.productName
+  });
 }

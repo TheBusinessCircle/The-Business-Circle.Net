@@ -1,6 +1,11 @@
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { validateRuntimeOriginEnvironment } from "../src/config/runtime-origin";
+import {
+  EmailBrandConfigurationError,
+  requiresCircleCardEmailConfiguration,
+  resolveEmailBrandIdentity
+} from "../src/lib/email/brand";
 import { validateCircleCardBillingEnvironment } from "./circle-card-billing-config";
 
 type Severity = "error" | "warning";
@@ -181,7 +186,7 @@ function validateProductionEnv() {
   const posthogKey = env("NEXT_PUBLIC_POSTHOG_KEY");
   const posthogHost = normalizeWebUrl(env("NEXT_PUBLIC_POSTHOG_HOST"));
   const resendApiKey = env("RESEND_API_KEY");
-  const resendFromEmail = env("RESEND_FROM_EMAIL");
+  const circleCardResendApiKey = env("CIRCLE_CARD_RESEND_API_KEY");
   const liveKitUrl = env("LIVEKIT_URL");
   const turnDomain = env("TURN_DOMAIN");
   const turnTlsEnabled = parseBoolean(env("TURN_TLS_ENABLED"));
@@ -275,14 +280,47 @@ function validateProductionEnv() {
     addIssue(issues, "error", "RESEND_API_KEY is missing or invalid.");
   }
 
-  if (!resendFromEmail) {
-    addIssue(issues, "error", "RESEND_FROM_EMAIL must be configured in production.");
-  } else if (resendFromEmail.includes("@resend.dev")) {
+  const circleCardEmailRequired = requiresCircleCardEmailConfiguration(process.env);
+
+  if (circleCardEmailRequired && !circleCardResendApiKey.startsWith("re_")) {
     addIssue(
       issues,
       "error",
-      "RESEND_FROM_EMAIL must use your verified domain instead of a resend.dev address in production."
+      "CIRCLE_CARD_RESEND_API_KEY is missing or invalid."
     );
+  }
+
+  if (
+    circleCardEmailRequired &&
+    resendApiKey &&
+    circleCardResendApiKey === resendApiKey
+  ) {
+    addIssue(
+      issues,
+      "error",
+      "CIRCLE_CARD_RESEND_API_KEY must not reuse the BCN RESEND_API_KEY."
+    );
+  }
+
+  const emailBrands = circleCardEmailRequired
+    ? (["bcn", "circle-card"] as const)
+    : (["bcn"] as const);
+
+  for (const brand of emailBrands) {
+    try {
+      resolveEmailBrandIdentity(brand, {
+        ...process.env,
+        NODE_ENV: "production"
+      });
+    } catch (error) {
+      addIssue(
+        issues,
+        "error",
+        error instanceof EmailBrandConfigurationError
+          ? error.message
+          : `Unable to validate ${brand} email identity.`
+      );
+    }
   }
 
   if (!redisConfigured) {

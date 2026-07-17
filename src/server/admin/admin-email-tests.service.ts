@@ -519,6 +519,7 @@ export async function sendAdminEmailTest(input: SendAdminEmailTestInput) {
 
   try {
     const result = await sendTransactionalEmailOrThrow({
+      brand: "bcn",
       to: input.recipientEmail,
       subject: payload.subject,
       text: payload.text,

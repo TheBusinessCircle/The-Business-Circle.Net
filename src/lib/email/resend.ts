@@ -1,14 +1,18 @@
 import { Resend } from "resend";
 import type { ReactNode } from "react";
+import {
+  EmailBrandConfigurationError,
+  resolveEmailBrandIdentity,
+  type EmailBrandKey
+} from "@/lib/email/brand";
 
 export type SendTransactionalEmailInput = {
+  brand: EmailBrandKey;
   to: string | string[];
   subject: string;
   html?: string;
   text?: string;
   react?: ReactNode;
-  from?: string;
-  replyTo?: string | string[];
   tags?: Array<{ name: string; value: string }>;
 };
 
@@ -29,66 +33,112 @@ export class TransactionalEmailError extends Error {
   }
 }
 
-let resendClient: Resend | null | undefined;
+type ResendClientCacheEntry = {
+  apiKey: string;
+  client: Resend;
+};
 
-export function getResendClient(): Resend | null {
-  if (resendClient !== undefined) {
-    return resendClient;
+const resendClients: Partial<Record<EmailBrandKey, ResendClientCacheEntry>> = {};
+
+const RESEND_API_KEY_ENVIRONMENT_VARIABLES = {
+  bcn: "RESEND_API_KEY",
+  "circle-card": "CIRCLE_CARD_RESEND_API_KEY"
+} as const satisfies Record<EmailBrandKey, string>;
+
+export function getResendClient(brand: EmailBrandKey = "bcn"): Resend | null {
+  if (!Object.prototype.hasOwnProperty.call(RESEND_API_KEY_ENVIRONMENT_VARIABLES, brand)) {
+    return null;
   }
 
-  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const variableName = RESEND_API_KEY_ENVIRONMENT_VARIABLES[brand];
+  const apiKey = process.env[variableName]?.trim();
+
   if (!apiKey) {
-    resendClient = null;
-    return resendClient;
+    return null;
   }
 
-  resendClient = new Resend(apiKey);
-  return resendClient;
+  const cached = resendClients[brand];
+  if (cached?.apiKey === apiKey) {
+    return cached.client;
+  }
+
+  const client = new Resend(apiKey);
+  resendClients[brand] = { apiKey, client };
+  return client;
 }
 
-function isResendDevAddress(value: string) {
-  return /@resend\.dev>/i.test(value) || /@resend\.dev$/i.test(value);
+function validateEmailSubject(subject: string) {
+  if (!subject.trim() || subject.length > 998 || /[\u0000-\u001f\u007f]/.test(subject)) {
+    throw new TransactionalEmailError(
+      "EMAIL_SUBJECT_INVALID",
+      "Email subject must be non-empty and must not contain control characters."
+    );
+  }
 }
 
-export function resolveTransactionalFromAddress(overrideFrom?: string) {
-  const from = overrideFrom?.trim() || process.env.RESEND_FROM_EMAIL?.trim();
+function assertProductionApiKeyIsolation() {
+  if (process.env.NODE_ENV !== "production") {
+    return;
+  }
 
-  if (from) {
-    if (process.env.NODE_ENV === "production" && isResendDevAddress(from)) {
-      return {
-        value: null,
-        reason: "RESEND_FROM_EMAIL must use your verified domain in production."
-      };
-    }
+  const bcnApiKey = process.env.RESEND_API_KEY?.trim();
+  const circleCardApiKey = process.env.CIRCLE_CARD_RESEND_API_KEY?.trim();
 
+  if (bcnApiKey && circleCardApiKey && bcnApiKey === circleCardApiKey) {
+    throw new TransactionalEmailError(
+      "EMAIL_BRAND_API_KEY_REUSED",
+      "Circle Card and BCN must use separate Resend API keys in production."
+    );
+  }
+}
+
+export function resolveTransactionalFromAddress() {
+  try {
     return {
-      value: from,
+      value: resolveEmailBrandIdentity("bcn").sender,
       reason: null
     };
-  }
-
-  if (process.env.NODE_ENV === "production") {
+  } catch (error) {
     return {
       value: null,
-      reason: "RESEND_FROM_EMAIL is not configured."
+      reason:
+        error instanceof Error
+          ? error.message
+          : "RESEND_FROM_EMAIL is not configured."
     };
   }
-
-  return {
-    value: "The Business Circle Network <onboarding@resend.dev>",
-    reason: null
-  };
 }
 
 export async function sendTransactionalEmailOrThrow(
   input: SendTransactionalEmailInput
 ) {
-  const client = getResendClient();
+  let identity;
+  try {
+    identity = resolveEmailBrandIdentity(input.brand);
+  } catch (error) {
+    if (error instanceof EmailBrandConfigurationError) {
+      throw new TransactionalEmailError(error.code, error.message);
+    }
+    throw error;
+  }
+
+  validateEmailSubject(input.subject);
+  assertProductionApiKeyIsolation();
+  const client = getResendClient(input.brand);
   const hasRenderableContent = Boolean(input.html || input.text);
-  const fromAddress = resolveTransactionalFromAddress(input.from);
 
   if (!client) {
-    throw new TransactionalEmailError("RESEND_API_KEY_MISSING", "RESEND_API_KEY is not configured.");
+    if (input.brand === "circle-card") {
+      throw new TransactionalEmailError(
+        "EMAIL_BRAND_API_KEY_MISSING",
+        "CIRCLE_CARD_RESEND_API_KEY is not configured."
+      );
+    }
+
+    throw new TransactionalEmailError(
+      "RESEND_API_KEY_MISSING",
+      "RESEND_API_KEY is not configured."
+    );
   }
 
   if (!hasRenderableContent) {
@@ -98,18 +148,11 @@ export async function sendTransactionalEmailOrThrow(
     );
   }
 
-  if (!fromAddress.value) {
-    throw new TransactionalEmailError(
-      "EMAIL_FROM_INVALID",
-      fromAddress.reason || "RESEND_FROM_EMAIL is not configured."
-    );
-  }
-
   const basePayload = {
-    from: fromAddress.value,
+    from: identity.sender,
     to: input.to,
     subject: input.subject,
-    replyTo: input.replyTo ?? (process.env.RESEND_REPLY_TO_EMAIL?.trim() || undefined),
+    replyTo: identity.replyTo,
     tags: input.tags
   };
 

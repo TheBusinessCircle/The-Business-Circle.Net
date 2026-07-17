@@ -69,8 +69,8 @@ async function sendContactSubmissionEmails(input: CreateContactSubmissionInput) 
     const adminNotificationHtml = await renderEmailHtml(adminNotificationTemplate);
 
     const notifyResult = await sendTransactionalEmail({
+      brand: "bcn",
       to: notifyRecipient,
-      replyTo: normalizedEmail,
       subject: `New contact enquiry: ${subject}`,
       text: buildBrandedEmailText({
         eyebrow: "Contact enquiry",
@@ -110,8 +110,8 @@ async function sendContactSubmissionEmails(input: CreateContactSubmissionInput) 
   const receiptHtml = await renderEmailHtml(receiptTemplate);
 
   const receiptResult = await sendTransactionalEmail({
+    brand: "bcn",
     to: normalizedEmail,
-    replyTo: notifyRecipient ?? undefined,
     subject: "We received your message",
     text: buildBrandedEmailText({
       greeting: `Hi ${trimmedName},`,

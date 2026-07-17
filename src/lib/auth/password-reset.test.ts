@@ -175,7 +175,8 @@ describe("password reset", () => {
     expect(new URL(resetLink).origin).toBe("https://circlecard.co.uk");
     expect(outbound.subject).toBe("Reset your Circle Card password");
     expect(outbound.text).toContain("Circle Card password");
-    expect(outbound.text).not.toContain("The Business Circle Network");
+    expect(outbound.text).not.toContain("sign back in to The Business Circle Network");
+    expect(outbound.text).toContain("Circle Card is operated by THE BUSINESS CIRCLE NETWORK LTD");
     expect(storedTokenHash).toBe(
       hashPasswordResetTokenForBrand(rawToken as string, "circle-card")
     );
@@ -292,6 +293,7 @@ describe("password reset", () => {
     const outbound = sendTransactionalEmailMock.mock.calls.at(-1)?.[0];
     expect(outbound.text).toContain("https://circlecard.co.uk/login");
     expect(outbound.text).toContain("sign back in to Circle Card");
-    expect(outbound.text).not.toContain("The Business Circle Network");
+    expect(outbound.text).not.toContain("sign back in to The Business Circle Network");
+    expect(outbound.text).toContain("Circle Card is operated by THE BUSINESS CIRCLE NETWORK LTD");
   });
 });

@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { CircleCardEventType, LeadSource, Prisma } from "@prisma/client";
 import { CircleCardActivationReminderEmail, CircleCardWeeklySummaryEmail } from "@/emails";
 import { renderEmailHtml } from "@/emails/render";
-import { buildBrandedEmailText } from "@/emails/text";
+import { buildEmailBrandText } from "@/emails/text";
 import {
   calculateCircleCardCompletion,
   type CircleCardCompletionResult
@@ -12,7 +12,7 @@ import {
 import { readCircleCardSocialLinks } from "@/lib/circle-card/schema";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 import { prisma } from "@/lib/prisma";
-import { absoluteUrl } from "@/lib/utils";
+import { buildAuthenticationUrl } from "@/lib/auth/brand";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
 
 type ActivationReminderStageId = "24h" | "7d" | "30d";
@@ -232,7 +232,10 @@ async function sendActivationReminder(input: {
   name: string | null;
   completion: CircleCardCompletionResult;
 }) {
-  const dashboardUrl = absoluteUrl("/dashboard/circle-card?section=my-card#circle-card-form");
+  const dashboardUrl = buildAuthenticationUrl(
+    "circle-card",
+    "/app?section=my-card#circle-card-form"
+  ).toString();
   const firstName = firstNameFromName(input.name);
   const missingItems = input.completion.missingItems.map((item) => item.label);
   const emailTemplate = createElement(CircleCardActivationReminderEmail, {
@@ -244,9 +247,10 @@ async function sendActivationReminder(input: {
   const html = await renderEmailHtml(emailTemplate);
 
   return sendTransactionalEmail({
+    brand: "circle-card",
     to: input.email,
     subject: "Complete your Circle Card",
-    text: buildBrandedEmailText({
+    text: buildEmailBrandText("circle-card", {
       greeting: `Hi ${firstName},`,
       eyebrow: "Circle Card setup",
       heading: "Complete your Circle Card",
@@ -418,7 +422,9 @@ export async function sendDueCircleCardActivationReminders(input: { limit?: numb
     } else {
       skipped += 1;
       if (!result.skipped) {
-        logServerWarning("circle-card-activation-reminder-email-failed");
+        logServerWarning("circle-card-activation-reminder-email-failed", {
+          reason: result.reason
+        });
       }
     }
   }
@@ -558,8 +564,11 @@ export async function buildCircleCardWeeklySummaryForUser(
     shares: weeklyShares,
     walletContacts: user.circleWalletContacts.length,
     nextBestAction,
-    completeProfileUrl: absoluteUrl("/dashboard/circle-card?section=home#circle-card-completion"),
-    shareCardUrl: absoluteUrl(`/card/${card.slug}`)
+    completeProfileUrl: buildAuthenticationUrl(
+      "circle-card",
+      "/app?section=home#circle-card-completion"
+    ).toString(),
+    shareCardUrl: buildAuthenticationUrl("circle-card", `/card/${card.slug}`).toString()
   };
 }
 
@@ -568,9 +577,10 @@ async function sendCircleCardWeeklySummaryEmail(summary: CircleCardWeeklySummary
   const html = await renderEmailHtml(emailTemplate);
 
   return sendTransactionalEmail({
+    brand: "circle-card",
     to: summary.email,
     subject: "Your Circle Card weekly summary",
-    text: buildBrandedEmailText({
+    text: buildEmailBrandText("circle-card", {
       greeting: `Hi ${summary.firstName},`,
       eyebrow: "Circle Card weekly summary",
       heading: "Your Circle Card this week",
@@ -659,7 +669,9 @@ export async function sendDueCircleCardWeeklySummaries(input: { limit?: number }
     if (!result.sent) {
       skipped += 1;
       if (!result.skipped) {
-        logServerWarning("circle-card-weekly-summary-email-failed");
+        logServerWarning("circle-card-weekly-summary-email-failed", {
+          reason: result.reason
+        });
       }
       continue;
     }

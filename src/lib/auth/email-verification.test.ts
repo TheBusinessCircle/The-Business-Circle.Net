@@ -175,7 +175,8 @@ describe("email verification token security", () => {
     expect(new URL(verificationUrl).origin).toBe("https://circlecard.co.uk");
     expect(outbound.subject).toBe("Verify your Circle Card email");
     expect(outbound.text).toContain("completing your Circle Card account");
-    expect(outbound.text).not.toContain("The Business Circle Network");
+    expect(outbound.text).not.toContain("full access to The Business Circle Network");
+    expect(outbound.text).toContain("Circle Card is operated by THE BUSINESS CIRCLE NETWORK LTD");
     expect(prismaMock.verificationToken.deleteMany).toHaveBeenCalledWith({
       where: { identifier: circleIdentifier }
     });

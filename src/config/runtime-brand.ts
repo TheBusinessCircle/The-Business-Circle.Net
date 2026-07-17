@@ -57,7 +57,7 @@ export const RUNTIME_BRANDS: Readonly<Record<RuntimeBrandKey, RuntimeBrandConfig
     supportEmail: "support@circlecard.co.uk",
     defaultLoginPath: "/login",
     defaultAuthenticatedHomePath: "/app",
-    publicContactEmail: "hello@circlecard.co.uk",
+    publicContactEmail: "support@circlecard.co.uk",
     assets: {
       logoPath: "/branding/circle-card-logo.png",
       iconPath: "/circle-card-icon-192.png",

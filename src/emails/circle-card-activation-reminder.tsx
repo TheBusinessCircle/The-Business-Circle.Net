@@ -23,6 +23,7 @@ export function CircleCardActivationReminderEmail({
 
   return (
     <BcnEmailLayout
+      brand="circle-card"
       previewText="Finish your Circle Card setup."
       eyebrow="CIRCLE CARD SETUP"
       heading="Complete your Circle Card"

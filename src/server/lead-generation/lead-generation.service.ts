@@ -452,8 +452,8 @@ async function sendNewLeadAdminNotification(lead: {
   const html = await renderEmailHtml(template);
 
   const result = await sendTransactionalEmail({
+    brand: "bcn",
     to: recipient,
-    replyTo: lead.email,
     subject: `New lead: ${lead.name} (${sourceLabel})`,
     text: buildBrandedEmailText({
       eyebrow: "Lead generation",
@@ -504,8 +504,8 @@ async function sendAuditSubmissionAdminNotification(input: RecordAuditQuizLeadIn
   const html = await renderEmailHtml(template);
 
   const result = await sendTransactionalEmail({
+    brand: "bcn",
     to: recipient,
-    replyTo: normalizeEmail(input.email),
     subject: `Founder Audit submitted: ${input.name.trim()}`,
     text: buildBrandedEmailText({
       eyebrow: "Founder Audit",
@@ -1232,6 +1232,7 @@ export async function sendLeadFollowUpEmail(input: {
   }
 
   const result = await sendTransactionalEmail({
+    brand: "bcn",
     to: lead.email,
     subject,
     text: body,

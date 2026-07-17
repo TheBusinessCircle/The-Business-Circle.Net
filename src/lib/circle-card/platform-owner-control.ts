@@ -544,7 +544,7 @@ export function buildCircleCardPlatformOwnerLaunchChecklist(
           message:
             input.cronSecretConfigured && input.resendConfigured
               ? "Weekly summary route has CRON_SECRET and Resend email configuration."
-              : "Weekly emails need CRON_SECRET plus RESEND_API_KEY and RESEND_FROM_EMAIL."
+              : "Weekly emails need CRON_SECRET, CIRCLE_CARD_RESEND_API_KEY and the Circle Card Resend identity variables."
         },
         {
           id: "referral-engine",
@@ -782,8 +782,8 @@ export function buildCircleCardPlatformOwnerPerformanceInspector(
           label: "RESEND configured",
           status: envStatus(input.resendConfigured),
           message: input.resendConfigured
-            ? "RESEND_API_KEY and RESEND_FROM_EMAIL configured."
-            : "RESEND_API_KEY and/or RESEND_FROM_EMAIL missing."
+            ? "Circle Card API key, sender, reply-to and contact identity configured."
+            : "CIRCLE_CARD_RESEND_API_KEY and/or Circle Card email identity variables missing."
         },
         {
           id: "circle-card-billing-flag",

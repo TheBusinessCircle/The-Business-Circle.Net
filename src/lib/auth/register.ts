@@ -47,7 +47,7 @@ import {
   buildCircleCardThemeStorage
 } from "@/lib/circle-card/theme";
 import { renderEmailHtml } from "@/emails/render";
-import { buildBrandedEmailText } from "@/emails/text";
+import { buildBrandedEmailText, buildEmailBrandText } from "@/emails/text";
 import { sendTransactionalEmail } from "@/lib/email/resend";
 import { prisma } from "@/lib/prisma";
 import { logServerError, logServerWarning } from "@/lib/security/logging";
@@ -418,6 +418,7 @@ async function sendWelcomeMemberEmail(input: {
   const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
+    brand: "bcn",
     to: input.email,
     subject: input.foundingAccess
       ? "Your Founding Access is live"
@@ -471,9 +472,10 @@ async function sendCircleCardWelcomeEmail(input: {
   const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
+    brand: brand.key,
     to: input.email,
     subject: "Welcome to Circle Card",
-    text: buildBrandedEmailText({
+    text: buildEmailBrandText(brand.key, {
       greeting: `Hi ${input.firstName},`,
       eyebrow: "Circle Card",
       heading: "Welcome to Circle Card",
@@ -484,8 +486,7 @@ async function sendCircleCardWelcomeEmail(input: {
       ],
       ctaLabel: "Complete Your Circle Card",
       ctaUrl: dashboardUrl,
-      fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
-      footerName: brand.displayName
+      fallbackNotice: "If the button does not work, copy and paste the link above into your browser."
     }),
     html,
     react: emailTemplate,

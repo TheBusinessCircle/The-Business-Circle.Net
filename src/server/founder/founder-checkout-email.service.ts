@@ -14,10 +14,6 @@ type SendFounderServiceCheckoutEmailInput = {
   adminDiscountCodeId?: string | null;
 };
 
-function publicReplyToAddress() {
-  return process.env.RESEND_REPLY_TO_EMAIL?.trim() || "contact@thebusinesscircle.net";
-}
-
 export function defaultFounderServiceCheckoutSubject(serviceName: string) {
   if (/clarity audit/i.test(serviceName)) {
     return "Your BCN Clarity Audit checkout link";
@@ -131,11 +127,11 @@ export async function sendFounderServiceCheckoutEmail(
     );
 
     await sendTransactionalEmailOrThrow({
+      brand: "bcn",
       to: request.email,
       subject,
       html,
       text: `${body}\n\n${ctaLabel}: ${checkout.url}`,
-      replyTo: publicReplyToAddress(),
       tags: [
         { name: "kind", value: "founder_service_checkout" },
         { name: "request", value: request.id }

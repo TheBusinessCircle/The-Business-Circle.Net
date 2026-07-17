@@ -277,7 +277,7 @@ describe("inbound email service", () => {
     expect(sendTransactionalEmailOrThrowMock).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "alex@example.com",
-        replyTo: "contact@thebusinesscircle.net",
+        brand: "bcn",
         subject: "Re: Question about BCN",
         text: expect.stringContaining("Thanks Alex, here is the next step."),
         html: expect.stringContaining("A reply from The Business Circle Network"),
@@ -286,6 +286,9 @@ describe("inbound email service", () => {
           { name: "source", value: "contact-form" }
         ]
       })
+    );
+    expect(sendTransactionalEmailOrThrowMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "replyTo"
     );
     expect(dbMock.inboundEmail.update).toHaveBeenCalledWith({
       where: { id: "inbound_1" },

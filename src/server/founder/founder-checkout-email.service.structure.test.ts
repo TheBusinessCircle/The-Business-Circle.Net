@@ -19,7 +19,8 @@ describe("founder checkout email workflow structure", () => {
     expect(service).toContain("FounderServiceEmailLogStatus.SENT");
     expect(service).toContain("stripeCheckoutSessionId: checkout.id");
     expect(service).toContain("stripeCheckoutUrl: checkout.url");
-    expect(service).toContain("replyTo: publicReplyToAddress()");
+    expect(service).toContain('brand: "bcn"');
+    expect(service).not.toContain("replyTo:");
   });
 
   it("keeps the Stripe metadata and mode rules wired to founder services", () => {

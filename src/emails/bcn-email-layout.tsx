@@ -1,6 +1,7 @@
 import React, { type CSSProperties, type ReactNode } from "react";
 import { resolveEmailAssetUrl } from "@/emails/assets";
 import { BCN_EMAIL_FOOTER_NAME, BCN_EMAIL_THEME } from "@/emails/theme";
+import { resolveEmailBrandIdentity } from "@/lib/email/brand";
 
 type BcnEmailLayoutProps = {
   brand?: "bcn" | "circle-card";
@@ -189,9 +190,12 @@ export function BcnEmailLayout({
   footerText
 }: BcnEmailLayoutProps) {
   const circleCardBrand = brand === "circle-card";
-  const logoUrl = resolveEmailAssetUrl(
-    circleCardBrand ? "/branding/circle-card-logo.png" : "/branding/the-business-circle-logo.png",
-    brand
+  const circleCardIdentity = circleCardBrand
+    ? resolveEmailBrandIdentity("circle-card")
+    : null;
+  const logoUrl = circleCardIdentity?.logoUrl ?? resolveEmailAssetUrl(
+    "/branding/the-business-circle-logo.png",
+    "bcn"
   );
   const brandName = circleCardBrand ? "Circle Card" : BCN_EMAIL_FOOTER_NAME;
 
@@ -240,6 +244,14 @@ export function BcnEmailLayout({
           ) : null}
 
           {note}
+
+          {circleCardIdentity ? (
+            <p style={styles.footer}>
+              Support: {circleCardIdentity.supportEmail}
+              <br />
+              Circle Card is operated by {circleCardIdentity.legalOperatorName}.
+            </p>
+          ) : null}
 
           <p style={styles.footer}>{footerText || brandName}</p>
         </div>

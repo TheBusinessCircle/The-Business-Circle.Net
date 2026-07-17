@@ -5322,7 +5322,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     nextAuthUrlConfigured: Boolean(process.env.NEXTAUTH_URL?.trim()),
     cronSecretConfigured: Boolean(process.env.CRON_SECRET?.trim()),
     resendConfigured: Boolean(
-      process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM_EMAIL?.trim()
+      process.env.CIRCLE_CARD_RESEND_API_KEY?.trim() &&
+      process.env.CIRCLE_CARD_RESEND_FROM_EMAIL?.trim() &&
+      process.env.CIRCLE_CARD_RESEND_REPLY_TO_EMAIL?.trim() &&
+      process.env.CIRCLE_CARD_PUBLIC_CONTACT_EMAIL?.trim()
     ),
     analyticsConfigured: Boolean(analytics),
     cardAvailable: Boolean(card),
@@ -5340,7 +5343,10 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     nextAuthUrlConfigured: Boolean(process.env.NEXTAUTH_URL?.trim()),
     cronSecretConfigured: Boolean(process.env.CRON_SECRET?.trim()),
     resendConfigured: Boolean(
-      process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM_EMAIL?.trim()
+      process.env.CIRCLE_CARD_RESEND_API_KEY?.trim() &&
+      process.env.CIRCLE_CARD_RESEND_FROM_EMAIL?.trim() &&
+      process.env.CIRCLE_CARD_RESEND_REPLY_TO_EMAIL?.trim() &&
+      process.env.CIRCLE_CARD_PUBLIC_CONTACT_EMAIL?.trim()
     ),
     billingFlagConfigured: process.env[CIRCLE_CARD_BILLING_FLAG_ENV] !== undefined,
     billingEnabled: circleCardBillingReadiness.billingEnabled,

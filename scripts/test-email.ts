@@ -35,6 +35,7 @@ async function main() {
   const html = await renderEmailHtml(emailTemplate);
 
   const result = await sendTransactionalEmail({
+    brand: "bcn",
     to: recipient,
     subject: "The Business Circle Network | Resend test",
     text: buildBrandedEmailText({

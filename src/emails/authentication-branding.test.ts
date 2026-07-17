@@ -23,7 +23,8 @@ describe("authentication email branding", () => {
     expect(html).toContain(
       "https://circlecard.co.uk/branding/circle-card-logo.png"
     );
-    expect(html).not.toContain("The Business Circle Network");
+    expect(html).toContain("Circle Card is operated by THE BUSINESS CIRCLE NETWORK LTD");
+    expect(html).not.toContain("full access to The Business Circle Network");
     expect(html).not.toContain("thebusinesscircle.net");
   });
 
@@ -65,7 +66,7 @@ describe("authentication email branding", () => {
     expect(html).toContain("Welcome to Circle Card");
     expect(html).toContain("https://circlecard.co.uk/app/onboarding");
     expect(html).toContain("https://circlecard.co.uk/branding/circle-card-logo.png");
-    expect(html).not.toContain("The Business Circle");
+    expect(html).toContain("Circle Card is operated by THE BUSINESS CIRCLE NETWORK LTD");
     expect(html).not.toContain("thebusinesscircle.net");
   });
 

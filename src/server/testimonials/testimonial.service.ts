@@ -905,6 +905,7 @@ export async function sendTestimonialRequestEmail(input: SendTestimonialRequestE
     contextNote: input.contextNote
   });
   const email = await sendTransactionalEmail({
+    brand: "bcn",
     to: input.recipientEmail,
     subject,
     html,

@@ -131,14 +131,6 @@ function isValidEmailAddress(value: string) {
   return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value);
 }
 
-function publicReplyToAddress() {
-  return (
-    process.env.PUBLIC_CONTACT_EMAIL?.trim() ||
-    process.env.CONTACT_NOTIFY_EMAIL?.trim() ||
-    undefined
-  );
-}
-
 function publicContactRecipient() {
   return (
     process.env.PUBLIC_CONTACT_EMAIL?.trim() ||
@@ -501,8 +493,8 @@ export async function replyToInboundEmailForAdmin(
 
   try {
     const result = await sendTransactionalEmailOrThrow({
+      brand: "bcn",
       to: recipientEmail,
-      replyTo: publicReplyToAddress(),
       subject,
       text: buildBrandedEmailText({
         greeting: `Hi ${recipientName},`,

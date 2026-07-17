@@ -271,6 +271,10 @@ Using Resend:
 1. Add these values in `.env`:
    - `RESEND_API_KEY`
    - `RESEND_FROM_EMAIL`
+   - `CIRCLE_CARD_RESEND_API_KEY` (from the separate Circle Card Resend account)
+   - `CIRCLE_CARD_RESEND_FROM_EMAIL` (after the Circle Card sending domain is verified)
+   - `CIRCLE_CARD_RESEND_REPLY_TO_EMAIL`
+   - `CIRCLE_CARD_PUBLIC_CONTACT_EMAIL`
    - `CONTACT_NOTIFY_EMAIL="contact@thebusinesscircle.net"`
 2. Send a direct test email:
 

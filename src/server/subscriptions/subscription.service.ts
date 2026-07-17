@@ -724,6 +724,7 @@ async function sendInnerCircleUpgradeEmail(input: {
   const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
+    brand: "bcn",
     to: input.email,
     subject: "Your Inner Circle access is now active",
     text: buildBrandedEmailText({
@@ -1442,6 +1443,7 @@ async function sendBillingReceiptForInvoice(invoice: Stripe.Invoice) {
   const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
+    brand: "bcn",
     to: recipient,
     subject: "Your Business Circle billing receipt",
     text: buildBrandedEmailText({

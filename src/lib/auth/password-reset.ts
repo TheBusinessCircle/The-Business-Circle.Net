@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { createElement } from "react";
 import { PasswordChangedEmail, PasswordResetEmail } from "@/emails";
 import { renderEmailHtml } from "@/emails/render";
-import { buildBrandedEmailText } from "@/emails/text";
+import { buildEmailBrandText } from "@/emails/text";
 import type { RuntimeBrandKey } from "@/config/runtime-brand";
 import {
   buildAuthenticationUrl,
@@ -170,12 +170,13 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
   const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
+    brand: brand.key,
     to: user.email,
     subject:
       brand.key === "circle-card"
         ? "Reset your Circle Card password"
         : "Reset your Business Circle password",
-    text: buildBrandedEmailText({
+    text: buildEmailBrandText(brand.key, {
       greeting: `Hi ${recipientName},`,
       eyebrow: "Password reset",
       heading: "Reset your password",
@@ -191,8 +192,7 @@ export async function requestPasswordReset(input: RequestPasswordResetInput) {
       noteLines: [
         `This reset link expires in ${tokenPair.ttlMinutes} minutes.`,
         "If you did not request this, you can safely ignore this email."
-      ],
-      footerName: brand.displayName
+      ]
     }),
     html,
     react: emailTemplate,
@@ -291,9 +291,10 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
   const html = await renderEmailHtml(emailTemplate);
 
   const sendResult = await sendTransactionalEmail({
+    brand: brand.key,
     to: user.email,
     subject: "Your password was changed",
-    text: buildBrandedEmailText({
+    text: buildEmailBrandText(brand.key, {
       greeting: `Hi ${recipientName},`,
       eyebrow: "Security update",
       heading: "Your password was changed",
@@ -306,8 +307,7 @@ export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
       ctaLabel: "Sign in",
       ctaUrl: loginUrl,
       fallbackNotice: "If the button does not work, copy and paste the link above into your browser.",
-      noteLines: ["If this was not you, contact support immediately."],
-      footerName: brand.displayName
+      noteLines: ["If this was not you, contact support immediately."]
     }),
     html,
     react: emailTemplate,

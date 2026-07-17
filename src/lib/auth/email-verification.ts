@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { createElement } from "react";
 import { VerifyEmailAddressEmail } from "@/emails";
 import { renderEmailHtml } from "@/emails/render";
-import { buildBrandedEmailText } from "@/emails/text";
+import { buildEmailBrandText } from "@/emails/text";
 import type { RuntimeBrandKey } from "@/config/runtime-brand";
 import {
   buildAuthenticationUrl,
@@ -102,8 +102,7 @@ function buildVerificationEmailText(
   verificationUrl: string,
   ttlHours: number
 ) {
-  const productName = requireAuthenticationBrand(brand).displayName;
-  return buildBrandedEmailText({
+  return buildEmailBrandText(brand, {
     greeting: `Hi ${firstName},`,
     eyebrow: "Email verification",
     heading: "Confirm your email address",
@@ -121,8 +120,7 @@ function buildVerificationEmailText(
     noteLines: [
       `This verification link expires in ${ttlHours} hours.`,
       "For security, only the most recent verification email remains valid. Older links expire automatically."
-    ],
-    footerName: productName
+    ]
   });
 }
 
@@ -153,6 +151,7 @@ async function sendVerificationEmailMessage(input: {
 
   try {
     const result = await sendTransactionalEmailOrThrow({
+      brand: brand.key,
       to: input.email,
       subject:
         brand.key === "circle-card"
@@ -181,6 +180,7 @@ async function sendVerificationEmailMessage(input: {
 
     try {
       const fallbackResult = await sendTransactionalEmailOrThrow({
+        brand: brand.key,
         to: input.email,
         subject:
           brand.key === "circle-card"
