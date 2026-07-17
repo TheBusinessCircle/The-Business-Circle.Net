@@ -1,4 +1,10 @@
-import { SITE_CONFIG } from "@/config/site";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import {
+  normalizeRuntimeOrigin,
+  validateRuntimeOriginEnvironment,
+  type RuntimeOriginEnvironment
+} from "@/config/runtime-origin";
+import { isTrustedRuntimeRequestHost } from "@/lib/security/host";
 
 type TrustedOriginOptions = {
   allowMissingOrigin?: boolean;
@@ -10,28 +16,42 @@ function toOrigin(value: string | null | undefined): string | null {
   }
 
   try {
-    return new URL(value).origin;
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
+      return null;
+    }
+    return url.origin;
   } catch {
     return null;
   }
 }
 
-function allowedOrigins(requestUrl: string) {
-  const origins = new Set<string>();
+export function getTrustedRuntimeOrigins(
+  environment: RuntimeOriginEnvironment = {
+    APP_BRAND: process.env.APP_BRAND,
+    APP_URL: process.env.APP_URL,
+    AUTH_URL: process.env.AUTH_URL,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    NODE_ENV: process.env.NODE_ENV
+  }
+): ReadonlySet<string> {
+  const validation = validateRuntimeOriginEnvironment(environment);
 
-  const requestOrigin = toOrigin(requestUrl);
-  if (requestOrigin) {
-    origins.add(requestOrigin);
+  if (validation.issues.length > 0) {
+    throw new Error(validation.issues.map(({ message }) => message).join(" "));
   }
 
-  const siteOrigin = toOrigin(SITE_CONFIG.url);
-  if (siteOrigin) {
-    origins.add(siteOrigin);
+  const brand = validation.brand ?? getRuntimeBrand(environment);
+  const origins = new Set<string>([brand.canonicalOrigin]);
+
+  for (const { origin } of validation.configuredOrigins) {
+    origins.add(origin);
   }
 
-  const authOrigin = toOrigin(process.env.NEXTAUTH_URL ?? null);
-  if (authOrigin) {
-    origins.add(authOrigin);
+  if (environment.NODE_ENV !== "production") {
+    origins.add("http://localhost:3000");
+    origins.add("http://127.0.0.1:3000");
+    origins.add(brand.key === "bcn" ? "http://bcn.test" : "http://circle-card.test");
   }
 
   return origins;
@@ -47,9 +67,13 @@ export function isTrustedOrigin(
   request: Request,
   options: TrustedOriginOptions = {}
 ): boolean {
-  const allowed = allowedOrigins(request.url);
+  if (!isTrustedRuntimeRequestHost(request)) {
+    return false;
+  }
+
+  const allowed = getTrustedRuntimeOrigins();
   const originHeader = request.headers.get("origin");
-  const normalizedOrigin = toOrigin(originHeader);
+  const normalizedOrigin = originHeader ? normalizeRuntimeOrigin(originHeader) : null;
 
   if (originHeader) {
     return normalizedOrigin ? allowed.has(normalizedOrigin) : false;

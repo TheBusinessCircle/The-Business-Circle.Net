@@ -6,8 +6,14 @@ import {
   isCircleCardDashboardPath,
   isCircleCardRegistrationSource
 } from "@/lib/circle-card/routes";
+import { validateRuntimeOriginEnvironment } from "@/config/runtime-origin";
 import { membershipAccessBillingQuery } from "@/lib/membership/access";
-import { NextResponse, type NextRequest } from "next/server";
+import { validateRuntimeRequestHost } from "@/lib/security/host";
+import {
+  NextResponse,
+  type NextFetchEvent,
+  type NextRequest
+} from "next/server";
 
 const AUTH_ROUTES = [
   "/login",
@@ -64,6 +70,17 @@ function startsWithPath(pathname: string, prefixes: string[]): boolean {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+function requiresAuthenticatedMiddleware(pathname: string) {
+  return (
+    AUTH_ROUTES.includes(pathname) ||
+    pathname === "/opengraph-image" ||
+    startsWithPath(pathname, MEMBER_ROUTE_PREFIXES) ||
+    pathname === ADMIN_ROUTE_PREFIX ||
+    pathname.startsWith(`${ADMIN_ROUTE_PREFIX}/`) ||
+    startsWithPath(pathname, INNER_CIRCLE_ROUTE_PREFIXES)
+  );
+}
+
 function toLoginRedirect(requestUrl: URL, fromPath: string, error?: string) {
   const loginUrl = new URL("/login", requestUrl);
   loginUrl.searchParams.set("from", safeRedirectPath(fromPath));
@@ -85,7 +102,8 @@ function nextWithCurrentPath(req: NextRequest, pathname: string) {
   });
 }
 
-export default auth((req) => {
+const authenticatedMiddleware = auth((req, _event: NextFetchEvent) => {
+  void _event;
   const httpsRedirect = maybeRedirectToHttps(req);
   if (httpsRedirect) {
     return httpsRedirect;
@@ -194,43 +212,39 @@ export default auth((req) => {
   return nextWithCurrentPath(req, pathname);
 });
 
+export default function middleware(req: NextRequest, event: NextFetchEvent) {
+  const hostValidation = validateRuntimeRequestHost(req);
+
+  if (!hostValidation.ok) {
+    console.warn("[request-host] rejected request", {
+      reason: hostValidation.reason
+    });
+    return new NextResponse("Misdirected Request", { status: 421 });
+  }
+
+  const runtimeOriginValidation = validateRuntimeOriginEnvironment();
+  if (runtimeOriginValidation.issues.length > 0) {
+    console.error("[runtime-origin] rejected misconfigured runtime", {
+      issues: runtimeOriginValidation.issues.map(({ code, variable }) => ({
+        code,
+        ...(variable ? { variable } : {})
+      }))
+    });
+    return new NextResponse("Runtime Configuration Error", { status: 503 });
+  }
+
+  if (!requiresAuthenticatedMiddleware(req.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
+  return authenticatedMiddleware(req, event);
+}
+
 export const config = {
   runtime: "nodejs",
   // Admin-only routes are enforced here; member route groups also call requireUser
   // in their server layout so protection remains explicit if routing changes later.
   matcher: [
-    "/login",
-    "/register",
-    "/join",
-    "/join-desktop",
-    "/join-mobile",
-    "/sign-in",
-    "/sign-up",
-    "/forgot-password",
-    "/reset-password",
-    "/opengraph-image",
-    "/dashboard/:path*",
-    "/blueprint",
-    "/blueprint/:path*",
-    "/directory/:path*",
-    "/community/:path*",
-    "/core",
-    "/core/:path*",
-    "/member/bcn-updates",
-    "/member/bcn-updates/:path*",
-    "/member/growth-architect",
-    "/member/growth-architect/:path*",
-    "/member/contact",
-    "/member/contact/:path*",
-    "/messages",
-    "/messages/:path*",
-    "/profile/:path*",
-    "/events/:path*",
-    "/calls/:path*",
-    "/wins",
-    "/wins/:path*",
-    "/inner-circle/:path*",
-    "/admin",
-    "/admin/:path*"
+    "/((?!_next/static|_next/webpack-hmr).*)"
   ]
 };

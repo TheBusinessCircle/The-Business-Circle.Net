@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
+import { validateRuntimeOriginEnvironment } from "../src/config/runtime-origin";
 import { validateCircleCardBillingEnvironment } from "./circle-card-billing-config";
 
 type Severity = "error" | "warning";
@@ -12,8 +13,6 @@ type Issue = {
 type Options = {
   envFile?: string;
 };
-
-const CANONICAL_PRODUCTION_URL = "https://thebusinesscircle.net";
 
 function loadEnvFileIfAvailable(filePath: string) {
   const loadEnvFile = (process as typeof process & {
@@ -173,8 +172,6 @@ function listMissingMembershipStripePriceIds() {
 function validateProductionEnv() {
   const issues: Issue[] = [];
 
-  const appUrl = normalizeWebUrl(env("APP_URL"));
-  const nextAuthUrl = normalizeWebUrl(env("NEXTAUTH_URL"));
   const authSecret = env("AUTH_SECRET");
   const nextAuthSecret = env("NEXTAUTH_SECRET");
   const postgresPassword = env("POSTGRES_PASSWORD");
@@ -212,36 +209,15 @@ function validateProductionEnv() {
   const maxPostsPerRun = env("BCN_COMMUNITY_MAX_POSTS_PER_RUN");
   const throttleMs = env("BCN_COMMUNITY_AUTOMATION_THROTTLE_MS");
 
-  if (!isSecureWebUrl(appUrl)) {
-    addIssue(issues, "error", "APP_URL must use https:// in production.");
-  } else if (isLoopbackUrl(appUrl)) {
-    addIssue(issues, "error", "APP_URL cannot use localhost or another loopback host in production.");
-  } else if (appUrl !== CANONICAL_PRODUCTION_URL) {
-    addIssue(
-      issues,
-      "error",
-      `APP_URL must be set to ${CANONICAL_PRODUCTION_URL} in production.`
-    );
-  }
-
-  if (!isSecureWebUrl(nextAuthUrl)) {
-    addIssue(issues, "error", "NEXTAUTH_URL must use https:// in production.");
-  } else if (isLoopbackUrl(nextAuthUrl)) {
-    addIssue(
-      issues,
-      "error",
-      "NEXTAUTH_URL cannot use localhost or another loopback host in production."
-    );
-  } else if (nextAuthUrl !== CANONICAL_PRODUCTION_URL) {
-    addIssue(
-      issues,
-      "error",
-      `NEXTAUTH_URL must be set to ${CANONICAL_PRODUCTION_URL} in production.`
-    );
-  }
-
-  if (appUrl && nextAuthUrl && appUrl !== nextAuthUrl) {
-    addIssue(issues, "error", "APP_URL and NEXTAUTH_URL should match exactly in production.");
+  const runtimeOriginValidation = validateRuntimeOriginEnvironment({
+    APP_BRAND: process.env.APP_BRAND,
+    APP_URL: process.env.APP_URL,
+    AUTH_URL: process.env.AUTH_URL,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    NODE_ENV: "production"
+  });
+  for (const runtimeOriginIssue of runtimeOriginValidation.issues) {
+    addIssue(issues, "error", runtimeOriginIssue.message);
   }
 
   if (!isStrongValue(authSecret) || authSecret === "change-this-secret") {

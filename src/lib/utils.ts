@@ -1,9 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import {
-  CANONICAL_SITE_HOSTNAME,
-  CANONICAL_SITE_URL
-} from "@/config/site-constants";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import { getConfiguredRuntimeBaseUrl } from "@/config/runtime-origin";
 
 let lastLoggedBaseUrl: string | null = null;
 let lastLoggedReason: string | null = null;
@@ -40,43 +38,6 @@ export function formatCurrency(amount: number, currency = "GBP"): string {
   }).format(amount);
 }
 
-function normalizeConfiguredUrl(value: string | undefined) {
-  const trimmed = value?.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
-  try {
-    return new URL(trimmed).toString().replace(/\/$/, "");
-  } catch {
-    return null;
-  }
-}
-
-function isLoopbackHost(value: string) {
-  try {
-    const { hostname } = new URL(value);
-    return (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "0.0.0.0" ||
-      hostname === "::1"
-    );
-  } catch {
-    return false;
-  }
-}
-
-function isAllowedProductionUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && url.hostname === CANONICAL_SITE_HOSTNAME;
-  } catch {
-    return false;
-  }
-}
-
 function logResolvedBaseUrl(baseUrl: string, reason?: string) {
   const normalizedReason = reason || null;
   if (lastLoggedBaseUrl === baseUrl && lastLoggedReason === normalizedReason) {
@@ -91,80 +52,24 @@ function logResolvedBaseUrl(baseUrl: string, reason?: string) {
   lastLoggedReason = normalizedReason;
 }
 
-function throwInvalidProductionBaseUrl(reason: string, details: Record<string, unknown>): never {
-  console.error("[url-resolution] invalid production base url", {
-    reason,
-    ...details
-  });
-
-  if (reason === "loopback-host" && "configuredUrl" in details) {
-    console.error("[verify-email] refusing localhost in production", {
-      configuredUrl: details.configuredUrl
-    });
-  }
-
-  throw new Error(
-    `Invalid production base URL configuration: ${reason}. Expected ${CANONICAL_SITE_URL}.`
-  );
-}
-
-function resolveConfiguredBaseUrl() {
-  const appUrl = normalizeConfiguredUrl(process.env.APP_URL);
-  const authUrl = normalizeConfiguredUrl(process.env.NEXTAUTH_URL);
-
-  if (
-    process.env.NODE_ENV === "production" &&
-    ((appUrl && isLoopbackHost(appUrl)) || (authUrl && isLoopbackHost(authUrl)))
-  ) {
-    throwInvalidProductionBaseUrl("loopback-host", {
-      configuredUrl: appUrl || authUrl
-    });
-  }
-
-  if (process.env.NODE_ENV === "production" && appUrl && authUrl && appUrl !== authUrl) {
-    throwInvalidProductionBaseUrl("configured-url-mismatch", {
-      appUrl,
-      nextAuthUrl: authUrl
-    });
-  }
-
-  return appUrl || authUrl || null;
-}
-
 export function getBaseUrl(): string {
-  const configuredUrl = resolveConfiguredBaseUrl();
-
-  if (process.env.NODE_ENV === "production") {
-    if (!configuredUrl) {
-      throwInvalidProductionBaseUrl("missing-configured-url", {
-        appUrl: process.env.APP_URL?.trim() || null,
-        nextAuthUrl: process.env.NEXTAUTH_URL?.trim() || null
-      });
-    }
-
-    if (isLoopbackHost(configuredUrl)) {
-      throwInvalidProductionBaseUrl("loopback-host", {
-        configuredUrl
-      });
-    }
-
-    if (!isAllowedProductionUrl(configuredUrl)) {
-      throwInvalidProductionBaseUrl("non-canonical-production-url", {
-        configuredUrl
-      });
-    }
-
-    logResolvedBaseUrl(configuredUrl);
-    return configuredUrl;
-  }
+  const configuredUrl = getConfiguredRuntimeBaseUrl();
 
   if (configuredUrl) {
     logResolvedBaseUrl(configuredUrl);
     return configuredUrl;
   }
 
+  const runtimeBrand = getRuntimeBrand();
   const fallbackUrl = "http://localhost:3000";
   logResolvedBaseUrl(fallbackUrl, "development-fallback");
+
+  if (runtimeBrand.key !== "bcn") {
+    console.info("[url-resolution] using local fallback for runtime brand", {
+      runtimeBrand: runtimeBrand.key
+    });
+  }
+
   return fallbackUrl;
 }
 
