@@ -226,8 +226,9 @@ export function CircleCardProPaymentFailedEmail(input: CircleCardProPaymentFaile
         />
       </EmailPanel>
       <EmailParagraph>
-        Update your payment method in Manage Billing. Your Circle Card data remains in your
-        account even if paid features become unavailable.
+        Update your payment method in Manage Billing. Pro access may remain available while
+        Stripe retries the payment or during any applicable grace period. Your Circle Card data
+        remains in your account even if paid features later become unavailable.
       </EmailParagraph>
     </BcnEmailLayout>
   );
@@ -245,7 +246,8 @@ export function buildCircleCardProPaymentFailedText(input: CircleCardProPaymentF
       `Price: ${trusted.monthlyPriceLabel}.`,
       `Payment attempt: ${dateLabel(input.failedAt)}.`,
       ...(input.retryDate ? [`Next retry: ${dateLabel(input.retryDate)}.`] : []),
-      "Update your payment method in Manage Billing. Your Circle Card data remains in your account."
+      "Update your payment method in Manage Billing. Pro access may remain available while Stripe retries the payment or during any applicable grace period.",
+      "Your Circle Card data remains in your account even if paid features later become unavailable."
     ],
     ctaLabel: "Manage Billing",
     ctaUrl: trusted.manageBillingUrl

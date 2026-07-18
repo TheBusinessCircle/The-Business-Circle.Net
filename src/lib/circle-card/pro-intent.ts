@@ -1,4 +1,9 @@
 import { safeRedirectPath } from "@/lib/auth/utils";
+import type { RuntimeBrandKey } from "@/config/runtime-brand";
+import {
+  getCircleCardRoutes,
+  preferCircleCardRuntimePath
+} from "@/lib/circle-card/routes";
 
 export const CIRCLE_CARD_PRO_SOURCES = [
   "pro_page",
@@ -46,12 +51,44 @@ function includesValue<T extends string>(values: readonly T[], value: unknown): 
 export function safeCircleCardProReturnPath(candidate: string | null | undefined) {
   const safe = safeRedirectPath(candidate, DEFAULT_INTENT.returnPath);
   return safe === "/dashboard/circle-card" || safe.startsWith("/dashboard/circle-card?") ||
-    safe.startsWith("/dashboard/circle-card#") || safe.startsWith("/dashboard/circle-card/")
+    safe.startsWith("/dashboard/circle-card#") || safe.startsWith("/dashboard/circle-card/") ||
+    safe === "/app" || safe.startsWith("/app?") || safe.startsWith("/app#") ||
+    safe.startsWith("/app/")
     ? safe
     : DEFAULT_INTENT.returnPath;
 }
 
-export function normalizeCircleCardProIntent(input?: Partial<CircleCardProIntent> | null): CircleCardProIntent {
+export function safeCircleCardBillingReturnPath(
+  candidate: string | null | undefined,
+  runtimeBrand: RuntimeBrandKey
+) {
+  const fallback = getCircleCardRoutes(runtimeBrand).dashboard;
+  const safe = safeRedirectPath(candidate, fallback);
+  const preferred = preferCircleCardRuntimePath(safe, runtimeBrand);
+  const dashboard = getCircleCardRoutes(runtimeBrand).dashboard;
+
+  return preferred === dashboard ||
+    preferred.startsWith(`${dashboard}?`) ||
+    preferred.startsWith(`${dashboard}#`) ||
+    preferred.startsWith(`${dashboard}/`)
+    ? preferred
+    : fallback;
+}
+
+export function appendCircleCardPortalReturnState(
+  candidate: string | null | undefined,
+  runtimeBrand: RuntimeBrandKey
+) {
+  const safePath = safeCircleCardBillingReturnPath(candidate, runtimeBrand);
+  const url = new URL(safePath, "http://internal.local");
+  url.searchParams.set("billing", "portal-return");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+export function normalizeCircleCardProIntent(
+  input?: Partial<CircleCardProIntent> | null,
+  runtimeBrand: RuntimeBrandKey = "bcn"
+): CircleCardProIntent {
   const source = includesValue(CIRCLE_CARD_PRO_SOURCES, input?.source)
     ? input.source
     : DEFAULT_INTENT.source;
@@ -65,20 +102,26 @@ export function normalizeCircleCardProIntent(input?: Partial<CircleCardProIntent
   return {
     source,
     capability,
-    returnPath: safeCircleCardProReturnPath(input?.returnPath),
+    returnPath: safeCircleCardBillingReturnPath(
+      safeCircleCardProReturnPath(input?.returnPath),
+      runtimeBrand
+    ),
     ...(cardId ? { cardId } : {})
   };
 }
 
-export function buildCircleCardProHref(input?: Partial<CircleCardProIntent> | null) {
-  const intent = normalizeCircleCardProIntent(input);
+export function buildCircleCardProHref(
+  input?: Partial<CircleCardProIntent> | null,
+  runtimeBrand: RuntimeBrandKey = "bcn"
+) {
+  const intent = normalizeCircleCardProIntent(input, runtimeBrand);
   const params = new URLSearchParams({
     source: intent.source,
     capability: intent.capability,
     returnTo: intent.returnPath
   });
   if (intent.cardId) params.set("card", intent.cardId);
-  return `/circle-card/pro?${params.toString()}#register-interest`;
+  return `${getCircleCardRoutes(runtimeBrand).pro}?${params.toString()}#register-interest`;
 }
 
 export function appendCircleCardProResultParams(

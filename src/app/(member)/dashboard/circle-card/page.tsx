@@ -203,6 +203,7 @@ import {
   CIRCLE_CARD_BILLING_FLAG_ENV,
   getCircleCardBillingReadiness
 } from "@/lib/circle-card/pricing";
+import { reconcileCircleCardBillingReturn } from "@/server/circle-card/billing-return.service";
 import {
   buildCircleCardUpgradeTriggers,
   type CircleCardUpgradeTrigger
@@ -3653,6 +3654,11 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const runtimeBrand = getRuntimeBrand();
   const circleCardRoutes = getCircleCardRoutes(runtimeBrand.key);
   const session = await requireCircleCardUser();
+  const params = await searchParams;
+  await reconcileCircleCardBillingReturn({
+    userId: session.user.id,
+    billing: params.billing
+  });
   const existingCard = await prisma.circleCard.findFirst({
     where: {
       userId: session.user.id,
@@ -3690,7 +3696,6 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     redirect(circleCardRoutes.onboarding);
   }
 
-  const params = await searchParams;
   const cookieStore = await cookies();
   const activeSection = resolveCircleCardAppSection(firstValue(params.section));
   const selectedCardId = firstValue(params.cardId) ?? "";

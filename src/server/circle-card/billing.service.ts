@@ -32,6 +32,7 @@ import { db } from "@/lib/db";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { logServerInfo, logServerWarning } from "@/lib/security/logging";
 import { absoluteUrl } from "@/lib/utils";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import {
   appendCircleCardProResultParams,
   buildCircleCardProHref,
@@ -45,6 +46,12 @@ import {
   markWebhookProcessed,
   stripeStatusToSubscriptionStatus
 } from "@/server/subscriptions/subscription.service";
+import {
+  sendCircleCardProActivatedEmail,
+  sendCircleCardProCancellationScheduledEmail,
+  sendCircleCardProPaymentFailedEmail,
+  sendCircleCardProSubscriptionRestoredEmail
+} from "@/server/circle-card/billing-lifecycle-email.service";
 
 export const CIRCLE_CARD_PAID_ACCESS_POLICY =
   "Circle Card paid Pro access requires confirmed invoice paid-through evidence. PAST_DUE receives one fixed seven-day recovery grace after a previously paid period. CANCELED retains access only through confirmed accessEndsAt. Trials are not a launch entitlement.";
@@ -1080,7 +1087,8 @@ export async function createCircleCardProCheckoutSession(
   const { attemptId, checkoutStartedAt } = claim;
 
   const attribution = await loadServerDerivedReferralAttribution(input.userId);
-  const proIntent = normalizeCircleCardProIntent(input.intent);
+  const runtimeBrand = getRuntimeBrand().key;
+  const proIntent = normalizeCircleCardProIntent(input.intent, runtimeBrand);
   const metadata: Stripe.MetadataParam = {
     userId: input.userId,
     circleCardPlan: "PRO",
@@ -1098,7 +1106,7 @@ export async function createCircleCardProCheckoutSession(
     billing: "success",
     capability: proIntent.capability
   });
-  const cancelPath = `${buildCircleCardProHref(proIntent).split("#")[0]}&billing=cancelled`;
+  const cancelPath = `${buildCircleCardProHref(proIntent, runtimeBrand).split("#")[0]}&billing=cancelled`;
 
   let session: Stripe.Checkout.Session;
   try {
@@ -1589,6 +1597,61 @@ function stripeEventDate(event: Stripe.Event) {
   return new Date(event.created * 1000);
 }
 
+function expectedStripeLivemode(secretKey = process.env.STRIPE_SECRET_KEY) {
+  const normalized = secretKey?.trim();
+  if (normalized?.startsWith("sk_live_")) return true;
+  if (normalized?.startsWith("sk_test_")) return false;
+  return null;
+}
+
+function assertCircleCardStripeEventMode(event: Stripe.Event) {
+  const expectedLivemode = expectedStripeLivemode();
+  const eventHasMode = typeof event.livemode === "boolean";
+  const productionModeIsUnconfigured =
+    process.env.NODE_ENV === "production" && expectedLivemode === null;
+
+  if (
+    productionModeIsUnconfigured ||
+    (expectedLivemode !== null && event.livemode !== expectedLivemode) ||
+    (process.env.NODE_ENV === "production" && !eventHasMode)
+  ) {
+    logServerWarning("circle-card-stripe-event-mode-mismatch", {
+      eventId: event.id,
+      eventType: event.type
+    });
+    throw new Error("circle-card-stripe-event-mode-mismatch");
+  }
+}
+
+function invoiceMatchesSubscription(
+  invoice: Stripe.Invoice,
+  subscription: Stripe.Subscription,
+  event: Stripe.Event
+) {
+  const invoiceSubscriptionId = toStripeObjectId(
+    invoice.subscription as StripeObjectRef
+  );
+  const invoiceCustomerId = toStripeObjectId(invoice.customer as StripeObjectRef);
+  const subscriptionCustomerId = toStripeObjectId(
+    subscription.customer as StripeObjectRef
+  );
+  const matches = Boolean(
+    invoiceSubscriptionId === subscription.id &&
+      invoiceCustomerId &&
+      subscriptionCustomerId &&
+      invoiceCustomerId === subscriptionCustomerId
+  );
+
+  if (!matches) {
+    logServerWarning("circle-card-invoice-subscription-mismatch", {
+      eventId: event.id,
+      eventType: event.type
+    });
+  }
+
+  return matches;
+}
+
 async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session,
   event: Stripe.Event
@@ -1623,12 +1686,100 @@ async function handleCheckoutSessionExpired(session: Stripe.Checkout.Session) {
 
 async function handleSubscriptionChanged(
   subscription: Stripe.Subscription,
-  event: Stripe.Event
+  event: Stripe.Event,
+  deliverLifecycleEmail = false
 ) {
-  await upsertCircleCardSubscriptionFromStripeSubscription(subscription, null, {
+  const previous = await db.circleCardSubscription.findUnique({
+    where: { stripeSubscriptionId: subscription.id },
+    select: {
+      userId: true,
+      cancelAtPeriodEnd: true,
+      cancellationEffectiveAt: true
+    }
+  });
+  const row = await upsertCircleCardSubscriptionFromStripeSubscription(subscription, null, {
     statusEvent: { createdAt: stripeEventDate(event), eventId: event.id },
     logExpiredAccess: true
   });
+
+  if (!deliverLifecycleEmail || !previous || !row) {
+    return;
+  }
+
+  const previousAttributes = (
+    event.data as Stripe.Event.Data & {
+      previous_attributes?: { cancel_at_period_end?: unknown };
+    }
+  ).previous_attributes;
+  const authoritativePreviousCancelAtPeriodEnd =
+    typeof previousAttributes?.cancel_at_period_end === "boolean"
+      ? previousAttributes.cancel_at_period_end
+      : null;
+  const changedAt = stripeEventDate(event);
+  const eventApplied = row.lastStripeEventId === event.id;
+  const currentStateMatchesEvent =
+    row.cancelAtPeriodEnd === subscription.cancel_at_period_end;
+  const hasPaidAccessAtTransition = isCircleCardSubscriptionEntitled(row, changedAt);
+  const subscriptionCanContinue =
+    subscription.status === "active" || subscription.status === "past_due";
+  const scheduledTransition =
+    currentStateMatchesEvent &&
+    (authoritativePreviousCancelAtPeriodEnd === false ||
+      (authoritativePreviousCancelAtPeriodEnd === null &&
+        eventApplied &&
+        !previous.cancelAtPeriodEnd)) &&
+    row.cancelAtPeriodEnd &&
+    subscriptionCanContinue &&
+    hasPaidAccessAtTransition;
+  const restoredTransition =
+    currentStateMatchesEvent &&
+    (authoritativePreviousCancelAtPeriodEnd === true ||
+      (authoritativePreviousCancelAtPeriodEnd === null &&
+        eventApplied &&
+        previous.cancelAtPeriodEnd)) &&
+    !row.cancelAtPeriodEnd &&
+    subscriptionCanContinue &&
+    hasPaidAccessAtTransition;
+
+  if (!scheduledTransition && !restoredTransition) return;
+
+  const monthlyPriceLabel = resolveAuthoritativeMonthlyPriceLabel(
+    resolvePrimaryPrice(subscription)?.price
+  );
+  if (!monthlyPriceLabel) {
+    logServerWarning("circle-card-lifecycle-email-price-invalid", {
+      eventId: event.id,
+      eventType: event.type
+    });
+    return;
+  }
+
+  const period = resolveSubscriptionPeriod(subscription);
+  if (scheduledTransition) {
+    const accessEndsAt = row.accessEndsAt;
+    if (!accessEndsAt) return;
+
+    await sendCircleCardProCancellationScheduledEmail({
+      userId: row.userId,
+      evidenceId: `${subscription.id}:${accessEndsAt.getTime()}`,
+      planName: "Circle Card Pro",
+      monthlyPriceLabel,
+      cancellationScheduledAt: changedAt,
+      accessEndsAt
+    });
+  } else if (restoredTransition) {
+    const renewalDate = period.end;
+    if (!renewalDate) return;
+
+    await sendCircleCardProSubscriptionRestoredEmail({
+      userId: row.userId,
+      evidenceId: `${subscription.id}:${renewalDate.getTime()}`,
+      planName: "Circle Card Pro",
+      monthlyPriceLabel,
+      restoredAt: changedAt,
+      renewalDate
+    });
+  }
 }
 
 function resolveInvoiceEntitlementPeriod(invoice: Stripe.Invoice, persistedPriceId?: string | null) {
@@ -1645,11 +1796,33 @@ function resolveInvoiceEntitlementPeriod(invoice: Stripe.Invoice, persistedPrice
 
   const selected = candidates.sort((left, right) => right.period.end - left.period.end)[0];
   if (!selected?.period?.end) return null;
+  const monthlyPriceLabel = resolveAuthoritativeMonthlyPriceLabel(selected.price);
+  if (invoice.currency?.toLowerCase() !== "gbp" || !monthlyPriceLabel) return null;
 
   return {
     start: toDateFromStripeTimestamp(selected.period.start),
-    end: toDateFromStripeTimestamp(selected.period.end)
+    end: toDateFromStripeTimestamp(selected.period.end),
+    monthlyPriceLabel
   };
+}
+
+function resolveAuthoritativeMonthlyPriceLabel(
+  price: Stripe.Price | Stripe.DeletedPrice | null | undefined
+) {
+  const expectedAmount = Math.round(
+    (CIRCLE_CARD_PRICING_CONFIG.PRO.priceMonthly ?? 0) * 100
+  );
+  if (
+    !price ||
+    "deleted" in price ||
+    price.currency?.toLowerCase() !== "gbp" ||
+    price.unit_amount !== expectedAmount ||
+    price.recurring?.interval !== "month"
+  ) {
+    return null;
+  }
+
+  return `£${(price.unit_amount / 100).toFixed(2)} monthly`;
 }
 
 function paymentChronologyWhere(input: {
@@ -1668,17 +1841,35 @@ function paymentChronologyWhere(input: {
   };
 }
 
-async function handlePaidInvoice(invoice: Stripe.Invoice, event: Stripe.Event) {
+async function handlePaidInvoice(
+  invoice: Stripe.Invoice,
+  event: Stripe.Event,
+  deliverLifecycleEmail = false
+) {
   const subscriptionId = toStripeObjectId(invoice.subscription as StripeObjectRef);
   if (!subscriptionId) return;
 
   const stripe = requireStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  if (
+    invoice.status !== "paid" ||
+    invoice.paid !== true ||
+    !invoiceMatchesSubscription(invoice, subscription, event)
+  ) {
+    return;
+  }
   const eventCreatedAt = stripeEventDate(event);
   const row = await upsertCircleCardSubscriptionFromStripeSubscription(subscription, null, {
     statusEvent: { createdAt: eventCreatedAt, eventId: event.id }
   });
   if (!row) return;
+  if (
+    subscription.status !== "active" &&
+    subscription.status !== "past_due" &&
+    subscription.status !== "canceled"
+  ) {
+    return;
+  }
   const period = resolveInvoiceEntitlementPeriod(invoice, row.stripePriceId);
   if (!period?.end) return;
 
@@ -1722,22 +1913,64 @@ async function handlePaidInvoice(invoice: Stripe.Invoice, event: Stripe.Event) {
   if (paymentStateUpdated.count && row.paymentFailedAt) {
     logServerInfo("circle-card-payment-recovered", { eventId: event.id, userId: row.userId });
   }
+
+  const entitledAfterPaidInvoice = isCircleCardSubscriptionEntitled(
+    {
+      ...row,
+      accessEndsAt: accessAdvanced.count ? period.end : row.accessEndsAt
+    },
+    paidAt
+  );
+  const activationEvidenceIsCurrent =
+    accessAdvanced.count > 0 ||
+    !row.lastPaidInvoiceId ||
+    row.lastPaidInvoiceId === invoice.id;
+  if (
+    deliverLifecycleEmail &&
+    invoice.billing_reason === "subscription_create" &&
+    activationEvidenceIsCurrent &&
+    (!row.paymentFailedAt || paymentStateUpdated.count > 0) &&
+    entitledAfterPaidInvoice &&
+    period.monthlyPriceLabel
+  ) {
+    await sendCircleCardProActivatedEmail({
+      userId: row.userId,
+      evidenceId: invoice.id,
+      planName: "Circle Card Pro",
+      monthlyPriceLabel: period.monthlyPriceLabel,
+      activationDate: paidAt,
+      billingDateLabel: subscription.cancel_at_period_end ? "Paid through" : "Renews on",
+      billingDate: period.end
+    });
+  }
 }
 
-async function handleFailedInvoice(invoice: Stripe.Invoice, event: Stripe.Event) {
+async function handleFailedInvoice(
+  invoice: Stripe.Invoice,
+  event: Stripe.Event,
+  deliverLifecycleEmail = false
+) {
   const subscriptionId = toStripeObjectId(invoice.subscription as StripeObjectRef);
   if (!subscriptionId) return;
 
   const stripe = requireStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  if (
+    invoice.status === "paid" ||
+    invoice.paid === true ||
+    !invoiceMatchesSubscription(invoice, subscription, event)
+  ) {
+    return;
+  }
   const eventCreatedAt = stripeEventDate(event);
   const row = await upsertCircleCardSubscriptionFromStripeSubscription(subscription, null, {
     statusEvent: { createdAt: eventCreatedAt, eventId: event.id }
   });
   if (!row) return;
 
-  const graceEndsAt = circleCardRecoveryGraceEndsAt(eventCreatedAt);
   const failurePeriod = resolveInvoiceEntitlementPeriod(invoice, row.stripePriceId);
+  if (!failurePeriod?.end) return;
+  const graceEndsAt = circleCardRecoveryGraceEndsAt(eventCreatedAt);
   const initialized = await db.circleCardSubscription.updateMany({
     where: {
       id: row.id,
@@ -1755,7 +1988,7 @@ async function handleFailedInvoice(invoice: Stripe.Invoice, event: Stripe.Event)
     }
   });
 
-  const restarted = initialized.count || !failurePeriod?.end
+  const restarted = initialized.count
     ? { count: 0 }
     : await db.circleCardSubscription.updateMany({
         where: {
@@ -1813,7 +2046,12 @@ async function handleFailedInvoice(invoice: Stripe.Invoice, event: Stripe.Event)
       });
   const currentFailure = await db.circleCardSubscription.findUnique({
     where: { id: row.id },
-    select: { paymentFailedAt: true, recoveryGraceEndsAt: true }
+    select: {
+      paymentFailedAt: true,
+      recoveryGraceEndsAt: true,
+      paymentFailureInvoiceId: true,
+      recoveredAt: true
+    }
   });
 
   if (initialized.count || restarted.count || backdated.count || chronologyUpdated.count) {
@@ -1829,18 +2067,37 @@ async function handleFailedInvoice(invoice: Stripe.Invoice, event: Stripe.Event)
       userId: row.userId
     });
   }
+
+  if (
+    deliverLifecycleEmail &&
+    (initialized.count ||
+      restarted.count ||
+      (currentFailure?.paymentFailureInvoiceId === invoice.id &&
+        (!currentFailure.recoveredAt || currentFailure.recoveredAt <= eventCreatedAt))) &&
+    failurePeriod.monthlyPriceLabel
+  ) {
+    await sendCircleCardProPaymentFailedEmail({
+      userId: row.userId,
+      evidenceId: invoice.id,
+      planName: "Circle Card Pro",
+      monthlyPriceLabel: failurePeriod.monthlyPriceLabel,
+      failedAt: eventCreatedAt,
+      retryDate: toDateFromStripeTimestamp(invoice.next_payment_attempt)
+    });
+  }
 }
 
 async function handleInvoice(
   invoice: Stripe.Invoice,
   outcome: "paid" | "failed",
-  event: Stripe.Event
+  event: Stripe.Event,
+  deliverLifecycleEmail = false
 ) {
   if (outcome === "paid") {
-    await handlePaidInvoice(invoice, event);
+    await handlePaidInvoice(invoice, event, deliverLifecycleEmail);
     return;
   }
-  await handleFailedInvoice(invoice, event);
+  await handleFailedInvoice(invoice, event, deliverLifecycleEmail);
 }
 
 async function markAttributedReferralConvertedToPaidPro(userId: string, convertedAt: Date) {
@@ -1931,6 +2188,8 @@ export async function processCircleCardStripeWebhookEvent(event: Stripe.Event) {
     return false;
   }
 
+  assertCircleCardStripeEventMode(event);
+
   const processingLease = await acquireWebhookProcessingLease(event);
   if (processingLease === "processed") {
     logServerInfo("circle-card-stripe-event-already-completed", {
@@ -1963,14 +2222,20 @@ export async function processCircleCardStripeWebhookEvent(event: Stripe.Event) {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted":
-        await handleSubscriptionChanged(event.data.object as Stripe.Subscription, event);
+        await handleSubscriptionChanged(
+          event.data.object as Stripe.Subscription,
+          event,
+          event.type === "customer.subscription.updated"
+        );
         break;
       case "invoice.paid":
-        await handleInvoice(event.data.object as Stripe.Invoice, "paid", event);
+        await handleInvoice(event.data.object as Stripe.Invoice, "paid", event, true);
         break;
       case "invoice.payment_failed":
+        await handleInvoice(event.data.object as Stripe.Invoice, "failed", event, true);
+        break;
       case "invoice.payment_action_required":
-        await handleInvoice(event.data.object as Stripe.Invoice, "failed", event);
+        await handleInvoice(event.data.object as Stripe.Invoice, "failed", event, false);
         break;
     }
 

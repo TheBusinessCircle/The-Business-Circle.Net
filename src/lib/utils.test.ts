@@ -93,6 +93,9 @@ describe("base url resolution", () => {
     expect(absoluteUrl("/api/auth/verify-email")).toBe(
       "https://thebusinesscircle.net/api/auth/verify-email"
     );
+    expect(absoluteUrl("/dashboard/circle-card?billing=success")).toBe(
+      "https://thebusinesscircle.net/dashboard/circle-card?billing=success"
+    );
   });
 
   it("uses the Circle Card canonical origin in an explicit Circle Card runtime", () => {
@@ -104,5 +107,8 @@ describe("base url resolution", () => {
 
     expect(getBaseUrl()).toBe("https://circlecard.co.uk");
     expect(absoluteUrl("/login")).toBe("https://circlecard.co.uk/login");
+    expect(absoluteUrl("/app?billing=portal-return")).toBe(
+      "https://circlecard.co.uk/app?billing=portal-return"
+    );
   });
 });

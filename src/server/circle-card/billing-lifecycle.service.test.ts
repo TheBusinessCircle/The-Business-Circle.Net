@@ -29,6 +29,10 @@ const logInfoMock = vi.hoisted(() => vi.fn());
 const logWarningMock = vi.hoisted(() => vi.fn());
 const canStartCheckoutMock = vi.hoisted(() => vi.fn());
 const billingEnabledMock = vi.hoisted(() => vi.fn());
+const proActivatedEmailMock = vi.hoisted(() => vi.fn());
+const paymentFailedEmailMock = vi.hoisted(() => vi.fn());
+const cancellationScheduledEmailMock = vi.hoisted(() => vi.fn());
+const subscriptionRestoredEmailMock = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({
@@ -92,8 +96,15 @@ vi.mock("@/lib/security/logging", () => ({
   logServerInfo: logInfoMock,
   logServerWarning: logWarningMock
 }));
+vi.mock("@/server/circle-card/billing-lifecycle-email.service", () => ({
+  sendCircleCardProActivatedEmail: proActivatedEmailMock,
+  sendCircleCardProPaymentFailedEmail: paymentFailedEmailMock,
+  sendCircleCardProCancellationScheduledEmail: cancellationScheduledEmailMock,
+  sendCircleCardProSubscriptionRestoredEmail: subscriptionRestoredEmailMock
+}));
 vi.mock("@/lib/utils", () => ({
-  absoluteUrl: (path: string) => `https://thebusinesscircle.net${path}`
+  absoluteUrl: (path: string) =>
+    `${process.env.APP_BRAND === "circle-card" ? "https://circlecard.co.uk" : "https://thebusinesscircle.net"}${path}`
 }));
 
 import {
@@ -134,6 +145,31 @@ function stripeSubscription(overrides: Record<string, unknown> = {}) {
   } as unknown as Stripe.Subscription;
 }
 
+function authoritativeMonthlyPrice() {
+  return {
+    id: "price_pro_monthly",
+    object: "price",
+    product: "prod_pro",
+    currency: "gbp",
+    unit_amount: 999,
+    recurring: { interval: "month" }
+  };
+}
+
+function authoritativeSubscription(overrides: Record<string, unknown> = {}) {
+  return stripeSubscription({
+    items: {
+      data: [
+        {
+          id: "si_pro_1",
+          price: authoritativeMonthlyPrice()
+        }
+      ]
+    },
+    ...overrides
+  });
+}
+
 function stripeCustomer(id = "cus_pro_1", userId = "user-1") {
   return {
     id,
@@ -148,8 +184,10 @@ function paidInvoice(overrides: Record<string, unknown> = {}) {
     id: "in_paid_1",
     object: "invoice",
     status: "paid",
+    paid: true,
     subscription: "sub_pro_1",
     customer: "cus_pro_1",
+    currency: "gbp",
     created: nowSeconds,
     status_transitions: { paid_at: nowSeconds },
     lines: {
@@ -158,7 +196,7 @@ function paidInvoice(overrides: Record<string, unknown> = {}) {
           id: "il_pro_1",
           type: "subscription",
           proration: false,
-          price: { id: "price_pro_monthly" },
+          price: authoritativeMonthlyPrice(),
           period: { start: periodStart, end: periodEnd }
         }
       ]
@@ -167,12 +205,31 @@ function paidInvoice(overrides: Record<string, unknown> = {}) {
   } as unknown as Stripe.Invoice;
 }
 
+function authoritativeInvoice(overrides: Record<string, unknown> = {}) {
+  return paidInvoice({
+    currency: "gbp",
+    lines: {
+      data: [
+        {
+          id: "il_pro_1",
+          type: "subscription",
+          proration: false,
+          price: authoritativeMonthlyPrice(),
+          period: { start: periodStart, end: periodEnd }
+        }
+      ]
+    },
+    ...overrides
+  });
+}
+
 function event(type: string, object: unknown, overrides: Record<string, unknown> = {}) {
   return {
     id: `evt_${type.replaceAll(".", "_")}`,
     object: "event",
     type,
     created: nowSeconds,
+    livemode: false,
     data: { object },
     ...overrides
   } as unknown as Stripe.Event;
@@ -259,6 +316,8 @@ function accessUser(overrides: Record<string, unknown> = {}) {
 describe("Circle Card billing lifecycle service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.APP_BRAND;
+    process.env.STRIPE_SECRET_KEY = "sk_test_synthetic";
     process.env.STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID = "price_pro_monthly";
     process.env.CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID = "bpc_circle_card_pro";
     process.env.STRIPE_CIRCLE_CARD_PRO_ANNUAL_PRICE_ID = "";
@@ -267,6 +326,10 @@ describe("Circle Card billing lifecycle service", () => {
     acquireLeaseMock.mockResolvedValue("acquired");
     canStartCheckoutMock.mockReturnValue(true);
     billingEnabledMock.mockReturnValue(true);
+    proActivatedEmailMock.mockResolvedValue({ sent: true, duplicate: false });
+    paymentFailedEmailMock.mockResolvedValue({ sent: true, duplicate: false });
+    cancellationScheduledEmailMock.mockResolvedValue({ sent: true, duplicate: false });
+    subscriptionRestoredEmailMock.mockResolvedValue({ sent: true, duplicate: false });
     markProcessedMock.mockResolvedValue(undefined);
     markFailedMock.mockResolvedValue(undefined);
     subscriptionUpdateManyMock.mockResolvedValue({ count: 1 });
@@ -297,6 +360,8 @@ describe("Circle Card billing lifecycle service", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    delete process.env.APP_BRAND;
+    delete process.env.STRIPE_SECRET_KEY;
   });
 
   it("creates one server-derived monthly Checkout with an idempotency key", async () => {
@@ -324,7 +389,12 @@ describe("Circle Card billing lifecycle service", () => {
     expect(params).toMatchObject({
       mode: "subscription",
       line_items: [{ price: "price_pro_monthly", quantity: 1 }],
-      metadata: { userId: "user-1", circleCardPlan: "PRO", billingPeriod: "monthly" }
+      metadata: { userId: "user-1", circleCardPlan: "PRO", billingPeriod: "monthly" },
+      success_url:
+        "https://thebusinesscircle.net/dashboard/circle-card?billing=success&plan=pro&capability=explore_pro",
+      cancel_url: expect.stringMatching(
+        /^https:\/\/thebusinesscircle\.net\/circle-card\/pro\?.*&billing=cancelled$/
+      )
     });
     expect(options.idempotencyKey).toMatch(/^circle-card-checkout:user-1:/);
     expect(customerCreateMock).toHaveBeenCalledWith(
@@ -834,6 +904,342 @@ describe("Circle Card billing lifecycle service", () => {
     expect(markProcessedMock).toHaveBeenCalled();
   });
 
+  it("creates clean Circle Card Checkout return URLs only for the Circle Card runtime", async () => {
+    process.env.APP_BRAND = "circle-card";
+    subscriptionFindUniqueMock.mockResolvedValue(null);
+    checkoutCreateMock.mockResolvedValue(
+      openCheckoutSession({
+        id: "cs_circle_runtime",
+        url: "https://checkout.stripe.test/circle-runtime",
+        expires_at: nowSeconds + 1800
+      })
+    );
+
+    await createCircleCardProCheckoutSession({
+      userId: "user-1",
+      email: "member@example.com"
+    });
+
+    expect(checkoutCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success_url:
+          "https://circlecard.co.uk/app?billing=success&plan=pro&capability=explore_pro",
+        cancel_url: expect.stringMatching(
+          /^https:\/\/circlecard\.co\.uk\/pro\?.*&billing=cancelled$/
+        )
+      }),
+      expect.any(Object)
+    );
+  });
+
+  it("sends Pro activation only after the first authoritative paid invoice advances access", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionRetrieveMock.mockResolvedValue(authoritativeSubscription());
+
+    await processCircleCardStripeWebhookEvent(
+      event(
+        "invoice.paid",
+        authoritativeInvoice({ billing_reason: "subscription_create" })
+      )
+    );
+
+    expect(proActivatedEmailMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      evidenceId: "in_paid_1",
+      planName: "Circle Card Pro",
+      monthlyPriceLabel: "£9.99 monthly",
+      activationDate: new Date(nowSeconds * 1000),
+      billingDateLabel: "Renews on",
+      billingDate: new Date(periodEnd * 1000)
+    });
+    expect(markProcessedMock).toHaveBeenCalledWith("evt_invoice_paid");
+  });
+
+  it("does not send another activation for a renewal or reconciliation", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(
+      storedRow({ lastPaidInvoiceId: "in_original_activation" })
+    );
+    subscriptionRetrieveMock.mockResolvedValue(authoritativeSubscription());
+
+    await processCircleCardStripeWebhookEvent(
+      event("invoice.paid", authoritativeInvoice({ id: "in_renewal" }))
+    );
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+
+    subscriptionsListMock.mockResolvedValue({ data: [authoritativeSubscription()] });
+    invoiceRetrieveMock.mockResolvedValue(authoritativeInvoice({ id: "in_reconciled" }));
+    subscriptionRetrieveMock.mockResolvedValue(
+      authoritativeSubscription({ latest_invoice: "in_reconciled" })
+    );
+    await reconcileCircleCardSubscriptionForUser("user-1");
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a zero-total renewal only when the configured recurring Price is authoritative", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(
+      storedRow({ lastPaidInvoiceId: "in_original_activation" })
+    );
+    subscriptionRetrieveMock.mockResolvedValue(authoritativeSubscription());
+
+    await processCircleCardStripeWebhookEvent(
+      event(
+        "invoice.paid",
+        authoritativeInvoice({
+          id: "in_credited_renewal",
+          billing_reason: "subscription_cycle",
+          amount_due: 0,
+          amount_paid: 0,
+          subtotal: 0,
+          total: 0
+        })
+      )
+    );
+
+    expect(subscriptionUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          accessEndsAt: new Date(periodEnd * 1000),
+          lastPaidInvoiceId: "in_credited_renewal"
+        })
+      })
+    );
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["trialing", "incomplete", "incomplete_expired"])(
+    "never grants paid access from a zero-value %s subscription invoice",
+    async (status) => {
+      subscriptionFindUniqueMock.mockResolvedValue(storedRow({ accessEndsAt: null }));
+      subscriptionRetrieveMock.mockResolvedValue(
+        authoritativeSubscription({ status })
+      );
+
+      await processCircleCardStripeWebhookEvent(
+        event(
+          "invoice.paid",
+          authoritativeInvoice({
+            billing_reason: "subscription_create",
+            amount_due: 0,
+            amount_paid: 0,
+            subtotal: 0,
+            total: 0
+          })
+        )
+      );
+
+      expect(
+        subscriptionUpdateManyMock.mock.calls.some(
+          ([call]) => call.data?.accessEndsAt instanceof Date
+        )
+      ).toBe(false);
+      expect(proActivatedEmailMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(["manual", "subscription_update"])(
+    "does not describe a %s invoice as initial Pro activation",
+    async (billingReason) => {
+      subscriptionFindUniqueMock.mockResolvedValue(storedRow({ accessEndsAt: null }));
+      subscriptionRetrieveMock.mockResolvedValue(authoritativeSubscription());
+
+      await processCircleCardStripeWebhookEvent(
+        event(
+          "invoice.paid",
+          authoritativeInvoice({ billing_reason: billingReason })
+        )
+      );
+
+      expect(proActivatedEmailMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it("does not grant access from a proration-only invoice", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow({ accessEndsAt: null }));
+    subscriptionRetrieveMock.mockResolvedValue(authoritativeSubscription());
+    const prorationInvoice = authoritativeInvoice({
+      billing_reason: "subscription_update",
+      lines: {
+        data: [
+          {
+            id: "il_proration",
+            type: "subscription",
+            proration: true,
+            price: authoritativeMonthlyPrice(),
+            period: { start: periodStart, end: periodEnd }
+          }
+        ]
+      }
+    });
+
+    await processCircleCardStripeWebhookEvent(
+      event("invoice.paid", prorationInvoice)
+    );
+
+    expect(
+      subscriptionUpdateManyMock.mock.calls.some(
+        ([call]) => call.data?.accessEndsAt instanceof Date
+      )
+    ).toBe(false);
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("sends the initial activation when reconciliation beats the delayed paid webhook", async () => {
+    const firstInvoice = authoritativeInvoice({
+      billing_reason: "subscription_create"
+    });
+    const currentSubscription = authoritativeSubscription({
+      latest_invoice: "in_paid_1"
+    });
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionsListMock.mockResolvedValue({ data: [currentSubscription] });
+    subscriptionRetrieveMock.mockResolvedValue(currentSubscription);
+    invoiceRetrieveMock.mockResolvedValue(firstInvoice);
+
+    await reconcileCircleCardSubscriptionForUser("user-1");
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+
+    subscriptionFindUniqueMock.mockResolvedValue(
+      storedRow({
+        lastPaidInvoiceId: "in_paid_1",
+        lastInvoicePaidAt: new Date(nowSeconds * 1000),
+        accessEndsAt: new Date(periodEnd * 1000)
+      })
+    );
+    await processCircleCardStripeWebhookEvent(event("invoice.paid", firstInvoice));
+
+    expect(proActivatedEmailMock).toHaveBeenCalledOnce();
+    expect(proActivatedEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ evidenceId: "in_paid_1", userId: "user-1" })
+    );
+  });
+
+  it("does not send delayed activation after a newer invoice became authoritative", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(
+      storedRow({
+        lastPaidInvoiceId: "in_newer_renewal",
+        lastInvoicePaidAt: new Date((nowSeconds + 31 * 24 * 60 * 60) * 1000),
+        accessEndsAt: new Date((periodEnd + 31 * 24 * 60 * 60) * 1000),
+        paymentFailedAt: new Date((nowSeconds + 31 * 24 * 60 * 60 + 60) * 1000),
+        lastPaymentEventCreatedAt: new Date(
+          (nowSeconds + 31 * 24 * 60 * 60 + 60) * 1000
+        ),
+        lastPaymentEventId: "evt_newer_payment_failure"
+      })
+    );
+    subscriptionRetrieveMock.mockResolvedValue(
+      authoritativeSubscription({ status: "past_due" })
+    );
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await processCircleCardStripeWebhookEvent(
+      event(
+        "invoice.paid",
+        authoritativeInvoice({ billing_reason: "subscription_create" }),
+        { id: "evt_delayed_initial_invoice" }
+      )
+    );
+
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("does not email or grant from a forged return without Stripe payment evidence", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow({ accessEndsAt: null }));
+    subscriptionsListMock.mockResolvedValue({
+      data: [authoritativeSubscription({ status: "incomplete", latest_invoice: null })]
+    });
+
+    await reconcileCircleCardSubscriptionForUser("user-1");
+
+    expect(
+      subscriptionUpdateManyMock.mock.calls.some(
+        ([call]) => call.data?.accessEndsAt instanceof Date
+      )
+    ).toBe(false);
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects paid invoice evidence with the wrong amount or currency", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow({ accessEndsAt: null }));
+    subscriptionRetrieveMock.mockResolvedValue(authoritativeSubscription());
+    const wrongPriceInvoice = authoritativeInvoice({
+      currency: "usd",
+      lines: {
+        data: [
+          {
+            id: "il_wrong_amount",
+            type: "subscription",
+            proration: false,
+            price: {
+              ...authoritativeMonthlyPrice(),
+              currency: "usd",
+              unit_amount: 1
+            },
+            period: { start: periodStart, end: periodEnd }
+          }
+        ]
+      }
+    });
+
+    await processCircleCardStripeWebhookEvent(
+      event("invoice.paid", wrongPriceInvoice)
+    );
+
+    expect(
+      subscriptionUpdateManyMock.mock.calls.some(
+        ([call]) => call.data?.accessEndsAt instanceof Date
+      )
+    ).toBe(false);
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["open", false],
+    ["draft", false],
+    ["void", false],
+    ["uncollectible", false],
+    ["paid", false]
+  ])(
+    "does not grant from malformed invoice.paid evidence with status=%s paid=%s",
+    async (status, paid) => {
+      subscriptionFindUniqueMock.mockResolvedValue(storedRow({ accessEndsAt: null }));
+      subscriptionRetrieveMock.mockResolvedValue(authoritativeSubscription());
+
+      await processCircleCardStripeWebhookEvent(
+        event(
+          "invoice.paid",
+          authoritativeInvoice({ status, paid, billing_reason: "subscription_create" })
+        )
+      );
+
+      expect(
+        subscriptionUpdateManyMock.mock.calls.some(
+          ([call]) => call.data?.accessEndsAt instanceof Date
+        )
+      ).toBe(false);
+      expect(proActivatedEmailMock).not.toHaveBeenCalled();
+      expect(markProcessedMock).toHaveBeenCalled();
+    }
+  );
+
+  it("rejects an invoice whose customer does not match its subscription", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionRetrieveMock.mockResolvedValue(authoritativeSubscription());
+
+    await processCircleCardStripeWebhookEvent(
+      event(
+        "invoice.paid",
+        authoritativeInvoice({ customer: "cus_different", billing_reason: "subscription_create" })
+      )
+    );
+
+    expect(subscriptionUpsertMock).not.toHaveBeenCalled();
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+    expect(logWarningMock).toHaveBeenCalledWith(
+      "circle-card-invoice-subscription-mismatch",
+      expect.objectContaining({ eventType: "invoice.paid" })
+    );
+  });
+
   it("synchronizes current Stripe status when invoice.paid arrives before a status webhook", async () => {
     subscriptionFindUniqueMock.mockResolvedValue(storedRow({ status: "INCOMPLETE" }));
     subscriptionRetrieveMock.mockResolvedValue(stripeSubscription({ status: "active" }));
@@ -876,7 +1282,9 @@ describe("Circle Card billing lifecycle service", () => {
       status: "PAST_DUE"
     });
     subscriptionFindUniqueMock.mockResolvedValue(failedRow);
-    await processCircleCardStripeWebhookEvent(event("invoice.payment_failed", paidInvoice({ status: "open" })));
+    await processCircleCardStripeWebhookEvent(
+      event("invoice.payment_failed", paidInvoice({ status: "open", paid: false }))
+    );
     expect(subscriptionUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: "ccs_1" }),
@@ -905,6 +1313,110 @@ describe("Circle Card billing lifecycle service", () => {
     );
   });
 
+  it("sends payment-failed mail only after a durable authoritative failure transition", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionRetrieveMock.mockResolvedValue(
+      authoritativeSubscription({ status: "past_due" })
+    );
+    const failedInvoice = authoritativeInvoice({
+      status: "open",
+      paid: false,
+      next_payment_attempt: nowSeconds + 86_400
+    });
+
+    await processCircleCardStripeWebhookEvent(
+      event("invoice.payment_failed", failedInvoice)
+    );
+
+    expect(paymentFailedEmailMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      evidenceId: "in_paid_1",
+      planName: "Circle Card Pro",
+      monthlyPriceLabel: "£9.99 monthly",
+      failedAt: new Date(nowSeconds * 1000),
+      retryDate: new Date((nowSeconds + 86_400) * 1000)
+    });
+  });
+
+  it("stores failed-payment state even when the product email cannot be delivered", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionRetrieveMock.mockResolvedValue(
+      authoritativeSubscription({ status: "past_due" })
+    );
+    paymentFailedEmailMock.mockResolvedValue({ sent: false, duplicate: false });
+
+    await expect(
+      processCircleCardStripeWebhookEvent(
+        event(
+          "invoice.payment_failed",
+          authoritativeInvoice({ status: "open", paid: false })
+        )
+      )
+    ).resolves.toBe(true);
+
+    expect(subscriptionUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ paymentFailedAt: new Date(nowSeconds * 1000) })
+      })
+    );
+    expect(markProcessedMock).toHaveBeenCalledWith("evt_invoice_payment_failed");
+    expect(markFailedMock).not.toHaveBeenCalled();
+  });
+
+  it("does not record failure state from a malformed payment-failed event for a paid invoice", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionRetrieveMock.mockResolvedValue(authoritativeSubscription());
+
+    await processCircleCardStripeWebhookEvent(
+      event("invoice.payment_failed", authoritativeInvoice())
+    );
+
+    expect(
+      subscriptionUpdateManyMock.mock.calls.some(
+        ([call]) => call.data?.paymentFailedAt instanceof Date
+      )
+    ).toBe(false);
+    expect(paymentFailedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("does not record failure state without matching GBP Circle Card Price evidence", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionRetrieveMock.mockResolvedValue(
+      authoritativeSubscription({ status: "past_due" })
+    );
+    const wrongProductInvoice = authoritativeInvoice({
+      status: "open",
+      paid: false,
+      currency: "usd",
+      lines: {
+        data: [
+          {
+            id: "il_wrong_product",
+            type: "subscription",
+            proration: false,
+            price: {
+              ...authoritativeMonthlyPrice(),
+              id: "price_other_product",
+              currency: "usd"
+            },
+            period: { start: periodStart, end: periodEnd }
+          }
+        ]
+      }
+    });
+
+    await processCircleCardStripeWebhookEvent(
+      event("invoice.payment_failed", wrongProductInvoice)
+    );
+
+    expect(
+      subscriptionUpdateManyMock.mock.calls.some(
+        ([call]) => call.data?.paymentFailedAt instanceof Date
+      )
+    ).toBe(false);
+    expect(paymentFailedEmailMock).not.toHaveBeenCalled();
+  });
+
   it("initializes failure grace atomically and never restarts an existing cycle", async () => {
     const existingFailure = storedRow({
       paymentFailedAt: new Date((nowSeconds - 120) * 1000),
@@ -919,7 +1431,7 @@ describe("Circle Card billing lifecycle service", () => {
       .mockResolvedValueOnce({ count: 1 }); // chronology only
 
     await processCircleCardStripeWebhookEvent(
-      event("invoice.payment_failed", paidInvoice({ status: "open" }))
+      event("invoice.payment_failed", paidInvoice({ status: "open", paid: false }))
     );
 
     const failureWrites = subscriptionUpdateManyMock.mock.calls.map(([call]) => call);
@@ -945,13 +1457,14 @@ describe("Circle Card billing lifecycle service", () => {
     const nextInvoice = paidInvoice({
       id: "in_failed_next_cycle",
       status: "open",
+      paid: false,
       lines: {
         data: [
           {
             id: "il_next_cycle",
             type: "subscription",
             proration: false,
-            price: { id: "price_pro_monthly" },
+            price: authoritativeMonthlyPrice(),
             period: { start: periodEnd, end: nextPeriodEnd }
           }
         ]
@@ -989,6 +1502,41 @@ describe("Circle Card billing lifecycle service", () => {
         })
       })
     );
+  });
+
+  it("does not reopen failure state when an older payment_failed arrives after recovery", async () => {
+    const recoveredAt = new Date((nowSeconds + 120) * 1000);
+    subscriptionFindUniqueMock.mockResolvedValue(
+      storedRow({
+        paymentFailedAt: null,
+        paymentFailureInvoiceId: null,
+        recoveredAt,
+        lastPaymentEventCreatedAt: recoveredAt,
+        lastPaymentEventId: "evt_newer_paid"
+      })
+    );
+    subscriptionRetrieveMock.mockResolvedValue(
+      authoritativeSubscription({ status: "active" })
+    );
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await processCircleCardStripeWebhookEvent(
+      event(
+        "invoice.payment_failed",
+        authoritativeInvoice({ status: "open", paid: false }),
+        { id: "evt_older_failure", created: nowSeconds }
+      )
+    );
+
+    expect(subscriptionUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          paymentFailedAt: null,
+          OR: expect.any(Array)
+        })
+      })
+    );
+    expect(paymentFailedEmailMock).not.toHaveBeenCalled();
   });
 
   it("does not process an exact duplicate event twice", async () => {
@@ -1160,6 +1708,249 @@ describe("Circle Card billing lifecycle service", () => {
     expect(
       subscriptionUpdateManyMock.mock.calls.some(([call]) => call.data?.accessEndsAt === null)
     ).toBe(false);
+  });
+
+  it("fails closed before leasing a Circle event from the wrong Stripe mode", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+
+    await expect(
+      processCircleCardStripeWebhookEvent(
+        event("invoice.paid", authoritativeInvoice(), { livemode: true })
+      )
+    ).rejects.toThrow("circle-card-stripe-event-mode-mismatch");
+
+    expect(acquireLeaseMock).not.toHaveBeenCalled();
+    expect(subscriptionRetrieveMock).not.toHaveBeenCalled();
+    expect(markProcessedMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed in production when Stripe mode cannot be derived from configuration", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    delete process.env.STRIPE_SECRET_KEY;
+    vi.stubEnv("NODE_ENV", "production");
+
+    try {
+      await expect(
+        processCircleCardStripeWebhookEvent(
+          event("invoice.paid", authoritativeInvoice(), { livemode: false })
+        )
+      ).rejects.toThrow("circle-card-stripe-event-mode-mismatch");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    expect(acquireLeaseMock).not.toHaveBeenCalled();
+    expect(subscriptionRetrieveMock).not.toHaveBeenCalled();
+  });
+
+  it("emails only an authoritative false-to-true cancellation schedule transition", async () => {
+    const previous = storedRow({ cancelAtPeriodEnd: false });
+    const updated = storedRow({
+      cancelAtPeriodEnd: true,
+      accessEndsAt: new Date(periodEnd * 1000),
+      cancellationEffectiveAt: new Date(periodEnd * 1000),
+      lastStripeEventId: "evt_customer_subscription_updated"
+    });
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select?: Record<string, boolean> }) => {
+      if (select?.id && Object.keys(select).length === 1) return { id: "ccs_1" };
+      if (select?.cancelAtPeriodEnd && !select?.plan) return previous;
+      if (!select) return updated;
+        return previous;
+      }
+    );
+
+    await processCircleCardStripeWebhookEvent(
+      event(
+        "customer.subscription.updated",
+        authoritativeSubscription({ cancel_at_period_end: true })
+      )
+    );
+
+    expect(cancellationScheduledEmailMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      evidenceId: `sub_pro_1:${periodEnd * 1000}`,
+      planName: "Circle Card Pro",
+      monthlyPriceLabel: "£9.99 monthly",
+      cancellationScheduledAt: new Date(nowSeconds * 1000),
+      accessEndsAt: new Date(periodEnd * 1000)
+    });
+  });
+
+  it("emails only an authoritative true-to-false subscription restoration", async () => {
+    const previous = storedRow({
+      cancelAtPeriodEnd: true,
+      cancellationEffectiveAt: new Date(periodEnd * 1000)
+    });
+    const updated = storedRow({
+      cancelAtPeriodEnd: false,
+      accessEndsAt: new Date(periodEnd * 1000),
+      cancellationEffectiveAt: null,
+      lastStripeEventId: "evt_customer_subscription_updated"
+    });
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select?: Record<string, boolean> }) => {
+      if (select?.id && Object.keys(select).length === 1) return { id: "ccs_1" };
+      if (select?.cancelAtPeriodEnd && !select?.plan) return previous;
+      if (!select) return updated;
+        return previous;
+      }
+    );
+
+    await processCircleCardStripeWebhookEvent(
+      event("customer.subscription.updated", authoritativeSubscription())
+    );
+
+    expect(subscriptionRestoredEmailMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      evidenceId: `sub_pro_1:${periodEnd * 1000}`,
+      planName: "Circle Card Pro",
+      monthlyPriceLabel: "£9.99 monthly",
+      restoredAt: new Date(nowSeconds * 1000),
+      renewalDate: new Date(periodEnd * 1000)
+    });
+  });
+
+  it("uses Stripe previous_attributes when reconciliation applied cancellation first", async () => {
+    const current = storedRow({
+      cancelAtPeriodEnd: true,
+      accessEndsAt: new Date(periodEnd * 1000),
+      cancellationEffectiveAt: new Date(periodEnd * 1000),
+      lastStripeEventId: "reconcile:sub_pro_1"
+    });
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select?: Record<string, boolean> }) => {
+        if (select?.id && Object.keys(select).length === 1) return { id: "ccs_1" };
+        return current;
+      }
+    );
+    const subscription = authoritativeSubscription({ cancel_at_period_end: true });
+
+    await processCircleCardStripeWebhookEvent(
+      event("customer.subscription.updated", subscription, {
+        data: {
+          object: subscription,
+          previous_attributes: { cancel_at_period_end: false }
+        }
+      })
+    );
+
+    expect(cancellationScheduledEmailMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not invent a cancellation transition when the first stored webhook is already scheduled", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(null);
+    subscriptionUpsertMock.mockResolvedValue({
+      id: "ccs_1",
+      stripeSubscriptionId: "sub_pro_1",
+      status: "ACTIVE"
+    });
+
+    await processCircleCardStripeWebhookEvent(
+      event(
+        "customer.subscription.updated",
+        authoritativeSubscription({ cancel_at_period_end: true })
+      )
+    );
+
+    expect(cancellationScheduledEmailMock).not.toHaveBeenCalled();
+    expect(subscriptionRestoredEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("does not misclassify an immediate cancellation as a restoration", async () => {
+    const previous = storedRow({
+      cancelAtPeriodEnd: true,
+      accessEndsAt: new Date(periodEnd * 1000)
+    });
+    const canceled = storedRow({
+      status: "CANCELED",
+      cancelAtPeriodEnd: false,
+      accessEndsAt: new Date(periodEnd * 1000),
+      lastStripeEventId: "evt_customer_subscription_updated"
+    });
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select?: Record<string, boolean> }) => {
+        if (select?.id && Object.keys(select).length === 1) return { id: "ccs_1" };
+        if (select?.cancelAtPeriodEnd && !select?.plan) return previous;
+        if (!select) return canceled;
+        return previous;
+      }
+    );
+
+    await processCircleCardStripeWebhookEvent(
+      event(
+        "customer.subscription.updated",
+        authoritativeSubscription({ status: "canceled", cancel_at_period_end: false }),
+        {
+          data: {
+            object: authoritativeSubscription({
+              status: "canceled",
+              cancel_at_period_end: false
+            }),
+            previous_attributes: { cancel_at_period_end: true }
+          }
+        }
+      )
+    );
+
+    expect(subscriptionRestoredEmailMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["stale cancellation", true, false, false],
+    ["stale restoration", false, true, true]
+  ])(
+    "does not email for %s after newer opposite state is stored",
+    async (_label, incomingCancel, storedCancel, previousCancel) => {
+      const current = storedRow({
+        cancelAtPeriodEnd: storedCancel,
+        accessEndsAt: new Date(periodEnd * 1000),
+        lastStripeEventId: "evt_newer_opposite_state"
+      });
+      subscriptionFindUniqueMock.mockResolvedValue(current);
+      const subscription = authoritativeSubscription({
+        cancel_at_period_end: incomingCancel
+      });
+
+      await processCircleCardStripeWebhookEvent(
+        event("customer.subscription.updated", subscription, {
+          id: "evt_older_transition",
+          created: nowSeconds - 60,
+          data: {
+            object: subscription,
+            previous_attributes: { cancel_at_period_end: previousCancel }
+          }
+        })
+      );
+
+      expect(cancellationScheduledEmailMock).not.toHaveBeenCalled();
+      expect(subscriptionRestoredEmailMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it("does not email unchanged cancellation state or a stale status event", async () => {
+    const unchanged = storedRow({
+      cancelAtPeriodEnd: true,
+      accessEndsAt: new Date(periodEnd * 1000),
+      cancellationEffectiveAt: new Date(periodEnd * 1000),
+      lastStripeEventId: "evt_newer_status"
+    });
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ select }: { select?: Record<string, boolean> }) => {
+      if (select?.id && Object.keys(select).length === 1) return { id: "ccs_1" };
+        return unchanged;
+      }
+    );
+
+    await processCircleCardStripeWebhookEvent(
+      event(
+        "customer.subscription.updated",
+        authoritativeSubscription({ cancel_at_period_end: true })
+      )
+    );
+
+    expect(cancellationScheduledEmailMock).not.toHaveBeenCalled();
+    expect(subscriptionRestoredEmailMock).not.toHaveBeenCalled();
   });
 
   it("emits a safe structured log when a status event observes confirmed access expired", async () => {
@@ -1391,9 +2182,100 @@ describe("Circle Card billing lifecycle service", () => {
     );
   });
 
+  it("returns no subscription without contacting Stripe when the user has no Stripe customer", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(null);
+
+    await expect(reconcileCircleCardSubscriptionForUser("user-1")).resolves.toEqual({
+      outcome: "no_subscription",
+      subscriptionId: null,
+      accessEndsAt: null
+    });
+    expect(subscriptionsListMock).not.toHaveBeenCalled();
+    expect(subscriptionUpdateManyMock).not.toHaveBeenCalled();
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("does not grant during reconciliation for an unpaid or incomplete subscription", async () => {
+    const incomplete = authoritativeSubscription({
+      status: "incomplete",
+      latest_invoice: "in_unpaid"
+    });
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow({ accessEndsAt: null }));
+    subscriptionsListMock.mockResolvedValue({ data: [incomplete] });
+    subscriptionRetrieveMock.mockResolvedValue(incomplete);
+    invoiceRetrieveMock.mockResolvedValue(
+      authoritativeInvoice({
+        id: "in_unpaid",
+        status: "open",
+        paid: false,
+        attempt_count: 0
+      })
+    );
+
+    await reconcileCircleCardSubscriptionForUser("user-1");
+
+    expect(
+      subscriptionUpdateManyMock.mock.calls.some(
+        ([call]) => call.data?.accessEndsAt instanceof Date
+      )
+    ).toBe(false);
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("fails reconciliation closed when the stored subscription changes to an unknown price", async () => {
+    const wrongPrice = stripeSubscription({
+      items: {
+        data: [
+          {
+            id: "si_wrong_price",
+            price: { ...authoritativeMonthlyPrice(), id: "price_wrong" }
+          }
+        ]
+      }
+    });
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionsListMock.mockResolvedValue({ data: [wrongPrice] });
+
+    await expect(reconcileCircleCardSubscriptionForUser("user-1")).resolves.toMatchObject({
+      outcome: "conflict"
+    });
+    expect(
+      subscriptionUpdateManyMock.mock.calls.some(
+        ([call]) => call.data?.accessEndsAt instanceof Date
+      )
+    ).toBe(false);
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("fails reconciliation safely when the Stripe customer belongs to another local account", async () => {
+    const stored = storedRow({ stripeCustomerId: "cus_other_owner" });
+    const remote = authoritativeSubscription({ customer: "cus_other_owner" });
+    subscriptionFindUniqueMock.mockImplementation(
+      async ({ where }: { where: Record<string, string> }) => {
+      if (where.stripeCustomerId) {
+        return { userId: "user-2", stripeCustomerId: "cus_other_owner" };
+      }
+        return stored;
+      }
+    );
+    subscriptionsListMock.mockResolvedValue({ data: [remote] });
+    customerRetrieveMock.mockResolvedValue(stripeCustomer("cus_other_owner", "user-1"));
+
+    await expect(reconcileCircleCardSubscriptionForUser("user-1")).rejects.toThrow(
+      "circle-card-reconciliation-conflict"
+    );
+    expect(
+      subscriptionUpdateManyMock.mock.calls.some(
+        ([call]) => call.data?.accessEndsAt instanceof Date
+      )
+    ).toBe(false);
+    expect(proActivatedEmailMock).not.toHaveBeenCalled();
+  });
+
   it("reconstructs a missed payment failure and its original grace deadline", async () => {
     const failedInvoice = paidInvoice({
       status: "open",
+      paid: false,
       attempt_count: 1,
       status_transitions: { finalized_at: nowSeconds }
     });
@@ -1467,7 +2349,27 @@ describe("Circle Card billing lifecycle service", () => {
     expect(portalCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         customer: "cus_pro_1",
-        configuration: "bpc_circle_card_pro"
+        configuration: "bpc_circle_card_pro",
+        return_url:
+          "https://thebusinesscircle.net/dashboard/circle-card?billing=portal-return"
+      })
+    );
+  });
+
+  it("uses the Circle Card canonical Portal return in the Circle Card runtime", async () => {
+    process.env.APP_BRAND = "circle-card";
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    subscriptionsListMock.mockResolvedValue({ data: [authoritativeSubscription()] });
+
+    await createCircleCardBillingPortalSession({
+      userId: "user-1",
+      email: "member@example.com",
+      returnPath: "/app?billing=portal-return"
+    });
+
+    expect(portalCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        return_url: "https://circlecard.co.uk/app?billing=portal-return"
       })
     );
   });

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { safeRedirectPath } from "@/lib/auth/utils";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import { appendCircleCardPortalReturnState } from "@/lib/circle-card/pro-intent";
+import { getCircleCardRoutes } from "@/lib/circle-card/routes";
 import { requireApiUser } from "@/lib/auth/api";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { isTrustedOrigin } from "@/lib/security/origin";
@@ -56,9 +58,11 @@ async function handlePost(request: Request) {
       return NextResponse.json({ error: "Invalid Circle Card billing portal payload." }, { status: 400, headers });
     }
 
-    const returnPath = safeRedirectPath(
-      parsedPayload.data.returnPath,
-      "/dashboard/circle-card?billing=portal-return"
+    const runtimeBrand = getRuntimeBrand().key;
+    const returnPath = appendCircleCardPortalReturnState(
+      parsedPayload.data.returnPath ??
+        `${getCircleCardRoutes(runtimeBrand).dashboard}?billing=portal-return`,
+      runtimeBrand
     );
     const portalSession = await createCircleCardBillingPortalSession({
       userId: authResult.user.id,

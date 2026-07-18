@@ -71,15 +71,42 @@ describe("Circle Card billing portal route", () => {
     expect((await POST(request())).status).toBe(429);
   });
 
-  it("opens recovery management for any stored Stripe relationship", async () => {
+  it("stamps the trusted reconciliation state on every safe Portal return", async () => {
     const response = await POST(request({ returnPath: "/dashboard/circle-card?billing=recovery" }));
     expect(response.status).toBe(200);
     expect(createPortalMock).toHaveBeenCalledWith({
       userId: "user-1",
       email: "member@example.com",
       name: "Member",
-      returnPath: "/dashboard/circle-card?billing=recovery"
+      returnPath: "/dashboard/circle-card?billing=portal-return"
     });
+  });
+
+  it("selects the trusted clean portal return for the Circle Card runtime", async () => {
+    process.env.APP_BRAND = "circle-card";
+    try {
+      const response = await POST(
+        request({ returnPath: "/dashboard/circle-card?billing=portal-return" })
+      );
+      expect(response.status).toBe(200);
+      expect(createPortalMock).toHaveBeenCalledWith(
+        expect.objectContaining({ returnPath: "/app?billing=portal-return" })
+      );
+    } finally {
+      delete process.env.APP_BRAND;
+    }
+  });
+
+  it("rejects BCN and external portal return destinations on Circle Card", async () => {
+    process.env.APP_BRAND = "circle-card";
+    try {
+      await POST(request({ returnPath: "/dashboard/membership" }));
+      expect(createPortalMock).toHaveBeenCalledWith(
+        expect.objectContaining({ returnPath: "/app?billing=portal-return" })
+      );
+    } finally {
+      delete process.env.APP_BRAND;
+    }
   });
 
   it("returns not found rather than creating a customer without a relationship", async () => {

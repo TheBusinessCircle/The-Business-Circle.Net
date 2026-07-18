@@ -21,6 +21,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createCircleCardProCheckoutSession } from "@/server/circle-card";
 import { measureCircleCardAction } from "@/server/circle-card/performance";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 
 export const runtime = "nodejs";
 
@@ -77,7 +78,10 @@ async function handlePost(request: Request) {
       );
     }
 
-    const intent = normalizeCircleCardProIntent(parsedPayload.data.intent);
+    const intent = normalizeCircleCardProIntent(
+      parsedPayload.data.intent,
+      getRuntimeBrand().key
+    );
     if (intent.cardId) {
       const ownedCard = await prisma.circleCard.findFirst({
         where: {

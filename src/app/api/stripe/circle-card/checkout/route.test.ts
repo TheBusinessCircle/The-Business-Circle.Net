@@ -162,6 +162,30 @@ describe("Circle Card Checkout route", () => {
     });
   });
 
+  it("uses the clean Circle Card return path only for the explicit Circle Card runtime", async () => {
+    process.env.APP_BRAND = "circle-card";
+    try {
+      const response = await POST(
+        request({
+          intent: {
+            source: "studio",
+            capability: "apply_studio_design",
+            returnPath: "/dashboard/circle-card/studio"
+          }
+        })
+      );
+
+      expect(response.status).toBe(200);
+      expect(createCheckoutMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          intent: expect.objectContaining({ returnPath: "/app/studio" })
+        })
+      );
+    } finally {
+      delete process.env.APP_BRAND;
+    }
+  });
+
   it("rejects a card context that is not owned by the authenticated user", async () => {
     findOwnedCardMock.mockResolvedValue(null);
     const response = await POST(request({

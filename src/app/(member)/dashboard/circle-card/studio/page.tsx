@@ -26,6 +26,7 @@ import {
   CIRCLE_CARD_PLAN_ORDER,
   selectCircleCardsWithinPlan
 } from "@/lib/circle-card/plan-policy";
+import { reconcileCircleCardBillingReturn } from "@/server/circle-card/billing-return.service";
 
 export const metadata: Metadata = {
   title: "Circle Studio | Circle Card",
@@ -48,6 +49,10 @@ export default async function CircleStudioPage({ searchParams }: PageProps) {
   }
 
   const params = await searchParams;
+  await reconcileCircleCardBillingReturn({
+    userId: session.user.id,
+    billing: params.billing
+  });
   const requestedCardId = firstValue(params.card);
   const cookieStore = await cookies();
   const persistedCardId = resolveCircleCardCurrentCardCookieValues(
