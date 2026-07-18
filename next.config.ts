@@ -148,9 +148,18 @@ function buildSecurityHeaders() {
 const SECURITY_HEADERS = buildSecurityHeaders();
 const PAGE_ROUTE_SOURCE =
   "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|opengraph-image|.*\\.[^/]+$).*)";
+const RUNTIME_INCREMENTAL_CACHE_MAX_BYTES = 50 * 1024 * 1024;
 
 const nextConfig: NextConfig = {
   distDir: resolveNextDistDir(),
+  // Runtime artifacts are deployed completely read-only. In Next.js 15.5.15 this
+  // keeps regenerated pages, fetch/`unstable_cache` entries and image optimiser
+  // results process-local instead of writing anywhere beneath the copied build.
+  // The deliberately disabled disk image cache is a measured launch trade-off.
+  cacheMaxMemorySize: RUNTIME_INCREMENTAL_CACHE_MAX_BYTES,
+  experimental: {
+    isrFlushToDisk: false
+  },
   skipTrailingSlashRedirect: true,
   poweredByHeader: false,
   images: {
