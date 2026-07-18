@@ -104,7 +104,7 @@ describe("Circle Card image upload safety", () => {
     expect(publicGallery).toContain("onError={() => markFailed(item.id)}");
     expect(publicGallery).not.toContain("invisible opacity-0");
     expect(publicCardService).toContain(
-      "const imageUrl = await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url)"
+      "const imageUrl = await resolvePublicUploadImageUrl(item.imageUrl, runtimeOrigin)"
     );
     expect(publicCardService).toContain(
       ").filter((item): item is CircleCardGalleryItem => Boolean(item))"

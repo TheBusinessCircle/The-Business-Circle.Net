@@ -14,7 +14,11 @@ describe("runtime brand registry", () => {
     expect(getRuntimeBrand({ APP_BRAND: "bcn" })).toMatchObject({
       key: "bcn",
       canonicalOrigin: "https://thebusinesscircle.net",
-      canonicalHostname: "thebusinesscircle.net"
+      canonicalHostname: "thebusinesscircle.net",
+      wwwHostnamePolicy: {
+        hostname: "www.thebusinesscircle.net",
+        behavior: "redirect-to-canonical"
+      }
     });
   });
 
@@ -22,7 +26,11 @@ describe("runtime brand registry", () => {
     expect(getRuntimeBrand({ APP_BRAND: "circle-card" })).toMatchObject({
       key: "circle-card",
       canonicalOrigin: "https://circlecard.co.uk",
-      canonicalHostname: "circlecard.co.uk"
+      canonicalHostname: "circlecard.co.uk",
+      wwwHostnamePolicy: {
+        hostname: "www.circlecard.co.uk",
+        behavior: "redirect-to-canonical"
+      }
     });
   });
 

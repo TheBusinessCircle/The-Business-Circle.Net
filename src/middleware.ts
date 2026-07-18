@@ -8,7 +8,10 @@ import {
   preferCircleCardRuntimePath,
   resolveCircleCardAuthReturnPath
 } from "@/lib/circle-card/routes";
-import { evaluateCustomerRuntimeRoute } from "@/lib/circle-card/runtime-route-policy";
+import {
+  evaluateCustomerRuntimeRoute,
+  isBcnProcessOwnedRuntimePath
+} from "@/lib/circle-card/runtime-route-policy";
 import { getRuntimeBrand } from "@/config/runtime-brand";
 import { validateRuntimeOriginEnvironment } from "@/config/runtime-origin";
 import { membershipAccessBillingQuery } from "@/lib/membership/access";
@@ -248,6 +251,7 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     return new NextResponse("Misdirected Request", { status: 421 });
   }
 
+  const runtimeBrand = getRuntimeBrand();
   const runtimeOriginValidation = validateRuntimeOriginEnvironment();
   if (runtimeOriginValidation.issues.length > 0) {
     console.error("[runtime-origin] rejected misconfigured runtime", {
@@ -259,20 +263,62 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     return new NextResponse("Runtime Configuration Error", { status: 503 });
   }
 
+  if (hostValidation.hostname === runtimeBrand.wwwHostnamePolicy?.hostname) {
+    if (
+      req.nextUrl.pathname === "/api" ||
+      req.nextUrl.pathname.startsWith("/api/") ||
+      (req.method !== "GET" && req.method !== "HEAD")
+    ) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+
+    const canonicalUrl = new URL(
+      `${req.nextUrl.pathname}${req.nextUrl.search}`,
+      runtimeBrand.canonicalOrigin
+    );
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
+  const requestPathname = req.nextUrl.pathname;
+  const canonicalPagePathname =
+    requestPathname.length > 1 &&
+    requestPathname.endsWith("/") &&
+    (req.method === "GET" || req.method === "HEAD") &&
+    requestPathname !== "/api/" &&
+    !requestPathname.startsWith("/api/") &&
+    requestPathname !== "/_next/" &&
+    !requestPathname.startsWith("/_next/")
+      ? requestPathname.replace(/\/+$/, "")
+      : requestPathname;
   const runtimeRouteDecision = evaluateCustomerRuntimeRoute(
-    getRuntimeBrand().key,
-    req.nextUrl.pathname,
+    runtimeBrand.key,
+    canonicalPagePathname,
     req.method
   );
   if (runtimeRouteDecision.action === "redirect") {
     return NextResponse.redirect(
-      new URL(runtimeRouteDecision.destination, req.nextUrl),
+      new URL(runtimeRouteDecision.destination, runtimeBrand.canonicalOrigin),
       307
     );
   }
 
   if (runtimeRouteDecision.action === "reject") {
     return new NextResponse("Not Found", { status: runtimeRouteDecision.status });
+  }
+
+  if (canonicalPagePathname !== requestPathname) {
+    const canonicalUrl = new URL(
+      `${canonicalPagePathname}${req.nextUrl.search}`,
+      runtimeBrand.canonicalOrigin
+    );
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
+  if (runtimeBrand.key === "circle-card" && req.nextUrl.pathname === "/_next/image") {
+    const imageSource = req.nextUrl.searchParams.get("url");
+    if (imageSource?.startsWith("/") && isBcnProcessOwnedRuntimePath(imageSource)) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
   }
 
   if (!requiresAuthenticatedMiddleware(req.nextUrl.pathname)) {
@@ -287,6 +333,6 @@ export const config = {
   // Admin-only routes are enforced here; member route groups also call requireUser
   // in their server layout so protection remains explicit if routing changes later.
   matcher: [
-    "/((?!_next/static|_next/webpack-hmr).*)"
+    "/((?!_next/static|_next/webpack-hmr|(?:branding|generated|uploads|visual-media)(?:/|$)|api/circle-card/public-image(?:/|$)|[^/]+\\.(?:ico|png|jpe?g|webp|svg)$).*)"
   ]
 };

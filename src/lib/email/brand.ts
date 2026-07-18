@@ -5,6 +5,14 @@ import {
 
 export type EmailBrandKey = RuntimeBrandKey;
 
+export function getRequiredEmailBrandsForRuntime(
+  runtimeBrand: RuntimeBrandKey
+): readonly EmailBrandKey[] {
+  return runtimeBrand === "circle-card"
+    ? ["circle-card"]
+    : ["bcn", "circle-card"];
+}
+
 export type EmailBrandEnvironment = {
   APP_BRAND?: string;
   NODE_ENV?: string;

@@ -1,8 +1,12 @@
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { validateRuntimeOriginEnvironment } from "../src/config/runtime-origin";
+import { isProductionCredential } from "../src/config/production-credential";
+import { RUNTIME_DIST_DIRS } from "../src/config/runtime-dist-dir";
 import {
   EmailBrandConfigurationError,
+  getRequiredEmailBrandsForRuntime,
+  parseEmailMailbox,
   requiresCircleCardEmailConfiguration,
   resolveEmailBrandIdentity
 } from "../src/lib/email/brand";
@@ -207,6 +211,8 @@ function validateProductionEnv() {
   const communityAutomationEnabled = env("BCN_COMMUNITY_AUTOMATION_ENABLED").toLowerCase() !== "false";
   const communityAutomationSecret = env("COMMUNITY_AUTOMATION_SECRET");
   const cronSecret = env("CRON_SECRET");
+  const resendWebhookSecret = env("RESEND_WEBHOOK_SECRET");
+  const inboundEmailForwardTo = env("INBOUND_EMAIL_FORWARD_TO");
   const automationAuthorId = env("COMMUNITY_AUTOMATION_AUTHOR_ID");
   const bcnSourceUrl = env("BCN_COMMUNITY_SOURCE_URL");
   const bcnSourceUrls = parseCsv(env("BCN_COMMUNITY_SOURCE_URLS"));
@@ -224,6 +230,23 @@ function validateProductionEnv() {
   for (const runtimeOriginIssue of runtimeOriginValidation.issues) {
     addIssue(issues, "error", runtimeOriginIssue.message);
   }
+  const runtimeBrandKey = runtimeOriginValidation.brand?.key ?? null;
+  // Invalid configuration retains the stricter BCN-owner requirements.
+  const ownsBcnProcessResponsibilities = runtimeBrandKey !== "circle-card";
+  const runtimeDistDir = env("NEXT_RUNTIME_DIST_DIR");
+  const expectedRuntimeDistDir = runtimeBrandKey
+    ? RUNTIME_DIST_DIRS[runtimeBrandKey]
+    : null;
+
+  if (!expectedRuntimeDistDir || runtimeDistDir !== expectedRuntimeDistDir) {
+    addIssue(
+      issues,
+      "error",
+      expectedRuntimeDistDir
+        ? `NEXT_RUNTIME_DIST_DIR must be ${expectedRuntimeDistDir} for this production runtime.`
+        : "NEXT_RUNTIME_DIST_DIR cannot be validated until APP_BRAND is valid."
+    );
+  }
 
   if (!isStrongValue(authSecret) || authSecret === "change-this-secret") {
     addIssue(issues, "error", "AUTH_SECRET is missing or too weak.");
@@ -233,32 +256,72 @@ function validateProductionEnv() {
     addIssue(issues, "error", "NEXTAUTH_SECRET is missing or too weak.");
   }
 
-  if (!isStrongValue(postgresPassword) || postgresPassword === "postgres") {
+  if (
+    ownsBcnProcessResponsibilities &&
+    (!isStrongValue(postgresPassword) || postgresPassword === "postgres")
+  ) {
     addIssue(issues, "error", "POSTGRES_PASSWORD is still weak or default.");
   }
 
-  if (!isStrongValue(adminPassword) || adminPassword === "ChangeMe123!") {
+  if (
+    ownsBcnProcessResponsibilities &&
+    (!isStrongValue(adminPassword) || adminPassword === "ChangeMe123!")
+  ) {
     addIssue(issues, "error", "ADMIN_PASSWORD is still weak or default.");
   }
 
-  if (!stripeSecretKey.startsWith("sk_live_")) {
+  if (!isProductionCredential(stripeSecretKey, "sk_live_")) {
     addIssue(issues, "error", "STRIPE_SECRET_KEY should be a live Stripe key.");
   }
 
-  if (!stripeWebhookSecret.startsWith("whsec_")) {
+  if (
+    ownsBcnProcessResponsibilities &&
+    !isProductionCredential(stripeWebhookSecret, "whsec_")
+  ) {
     addIssue(issues, "error", "STRIPE_WEBHOOK_SECRET is missing or invalid.");
   }
 
-  for (const circleCardBillingIssue of validateCircleCardBillingEnvironment()) {
+  for (const circleCardBillingIssue of validateCircleCardBillingEnvironment(
+    process.env,
+    { requireWebhookSecret: ownsBcnProcessResponsibilities }
+  )) {
     addIssue(issues, "error", circleCardBillingIssue.message);
   }
 
-  for (const missingPriceId of listMissingMembershipStripePriceIds()) {
-    addIssue(
-      issues,
-      "error",
-      `Missing Stripe membership price ID for ${missingPriceId.label}. Set one of: ${missingPriceId.envNames.join(", ")}.`
-    );
+  for (const [variableName, prefix] of [
+    ["STRIPE_CIRCLE_CARD_PRO_PRODUCT_ID", "prod_"],
+    ["STRIPE_CIRCLE_CARD_PRO_MONTHLY_PRICE_ID", "price_"],
+    ["CIRCLE_CARD_BILLING_PORTAL_CONFIGURATION_ID", "bpc_"]
+  ] as const) {
+    if (!isProductionCredential(env(variableName), prefix, prefix.length + 8)) {
+      addIssue(issues, "error", `${variableName} is missing, malformed, or still a placeholder.`);
+    }
+  }
+
+  if (ownsBcnProcessResponsibilities) {
+    for (const missingPriceId of listMissingMembershipStripePriceIds()) {
+      addIssue(
+        issues,
+        "error",
+        `Missing Stripe membership price ID for ${missingPriceId.label}. Set one of: ${missingPriceId.envNames.join(", ")}.`
+      );
+    }
+
+    for (const requirement of MEMBERSHIP_STRIPE_PRICE_REQUIREMENTS) {
+      const configuredPriceId = requirement.envNames
+        .map((name) => env(name))
+        .find(Boolean);
+      if (
+        configuredPriceId &&
+        !isProductionCredential(configuredPriceId, "price_", "price_".length + 8)
+      ) {
+        addIssue(
+          issues,
+          "error",
+          `Stripe membership price ID for ${requirement.label} is malformed or still a placeholder.`
+        );
+      }
+    }
   }
 
   const posthogConfigured = Boolean(posthogKey || posthogHost);
@@ -276,13 +339,22 @@ function validateProductionEnv() {
       addIssue(issues, "error", "NEXT_PUBLIC_POSTHOG_HOST cannot use localhost in production.");
     }
   }
-  if (!resendApiKey.startsWith("re_")) {
+  const requiredEmailBrands = runtimeBrandKey
+    ? getRequiredEmailBrandsForRuntime(runtimeBrandKey)
+    : ([] as const);
+  const bcnEmailRequired = requiredEmailBrands.includes("bcn");
+  const circleCardEmailRequired =
+    requiredEmailBrands.includes("circle-card") ||
+    requiresCircleCardEmailConfiguration(process.env);
+
+  if (bcnEmailRequired && !isProductionCredential(resendApiKey, "re_")) {
     addIssue(issues, "error", "RESEND_API_KEY is missing or invalid.");
   }
 
-  const circleCardEmailRequired = requiresCircleCardEmailConfiguration(process.env);
-
-  if (circleCardEmailRequired && !circleCardResendApiKey.startsWith("re_")) {
+  if (
+    circleCardEmailRequired &&
+    !isProductionCredential(circleCardResendApiKey, "re_")
+  ) {
     addIssue(
       issues,
       "error",
@@ -302,9 +374,11 @@ function validateProductionEnv() {
     );
   }
 
-  const emailBrands = circleCardEmailRequired
-    ? (["bcn", "circle-card"] as const)
-    : (["bcn"] as const);
+  const emailBrands = requiredEmailBrands.length
+    ? requiredEmailBrands
+    : circleCardEmailRequired
+      ? (["bcn", "circle-card"] as const)
+      : (["bcn"] as const);
 
   for (const brand of emailBrands) {
     try {
@@ -319,6 +393,30 @@ function validateProductionEnv() {
         error instanceof EmailBrandConfigurationError
           ? error.message
           : `Unable to validate ${brand} email identity.`
+      );
+    }
+  }
+
+  if (ownsBcnProcessResponsibilities) {
+    if (!isStrongValue(cronSecret)) {
+      addIssue(
+        issues,
+        "error",
+        "CRON_SECRET is required and must be strong on the BCN owner process."
+      );
+    }
+
+    if (!isProductionCredential(resendWebhookSecret, "whsec_")) {
+      addIssue(issues, "error", "RESEND_WEBHOOK_SECRET is missing or invalid.");
+    }
+
+    try {
+      parseEmailMailbox(inboundEmailForwardTo, "INBOUND_EMAIL_FORWARD_TO");
+    } catch {
+      addIssue(
+        issues,
+        "error",
+        "INBOUND_EMAIL_FORWARD_TO must contain one valid email mailbox."
       );
     }
   }
@@ -343,23 +441,30 @@ function validateProductionEnv() {
     addIssue(issues, "error", "ABLY_API_KEY is required when community realtime is enabled.");
   }
 
-  if (!isSecureWsUrl(liveKitUrl)) {
+  if (ownsBcnProcessResponsibilities && !isSecureWsUrl(liveKitUrl)) {
     addIssue(issues, "error", "LIVEKIT_URL should use wss:// or https:// in production.");
   }
 
-  if (!turnDomain || turnDomain === "localhost" || turnDomain.endsWith(".local")) {
+  if (
+    ownsBcnProcessResponsibilities &&
+    (!turnDomain || turnDomain === "localhost" || turnDomain.endsWith(".local"))
+  ) {
     addIssue(issues, "error", "TURN_DOMAIN must be a public domain in production.");
   }
 
-  if (!turnTlsEnabled) {
+  if (ownsBcnProcessResponsibilities && !turnTlsEnabled) {
     addIssue(issues, "error", "TURN_TLS_ENABLED should be true for production hardening.");
   }
 
-  if (turnTlsEnabled && !turnTlsPort) {
+  if (ownsBcnProcessResponsibilities && turnTlsEnabled && !turnTlsPort) {
     addIssue(issues, "error", "TURN_TLS_PORT must be set when TURN_TLS_ENABLED=true.");
   }
 
-  if (turnTlsEnabled && (!turnTlsCertFile || !turnTlsKeyFile)) {
+  if (
+    ownsBcnProcessResponsibilities &&
+    turnTlsEnabled &&
+    (!turnTlsCertFile || !turnTlsKeyFile)
+  ) {
     addIssue(
       issues,
       "error",
@@ -367,7 +472,7 @@ function validateProductionEnv() {
     );
   }
 
-  if (turnTlsEnabled && turnTlsCertDir) {
+  if (ownsBcnProcessResponsibilities && turnTlsEnabled && turnTlsCertDir) {
     const resolvedCertDir = resolve(process.cwd(), turnTlsCertDir);
     if (!existsSync(resolvedCertDir)) {
       addIssue(
@@ -397,7 +502,7 @@ function validateProductionEnv() {
     }
   }
 
-  if (env("SEED_MODE") !== "production") {
+  if (ownsBcnProcessResponsibilities && env("SEED_MODE") !== "production") {
     addIssue(issues, "error", "SEED_MODE should be set to production.");
   }
 

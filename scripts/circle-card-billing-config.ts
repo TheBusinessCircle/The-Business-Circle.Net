@@ -28,7 +28,8 @@ export function parseCircleCardBillingEnabled(environment: Environment = process
 }
 
 export function validateCircleCardBillingEnvironment(
-  environment: Environment = process.env
+  environment: Environment = process.env,
+  options: { requireWebhookSecret?: boolean } = {}
 ): CircleCardBillingEnvironmentIssue[] {
   const issues: CircleCardBillingEnvironmentIssue[] = [];
   const rawEnabled = value(environment, CIRCLE_CARD_BILLING_ENV_NAMES.enabled).toLowerCase();
@@ -105,6 +106,13 @@ export function validateCircleCardBillingEnvironment(
   ] as const;
 
   for (const requirement of requiredValues) {
+    if (
+      requirement.variable === CIRCLE_CARD_BILLING_ENV_NAMES.stripeWebhookSecret &&
+      options.requireWebhookSecret === false
+    ) {
+      continue;
+    }
+
     const configuredValue = value(environment, requirement.variable);
 
     if (!configuredValue) {

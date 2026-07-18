@@ -4,6 +4,10 @@ import { CookieConsent } from "@/components/privacy/cookie-consent";
 import { Providers } from "@/components/providers";
 import { getRuntimeBrand } from "@/config/runtime-brand";
 import { SITE_CONFIG } from "@/config/site";
+import {
+  CIRCLE_CARD_APP_DESCRIPTION,
+  createCircleCardPageMetadata
+} from "@/lib/circle-card/metadata";
 import { getOpenGraphShareImage, getTwitterShareImage } from "@/lib/seo";
 import "./globals.css";
 
@@ -30,7 +34,7 @@ export const viewport: Viewport = {
   ]
 };
 
-export const metadata: Metadata = {
+const BCN_ROOT_METADATA: Metadata = {
   metadataBase: new URL(SITE_CONFIG.url),
   applicationName: SITE_CONFIG.name,
   manifest: "/manifest.webmanifest",
@@ -89,6 +93,32 @@ export const metadata: Metadata = {
     }
   }
 };
+
+export function generateMetadata(): Metadata {
+  const runtimeBrand = getRuntimeBrand();
+  if (runtimeBrand.key === "bcn") {
+    return BCN_ROOT_METADATA;
+  }
+
+  return {
+    ...createCircleCardPageMetadata(
+      {
+        title: runtimeBrand.displayName,
+        description: CIRCLE_CARD_APP_DESCRIPTION,
+        path: "/"
+      },
+      runtimeBrand.key
+    ),
+    authors: [
+      {
+        name: runtimeBrand.displayName,
+        url: runtimeBrand.canonicalOrigin
+      }
+    ],
+    creator: runtimeBrand.displayName,
+    publisher: runtimeBrand.legalOperatorName
+  };
+}
 
 export default function RootLayout({
   children

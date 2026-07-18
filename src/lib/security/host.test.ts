@@ -24,9 +24,27 @@ function requestWithRawHeaders(host: string, forwardedHost?: string) {
 }
 
 describe("runtime request host validation", () => {
-  it("accepts only the BCN hostname in a BCN production runtime", () => {
+  it("rejects a missing production Host header", () => {
+    expect(
+      validateRuntimeRequestHost(
+        {
+          url: "https://internal-runtime.test/dashboard",
+          headers: new Headers()
+        },
+        { APP_BRAND: "bcn", NODE_ENV: "production" }
+      )
+    ).toEqual({ ok: false, reason: "missing-host" });
+  });
+
+  it("accepts only intended BCN hostnames in a BCN production runtime", () => {
     expect(
       validateRuntimeRequestHost(request("thebusinesscircle.net"), {
+        APP_BRAND: "bcn",
+        NODE_ENV: "production"
+      })
+    ).toMatchObject({ ok: true, runtimeBrand: "bcn" });
+    expect(
+      validateRuntimeRequestHost(request("www.thebusinesscircle.net"), {
         APP_BRAND: "bcn",
         NODE_ENV: "production"
       })
@@ -40,9 +58,15 @@ describe("runtime request host validation", () => {
     ).toEqual({ ok: false, reason: "untrusted-host" });
   });
 
-  it("accepts only the Circle Card hostname in a Circle Card production runtime", () => {
+  it("accepts only intended Circle Card hostnames in a Circle Card production runtime", () => {
     expect(
       validateRuntimeRequestHost(request("circlecard.co.uk"), {
+        APP_BRAND: "circle-card",
+        NODE_ENV: "production"
+      })
+    ).toMatchObject({ ok: true, runtimeBrand: "circle-card" });
+    expect(
+      validateRuntimeRequestHost(request("www.circlecard.co.uk"), {
         APP_BRAND: "circle-card",
         NODE_ENV: "production"
       })

@@ -23,7 +23,7 @@ import { CircleCardReportForm } from "@/components/circle-card/circle-card-repor
 import { CircleTrustOwnerModeration } from "@/components/circle-card/circle-trust-owner-moderation";
 import { Avatar } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
-import { SITE_CONFIG } from "@/config/site";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { getCircleCardTypeLabel } from "@/lib/circle-card/card-types";
 import type { CircleTrustTimelineEvent } from "@/lib/circle-card/circle-trust";
 import { CIRCLE_CARD_PWA_METADATA } from "@/lib/circle-card/metadata";
@@ -92,7 +92,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description = `Explore the living Circle Trust profile for ${card.fullName}, built from verified relationships and completed platform trust signals.`;
   return {
     ...CIRCLE_CARD_PWA_METADATA,
-    metadataBase: new URL(SITE_CONFIG.url),
+    metadataBase: new URL(getRuntimeBrand().canonicalOrigin),
     title,
     description,
     alternates: { canonical: `/card/${card.slug}/trust` },

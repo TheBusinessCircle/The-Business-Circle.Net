@@ -6,16 +6,27 @@ import { PublicSiteShell } from "@/components/public/public-site-shell";
 import { CircleCardPublicShell } from "@/components/circle-card/circle-card-public-shell";
 import { getRuntimeBrand } from "@/config/runtime-brand";
 import { getCustomerShellKind } from "@/lib/circle-card/runtime-route-policy";
-import { getRuntimeManifestPath } from "@/lib/circle-card/metadata";
+import {
+  CIRCLE_CARD_PWA_METADATA,
+  getRuntimeManifestPath
+} from "@/lib/circle-card/metadata";
 import { SITE_CONFIG } from "@/config/site";
 import { buildPublicSiteSchemaGraph } from "@/lib/structured-data";
 
 export const dynamic = "force-dynamic";
 export function generateMetadata(): Metadata {
-  const runtimeBrand = getRuntimeBrand().key;
+  const runtimeBrand = getRuntimeBrand();
+  if (runtimeBrand.key === "circle-card") {
+    return {
+      ...CIRCLE_CARD_PWA_METADATA,
+      metadataBase: new URL(runtimeBrand.canonicalOrigin),
+      manifest: getRuntimeManifestPath(runtimeBrand.key)
+    };
+  }
+
   return {
-    metadataBase: new URL(SITE_CONFIG.url),
-    manifest: getRuntimeManifestPath(runtimeBrand)
+    metadataBase: new URL(runtimeBrand.canonicalOrigin),
+    manifest: getRuntimeManifestPath(runtimeBrand.key)
   };
 }
 

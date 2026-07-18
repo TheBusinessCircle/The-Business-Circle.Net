@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EmailBrandConfigurationError,
+  getRequiredEmailBrandsForRuntime,
   parseEmailMailbox,
   parseEmailSender,
   requiresCircleCardEmailConfiguration,
@@ -18,6 +19,11 @@ const productionEnvironment = {
 } as const;
 
 describe("email brand identity", () => {
+  it("requires both identities only in the BCN webhook/background owner", () => {
+    expect(getRequiredEmailBrandsForRuntime("bcn")).toEqual(["bcn", "circle-card"]);
+    expect(getRequiredEmailBrandsForRuntime("circle-card")).toEqual(["circle-card"]);
+  });
+
   it("does not require Circle Card configuration for an unconfigured BCN runtime", () => {
     expect(
       requiresCircleCardEmailConfiguration({ APP_BRAND: "bcn" })

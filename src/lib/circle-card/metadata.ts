@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import type { RuntimeBrandKey } from "@/config/runtime-brand";
-import { SITE_CONFIG } from "@/config/site";
+import {
+  RUNTIME_BRANDS,
+  type RuntimeBrandKey
+} from "@/config/runtime-brand";
 
 export const CIRCLE_CARD_APP_NAME = "Circle Card";
 export const CIRCLE_CARD_APP_SHORT_NAME = "Circle Card";
@@ -61,14 +63,18 @@ function normalizePath(path: string): string {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
-export function createCircleCardPageMetadata(input: CircleCardPageMetadataInput): Metadata {
+export function createCircleCardPageMetadata(
+  input: CircleCardPageMetadataInput,
+  canonicalBrand: RuntimeBrandKey = "bcn"
+): Metadata {
   const canonicalPath = normalizePath(input.path);
-  const canonicalUrl = new URL(canonicalPath, SITE_CONFIG.url).toString();
-  const imageUrl = new URL(CIRCLE_CARD_ICON_512, SITE_CONFIG.url).toString();
+  const canonicalOrigin = RUNTIME_BRANDS[canonicalBrand].canonicalOrigin;
+  const canonicalUrl = new URL(canonicalPath, canonicalOrigin).toString();
+  const imageUrl = new URL(CIRCLE_CARD_ICON_512, canonicalOrigin).toString();
 
   return {
     ...CIRCLE_CARD_PWA_METADATA,
-    metadataBase: new URL(SITE_CONFIG.url),
+    metadataBase: new URL(canonicalOrigin),
     title: input.title,
     description: input.description,
     keywords: input.keywords,

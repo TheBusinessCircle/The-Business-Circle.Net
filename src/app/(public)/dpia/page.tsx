@@ -11,9 +11,10 @@ import {
 import { CTASection, FeatureGrid, SectionHeading } from "@/components/public";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { getRuntimeBrand } from "@/config/runtime-brand";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = createPageMetadata({
+const bcnPageMetadataInput = {
   title: "DPIA & Data Protection",
   description:
     "Learn how The Business Circle approaches data protection impact assessments, privacy risk review, and responsible handling of personal data across the platform.",
@@ -25,7 +26,22 @@ export const metadata: Metadata = createPageMetadata({
     "business circle privacy",
     "data protection approach"
   ]
-});
+};
+
+export function generateMetadata(): Metadata {
+  if (getRuntimeBrand().key === "circle-card") {
+    return createCircleCardPageMetadata(
+      {
+        ...bcnPageMetadataInput,
+        description:
+          "Learn how Circle Card approaches privacy risk review and responsible handling of personal data."
+      },
+      "circle-card"
+    );
+  }
+
+  return createPageMetadata(bcnPageMetadataInput);
+}
 
 const DPIA_FOUNDATION_ITEMS = [
   {

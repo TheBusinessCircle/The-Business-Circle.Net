@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke:dual-runtime:build": "node scripts/dual-runtime-smoke.mjs build",
+    "smoke:dual-runtime": "node scripts/dual-runtime-smoke.mjs run",
     "test:spin-mobile": "node scripts/test-spin-to-connect-browser.mjs",
     "env:validate:production": "tsx scripts/validate-production-env.ts",
     "circle-card:billing:validate-env": "tsx scripts/validate-circle-card-billing-env.ts",

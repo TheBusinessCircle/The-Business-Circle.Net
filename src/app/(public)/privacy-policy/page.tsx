@@ -2,13 +2,20 @@ import type { Metadata } from "next";
 import { LEGAL_LAST_UPDATED, PRIVACY_POLICY_CONTENT } from "@/config/legal";
 import { getRuntimeBrand } from "@/config/runtime-brand";
 import { LegalDocument } from "@/components/public";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = createPageMetadata({
+const pageMetadataInput = {
   title: "Privacy Policy",
   description: PRIVACY_POLICY_CONTENT.description,
   path: "/privacy-policy"
-});
+};
+
+export function generateMetadata(): Metadata {
+  return getRuntimeBrand().key === "circle-card"
+    ? createCircleCardPageMetadata(pageMetadataInput, "circle-card")
+    : createPageMetadata(pageMetadataInput);
+}
 
 export default function PrivacyPolicyPage() {
   return (

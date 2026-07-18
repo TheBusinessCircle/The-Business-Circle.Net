@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 import { SITE_CONFIG } from "@/config/site";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+
+export const dynamic = "force-dynamic";
 
 const PUBLIC_ALLOW = [
   "/",
@@ -59,6 +62,40 @@ const PRIVATE_DISALLOW = [
 ] as const;
 
 export default function robots(): MetadataRoute.Robots {
+  const runtimeBrand = getRuntimeBrand();
+  if (runtimeBrand.key === "circle-card") {
+    return {
+      rules: [
+        {
+          userAgent: "*",
+          allow: [
+            "/",
+            "/pro",
+            "/teams",
+            "/community-standards",
+            "/card/",
+            "/r/",
+            "/privacy-policy",
+            "/terms-of-service",
+            "/cookie-policy",
+            "/dpia"
+          ],
+          disallow: [
+            "/api",
+            "/api/",
+            "/app",
+            "/app/",
+            "/login",
+            "/register",
+            "/forgot-password",
+            "/reset-password"
+          ]
+        }
+      ],
+      sitemap: `${runtimeBrand.canonicalOrigin}/sitemap.xml`
+    };
+  }
+
   return {
     rules: [
       {

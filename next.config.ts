@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { resolveNextDistDir } from "./src/config/runtime-dist-dir";
 
 function uniqueTokens(tokens: string[]) {
   return Array.from(new Set(tokens.filter(Boolean)));
@@ -149,6 +150,8 @@ const PAGE_ROUTE_SOURCE =
   "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|opengraph-image|.*\\.[^/]+$).*)";
 
 const nextConfig: NextConfig = {
+  distDir: resolveNextDistDir(),
+  skipTrailingSlashRedirect: true,
   poweredByHeader: false,
   images: {
     remotePatterns: [

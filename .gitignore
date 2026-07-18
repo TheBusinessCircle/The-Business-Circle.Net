@@ -35,6 +35,7 @@ yarn-error.log*
 
 # Local tooling
 .sandbox/
+.runtime/
 .secrets/
 .idea/
 .vscode/

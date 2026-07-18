@@ -36,7 +36,10 @@ export const RUNTIME_BRANDS: Readonly<Record<RuntimeBrandKey, RuntimeBrandConfig
     legalOperatorName: COMPANY_CONFIG.displayLegalName,
     canonicalOrigin: "https://thebusinesscircle.net",
     canonicalHostname: "thebusinesscircle.net",
-    wwwHostnamePolicy: null,
+    wwwHostnamePolicy: {
+      hostname: "www.thebusinesscircle.net",
+      behavior: "redirect-to-canonical"
+    },
     supportEmail: "contact@thebusinesscircle.net",
     defaultLoginPath: "/login",
     defaultAuthenticatedHomePath: "/dashboard",
@@ -53,7 +56,10 @@ export const RUNTIME_BRANDS: Readonly<Record<RuntimeBrandKey, RuntimeBrandConfig
     legalOperatorName: COMPANY_CONFIG.legalName,
     canonicalOrigin: "https://circlecard.co.uk",
     canonicalHostname: "circlecard.co.uk",
-    wwwHostnamePolicy: null,
+    wwwHostnamePolicy: {
+      hostname: "www.circlecard.co.uk",
+      behavior: "redirect-to-canonical"
+    },
     supportEmail: "support@circlecard.co.uk",
     defaultLoginPath: "/login",
     defaultAuthenticatedHomePath: "/app",

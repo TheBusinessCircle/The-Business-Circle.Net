@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_CONFIG } from "@/config/site";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import { PUBLIC_INTENT_PAGE_ROUTES } from "@/config/public-intent-pages";
 import {
   listInsightTopicClusters,
@@ -7,10 +8,31 @@ import {
 } from "@/server/insights/insight.service";
 import { listActiveFounderServices } from "@/server/founder";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
+
+const CIRCLE_CARD_PUBLIC_ROUTES = [
+  "/",
+  "/pro",
+  "/teams",
+  "/community-standards",
+  "/privacy-policy",
+  "/terms-of-service",
+  "/cookie-policy",
+  "/dpia"
+] as const;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const runtimeBrand = getRuntimeBrand();
+
+  if (runtimeBrand.key === "circle-card") {
+    return CIRCLE_CARD_PUBLIC_ROUTES.map((path) => ({
+      url: new URL(path, runtimeBrand.canonicalOrigin).toString(),
+      lastModified: now,
+      changeFrequency: path === "/" ? "weekly" : "monthly",
+      priority: path === "/" ? 1 : 0.6
+    }));
+  }
 
   const staticRoutes: MetadataRoute.Sitemap = [
     {

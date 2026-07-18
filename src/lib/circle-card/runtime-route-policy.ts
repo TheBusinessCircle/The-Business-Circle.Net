@@ -3,7 +3,18 @@ import type { RuntimeBrandKey } from "@/config/runtime-brand";
 export type RuntimeRouteDecision =
   | { action: "allow" }
   | { action: "redirect"; destination: "/"; reason: "bcn-customer-surface" }
-  | { action: "reject"; status: 404; reason: "bcn-customer-surface" };
+  | {
+      action: "reject";
+      status: 404;
+      reason: "bcn-customer-surface" | "bcn-process-owned-endpoint";
+    };
+
+const BCN_PROCESS_OWNED_API_PREFIXES = [
+  "/api/stripe/webhook",
+  "/api/webhooks/resend/inbound",
+  "/api/cron",
+  "/api/internal"
+] as const;
 
 const CIRCLE_CARD_AUTH_PATHS = new Set([
   "/login",
@@ -27,6 +38,14 @@ const CIRCLE_CARD_EXACT_PATHS = new Set([
   "/teams",
   "/community-standards",
   "/circle-card.webmanifest",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/circle-card-icon-192.png",
+  "/circle-card-icon-512.png",
+  "/circle-card-apple-touch-icon.png"
+]);
+
+const BCN_BRANDED_EXACT_PATHS = new Set([
   "/manifest.webmanifest",
   "/opengraph-image"
 ]);
@@ -50,8 +69,37 @@ function startsWithPath(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-function isRootPublicAsset(pathname: string) {
-  return pathname.lastIndexOf("/") === 0 && pathname.slice(1).includes(".");
+function normalizePathForOwnership(pathname: string) {
+  let decoded = pathname.trim();
+
+  for (let pass = 0; pass < 8; pass += 1) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch {
+      break;
+    }
+  }
+
+  const segments: string[] = [];
+  for (const segment of decoded.replaceAll("\\", "/").split("/")) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") {
+      segments.pop();
+      continue;
+    }
+    segments.push(segment);
+  }
+
+  return `/${segments.join("/")}`.toLowerCase();
+}
+
+export function isBcnProcessOwnedRuntimePath(pathname: string) {
+  const normalizedPathname = normalizePathForOwnership(pathname);
+  return BCN_PROCESS_OWNED_API_PREFIXES.some((prefix) =>
+    startsWithPath(normalizedPathname, prefix)
+  );
 }
 
 export function getCustomerShellKind(runtimeBrand: RuntimeBrandKey) {
@@ -67,6 +115,22 @@ export function evaluateCustomerRuntimeRoute(
     return { action: "allow" };
   }
 
+  if (isBcnProcessOwnedRuntimePath(pathname)) {
+    return {
+      action: "reject",
+      status: 404,
+      reason: "bcn-process-owned-endpoint"
+    };
+  }
+
+  if (BCN_BRANDED_EXACT_PATHS.has(pathname)) {
+    return {
+      action: "reject",
+      status: 404,
+      reason: "bcn-customer-surface"
+    };
+  }
+
   if (
     startsWithPath(pathname, "/api") ||
     startsWithPath(pathname, "/_next") ||
@@ -74,8 +138,7 @@ export function evaluateCustomerRuntimeRoute(
     CIRCLE_CARD_LEGAL_PATHS.has(pathname) ||
     CIRCLE_CARD_EXACT_PATHS.has(pathname) ||
     CIRCLE_CARD_PATH_PREFIXES.some((prefix) => startsWithPath(pathname, prefix)) ||
-    CIRCLE_CARD_PUBLIC_ASSET_PREFIXES.some((prefix) => startsWithPath(pathname, prefix)) ||
-    isRootPublicAsset(pathname)
+    CIRCLE_CARD_PUBLIC_ASSET_PREFIXES.some((prefix) => startsWithPath(pathname, prefix))
   ) {
     return { action: "allow" };
   }

@@ -14,13 +14,16 @@ import { Button } from "@/components/ui/button";
 import { FoundingBadge } from "@/components/ui/founding-badge";
 import { MembershipTierBadge } from "@/components/ui/membership-tier-badge";
 import { Separator } from "@/components/ui/separator";
-import { SITE_CONFIG } from "@/config/site";
 import { getRuntimeBrand } from "@/config/runtime-brand";
 import { getMembershipTierLabel } from "@/config/membership";
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { getAccentThemeCssVariables, resolveAccentTheme } from "@/lib/accent-themes";
 import { PLATFORM_NAV, ROLE_LABELS } from "@/lib/constants";
 import { getCircleCardRoutes, isCircleCardDashboardPath } from "@/lib/circle-card/routes";
+import {
+  CIRCLE_CARD_PWA_METADATA,
+  getRuntimeManifestPath
+} from "@/lib/circle-card/metadata";
 import { canAccessTier, roleToTier } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
@@ -37,13 +40,18 @@ import {
 } from "@/server/circle-card";
 import { getDirectMessageNavCounts } from "@/server/messages";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_CONFIG.url),
-  robots: {
-    index: false,
-    follow: false
-  }
-};
+export function generateMetadata(): Metadata {
+  const runtimeBrand = getRuntimeBrand();
+  return {
+    ...(runtimeBrand.key === "circle-card" ? CIRCLE_CARD_PWA_METADATA : {}),
+    metadataBase: new URL(runtimeBrand.canonicalOrigin),
+    manifest: getRuntimeManifestPath(runtimeBrand.key),
+    robots: {
+      index: false,
+      follow: false
+    }
+  };
+}
 
 export default async function MemberLayout({ children }: { children: ReactNode }) {
   const requestHeaders = await headers();

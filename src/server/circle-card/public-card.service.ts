@@ -9,6 +9,7 @@ import type {
 } from "@prisma/client";
 import { cache } from "react";
 import { SITE_CONFIG } from "@/config/site";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import {
   visibleCircleCardBookingEnquiry,
   visibleCircleCardBrandPartnerships,
@@ -325,7 +326,7 @@ async function resolvePublicCircleCardThemeMetadataUploads(value: Prisma.JsonVal
 
   const backgroundImageUrl = await resolvePublicUploadImageUrl(
     metadata.fineTune.backgroundImageUrl,
-    SITE_CONFIG.url
+    getRuntimeBrand().canonicalOrigin
   );
 
   return buildCircleStudioMetadata(metadata.tokens, metadata.collection, {
@@ -339,6 +340,8 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
   if (slug === "demo") {
     return DEMO_CIRCLE_CARD;
   }
+
+  const runtimeOrigin = getRuntimeBrand().canonicalOrigin;
 
   const card = await prisma.circleCard.findFirst({
     where: {
@@ -577,7 +580,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
       tagline: ownerCard.tagline,
       profileImageUrl: await resolvePublicUploadImageUrl(
         ownerCard.profileImageUrl,
-        SITE_CONFIG.url
+        runtimeOrigin
       ),
       displayOrder: ownerCard.displayOrder,
       isDefaultCard: ownerCard.isDefaultCard
@@ -596,7 +599,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
 
       const imageUrl = isPrivate
         ? null
-        : await resolvePublicUploadImageUrl(link.imageUrl, SITE_CONFIG.url);
+        : await resolvePublicUploadImageUrl(link.imageUrl, runtimeOrigin);
 
       return {
         ...publicLink,
@@ -617,7 +620,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
       contentBlocks: card.contentBlocks
     }).slice(0, circleCardAccess.limits.businessServices).map(async (service) => ({
       ...service,
-      imageUrl: await resolvePublicUploadImageUrl(service.imageUrl, SITE_CONFIG.url)
+      imageUrl: await resolvePublicUploadImageUrl(service.imageUrl, runtimeOrigin)
     }))
   ) : [];
   const products = circleCardAccess.capabilities.businessBuilder ? await Promise.all(
@@ -626,7 +629,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
       contentBlocks: card.contentBlocks
     }).slice(0, circleCardAccess.limits.businessProducts).map(async (product) => ({
       ...product,
-      imageUrl: await resolvePublicUploadImageUrl(product.imageUrl, SITE_CONFIG.url)
+      imageUrl: await resolvePublicUploadImageUrl(product.imageUrl, runtimeOrigin)
     }))
   ) : [];
   const priceItems = circleCardAccess.capabilities.businessBuilder ? visibleCircleCardPriceListItems({
@@ -639,7 +642,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
       contentBlocks: card.contentBlocks
     }).slice(0, circleCardAccess.limits.businessMenuOffers).map(async (item) => ({
       ...item,
-      imageUrl: await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url)
+      imageUrl: await resolvePublicUploadImageUrl(item.imageUrl, runtimeOrigin)
     }))
   ) : [];
   const storedMediaKit = circleCardAccess.capabilities.creatorMediaKit ? visibleCircleCardMediaKit({
@@ -670,7 +673,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
       contentBlocks: card.contentBlocks
     }).slice(0, circleCardAccess.limits.creatorFeaturedContent).map(async (item) => ({
       ...item,
-      thumbnailUrl: await resolvePublicUploadImageUrl(item.thumbnailUrl, SITE_CONFIG.url)
+      thumbnailUrl: await resolvePublicUploadImageUrl(item.thumbnailUrl, runtimeOrigin)
     }))
   );
   const brandPartnerships = await Promise.all(
@@ -679,7 +682,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
       contentBlocks: card.contentBlocks
     }).slice(0, circleCardAccess.limits.creatorBrandPartnerships).map(async (item) => ({
       ...item,
-      brandLogo: await resolvePublicUploadImageUrl(item.brandLogo, SITE_CONFIG.url)
+      brandLogo: await resolvePublicUploadImageUrl(item.brandLogo, runtimeOrigin)
     }))
   );
   const creatorOffers = (
@@ -688,7 +691,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
         cardType: card.cardType,
         contentBlocks: card.contentBlocks
       }).slice(0, circleCardAccess.limits.creatorOffers).map(async (item) => {
-        const image = await resolvePublicUploadImageUrl(item.image, SITE_CONFIG.url);
+        const image = await resolvePublicUploadImageUrl(item.image, runtimeOrigin);
         return image ? { ...item, image } : null;
       })
     )
@@ -699,7 +702,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
         cardType: card.cardType,
         contentBlocks: card.contentBlocks
       }).slice(0, circleCardAccess.limits.creatorPressProof).map(async (item) => {
-        const image = await resolvePublicUploadImageUrl(item.image, SITE_CONFIG.url);
+        const image = await resolvePublicUploadImageUrl(item.image, runtimeOrigin);
         return image ? { ...item, image } : null;
       })
     )
@@ -718,7 +721,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
         cardType: card.cardType,
         contentBlocks: card.contentBlocks
       }).slice(0, circleCardAccess.limits.businessGalleryImages).map(async (item) => {
-        const imageUrl = await resolvePublicUploadImageUrl(item.imageUrl, SITE_CONFIG.url);
+        const imageUrl = await resolvePublicUploadImageUrl(item.imageUrl, runtimeOrigin);
         return imageUrl ? { ...item, imageUrl } : null;
       })
     )
@@ -829,8 +832,8 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
   void connectionRequestsSent;
   void connectionRequestsReceived;
   const [profileImageUrl, businessLogoUrl, storedThemeMetadata] = await Promise.all([
-    resolvePublicUploadImageUrl(card.profileImageUrl, SITE_CONFIG.url),
-    resolvePublicUploadImageUrl(card.businessLogoUrl, SITE_CONFIG.url),
+    resolvePublicUploadImageUrl(card.profileImageUrl, runtimeOrigin),
+    resolvePublicUploadImageUrl(card.businessLogoUrl, runtimeOrigin),
     circleCardAccess.capabilities.circleStudio
       ? resolvePublicCircleCardThemeMetadataUploads(card.themeMetadata)
       : Promise.resolve({} as Prisma.JsonValue)

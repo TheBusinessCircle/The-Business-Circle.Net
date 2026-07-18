@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateCustomerRuntimeRoute,
-  getCustomerShellKind
+  getCustomerShellKind,
+  isBcnProcessOwnedRuntimePath
 } from "@/lib/circle-card/runtime-route-policy";
 
 describe("Circle Card customer runtime route policy", () => {
@@ -56,17 +57,84 @@ describe("Circle Card customer runtime route policy", () => {
     "/api/auth/session",
     "/api/auth/verify-email",
     "/api/circle-card/cards",
+    "/api/auth/callback/credentials",
     "/card/example",
-    "/r/referral-code"
+    "/r/referral-code",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/circle-card-icon-192.png"
   ])("keeps required auth, API and public card path %s reachable", (pathname) => {
     expect(evaluateCustomerRuntimeRoute("circle-card", pathname)).toEqual({ action: "allow" });
   });
+
+  it.each([
+    "/api/stripe/webhook",
+    "/api/webhooks/resend/inbound",
+    "/api/cron/intelligence-refresh",
+    "/api/internal/circle-card/weekly-summary/run",
+    "/api/internal/circle-card/activation-reminders/run",
+    "/api/internal/community/prompts/run",
+    "/api/internal/resources/publish/run"
+  ])("reserves BCN-owned endpoint %s for the BCN process", (pathname) => {
+    expect(evaluateCustomerRuntimeRoute("circle-card", pathname, "POST")).toEqual({
+      action: "reject",
+      status: 404,
+      reason: "bcn-process-owned-endpoint"
+    });
+    expect(evaluateCustomerRuntimeRoute("bcn", pathname, "POST")).toEqual({
+      action: "allow"
+    });
+  });
+
+  it.each([
+    "/API/INTERNAL/circle-card/weekly-summary/run",
+    "//api//internal//circle-card/weekly-summary/run",
+    "/safe/../api/internal/circle-card/weekly-summary/run",
+    "/api%2Finternal%2Fcircle-card%2Fweekly-summary%2Frun",
+    "/api%252Finternal%252Fcircle-card%252Fweekly-summary%252Frun",
+    "/api\\internal\\circle-card\\weekly-summary\\run",
+    "/api/cron/../internal/circle-card/weekly-summary/run/"
+  ])("normalizes disguised BCN-owned endpoint %s before ownership checks", (pathname) => {
+    expect(isBcnProcessOwnedRuntimePath(pathname)).toBe(true);
+    expect(evaluateCustomerRuntimeRoute("circle-card", pathname, "POST")).toEqual({
+      action: "reject",
+      status: 404,
+      reason: "bcn-process-owned-endpoint"
+    });
+  });
+
+  it("keeps extension-ending shared APIs reachable without weakening job ownership", () => {
+    expect(
+      evaluateCustomerRuntimeRoute("circle-card", "/api/circle-card/export.csv", "GET")
+    ).toEqual({ action: "allow" });
+  });
+
+  it.each(["/manifest.webmanifest", "/opengraph-image"])(
+    "does not serve the BCN-branded generated asset %s on Circle Card",
+    (pathname) => {
+      expect(evaluateCustomerRuntimeRoute("circle-card", pathname)).toEqual({
+        action: "reject",
+        status: 404,
+        reason: "bcn-customer-surface"
+      });
+    }
+  );
 
   it("does not let a file-looking BCN route bypass the deny policy", () => {
     expect(evaluateCustomerRuntimeRoute("circle-card", "/admin/export.csv").action)
       .toBe("redirect");
     expect(evaluateCustomerRuntimeRoute("circle-card", "/branding/circle-card-logo.png"))
       .toEqual({ action: "allow" });
+    expect(evaluateCustomerRuntimeRoute("circle-card", "/llms.txt")).toEqual({
+      action: "redirect",
+      destination: "/",
+      reason: "bcn-customer-surface"
+    });
+    expect(evaluateCustomerRuntimeRoute("circle-card", "/social-share.png", "POST")).toEqual({
+      action: "reject",
+      status: 404,
+      reason: "bcn-customer-surface"
+    });
   });
 
   it.each(["POST", "PUT", "PATCH", "DELETE"])(

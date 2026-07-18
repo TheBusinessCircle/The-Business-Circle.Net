@@ -5,13 +5,20 @@ import {
 } from "@/config/legal";
 import { getRuntimeBrand } from "@/config/runtime-brand";
 import { LegalDocument } from "@/components/public";
+import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
 import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = createPageMetadata({
+const pageMetadataInput = {
   title: "Terms of Service",
   description: TERMS_OF_SERVICE_CONTENT.description,
   path: "/terms-of-service"
-});
+};
+
+export function generateMetadata(): Metadata {
+  return getRuntimeBrand().key === "circle-card"
+    ? createCircleCardPageMetadata(pageMetadataInput, "circle-card")
+    : createPageMetadata(pageMetadataInput);
+}
 
 export default function TermsOfServicePage() {
   return (

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { PublicCircleCardProfile } from "@/components/circle-card";
 import { CircleCardReferralAttribution } from "@/components/circle-card/circle-card-referral-attribution";
-import { SITE_CONFIG } from "@/config/site";
+import { getRuntimeBrand } from "@/config/runtime-brand";
 import {
   CIRCLE_CARD_APP_NAME,
   CIRCLE_CARD_ICON_512,
@@ -90,11 +90,12 @@ async function incrementViewCount(
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const card = await getPublicCircleCard(slug);
+  const runtimeOrigin = getRuntimeBrand().canonicalOrigin;
 
   if (!card) {
     return {
       ...CIRCLE_CARD_PWA_METADATA,
-      metadataBase: new URL(SITE_CONFIG.url),
+      metadataBase: new URL(runtimeOrigin),
       title: "Circle Card",
       robots: {
         index: false,
@@ -112,7 +113,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     ...CIRCLE_CARD_PWA_METADATA,
-    metadataBase: new URL(SITE_CONFIG.url),
+    metadataBase: new URL(runtimeOrigin),
     title,
     description,
     alternates: {
