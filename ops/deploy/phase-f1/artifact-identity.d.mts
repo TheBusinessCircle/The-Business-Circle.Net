@@ -1,0 +1,3 @@
+export interface ArtifactIdentityInput { applicationRole: string; applicationSha: string; operationsIdentity: string; operationsPackIdentityPath: string; buildIdPath: string; sourceTreeIdentityPath: string; contentManifestPath: string; environmentReadinessPath: string; databaseIdentityPath: string; storageManifestPath: string; systemdUnitPath: string; rehearsalEvidenceIdentity: string; }
+export function createArtifactIdentity(input: ArtifactIdentityInput, options?: { operational?: boolean }): Record<string, string>;
+export function writeArtifactIdentity(path: string, identity: Record<string, string>): void;

@@ -1,0 +1,4 @@
+export interface BootEligibility { format: string; operationsIdentity: string; activeBcnSelector: "forward" | "rollback"; selectedArtifactRole: "forward" | "rollback"; applicationSha: string; artifactDigest: string; durableStateDigest: string; eligibilityGeneration: number }
+export declare function validateBootEligibility(record: BootEligibility, options: { operationsIdentity: string; selectorTarget: string; previousGeneration?: number }): BootEligibility;
+export declare function publishBootEligibility(args: { statePath: string; bindingsPath: string; artifactIdentityPath: string; outputPath: string; operationsIdentity: string }, options?: { operational?: boolean }): BootEligibility;
+export declare function verifyBootEligibilityFile(path: string, options: { operationsIdentity: string; selectorPath: string; operational?: boolean }): BootEligibility;

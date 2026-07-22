@@ -1,0 +1,32 @@
+[Unit]
+Description=Private BCN release candidate
+After=network.target
+
+[Service]
+Type=simple
+User=bcn-app
+Group=bcn-app
+SupplementaryGroups=circle-public circle-card-private
+WorkingDirectory=/var/www/releases/2c83694de301b0244c5586c1598aceb10fa2214b
+ExecStart=/usr/bin/node @@PHASE_F1_PACK_DIR@@/runtime-launcher.mjs bcn-candidate
+Restart=no
+TimeoutStopSec=30s
+UMask=0027
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=the-business-circle-network-candidate
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/var/www/releases /opt/thebusinesscircle /etc/thebusinesscircle
+ReadWritePaths=/var/www/shared/public/profiles /var/www/shared/public/circle-card /var/www/shared/public/visual-media /var/www/shared/private/direct-messages /var/www/shared/private/wins /var/www/shared/private/founder-services /var/www/shared/private/circle-card-link-files /var/www/shared/generated/community-source-previews

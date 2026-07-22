@@ -1,0 +1,32 @@
+[Unit]
+Description=Private BCN rollback-artifact probe
+After=network.target
+
+[Service]
+Type=simple
+User=bcn-app
+Group=bcn-app
+SupplementaryGroups=circle-public circle-card-private
+WorkingDirectory=/var/www/current-bcn-rollback-probe
+ExecStart=/usr/bin/node @@PHASE_F1_PACK_DIR@@/runtime-launcher.mjs bcn-rollback-probe
+Restart=no
+TimeoutStopSec=30s
+UMask=0027
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=the-business-circle-network-rollback-probe
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/var/www/current-bcn-rollback-probe /var/www/rollbacks /opt/thebusinesscircle /etc/thebusinesscircle
+ReadWritePaths=/var/www/shared/public/profiles /var/www/shared/public/circle-card /var/www/shared/public/visual-media /var/www/shared/private/direct-messages /var/www/shared/private/wins /var/www/shared/private/founder-services /var/www/shared/private/circle-card-link-files /var/www/shared/generated/community-source-previews

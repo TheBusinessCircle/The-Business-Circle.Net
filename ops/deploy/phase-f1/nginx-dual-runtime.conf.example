@@ -1,0 +1,169 @@
+# REVIEW TEMPLATE ONLY. Replace every __CERT_*__ token with an already-existing,
+# reviewed path before nginx -t. Keep the existing rtc.thebusinesscircle.net file
+# enabled and unchanged. Initial scope deliberately excludes both www hostnames.
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+merge_slashes on;
+
+# Raw request-target defence for case, repeated separators and encoded slash/dot
+# variants. Real Ubuntu rehearsal uses curl --path-as-is against this map.
+map $request_uri $circle_owner_request {
+    default 0;
+    ~*^/+api(?:/+|%2f)+stripe(?:/+|%2f)+(?:%2e(?:/+|%2f)+)?webhook(?:/+|%2f)*(?:\?|$) 1;
+    ~*^/+api(?:/+|%2f)+webhooks(?:/+|%2f)+resend(?:/+|%2f)+inbound(?:/+|%2f)*(?:\?|$) 1;
+    ~*^/+api(?:/+|%2f)+(?:cron|internal)(?:/+|%2f|\?|$) 1;
+}
+
+map $uri $bcn_client_body_limit {
+    default                                             20m;
+    ~^/api/messages/threads/[^/]+/messages/?$           56m;
+    ~^/api/founder-services/requests/?$                 64m;
+    ~^/wins/?$                                          44m;
+}
+
+map $uri $circle_card_client_body_limit {
+    default                                             20m;
+    ~^/api/circle-card/(upload|business-card-scan)/?$   12m;
+}
+
+upstream business_circle_next {
+    server 127.0.0.1:3000;
+    keepalive 32;
+}
+
+upstream circle_card_next {
+    server 127.0.0.1:3200;
+    keepalive 32;
+}
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 421;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name thebusinesscircle.net;
+    location = /api/stripe/webhook { return 404; }
+    location / { return 308 https://$host$request_uri; }
+}
+
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name circlecard.co.uk;
+    if ($circle_owner_request = 1) { return 404; }
+    if ($request_method !~ ^(GET|HEAD)$) { return 405; }
+    location = /api/stripe/webhook { return 404; }
+    location = /api/webhooks/resend/inbound { return 404; }
+    location ^~ /api/webhooks/resend/inbound/ { return 404; }
+    location = /api/cron { return 404; }
+    location ^~ /api/cron/ { return 404; }
+    location = /api/internal { return 404; }
+    location ^~ /api/internal/ { return 404; }
+    location / { return 308 https://circlecard.co.uk$request_uri; }
+}
+
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+    ssl_certificate __CERT_DEFAULT_FULLCHAIN__;
+    ssl_certificate_key __CERT_DEFAULT_PRIVATE_KEY__;
+    return 421;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name thebusinesscircle.net;
+
+    ssl_certificate __CERT_BCN_FULLCHAIN__;
+    ssl_certificate_key __CERT_BCN_PRIVATE_KEY__;
+    # This reviewed snippet must contain only current official Cloudflare CIDRs,
+    # real_ip_header CF-Connecting-IP, and real_ip_recursive on.
+    include /etc/nginx/snippets/cloudflare-real-ip.conf;
+
+    location = /api/stripe/webhook {
+        client_max_body_size 1m;
+        proxy_pass http://business_circle_next;
+        proxy_http_version 1.1;
+        proxy_request_buffering on;
+        proxy_buffering on;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_redirect off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Connection "";
+    }
+
+    location / {
+        client_max_body_size $bcn_client_body_limit;
+        proxy_pass http://business_circle_next;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_buffering off;
+        proxy_redirect off;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name circlecard.co.uk;
+
+    ssl_certificate __CERT_CIRCLE_CARD_FULLCHAIN__;
+    ssl_certificate_key __CERT_CIRCLE_CARD_PRIVATE_KEY__;
+    include /etc/nginx/snippets/cloudflare-real-ip.conf;
+
+    if ($circle_owner_request = 1) { return 404; }
+
+    location = /api/stripe/webhook { return 404; }
+    location = /api/webhooks/resend/inbound { return 404; }
+    location ^~ /api/webhooks/resend/inbound/ { return 404; }
+    location = /api/cron { return 404; }
+    location ^~ /api/cron/ { return 404; }
+    location = /api/internal { return 404; }
+    location ^~ /api/internal/ { return 404; }
+    if ($request_method !~ ^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)$) { return 405; }
+
+    location / {
+        client_max_body_size $circle_card_client_body_limit;
+        proxy_pass http://circle_card_next;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_buffering off;
+        proxy_redirect off;
+    }
+}

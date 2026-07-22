@@ -1,0 +1,3 @@
+export function parseStrictJsonObject(body: string): Record<string, unknown>;
+export function validateCloudflareTlsEvidence(record: Record<string, unknown>, expected: { operationsIdentity: string; nginxIdentity: string; tlsRehearsalIdentity: string; originCertificateFingerprintSha256: string }, options?: { now?: Date }): Record<string, unknown>;
+export function readCloudflareTlsEvidence(path: string, expected: { operationsIdentity: string; nginxIdentity: string; tlsRehearsalIdentity: string; originCertificateFingerprintSha256: string }, options?: { operational?: boolean; now?: Date }): { record: Record<string, unknown>; sha256: string };

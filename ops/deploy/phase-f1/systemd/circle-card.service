@@ -1,0 +1,39 @@
+[Unit]
+Description=Circle Card web runtime
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=circle-card-app
+Group=circle-card-app
+SupplementaryGroups=circle-public circle-card-private
+WorkingDirectory=/var/www/current-circle-card
+ExecStart=/usr/bin/node @@PHASE_F1_PACK_DIR@@/runtime-launcher.mjs circle-card
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+KillSignal=SIGTERM
+UMask=0027
+Environment=NODE_NO_WARNINGS=1
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=circle-card
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/var/www/current-circle-card /var/www/releases /opt/thebusinesscircle /etc/thebusinesscircle
+ReadWritePaths=/var/www/shared/public/profiles /var/www/shared/public/circle-card /var/www/shared/private/circle-card-link-files
+
+[Install]
+WantedBy=multi-user.target
