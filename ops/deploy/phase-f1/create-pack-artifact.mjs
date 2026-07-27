@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { renderPackManifest } from "./pack-layout.mjs";
 import { aggregateCandidateEntries } from "./candidate-aggregate.mjs";
+import { parsePackTreeRows, renderPackTar } from "./pack-tree.mjs";
 const FORWARD_APPLICATION_SHA = "2c83694de301b0244c5586c1598aceb10fa2214b";
 const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
 const HISTORICAL_PRODUCTION_SHA = "5fa2bbf6ac7d39aa14636882bbae2d2713faf11a";
@@ -19,15 +20,12 @@ if (git(["status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" }
 if (git(["rev-parse", "--verify", `${operationsCommit}^{commit}`], { encoding: "utf8" }).trim() !== operationsCommit) throw new Error("Exact operations commit required.");
 const changed = git(["diff", "--name-only", `${OPERATIONS_BASE_SHA}..${operationsCommit}`], { encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean);
 if (changed.some((path) => !allowed.some((entry) => entry.endsWith("/") ? path.startsWith(entry) : path === entry))) throw new Error("Operations commit contains ordinary application changes.");
+if (!allowed.slice(1).every((path) => changed.includes(path)) || !changed.some((path) => path.startsWith(`${PACK_ROOT}/`))) throw new Error("Operations commit is missing an approved boundary file.");
 const output = resolve(outputArg); if (existsSync(output)) throw new Error("Output directory must not exist."); mkdirSync(output, { mode: 0o700 }); if (realpathSync(output) !== output) throw new Error("Canonical output required.");
-const entries = git(["ls-tree", "-r", "-t", operationsCommit, "--", PACK_ROOT], { encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean).map((line) => {
-  const match = /^(\d{6}) (blob|tree) [0-9a-f]+\t(.+)$/.exec(line); if (!match) throw new Error("Unexpected Git tree entry.");
-  const relative = match[3].slice(PACK_ROOT.length + 1); if (!relative || relative.includes("..") || relative.startsWith("/")) throw new Error("Unsafe tree path.");
-  return { type: match[2] === "tree" ? "D" : "F", path: relative,
-    body: match[2] === "blob" ? git(["show", `${operationsCommit}:${PACK_ROOT}/${relative}`]) : undefined };
-}).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+const treeRows = git(["ls-tree", "-r", "-t", operationsCommit, "--", PACK_ROOT], { encoding: "utf8" });
+const entries = parsePackTreeRows(treeRows, ({ objectId }) => git(["cat-file", "blob", objectId]));
 const manifest = renderPackManifest(entries);
-const archive = git(["archive", "--format=tar", "--prefix=phase-f1/", `${operationsCommit}:${PACK_ROOT}`]);
+const archive = renderPackTar(entries);
 const bootstrap = git(["show", `${operationsCommit}:${PACK_ROOT}/bootstrap-install.sh`]);
 const archiveSha256 = sha(archive), manifestSha256 = sha(manifest), bootstrapSha256 = sha(bootstrap);
 const candidatePaths = git(["diff", "--name-only", `${OPERATIONS_BASE_SHA}..${operationsCommit}`], { encoding: "utf8" }).trim().split(/\r?\n/u).filter(Boolean);

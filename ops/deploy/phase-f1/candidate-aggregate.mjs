@@ -46,7 +46,7 @@ function filesystemEntries(root) {
 
 export function aggregateCandidateWorkspace(root = process.cwd()) {
   const canonical = realpathSync(resolve(root));
-  const status = execFileSync("git", ["-C", canonical, "status", "--porcelain=v1", "--untracked-files=all"], { encoding: "utf8" }).trim().split(/\r?\n/u).filter(Boolean);
+  const status = execFileSync("git", ["-C", canonical, "status", "--porcelain=v1", "--untracked-files=all"], { encoding: "utf8" }).trimEnd().split(/\r?\n/u).filter(Boolean);
   const changed = status.map((line) => normalize(line.slice(3).replace(/^.* -> /u, "")));
   if (changed.some((path) => !path.startsWith(PACK_PREFIX) && !CANDIDATE_FILES.includes(path))) throw new Error("Ordinary application or out-of-boundary change detected.");
   const entries = filesystemEntries(canonical);

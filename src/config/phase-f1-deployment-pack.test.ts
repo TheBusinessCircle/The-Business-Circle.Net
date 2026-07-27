@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, linkSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, linkSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
@@ -17,6 +17,7 @@ import { assertBuildWorkspaceInputs, assertRuntimeCacheExcluded, createContentMa
 import { createArtifactIdentity } from "../../ops/deploy/phase-f1/artifact-identity.mjs";
 import { validateReleaseEvidenceObjects } from "../../ops/deploy/phase-f1/validate-release-gates.mjs";
 import { expectedPackMode, parsePackManifest, renderPackManifest, validatePackTree } from "../../ops/deploy/phase-f1/pack-layout.mjs";
+import { parsePackTreeRows } from "../../ops/deploy/phase-f1/pack-tree.mjs";
 import { renderSystemdUnit } from "../../ops/deploy/phase-f1/render-systemd-units.mjs";
 import { publishBootEligibility, validateBootEligibility } from "../../ops/deploy/phase-f1/boot-eligibility.mjs";
 import { consumeBuildAttempt, createBuildAttempt, finishBuildAttempt } from "../../ops/deploy/phase-f1/build-state.mjs";
@@ -43,7 +44,117 @@ const temp = () => { const path = mkdtempSync(join(tmpdir(), "phase-f1-test-"));
 const sha = (body: string | Buffer) => createHash("sha256").update(body).digest("hex");
 afterEach(() => { while (tempRoots.length) rmSync(tempRoots.pop()!, { recursive: true, force: true }); });
 
+type TarMember = { name: string; mode: string; size: number; mtime: number; type: string; body: Buffer };
+function tarMembers(archive: Buffer) {
+  const members: TarMember[] = [];
+  let pendingPath: string | null = null;
+  for (let offset = 0; offset + 512 <= archive.length;) {
+    const header = archive.subarray(offset, offset + 512);
+    if (header.every((byte) => byte === 0)) break;
+    const text = (start: number, length: number) => header.subarray(start, start + length).toString("utf8").replace(/\0.*$/u, "");
+    const octal = (start: number, length: number) => Number.parseInt(text(start, length).trim() || "0", 8);
+    const headerName = [text(345, 155), text(0, 100)].filter(Boolean).join("/");
+    const size = octal(124, 12), type = text(156, 1) || "0";
+    const body = archive.subarray(offset + 512, offset + 512 + size);
+    if (type === "x") {
+      const pathRow = body.toString("utf8").split("\n").find((row) => /^\d+ path=/u.test(row));
+      pendingPath = pathRow?.replace(/^\d+ path=/u, "") || null;
+    } else if (type !== "g") {
+      members.push({ name: pendingPath || headerName, mode: octal(100, 8).toString(8).padStart(4, "0"), size, mtime: octal(136, 12), type, body });
+      pendingPath = null;
+    }
+    offset += 512 + Math.ceil(size / 512) * 512;
+  }
+  return members;
+}
+
+function createCommittedPackFixture() {
+  const repository = temp(), outputs = temp();
+  const git = (...args: string[]) => execFileSync("git", args, {
+    cwd: repository,
+    encoding: "utf8",
+    env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(repository, "missing.gitconfig") }
+  }).trim();
+  git("init", "--quiet");
+  git("config", "user.name", "Phase F1 Pack Test");
+  git("config", "user.email", "phase-f1-pack@example.invalid");
+  git("fetch", "--quiet", "--no-tags", root, "c95b10d82d192c273812a40c2c9d1e9e73791b96");
+  git("checkout", "--quiet", "--detach", "FETCH_HEAD");
+  cpSync(pack, join(repository, "ops", "deploy", "phase-f1"), { recursive: true });
+  mkdirSync(join(repository, "docs"), { recursive: true });
+  mkdirSync(join(repository, "src", "config"), { recursive: true });
+  cpSync(join(root, "docs", "circle-card-phase-f1-server-deployment-pack.md"), join(repository, "docs", "circle-card-phase-f1-server-deployment-pack.md"));
+  cpSync(join(root, "src", "config", "phase-f1-deployment-pack.test.ts"), join(repository, "src", "config", "phase-f1-deployment-pack.test.ts"));
+  git("add", "ops/deploy/phase-f1", "docs/circle-card-phase-f1-server-deployment-pack.md", "src/config/phase-f1-deployment-pack.test.ts");
+  git("commit", "--quiet", "-m", "synthetic Phase F1 pack candidate");
+  return { repository, outputs, commit: git("rev-parse", "HEAD") };
+}
+
 describe("Phase F1 installed pack and immutable systemd identity", () => {
+  it("omits only the selected root tree and strictly rejects unsafe enumeration rows", () => {
+    const rootRow = "040000 tree " + "1".repeat(40) + "\tops/deploy/phase-f1";
+    const fileRow = "100644 blob " + "2".repeat(40) + "\tops/deploy/phase-f1/nested/helper.mjs";
+    expect(parsePackTreeRows(`${rootRow}\n${fileRow}\n`, () => Buffer.from("helper\n"))).toEqual([
+      { type: "F", path: "nested/helper.mjs", body: Buffer.from("helper\n") }
+    ]);
+    expect(() => parsePackTreeRows(`${rootRow}\n040000 tree ${"3".repeat(40)}\tops/deploy/phase-f1/\n`, () => Buffer.alloc(0))).toThrow(/Unsafe/u);
+    expect(() => parsePackTreeRows(`${rootRow}\n${fileRow}\n${fileRow}\n`, () => Buffer.alloc(0))).toThrow(/Duplicate/u);
+    expect(() => parsePackTreeRows(`${rootRow}\n100644 blob ${"4".repeat(40)}\tops/deploy/phase-f1/../escape\n`, () => Buffer.alloc(0))).toThrow(/Unsafe/u);
+    expect(() => parsePackTreeRows(`${rootRow}\n100644 blob ${"5".repeat(40)}\tdocs/outside.md\n`, () => Buffer.alloc(0))).toThrow(/outside/u);
+    expect(() => parsePackTreeRows(`${rootRow}\n160000 commit ${"6".repeat(40)}\tops/deploy/phase-f1/submodule\n`, () => Buffer.alloc(0))).toThrow(/object type/u);
+  });
+
+  it("creates and verifies identical committed-checkout archives and manifests twice", () => {
+    const { repository, outputs, commit } = createCommittedPackFixture();
+    const run = (name: string) => {
+      const output = join(outputs, name);
+      expect(execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", commit, output], { cwd: repository, encoding: "utf8" })).toMatch(/Created deterministic/u);
+      const archive = readFileSync(join(output, "phase-f1-pack.tar"));
+      const manifest = readFileSync(join(output, "installed-pack.manifest"), "utf8");
+      const members = tarMembers(archive);
+      const packMembers = members.filter(({ name }) => name !== "phase-f1/" && name !== "phase-f1").map((member) => {
+        expect(member.name.startsWith("phase-f1/")).toBe(true);
+        const path = member.name.slice("phase-f1/".length).replace(/\/$/u, "");
+        expect(path).not.toMatch(/^$|^\.$/u);
+        const type = member.type === "5" ? "D" as const : "F" as const;
+        expect(member.mode).toBe(expectedPackMode(path, type));
+        return { type, path, mode: expectedPackMode(path, type), body: member.body, metadata: { archiveMode: member.mode, size: member.size, mtime: member.mtime, type: member.type } };
+      });
+      expect(packMembers.some(({ path }) => path === "systemd/circle-card.service")).toBe(true);
+      const manifestByPath = new Map(parsePackManifest(manifest).map((entry) => [entry.path, entry]));
+      for (const member of packMembers.filter(({ type }) => type === "F")) {
+        const expected = manifestByPath.get(member.path);
+        if (!expected || expected.size !== member.body.length || expected.sha256 !== sha(member.body)) throw new Error(`Archive content mismatch for ${member.path}: ${member.body.length}/${expected?.size}`);
+      }
+      expect(validatePackTree(packMembers, manifest)).toBe(true);
+      expect(parsePackManifest(manifest).map(({ path }) => path)).not.toContain("");
+      expect(existsSync(join(output, "approved-pack-identity.json"))).toBe(true);
+      expect(existsSync(join(output, "EXTERNAL-SHA256SUMS"))).toBe(true);
+      return { archive, manifest: Buffer.from(manifest), packMembers };
+    };
+    const first = run("first"), second = run("second");
+    expect(first.archive.equals(second.archive)).toBe(true);
+    expect(sha(first.archive)).toBe(sha(second.archive));
+    expect(first.manifest.equals(second.manifest)).toBe(true);
+    expect(sha(first.manifest)).toBe(sha(second.manifest));
+    expect(first.packMembers.map(({ type, path, mode, metadata }) => ({ type, path, mode, metadata }))).toEqual(second.packMembers.map(({ type, path, mode, metadata }) => ({ type, path, mode, metadata })));
+  }, 60_000);
+
+  it("rejects a committed candidate missing or exceeding the approved boundary", () => {
+    const missing = createCommittedPackFixture();
+    execFileSync("git", ["rm", "--quiet", "docs/circle-card-phase-f1-server-deployment-pack.md"], { cwd: missing.repository });
+    execFileSync("git", ["commit", "--quiet", "-m", "remove required boundary file"], { cwd: missing.repository });
+    const missingCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: missing.repository, encoding: "utf8" }).trim();
+    expect(() => execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", missingCommit, join(missing.outputs, "missing")], { cwd: missing.repository, encoding: "utf8", stdio: "pipe" })).toThrow();
+
+    const extra = createCommittedPackFixture();
+    writeFileSync(join(extra.repository, "unapproved.txt"), "outside\n");
+    execFileSync("git", ["add", "unapproved.txt"], { cwd: extra.repository });
+    execFileSync("git", ["commit", "--quiet", "-m", "add unapproved file"], { cwd: extra.repository });
+    const extraCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: extra.repository, encoding: "utf8" }).trim();
+    expect(() => execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", extraCommit, join(extra.outputs, "extra")], { cwd: extra.repository, encoding: "utf8", stdio: "pipe" })).toThrow();
+  }, 60_000);
+
   it("assigns deterministic executable modes and rejects mode or content tampering", () => {
     const entries = [
       { type: "D" as const, path: "systemd" },
