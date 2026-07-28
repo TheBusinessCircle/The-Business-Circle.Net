@@ -4,8 +4,8 @@ import { closeSync, existsSync, fsyncSync, openSync, readFileSync, renameSync, w
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const FORWARD_APPLICATION_SHA = "2c83694de301b0244c5586c1598aceb10fa2214b";
-export const FORWARD_PARENT_SHA = "c95b10d82d192c273812a40c2c9d1e9e73791b96";
+export const FORWARD_APPLICATION_SHA = "6949bb2b7ef0ce28e5983751f3c8a10accde99b3";
+export const FORWARD_PARENT_SHA = "2c83694de301b0244c5586c1598aceb10fa2214b";
 export const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
 export const HISTORICAL_PRODUCTION_SHA = "5fa2bbf6ac7d39aa14636882bbae2d2713faf11a";
 
@@ -14,9 +14,9 @@ export const APPLICATION_IDENTITIES = Object.freeze({
     sha: FORWARD_APPLICATION_SHA,
     parentSha: FORWARD_PARENT_SHA,
     files: Object.freeze([
-      Object.freeze({ status: "A", mode: "100644", path: "docs/circle-card-phase-e2-immutable-runtime-cache.md" }),
-      Object.freeze({ status: "M", mode: "100644", path: "next.config.ts" }),
-      Object.freeze({ status: "A", mode: "100644", path: "src/config/immutable-runtime-cache.test.ts" })
+      Object.freeze({ status: "M", mode: "100644", path: "package.json" }),
+      Object.freeze({ status: "A", mode: "100644", path: "scripts/validate-production-env.test.ts" }),
+      Object.freeze({ status: "M", mode: "100644", path: "scripts/validate-production-env.ts" })
     ])
   }),
   rollback: Object.freeze({
@@ -102,7 +102,10 @@ function writeExclusive(path, payload) {
   renameSync(temporary, path);
 }
 
-if (fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
   const [command, role, repository, evidencePath] = process.argv.slice(2);
   if (command !== "verify" || !role || !repository || !evidencePath) {
     throw new Error("Usage: application-identities.mjs verify <forward|rollback> <repository> <new-evidence-path>");

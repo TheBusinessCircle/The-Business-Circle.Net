@@ -10,7 +10,7 @@ The four identities are separate and must never be substituted:
 | --- | --- | --- |
 | Historical production baseline | `5fa2bbf6ac7d39aa14636882bbae2d2713faf11a` | Records the currently deployed application, establishes the rollback candidate parent, and preserves historical live evidence. It is not built as the immutable rollback artifact. |
 | Approved rollback application candidate | `5d1f81bb05a01b08e1134785c2f86b77c8969fe3` | Historical BCN behavior plus the reviewed Phase E3 immutable-runtime correction. It is the only rollback build, probe, selector, and proof source. |
-| Approved forward application | `2c83694de301b0244c5586c1598aceb10fa2214b` | The only source for forward BCN and Circle Card artifacts. |
+| Approved forward application | `6949bb2b7ef0ce28e5983751f3c8a10accde99b3` | The only source for forward BCN and Circle Card artifacts. Its reviewed parent is the immutable-runtime baseline `2c83694de301b0244c5586c1598aceb10fa2214b`. |
 | Operations-pack commit | recorded after review | Identifies these scripts and this runbook. It is never an application build source. |
 
 The rollback candidate must be a clean, single-parent, non-merge commit whose parent is the historical baseline and whose exact diff is:
@@ -27,16 +27,16 @@ The rollback application source review is complete. Linux-isolated fixture gener
 
 ```text
 /var/www/builds/rollback-5d1f81bb05a01b08e1134785c2f86b77c8969fe3-<unique>/
-/var/www/builds/forward-2c83694de301b0244c5586c1598aceb10fa2214b-<unique>/
+/var/www/builds/forward-6949bb2b7ef0ce28e5983751f3c8a10accde99b3-<unique>/
 /var/www/rollbacks/5d1f81bb05a01b08e1134785c2f86b77c8969fe3/
-/var/www/releases/2c83694de301b0244c5586c1598aceb10fa2214b/
+/var/www/releases/6949bb2b7ef0ce28e5983751f3c8a10accde99b3/
 /var/www/current-bcn -> verified rollback or forward artifact
 /var/www/current-bcn-rollback-probe -> verified rollback artifact
 /var/www/current-circle-card -> forward artifact
 /var/www/shared/public/uploads/
 /var/www/shared/private/<authority-specific-subtrees>/
 /var/www/shared/generated/community-source-previews/
-/var/lib/thebusinesscircle/artifacts/2c83694de301b0244c5586c1598aceb10fa2214b-5d1f81bb05a01b08e1134785c2f86b77c8969fe3/
+/var/lib/thebusinesscircle/artifacts/6949bb2b7ef0ce28e5983751f3c8a10accde99b3-5d1f81bb05a01b08e1134785c2f86b77c8969fe3/
 /var/lib/thebusinesscircle/deployment-state/
 /var/lib/thebusinesscircle/boot-eligibility/bcn.json
 /opt/thebusinesscircle/deployment-packs/<exact-operations-commit>/
@@ -74,7 +74,13 @@ The Nginx backup recursively resolves the include graph and supported local file
 
 Configuration, public certificates, private keys/secret material, immutable binary modules, and unsupported/runtime paths are classified separately. `load_module` is parsed apart from text includes. Relative module names use the Nginx module prefix (`/usr/lib/nginx` on the reviewed Ubuntu layout), and module binaries must resolve below `/usr/lib/nginx/modules` or `/usr/share/nginx/modules`. They are copied and hashed as raw bytes without UTF-8 decoding, newline conversion or template substitution; only the configuration's path token is rewritten to the snapshot binary. Mode, size, ownership expectation and source/snapshot identities are recorded. Public certificate fingerprints, SANs and expiry plus non-secret key-pair identities are evidence-bound; private material remains protected and is never printed. All captured references are rewritten to snapshot paths, and `nginx -t` runs against the extracted prefix. Restore must use the entire evidence-matched dependency set; piecemeal restoration is forbidden.
 
-Runtime environment files contain only the exact service allowlist. `POSTGRES_PASSWORD`, `ADMIN_PASSWORD`, and `SEED_MODE` are tooling-only and are absent from both BCN and Circle Card web processes; validation or seed work uses a separate short-lived protected environment. `/proc/<pid>/environ` verification compares names only and fails on any extra authority. Circle Card never receives BCN webhook, cron, inbound, membership, LiveKit, TURN or unrelated delivery credentials, and public billing mode remains a hard stop.
+Runtime environment preparation requires an explicit canonical root-owned, mode-`0600`, single-link sanitised operator input. Historical dotenv files and PM2 environments are names-only legacy evidence, never value authorities, and are never copied wholesale. Only the committed allowlist can migrate. `POSTGRES_PASSWORD`, `ADMIN_PASSWORD`, `SEED_MODE`, `POSTGRES_DB`, and `POSTGRES_USER` are tooling-only and are absent from BCN, Circle Card, and build JSON; validation or seed work uses a separate short-lived protected tooling context. `DEMO_MEMBER_PASSWORD` and `RESEND_TEST_TO` are unsupported and never migrate.
+
+The protected authority is exactly `/etc/thebusinesscircle/bcn/runtime.env.json` (`root:bcn-app`, `0640`), `/etc/thebusinesscircle/circle-card/runtime.env.json` (`root:circle-card-app`, `0640`), and `/etc/thebusinesscircle/build/build.env.json` (`root:phase-f1-build`, `0640`). Each is staged with restrictive creation, complete-write verification, file `fsync`, exact ownership and mode, and atomic same-directory no-replace hard-link publication. The temporary link is removed immediately, each final file must be regular with link count one, parent directories are `fsync`ed, and any partial set is guardedly removed only when its device/inode identity still matches the invocation. Any existing target stops publication without overwrite.
+
+Authoritative readiness validates all three protected JSON files, schema and permissions, required names, shared-value equality, runtime isolation, and exactly one complete Redis pair: either `UPSTASH_REDIS_REST_URL` plus `UPSTASH_REDIS_REST_TOKEN`, or `KV_REST_API_URL` plus `KV_REST_API_TOKEN`, never a partial pair or both pairs. BCN may receive an approved `BCN_COMMUNITY_AUTOMATION_ENABLED`; Circle Card never receives it and the Circle launcher fixes it to `false`. Circle Card must use a Resend API identity different from BCN. Missing names remain value-free hard gates.
+
+The names `COMPOSE_APP_ENV_FILE`, `LIVEKIT_PORT`, `LIVEKIT_RTC_PORT_END`, `LIVEKIT_RTC_PORT_START`, `LIVEKIT_TCP_PORT`, `LIVEKIT_USE_EXTERNAL_IP`, `TURN_MAX_PORT`, `TURN_MIN_PORT`, `TURN_TLS_CA_FILE`, and `TURN_TLS_CIPHER_LIST` are legacy infrastructure metadata. `POSTGRES_DB` and `POSTGRES_USER` are legacy tooling-only. `NEXT_PUBLIC_LIVEKIT_URL` and `NEXT_PUBLIC_SITE_URL` are deliberately excluded legacy browser configuration. All fourteen may appear in the separately labelled legacy names-only report but never in protected runtime or build JSON. `/proc/<pid>/environ` verification compares names only and fails on any extra authority. Circle Card never receives BCN webhook, cron, inbound, membership, LiveKit, TURN or unrelated delivery credentials, and public billing mode remains a hard stop.
 
 ## Rollback provenance and proof
 
@@ -100,7 +106,7 @@ Non-empty marker files are insufficient. Every protected evidence file is root-o
 
 ## Forward Phase E2 evidence
 
-The forward build uses only `2c83694de301b0244c5586c1598aceb10fa2214b`. Evidence must prove the exact Phase E2 commit structure, resolved disk flushing disabled, the 50 MiB memory cap, immutable before/after manifests, absent fetch/image disk caches, authenticated `revalidatePath`/`revalidateTag`/`unstable_cache`, insight behavior, repeated images, both dual-runtime start orders, brand isolation, session isolation, owner-route isolation, and separate BCN/Circle Card process caches. Skipped evidence never counts.
+The forward build uses only `6949bb2b7ef0ce28e5983751f3c8a10accde99b3`. Evidence must prove the reviewed machine-readiness correction on top of the exact Phase E2 commit structure, resolved disk flushing disabled, the 50 MiB memory cap, immutable before/after manifests, absent fetch/image disk caches, authenticated `revalidatePath`/`revalidateTag`/`unstable_cache`, insight behavior, repeated images, both dual-runtime start orders, brand isolation, session isolation, owner-route isolation, and separate BCN/Circle Card process caches. Skipped evidence never counts.
 
 ## Systemd and durable state
 
@@ -168,7 +174,7 @@ The Circle HTTP raw-target map rejects repeated separators, case variants, encod
 4. Create a fresh rollback checkout at `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`.
 5. Run committed-candidate provenance and the isolated Linux rollback build.
 6. Construct and rehearse the immutable rollback artifact privately.
-7. Create a separate fresh forward checkout at `2c83694de301b0244c5586c1598aceb10fa2214b`.
+7. Create a separate fresh forward checkout at `6949bb2b7ef0ce28e5983751f3c8a10accde99b3`.
 8. Construct forward BCN and Circle Card artifacts from that one forward build.
 9. Run complete Phase E2, image-load, and dual-brand rehearsals.
 10. Prepare systemd units and canonical persistent storage without switching traffic.

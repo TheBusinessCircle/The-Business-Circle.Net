@@ -4,7 +4,7 @@ set -Eeuo pipefail
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
-readonly FORWARD_SHA="2c83694de301b0244c5586c1598aceb10fa2214b"
+readonly FORWARD_SHA="6949bb2b7ef0ce28e5983751f3c8a10accde99b3"
 readonly ROLLBACK_SHA="5d1f81bb05a01b08e1134785c2f86b77c8969fe3"
 readonly HISTORICAL_SHA="5fa2bbf6ac7d39aa14636882bbae2d2713faf11a"
 readonly LIVE_DIR="/var/www/The-Business-Circle.Net"
@@ -100,7 +100,10 @@ nginx -T 2>&1 | awk '
     print
   }'
 
-printf '%s\n' '=== environment names/status only ==='
+printf '%s\n' '=== authoritative protected environment readiness ==='
+node "${PACK_DIR}/report-protected-readiness.mjs"
+
+printf '%s\n' '=== legacy environment source names/status only (non-authoritative) ==='
 node "${PACK_DIR}/report-environment.mjs" \
   "${LIVE_DIR}/.env" "${LIVE_DIR}/.env.production"
 

@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { renderPackManifest } from "./pack-layout.mjs";
 import { aggregateCandidateEntries } from "./candidate-aggregate.mjs";
 import { parsePackTreeRows, renderPackTar } from "./pack-tree.mjs";
-const FORWARD_APPLICATION_SHA = "2c83694de301b0244c5586c1598aceb10fa2214b";
+const FORWARD_APPLICATION_SHA = "6949bb2b7ef0ce28e5983751f3c8a10accde99b3";
 const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
 const HISTORICAL_PRODUCTION_SHA = "5fa2bbf6ac7d39aa14636882bbae2d2713faf11a";
 const OPERATIONS_BASE_SHA = "c95b10d82d192c273812a40c2c9d1e9e73791b96";

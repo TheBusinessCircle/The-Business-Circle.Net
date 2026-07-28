@@ -1,4 +1,4 @@
-const FORWARD_APPLICATION_SHA = "2c83694de301b0244c5586c1598aceb10fa2214b";
+const FORWARD_APPLICATION_SHA = "6949bb2b7ef0ce28e5983751f3c8a10accde99b3";
 const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
 const HISTORICAL_PRODUCTION_SHA = "5fa2bbf6ac7d39aa14636882bbae2d2713faf11a";
 
@@ -79,6 +79,50 @@ const BUILD_ENV_KEYS = [
   "NEXT_PUBLIC_YOUTUBE_URL"
 ];
 
+const LEGACY_INFRASTRUCTURE_METADATA_KEYS = [
+  "COMPOSE_APP_ENV_FILE",
+  "LIVEKIT_PORT",
+  "LIVEKIT_RTC_PORT_END",
+  "LIVEKIT_RTC_PORT_START",
+  "LIVEKIT_TCP_PORT",
+  "LIVEKIT_USE_EXTERNAL_IP",
+  "TURN_MAX_PORT",
+  "TURN_MIN_PORT",
+  "TURN_TLS_CA_FILE",
+  "TURN_TLS_CIPHER_LIST"
+];
+
+const LEGACY_TOOLING_ONLY_KEYS = [
+  "POSTGRES_DB",
+  "POSTGRES_USER"
+];
+
+const LEGACY_DELIBERATELY_EXCLUDED_KEYS = [
+  // A single browser origin cannot describe both isolated runtime brands.
+  "NEXT_PUBLIC_SITE_URL",
+  // The LiveKit browser endpoint is not part of either approved Phase F1
+  // runtime or build contract.
+  "NEXT_PUBLIC_LIVEKIT_URL"
+];
+
+const LEGACY_SOURCE_CLASSIFICATIONS = Object.freeze({
+  ...Object.fromEntries(
+    LEGACY_INFRASTRUCTURE_METADATA_KEYS.map((key) => [
+      key,
+      "legacy-infrastructure-metadata"
+    ])
+  ),
+  ...Object.fromEntries(
+    LEGACY_TOOLING_ONLY_KEYS.map((key) => [key, "legacy-tooling-only"])
+  ),
+  ...Object.fromEntries(
+    LEGACY_DELIBERATELY_EXCLUDED_KEYS.map((key) => [
+      key,
+      "legacy-deliberately-excluded"
+    ])
+  )
+});
+
 const DELIBERATELY_UNSUPPORTED_KEYS = [
   // A single compiled NEXT_PUBLIC origin cannot represent two runtime brands.
   // Runtime code must use the validated APP_URL/runtime-brand registry instead.
@@ -94,6 +138,7 @@ const DELIBERATELY_UNSUPPORTED_KEYS = [
   "BCN_RULES_TEST_TIER",
   "DEMO_MEMBER_PASSWORD",
   "RESEND_TEST_TO",
+  "PHASE_E2_PRODUCTION_FIXTURE_ROOT",
   "SMOKE_AUTH_SECRET",
   "SMOKE_DATABASE_URL",
   "SPIN_TEST_BASE_URL",
@@ -204,7 +249,12 @@ const BCN_ONLY_KEYS = [
 ];
 
 // Migration and seed authority never enters either customer-facing runtime.
-const TOOLING_ONLY_KEYS = ["POSTGRES_PASSWORD", "ADMIN_PASSWORD", "SEED_MODE"];
+const TOOLING_ONLY_KEYS = [
+  "POSTGRES_PASSWORD",
+  "ADMIN_PASSWORD",
+  "SEED_MODE",
+  ...LEGACY_TOOLING_ONLY_KEYS
+];
 
 const REQUIRED_SHARED_KEYS = [
   "DATABASE_URL",
@@ -278,6 +328,10 @@ module.exports = {
   CIRCLE_LIFECYCLE_KEYS,
   CIRCLE_CARD_ONLY_KEYS,
   DELIBERATELY_UNSUPPORTED_KEYS,
+  LEGACY_DELIBERATELY_EXCLUDED_KEYS,
+  LEGACY_INFRASTRUCTURE_METADATA_KEYS,
+  LEGACY_SOURCE_CLASSIFICATIONS,
+  LEGACY_TOOLING_ONLY_KEYS,
   REQUIRED_BCN_KEYS,
   REQUIRED_CIRCLE_KEYS,
   REQUIRED_SHARED_KEYS,

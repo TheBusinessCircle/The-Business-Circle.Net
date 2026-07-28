@@ -9,6 +9,7 @@ const {
   CIRCLE_CARD_ONLY_KEYS,
   CIRCLE_LIFECYCLE_KEYS,
   DELIBERATELY_UNSUPPORTED_KEYS,
+  LEGACY_SOURCE_CLASSIFICATIONS,
   REQUIRED_BCN_KEYS,
   REQUIRED_SHARED_KEYS, REQUIRED_CIRCLE_KEYS,
   RUNTIME_VALUES,
@@ -62,8 +63,11 @@ for (const key of BUILD_ENV_KEYS) {
   if (!classifications.has(key)) classifications.set(key, "build-only");
 }
 for (const key of DELIBERATELY_UNSUPPORTED_KEYS) classifications.set(key, "deliberately-unsupported");
+for (const [key, classification] of Object.entries(LEGACY_SOURCE_CLASSIFICATIONS)) {
+  classifications.set(key, classification);
+}
 for (const key of new Set(Object.values(RUNTIME_VALUES).flatMap((values) => Object.keys(values)))) {
-  classifications.set(key, "runtime-fixed");
+  if (!classifications.has(key)) classifications.set(key, "runtime-fixed");
 }
 
 const sourceKeys = new Set(parsedFiles.flatMap(({ values }) => Object.keys(values)));
@@ -96,16 +100,21 @@ const variables = keys.map((key) => {
               : "present";
   return { name: key, classification, status, locations: present.map(({ file }) => file) };
 });
-const blockingStatuses = new Set([
-  "UNKNOWN_SOURCE_NAME", "DUPLICATE", "CONFLICT", "PLACEHOLDER", "EMPTY_REQUIRED", "ABSENT_REQUIRED"
+const reviewStatuses = new Set([
+  "UNKNOWN_SOURCE_NAME", "DUPLICATE", "CONFLICT", "PLACEHOLDER"
 ]);
-const report = { ready: variables.every(({ status }) => !blockingStatuses.has(status)), variables };
+const report = {
+  authority: "legacy-source-names-only",
+  authoritativeForMachineReadiness: false,
+  reviewRequired: variables.some(({ status }) => reviewStatuses.has(status)),
+  variables
+};
 if (jsonMode) {
   console.log(JSON.stringify(report, null, 2));
 } else {
-  console.log("Environment report (names and status only; values are never printed)");
+  console.log("Legacy source report (names and status only; values are never printed; not authoritative for machine readiness)");
   for (const item of variables) {
     console.log(`${item.name}\t${item.classification}\t${item.status}\t${item.locations.join(",") || "-"}`);
   }
-  console.log(`MACHINE_READINESS\t${report.ready ? "READY" : "BLOCKED"}`);
+  console.log(`LEGACY_SOURCE_REPORT\t${report.reviewRequired ? "REVIEW_REQUIRED" : "CATALOGUED"}`);
 }

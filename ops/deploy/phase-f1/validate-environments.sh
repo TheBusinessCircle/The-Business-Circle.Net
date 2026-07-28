@@ -12,6 +12,7 @@ require_application_sha forward "${1:-}"
 require_release_integrity
 start_write_log "validate-environments"
 
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin /usr/bin/node "${PHASE_F1_PACK_DIR}/validate-environment.mjs" schema
 env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin /usr/bin/node "${PHASE_F1_PACK_DIR}/validate-environment.mjs" bcn
 env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin /usr/bin/node "${PHASE_F1_PACK_DIR}/validate-environment.mjs" circle-card
 sudo -u circle-card-app test -r "${PHASE_F1_CIRCLE_ENV}" || die "Circle Card cannot read its protected environment"

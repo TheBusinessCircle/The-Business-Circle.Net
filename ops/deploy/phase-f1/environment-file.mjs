@@ -15,7 +15,7 @@ export function groupId(group) {
 
 export function assertProtectedRegularFile(filePath, expectedGroup, expectedMode = 0o640) {
   const stats = lstatSync(filePath);
-  if (!stats.isFile() || stats.isSymbolicLink()) {
+  if (!stats.isFile() || stats.isSymbolicLink() || stats.nlink !== 1) {
     throw new Error(`Protected path must be a regular non-symlink file: ${filePath}`);
   }
   if (realpathSync(filePath) !== filePath) {

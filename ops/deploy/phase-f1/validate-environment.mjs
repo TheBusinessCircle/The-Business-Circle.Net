@@ -3,10 +3,12 @@ import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { readEnvironmentJson } from "./environment-file.mjs";
 const require = createRequire(import.meta.url);
-const { APPROVED_SHA, BCN_ALLOWED_KEYS, CIRCLE_ALLOWED_KEYS, REQUIRED_BCN_KEYS, REQUIRED_CIRCLE_KEYS, REQUIRED_SHARED_KEYS, RUNTIME_VALUES } = require("./environment-groups.cjs");
+const { APPROVED_SHA, BCN_ALLOWED_KEYS, BUILD_ENV_KEYS, CIRCLE_ALLOWED_KEYS, REQUIRED_BCN_KEYS, REQUIRED_CIRCLE_KEYS, REQUIRED_SHARED_KEYS, RUNTIME_VALUES } = require("./environment-groups.cjs");
+const { validatePreparedEnvironmentSet } = require("./environment-contract.cjs");
 const definitions = {
   bcn: { file: "/etc/thebusinesscircle/bcn/runtime.env.json", group: "bcn-app", allowed: BCN_ALLOWED_KEYS, required: [...REQUIRED_SHARED_KEYS, ...REQUIRED_BCN_KEYS] },
-  "circle-card": { file: "/etc/thebusinesscircle/circle-card/runtime.env.json", group: "circle-card-app", allowed: CIRCLE_ALLOWED_KEYS, required: [...REQUIRED_SHARED_KEYS, ...REQUIRED_CIRCLE_KEYS] }
+  "circle-card": { file: "/etc/thebusinesscircle/circle-card/runtime.env.json", group: "circle-card-app", allowed: CIRCLE_ALLOWED_KEYS, required: [...REQUIRED_SHARED_KEYS, ...REQUIRED_CIRCLE_KEYS] },
+  build: { file: "/etc/thebusinesscircle/build/build.env.json", group: "phase-f1-build", allowed: BUILD_ENV_KEYS, required: [] }
 };
 function load(mode) {
   const definition = definitions[mode];
@@ -21,13 +23,22 @@ function policy(mode, values) {
 }
 const mode = process.argv[2];
 if (mode === "schema") {
-  for (const name of Object.keys(definitions)) policy(name, load(name));
+  const bcn = load("bcn");
+  const circleCard = load("circle-card");
+  const build = load("build");
+  policy("bcn", bcn);
+  policy("circle-card", circleCard);
+  const issues = validatePreparedEnvironmentSet({ bcn, circleCard, build });
+  if (issues.length) {
+    const names = issues.flatMap((issue) => issue.names ?? []).sort();
+    throw new Error(`Protected environment contract failed: ${names.join(", ") || "provider/isolation rule"}`);
+  }
   process.stdout.write("Protected environment schemas are exact and billing is operator-only.\n");
-} else if (definitions[mode]) {
+} else if (mode === "bcn" || mode === "circle-card") {
   const values = load(mode); policy(mode, values);
   const release = `/var/www/releases/${APPROVED_SHA}`;
   const validator = `${release}/scripts/validate-production-env.ts`, tsx = `${release}/node_modules/tsx/dist/cli.mjs`;
   if (!existsSync(validator) || !existsSync(tsx)) throw new Error("Approved runtime must exist before application validation.");
-  const result = spawnSync("/usr/bin/node", [tsx, validator, "--env-file", "/dev/null"], { env: { HOME: "/root", PATH: "/usr/local/bin:/usr/bin:/bin", LANG: "C.UTF-8", TZ: "Europe/London", ...values, ...RUNTIME_VALUES[mode] }, stdio: "inherit" });
+  const result = spawnSync("/usr/bin/node", [tsx, validator, "--context", "runtime", "--env-file", "/dev/null"], { env: { HOME: "/root", PATH: "/usr/local/bin:/usr/bin:/bin", LANG: "C.UTF-8", TZ: "Europe/London", ...values, ...RUNTIME_VALUES[mode] }, stdio: "inherit" });
   if (result.error) throw result.error; if (result.status !== 0) process.exit(result.status ?? 1);
 } else throw new Error("Validation mode must be schema, bcn, or circle-card.");
