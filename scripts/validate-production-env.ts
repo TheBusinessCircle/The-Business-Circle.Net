@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { validateRuntimeOriginEnvironment } from "../src/config/runtime-origin";
 import { isProductionCredential } from "../src/config/production-credential";
 import { RUNTIME_DIST_DIRS } from "../src/config/runtime-dist-dir";
@@ -14,14 +15,21 @@ import { validateCircleCardBillingEnvironment } from "./circle-card-billing-conf
 
 type Severity = "error" | "warning";
 
-type Issue = {
+export type ProductionEnvironmentIssue = {
   severity: Severity;
   message: string;
 };
 
 type Options = {
   envFile?: string;
+  context: "runtime" | "tooling";
 };
+
+export const TOOLING_ONLY_ENV_NAMES = [
+  "POSTGRES_PASSWORD",
+  "ADMIN_PASSWORD",
+  "SEED_MODE"
+] as const;
 
 function loadEnvFileIfAvailable(filePath: string) {
   const loadEnvFile = (process as typeof process & {
@@ -34,7 +42,7 @@ function loadEnvFileIfAvailable(filePath: string) {
 }
 
 function parseArgs(argv: string[]): Options {
-  const options: Options = {};
+  const options: Options = { context: "runtime" };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -45,10 +53,21 @@ function parseArgs(argv: string[]): Options {
       continue;
     }
 
+    if (arg === "--context") {
+      const context = argv[index + 1];
+      if (context !== "runtime" && context !== "tooling") {
+        throw new Error("--context must be runtime or tooling.");
+      }
+      options.context = context;
+      index += 1;
+      continue;
+    }
+
     if (arg === "--help" || arg === "-h") {
       console.info(`Usage:
   npm run env:validate:production
-  npm run env:validate:production -- --env-file .env.production
+  npm run env:validate:production -- --env-file <protected-runtime-input>
+  npm run env:validate:tooling -- --env-file <short-lived-tooling-input>
 `);
       process.exit(0);
     }
@@ -57,15 +76,15 @@ function parseArgs(argv: string[]): Options {
   return options;
 }
 
-function env(name: string) {
-  return process.env[name]?.trim() || "";
-}
-
 function parseBoolean(value: string) {
   return ["1", "true", "yes", "on"].includes(value.toLowerCase());
 }
 
-function addIssue(issues: Issue[], severity: Severity, message: string) {
+function addIssue(
+  issues: ProductionEnvironmentIssue[],
+  severity: Severity,
+  message: string
+) {
   issues.push({ severity, message });
 }
 
@@ -172,19 +191,20 @@ const MEMBERSHIP_STRIPE_PRICE_REQUIREMENTS = [
   }
 ] as const;
 
-function listMissingMembershipStripePriceIds() {
+function listMissingMembershipStripePriceIds(env: (name: string) => string) {
   return MEMBERSHIP_STRIPE_PRICE_REQUIREMENTS.filter(
     (requirement) => !requirement.envNames.some((name) => env(name))
   );
 }
 
-function validateProductionEnv() {
-  const issues: Issue[] = [];
+export function validateProductionRuntimeEnvironment(
+  environment: NodeJS.ProcessEnv = process.env
+) {
+  const issues: ProductionEnvironmentIssue[] = [];
+  const env = (name: string) => environment[name]?.trim() || "";
 
   const authSecret = env("AUTH_SECRET");
   const nextAuthSecret = env("NEXTAUTH_SECRET");
-  const postgresPassword = env("POSTGRES_PASSWORD");
-  const adminPassword = env("ADMIN_PASSWORD");
   const stripeSecretKey = env("STRIPE_SECRET_KEY");
   const stripeWebhookSecret = env("STRIPE_WEBHOOK_SECRET");
   const posthogKey = env("NEXT_PUBLIC_POSTHOG_KEY");
@@ -221,10 +241,10 @@ function validateProductionEnv() {
   const throttleMs = env("BCN_COMMUNITY_AUTOMATION_THROTTLE_MS");
 
   const runtimeOriginValidation = validateRuntimeOriginEnvironment({
-    APP_BRAND: process.env.APP_BRAND,
-    APP_URL: process.env.APP_URL,
-    AUTH_URL: process.env.AUTH_URL,
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    APP_BRAND: environment.APP_BRAND,
+    APP_URL: environment.APP_URL,
+    AUTH_URL: environment.AUTH_URL,
+    NEXTAUTH_URL: environment.NEXTAUTH_URL,
     NODE_ENV: "production"
   });
   for (const runtimeOriginIssue of runtimeOriginValidation.issues) {
@@ -256,20 +276,6 @@ function validateProductionEnv() {
     addIssue(issues, "error", "NEXTAUTH_SECRET is missing or too weak.");
   }
 
-  if (
-    ownsBcnProcessResponsibilities &&
-    (!isStrongValue(postgresPassword) || postgresPassword === "postgres")
-  ) {
-    addIssue(issues, "error", "POSTGRES_PASSWORD is still weak or default.");
-  }
-
-  if (
-    ownsBcnProcessResponsibilities &&
-    (!isStrongValue(adminPassword) || adminPassword === "ChangeMe123!")
-  ) {
-    addIssue(issues, "error", "ADMIN_PASSWORD is still weak or default.");
-  }
-
   if (!isProductionCredential(stripeSecretKey, "sk_live_")) {
     addIssue(issues, "error", "STRIPE_SECRET_KEY should be a live Stripe key.");
   }
@@ -282,7 +288,7 @@ function validateProductionEnv() {
   }
 
   for (const circleCardBillingIssue of validateCircleCardBillingEnvironment(
-    process.env,
+    environment,
     { requireWebhookSecret: ownsBcnProcessResponsibilities }
   )) {
     addIssue(issues, "error", circleCardBillingIssue.message);
@@ -299,7 +305,7 @@ function validateProductionEnv() {
   }
 
   if (ownsBcnProcessResponsibilities) {
-    for (const missingPriceId of listMissingMembershipStripePriceIds()) {
+    for (const missingPriceId of listMissingMembershipStripePriceIds(env)) {
       addIssue(
         issues,
         "error",
@@ -345,7 +351,7 @@ function validateProductionEnv() {
   const bcnEmailRequired = requiredEmailBrands.includes("bcn");
   const circleCardEmailRequired =
     requiredEmailBrands.includes("circle-card") ||
-    requiresCircleCardEmailConfiguration(process.env);
+    requiresCircleCardEmailConfiguration(environment);
 
   if (bcnEmailRequired && !isProductionCredential(resendApiKey, "re_")) {
     addIssue(issues, "error", "RESEND_API_KEY is missing or invalid.");
@@ -383,7 +389,7 @@ function validateProductionEnv() {
   for (const brand of emailBrands) {
     try {
       resolveEmailBrandIdentity(brand, {
-        ...process.env,
+        ...environment,
         NODE_ENV: "production"
       });
     } catch (error) {
@@ -502,10 +508,6 @@ function validateProductionEnv() {
     }
   }
 
-  if (ownsBcnProcessResponsibilities && env("SEED_MODE") !== "production") {
-    addIssue(issues, "error", "SEED_MODE should be set to production.");
-  }
-
   if (env("DEMO_MEMBER_PASSWORD")) {
     addIssue(issues, "warning", "DEMO_MEMBER_PASSWORD should stay empty in production.");
   }
@@ -604,9 +606,32 @@ function validateProductionEnv() {
   return issues;
 }
 
-function printIssues(issues: Issue[]) {
+export function validateProductionToolingEnvironment(
+  environment: NodeJS.ProcessEnv = process.env
+) {
+  const issues: ProductionEnvironmentIssue[] = [];
+  const env = (name: string) => environment[name]?.trim() || "";
+  const postgresPassword = env("POSTGRES_PASSWORD");
+  const adminPassword = env("ADMIN_PASSWORD");
+
+  if (!isStrongValue(postgresPassword) || postgresPassword === "postgres") {
+    addIssue(issues, "error", "POSTGRES_PASSWORD is still weak or default.");
+  }
+
+  if (!isStrongValue(adminPassword) || adminPassword === "ChangeMe123!") {
+    addIssue(issues, "error", "ADMIN_PASSWORD is still weak or default.");
+  }
+
+  if (env("SEED_MODE") !== "production") {
+    addIssue(issues, "error", "SEED_MODE should be set to production.");
+  }
+
+  return issues;
+}
+
+function printIssues(issues: ProductionEnvironmentIssue[], context: Options["context"]) {
   if (!issues.length) {
-    console.info("Production env validation passed.");
+    console.info(`Production ${context} environment validation passed.`);
     return;
   }
 
@@ -618,14 +643,30 @@ function printIssues(issues: Issue[]) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
+  if (
+    options.context === "tooling" &&
+    (!options.envFile || !existsSync(options.envFile))
+  ) {
+    throw new Error(
+      "Tooling validation requires an explicitly supplied --env-file."
+    );
+  }
   loadEnvFileIfAvailable(options.envFile ?? ".env.production");
 
-  const issues = validateProductionEnv();
-  printIssues(issues);
+  const issues =
+    options.context === "tooling"
+      ? validateProductionToolingEnvironment()
+      : validateProductionRuntimeEnvironment();
+  printIssues(issues, options.context);
 
   if (issues.some((issue) => issue.severity === "error")) {
     process.exit(1);
   }
 }
 
-main();
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+) {
+  main();
+}
