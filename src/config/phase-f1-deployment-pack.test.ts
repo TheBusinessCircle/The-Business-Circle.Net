@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, linkSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, linkSync, lstatSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
@@ -18,6 +18,7 @@ import { createArtifactIdentity } from "../../ops/deploy/phase-f1/artifact-ident
 import { validateReleaseEvidenceObjects } from "../../ops/deploy/phase-f1/validate-release-gates.mjs";
 import { expectedPackMode, parsePackManifest, renderPackManifest, validatePackTree } from "../../ops/deploy/phase-f1/pack-layout.mjs";
 import { parsePackTreeRows } from "../../ops/deploy/phase-f1/pack-tree.mjs";
+import { ARCHIVE_FORMAT, CORE_PUBLICATION_FILES, PUBLICATION_SUMMARY_SCHEMA, inspectPublicationArchive, verifyPublicationDirectory } from "../../ops/deploy/phase-f1/publication-summary.mjs";
 import { renderSystemdUnit } from "../../ops/deploy/phase-f1/render-systemd-units.mjs";
 import { publishBootEligibility, validateBootEligibility } from "../../ops/deploy/phase-f1/boot-eligibility.mjs";
 import { consumeBuildAttempt, createBuildAttempt, finishBuildAttempt } from "../../ops/deploy/phase-f1/build-state.mjs";
@@ -108,7 +109,7 @@ describe("Phase F1 installed pack and immutable systemd identity", () => {
     const { repository, outputs, commit } = createCommittedPackFixture();
     const run = (name: string) => {
       const output = join(outputs, name);
-      expect(execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", commit, output], { cwd: repository, encoding: "utf8" })).toMatch(/Created deterministic/u);
+      expect(execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", commit, output], { cwd: repository, encoding: "utf8" })).toMatch(/six-file operations publication/u);
       const archive = readFileSync(join(output, "phase-f1-pack.tar"));
       const manifest = readFileSync(join(output, "installed-pack.manifest"), "utf8");
       const members = tarMembers(archive);
@@ -130,14 +131,120 @@ describe("Phase F1 installed pack and immutable systemd identity", () => {
       expect(parsePackManifest(manifest).map(({ path }) => path)).not.toContain("");
       expect(existsSync(join(output, "approved-pack-identity.json"))).toBe(true);
       expect(existsSync(join(output, "EXTERNAL-SHA256SUMS"))).toBe(true);
-      return { archive, manifest: Buffer.from(manifest), packMembers };
+      expect(readdirSync(output).length).toBe(6);
+      const summaryName = `PUBLICATION-SUMMARY-${commit}.txt`;
+      expect(existsSync(join(output, summaryName))).toBe(true);
+      expect(verifyPublicationDirectory(output, commit).summaryName).toBe(summaryName);
+      return { archive, manifest: Buffer.from(manifest), packMembers, summary: readFileSync(join(output, summaryName)) };
     };
     const first = run("first"), second = run("second");
     expect(first.archive.equals(second.archive)).toBe(true);
     expect(sha(first.archive)).toBe(sha(second.archive));
     expect(first.manifest.equals(second.manifest)).toBe(true);
     expect(sha(first.manifest)).toBe(sha(second.manifest));
+    expect(first.summary.equals(second.summary)).toBe(true);
+    expect(sha(first.summary)).toBe(sha(second.summary));
     expect(first.packMembers.map(({ type, path, mode, metadata }) => ({ type, path, mode, metadata }))).toEqual(second.packMembers.map(({ type, path, mode, metadata }) => ({ type, path, mode, metadata })));
+  }, 60_000);
+
+  it("renders and verifies the deterministic six-file publication summary contract", () => {
+    const { repository, outputs, commit } = createCommittedPackFixture();
+    const output = join(outputs, "summary-contract");
+    execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", commit, output], { cwd: repository, encoding: "utf8" });
+    const summaryName = `PUBLICATION-SUMMARY-${commit}.txt`;
+    const expectedNames = [...CORE_PUBLICATION_FILES, summaryName].sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)));
+    expect(readdirSync(output).sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)))).toEqual(expectedNames);
+    for (const name of expectedNames) {
+      const stats = lstatSync(join(output, name));
+      expect(stats.isFile()).toBe(true);
+      expect(stats.isSymbolicLink()).toBe(false);
+      expect(stats.nlink).toBe(1);
+    }
+
+    const summary = readFileSync(join(output, summaryName));
+    const text = summary.toString("utf8");
+    expect(Buffer.from(text, "utf8")).toEqual(summary);
+    expect(summary.subarray(0, 3)).not.toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
+    expect(text).not.toContain("\r");
+    expect(text.endsWith("\n")).toBe(true);
+    expect(text.endsWith("\n\n")).toBe(false);
+    const lines = text.slice(0, -1).split("\n");
+    const identity = JSON.parse(readFileSync(join(output, "approved-pack-identity.json"), "utf8"));
+    const manifest = parsePackManifest(readFileSync(join(output, "installed-pack.manifest"), "utf8"));
+    const archive = inspectPublicationArchive(readFileSync(join(output, "phase-f1-pack.tar")));
+    expect(lines.slice(0, 14)).toEqual([
+      `schemaVersion=${PUBLICATION_SUMMARY_SCHEMA}`,
+      `operationsCommit=${commit}`,
+      `forwardApplicationSha=${applicationSha}`,
+      `rollbackApplicationSha=${rollbackSha}`,
+      `historicalProductionSha=${HISTORICAL_PRODUCTION_SHA}`,
+      `installedPackPath=/opt/thebusinesscircle/deployment-packs/${commit}`,
+      `candidateAggregateSchema=${identity.candidateAggregate.schemaVersion}`,
+      `candidateFileCount=${identity.candidateAggregate.fileCount}`,
+      `candidateAggregateSha256=${identity.candidateAggregate.aggregateSha256}`,
+      `manifestEntryCount=${manifest.length}`,
+      `manifestRegularFileCount=${manifest.filter(({ type }) => type === "F").length}`,
+      `manifestDirectoryCount=${manifest.filter(({ type }) => type === "D").length}`,
+      `archiveFormat=${ARCHIVE_FORMAT}`,
+      `archiveMemberCount=${archive.memberCount}`
+    ]);
+    const records = lines.slice(14).map((line) => {
+      const [label, filename, size, digest] = line.split("\t");
+      expect(label).toBe("coreOutput");
+      return { filename, size: Number(size), sha256: digest };
+    });
+    expect(records.map(({ filename }) => filename)).toEqual(CORE_PUBLICATION_FILES);
+    for (const record of records) {
+      const body = readFileSync(join(output, record.filename));
+      expect(record.size).toBe(body.length);
+      expect(record.sha256).toBe(sha(body));
+    }
+    expect(text).not.toContain(summaryName);
+    expect(text).not.toMatch(/summarySha256|selfSha256/iu);
+    expect(text).not.toMatch(/\d{4}-\d{2}-\d{2}T|generatedAt|createdAt|timestamp|hostname|username|[A-Za-z]:\\|\/(?:tmp|home|Users)\//iu);
+    expect(text).not.toMatch(/(?:^|\/)\.env(?:\.|$)|runtime\.env\.json|build\.env\.json/iu);
+    expect(text).not.toMatch(/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\bsk_live_[A-Za-z0-9]{12,}\b|\brk_live_[A-Za-z0-9]{12,}\b|\bwhsec_[A-Za-z0-9]{12,}\b/iu);
+    expect(verifyPublicationDirectory(output, commit)).toMatchObject({ summaryName, summarySize: summary.length, summarySha256: sha(summary) });
+
+    const unexpected = join(output, "unexpected.log");
+    writeFileSync(unexpected, "synthetic unexpected fixture\n");
+    expect(() => verifyPublicationDirectory(output, commit)).toThrow(/file set/u);
+    unlinkSync(unexpected);
+
+    const originalSummary = Buffer.from(summary);
+    writeFileSync(join(output, summaryName), "manually supplied summary\n");
+    expect(() => verifyPublicationDirectory(output, commit)).toThrow(/differs/u);
+    writeFileSync(join(output, summaryName), originalSummary);
+
+    const hardLink = join(outputs, "core-output-hard-link");
+    linkSync(join(output, "approved-pack-identity.json"), hardLink);
+    expect(() => verifyPublicationDirectory(output, commit)).toThrow(/single-link/u);
+    unlinkSync(hardLink);
+    expect(verifyPublicationDirectory(output, commit).summarySha256).toBe(sha(originalSummary));
+
+    const existing = join(outputs, "manually-supplied");
+    mkdirSync(existing);
+    writeFileSync(join(existing, summaryName), "unverified input\n");
+    expect(() => execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", commit, existing], { cwd: repository, stdio: "pipe" })).toThrow();
+  }, 60_000);
+
+  it("keeps summary bytes identical across LF and CRLF checkouts of the same commit", () => {
+    const { repository, outputs, commit } = createCommittedPackFixture();
+    const lfOutput = join(outputs, "lf");
+    execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", commit, lfOutput], { cwd: repository, stdio: "pipe" });
+
+    const cloneParent = temp(), crlfCheckout = join(cloneParent, "crlf-checkout");
+    execFileSync("git", ["-c", "core.autocrlf=true", "clone", "--quiet", "--no-local", repository, crlfCheckout]);
+    execFileSync("git", ["config", "core.autocrlf", "true"], { cwd: crlfCheckout });
+    execFileSync("git", ["checkout", "--force", commit], { cwd: crlfCheckout, stdio: "ignore" });
+    expect(execFileSync("git", ["status", "--porcelain=v1"], { cwd: crlfCheckout, encoding: "utf8" })).toBe("");
+    expect(readFileSync(join(crlfCheckout, "ops", "deploy", "phase-f1", "publication-summary.mjs"), "utf8")).toContain("\r\n");
+
+    const crlfOutputParent = temp(), crlfOutput = join(crlfOutputParent, "output");
+    execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", commit, crlfOutput], { cwd: crlfCheckout, stdio: "pipe" });
+    const names = readdirSync(lfOutput).sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)));
+    expect(readdirSync(crlfOutput).sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)))).toEqual(names);
+    for (const name of names) expect(readFileSync(join(crlfOutput, name))).toEqual(readFileSync(join(lfOutput, name)));
   }, 60_000);
 
   it("rejects a committed candidate missing or exceeding the approved boundary", () => {

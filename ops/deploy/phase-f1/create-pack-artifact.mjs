@@ -8,6 +8,10 @@ import {
   aggregateCandidateCommit
 } from "./candidate-aggregate.mjs";
 import { parsePackTreeRows, renderPackTar } from "./pack-tree.mjs";
+import {
+  renderPublicationSummary,
+  verifyPublicationDirectory
+} from "./publication-summary.mjs";
 const FORWARD_APPLICATION_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
 const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
 const HISTORICAL_PRODUCTION_SHA = "5fa2bbf6ac7d39aa14636882bbae2d2713faf11a";
@@ -40,4 +44,10 @@ writeFileSync(resolve(output, "installed-pack.manifest"), manifest, { flag: "wx"
 writeFileSync(resolve(output, "bootstrap-install.sh"), bootstrap, { flag: "wx", mode: 0o500 });
 writeFileSync(resolve(output, "approved-pack-identity.json"), identity, { flag: "wx", mode: 0o600 });
 writeFileSync(resolve(output, "EXTERNAL-SHA256SUMS"), `${archiveSha256}  phase-f1-pack.tar\n${manifestSha256}  installed-pack.manifest\n${bootstrapSha256}  bootstrap-install.sh\n${sha(identity)}  approved-pack-identity.json\n`, { flag: "wx", mode: 0o600 });
-process.stdout.write("Created deterministic operations archive and separate bootstrap/identity evidence.\n");
+const summaryName = `PUBLICATION-SUMMARY-${operationsCommit}.txt`;
+writeFileSync(resolve(output, summaryName), renderPublicationSummary(output, operationsCommit), {
+  flag: "wx",
+  mode: 0o600
+});
+verifyPublicationDirectory(output, operationsCommit);
+process.stdout.write("Created deterministic six-file operations publication.\n");

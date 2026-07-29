@@ -64,6 +64,14 @@ The approved archive, approved installed-tree manifest, and standalone bootstrap
 
 The installation path is `/opt/thebusinesscircle/deployment-packs/<exact-40-hex-operations-commit>`. There is no `current` pack symlink. Unit templates render only after pack verification; every `ExecStart` and `ExecCondition` receives the exact commit-named directory. Unresolved placeholders, branch names, mutable selectors, or a mismatch between the executing pack and external identity fail. Rendered units are root-owned, protected, hashed, and bound into durable and artifact evidence.
 
+### Deterministic six-file publication
+
+`create-pack-artifact.mjs` refuses an existing output directory and publishes exactly six new single-link regular files: the archive, installed manifest, standalone bootstrap, approved identity, `EXTERNAL-SHA256SUMS`, and `PUBLICATION-SUMMARY-<exact-operations-commit>.txt`. It writes the five core files first without overwrite, reads their completed bytes back to calculate exact sizes and SHA-256 identities, parses the generated manifest and USTAR archive to derive their entry counts, renders the summary, and verifies the exact six-file directory before succeeding. A link, extra or missing filename, existing destination, malformed manifest or archive, identity mismatch, or manually supplied summary fails closed.
+
+The summary schema is `phase-f1-publication-summary-v1`. Its UTF-8, no-BOM, LF-only rows have one final LF and a fixed order: schema, operations commit, forward SHA, rollback SHA, historical SHA, installed path, candidate schema/count/SHA-256, manifest total/file/directory counts, archive format/member count, then the five core output filename/size/SHA-256 records sorted by ordinal UTF-8 filename bytes. It contains no clock, workstation, operator, hostname, local path, environment, credential, or self-hash field. All inputs are immutable commit identities or generated core-file bytes, so checkout line-ending conversion and host metadata cannot affect it.
+
+`EXTERNAL-SHA256SUMS` retains its four-row external bootstrap contract: archive, installed manifest, bootstrap, and approved identity. It does not checksum itself or the later summary. The summary independently records the completed checksum file's own size and SHA-256 alongside the other four core outputs; the summary's SHA-256 is calculated only after generation and remains external evidence to avoid circular content.
+
 ### Canonical candidate aggregate
 
 Run `node ops/deploy/phase-f1/candidate-aggregate.mjs . HEAD c95b10d82d192c273812a40c2c9d1e9e73791b96` from the clean repository root. The command resolves `HEAD` and the approved operations base to immutable commit objects, requires the requested source commit to equal the clean workspace HEAD, and never reads a candidate file from the checkout. Pack creation calls the same committed implementation with the exact operations commit and base commit.
