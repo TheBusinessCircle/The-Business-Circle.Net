@@ -26,7 +26,7 @@ import { createCandidateInvocation, readCandidateInvocation, validateCandidateCl
 import { validateStructuredEvidence } from "../../ops/deploy/phase-f1/structured-evidence.mjs";
 import { validateDatabaseBackupEvidence, validatePublishedBackupSet } from "../../ops/deploy/phase-f1/database-backup-evidence.mjs";
 import { OWNER_ROUTE_METHODS, OWNER_ROUTE_VARIANTS, assertUncachedPublicResponse, expectedCircleHttpStatusClass, isCircleOwnerRequestTarget } from "../../ops/deploy/phase-f1/http-policy.mjs";
-import { aggregateCandidateEntries, aggregateCandidateWorkspace } from "../../ops/deploy/phase-f1/candidate-aggregate.mjs";
+import { aggregateCandidateCommit, aggregateCandidateEntries, aggregateCandidateWorkspace } from "../../ops/deploy/phase-f1/candidate-aggregate.mjs";
 import { captureNginxDependencyClosure, discoverNginxDependencies, discoverNginxDependencyClosure, validateNginxSymlinkPolicyRecord, verifyCapturedNginxClosure } from "../../ops/deploy/phase-f1/nginx-dependency-closure.mjs";
 import { parseStrictJsonObject, readCloudflareTlsEvidence, validateCloudflareTlsEvidence } from "../../ops/deploy/phase-f1/cloudflare-tls-evidence.mjs";
 
@@ -730,13 +730,13 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
   });
 
   it("calculates one canonical cross-platform candidate aggregate and rejects path-set changes", () => {
-    const entries = [{ path: "ops\\deploy\\phase-f1\\a.mjs", body: "a\n" }, { path: "docs/circle-card-phase-f1-server-deployment-pack.md", body: "doc\n" }, { path: "src/config/phase-f1-deployment-pack.test.ts", body: "test\n" }];
-    const posix = entries.map((entry) => ({ ...entry, path: entry.path.replaceAll("\\", "/") })).reverse();
-    expect(aggregateCandidateEntries(entries)).toEqual(aggregateCandidateEntries(posix));
+    const entries = [{ path: "ops/deploy/phase-f1/a.mjs", body: "a\n" }, { path: "docs/circle-card-phase-f1-server-deployment-pack.md", body: "doc\n" }, { path: "src/config/phase-f1-deployment-pack.test.ts", body: "test\n" }];
+    expect(aggregateCandidateEntries(entries)).toEqual(aggregateCandidateEntries([...entries].reverse()));
     expect(aggregateCandidateEntries(entries).aggregateSha256).not.toBe(aggregateCandidateEntries(entries.map((entry, index) => index ? entry : { ...entry, body: "changed\n" })).aggregateSha256);
     expect(() => aggregateCandidateEntries([...entries, entries[0]])).toThrow(/duplicate/u);
     expect(() => aggregateCandidateEntries([...entries, { path: ".next/BUILD_ID", body: "x" }])).toThrow(/boundary|generated/u);
-    expect(() => aggregateCandidateEntries(entries.slice(1), posix.map((entry) => entry.path))).toThrow(/missing/u);
-    expect(aggregateCandidateWorkspace(root)).toMatchObject({ schemaVersion: "phase-f1-candidate-aggregate-v1" });
+    expect(() => aggregateCandidateEntries(entries.slice(1), entries.map((entry) => entry.path))).toThrow(/missing/u);
+    expect(() => aggregateCandidateEntries([{ path: "ops\\deploy\\phase-f1\\a.mjs", body: "x" }])).toThrow(/canonical/u);
+    expect(aggregateCandidateWorkspace(root)).toEqual(aggregateCandidateCommit(root, "HEAD"));
   });
 });

@@ -3,12 +3,14 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { renderPackManifest } from "./pack-layout.mjs";
-import { aggregateCandidateEntries } from "./candidate-aggregate.mjs";
+import {
+  OPERATIONS_BASE_SHA,
+  aggregateCandidateCommit
+} from "./candidate-aggregate.mjs";
 import { parsePackTreeRows, renderPackTar } from "./pack-tree.mjs";
 const FORWARD_APPLICATION_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
 const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
 const HISTORICAL_PRODUCTION_SHA = "5fa2bbf6ac7d39aa14636882bbae2d2713faf11a";
-const OPERATIONS_BASE_SHA = "c95b10d82d192c273812a40c2c9d1e9e73791b96";
 const PACK_ROOT = "ops/deploy/phase-f1";
 const allowed = [`${PACK_ROOT}/`, "docs/circle-card-phase-f1-server-deployment-pack.md", "src/config/phase-f1-deployment-pack.test.ts"];
 const git = (args, options = {}) => execFileSync("git", args, { cwd: process.cwd(), maxBuffer: 256 * 1024 * 1024, ...options });
@@ -28,8 +30,9 @@ const manifest = renderPackManifest(entries);
 const archive = renderPackTar(entries);
 const bootstrap = git(["show", `${operationsCommit}:${PACK_ROOT}/bootstrap-install.sh`]);
 const archiveSha256 = sha(archive), manifestSha256 = sha(manifest), bootstrapSha256 = sha(bootstrap);
-const candidatePaths = git(["diff", "--name-only", `${OPERATIONS_BASE_SHA}..${operationsCommit}`], { encoding: "utf8" }).trim().split(/\r?\n/u).filter(Boolean);
-const candidateAggregate = aggregateCandidateEntries(candidatePaths.map((path) => ({ path, body: git(["show", `${operationsCommit}:${path}`]) })), candidatePaths);
+const candidateAggregate = aggregateCandidateCommit(process.cwd(), operationsCommit, {
+  baseCommit: OPERATIONS_BASE_SHA
+});
 const installedPath = `/opt/thebusinesscircle/deployment-packs/${operationsCommit}`;
 const identity = JSON.stringify({ forwardApplicationSha: FORWARD_APPLICATION_SHA, rollbackApplicationSha: ROLLBACK_APPLICATION_SHA, historicalProductionSha: HISTORICAL_PRODUCTION_SHA, operationsCommit, archiveSha256, manifestSha256, bootstrapSha256, candidateAggregate, installedPath }, null, 2) + "\n";
 writeFileSync(resolve(output, "phase-f1-pack.tar"), archive, { flag: "wx", mode: 0o600 });
