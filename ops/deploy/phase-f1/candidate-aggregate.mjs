@@ -165,33 +165,83 @@ function candidatePaths(repository, baseCommit, sourceCommit) {
   return paths;
 }
 
-function committedBlob(repository, sourceCommit, path) {
+function committedBlobEntries(repository, sourceCommit, paths) {
+  const requested = new Set(paths);
+  const objects = new Map();
   const treeRows = nulRows(
-    git(repository, ["ls-tree", "-z", sourceCommit, "--", path])
+    git(repository, ["ls-tree", "-z", sourceCommit, "--", ...paths])
   );
-  if (treeRows.length !== 1) {
-    throw new Error(`Candidate path is missing from the source commit: ${path}`);
+
+  for (const treeRow of treeRows) {
+    let record;
+    try {
+      record = utf8.decode(treeRow);
+    } catch {
+      throw new Error("Candidate tree record is not valid UTF-8.");
+    }
+    const separator = record.indexOf("\t");
+    const header = separator === -1 ? [] : record.slice(0, separator).split(" ");
+    const treePath =
+      separator === -1
+        ? ""
+        : decodeGitPath(Buffer.from(record.slice(separator + 1), "utf8"));
+    const [mode, type, objectId] = header;
+    if (
+      header.length !== 3 ||
+      !requested.has(treePath) ||
+      objects.has(treePath) ||
+      type !== "blob" ||
+      !allowedModes.has(mode) ||
+      !/^[0-9a-f]{40,64}$/u.test(objectId || "")
+    ) {
+      throw new Error(
+        `Candidate path is not an approved regular Git blob: ${treePath || "<invalid>"}`
+      );
+    }
+    objects.set(treePath, objectId);
   }
-  let record;
-  try {
-    record = utf8.decode(treeRows[0]);
-  } catch {
-    throw new Error("Candidate tree record is not valid UTF-8.");
+
+  for (const path of paths) {
+    if (!objects.has(path)) {
+      throw new Error(`Candidate path is missing from the source commit: ${path}`);
+    }
   }
-  const separator = record.indexOf("\t");
-  const header = separator === -1 ? [] : record.slice(0, separator).split(" ");
-  const treePath = separator === -1 ? "" : record.slice(separator + 1);
-  const [mode, type, objectId] = header;
-  if (
-    header.length !== 3 ||
-    treePath !== path ||
-    type !== "blob" ||
-    !allowedModes.has(mode) ||
-    !/^[0-9a-f]{40,64}$/u.test(objectId || "")
-  ) {
-    throw new Error(`Candidate path is not an approved regular Git blob: ${path}`);
+
+  const objectIds = paths.map((path) => objects.get(path));
+  const batch = git(repository, ["cat-file", "--batch"], {
+    input: Buffer.from(`${objectIds.join("\n")}\n`, "ascii")
+  });
+  const bodies = [];
+  let offset = 0;
+  for (const expectedObjectId of objectIds) {
+    const headerEnd = batch.indexOf(0x0a, offset);
+    if (headerEnd === -1) {
+      throw new Error("Git blob batch response is truncated.");
+    }
+    const header = batch.subarray(offset, headerEnd).toString("ascii").split(" ");
+    const [objectId, type, sizeText] = header;
+    const size = Number(sizeText);
+    if (
+      header.length !== 3 ||
+      objectId !== expectedObjectId ||
+      type !== "blob" ||
+      !Number.isSafeInteger(size) ||
+      size < 0
+    ) {
+      throw new Error("Git blob batch response identity is invalid.");
+    }
+    const bodyStart = headerEnd + 1;
+    const bodyEnd = bodyStart + size;
+    if (bodyEnd >= batch.length || batch[bodyEnd] !== 0x0a) {
+      throw new Error("Git blob batch response length is invalid.");
+    }
+    bodies.push(batch.subarray(bodyStart, bodyEnd));
+    offset = bodyEnd + 1;
   }
-  return git(repository, ["cat-file", "blob", objectId]);
+  if (offset !== batch.length) {
+    throw new Error("Git blob batch response contains unexpected trailing data.");
+  }
+  return paths.map((path, index) => ({ path, body: bodies[index] }));
 }
 
 export function aggregateCandidateCommit(
@@ -203,10 +253,7 @@ export function aggregateCandidateCommit(
   const sourceCommit = resolveCommit(repository, revision, "Candidate source");
   const baseCommit = resolveCommit(repository, baseRevision, "Candidate base");
   const paths = candidatePaths(repository, baseCommit, sourceCommit);
-  const entries = paths.map((path) => ({
-    path,
-    body: committedBlob(repository, sourceCommit, path)
-  }));
+  const entries = committedBlobEntries(repository, sourceCommit, paths);
   return aggregateCandidateEntries(entries, paths);
 }
 
