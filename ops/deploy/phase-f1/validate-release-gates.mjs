@@ -2,7 +2,13 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FORWARD_APPLICATION_SHA, HISTORICAL_PRODUCTION_SHA, ROLLBACK_APPLICATION_SHA } from "./application-identities.mjs";
+import {
+  FORWARD_APPLICATION_SHA,
+  FORWARD_PARENT_SHA,
+  FORWARD_REVIEW_BASE_SHA,
+  HISTORICAL_PRODUCTION_SHA,
+  ROLLBACK_APPLICATION_SHA
+} from "./application-identities.mjs";
 
 const ROLLBACK_FILE_SET = [
   "docs/bcn-phase-e3-rollback-immutable-runtime-cache.md",
@@ -50,7 +56,7 @@ export function validateReleaseEvidenceObjects(role, evidence) {
     if (imageLoad.skipped !== false || imageLoad.applicationSha !== ROLLBACK_APPLICATION_SHA || imageLoad.approved !== true) throw new Error("Rollback image-load evidence is absent or skipped.");
   } else if (role === "forward") {
     const { identity, phaseE2, rehearsal } = evidence;
-    if (identity.applicationSha !== FORWARD_APPLICATION_SHA || identity.parentSha !== "c95b10d82d192c273812a40c2c9d1e9e73791b96" || identity.role !== "forward") throw new Error("Forward commit identity is wrong.");
+    if (identity.applicationSha !== FORWARD_APPLICATION_SHA || identity.parentSha !== FORWARD_PARENT_SHA || identity.reviewBaseSha !== FORWARD_REVIEW_BASE_SHA || identity.role !== "forward") throw new Error("Forward commit identity is wrong.");
     if (phaseE2.skipped !== false || phaseE2.applicationSha !== FORWARD_APPLICATION_SHA || phaseE2.isrFlushToDisk !== false || phaseE2.cacheMaxMemorySize !== 52_428_800 || phaseE2.fetchCacheAbsent !== true || phaseE2.imageCacheAbsent !== true || phaseE2.immutableManifestPassed !== true || phaseE2.authenticatedRevalidationPassed !== true || phaseE2.insightRoutesPassed !== true || phaseE2.repeatedImagesPassed !== true || phaseE2.bcnThenCirclePassed !== true || phaseE2.circleThenBcnPassed !== true || phaseE2.brandIsolationPassed !== true || phaseE2.cacheIsolationPassed !== true) throw new Error("Forward Phase E2 evidence is absent, skipped, or incomplete.");
     validatePerformanceEvidence(rehearsal, "forward");
     if (rehearsal.applicationSha !== FORWARD_APPLICATION_SHA || rehearsal.dualBrandIsolationPassed !== true || rehearsal.sessionIsolationPassed !== true || rehearsal.ownerRouteIsolationPassed !== true) throw new Error("Forward Ubuntu dual-runtime evidence failed.");

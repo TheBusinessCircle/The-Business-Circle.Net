@@ -10,7 +10,7 @@ The four identities are separate and must never be substituted:
 | --- | --- | --- |
 | Historical production baseline | `5fa2bbf6ac7d39aa14636882bbae2d2713faf11a` | Records the currently deployed application, establishes the rollback candidate parent, and preserves historical live evidence. It is not built as the immutable rollback artifact. |
 | Approved rollback application candidate | `5d1f81bb05a01b08e1134785c2f86b77c8969fe3` | Historical BCN behavior plus the reviewed Phase E3 immutable-runtime correction. It is the only rollback build, probe, selector, and proof source. |
-| Approved forward application | `6949bb2b7ef0ce28e5983751f3c8a10accde99b3` | The only source for forward BCN and Circle Card artifacts. Its reviewed parent is the immutable-runtime baseline `2c83694de301b0244c5586c1598aceb10fa2214b`. |
+| Approved forward application | `b43a1e4e708bc9f02ef83bd63dab1db1f366b32e` | The only source for forward BCN and Circle Card artifacts. Its exact parent is the machine-readiness correction `6949bb2b7ef0ce28e5983751f3c8a10accde99b3`, and its cumulative reviewed base is the immutable-runtime baseline `2c83694de301b0244c5586c1598aceb10fa2214b`. |
 | Operations-pack commit | recorded after review | Identifies these scripts and this runbook. It is never an application build source. |
 
 The rollback candidate must be a clean, single-parent, non-merge commit whose parent is the historical baseline and whose exact diff is:
@@ -19,7 +19,7 @@ The rollback candidate must be a clean, single-parent, non-merge commit whose pa
 - `A src/config/rollback-immutable-runtime-cache.test.ts`; and
 - `A docs/bcn-phase-e3-rollback-immutable-runtime-cache.md`.
 
-The forward commit must be a clean, single-parent commit whose parent is `c95b10d82d192c273812a40c2c9d1e9e73791b96` and whose exact diff is the three reviewed Phase E2 files. `application-identities.mjs` verifies parent, file set, status, mode, raw-diff digest, and committed-file hashes after each detached checkout. Branch names are never deployment identities.
+The forward commit must be the clean, single-parent test-integration follow-up whose exact parent is `6949bb2b7ef0ce28e5983751f3c8a10accde99b3`. Its cumulative reviewed diff is measured from `2c83694de301b0244c5586c1598aceb10fa2214b` and consists only of `M package.json`, `M scripts/validate-production-env.ts`, and `A tests/validate-production-env.test.ts`. `application-identities.mjs` verifies the exact head, parent, reviewed base, cumulative file set, status, mode, raw-diff digest, and committed-file hashes after each detached checkout. Branch names are never deployment identities.
 
 The rollback application source review is complete. Linux-isolated fixture generation, provenance-gated real `next start`, Ubuntu immutability/image-load evidence, and systemd rehearsal remain outstanding. No production deployment is approved.
 
@@ -27,16 +27,16 @@ The rollback application source review is complete. Linux-isolated fixture gener
 
 ```text
 /var/www/builds/rollback-5d1f81bb05a01b08e1134785c2f86b77c8969fe3-<unique>/
-/var/www/builds/forward-6949bb2b7ef0ce28e5983751f3c8a10accde99b3-<unique>/
+/var/www/builds/forward-b43a1e4e708bc9f02ef83bd63dab1db1f366b32e-<unique>/
 /var/www/rollbacks/5d1f81bb05a01b08e1134785c2f86b77c8969fe3/
-/var/www/releases/6949bb2b7ef0ce28e5983751f3c8a10accde99b3/
+/var/www/releases/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e/
 /var/www/current-bcn -> verified rollback or forward artifact
 /var/www/current-bcn-rollback-probe -> verified rollback artifact
 /var/www/current-circle-card -> forward artifact
 /var/www/shared/public/uploads/
 /var/www/shared/private/<authority-specific-subtrees>/
 /var/www/shared/generated/community-source-previews/
-/var/lib/thebusinesscircle/artifacts/6949bb2b7ef0ce28e5983751f3c8a10accde99b3-5d1f81bb05a01b08e1134785c2f86b77c8969fe3/
+/var/lib/thebusinesscircle/artifacts/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e-5d1f81bb05a01b08e1134785c2f86b77c8969fe3/
 /var/lib/thebusinesscircle/deployment-state/
 /var/lib/thebusinesscircle/boot-eligibility/bcn.json
 /opt/thebusinesscircle/deployment-packs/<exact-operations-commit>/
@@ -106,7 +106,7 @@ Non-empty marker files are insufficient. Every protected evidence file is root-o
 
 ## Forward Phase E2 evidence
 
-The forward build uses only `6949bb2b7ef0ce28e5983751f3c8a10accde99b3`. Evidence must prove the reviewed machine-readiness correction on top of the exact Phase E2 commit structure, resolved disk flushing disabled, the 50 MiB memory cap, immutable before/after manifests, absent fetch/image disk caches, authenticated `revalidatePath`/`revalidateTag`/`unstable_cache`, insight behavior, repeated images, both dual-runtime start orders, brand isolation, session isolation, owner-route isolation, and separate BCN/Circle Card process caches. Skipped evidence never counts.
+The forward build uses only `b43a1e4e708bc9f02ef83bd63dab1db1f366b32e`. Evidence must prove the reviewed machine-readiness correction and test-integration follow-up on top of the exact Phase E2 commit structure, resolved disk flushing disabled, the 50 MiB memory cap, immutable before/after manifests, absent fetch/image disk caches, authenticated `revalidatePath`/`revalidateTag`/`unstable_cache`, insight behavior, repeated images, both dual-runtime start orders, brand isolation, session isolation, owner-route isolation, and separate BCN/Circle Card process caches. Skipped evidence never counts.
 
 ## Systemd and durable state
 
@@ -174,7 +174,7 @@ The Circle HTTP raw-target map rejects repeated separators, case variants, encod
 4. Create a fresh rollback checkout at `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`.
 5. Run committed-candidate provenance and the isolated Linux rollback build.
 6. Construct and rehearse the immutable rollback artifact privately.
-7. Create a separate fresh forward checkout at `6949bb2b7ef0ce28e5983751f3c8a10accde99b3`.
+7. Create a separate fresh forward checkout at `b43a1e4e708bc9f02ef83bd63dab1db1f366b32e`.
 8. Construct forward BCN and Circle Card artifacts from that one forward build.
 9. Run complete Phase E2, image-load, and dual-brand rehearsals.
 10. Prepare systemd units and canonical persistent storage without switching traffic.

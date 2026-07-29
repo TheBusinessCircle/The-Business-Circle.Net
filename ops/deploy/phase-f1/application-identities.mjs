@@ -4,8 +4,9 @@ import { closeSync, existsSync, fsyncSync, openSync, readFileSync, renameSync, w
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const FORWARD_APPLICATION_SHA = "6949bb2b7ef0ce28e5983751f3c8a10accde99b3";
-export const FORWARD_PARENT_SHA = "2c83694de301b0244c5586c1598aceb10fa2214b";
+export const FORWARD_APPLICATION_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
+export const FORWARD_PARENT_SHA = "6949bb2b7ef0ce28e5983751f3c8a10accde99b3";
+export const FORWARD_REVIEW_BASE_SHA = "2c83694de301b0244c5586c1598aceb10fa2214b";
 export const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
 export const HISTORICAL_PRODUCTION_SHA = "5fa2bbf6ac7d39aa14636882bbae2d2713faf11a";
 
@@ -13,10 +14,11 @@ export const APPLICATION_IDENTITIES = Object.freeze({
   forward: Object.freeze({
     sha: FORWARD_APPLICATION_SHA,
     parentSha: FORWARD_PARENT_SHA,
+    reviewBaseSha: FORWARD_REVIEW_BASE_SHA,
     files: Object.freeze([
       Object.freeze({ status: "M", mode: "100644", path: "package.json" }),
-      Object.freeze({ status: "A", mode: "100644", path: "scripts/validate-production-env.test.ts" }),
-      Object.freeze({ status: "M", mode: "100644", path: "scripts/validate-production-env.ts" })
+      Object.freeze({ status: "M", mode: "100644", path: "scripts/validate-production-env.ts" }),
+      Object.freeze({ status: "A", mode: "100644", path: "tests/validate-production-env.test.ts" })
     ])
   }),
   rollback: Object.freeze({
@@ -51,8 +53,19 @@ export function verifyApplicationCommit(root, role, identities = APPLICATION_IDE
     throw new Error(`${role} commit is a merge, has an extra commit, or has the wrong parent.`);
   }
 
+  const reviewBaseSha = expected.reviewBaseSha ?? parents[1];
+  if (expected.reviewBaseSha) {
+    const reviewBaseIsAncestor = git(
+      repository,
+      ["merge-base", "--is-ancestor", reviewBaseSha, parents[1]],
+      "buffer"
+    );
+    if (reviewBaseIsAncestor.length !== 0) {
+      throw new Error(`${role} reviewed base ancestry check produced unexpected output.`);
+    }
+  }
   const statusRows = rowsFromNul(git(repository, [
-    "diff-tree", "--no-commit-id", "-r", "--no-renames", "--name-status", "-z", parents[1], head
+    "diff-tree", "--no-commit-id", "-r", "--no-renames", "--name-status", "-z", reviewBaseSha, head
   ], "buffer"));
   const actual = [];
   for (let index = 0; index < statusRows.length; index += 2) {
@@ -69,7 +82,7 @@ export function verifyApplicationCommit(root, role, identities = APPLICATION_IDE
     if (!match || match[1] !== mode || match[3] !== path) {
       throw new Error(`${role} commit has a rename, deletion, special object, or mode change: ${path}`);
     }
-    const parentTree = git(repository, ["ls-tree", parents[1], "--", path]).trim();
+    const parentTree = git(repository, ["ls-tree", reviewBaseSha, "--", path]).trim();
     if (fileStatus === "M" && !parentTree.startsWith(`${mode} blob `)) {
       throw new Error(`${role} modified file did not exist with the approved mode in its parent: ${path}`);
     }
@@ -77,12 +90,13 @@ export function verifyApplicationCommit(root, role, identities = APPLICATION_IDE
     return { path, sha256: sha256(git(repository, ["show", `${head}:${path}`], "buffer")) };
   });
   const rawDiff = git(repository, [
-    "diff-tree", "--no-commit-id", "-r", "--no-renames", "--raw", "-z", parents[1], head
+    "diff-tree", "--no-commit-id", "-r", "--no-renames", "--raw", "-z", reviewBaseSha, head
   ], "buffer");
   return {
     role,
     applicationSha: head,
     parentSha: parents[1],
+    reviewBaseSha,
     candidateFileSet: expected.files.map(({ path }) => path),
     candidateRawDiffSha256: sha256(rawDiff),
     fileHashes

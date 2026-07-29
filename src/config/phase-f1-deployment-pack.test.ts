@@ -12,7 +12,7 @@ import { assertExactListener, parseProcNet } from "../../ops/deploy/phase-f1/lis
 import { createRollbackProof, requiredRollbackEvidence, ROLLBACK_COMMIT_FILE_SET, verifyRollbackProof } from "../../ops/deploy/phase-f1/rollback-proof.mjs";
 import { compareStorage, storageInventory } from "../../ops/deploy/phase-f1/storage-manifest.mjs";
 import { unclassifiedEnvironmentNames } from "../../ops/deploy/phase-f1/audit-environment-inventory.mjs";
-import { APPLICATION_IDENTITIES, FORWARD_APPLICATION_SHA, HISTORICAL_PRODUCTION_SHA, ROLLBACK_APPLICATION_SHA, verifyApplicationCommit } from "../../ops/deploy/phase-f1/application-identities.mjs";
+import { APPLICATION_IDENTITIES, FORWARD_APPLICATION_SHA, FORWARD_PARENT_SHA, FORWARD_REVIEW_BASE_SHA, HISTORICAL_PRODUCTION_SHA, ROLLBACK_APPLICATION_SHA, verifyApplicationCommit } from "../../ops/deploy/phase-f1/application-identities.mjs";
 import { assertBuildWorkspaceInputs, assertRuntimeCacheExcluded, createContentManifest, createReleaseManifest, verifyReleaseManifest } from "../../ops/deploy/phase-f1/artifact-manifest.mjs";
 import { createArtifactIdentity } from "../../ops/deploy/phase-f1/artifact-identity.mjs";
 import { validateReleaseEvidenceObjects } from "../../ops/deploy/phase-f1/validate-release-gates.mjs";
@@ -226,7 +226,7 @@ describe("Phase F1 application and environment identity", () => {
     expect(source("prepare-checkout.sh")).not.toMatch(/checkout\s+agent\//);
   });
 
-  it("verifies exact single-parent application commit structure and rejects substitution", () => {
+  it("verifies exact reviewed application commit structures and rejects substitution", () => {
     const repository = temp();
     const git = (...args: string[]) => execFileSync("git", args, { cwd: repository, encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(repository, "missing.gitconfig") } }).trim();
     git("init", "--quiet"); git("config", "user.name", "Phase F1 Test"); git("config", "user.email", "phase-f1@example.invalid");
@@ -245,8 +245,22 @@ describe("Phase F1 application and environment identity", () => {
     ] } };
     expect(verifyApplicationCommit(repository, "rollback", expected)).toMatchObject({ applicationSha: candidateSha, parentSha });
     expect(() => verifyApplicationCommit(repository, "rollback", { rollback: { ...expected.rollback, parentSha: "0".repeat(40) } })).toThrow(/wrong parent/u);
+    writeFileSync(join(repository, "next.config.ts"), "export default { cacheMaxMemorySize: 52428800, followUp: true };\n");
+    git("add", "--all"); git("commit", "--quiet", "-m", "follow-up");
+    const followUpSha = git("rev-parse", "HEAD");
+    const stacked = { forward: {
+      sha: followUpSha,
+      parentSha: candidateSha,
+      reviewBaseSha: parentSha,
+      files: expected.rollback.files
+    } };
+    expect(verifyApplicationCommit(repository, "forward", stacked)).toMatchObject({
+      applicationSha: followUpSha,
+      parentSha: candidateSha,
+      reviewBaseSha: parentSha
+    });
     writeFileSync(join(repository, "fourth.ts"), "unexpected\n");
-    expect(() => verifyApplicationCommit(repository, "rollback", expected)).toThrow(/exact clean/u);
+    expect(() => verifyApplicationCommit(repository, "forward", stacked)).toThrow(/exact clean/u);
     expect(APPLICATION_IDENTITIES.rollback).toMatchObject({ sha: rollbackSha, parentSha: HISTORICAL_PRODUCTION_SHA });
   }, 15_000);
 
@@ -617,7 +631,7 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     const rollback = { identity: { role: "rollback", applicationSha: rollbackSha, parentSha: HISTORICAL_PRODUCTION_SHA }, provenance: { schemaVersion: 1, fixtureFormatVersion: "phase-e3-historical-bcn-next-15.5.15-v1", historicalBaseSha: HISTORICAL_PRODUCTION_SHA, rollbackCandidateCommitSha: rollbackSha, rollbackCandidateParentSha: HISTORICAL_PRODUCTION_SHA, sourceMode: "committed-candidate", candidateCommitFileSet: rollbackFiles, candidateCommitDiffDigest: "b".repeat(64), rollbackPurpose: "historical-bcn-immutable-runtime-rollback", buildIdentity: "historical-bcn", reviewedFiles: rollbackFiles.map((path) => ({ path, sha256: "1".repeat(64) })), reviewedFilesAggregateSha256: "c".repeat(64), nextConfigSha256: "2".repeat(64), packageJsonSha256: "3".repeat(64), packageLockJsonSha256: "4".repeat(64), nextVersion: "15.5.15", buildId: "synthetic-build-id", artifactManifest: { algorithm: "sha256", digest: "5".repeat(64), fileCount: 1, entries: [{ path: ".next/BUILD_ID", sha256: "6".repeat(64), size: 18 }] }, syntheticBuild: true, productionAuthorityPresent: false, outboundNetworkPolicy: "linux-network-namespace-no-routes-with-local-next-font-mock-v1" }, nextStart: { skipped: false, applicationSha: rollbackSha, provenanceSha256: "d".repeat(64), testSourceSha256: "e".repeat(64), applicationIdentitySha256: "f".repeat(64), buildIdSha256: "0".repeat(64), realNextStartPassed: true, historicalHomepagePassed: true, loginRedirectPassed: true, invalidStripeSignaturePassed: true, imageSignaturesPassed: true, runtimeManifestUnchanged: true, publicManifestUnchanged: true, fetchCacheAbsent: true, imageCacheAbsent: true }, rehearsal: { ...performance, applicationSha: rollbackSha, historicalBehaviorPassed: true, sharedStoragePassed: true, privateStoragePermissionsPassed: true }, imageLoad: { skipped: false, applicationSha: rollbackSha, approved: true } };
     expect(validateReleaseEvidenceObjects("rollback", rollback)).toBe(true);
     expect(() => validateReleaseEvidenceObjects("rollback", { ...rollback, nextStart: { ...rollback.nextStart, skipped: true } })).toThrow(/skipped/u);
-    const forward = { identity: { role: "forward", applicationSha, parentSha: "c95b10d82d192c273812a40c2c9d1e9e73791b96" }, phaseE2: { skipped: false, applicationSha, isrFlushToDisk: false, cacheMaxMemorySize: 52_428_800, fetchCacheAbsent: true, imageCacheAbsent: true, immutableManifestPassed: true, authenticatedRevalidationPassed: true, insightRoutesPassed: true, repeatedImagesPassed: true, bcnThenCirclePassed: true, circleThenBcnPassed: true, brandIsolationPassed: true, cacheIsolationPassed: true }, rehearsal: { ...performance, applicationSha, dualBrandIsolationPassed: true, sessionIsolationPassed: true, ownerRouteIsolationPassed: true } };
+    const forward = { identity: { role: "forward", applicationSha, parentSha: FORWARD_PARENT_SHA, reviewBaseSha: FORWARD_REVIEW_BASE_SHA }, phaseE2: { skipped: false, applicationSha, isrFlushToDisk: false, cacheMaxMemorySize: 52_428_800, fetchCacheAbsent: true, imageCacheAbsent: true, immutableManifestPassed: true, authenticatedRevalidationPassed: true, insightRoutesPassed: true, repeatedImagesPassed: true, bcnThenCirclePassed: true, circleThenBcnPassed: true, brandIsolationPassed: true, cacheIsolationPassed: true }, rehearsal: { ...performance, applicationSha, dualBrandIsolationPassed: true, sessionIsolationPassed: true, ownerRouteIsolationPassed: true } };
     expect(validateReleaseEvidenceObjects("forward", forward)).toBe(true);
     expect(() => validateReleaseEvidenceObjects("forward", { ...forward, phaseE2: { ...forward.phaseE2, skipped: true } })).toThrow(/skipped/u);
   });

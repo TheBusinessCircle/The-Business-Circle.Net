@@ -4,7 +4,7 @@ set -Eeuo pipefail
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
-readonly FORWARD_SHA="6949bb2b7ef0ce28e5983751f3c8a10accde99b3"
+readonly FORWARD_SHA="b43a1e4e708bc9f02ef83bd63dab1db1f366b32e"
 readonly ROLLBACK_SHA="5d1f81bb05a01b08e1134785c2f86b77c8969fe3"
 readonly HISTORICAL_SHA="5fa2bbf6ac7d39aa14636882bbae2d2713faf11a"
 readonly LIVE_DIR="/var/www/The-Business-Circle.Net"

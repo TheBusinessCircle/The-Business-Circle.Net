@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { verifyInstalledPack } from "./pack-layout.mjs";
-const FORWARD_SHA = "6949bb2b7ef0ce28e5983751f3c8a10accde99b3";
+const FORWARD_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
 const ROLLBACK_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
 const HISTORICAL_SHA = "5fa2bbf6ac7d39aa14636882bbae2d2713faf11a";
 const sha = (value) => createHash("sha256").update(value).digest("hex");

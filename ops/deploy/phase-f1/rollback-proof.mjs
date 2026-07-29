@@ -40,7 +40,7 @@ if (fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
       rollbackCommitStructureEvidence: `${root}/rollback-application-identity.json`,
       rollbackPostBuildCommitEvidence: `${root}/rollback-application-identity.post-build.json`,
       rollbackCandidateProvenance: `${root}/rollback-production-fixture-provenance.json`,
-      rollbackArtifactManifest: `/var/lib/thebusinesscircle/artifacts/6949bb2b7ef0ce28e5983751f3c8a10accde99b3-5d1f81bb05a01b08e1134785c2f86b77c8969fe3/rollback-bcn.artifact.json`,
+      rollbackArtifactManifest: `/var/lib/thebusinesscircle/artifacts/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e-5d1f81bb05a01b08e1134785c2f86b77c8969fe3/rollback-bcn.artifact.json`,
       rollbackLinuxNextStartEvidence: `${root}/rollback-linux-next-start-evidence.json`,
       rollbackUbuntuImmutabilityEvidence: `${root}/rollback-ubuntu-rehearsal-evidence.json`,
       rollbackImageLoadEvidence: `${root}/rollback-image-load-evidence.json`,
