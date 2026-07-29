@@ -3,7 +3,7 @@ import {
   TOOLING_ONLY_ENV_NAMES,
   validateProductionRuntimeEnvironment,
   validateProductionToolingEnvironment
-} from "./validate-production-env";
+} from "../scripts/validate-production-env";
 
 const ZERO_CREDENTIAL = "00000000000000000000000000000000";
 
@@ -90,7 +90,9 @@ describe("production environment validation boundaries", () => {
   });
 
   it("requires tooling values only in the explicit tooling context", () => {
-    const missingIssues = validateProductionToolingEnvironment({});
+    const missingIssues = validateProductionToolingEnvironment({
+      NODE_ENV: "production"
+    });
 
     expect(missingIssues.map(({ message }) => message)).toEqual([
       "POSTGRES_PASSWORD is still weak or default.",
@@ -100,6 +102,7 @@ describe("production environment validation boundaries", () => {
 
     expect(
       validateProductionToolingEnvironment({
+        NODE_ENV: "production",
         POSTGRES_PASSWORD: `local-contract-postgres-${ZERO_CREDENTIAL}`,
         ADMIN_PASSWORD: `local-contract-admin-${ZERO_CREDENTIAL}`,
         SEED_MODE: "production"
