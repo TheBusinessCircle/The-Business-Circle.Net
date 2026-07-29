@@ -64,6 +64,62 @@ The approved archive, approved installed-tree manifest, and standalone bootstrap
 
 The installation path is `/opt/thebusinesscircle/deployment-packs/<exact-40-hex-operations-commit>`. There is no `current` pack symlink. Unit templates render only after pack verification; every `ExecStart` and `ExecCondition` receives the exact commit-named directory. Unresolved placeholders, branch names, mutable selectors, or a mismatch between the executing pack and external identity fail. Rendered units are root-owned, protected, hashed, and bound into durable and artifact evidence.
 
+### Atomic authoritative-identity exchange
+
+The installed commit-named `atomic-identity-exchange.py` is the only approved primitive for replacing `/var/lib/thebusinesscircle/approved-phase-f1-pack.json` or reversing that replacement. No inline or improvised Python, shell `mv`, `cp`, redirection, ordinary rename, or overwrite-capable replacement is permitted. The utility calls the libc `renameat2` symbol with `AT_FDCWD` and `RENAME_EXCHANGE`; an unavailable symbol or filesystem operation fails closed without a raw-syscall-number or weaker-rename fallback.
+
+The authority and exchange slot are root-owned, single-link, mode-`0600`, 851-byte regular files in the canonical `/var/lib/thebusinesscircle` directory and on its filesystem. The authority path is exact. The slot is `.approved-phase-f1-pack.exchange-<exact-operations-commit>.json`. The independently preserved historical file is root-owned, single-link, mode `0600`, 851 bytes, and located at `/var/lib/thebusinesscircle/phase-f1-identity-history/<historical-operations-commit>/approved-phase-f1-pack.json`. It is never used as a mutable selector.
+
+Immediately before an authority switch, the operator must run the committed probe from the exact installed pack. The probe directory must be an approved new absent path on the target filesystem; the utility creates it, performs the forward and reverse `RENAME_EXCHANGE` operations over two synthetic 851-byte files, fsyncs and verifies each result, and removes only its verified files and empty directory after success:
+
+```bash
+test ! -e "/var/lib/thebusinesscircle/.phase-f1-identity-exchange-probe-${OPS_COMMIT}"
+/usr/bin/python3 \
+  "/opt/thebusinesscircle/deployment-packs/${OPS_COMMIT}/atomic-identity-exchange.py" \
+  probe \
+  --directory "/var/lib/thebusinesscircle/.phase-f1-identity-exchange-probe-${OPS_COMMIT}"
+```
+
+A skipped probe is not deployment evidence. Probe failure retains its synthetic evidence rather than recursively deleting uncertain state. Stop for inspection.
+
+After the preserved history file and corrected exchange slot have been atomically published without overwrite and independently verified, the exact forward invocation is:
+
+```bash
+/usr/bin/python3 \
+  "/opt/thebusinesscircle/deployment-packs/${OPS_COMMIT}/atomic-identity-exchange.py" \
+  exchange \
+  --authority /var/lib/thebusinesscircle/approved-phase-f1-pack.json \
+  --exchange-slot "/var/lib/thebusinesscircle/.approved-phase-f1-pack.exchange-${OPS_COMMIT}.json" \
+  --preserved-history "/var/lib/thebusinesscircle/phase-f1-identity-history/${HISTORICAL_OPS_COMMIT}/approved-phase-f1-pack.json" \
+  --pre-authority-sha256 "${HISTORICAL_IDENTITY_SHA256}" \
+  --pre-slot-sha256 "${CORRECTED_IDENTITY_SHA256}" \
+  --preserved-history-sha256 "${HISTORICAL_IDENTITY_SHA256}" \
+  --post-authority-sha256 "${CORRECTED_IDENTITY_SHA256}" \
+  --post-slot-sha256 "${HISTORICAL_IDENTITY_SHA256}" \
+  --expected-parent /var/lib/thebusinesscircle \
+  --expected-size 851
+```
+
+The same installed utility is the only rollback implementation. After inspecting and proving the authority contains the corrected identity, the slot contains the historical identity, and the preserved history remains historical, the exact reverse invocation is:
+
+```bash
+/usr/bin/python3 \
+  "/opt/thebusinesscircle/deployment-packs/${OPS_COMMIT}/atomic-identity-exchange.py" \
+  exchange \
+  --authority /var/lib/thebusinesscircle/approved-phase-f1-pack.json \
+  --exchange-slot "/var/lib/thebusinesscircle/.approved-phase-f1-pack.exchange-${OPS_COMMIT}.json" \
+  --preserved-history "/var/lib/thebusinesscircle/phase-f1-identity-history/${HISTORICAL_OPS_COMMIT}/approved-phase-f1-pack.json" \
+  --pre-authority-sha256 "${CORRECTED_IDENTITY_SHA256}" \
+  --pre-slot-sha256 "${HISTORICAL_IDENTITY_SHA256}" \
+  --preserved-history-sha256 "${HISTORICAL_IDENTITY_SHA256}" \
+  --post-authority-sha256 "${HISTORICAL_IDENTITY_SHA256}" \
+  --post-slot-sha256 "${CORRECTED_IDENTITY_SHA256}" \
+  --expected-parent /var/lib/thebusinesscircle \
+  --expected-size 851
+```
+
+The caller supplies all four named identities only from the externally verified historical and corrected publication records. The utility repeats metadata and SHA-256 validation immediately before its single syscall, fsyncs the containing directory afterward, and verifies the complete post-exchange state without parsing or rewriting JSON. A precheck failure means no syscall was attempted. A syscall error records the errno name and number and is never retried with another primitive. `POST_EXCHANGE_VERIFICATION_FAILED exchange_may_have_occurred=true` means the state is uncertain: do not claim rollback, do not improvise another operation, and stop for protected inspection before separately approving the documented reverse exchange. Neither installed pack is removed during or after rollback.
+
 ### Deterministic six-file publication
 
 `create-pack-artifact.mjs` refuses an existing output directory and publishes exactly six new single-link regular files: the archive, installed manifest, standalone bootstrap, approved identity, `EXTERNAL-SHA256SUMS`, and `PUBLICATION-SUMMARY-<exact-operations-commit>.txt`. It writes the five core files first without overwrite, reads their completed bytes back to calculate exact sizes and SHA-256 identities, parses the generated manifest and USTAR archive to derive their entry counts, renders the summary, and verifies the exact six-file directory before succeeding. A link, extra or missing filename, existing destination, malformed manifest or archive, identity mismatch, or manually supplied summary fails closed.

@@ -122,7 +122,11 @@ describe("Phase F1 installed pack and immutable systemd identity", () => {
         return { type, path, mode: expectedPackMode(path, type), body: member.body, metadata: { archiveMode: member.mode, size: member.size, mtime: member.mtime, type: member.type } };
       });
       expect(packMembers.some(({ path }) => path === "systemd/circle-card.service")).toBe(true);
+      const identityExchange = packMembers.find(({ path }) => path === "atomic-identity-exchange.py");
+      expect(identityExchange).toMatchObject({ type: "F", mode: "0444" });
+      expect(identityExchange?.body).toEqual(readFileSync(join(pack, "atomic-identity-exchange.py")));
       const manifestByPath = new Map(parsePackManifest(manifest).map((entry) => [entry.path, entry]));
+      expect(manifestByPath.get("atomic-identity-exchange.py")?.mode).toBe("0444");
       for (const member of packMembers.filter(({ type }) => type === "F")) {
         const expected = manifestByPath.get(member.path);
         if (!expected || expected.size !== member.body.length || expected.sha256 !== sha(member.body)) throw new Error(`Archive content mismatch for ${member.path}: ${member.body.length}/${expected?.size}`);
@@ -714,6 +718,39 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(bootstrap).toContain("DESTINATION");
     expect(source("verify-pack-integrity.mjs")).toMatch(/nlink !== 1|nlink === 1/);
     expect(source("create-pack-artifact.mjs")).toContain("installed-pack.manifest");
+  });
+
+  it("commits one fail-closed renameat2 identity-exchange contract", () => {
+    const utility = source("atomic-identity-exchange.py");
+    const documentation = readFileSync(join(root, "docs", "circle-card-phase-f1-server-deployment-pack.md"), "utf8");
+    expect(utility).toContain("library.renameat2");
+    expect(utility).toContain("AT_FDCWD = -100");
+    expect(utility).toContain("RENAME_EXCHANGE = 2");
+    expect(utility).toContain("POST_EXCHANGE_VERIFICATION_FAILED");
+    expect(utility).toContain("exchange_may_have_occurred=true");
+    expect(utility).toContain("probe_cleanup=complete");
+    expect(utility).toContain("phase-f1-identity-history");
+    expect(utility).not.toMatch(/\bos\.(?:rename|replace)\s*\(/u);
+    expect(utility).not.toMatch(/\b(?:shutil|subprocess)\b/u);
+    expect(utility).not.toMatch(/\.(?:syscall)\s*\(/u);
+    expect(utility).not.toMatch(/\bjson\.(?:load|loads|dump|dumps)\b/u);
+    for (const option of [
+      "--authority",
+      "--exchange-slot",
+      "--preserved-history",
+      "--pre-authority-sha256",
+      "--pre-slot-sha256",
+      "--preserved-history-sha256",
+      "--post-authority-sha256",
+      "--post-slot-sha256",
+      "--expected-parent",
+      "--expected-size",
+      "--directory"
+    ]) expect(utility).toContain(`"${option}"`);
+    expect(documentation).toContain("atomic-identity-exchange.py");
+    expect(documentation).toContain("RENAME_EXCHANGE");
+    expect(documentation).toContain("No inline or improvised Python");
+    expect(documentation).toContain("exchange_may_have_occurred=true");
   });
 
   it("denies Circle owner methods before HTTP redirect and preserves BCN webhook ownership", () => {
