@@ -69,6 +69,51 @@ function tarMembers(archive: Buffer) {
   return members;
 }
 
+const gitObjectEnvironment = (repository: string) => ({
+  ...process.env,
+  GIT_CONFIG_NOSYSTEM: "1",
+  GIT_CONFIG_GLOBAL: join(repository, "missing.gitconfig")
+});
+
+function readCommittedBlob(repository: string, commit: string, path: string) {
+  if (!/^[0-9a-f]{40}$/u.test(commit)) throw new Error(`Invalid exact commit identity: ${commit}`);
+  if (!path || path.startsWith("/") || path.includes("\\") || path.split("/").some((part) => !part || part === "." || part === "..")) {
+    throw new Error(`Unsafe committed blob path: ${path}`);
+  }
+  const options = { cwd: repository, env: gitObjectEnvironment(repository) };
+  let commitType: string;
+  try {
+    commitType = execFileSync("git", ["cat-file", "-t", commit], { ...options, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  } catch {
+    throw new Error(`Missing committed object: ${commit}`);
+  }
+  if (commitType !== "commit") throw new Error(`Expected commit object, received: ${commitType}`);
+  const rows = execFileSync("git", ["ls-tree", "-z", "--full-tree", commit, "--", path], { ...options, stdio: ["ignore", "pipe", "pipe"] })
+    .toString("utf8")
+    .split("\0")
+    .filter(Boolean);
+  if (rows.length !== 1) throw new Error(`Missing or ambiguous committed blob path: ${path}`);
+  const match = rows[0].match(/^([0-9]{6}) ([^ ]+) ([0-9a-f]{40})\t([\s\S]+)$/u);
+  if (!match || match[4] !== path) throw new Error(`Unprovable committed blob path: ${path}`);
+  const [, mode, objectType, objectId] = match;
+  if (objectType !== "blob" || !["100644", "100755"].includes(mode)) {
+    throw new Error(`Unsupported committed object type or mode for ${path}: ${mode} ${objectType}`);
+  }
+  const verifiedType = execFileSync("git", ["cat-file", "-t", objectId], { ...options, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  if (verifiedType !== "blob") throw new Error(`Expected blob object for ${path}, received: ${verifiedType}`);
+  return execFileSync("git", ["cat-file", "blob", objectId], { ...options, stdio: ["ignore", "pipe", "pipe"] });
+}
+
+function assertArchiveMemberEqualsCommittedBlob(members: TarMember[], repository: string, commit: string, path: string) {
+  const archivePath = `phase-f1/${path}`;
+  const matches = members.filter(({ name }) => name === archivePath);
+  if (matches.length !== 1) throw new Error(`Missing or duplicate archive member: ${archivePath}`);
+  if (!["", "0"].includes(matches[0].type)) throw new Error(`Unsupported archive member type for ${archivePath}: ${matches[0].type}`);
+  const expected = readCommittedBlob(repository, commit, `ops/deploy/phase-f1/${path}`);
+  if (!matches[0].body.equals(expected)) throw new Error(`Archive member differs from committed Git blob: ${archivePath}`);
+  return expected;
+}
+
 function createCommittedPackFixture() {
   const repository = temp(), outputs = temp();
   const git = (...args: string[]) => execFileSync("git", args, {
@@ -124,7 +169,8 @@ describe("Phase F1 installed pack and immutable systemd identity", () => {
       expect(packMembers.some(({ path }) => path === "systemd/circle-card.service")).toBe(true);
       const identityExchange = packMembers.find(({ path }) => path === "atomic-identity-exchange.py");
       expect(identityExchange).toMatchObject({ type: "F", mode: "0444" });
-      expect(identityExchange?.body).toEqual(readFileSync(join(pack, "atomic-identity-exchange.py")));
+      const committedIdentityExchange = assertArchiveMemberEqualsCommittedBlob(members, repository, commit, "atomic-identity-exchange.py");
+      expect(identityExchange?.body).toEqual(committedIdentityExchange);
       const manifestByPath = new Map(parsePackManifest(manifest).map((entry) => [entry.path, entry]));
       expect(manifestByPath.get("atomic-identity-exchange.py")?.mode).toBe("0444");
       for (const member of packMembers.filter(({ type }) => type === "F")) {
@@ -250,6 +296,90 @@ describe("Phase F1 installed pack and immutable systemd identity", () => {
     expect(readdirSync(crlfOutput).sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)))).toEqual(names);
     for (const name of names) expect(readFileSync(join(crlfOutput, name))).toEqual(readFileSync(join(lfOutput, name)));
   }, 60_000);
+
+  it("binds archive membership to exact Git blobs across LF, CRLF and dirty checkouts", () => {
+    const fixture = createCommittedPackFixture();
+    const clone = (name: string, eol: "lf" | "crlf") => {
+      const directory = join(temp(), name);
+      execFileSync("git", ["clone", "--quiet", "--no-local", "--no-checkout", fixture.repository, directory]);
+      execFileSync("git", ["config", "core.autocrlf", "false"], { cwd: directory });
+      execFileSync("git", ["config", "core.eol", eol], { cwd: directory });
+      execFileSync("git", ["checkout", "--force", fixture.commit], { cwd: directory, stdio: "ignore" });
+      expect(execFileSync("git", ["status", "--porcelain=v1"], { cwd: directory, encoding: "utf8" })).toBe("");
+      return directory;
+    };
+    const lfCheckout = clone("lf-checkout", "lf");
+    const crlfCheckout = clone("crlf-checkout", "crlf");
+    const utilityPath = "ops/deploy/phase-f1/atomic-identity-exchange.py";
+    const lfWorkingBytes = readFileSync(join(lfCheckout, ...utilityPath.split("/")));
+    const crlfWorkingBytes = readFileSync(join(crlfCheckout, ...utilityPath.split("/")));
+    expect(lfWorkingBytes.equals(crlfWorkingBytes)).toBe(false);
+    expect(crlfWorkingBytes.includes(Buffer.from("\r\n"))).toBe(true);
+
+    const generate = (repository: string, name: string) => {
+      const output = join(fixture.outputs, name);
+      execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", fixture.commit, output], { cwd: repository, stdio: "pipe" });
+      return tarMembers(readFileSync(join(output, "phase-f1-pack.tar")));
+    };
+    const lfMembers = generate(lfCheckout, "lf-archive");
+    const crlfMembers = generate(crlfCheckout, "crlf-archive");
+    const lfBlob = assertArchiveMemberEqualsCommittedBlob(lfMembers, lfCheckout, fixture.commit, "atomic-identity-exchange.py");
+    const crlfBlob = assertArchiveMemberEqualsCommittedBlob(crlfMembers, crlfCheckout, fixture.commit, "atomic-identity-exchange.py");
+    expect(lfBlob).toEqual(crlfBlob);
+
+    writeFileSync(join(crlfCheckout, ...utilityPath.split("/")), Buffer.concat([crlfWorkingBytes, Buffer.from("# SYNTHETIC UNCOMMITTED CHECKOUT CHANGE\r\n")]));
+    expect(execFileSync("git", ["status", "--porcelain=v1"], { cwd: crlfCheckout, encoding: "utf8" })).toMatch(/atomic-identity-exchange\.py/u);
+    expect(readCommittedBlob(crlfCheckout, fixture.commit, utilityPath)).toEqual(lfBlob);
+    expect(assertArchiveMemberEqualsCommittedBlob(crlfMembers, crlfCheckout, fixture.commit, "atomic-identity-exchange.py")).toEqual(lfBlob);
+
+    const changedBytes = Buffer.concat([lfBlob, Buffer.from("# SYNTHETIC COMMITTED BLOB CHANGE\n")]);
+    writeFileSync(join(lfCheckout, ...utilityPath.split("/")), changedBytes);
+    execFileSync("git", ["add", utilityPath], { cwd: lfCheckout });
+    execFileSync("git", ["-c", "user.name=Phase F1 Blob Test", "-c", "user.email=phase-f1-blob@example.invalid", "commit", "--quiet", "-m", "synthetic committed blob change"], { cwd: lfCheckout });
+    const changedCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: lfCheckout, encoding: "utf8" }).trim();
+    const changedBlob = readCommittedBlob(lfCheckout, changedCommit, utilityPath);
+    expect(changedBlob).not.toEqual(lfBlob);
+    expect(changedBlob).toEqual(changedBytes);
+    const changedOutput = join(fixture.outputs, "changed-archive");
+    execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", changedCommit, changedOutput], { cwd: lfCheckout, stdio: "pipe" });
+    const changedMembers = tarMembers(readFileSync(join(changedOutput, "phase-f1-pack.tar")));
+    expect(assertArchiveMemberEqualsCommittedBlob(changedMembers, lfCheckout, changedCommit, "atomic-identity-exchange.py")).toEqual(changedBlob);
+
+    expect(() => readCommittedBlob(lfCheckout, "0".repeat(40), utilityPath)).toThrow(/Missing committed object/u);
+    expect(() => readCommittedBlob(lfCheckout, changedCommit, "ops/deploy/phase-f1/missing.py")).toThrow(/Missing or ambiguous/u);
+    expect(() => assertArchiveMemberEqualsCommittedBlob(changedMembers.filter(({ name }) => name !== "phase-f1/atomic-identity-exchange.py"), lfCheckout, changedCommit, "atomic-identity-exchange.py")).toThrow(/Missing or duplicate/u);
+    const tamperedMembers = changedMembers.map((member) => member.name === "phase-f1/atomic-identity-exchange.py"
+      ? { ...member, body: Buffer.concat([Buffer.from([member.body[0] ^ 1]), member.body.subarray(1)]) }
+      : member);
+    expect(() => assertArchiveMemberEqualsCommittedBlob(tamperedMembers, lfCheckout, changedCommit, "atomic-identity-exchange.py")).toThrow(/differs from committed Git blob/u);
+
+    const exactCrLfBytes = Buffer.from("# SYNTHETIC COMMITTED CRLF BLOB\r\nprint('fixture')\r\n");
+    writeFileSync(join(lfCheckout, ...utilityPath.split("/")), exactCrLfBytes);
+    const exactCrLfObject = execFileSync("git", ["hash-object", "-w", "--no-filters", utilityPath], { cwd: lfCheckout, encoding: "utf8" }).trim();
+    execFileSync("git", ["update-index", "--cacheinfo", `100644,${exactCrLfObject},${utilityPath}`], { cwd: lfCheckout });
+    execFileSync("git", ["-c", "user.name=Phase F1 Blob Test", "-c", "user.email=phase-f1-blob@example.invalid", "commit", "--quiet", "-m", "synthetic committed CRLF blob"], { cwd: lfCheckout });
+    const crlfCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: lfCheckout, encoding: "utf8" }).trim();
+    const exactCrLfBlob = readCommittedBlob(lfCheckout, crlfCommit, utilityPath);
+    expect(exactCrLfBlob).toEqual(exactCrLfBytes);
+    expect(exactCrLfBlob).not.toEqual(Buffer.from(exactCrLfBlob.toString("utf8").replace(/\r\n/gu, "\n")));
+    const crlfCommittedOutput = join(fixture.outputs, "committed-crlf-archive");
+    execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", crlfCommit, crlfCommittedOutput], { cwd: lfCheckout, stdio: "pipe" });
+    const crlfCommittedMembers = tarMembers(readFileSync(join(crlfCommittedOutput, "phase-f1-pack.tar")));
+    expect(assertArchiveMemberEqualsCommittedBlob(crlfCommittedMembers, lfCheckout, crlfCommit, "atomic-identity-exchange.py")).toEqual(exactCrLfBytes);
+    const normalizedMembers = crlfCommittedMembers.map((member) => member.name === "phase-f1/atomic-identity-exchange.py"
+      ? { ...member, body: Buffer.from(member.body.toString("utf8").replace(/\r\n/gu, "\n")) }
+      : member);
+    expect(() => assertArchiveMemberEqualsCommittedBlob(normalizedMembers, lfCheckout, crlfCommit, "atomic-identity-exchange.py")).toThrow(/differs from committed Git blob/u);
+
+    const linkTarget = join(temp(), "synthetic-link-target.txt");
+    writeFileSync(linkTarget, "synthetic-target\n");
+    const linkBlob = execFileSync("git", ["hash-object", "-w", linkTarget], { cwd: lfCheckout, encoding: "utf8" }).trim();
+    const linkPath = "ops/deploy/phase-f1/synthetic-link";
+    execFileSync("git", ["update-index", "--add", "--cacheinfo", `120000,${linkBlob},${linkPath}`], { cwd: lfCheckout });
+    execFileSync("git", ["-c", "user.name=Phase F1 Blob Test", "-c", "user.email=phase-f1-blob@example.invalid", "commit", "--quiet", "-m", "synthetic committed link"], { cwd: lfCheckout });
+    const linkCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: lfCheckout, encoding: "utf8" }).trim();
+    expect(() => readCommittedBlob(lfCheckout, linkCommit, linkPath)).toThrow(/Unsupported committed object type or mode/u);
+  }, 120_000);
 
   it("rejects a committed candidate missing or exceeding the approved boundary", () => {
     const missing = createCommittedPackFixture();
