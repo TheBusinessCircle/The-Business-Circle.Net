@@ -883,6 +883,63 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(documentation).toContain("exchange_may_have_occurred=true");
   });
 
+  it("commits one value-free protected environment acquisition contract", () => {
+    const utility = source("environment-acquisition.mjs");
+    const tests = source("environment-acquisition.node-test.mjs");
+    const documentation = readFileSync(join(root, "docs", "circle-card-phase-f1-server-deployment-pack.md"), "utf8");
+    for (const mode of ["inspect", "validate-plan", "acquire", "verify-input", "destroy-input"]) {
+      expect(utility).toContain(`"${mode}"`);
+      expect(documentation).toContain(mode);
+    }
+    for (const selector of [
+      "LIVE_BCN_PROCESS",
+      "HISTORICAL_DOTENV",
+      "HISTORICAL_DOTENV_PRODUCTION",
+      "SECURE_OPERATOR_ENTRY",
+      "GENERATED_NON_SECRET_DECISION",
+      "OMIT"
+    ]) expect(utility).toContain(`"${selector}"`);
+    expect(utility).toContain('"/run/thebusinesscircle"');
+    expect(utility).toContain('"/var/www/The-Business-Circle.Net/.env"');
+    expect(utility).toContain('"/var/www/The-Business-Circle.Net/.env.production"');
+    expect(utility).toContain(".env.backup-20260720-164833");
+    expect(utility).toContain('openSync("/dev/tty", "r+")');
+    expect(utility).toContain("publishNoReplaceSet");
+    expect(utility).toContain("readProtectedReadiness");
+    expect(utility).not.toMatch(/--(?:value|secret|token|password)\b/u);
+    expect(utility).not.toMatch(/shell:\s*true|execSync|\/bin\/(?:ba)?sh/u);
+    expect(tests).toContain("Linux root tmpfs directory and atomic input behaviour");
+    expect(documentation).toContain("Ad hoc `cp`, `grep`, `cat`, `printenv`, `pm2 env`");
+    expect(documentation).toContain("secure erasure");
+
+    const fixture = createCommittedPackFixture();
+    const output = join(fixture.outputs, "environment-acquisition");
+    execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", fixture.commit, output], {
+      cwd: fixture.repository,
+      stdio: "pipe"
+    });
+    const members = tarMembers(readFileSync(join(output, "phase-f1-pack.tar")));
+    for (const name of [
+      "environment-acquisition.mjs",
+      "environment-acquisition.node-test.mjs"
+    ]) {
+      expect(
+        assertArchiveMemberEqualsCommittedBlob(
+          members,
+          fixture.repository,
+          fixture.commit,
+          name
+        )
+      ).toEqual(
+        readCommittedBlob(
+          fixture.repository,
+          fixture.commit,
+          `ops/deploy/phase-f1/${name}`
+        )
+      );
+    }
+  }, 60_000);
+
   it("denies Circle owner methods before HTTP redirect and preserves BCN webhook ownership", () => {
     const nginx = source("nginx-dual-runtime.conf.example");
     expect(nginx).toContain("if ($request_method !~ ^(GET|HEAD)$) { return 405; }");

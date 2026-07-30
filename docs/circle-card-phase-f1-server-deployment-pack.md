@@ -150,6 +150,91 @@ Authoritative readiness validates all three protected JSON files, schema and per
 
 The names `COMPOSE_APP_ENV_FILE`, `LIVEKIT_PORT`, `LIVEKIT_RTC_PORT_END`, `LIVEKIT_RTC_PORT_START`, `LIVEKIT_TCP_PORT`, `LIVEKIT_USE_EXTERNAL_IP`, `TURN_MAX_PORT`, `TURN_MIN_PORT`, `TURN_TLS_CA_FILE`, and `TURN_TLS_CIPHER_LIST` are legacy infrastructure metadata. `POSTGRES_DB` and `POSTGRES_USER` are legacy tooling-only. `NEXT_PUBLIC_LIVEKIT_URL` and `NEXT_PUBLIC_SITE_URL` are deliberately excluded legacy browser configuration. All fourteen may appear in the separately labelled legacy names-only report but never in protected runtime or build JSON. `/proc/<pid>/environ` verification compares names only and fails on any extra authority. Circle Card never receives BCN webhook, cron, inbound, membership, LiveKit, TURN or unrelated delivery credentials, and public billing mode remains a hard stop.
 
+### Protected environment acquisition
+
+The installed commit-named `environment-acquisition.mjs` is the only approved Phase F1 mechanism for comparing approved sources, collecting new operator values, and assembling the sanitised dotenv consumed by `prepare-environment.sh`. Ad hoc `cp`, `grep`, `cat`, `printenv`, `pm2 env`, shell exports, inline scripts, command-line values and manual dotenv construction are prohibited. The utility never accepts a source path, PID or variable value on its command line.
+
+Set only these non-secret shell variables after installing the exact pack:
+
+```bash
+OPS_COMMIT=<exact-installed-operations-commit>
+PACK="/opt/thebusinesscircle/deployment-packs/${OPS_COMMIT}"
+PLAN="/var/lib/thebusinesscircle/deployment-state/phase-f1-environment-selection-${OPS_COMMIT}.json"
+ACQUISITION_DIR="/run/thebusinesscircle/phase-f1-environment-${OPS_COMMIT}"
+INPUT="${ACQUISITION_DIR}/operator-input.env"
+```
+
+The value-free selection plan schema is `phase-f1-environment-selection-plan-v1`. It is UTF-8 JSON at the exact commit-bound `PLAN` path, root-owned, mode `0600`, regular, single-link, and published without replacement by a separately reviewed non-secret state-publication step. Its top-level fields are exactly `schemaVersion`, `operationsCommit`, `decisions`, and `variables`. Decisions are exactly one Redis provider (`UPSTASH` or `KV`), BCN community automation (`ENABLED` or `DISABLED`), and LiveKit/realtime (`RETAINED` or `DISABLED`). Every variable entry contains only its name, exact scopes, source selector, required/optional status, feature-omission consequence, equality rule, separation rule, operator-entry status, and a narrowly defined generated decision. Values, encodings, fingerprints, hashes and lengths of values are forbidden.
+
+The only selectors are `LIVE_BCN_PROCESS`, `HISTORICAL_DOTENV`, `HISTORICAL_DOTENV_PRODUCTION`, `SECURE_OPERATOR_ENTRY`, `GENERATED_NON_SECRET_DECISION`, and `OMIT`. Historical paths are fixed internally to `/var/www/The-Business-Circle.Net/.env` and `/var/www/The-Business-Circle.Net/.env.production`; neither is automatically authoritative. The filename and exact path `.env.backup-20260720-164833` are denied. Historical sources must be canonical, non-linked, root-owned, mode `0600`, regular and single-link. Parsing uses the same Node `util.parseEnv` contract as preparation, retains only allowlisted names, and never prints source content.
+
+`LIVE_BCN_PROCESS` is restricted to the committed safe-live allowlist. The utility invokes only `pm2 pid businesscircle`, never `pm2 jlist` or `pm2 env`, to obtain one online application PID without materialising PM2 environment metadata. It verifies the parent PM2 daemon, resolves the unique descendant Next process, proves that process owns the sole port-3000 listener, and requires Node executable identities for the daemon, application and Next process. It resolves PIDs at execution time and has no PID override. It reads `/proc/<verified-application-pid>/environ` internally, retains only individually selected allowlisted names, clears its mutable scan buffer, and never prints the environment. Reports contain only presence and equality classifications against the two historical sources; they never contain values, hashes, prefixes or lengths.
+
+Run the value-free gates first:
+
+```bash
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PACK}/environment-acquisition.mjs" validate-plan \
+  --plan "${PLAN}" \
+  --operations-commit "${OPS_COMMIT}"
+
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PACK}/environment-acquisition.mjs" inspect \
+  --plan "${PLAN}" \
+  --operations-commit "${OPS_COMMIT}"
+```
+
+`inspect` prints names, verified process metadata and the committed classifications only. Review the plan again whenever a selected live name is absent, either historical source differs, the PM2/Next/listener tree is ambiguous, or a feature decision differs from the currently effective behavior.
+
+Acquisition is interactive and must run from a real controlling terminal:
+
+```bash
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PACK}/environment-acquisition.mjs" acquire \
+  --plan "${PLAN}" \
+  --operations-commit "${OPS_COMMIT}"
+```
+
+The utility refuses redirected/non-TTY entry. It opens `/dev/tty`, disables echo, prompts with variable names only, requires confirmation for provider-issued secrets, and restores terminal echo after success or failure. It accepts no value from arguments or environment variables. Circle Card's sending address must use `circlecard.co.uk`, and its Resend API key must remain distinct from BCN's.
+
+Acquisition hard-stops unless canonical `/run` is tmpfs. It creates or verifies root-owned mode-`0700` `/run/thebusinesscircle`, then exclusively creates the absent commit-bound acquisition directory with the same metadata. `operator-input.env` is root-owned, mode `0600`, regular, single-link, and published without replacement using complete-write verification, file and directory `fsync`, and post-publication byte checks. The dotenv has ordinal UTF-8 variable ordering, one occurrence per name, exact Node parse round-trip, and no source comments. NUL, controls, multiline values, unrepresentable quoting, fixed names, tooling names, legacy names and unsupported names fail before final input publication.
+
+The utility also creates the value-free, root-owned, mode-`0600`, no-replace report `/var/lib/thebusinesscircle/deployment-state/phase-f1-environment-acquisition-${OPS_COMMIT}.json`. It records the operations commit, non-secret plan SHA-256, selected names and selectors, comparison classifications, Redis and feature decisions, operator-entered names, input path/ownership/mode/link type, and validation status. It contains no input size because that could disclose aggregate value lengths.
+
+Validate the completed input without printing values:
+
+```bash
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PACK}/environment-acquisition.mjs" verify-input \
+  --plan "${PLAN}" \
+  --operations-commit "${OPS_COMMIT}"
+```
+
+Only after `verify-input` passes may the existing publisher run separately:
+
+```bash
+/usr/bin/bash "${PACK}/prepare-environment.sh" \
+  b43a1e4e708bc9f02ef83bd63dab1db1f366b32e \
+  "${INPUT}"
+```
+
+Then verify all three protected JSON files, group isolation and schema with `validate-environments.sh`, run `preflight-read-only.sh`, and compare the live PM2/BCN/Next/listener/Nginx/PostgreSQL/systemd baseline. Do not destroy the input if preparation fails, publication is partial or uncertain, any schema/isolation gate fails, preflight fails, or live state changes. Preserve the root-only tmpfs evidence for separately approved recovery; a reboot also clears `/run`.
+
+After protected publication is conclusively `VERIFIED`, preflight is conclusively `PASSED`, and the protected-readiness reader independently returns ready, unlink the input:
+
+```bash
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PACK}/environment-acquisition.mjs" destroy-input \
+  --plan "${PLAN}" \
+  --operations-commit "${OPS_COMMIT}" \
+  --publication-status VERIFIED \
+  --preflight-status PASSED
+```
+
+Destruction revalidates the exact invocation-owned input path, root ownership, mode `0600`, regular type, link count one, `/run` tmpfs, plan-bound names and protected JSON readiness. It refuses unexpected acquisition-directory entries, unlinks only the exact file, `fsync`s the directory, removes only the now-empty invocation directory, `fsync`s its parent, and verifies absence. This is unlinking from tmpfs, not a claim of cryptographic secure erasure.
+
+BCN automation `DISABLED` generates only the committed `false` value and requires automation conditionals to be absent or explicitly omitted. `ENABLED` requires an explicit selected source for every committed conditional. Circle Card remains launcher-fixed to `false`. LiveKit `DISABLED` omits its optional credential/server trio while retaining any independently required base URL; `RETAINED` requires all three explicit selections. Exactly one complete Redis pair is accepted, both runtimes receive the same pair, the unused pair is absent, and there is no provider alias conversion.
+
 ## Rollback provenance and proof
 
 The rollback build must run the committed-candidate flow in `src/config/rollback-immutable-runtime-cache.test.ts` from exact SHA `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`. Final fixture generation cannot run from an uncommitted review diff. Provenance must bind the actual candidate SHA, historical parent, exact three-file set, raw Git diff digest, reviewed-file hashes, package identities, Next.js `15.5.15`, `BUILD_ID`, and recomputed full artifact manifest. It must record a synthetic build, absent production authority, enforced Linux loopback-only/no-route network isolation, and historical BCN identity. Forward Circle Card identity is rejected.
