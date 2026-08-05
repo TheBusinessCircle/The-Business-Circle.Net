@@ -940,6 +940,69 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     }
   }, 60_000);
 
+  it("commits a closed value-free preflight reporting boundary", () => {
+    const reporter = source("report-environment.mjs");
+    const pm2Reporter = source("preflight-pm2-report.mjs");
+    const contract = source("value-free-report-contract.mjs");
+    const proof = source("value-free-preflight-static-proof.mjs");
+    const tests = source("value-free-preflight.node-test.mjs");
+    const preflight = source("preflight-read-only.sh");
+    const documentation = readFileSync(
+      join(root, "docs", "circle-card-phase-f1-server-deployment-pack.md"),
+      "utf8"
+    );
+    expect(contract).toContain("VALUE_INSPECTION_ALLOWLIST");
+    expect(contract).toContain("validateLegacyReportOutput");
+    expect(reporter).toContain("projectAllowlistedValues(parsed)");
+    expect(reporter).toContain("UNKNOWN_SOURCE_NAME_COUNT");
+    expect(reporter).not.toContain("sourceKeys");
+    expect(reporter).not.toMatch(/Object\.(?:keys|entries|values)\(parsed\)/u);
+    expect(pm2Reporter).toContain("SAFE_PM2_OUTPUT_KEYS");
+    expect(pm2Reporter).toContain("records = null");
+    expect(pm2Reporter).not.toMatch(/pm2_env\s*(?:\.|\[)\s*(?:args|argv)/u);
+    expect(preflight).toContain(
+      'pm2 jlist | node "${PACK_DIR}/preflight-pm2-report.mjs"'
+    );
+    expect(preflight).not.toContain("args:env.args");
+    expect(proof).toContain("proveValueFreePreflightCommit");
+    expect(tests).toContain("exact committed Git blobs");
+    expect(documentation).toContain("Raw PM2 JSON is held in memory");
+    expect(documentation).toContain(
+      "unknown names contribute only to an aggregate names-only count"
+    );
+
+    const fixture = createCommittedPackFixture();
+    const output = join(fixture.outputs, "value-free-preflight");
+    execFileSync(
+      "node",
+      ["ops/deploy/phase-f1/create-pack-artifact.mjs", fixture.commit, output],
+      { cwd: fixture.repository, stdio: "pipe" }
+    );
+    const members = tarMembers(readFileSync(join(output, "phase-f1-pack.tar")));
+    for (const name of [
+      "preflight-pm2-report.mjs",
+      "report-environment.mjs",
+      "value-free-preflight-static-proof.mjs",
+      "value-free-preflight.node-test.mjs",
+      "value-free-report-contract.mjs"
+    ]) {
+      expect(
+        assertArchiveMemberEqualsCommittedBlob(
+          members,
+          fixture.repository,
+          fixture.commit,
+          name
+        )
+      ).toEqual(
+        readCommittedBlob(
+          fixture.repository,
+          fixture.commit,
+          `ops/deploy/phase-f1/${name}`
+        )
+      );
+    }
+  }, 60_000);
+
   it("denies Circle owner methods before HTTP redirect and preserves BCN webhook ownership", () => {
     const nginx = source("nginx-dual-runtime.conf.example");
     expect(nginx).toContain("if ($request_method !~ ^(GET|HEAD)$) { return 405; }");

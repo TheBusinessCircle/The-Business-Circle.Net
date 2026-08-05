@@ -50,18 +50,7 @@ for identity in bcn-app circle-card-app phase-f1-build; do
 done
 if [[ -S /root/.pm2/rpc.sock ]] && pgrep -f 'PM2.*God Daemon' >/dev/null; then
   pm2 --version
-  pm2 jlist | node -e '
-let body="";process.stdin.on("data",c=>body+=c);process.stdin.on("end",()=>{
-  for(const row of JSON.parse(body)) {
-    const env=row.pm2_env??{};
-    console.log(JSON.stringify({
-      name:row.name,pid:row.pid,status:env.status,mode:env.exec_mode,
-      instances:env.instances,cwd:env.pm_cwd,script:env.pm_exec_path,args:env.args,
-      uptime:env.pm_uptime,restarts:env.restart_time,maxMemory:env.max_memory_restart,
-      outLog:env.pm_out_log_path,errorLog:env.pm_err_log_path
-    }));
-  }
-});'
+  pm2 jlist | node "${PACK_DIR}/preflight-pm2-report.mjs"
 else
   printf 'PM2 daemon is not already running; PM2 CLI inspection was deliberately skipped.\n'
   npm list --global pm2 --depth=0 || true

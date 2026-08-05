@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import {
   existsSync,
   lstatSync,
@@ -19,6 +18,10 @@ import {
   PROTECTED_ENVIRONMENT_DEFINITIONS,
   evaluateProtectedReadiness
 } from "./report-protected-readiness.mjs";
+import {
+  analyseEnvironmentSources,
+  renderLegacyReportText
+} from "./report-environment.mjs";
 
 const require = createRequire(import.meta.url);
 const packRoot = fileURLToPath(new URL(".", import.meta.url));
@@ -229,26 +232,22 @@ describe("Phase F1 sanitised environment contract", () => {
   });
 
   it("labels historical scanning as non-authoritative and never prints values", () => {
-    const root = temporaryRoot();
-    const legacy = join(root, "legacy.env");
     const marker = "LOCAL_ONLY_VALUE_MUST_NOT_APPEAR";
-    writeFileSync(
-      legacy,
-      Object.keys(LEGACY_CLASSIFICATIONS)
-        .map((name) => `${name}=${marker}`)
-        .join("\n") + "\n"
+    const output = renderLegacyReportText(
+      analyseEnvironmentSources([
+        {
+          sourceId: "synthetic-legacy-source",
+          source:
+            Object.keys(LEGACY_CLASSIFICATIONS)
+              .map((name) => `${name}=${marker}`)
+              .join("\n") + "\n"
+        }
+      ])
     );
-    const result = spawnSync(
-      process.execPath,
-      [join(packRoot, "report-environment.mjs"), legacy],
-      { encoding: "utf8" }
-    );
-    assert.equal(result.status, 0);
-    assert.match(result.stdout, /Legacy source report/);
-    assert.match(result.stdout, /LEGACY_SOURCE_REPORT/);
-    assert.doesNotMatch(result.stdout, /MACHINE_READINESS/);
-    assert.equal(result.stdout.includes(marker), false);
-    assert.equal(result.stderr.includes(marker), false);
+    assert.match(output, /Legacy source report/);
+    assert.match(output, /LEGACY_SOURCE_REPORT/);
+    assert.doesNotMatch(output, /MACHINE_READINESS/);
+    assert.equal(output.includes(marker), false);
 
     const preflight = readFileSync(
       join(packRoot, "preflight-read-only.sh"),
