@@ -236,7 +236,7 @@ describe("Phase F1 sanitised environment contract", () => {
     const output = renderLegacyReportText(
       analyseEnvironmentSources([
         {
-          sourceId: "synthetic-legacy-source",
+          sourceId: "HISTORICAL_DOTENV",
           source:
             Object.keys(LEGACY_CLASSIFICATIONS)
               .map((name) => `${name}=${marker}`)

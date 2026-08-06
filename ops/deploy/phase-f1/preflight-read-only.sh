@@ -61,9 +61,12 @@ systemctl is-active pm2-root.service || true
 printf '%s\n' '=== release and storage ==='
 git -C "${LIVE_DIR}" branch --show-current
 git -C "${LIVE_DIR}" rev-parse HEAD
-git -C "${LIVE_DIR}" status --short
+git -C "${LIVE_DIR}" status --porcelain=v1 -z --untracked-files=all |
+  node "${PACK_DIR}/preflight-git-status-report.mjs"
 findmnt -T "${LIVE_DIR}" -o TARGET,SOURCE,FSTYPE,OPTIONS
-stat -c '%n %U:%G %a %F' "${LIVE_DIR}" "${LIVE_DIR}/.env" "${LIVE_DIR}/.env.production"
+stat -c 'LIVE_CHECKOUT %U:%G %a %F' "${LIVE_DIR}"
+stat -c 'HISTORICAL_DOTENV %U:%G %a %F' "${LIVE_DIR}/.env"
+stat -c 'HISTORICAL_DOTENV_PRODUCTION %U:%G %a %F' "${LIVE_DIR}/.env.production"
 [[ -f "${LIVE_DIR}/.next/BUILD_ID" ]] && printf '.next BUILD_ID present\n' || printf '.next BUILD_ID absent\n'
 for path in "${LIVE_DIR}/public/uploads" "${LIVE_DIR}/.uploads" \
   "${LIVE_DIR}/public/generated/community-source-previews"; do

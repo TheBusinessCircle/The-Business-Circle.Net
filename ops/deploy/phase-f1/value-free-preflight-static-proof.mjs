@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 
 export const VALUE_FREE_SOURCE_PATHS = Object.freeze({
   contract: "ops/deploy/phase-f1/value-free-report-contract.mjs",
+  gitStatus: "ops/deploy/phase-f1/preflight-git-status-report.mjs",
   pm2: "ops/deploy/phase-f1/preflight-pm2-report.mjs",
   preflight: "ops/deploy/phase-f1/preflight-read-only.sh",
+  protectedPolicy: "ops/deploy/phase-f1/protected-source-policy.mjs",
   reporter: "ops/deploy/phase-f1/report-environment.mjs"
 });
 
@@ -19,7 +21,8 @@ function rejectSource(source, pattern, label) {
 }
 
 export function proveValueFreePreflightSources(sources) {
-  const { contract, pm2, preflight, reporter } = sources;
+  const { contract, gitStatus, pm2, preflight, protectedPolicy, reporter } =
+    sources;
   for (const [name, source] of Object.entries(sources)) {
     if (typeof source !== "string" || !source) {
       throw new Error(`STATIC_PROOF_SOURCE_MISSING_${name}`);
@@ -37,6 +40,37 @@ export function proveValueFreePreflightSources(sources) {
     "CLOSED_OUTPUT_VALIDATOR"
   );
   requireSource(contract, /exactKeys\(/u, "EXACT_OUTPUT_KEYS");
+  requireSource(
+    contract,
+    /SYMBOLIC_SOURCE_IDENTIFIERS/u,
+    "SYMBOLIC_SOURCE_IDENTIFIERS"
+  );
+  requireSource(
+    contract,
+    /validateGitStatusReportOutput/u,
+    "GIT_STATUS_OUTPUT_VALIDATOR"
+  );
+
+  requireSource(
+    protectedPolicy,
+    /PROTECTED_BACKUP_PATH\s*=\s*\n?\s*"\/var\/www\/The-Business-Circle\.Net\/\.env\.backup-20260720-164833"/u,
+    "INTERNAL_PROTECTED_PATH"
+  );
+  requireSource(
+    protectedPolicy,
+    /PROTECTED_BACKUP_SOURCE_DENIED/u,
+    "OPAQUE_DENIAL_CODE"
+  );
+  requireSource(
+    protectedPolicy,
+    /isProtectedBackupSelector/u,
+    "PROTECTED_SELECTOR_CHECK"
+  );
+  rejectSource(
+    protectedPolicy,
+    /(?:stdout|stderr|console\.(?:log|error)|JSON\.stringify)/u,
+    "PROTECTED_POLICY_OUTPUT"
+  );
 
   requireSource(
     reporter,
@@ -53,6 +87,21 @@ export function proveValueFreePreflightSources(sources) {
     /validateLegacyReportOutput\(/u,
     "OUTPUT_VALIDATION"
   );
+  requireSource(
+    reporter,
+    /HISTORICAL_DOTENV_PRODUCTION/u,
+    "SYMBOLIC_HISTORICAL_SOURCE"
+  );
+  requireSource(
+    reporter,
+    /isProtectedBackupSelector\(file\)/u,
+    "PROTECTED_PATH_DENIAL"
+  );
+  requireSource(
+    reporter,
+    /throw new Error\(PROTECTED_BACKUP_DENIAL_CODE\)/u,
+    "OPAQUE_PROTECTED_ERROR"
+  );
   rejectSource(reporter, /\bsourceKeys\b/u, "DYNAMIC_SOURCE_KEYS");
   rejectSource(
     reporter,
@@ -68,6 +117,52 @@ export function proveValueFreePreflightSources(sources) {
     reporter,
     /(?:stdout|stderr|console\.(?:log|error))[^\n]*(?:source|parsed)/u,
     "RAW_DOTENV_OUTPUT"
+  );
+  rejectSource(
+    reporter,
+    /new Error\(`[^`]*\$\{(?:file|path|sourceId|source|error)/u,
+    "REFLECTED_ERROR_DETAIL"
+  );
+  rejectSource(
+    reporter,
+    /(?:JSON\.stringify|renderLegacyReportText)[^\n]*PROHIBITED_BACKUP_PATH/u,
+    "PROTECTED_PATH_SERIALIZATION"
+  );
+  rejectSource(
+    reporter,
+    /\.replace(?:All)?\(/u,
+    "POST_SERIALIZATION_REDACTION"
+  );
+  rejectSource(
+    reporter,
+    /\.env\.backup-20260720-164833/u,
+    "REPORTER_PROTECTED_LITERAL"
+  );
+
+  requireSource(
+    gitStatus,
+    /validateGitStatusReportOutput/u,
+    "GIT_STATUS_CLOSED_OUTPUT"
+  );
+  requireSource(
+    gitStatus,
+    /isProtectedBackupSelector/u,
+    "GIT_STATUS_PROTECTED_DENIAL"
+  );
+  rejectSource(
+    gitStatus,
+    /(?:stdout|stderr|console\.(?:log|error))[^\n]*(?:paths?|input|field)/u,
+    "GIT_STATUS_PATH_OUTPUT"
+  );
+  rejectSource(
+    gitStatus,
+    /\.replace(?:All)?\(/u,
+    "GIT_STATUS_POST_SERIALIZATION_REDACTION"
+  );
+  rejectSource(
+    gitStatus,
+    /\.env\.backup-20260720-164833/u,
+    "GIT_STATUS_PROTECTED_LITERAL"
   );
 
   requireSource(pm2, /SAFE_PM2_OUTPUT_KEYS/u, "SAFE_PM2_SCHEMA");
@@ -93,6 +188,14 @@ export function proveValueFreePreflightSources(sources) {
   );
   rejectSource(preflight, /args\s*:\s*env\.args/u, "PREFLIGHT_PM2_ARGS");
   rejectSource(preflight, /JSON\.parse\(body\)/u, "INLINE_RAW_PM2_PARSER");
+  requireSource(
+    preflight,
+    /status --porcelain=v1 -z --untracked-files=all \|\s*\n\s*node "\$\{PACK_DIR\}\/preflight-git-status-report\.mjs"/u,
+    "GIT_STATUS_PIPE"
+  );
+  requireSource(preflight, /HISTORICAL_DOTENV_PRODUCTION/u, "SYMBOLIC_STAT");
+  rejectSource(preflight, /status --short(?:\s|$)/u, "RAW_GIT_STATUS_PATHS");
+  rejectSource(preflight, /stat -c ['"]%n/u, "RAW_STAT_PATHS");
   return true;
 }
 
@@ -134,7 +237,7 @@ if (
   const result = proveValueFreePreflightCommit(root, revision);
   process.stdout.write(
     `${JSON.stringify({
-      schemaVersion: "phase-f1-value-free-preflight-static-proof-v1",
+      schemaVersion: "phase-f1-value-free-preflight-static-proof-v2",
       commit: result.commit,
       paths: result.paths,
       result: "PASS"

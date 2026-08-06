@@ -942,7 +942,9 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
 
   it("commits a closed value-free preflight reporting boundary", () => {
     const reporter = source("report-environment.mjs");
+    const gitStatusReporter = source("preflight-git-status-report.mjs");
     const pm2Reporter = source("preflight-pm2-report.mjs");
+    const protectedPolicy = source("protected-source-policy.mjs");
     const contract = source("value-free-report-contract.mjs");
     const proof = source("value-free-preflight-static-proof.mjs");
     const tests = source("value-free-preflight.node-test.mjs");
@@ -953,8 +955,12 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     );
     expect(contract).toContain("VALUE_INSPECTION_ALLOWLIST");
     expect(contract).toContain("validateLegacyReportOutput");
+    expect(contract).toContain("SYMBOLIC_SOURCE_IDENTIFIERS");
+    expect(contract).toContain("validateGitStatusReportOutput");
     expect(reporter).toContain("projectAllowlistedValues(parsed)");
     expect(reporter).toContain("UNKNOWN_SOURCE_NAME_COUNT");
+    expect(reporter).toContain("PROTECTED_BACKUP_DENIAL_CODE");
+    expect(reporter).not.toMatch(/new Error\(`[^`]*\$\{(?:file|path|sourceId)/u);
     expect(reporter).not.toContain("sourceKeys");
     expect(reporter).not.toMatch(/Object\.(?:keys|entries|values)\(parsed\)/u);
     expect(pm2Reporter).toContain("SAFE_PM2_OUTPUT_KEYS");
@@ -963,13 +969,26 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(preflight).toContain(
       'pm2 jlist | node "${PACK_DIR}/preflight-pm2-report.mjs"'
     );
+    expect(preflight).toContain("preflight-git-status-report.mjs");
+    expect(preflight).not.toMatch(/status --short(?:\s|$)/u);
+    expect(gitStatusReporter).toContain("PROTECTED_BACKUP_DENIAL_CODE");
+    expect(gitStatusReporter).not.toMatch(
+      /(?:stdout|stderr)[^\n]*(?:path|input)/u
+    );
+    expect(protectedPolicy).toContain("isProtectedBackupSelector");
+    expect(protectedPolicy).not.toMatch(/stdout|stderr|console\./u);
     expect(preflight).not.toContain("args:env.args");
     expect(proof).toContain("proveValueFreePreflightCommit");
+    expect(proof).toContain("phase-f1-value-free-preflight-static-proof-v2");
     expect(tests).toContain("exact committed Git blobs");
     expect(documentation).toContain("Raw PM2 JSON is held in memory");
     expect(documentation).toContain(
       "unknown names contribute only to an aggregate names-only count"
     );
+    expect(documentation).toContain(
+      "phase-f1-value-free-preflight-static-proof-v2"
+    );
+    expect(documentation).toContain("PROTECTED_BACKUP_SOURCE_DENIED");
 
     const fixture = createCommittedPackFixture();
     const output = join(fixture.outputs, "value-free-preflight");
@@ -981,6 +1000,8 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     const members = tarMembers(readFileSync(join(output, "phase-f1-pack.tar")));
     for (const name of [
       "preflight-pm2-report.mjs",
+      "preflight-git-status-report.mjs",
+      "protected-source-policy.mjs",
       "report-environment.mjs",
       "value-free-preflight-static-proof.mjs",
       "value-free-preflight.node-test.mjs",

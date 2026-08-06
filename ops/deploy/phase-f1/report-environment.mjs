@@ -2,6 +2,7 @@ import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { parseEnv } from "node:util";
 import {
+  HISTORICAL_SOURCE_IDENTIFIERS,
   RECOGNIZED_EXCLUDED_NAMES,
   RECOGNIZED_SOURCE_NAMES,
   REQUIRED_LEGACY_REPORT_NAMES,
@@ -11,13 +12,26 @@ import {
   sourceClassification,
   validateLegacyReportOutput
 } from "./value-free-report-contract.mjs";
+import {
+  PROTECTED_BACKUP_DENIAL_CODE,
+  PROTECTED_BACKUP_PATH,
+  isProtectedBackupSelector
+} from "./protected-source-policy.mjs";
 
-export const APPROVED_HISTORICAL_SOURCE_PATHS = Object.freeze([
-  "/var/www/The-Business-Circle.Net/.env",
-  "/var/www/The-Business-Circle.Net/.env.production"
+export const APPROVED_HISTORICAL_SOURCES = Object.freeze([
+  Object.freeze({
+    id: "HISTORICAL_DOTENV",
+    path: "/var/www/The-Business-Circle.Net/.env"
+  }),
+  Object.freeze({
+    id: "HISTORICAL_DOTENV_PRODUCTION",
+    path: "/var/www/The-Business-Circle.Net/.env.production"
+  })
 ]);
-export const PROHIBITED_BACKUP_PATH =
-  "/var/www/The-Business-Circle.Net/.env.backup-20260720-164833";
+export const APPROVED_HISTORICAL_SOURCE_PATHS = Object.freeze(
+  APPROVED_HISTORICAL_SOURCES.map(({ path }) => path)
+);
+export const PROHIBITED_BACKUP_PATH = PROTECTED_BACKUP_PATH;
 
 const requiredNames = new Set(REQUIRED_LEGACY_REPORT_NAMES);
 const recognizedNames = new Set(RECOGNIZED_SOURCE_NAMES);
@@ -55,15 +69,18 @@ function projectAllowlistedValues(parsed) {
   return projected;
 }
 
-function parseSource({ sourceId, source }) {
-  if (typeof sourceId !== "string" || typeof source !== "string") {
+export function parseApprovedSource({ sourceId, source }, parser = parseEnv) {
+  if (
+    !HISTORICAL_SOURCE_IDENTIFIERS.includes(sourceId) ||
+    typeof source !== "string"
+  ) {
     throw new Error("LEGACY_SOURCE_INPUT_ERROR");
   }
   let parsed;
   try {
-    parsed = parseEnv(source);
+    parsed = parser(source);
   } catch {
-    throw new Error(`LEGACY_SOURCE_PARSE_ERROR:${sourceId}`);
+    throw new Error("LEGACY_SOURCE_PARSE_ERROR");
   }
   const values = projectAllowlistedValues(parsed);
   parsed = null;
@@ -131,7 +148,12 @@ export function analyseEnvironmentSources(sources) {
   if (!Array.isArray(sources) || sources.length === 0) {
     throw new Error("LEGACY_SOURCE_INPUT_ERROR");
   }
-  const parsedSources = sources.map(parseSource);
+  if (
+    new Set(sources.map(({ sourceId }) => sourceId)).size !== sources.length
+  ) {
+    throw new Error("LEGACY_SOURCE_INPUT_ERROR");
+  }
+  const parsedSources = sources.map((input) => parseApprovedSource(input));
   const unknownNames = new Set();
   for (const { occurrences } of parsedSources) {
     for (const name of occurrences.keys()) {
@@ -186,23 +208,49 @@ export function renderLegacyReportText(report) {
 
 export function validateHistoricalSourcePaths(files) {
   if (
+    Array.isArray(files) &&
+    files.some((file) => isProtectedBackupSelector(file))
+  ) {
+    throw new Error(PROTECTED_BACKUP_DENIAL_CODE);
+  }
+  if (
     !Array.isArray(files) ||
     files.length !== APPROVED_HISTORICAL_SOURCE_PATHS.length ||
-    files.some((file, index) => file !== APPROVED_HISTORICAL_SOURCE_PATHS[index]) ||
-    files.includes(PROHIBITED_BACKUP_PATH)
+    files.some((file, index) => file !== APPROVED_HISTORICAL_SOURCE_PATHS[index])
   ) {
-    throw new Error("LEGACY_SOURCE_PATH_ERROR");
+    throw new Error("LEGACY_SOURCE_PATH_DENIED");
   }
   for (const file of files) {
     if (!isAbsolute(file) || resolve(file) !== file) {
-      throw new Error("LEGACY_SOURCE_PATH_ERROR");
+      throw new Error("LEGACY_SOURCE_PATH_DENIED");
     }
-    const stats = lstatSync(file);
+    let stats;
+    try {
+      stats = lstatSync(file);
+    } catch {
+      throw new Error("LEGACY_SOURCE_UNAVAILABLE");
+    }
     if (!stats.isFile() || stats.isSymbolicLink() || realpathSync(file) !== file) {
-      throw new Error("LEGACY_SOURCE_PATH_ERROR");
+      throw new Error("LEGACY_SOURCE_UNAVAILABLE");
     }
   }
   return files;
+}
+
+export function readApprovedHistoricalSources(
+  files,
+  reader = readFileSync,
+  validator = validateHistoricalSourcePaths
+) {
+  validator(files);
+  try {
+    return APPROVED_HISTORICAL_SOURCES.map(({ id, path }) => ({
+      sourceId: id,
+      source: reader(path, "utf8")
+    }));
+  } catch {
+    throw new Error("LEGACY_SOURCE_READ_ERROR");
+  }
 }
 
 async function main() {
@@ -210,16 +258,17 @@ async function main() {
   const files = process.argv.slice(jsonMode ? 3 : 2);
   try {
     validateHistoricalSourcePaths(files);
-    const report = analyseEnvironmentSources(
-      files.map((file) => ({ sourceId: file, source: readFileSync(file, "utf8") }))
-    );
+    const report = analyseEnvironmentSources(readApprovedHistoricalSources(files));
     process.stdout.write(
       jsonMode ? `${JSON.stringify(report, null, 2)}\n` : renderLegacyReportText(report)
     );
   } catch (error) {
     const code =
-      error instanceof Error && /^LEGACY_SOURCE_[A-Z_]+(?::|$)/u.test(error.message)
-        ? error.message.split(":", 1)[0]
+      error instanceof Error &&
+      /^(?:LEGACY_SOURCE_(?:INPUT_ERROR|INTERNAL_ERROR|PARSE_ERROR|PATH_DENIED|READ_ERROR|UNAVAILABLE)|PROTECTED_BACKUP_SOURCE_DENIED)$/u.test(
+        error.message
+      )
+        ? error.message
         : "LEGACY_SOURCE_INTERNAL_ERROR";
     process.stderr.write(`${code}\n`);
     process.exitCode = 2;

@@ -19,6 +19,20 @@ const {
 const compareNames = (left, right) =>
   Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
 
+export const SYMBOLIC_SOURCE_IDENTIFIERS = Object.freeze([
+  "HISTORICAL_DOTENV",
+  "HISTORICAL_DOTENV_PRODUCTION",
+  "LIVE_BCN_PROCESS",
+  "PROTECTED_BACKUP_SOURCE"
+]);
+export const HISTORICAL_SOURCE_IDENTIFIERS = Object.freeze(
+  SYMBOLIC_SOURCE_IDENTIFIERS.slice(0, 2)
+);
+export const VALUE_FREE_ISSUE_CODES = Object.freeze([
+  "PROTECTED_BACKUP_SOURCE_DENIED",
+  "UNCOMMITTED_CHANGE_PRESENT"
+]);
+
 const classifications = new Map();
 for (const name of SHARED_KEYS) classifications.set(name, "shared");
 for (const name of BCN_ONLY_KEYS) classifications.set(name, "bcn-only");
@@ -94,6 +108,24 @@ const allowedReportKeys = Object.freeze([
   "unknownSourceNameCount",
   "variables"
 ]);
+const allowedGitStatusKeys = Object.freeze([
+  "issues",
+  "schemaVersion",
+  "state"
+]);
+const allowedStatuses = new Set([
+  "ABSENT_REQUIRED",
+  "CONFLICT",
+  "DUPLICATE",
+  "DUPLICATE_NAME_ONLY",
+  "EMPTY_REQUIRED",
+  "PLACEHOLDER",
+  "PRESENT_NAME_ONLY",
+  "absent",
+  "empty",
+  "present"
+]);
+const allowedClassifications = new Set(classifications.values());
 
 function exactKeys(value, expected, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -138,8 +170,12 @@ export function validateLegacyReportOutput(report) {
       typeof item.classification !== "string" ||
       item.classification !== classifications.get(item.name) ||
       typeof item.status !== "string" ||
+      !allowedStatuses.has(item.status) ||
       !Array.isArray(item.locations) ||
-      item.locations.some((location) => typeof location !== "string")
+      item.locations.some(
+        (location) => !HISTORICAL_SOURCE_IDENTIFIERS.includes(location)
+      ) ||
+      !allowedClassifications.has(item.classification)
     ) {
       throw new Error("Legacy report variable schema validation failed.");
     }
@@ -147,7 +183,29 @@ export function validateLegacyReportOutput(report) {
   return report;
 }
 
+export function validateGitStatusReportOutput(report) {
+  exactKeys(report, allowedGitStatusKeys, "Git status report");
+  if (
+    report.schemaVersion !== "phase-f1-git-status-report-v1" ||
+    !["BLOCKED", "CLEAN", "DIRTY"].includes(report.state) ||
+    !Array.isArray(report.issues) ||
+    report.issues.some((issue) => !VALUE_FREE_ISSUE_CODES.includes(issue)) ||
+    new Set(report.issues).size !== report.issues.length ||
+    (report.state === "CLEAN" && report.issues.length !== 0) ||
+    (report.state === "DIRTY" &&
+      JSON.stringify(report.issues) !==
+        JSON.stringify(["UNCOMMITTED_CHANGE_PRESENT"])) ||
+    (report.state === "BLOCKED" &&
+      JSON.stringify(report.issues) !==
+        JSON.stringify(["PROTECTED_BACKUP_SOURCE_DENIED"]))
+  ) {
+    throw new Error("Git status report schema validation failed.");
+  }
+  return report;
+}
+
 export const VALUE_FREE_REPORT_SCHEMA = Object.freeze({
+  gitStatusKeys: allowedGitStatusKeys,
   reportKeys: allowedReportKeys,
   variableKeys: allowedVariableKeys
 });
