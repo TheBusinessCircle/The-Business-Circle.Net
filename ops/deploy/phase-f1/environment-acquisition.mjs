@@ -49,7 +49,17 @@ const {
 
 export const PLAN_SCHEMA = "phase-f1-environment-selection-plan-v1";
 export const REPORT_SCHEMA = "phase-f1-environment-acquisition-report-v1";
+export const CORRECTION_REPORT_SCHEMA =
+  "phase-f1-environment-selection-correction-report-v1";
+export const CLOUDINARY_CORRECTION =
+  "CLOUDINARY_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION";
+export const CLOUDINARY_CORRECTION_NAMES = Object.freeze([
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET",
+  "CLOUDINARY_CLOUD_NAME"
+]);
 export const OPERATIONS_COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
+export const PLAN_IDENTITY_PATTERN = /^[0-9a-f]{64}$/u;
 export const HISTORICAL_DOTENV =
   "/var/www/The-Business-Circle.Net/.env";
 export const HISTORICAL_DOTENV_PRODUCTION =
@@ -59,6 +69,8 @@ export const PROTECTED_BACKUP =
 export const RUN_ROOT = "/run";
 export const ACQUISITION_ROOT = "/run/thebusinesscircle";
 export const STATE_ROOT = "/var/lib/thebusinesscircle/deployment-state";
+export const AUTHORITY_IDENTITY_PATH =
+  "/var/lib/thebusinesscircle/approved-phase-f1-pack.json";
 export const LIVE_APPLICATION_NAME = "businesscircle";
 export const LIVE_PORT = 3000;
 export const SOURCE_SELECTORS = Object.freeze([
@@ -199,12 +211,22 @@ export function acquisitionDirectory(operationsCommit) {
   return `${ACQUISITION_ROOT}/phase-f1-environment-${operationsCommit}`;
 }
 
-export function selectionPlanPath(operationsCommit) {
-  return `${STATE_ROOT}/phase-f1-environment-selection-${operationsCommit}.json`;
+export function selectionPlanPath(operationsCommit, stateRoot = STATE_ROOT) {
+  if (!OPERATIONS_COMMIT_PATTERN.test(operationsCommit ?? "")) {
+    fail("Selection plan path requires an exact operations commit.");
+  }
+  return `${stateRoot}/phase-f1-environment-selection-${operationsCommit}.json`;
 }
 
 export function acquisitionReportPath(operationsCommit) {
   return `${STATE_ROOT}/phase-f1-environment-acquisition-${operationsCommit}.json`;
+}
+
+export function correctionReportPath(operationsCommit, stateRoot = STATE_ROOT) {
+  if (!OPERATIONS_COMMIT_PATTERN.test(operationsCommit ?? "")) {
+    fail("Correction report path requires an exact operations commit.");
+  }
+  return `${stateRoot}/phase-f1-environment-selection-correction-${operationsCommit}.json`;
 }
 
 function expectedScopes(name) {
@@ -450,10 +472,11 @@ function assertProtectedRegularFile(path, label, expectedMode = 0o600) {
 
 export function readSelectionPlan(path, options = {}) {
   const expectedOperationsCommit = options.expectedOperationsCommit;
+  const stateRoot = options.stateRoot ?? STATE_ROOT;
   if (!OPERATIONS_COMMIT_PATTERN.test(expectedOperationsCommit ?? "")) {
     fail("Expected operations commit is required.");
   }
-  if (path !== selectionPlanPath(expectedOperationsCommit)) {
+  if (path !== selectionPlanPath(expectedOperationsCommit, stateRoot)) {
     fail("Selection plan path is not the commit-bound protected path.");
   }
   assertProtectedRegularFile(path, "selection plan");
@@ -463,6 +486,279 @@ export function readSelectionPlan(path, options = {}) {
     fail("Selection plan operations identity differs.");
   }
   return { plan, bytes, identity: planIdentity(bytes) };
+}
+
+function pathObjectExists(path, lstat = lstatSync) {
+  try {
+    lstat(path);
+    return true;
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+function assertCorrectionStateRoot(stateRoot) {
+  assertCanonicalAbsolute(stateRoot, "deployment-state root");
+  const stats = lstatSync(stateRoot);
+  if (
+    !stats.isDirectory() ||
+    stats.isSymbolicLink() ||
+    stats.uid !== 0 ||
+    stats.gid !== 0 ||
+    mode(stats) !== 0o700
+  ) {
+    fail("Deployment-state root metadata is unsafe.");
+  }
+}
+
+function assertProductionCorrectionContext(operationsCommit) {
+  const expectedUtility =
+    `/opt/thebusinesscircle/deployment-packs/${operationsCommit}/` +
+    "environment-acquisition.mjs";
+  if (
+    fileURLToPath(import.meta.url) !== expectedUtility ||
+    realpathSync(expectedUtility) !== expectedUtility
+  ) {
+    fail("Plan correction must run from the exact installed operations pack.");
+  }
+  assertProtectedRegularFile(AUTHORITY_IDENTITY_PATH, "authoritative identity");
+  let authority;
+  try {
+    authority = JSON.parse(readFileSync(AUTHORITY_IDENTITY_PATH, "utf8"));
+  } catch {
+    fail("Authoritative identity is not valid JSON.");
+  }
+  if (authority.operationsCommit !== operationsCommit) {
+    fail("Plan correction operations commit is not authoritative.");
+  }
+}
+
+function exactLockedDecisions(decisions) {
+  return (
+    decisions.redisProvider === "UPSTASH" &&
+    decisions.bcnCommunityAutomation === "DISABLED" &&
+    decisions.livekitRealtime === "RETAINED"
+  );
+}
+
+export function buildCorrectedSelectionPlan(priorPlan, options) {
+  const {
+    priorOperationsCommit,
+    operationsCommit,
+    correction
+  } = options;
+  if (
+    !OPERATIONS_COMMIT_PATTERN.test(priorOperationsCommit ?? "") ||
+    !OPERATIONS_COMMIT_PATTERN.test(operationsCommit ?? "") ||
+    priorOperationsCommit === operationsCommit
+  ) {
+    fail("Distinct exact prior and new operations commits are required.");
+  }
+  if (correction !== CLOUDINARY_CORRECTION) {
+    fail("Unsupported selection-plan correction identifier.");
+  }
+  const parsedPrior = parseSelectionPlan(JSON.stringify(priorPlan));
+  if (parsedPrior.operationsCommit !== priorOperationsCommit) {
+    fail("Prior selection plan operations commit differs.");
+  }
+  if (!exactLockedDecisions(parsedPrior.decisions)) {
+    fail("Prior selection plan locked decisions differ.");
+  }
+  const affected = new Set(CLOUDINARY_CORRECTION_NAMES);
+  for (const name of affected) {
+    const entry = parsedPrior.variables.find((item) => item.name === name);
+    if (
+      !entry ||
+      entry.source !== "LIVE_BCN_PROCESS" ||
+      entry.operatorEntered !== false
+    ) {
+      fail(`Prior Cloudinary selection is not correctable: ${name}`);
+    }
+  }
+
+  const corrected = {
+    ...parsedPrior,
+    operationsCommit,
+    decisions: { ...parsedPrior.decisions },
+    variables: parsedPrior.variables.map((entry) =>
+      affected.has(entry.name)
+        ? { ...entry, source: "HISTORICAL_DOTENV_PRODUCTION" }
+        : { ...entry }
+    )
+  };
+  const validated = parseSelectionPlan(JSON.stringify(corrected));
+  const expected = {
+    ...parsedPrior,
+    operationsCommit,
+    decisions: { ...parsedPrior.decisions },
+    variables: parsedPrior.variables.map((entry) =>
+      affected.has(entry.name)
+        ? { ...entry, source: "HISTORICAL_DOTENV_PRODUCTION" }
+        : { ...entry }
+    )
+  };
+  if (JSON.stringify(validated) !== JSON.stringify(expected)) {
+    fail("Corrected selection plan contains an unauthorised change.");
+  }
+  return validated;
+}
+
+export function renderSelectionPlan(plan) {
+  const validated = parseSelectionPlan(JSON.stringify(plan));
+  return Buffer.from(`${JSON.stringify(validated, null, 2)}\n`, "utf8");
+}
+
+function correctionEvidence(priorRecord, correctedPlanIdentity, options) {
+  return {
+    schemaVersion: CORRECTION_REPORT_SCHEMA,
+    priorOperationsCommit: options.priorOperationsCommit,
+    operationsCommit: options.operationsCommit,
+    priorPlanSha256: priorRecord.identity,
+    correctedPlanSha256: correctedPlanIdentity,
+    correction: options.correction,
+    affectedVariables: [...CLOUDINARY_CORRECTION_NAMES],
+    oldSelector: "LIVE_BCN_PROCESS",
+    newSelector: "HISTORICAL_DOTENV_PRODUCTION",
+    originalPreserved: true,
+    valuesRecorded: false
+  };
+}
+
+function parseCorrectionEvidence(text, expected) {
+  let report;
+  try {
+    report = JSON.parse(text);
+  } catch {
+    fail("Selection-plan correction evidence is not valid JSON.");
+  }
+  assertExactKeys(
+    report,
+    [
+      "schemaVersion",
+      "priorOperationsCommit",
+      "operationsCommit",
+      "priorPlanSha256",
+      "correctedPlanSha256",
+      "correction",
+      "affectedVariables",
+      "oldSelector",
+      "newSelector",
+      "originalPreserved",
+      "valuesRecorded"
+    ],
+    "selection-plan correction evidence"
+  );
+  if (JSON.stringify(report) !== JSON.stringify(expected)) {
+    fail("Selection-plan correction evidence differs from the approved record.");
+  }
+  return report;
+}
+
+export function createPlanCorrectionArtifacts(priorRecord, options) {
+  if (!PLAN_IDENTITY_PATTERN.test(options.priorPlanSha256 ?? "")) {
+    fail("Exact prior selection-plan identity is required.");
+  }
+  if (priorRecord.identity !== options.priorPlanSha256) {
+    fail("Prior selection-plan identity differs.");
+  }
+  const correctedPlan = buildCorrectedSelectionPlan(priorRecord.plan, options);
+  const planPayload = renderSelectionPlan(correctedPlan);
+  const correctedPlanIdentity = planIdentity(planPayload);
+  const evidence = correctionEvidence(
+    priorRecord,
+    correctedPlanIdentity,
+    options
+  );
+  const evidencePayload = Buffer.from(
+    `${JSON.stringify(evidence, null, 2)}\n`,
+    "utf8"
+  );
+  parseCorrectionEvidence(evidencePayload.toString("utf8"), evidence);
+  return {
+    correctedPlan,
+    correctedPlanIdentity,
+    planPayload,
+    evidence,
+    evidencePayload
+  };
+}
+
+export function publishCorrectedSelectionPlan(options, dependencies = {}) {
+  const stateRoot = dependencies.stateRoot ?? STATE_ROOT;
+  const pathForPlan =
+    dependencies.selectionPlanPath ??
+    ((commit) => selectionPlanPath(commit, stateRoot));
+  const pathForReport =
+    dependencies.correctionReportPath ??
+    ((commit) => correctionReportPath(commit, stateRoot));
+  const readPlan =
+    dependencies.readSelectionPlan ??
+    ((path, commit) =>
+      readSelectionPlan(path, {
+        expectedOperationsCommit: commit,
+        stateRoot
+      }));
+  const read = dependencies.readFile ?? readFileSync;
+  const exists = dependencies.pathObjectExists ?? pathObjectExists;
+  const publish = dependencies.publishNoReplaceSet ?? publishNoReplaceSet;
+  (dependencies.assertStateRoot ?? assertCorrectionStateRoot)(stateRoot);
+  (dependencies.assertProductionContext ?? assertProductionCorrectionContext)(
+    options.operationsCommit
+  );
+
+  const priorPath = pathForPlan(options.priorOperationsCommit);
+  const correctedPath = pathForPlan(options.operationsCommit);
+  const reportPath = pathForReport(options.operationsCommit);
+  if (exists(correctedPath) || exists(reportPath)) {
+    fail("Corrected selection-plan target already exists.");
+  }
+  const priorRecord = readPlan(priorPath, options.priorOperationsCommit);
+  const artifacts = createPlanCorrectionArtifacts(priorRecord, options);
+
+  publish(
+    [
+      {
+        target: correctedPath,
+        payload: artifacts.planPayload,
+        uid: 0,
+        gid: 0,
+        mode: 0o600
+      },
+      {
+        target: reportPath,
+        payload: artifacts.evidencePayload,
+        uid: 0,
+        gid: 0,
+        mode: 0o600
+      }
+    ],
+    {
+      enforceMetadata: true,
+      fsyncDirectories: true,
+      verifySet() {
+        const preserved = readPlan(priorPath, options.priorOperationsCommit);
+        if (preserved.identity !== priorRecord.identity) {
+          fail("Original selection plan changed during correction.");
+        }
+        const published = readPlan(correctedPath, options.operationsCommit);
+        if (published.identity !== artifacts.correctedPlanIdentity) {
+          fail("Corrected selection-plan identity verification failed.");
+        }
+        parseCorrectionEvidence(
+          read(reportPath, "utf8"),
+          artifacts.evidence
+        );
+      }
+    }
+  );
+  return {
+    priorPath,
+    correctedPath,
+    reportPath,
+    priorPlanIdentity: priorRecord.identity,
+    correctedPlanIdentity: artifacts.correctedPlanIdentity
+  };
 }
 
 function safeHistoricalValues(values) {
@@ -1269,21 +1565,45 @@ function runDestroy(plan, args) {
 export function runCli(argv = process.argv.slice(2)) {
   const parsed = parseArguments(argv);
   if (
-    !["inspect", "validate-plan", "acquire", "verify-input", "destroy-input"].includes(
-      parsed.mode
-    )
+    ![
+      "inspect",
+      "validate-plan",
+      "acquire",
+      "verify-input",
+      "destroy-input",
+      "correct-plan"
+    ].includes(parsed.mode)
   ) {
     fail(
-      "Mode must be inspect, validate-plan, acquire, verify-input, or destroy-input."
+      "Mode must be inspect, validate-plan, acquire, verify-input, destroy-input, or correct-plan."
     );
   }
   const expectedArgs =
-    parsed.mode === "destroy-input"
+    parsed.mode === "correct-plan"
+      ? [
+          "prior-operations-commit",
+          "prior-plan-sha256",
+          "operations-commit",
+          "correction"
+        ]
+      : parsed.mode === "destroy-input"
       ? ["plan", "operations-commit", "publication-status", "preflight-status"]
       : ["plan", "operations-commit"];
   exactArguments(parsed.args, expectedArgs);
   if (process.platform !== "linux" || process.getuid?.() !== 0) {
     fail("Production acquisition modes require Linux root.");
+  }
+  if (parsed.mode === "correct-plan") {
+    const result = publishCorrectedSelectionPlan({
+      priorOperationsCommit: parsed.args["prior-operations-commit"],
+      priorPlanSha256: parsed.args["prior-plan-sha256"],
+      operationsCommit: parsed.args["operations-commit"],
+      correction: parsed.args.correction
+    });
+    process.stdout.write(
+      `PLAN_CORRECTED prior=${result.priorPlanIdentity} corrected=${result.correctedPlanIdentity} values-recorded=false\n`
+    );
+    return;
   }
   const operationsCommit = parsed.args["operations-commit"];
   const planRecord = readSelectionPlan(parsed.args.plan, {
@@ -1324,6 +1644,7 @@ export function runCli(argv = process.argv.slice(2)) {
 
 export const __test = Object.freeze({
   parseArguments,
+  exactArguments,
   publishOperatorInput,
   verifyInputFile,
   tmpfsMagic,

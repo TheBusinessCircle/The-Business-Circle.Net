@@ -887,7 +887,14 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     const utility = source("environment-acquisition.mjs");
     const tests = source("environment-acquisition.node-test.mjs");
     const documentation = readFileSync(join(root, "docs", "circle-card-phase-f1-server-deployment-pack.md"), "utf8");
-    for (const mode of ["inspect", "validate-plan", "acquire", "verify-input", "destroy-input"]) {
+    for (const mode of [
+      "inspect",
+      "validate-plan",
+      "acquire",
+      "verify-input",
+      "destroy-input",
+      "correct-plan"
+    ]) {
       expect(utility).toContain(`"${mode}"`);
       expect(documentation).toContain(mode);
     }
@@ -906,10 +913,35 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(utility).toContain('openSync("/dev/tty", "r+")');
     expect(utility).toContain("publishNoReplaceSet");
     expect(utility).toContain("readProtectedReadiness");
+    expect(utility).toContain(
+      '"CLOUDINARY_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION"'
+    );
+    expect(utility).toContain(
+      '"phase-f1-environment-selection-correction-report-v1"'
+    );
+    expect(utility).toContain("publishCorrectedSelectionPlan");
+    expect(utility).toContain("buildCorrectedSelectionPlan");
+    expect(utility).toContain("prior-plan-sha256");
     expect(utility).not.toMatch(/--(?:value|secret|token|password)\b/u);
+    expect(utility).not.toMatch(/--(?:source-path|selector|variable)\b/u);
     expect(utility).not.toMatch(/shell:\s*true|execSync|\/bin\/(?:ba)?sh/u);
     expect(tests).toContain("Linux root tmpfs directory and atomic input behaviour");
+    expect(tests).toContain(
+      "immutable correction changes only the commit and three Cloudinary selectors"
+    );
+    expect(tests).toContain(
+      "failed set verification guards partial correction publication"
+    );
     expect(documentation).toContain("Ad hoc `cp`, `grep`, `cat`, `printenv`, `pm2 env`");
+    expect(documentation).toContain(
+      "Immutable selection-plan correction across operations commits"
+    );
+    expect(documentation).toContain(
+      "The old commit-bound plan remains byte-identical historical evidence"
+    );
+    expect(documentation).toContain(
+      "atomically make that pack authoritative before using its correction mode"
+    );
     expect(documentation).toContain("secure erasure");
 
     const fixture = createCommittedPackFixture();

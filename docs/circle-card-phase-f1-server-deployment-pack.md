@@ -176,6 +176,32 @@ INPUT="${ACQUISITION_DIR}/operator-input.env"
 
 The value-free selection plan schema is `phase-f1-environment-selection-plan-v1`. It is UTF-8 JSON at the exact commit-bound `PLAN` path, root-owned, mode `0600`, regular, single-link, and published without replacement by a separately reviewed non-secret state-publication step. Its top-level fields are exactly `schemaVersion`, `operationsCommit`, `decisions`, and `variables`. Decisions are exactly one Redis provider (`UPSTASH` or `KV`), BCN community automation (`ENABLED` or `DISABLED`), and LiveKit/realtime (`RETAINED` or `DISABLED`). Every variable entry contains only its name, exact scopes, source selector, required/optional status, feature-omission consequence, equality rule, separation rule, operator-entry status, and a narrowly defined generated decision. Values, encodings, fingerprints, hashes and lengths of values are forbidden.
 
+#### Immutable selection-plan correction across operations commits
+
+A validated plan is immutable evidence for the operations commit named in its path and `operationsCommit` field. It is never edited or replaced. When a narrowly reviewed source-authority correction requires a new operations pack, the new authoritative pack may use `correct-plan` to read the exact protected prior plan, verify its supplied SHA-256 and metadata, construct the approved correction in memory, and publish a new plan at `/var/lib/thebusinesscircle/deployment-state/phase-f1-environment-selection-${NEW_OPS_COMMIT}.json`. The old commit-bound plan remains byte-identical historical evidence at its original path; no duplicate history copy is made.
+
+The only committed correction identifier is `CLOUDINARY_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION`. It requires the prior decisions to be exactly `UPSTASH`, `DISABLED`, and `RETAINED`, and requires `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` to select `LIVE_BCN_PROCESS`. It changes only the plan's `operationsCommit` and those three symbolic selectors to `HISTORICAL_DOTENV_PRODUCTION`. It accepts no plan body, source path, selector, environment name, or value from the command line. No Cloudinary value is inspected, copied, hashed, measured, or recorded.
+
+Install and independently verify the new pack, then atomically make that pack authoritative before using its correction mode. With the old plan still verified and the new plan/report paths absent, run only the installed authoritative utility:
+
+```bash
+PRIOR_OPS_COMMIT=<exact-prior-operations-commit>
+PRIOR_PLAN_SHA256=<exact-prior-plan-sha256>
+OPS_COMMIT=<exact-new-authoritative-operations-commit>
+PACK="/opt/thebusinesscircle/deployment-packs/${OPS_COMMIT}"
+
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PACK}/environment-acquisition.mjs" correct-plan \
+  --prior-operations-commit "${PRIOR_OPS_COMMIT}" \
+  --prior-plan-sha256 "${PRIOR_PLAN_SHA256}" \
+  --operations-commit "${OPS_COMMIT}" \
+  --correction CLOUDINARY_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION
+```
+
+Production correction requires Linux root, the exact installed utility path, the matching authoritative identity, a canonical root-owned mode-`0700` deployment-state directory, and a canonical root-owned mode-`0600` regular single-link prior plan. The new plan and its `phase-f1-environment-selection-correction-${OPS_COMMIT}.json` value-free evidence object are published together through the committed fsync-backed no-replace primitive. Any existing target, identity drift, metadata drift, unsupported correction, changed locked decision, changed prior selector, partial write, failed readback, or failed parse stops without replacing either target. The evidence records identities, symbolic selectors, affected variable names, `originalPreserved=true`, and `valuesRecorded=false` only.
+
+After publication, independently verify the original plan identity, the new plan identity and metadata, then run `validate-plan` and `inspect` against the new commit-bound plan before a separately authorised acquisition retry. The local implementation/republication gate creates only source, tests, one operations commit, and a deterministic six-file publication; it does not install a server pack, switch authority, create a production plan, or retry acquisition.
+
 The only selectors are `LIVE_BCN_PROCESS`, `HISTORICAL_DOTENV`, `HISTORICAL_DOTENV_PRODUCTION`, `SECURE_OPERATOR_ENTRY`, `GENERATED_NON_SECRET_DECISION`, and `OMIT`. The two approved historical paths remain fixed internal configuration and neither is automatically authoritative. The protected-backup policy remains a fail-closed internal comparison whose rejected input is never reflected. Historical sources must be canonical, non-linked, root-owned, mode `0600`, regular and single-link. Parsing uses the same Node `util.parseEnv` contract as preparation, retains only allowlisted names, and never prints source content.
 
 `LIVE_BCN_PROCESS` is restricted to the committed safe-live allowlist. The utility invokes only `pm2 pid businesscircle`, never `pm2 jlist` or `pm2 env`, to obtain one online application PID without materialising PM2 environment metadata. It verifies the parent PM2 daemon, resolves the unique descendant Next process, proves that process owns the sole port-3000 listener, and requires Node executable identities for the daemon, application and Next process. It resolves PIDs at execution time and has no PID override. It reads `/proc/<verified-application-pid>/environ` internally, retains only individually selected allowlisted names, clears its mutable scan buffer, and never prints the environment. Reports contain only presence and equality classifications against the two historical sources; they never contain values, hashes, prefixes or lengths.

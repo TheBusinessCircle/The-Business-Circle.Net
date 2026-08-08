@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
+  chownSync,
   chmodSync,
   existsSync,
+  linkSync,
   lstatSync,
   mkdtempSync,
   readFileSync,
@@ -19,6 +22,9 @@ import test from "node:test";
 import {
   ACQUISITION_ROOT,
   AUTOMATION_CONDITIONAL_NAMES,
+  CLOUDINARY_CORRECTION,
+  CLOUDINARY_CORRECTION_NAMES,
+  CORRECTION_REPORT_SCHEMA,
   HISTORICAL_DOTENV,
   LIVEKIT_CONDITIONAL_NAMES,
   PLAN_SCHEMA,
@@ -32,13 +38,20 @@ import {
   assembleSelectedValues,
   assertRunTmpfs,
   classifySources,
+  correctionReportPath,
+  createPlanCorrectionArtifacts,
   createAcquisitionDirectory,
   encodeDotEnvValue,
   extractAllowlistedEnvironment,
+  buildCorrectedSelectionPlan,
   parseSelectionPlan,
+  publishCorrectedSelectionPlan,
   readApprovedHistoricalFile,
+  readSelectionPlan,
+  renderSelectionPlan,
   renderOperatorInput,
   resolveLiveBcnProcess,
+  selectionPlanPath,
   secureOperatorEntry
 } from "./environment-acquisition.mjs";
 
@@ -48,6 +61,10 @@ const serialization = require("./environment-serialization.cjs");
 const utilitySource = readFileSync(
   new URL("./environment-acquisition.mjs", import.meta.url),
   "utf8"
+);
+const correctionSource = utilitySource.slice(
+  utilitySource.indexOf("export function buildCorrectedSelectionPlan"),
+  utilitySource.indexOf("function safeHistoricalValues")
 );
 const operationsCommit = "a".repeat(40);
 const required = new Set([
@@ -168,6 +185,98 @@ function sourcesFor(parsedPlan) {
 
 function parsedPlan(overrides = {}) {
   return parseSelectionPlan(JSON.stringify(plan(overrides)));
+}
+
+const nextOperationsCommit = "b".repeat(40);
+
+function sha256(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function correctablePriorPlan() {
+  const candidate = plan({
+    decisions: {
+      redisProvider: "UPSTASH",
+      bcnCommunityAutomation: "DISABLED",
+      livekitRealtime: "RETAINED"
+    }
+  });
+  for (const name of LIVEKIT_CONDITIONAL_NAMES) {
+    if (!candidate.variables.some((item) => item.name === name)) {
+      candidate.variables.push(entry(name, "LIVE_BCN_PROCESS"));
+    }
+  }
+  return parseSelectionPlan(JSON.stringify(candidate));
+}
+
+function correctionFixture(overrides = {}) {
+  const priorPlan = overrides.priorPlan ?? correctablePriorPlan();
+  const bytes = renderSelectionPlan(priorPlan);
+  const identity = sha256(bytes);
+  return {
+    priorRecord: { plan: priorPlan, bytes, identity },
+    options: {
+      priorOperationsCommit: operationsCommit,
+      priorPlanSha256: identity,
+      operationsCommit: nextOperationsCommit,
+      correction: CLOUDINARY_CORRECTION,
+      ...overrides.options
+    }
+  };
+}
+
+function correctionPublicationHarness(fixture = correctionFixture(), options = {}) {
+  const stateRoot = "/synthetic/deployment-state";
+  const priorPath = selectionPlanPath(operationsCommit, stateRoot);
+  const correctedPath = selectionPlanPath(nextOperationsCommit, stateRoot);
+  const reportPath = correctionReportPath(nextOperationsCommit, stateRoot);
+  const objects = new Map([[priorPath, fixture.priorRecord.bytes]]);
+  if (options.existingCorrected) objects.set(correctedPath, Buffer.from("existing"));
+  if (options.existingReport) objects.set(reportPath, Buffer.from("existing"));
+  let publishedEntries;
+  const dependencies = {
+    stateRoot,
+    assertStateRoot() {},
+    assertProductionContext() {},
+    pathObjectExists(path) {
+      return objects.has(path);
+    },
+    readSelectionPlan(path, commit) {
+      const bytes = objects.get(path);
+      if (!bytes) throw Object.assign(new Error("absent"), { code: "ENOENT" });
+      const parsed = parseSelectionPlan(bytes.toString("utf8"));
+      assert.equal(parsed.operationsCommit, commit);
+      return { plan: parsed, bytes, identity: sha256(bytes) };
+    },
+    readFile(path, encoding) {
+      assert.equal(encoding, "utf8");
+      return objects.get(path).toString("utf8");
+    },
+    publishNoReplaceSet(entries, publicationOptions) {
+      publishedEntries = entries;
+      const created = [];
+      try {
+        for (const item of entries) {
+          if (objects.has(item.target)) throw new Error("target exists");
+          objects.set(item.target, Buffer.from(item.payload));
+          created.push(item.target);
+        }
+        if (options.corruptAfterPublication) {
+          objects.set(correctedPath, Buffer.from("corrupt"));
+        }
+        publicationOptions.verifySet();
+      } catch (error) {
+        for (const path of created) objects.delete(path);
+        throw error;
+      }
+    }
+  };
+  return {
+    dependencies,
+    objects,
+    paths: { priorPath, correctedPath, reportPath },
+    publishedEntries: () => publishedEntries
+  };
 }
 
 function fakeProcessDependencies(options = {}) {
@@ -826,6 +935,402 @@ test("54 a symlinked historical source is rejected where supported", (context) =
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("55 immutable correction changes only the commit and three Cloudinary selectors", () => {
+  const { priorRecord, options } = correctionFixture();
+  const corrected = buildCorrectedSelectionPlan(priorRecord.plan, options);
+  assert.equal(corrected.operationsCommit, nextOperationsCommit);
+  assert.deepEqual(corrected.decisions, priorRecord.plan.decisions);
+  assert.deepEqual(
+    corrected.variables.map((item) => item.name),
+    priorRecord.plan.variables.map((item) => item.name)
+  );
+  for (let index = 0; index < corrected.variables.length; index += 1) {
+    const before = priorRecord.plan.variables[index];
+    const after = corrected.variables[index];
+    if (CLOUDINARY_CORRECTION_NAMES.includes(before.name)) {
+      assert.deepEqual(after, {
+        ...before,
+        source: "HISTORICAL_DOTENV_PRODUCTION"
+      });
+    } else {
+      assert.deepEqual(after, before);
+    }
+  }
+  assert.doesNotThrow(() =>
+    parseSelectionPlan(renderSelectionPlan(corrected).toString("utf8"))
+  );
+});
+
+test("56 correction artifacts preserve prior bytes and identity", () => {
+  const fixture = correctionFixture();
+  const before = Buffer.from(fixture.priorRecord.bytes);
+  const artifacts = createPlanCorrectionArtifacts(
+    fixture.priorRecord,
+    fixture.options
+  );
+  assert.deepEqual(fixture.priorRecord.bytes, before);
+  assert.equal(fixture.priorRecord.identity, sha256(before));
+  assert.equal(artifacts.evidence.priorPlanSha256, sha256(before));
+  assert.equal(
+    artifacts.evidence.correctedPlanSha256,
+    sha256(artifacts.planPayload)
+  );
+});
+
+test("57 correction evidence is closed and value-free", () => {
+  const fixture = correctionFixture();
+  const artifacts = createPlanCorrectionArtifacts(
+    fixture.priorRecord,
+    fixture.options
+  );
+  assert.deepEqual(Object.keys(artifacts.evidence), [
+    "schemaVersion",
+    "priorOperationsCommit",
+    "operationsCommit",
+    "priorPlanSha256",
+    "correctedPlanSha256",
+    "correction",
+    "affectedVariables",
+    "oldSelector",
+    "newSelector",
+    "originalPreserved",
+    "valuesRecorded"
+  ]);
+  assert.equal(artifacts.evidence.schemaVersion, CORRECTION_REPORT_SCHEMA);
+  assert.deepEqual(
+    artifacts.evidence.affectedVariables,
+    CLOUDINARY_CORRECTION_NAMES
+  );
+  assert.equal(artifacts.evidence.originalPreserved, true);
+  assert.equal(artifacts.evidence.valuesRecorded, false);
+  const output = artifacts.evidencePayload.toString("utf8");
+  assert.doesNotMatch(output, /SYNTHETIC_ONLY_|cloudinary-value/u);
+});
+
+test("58 valid publication preserves the old plan and publishes two protected objects", () => {
+  const fixture = correctionFixture();
+  const harness = correctionPublicationHarness(fixture);
+  const priorBefore = Buffer.from(harness.objects.get(harness.paths.priorPath));
+  const result = publishCorrectedSelectionPlan(
+    fixture.options,
+    harness.dependencies
+  );
+  assert.deepEqual(harness.objects.get(harness.paths.priorPath), priorBefore);
+  assert.equal(result.priorPlanIdentity, sha256(priorBefore));
+  assert.equal(
+    result.correctedPlanIdentity,
+    sha256(harness.objects.get(harness.paths.correctedPath))
+  );
+  assert.deepEqual(
+    harness.publishedEntries().map(({ target, uid, gid, mode }) => ({
+      target,
+      uid,
+      gid,
+      mode
+    })),
+    [
+      { target: harness.paths.correctedPath, uid: 0, gid: 0, mode: 0o600 },
+      { target: harness.paths.reportPath, uid: 0, gid: 0, mode: 0o600 }
+    ]
+  );
+});
+
+test("59 an existing corrected plan or report fails closed", () => {
+  for (const existing of ["existingCorrected", "existingReport"]) {
+    const fixture = correctionFixture();
+    const harness = correctionPublicationHarness(fixture, {
+      [existing]: true
+    });
+    assert.throws(
+      () => publishCorrectedSelectionPlan(fixture.options, harness.dependencies),
+      /target already exists/u
+    );
+    assert.equal(harness.objects.has(harness.paths.priorPath), true);
+  }
+});
+
+test("60 failed set verification guards partial correction publication", () => {
+  const fixture = correctionFixture();
+  const harness = correctionPublicationHarness(fixture, {
+    corruptAfterPublication: true
+  });
+  assert.throws(
+    () => publishCorrectedSelectionPlan(fixture.options, harness.dependencies),
+    /JSON|identity|selection plan/u
+  );
+  assert.equal(harness.objects.has(harness.paths.correctedPath), false);
+  assert.equal(harness.objects.has(harness.paths.reportPath), false);
+  assert.equal(harness.objects.has(harness.paths.priorPath), true);
+});
+
+test("61 wrong prior SHA or prior commit fails closed", () => {
+  const fixture = correctionFixture();
+  assert.throws(
+    () =>
+      createPlanCorrectionArtifacts(fixture.priorRecord, {
+        ...fixture.options,
+        priorPlanSha256: "0".repeat(64)
+      }),
+    /identity differs/u
+  );
+  assert.throws(
+    () =>
+      buildCorrectedSelectionPlan(fixture.priorRecord.plan, {
+        ...fixture.options,
+        priorOperationsCommit: "c".repeat(40)
+      }),
+    /operations commit differs/u
+  );
+});
+
+test("62 unsupported correction and non-distinct commits fail closed", () => {
+  const fixture = correctionFixture();
+  assert.throws(
+    () =>
+      buildCorrectedSelectionPlan(fixture.priorRecord.plan, {
+        ...fixture.options,
+        correction: "ARBITRARY_SELECTOR_REPLACEMENT"
+      }),
+    /Unsupported/u
+  );
+  assert.throws(
+    () =>
+      buildCorrectedSelectionPlan(fixture.priorRecord.plan, {
+        ...fixture.options,
+        operationsCommit
+      }),
+    /Distinct/u
+  );
+});
+
+test("63 a prior Cloudinary selector that already differs fails closed", () => {
+  const fixture = correctionFixture();
+  const changed = structuredClone(fixture.priorRecord.plan);
+  changed.variables.find(
+    (item) => item.name === "CLOUDINARY_API_KEY"
+  ).source = "HISTORICAL_DOTENV";
+  assert.throws(
+    () => buildCorrectedSelectionPlan(changed, fixture.options),
+    /not correctable/u
+  );
+});
+
+test("64 changed locked decisions fail closed", () => {
+  const fixture = correctionFixture();
+  const variants = [];
+  const redis = structuredClone(fixture.priorRecord.plan);
+  redis.decisions.redisProvider = "KV";
+  redis.variables = redis.variables.filter(
+    (item) => !REDIS_PAIRS.UPSTASH.includes(item.name)
+  );
+  redis.variables.push(...REDIS_PAIRS.KV.map((name) => entry(name)));
+  variants.push(redis);
+  const automation = structuredClone(fixture.priorRecord.plan);
+  automation.decisions.bcnCommunityAutomation = "ENABLED";
+  automation.variables.find(
+    (item) => item.name === "BCN_COMMUNITY_AUTOMATION_ENABLED"
+  ).generatedDecision = "BCN_COMMUNITY_AUTOMATION_ENABLED";
+  automation.variables.push(
+    ...AUTOMATION_CONDITIONAL_NAMES.map((name) =>
+      entry(name, "LIVE_BCN_PROCESS")
+    )
+  );
+  variants.push(automation);
+  const livekit = structuredClone(fixture.priorRecord.plan);
+  livekit.decisions.livekitRealtime = "DISABLED";
+  livekit.variables = livekit.variables.filter(
+    (item) => !LIVEKIT_CONDITIONAL_NAMES.includes(item.name)
+  );
+  variants.push(livekit);
+  for (const changed of variants) {
+    assert.throws(
+      () => buildCorrectedSelectionPlan(changed, fixture.options),
+      /locked decisions differ/u
+    );
+  }
+});
+
+test("65 correction CLI accepts only non-secret fixed control arguments", () => {
+  const parsed = __test.parseArguments([
+    "correct-plan",
+    "--prior-operations-commit",
+    operationsCommit,
+    "--prior-plan-sha256",
+    "1".repeat(64),
+    "--operations-commit",
+    nextOperationsCommit,
+    "--correction",
+    CLOUDINARY_CORRECTION
+  ]);
+  assert.deepEqual(Object.keys(parsed.args).sort(), [
+    "correction",
+    "operations-commit",
+    "prior-operations-commit",
+    "prior-plan-sha256"
+  ]);
+  assert.doesNotThrow(() =>
+    __test.exactArguments(Object.fromEntries(Object.entries(parsed.args)), [
+      "prior-operations-commit",
+      "prior-plan-sha256",
+      "operations-commit",
+      "correction"
+    ])
+  );
+  assert.throws(
+    () =>
+      __test.exactArguments({ ...parsed.args, selector: "ARBITRARY" }, [
+        "prior-operations-commit",
+        "prior-plan-sha256",
+        "operations-commit",
+        "correction"
+      ]),
+    /Unexpected/u
+  );
+  assert.throws(
+    () =>
+      __test.parseArguments([
+        "correct-plan",
+        "--correction",
+        CLOUDINARY_CORRECTION,
+        "--correction",
+        CLOUDINARY_CORRECTION
+      ]),
+    /Duplicate argument/u
+  );
+  assert.doesNotMatch(utilitySource, /--(?:value|secret|source-path|selector)/u);
+});
+
+test("66 correction paths are derived only from exact commit identities", () => {
+  assert.equal(
+    selectionPlanPath(nextOperationsCommit),
+    `/var/lib/thebusinesscircle/deployment-state/phase-f1-environment-selection-${nextOperationsCommit}.json`
+  );
+  assert.equal(
+    correctionReportPath(nextOperationsCommit),
+    `/var/lib/thebusinesscircle/deployment-state/phase-f1-environment-selection-correction-${nextOperationsCommit}.json`
+  );
+  assert.throws(
+    () => selectionPlanPath("../not-a-commit"),
+    /commit/u
+  );
+});
+
+test("67 correction source has no in-place or general replacement primitive", () => {
+  assert.match(correctionSource, /publishNoReplaceSet/u);
+  assert.doesNotMatch(correctionSource, /copyFileSync|renameSync|writeFileSync/u);
+  assert.doesNotMatch(correctionSource, /replaceAll\(|\.replace\(/u);
+  assert.doesNotMatch(correctionSource, /Cloudinary.*(?:value|credential)/iu);
+});
+
+test(
+  "68 Linux root prior-plan metadata rejects mode, hard-link, symlink, and ownership drift",
+  { skip: process.platform !== "linux" || process.getuid?.() !== 0 },
+  () => {
+    const stateRoot = mkdtempSync(join(tmpdir(), "f1-plan-correction-"));
+    chmodSync(stateRoot, 0o700);
+    const expectedPath = selectionPlanPath(operationsCommit, stateRoot);
+    const alternate = join(stateRoot, "alternate-plan.json");
+    const bytes = renderSelectionPlan(correctablePriorPlan());
+    try {
+      writeFileSync(expectedPath, bytes, { mode: 0o600 });
+      assert.doesNotThrow(() =>
+        readSelectionPlan(expectedPath, {
+          expectedOperationsCommit: operationsCommit,
+          stateRoot
+        })
+      );
+
+      chmodSync(expectedPath, 0o640);
+      assert.throws(
+        () =>
+          readSelectionPlan(expectedPath, {
+            expectedOperationsCommit: operationsCommit,
+            stateRoot
+          }),
+        /metadata is unsafe/u
+      );
+      chmodSync(expectedPath, 0o600);
+
+      linkSync(expectedPath, alternate);
+      assert.throws(
+        () =>
+          readSelectionPlan(expectedPath, {
+            expectedOperationsCommit: operationsCommit,
+            stateRoot
+          }),
+        /metadata is unsafe/u
+      );
+      rmSync(alternate);
+
+      chownSync(expectedPath, 1, 1);
+      assert.throws(
+        () =>
+          readSelectionPlan(expectedPath, {
+            expectedOperationsCommit: operationsCommit,
+            stateRoot
+          }),
+        /metadata is unsafe/u
+      );
+      chownSync(expectedPath, 0, 0);
+
+      rmSync(expectedPath);
+      writeFileSync(alternate, bytes, { mode: 0o600 });
+      symlinkSync(alternate, expectedPath);
+      assert.throws(
+        () =>
+          readSelectionPlan(expectedPath, {
+            expectedOperationsCommit: operationsCommit,
+            stateRoot
+          }),
+        /canonical|metadata is unsafe/u
+      );
+    } finally {
+      rmSync(stateRoot, { recursive: true, force: true });
+    }
+  }
+);
+
+test(
+  "69 Linux root correction publishes immutable plan and evidence with real no-replace fsync",
+  { skip: process.platform !== "linux" || process.getuid?.() !== 0 },
+  () => {
+    const fixture = correctionFixture();
+    const stateRoot = mkdtempSync(join(tmpdir(), "f1-plan-publish-"));
+    chmodSync(stateRoot, 0o700);
+    const priorPath = selectionPlanPath(operationsCommit, stateRoot);
+    const correctedPath = selectionPlanPath(nextOperationsCommit, stateRoot);
+    const reportPath = correctionReportPath(nextOperationsCommit, stateRoot);
+    try {
+      writeFileSync(priorPath, fixture.priorRecord.bytes, { mode: 0o600 });
+      const result = publishCorrectedSelectionPlan(fixture.options, {
+        stateRoot,
+        assertProductionContext() {}
+      });
+      assert.equal(result.priorPlanIdentity, fixture.priorRecord.identity);
+      assert.equal(sha256(readFileSync(priorPath)), fixture.priorRecord.identity);
+      for (const path of [priorPath, correctedPath, reportPath]) {
+        const stats = lstatSync(path);
+        assert.equal(stats.isFile(), true);
+        assert.equal(stats.isSymbolicLink(), false);
+        assert.equal(stats.uid, 0);
+        assert.equal(stats.gid, 0);
+        assert.equal(stats.mode & 0o777, 0o600);
+        assert.equal(stats.nlink, 1);
+      }
+      assert.throws(
+        () =>
+          publishCorrectedSelectionPlan(fixture.options, {
+            stateRoot,
+            assertProductionContext() {}
+          }),
+        /target already exists/u
+      );
+    } finally {
+      rmSync(stateRoot, { recursive: true, force: true });
+    }
+  }
+);
 
 function own(object, key) {
   return Object.hasOwn(object, key);
