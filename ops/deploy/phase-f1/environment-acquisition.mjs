@@ -58,6 +58,12 @@ export const CLOUDINARY_CORRECTION_NAMES = Object.freeze([
   "CLOUDINARY_API_SECRET",
   "CLOUDINARY_CLOUD_NAME"
 ]);
+export const UPSTASH_CORRECTION =
+  "UPSTASH_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION";
+export const UPSTASH_CORRECTION_NAMES = Object.freeze([
+  "UPSTASH_REDIS_REST_TOKEN",
+  "UPSTASH_REDIS_REST_URL"
+]);
 export const OPERATIONS_COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
 export const PLAN_IDENTITY_PATTERN = /^[0-9a-f]{64}$/u;
 export const HISTORICAL_DOTENV =
@@ -542,6 +548,39 @@ function exactLockedDecisions(decisions) {
   );
 }
 
+function correctionNames(correction) {
+  if (correction === CLOUDINARY_CORRECTION) {
+    return CLOUDINARY_CORRECTION_NAMES;
+  }
+  if (correction === UPSTASH_CORRECTION) {
+    return UPSTASH_CORRECTION_NAMES;
+  }
+  fail("Unsupported selection-plan correction identifier.");
+}
+
+function assertCorrectionPreconditions(parsedPrior, correction, affectedNames) {
+  for (const name of affectedNames) {
+    const entry = parsedPrior.variables.find((item) => item.name === name);
+    if (
+      !entry ||
+      entry.source !== "LIVE_BCN_PROCESS" ||
+      entry.operatorEntered !== false
+    ) {
+      const classification =
+        correction === UPSTASH_CORRECTION ? "Upstash" : "Cloudinary";
+      fail(`Prior ${classification} selection is not correctable: ${name}`);
+    }
+  }
+  if (correction === UPSTASH_CORRECTION) {
+    for (const name of REDIS_PAIRS.KV) {
+      const entry = parsedPrior.variables.find((item) => item.name === name);
+      if (entry && entry.source !== "OMIT") {
+        fail(`Unselected Redis provider is not excluded: ${name}`);
+      }
+    }
+  }
+}
+
 export function buildCorrectedSelectionPlan(priorPlan, options) {
   const {
     priorOperationsCommit,
@@ -555,9 +594,7 @@ export function buildCorrectedSelectionPlan(priorPlan, options) {
   ) {
     fail("Distinct exact prior and new operations commits are required.");
   }
-  if (correction !== CLOUDINARY_CORRECTION) {
-    fail("Unsupported selection-plan correction identifier.");
-  }
+  const correctionVariableNames = correctionNames(correction);
   const parsedPrior = parseSelectionPlan(JSON.stringify(priorPlan));
   if (parsedPrior.operationsCommit !== priorOperationsCommit) {
     fail("Prior selection plan operations commit differs.");
@@ -565,17 +602,8 @@ export function buildCorrectedSelectionPlan(priorPlan, options) {
   if (!exactLockedDecisions(parsedPrior.decisions)) {
     fail("Prior selection plan locked decisions differ.");
   }
-  const affected = new Set(CLOUDINARY_CORRECTION_NAMES);
-  for (const name of affected) {
-    const entry = parsedPrior.variables.find((item) => item.name === name);
-    if (
-      !entry ||
-      entry.source !== "LIVE_BCN_PROCESS" ||
-      entry.operatorEntered !== false
-    ) {
-      fail(`Prior Cloudinary selection is not correctable: ${name}`);
-    }
-  }
+  const affected = new Set(correctionVariableNames);
+  assertCorrectionPreconditions(parsedPrior, correction, affected);
 
   const corrected = {
     ...parsedPrior,
@@ -617,7 +645,7 @@ function correctionEvidence(priorRecord, correctedPlanIdentity, options) {
     priorPlanSha256: priorRecord.identity,
     correctedPlanSha256: correctedPlanIdentity,
     correction: options.correction,
-    affectedVariables: [...CLOUDINARY_CORRECTION_NAMES],
+    affectedVariables: [...correctionNames(options.correction)],
     oldSelector: "LIVE_BCN_PROCESS",
     newSelector: "HISTORICAL_DOTENV_PRODUCTION",
     originalPreserved: true,

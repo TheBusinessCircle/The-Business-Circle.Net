@@ -180,7 +180,11 @@ The value-free selection plan schema is `phase-f1-environment-selection-plan-v1`
 
 A validated plan is immutable evidence for the operations commit named in its path and `operationsCommit` field. It is never edited or replaced. When a narrowly reviewed source-authority correction requires a new operations pack, the new authoritative pack may use `correct-plan` to read the exact protected prior plan, verify its supplied SHA-256 and metadata, construct the approved correction in memory, and publish a new plan at `/var/lib/thebusinesscircle/deployment-state/phase-f1-environment-selection-${NEW_OPS_COMMIT}.json`. The old commit-bound plan remains byte-identical historical evidence at its original path; no duplicate history copy is made.
 
-The only committed correction identifier is `CLOUDINARY_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION`. It requires the prior decisions to be exactly `UPSTASH`, `DISABLED`, and `RETAINED`, and requires `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` to select `LIVE_BCN_PROCESS`. It changes only the plan's `operationsCommit` and those three symbolic selectors to `HISTORICAL_DOTENV_PRODUCTION`. It accepts no plan body, source path, selector, environment name, or value from the command line. No Cloudinary value is inspected, copied, hashed, measured, or recorded.
+The committed correction identifiers are deliberately finite. `CLOUDINARY_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION` requires the prior decisions to be exactly `UPSTASH`, `DISABLED`, and `RETAINED`, and requires `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` to select `LIVE_BCN_PROCESS`. It changes only the plan's `operationsCommit` and those three symbolic selectors to `HISTORICAL_DOTENV_PRODUCTION`.
+
+`UPSTASH_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION` is a separate, atomic pair correction. It is authorised only after the value-free source-decision gate establishes that the live Upstash pair is unusable, the general historical pair is absent, and the production historical pair is complete. The correction requires the locked `UPSTASH`, `DISABLED`, and `RETAINED` decisions, requires both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to select `LIVE_BCN_PROCESS`, and requires the KV pair to remain unselected. It changes both Upstash selectors together to `HISTORICAL_DOTENV_PRODUCTION`; a partial pair, different target, KV change, combined correction, or unrelated change is unsupported and fails closed. Source inspection remains a separate committed value-free gate, so `correct-plan` neither reads nor duplicates protected-source values.
+
+Neither correction accepts a plan body, source path, selector, environment name, or value from the command line. No Cloudinary or Upstash value is inspected, copied, hashed, measured, or recorded by plan correction.
 
 Install and independently verify the new pack, then atomically make that pack authoritative before using its correction mode. With the old plan still verified and the new plan/report paths absent, run only the installed authoritative utility:
 
@@ -196,6 +200,17 @@ env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
   --prior-plan-sha256 "${PRIOR_PLAN_SHA256}" \
   --operations-commit "${OPS_COMMIT}" \
   --correction CLOUDINARY_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION
+```
+
+For the separately reviewed Upstash pair correction, the invocation is identical except for the fixed correction identifier:
+
+```bash
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PACK}/environment-acquisition.mjs" correct-plan \
+  --prior-operations-commit "${PRIOR_OPS_COMMIT}" \
+  --prior-plan-sha256 "${PRIOR_PLAN_SHA256}" \
+  --operations-commit "${OPS_COMMIT}" \
+  --correction UPSTASH_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION
 ```
 
 Production correction requires Linux root, the exact installed utility path, the matching authoritative identity, a canonical root-owned mode-`0700` deployment-state directory, and a canonical root-owned mode-`0600` regular single-link prior plan. The new plan and its `phase-f1-environment-selection-correction-${OPS_COMMIT}.json` value-free evidence object are published together through the committed fsync-backed no-replace primitive. Any existing target, identity drift, metadata drift, unsupported correction, changed locked decision, changed prior selector, partial write, failed readback, or failed parse stops without replacing either target. The evidence records identities, symbolic selectors, affected variable names, `originalPreserved=true`, and `valuesRecorded=false` only.

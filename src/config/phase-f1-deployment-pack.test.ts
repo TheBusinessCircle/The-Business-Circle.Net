@@ -917,6 +917,9 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
       '"CLOUDINARY_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION"'
     );
     expect(utility).toContain(
+      '"UPSTASH_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION"'
+    );
+    expect(utility).toContain(
       '"phase-f1-environment-selection-correction-report-v1"'
     );
     expect(utility).toContain("publishCorrectedSelectionPlan");
@@ -932,6 +935,12 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(tests).toContain(
       "failed set verification guards partial correction publication"
     );
+    expect(tests).toContain(
+      "immutable Upstash correction changes the complete pair atomically"
+    );
+    expect(tests).toContain(
+      "Upstash correction rejects KV and combined correction authority"
+    );
     expect(documentation).toContain("Ad hoc `cp`, `grep`, `cat`, `printenv`, `pm2 env`");
     expect(documentation).toContain(
       "Immutable selection-plan correction across operations commits"
@@ -941,6 +950,9 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     );
     expect(documentation).toContain(
       "atomically make that pack authoritative before using its correction mode"
+    );
+    expect(documentation).toContain(
+      "UPSTASH_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION"
     );
     expect(documentation).toContain("secure erasure");
 

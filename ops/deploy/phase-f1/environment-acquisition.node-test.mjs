@@ -33,6 +33,8 @@ import {
   REPORT_SCHEMA,
   SAFE_LIVE_NAMES,
   SOURCE_COMPARISONS,
+  UPSTASH_CORRECTION,
+  UPSTASH_CORRECTION_NAMES,
   __test,
   acquisitionDirectory,
   assembleSelectedValues,
@@ -220,6 +222,27 @@ function correctionFixture(overrides = {}) {
       priorPlanSha256: identity,
       operationsCommit: nextOperationsCommit,
       correction: CLOUDINARY_CORRECTION,
+      ...overrides.options
+    }
+  };
+}
+
+function upstashCorrectionFixture(overrides = {}) {
+  const priorPlan = overrides.priorPlan ?? correctablePriorPlan();
+  for (const name of CLOUDINARY_CORRECTION_NAMES) {
+    priorPlan.variables.find((item) => item.name === name).source =
+      "HISTORICAL_DOTENV_PRODUCTION";
+  }
+  const validated = parseSelectionPlan(JSON.stringify(priorPlan));
+  const bytes = renderSelectionPlan(validated);
+  const identity = sha256(bytes);
+  return {
+    priorRecord: { plan: validated, bytes, identity },
+    options: {
+      priorOperationsCommit: operationsCommit,
+      priorPlanSha256: identity,
+      operationsCommit: nextOperationsCommit,
+      correction: UPSTASH_CORRECTION,
       ...overrides.options
     }
   };
@@ -1223,8 +1246,155 @@ test("67 correction source has no in-place or general replacement primitive", ()
   assert.doesNotMatch(correctionSource, /Cloudinary.*(?:value|credential)/iu);
 });
 
+test("68 immutable Upstash correction changes the complete pair atomically", () => {
+  const fixture = upstashCorrectionFixture();
+  const corrected = buildCorrectedSelectionPlan(
+    fixture.priorRecord.plan,
+    fixture.options
+  );
+  assert.equal(corrected.operationsCommit, nextOperationsCommit);
+  assert.deepEqual(corrected.decisions, fixture.priorRecord.plan.decisions);
+  for (let index = 0; index < corrected.variables.length; index += 1) {
+    const before = fixture.priorRecord.plan.variables[index];
+    const after = corrected.variables[index];
+    if (UPSTASH_CORRECTION_NAMES.includes(before.name)) {
+      assert.deepEqual(after, {
+        ...before,
+        source: "HISTORICAL_DOTENV_PRODUCTION"
+      });
+    } else {
+      assert.deepEqual(after, before);
+    }
+  }
+  assert.deepEqual(
+    corrected.variables
+      .filter((entry) => UPSTASH_CORRECTION_NAMES.includes(entry.name))
+      .map((entry) => entry.source),
+    ["HISTORICAL_DOTENV_PRODUCTION", "HISTORICAL_DOTENV_PRODUCTION"]
+  );
+  assert.doesNotThrow(() =>
+    parseSelectionPlan(renderSelectionPlan(corrected).toString("utf8"))
+  );
+});
+
+test("69 Upstash correction evidence is paired and value-free", () => {
+  const fixture = upstashCorrectionFixture();
+  const before = Buffer.from(fixture.priorRecord.bytes);
+  const artifacts = createPlanCorrectionArtifacts(
+    fixture.priorRecord,
+    fixture.options
+  );
+  assert.deepEqual(fixture.priorRecord.bytes, before);
+  assert.deepEqual(
+    artifacts.evidence.affectedVariables,
+    UPSTASH_CORRECTION_NAMES
+  );
+  assert.equal(artifacts.evidence.correction, UPSTASH_CORRECTION);
+  assert.equal(artifacts.evidence.oldSelector, "LIVE_BCN_PROCESS");
+  assert.equal(
+    artifacts.evidence.newSelector,
+    "HISTORICAL_DOTENV_PRODUCTION"
+  );
+  assert.equal(artifacts.evidence.valuesRecorded, false);
+  assert.doesNotMatch(
+    artifacts.evidencePayload.toString("utf8"),
+    /SYNTHETIC_ONLY_|upstash-value/u
+  );
+});
+
+test("70 partial or mismatched Upstash source state fails closed", () => {
+  for (const [name, source] of [
+    ["UPSTASH_REDIS_REST_URL", "HISTORICAL_DOTENV"],
+    ["UPSTASH_REDIS_REST_TOKEN", "HISTORICAL_DOTENV_PRODUCTION"],
+    ["UPSTASH_REDIS_REST_URL", "OMIT"]
+  ]) {
+    const fixture = upstashCorrectionFixture();
+    fixture.priorRecord.plan.variables.find(
+      (entry) => entry.name === name
+    ).source = source;
+    assert.throws(
+      () =>
+        buildCorrectedSelectionPlan(
+          fixture.priorRecord.plan,
+          fixture.options
+        ),
+      /not correctable|incomplete/u
+    );
+  }
+});
+
+test("71 Upstash correction rejects KV and combined correction authority", () => {
+  const fixture = upstashCorrectionFixture();
+  const kvPlan = structuredClone(fixture.priorRecord.plan);
+  kvPlan.decisions.redisProvider = "KV";
+  kvPlan.variables = kvPlan.variables.filter(
+    (entry) => !REDIS_PAIRS.UPSTASH.includes(entry.name)
+  );
+  kvPlan.variables.push(...REDIS_PAIRS.KV.map((name) => entry(name)));
+  assert.throws(
+    () => buildCorrectedSelectionPlan(kvPlan, fixture.options),
+    /locked decisions differ/u
+  );
+  for (const correction of [
+    "UPSTASH_URL_ONLY_TO_HISTORICAL_DOTENV_PRODUCTION",
+    "UPSTASH_TOKEN_ONLY_TO_HISTORICAL_DOTENV_PRODUCTION",
+    "UPSTASH_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV",
+    "UPSTASH_REQUIRED_SHARED_SOURCE_TO_SECURE_OPERATOR_ENTRY",
+    "UPSTASH_REQUIRED_SHARED_SOURCE_TO_LIVE_BCN_PROCESS",
+    "CLOUDINARY_AND_UPSTASH_SOURCE_CORRECTION"
+  ]) {
+    assert.throws(
+      () =>
+        buildCorrectedSelectionPlan(fixture.priorRecord.plan, {
+          ...fixture.options,
+          correction
+        }),
+      /Unsupported/u
+    );
+  }
+});
+
+test("72 Upstash correction rejects structural plan drift", () => {
+  const fixture = upstashCorrectionFixture();
+  const mutations = [
+    (candidate) =>
+      candidate.variables.push({
+        ...candidate.variables[0],
+        name: "UNEXPECTED_VARIABLE"
+      }),
+    (candidate) => candidate.variables.splice(0, 1),
+    (candidate) => {
+      candidate.schemaVersion = "unsupported";
+    },
+    (candidate) => {
+      candidate.variables[0].scopes = [];
+    },
+    (candidate) => {
+      candidate.variables[0].required = !candidate.variables[0].required;
+    },
+    (candidate) => {
+      candidate.variables[0].equality = "NONE";
+    },
+    (candidate) => {
+      candidate.variables[0].differsFrom = "AUTH_SECRET";
+    },
+    (candidate) => {
+      candidate.variables[0].operatorEntered =
+        !candidate.variables[0].operatorEntered;
+    },
+    (candidate) => {
+      candidate.variables[0].generatedDecision = "ARBITRARY";
+    }
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(fixture.priorRecord.plan);
+    mutate(changed);
+    assert.throws(() => buildCorrectedSelectionPlan(changed, fixture.options));
+  }
+});
+
 test(
-  "68 Linux root prior-plan metadata rejects mode, hard-link, symlink, and ownership drift",
+  "73 Linux root prior-plan metadata rejects mode, hard-link, symlink, and ownership drift",
   { skip: process.platform !== "linux" || process.getuid?.() !== 0 },
   () => {
     const stateRoot = mkdtempSync(join(tmpdir(), "f1-plan-correction-"));
@@ -1292,7 +1462,7 @@ test(
 );
 
 test(
-  "69 Linux root correction publishes immutable plan and evidence with real no-replace fsync",
+  "74 Linux root correction publishes immutable plan and evidence with real no-replace fsync",
   { skip: process.platform !== "linux" || process.getuid?.() !== 0 },
   () => {
     const fixture = correctionFixture();
