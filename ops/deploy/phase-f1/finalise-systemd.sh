@@ -5,7 +5,7 @@ umask 077
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
-require_root; require_application_sha forward "${1:-}"; require_release_integrity; start_write_log finalise-systemd
+require_root; require_application_sha forward "${1:-}"; require_environment_ready; require_release_integrity; start_write_log finalise-systemd
 for unit in the-business-circle-network.service circle-card.service; do
   [[ $(systemctl is-enabled "${unit}") == enabled && $(systemctl is-active "${unit}") == active ]] || die "final service is not enabled and active: ${unit}"
   /usr/bin/node "${PHASE_F1_PACK_DIR}/verify-systemd-process.mjs" "${unit}" >/dev/null

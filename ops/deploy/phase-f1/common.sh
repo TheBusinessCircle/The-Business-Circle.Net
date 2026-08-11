@@ -155,7 +155,8 @@ cleanup_all_candidate_invocations() {
 
 require_environment_ready() {
   env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin /usr/bin/node \
-    "${PHASE_F1_PACK_DIR}/validate-environment.mjs" schema >/dev/null || die "protected environments are not ready"
+    "${PHASE_F1_PACK_DIR}/environment-readiness.mjs" verify \
+    "${PHASE_F1_STATE_ROOT}" "${PHASE_F1_PACK_COMMIT}" >/dev/null || die "protected environments are not ready"
 }
 
 require_release_integrity() {

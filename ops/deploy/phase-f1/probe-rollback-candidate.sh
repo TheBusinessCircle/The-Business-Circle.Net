@@ -5,7 +5,7 @@ umask 077
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
-require_root; require_application_sha rollback "${1:-}"; start_write_log probe-rollback-candidate
+require_root; require_application_sha rollback "${1:-}"; require_environment_ready; require_release_integrity; start_write_log probe-rollback-candidate
 unit=the-business-circle-network-rollback-probe.service; port=3300
 ownership=$(begin_candidate_invocation "${unit}" "${port}")
 cleanup() { local status=$?; trap - EXIT ERR INT TERM; local -a owned=("${unit}|${port}|${ownership}"); cleanup_all_candidate_invocations owned || status=1; exit "${status}"; }

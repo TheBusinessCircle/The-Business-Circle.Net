@@ -269,9 +269,30 @@ Only after `verify-input` passes may the existing publisher run separately:
   "${INPUT}"
 ```
 
-Then verify all three protected JSON files, group isolation and schema with `validate-environments.sh`, run `preflight-read-only.sh`, and compare the live PM2/BCN/Next/listener/Nginx/PostgreSQL/systemd baseline. Do not destroy the input if preparation fails, publication is partial or uncertain, any schema/isolation gate fails, preflight fails, or live state changes. Preserve the root-only tmpfs evidence for separately approved recovery; a reboot also clears `/run`.
+Then run the explicit environment-only validator:
 
-After protected publication is conclusively `VERIFIED`, preflight is conclusively `PASSED`, and the protected-readiness reader independently returns ready, unlink the input:
+```bash
+/usr/bin/bash "${PACK}/validate-environments.sh" \
+  b43a1e4e708bc9f02ef83bd63dab1db1f366b32e
+```
+
+This command validates the BCN, Circle Card and build protected-file schemas, required names, policies, shared-value contract, Redis exclusivity, Circle Card Resend separation and cross-user read isolation. It publishes root-owned mode-`0600` `environment-readiness.json` without replacement. The closed `phase-f1-environment-readiness-v1` record is bound to the current operations commit and all three approved application identities. Its authority is `protected-environment-only`, `valuesRecorded` is false, and `releaseIntegrity` is exactly `NOT_EVALUATED`. It neither reads nor requires the forward release, rollback release, release manifests, artifact root or current release selectors, and it creates no application artifact.
+
+The corrected order is mandatory:
+
+1. acquire and verify the commit-bound protected input;
+2. publish the three protected environments;
+3. run `validate-environments.sh` and publish environment-only readiness;
+4. prepare the approved rollback artifact and build the approved immutable forward release using the validated build environment;
+5. require complete forward and rollback release integrity;
+6. run `preflight-read-only.sh`, which now requires both current environment readiness and complete release integrity and performs the release-bound BCN and Circle Card application validators;
+7. proceed to candidate probes, service starts, selector transitions or traffic evidence only while both gates continue to pass.
+
+`require_environment_ready` independently revalidates the readiness file metadata, operations/application identities, current protected schemas and cross-user isolation. A readiness file from another operations commit is rejected. Build preparation requires this readiness but does not require its own not-yet-created release. Complete release integrity remains mandatory after both releases exist and at every full preflight, candidate/start, selector and traffic gate. There is no caller-controlled skip/bypass mode.
+
+Compare the live PM2/BCN/Next/listener/Nginx/PostgreSQL/systemd baseline after each separately authorised gate. Do not destroy the input if preparation fails, publication is partial or uncertain, environment-only validation fails, release integrity fails, full preflight fails, or live state changes. Preserve the root-only tmpfs evidence for separately approved recovery; a reboot also clears `/run`.
+
+After protected publication and environment-only readiness are conclusively `VERIFIED`, both releases pass integrity, full preflight is conclusively `PASSED`, and the protected-readiness reader independently returns ready, unlink the input:
 
 ```bash
 env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
@@ -283,6 +304,8 @@ env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
 ```
 
 Destruction revalidates the exact invocation-owned input path, root ownership, mode `0600`, regular type, link count one, `/run` tmpfs, plan-bound names and protected JSON readiness. It refuses unexpected acquisition-directory entries, unlinks only the exact file, `fsync`s the directory, removes only the now-empty invocation directory, `fsync`s its parent, and verifies absence. This is unlinking from tmpfs, not a claim of cryptographic secure erasure.
+
+Acquisition plans, inputs and reports remain operations-commit-bound. Installing an ordering-only operations generation does not relabel, copy or implicitly carry forward an acquisition created under an earlier authority. Unless a separately committed carry-forward mechanism explicitly verifies that transition, switch authority first and perform a fresh protected acquisition under the new commit before publishing environments.
 
 BCN automation `DISABLED` generates only the committed `false` value and requires automation conditionals to be absent or explicitly omitted. `ENABLED` requires an explicit selected source for every committed conditional. Circle Card remains launcher-fixed to `false`. LiveKit `DISABLED` omits its optional credential/server trio while retaining any independently required base URL; `RETAINED` requires all three explicit selections. Exactly one complete Redis pair is accepted, both runtimes receive the same pair, the unused pair is absent, and there is no provider alias conversion.
 

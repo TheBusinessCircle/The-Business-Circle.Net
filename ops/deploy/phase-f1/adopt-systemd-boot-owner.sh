@@ -5,7 +5,7 @@ umask 077
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
-require_root; require_application_sha rollback "${1:-}"; require_release_integrity; start_write_log adopt-systemd-boot-owner
+require_root; require_application_sha rollback "${1:-}"; require_environment_ready; require_release_integrity; start_write_log adopt-systemd-boot-owner
 proof_pointer="${PHASE_F1_STATE_ROOT}/latest-rollback-proof.path"; require_protected_state_file "${proof_pointer}"
 proof=$(<"${proof_pointer}"); [[ ${proof} == "${PHASE_F1_STATE_ROOT}/rollback-proof-"*.json ]] || die "rollback proof path is outside state root"
 /usr/bin/node "${PHASE_F1_PACK_DIR}/rollback-proof.mjs" verify "${proof}" "${PHASE_F1_ROLLBACK_SHA}" "${PHASE_F1_HISTORICAL_SHA}"

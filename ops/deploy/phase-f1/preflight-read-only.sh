@@ -10,6 +10,7 @@ readonly HISTORICAL_SHA="5fa2bbf6ac7d39aa14636882bbae2d2713faf11a"
 readonly LIVE_DIR="/var/www/The-Business-Circle.Net"
 readonly PACK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly EXPECTED_PACK_ROOT="/opt/thebusinesscircle/deployment-packs"
+source "${PACK_DIR}/common.sh"
 
 [[ ${1:-} == "${FORWARD_SHA}" ]] || {
   printf 'ERROR: first argument must be exact forward SHA %s\n' "${FORWARD_SHA}" >&2
@@ -19,9 +20,13 @@ readonly EXPECTED_PACK_ROOT="/opt/thebusinesscircle/deployment-packs"
   printf 'ERROR: deployment pack must run beneath %s\n' "${EXPECTED_PACK_ROOT}" >&2
   exit 1
 }
-pack_identity=$(env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/root \
-  /usr/bin/node "${PACK_DIR}/verify-pack-integrity.mjs" /var/lib/thebusinesscircle/approved-phase-f1-pack.json)
-IFS=$'\t' read -r operations_commit archive_sha manifest_sha <<<"${pack_identity}"
+require_root
+require_application_sha forward "${1:-}"
+require_environment_ready
+require_release_integrity
+operations_commit=${PHASE_F1_PACK_COMMIT}
+archive_sha=${PHASE_F1_PACK_ARCHIVE_SHA256}
+manifest_sha=${PHASE_F1_PACK_MANIFEST_SHA256}
 printf 'Forward application SHA=%s\nRollback application SHA=%s\nHistorical production SHA=%s\nOperations-pack commit=%s\nPack archive SHA-256=%s\nInstalled manifest SHA-256=%s\n' \
   "${FORWARD_SHA}" "${ROLLBACK_SHA}" "${HISTORICAL_SHA}" "${operations_commit}" "${archive_sha}" "${manifest_sha}"
 
@@ -94,6 +99,10 @@ nginx -T 2>&1 | awk '
 
 printf '%s\n' '=== authoritative protected environment readiness ==='
 node "${PACK_DIR}/report-protected-readiness.mjs"
+
+printf '%s\n' '=== release-bound application environment validation ==='
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin /usr/bin/node "${PACK_DIR}/validate-environment.mjs" bcn
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin /usr/bin/node "${PACK_DIR}/validate-environment.mjs" circle-card
 
 printf '%s\n' '=== legacy environment source names/status only (non-authoritative) ==='
 node "${PACK_DIR}/report-environment.mjs" \

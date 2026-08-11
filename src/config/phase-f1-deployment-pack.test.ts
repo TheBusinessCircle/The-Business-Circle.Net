@@ -608,6 +608,70 @@ describe("Phase F1 build lifecycle and complete release sealing", () => {
   });
 });
 
+describe("Phase F1 protected environment and release ordering", () => {
+  it("publishes commit-bound environment-only readiness before release creation", () => {
+    const validator = source("validate-environments.sh");
+    const readiness = source("environment-readiness.mjs");
+    const common = source("common.sh");
+    const build = source("build-release.sh");
+    expect(validator).toContain('environment-readiness.mjs" publish');
+    expect(validator).not.toContain("require_release_integrity");
+    expect(readiness).toContain('"phase-f1-environment-readiness-v1"');
+    expect(readiness).toContain('releaseIntegrity: "NOT_EVALUATED"');
+    expect(readiness).toContain("publishNoReplaceSet");
+    expect(readiness).not.toMatch(/skip-integrity|SKIP_RELEASE_INTEGRITY/iu);
+    expect(common).toContain('environment-readiness.mjs" verify');
+    expect(build.indexOf("require_environment_ready")).toBeLessThan(build.indexOf("npm ci"));
+    expect(build.indexOf("require_release_integrity")).toBeGreaterThan(build.indexOf("release-create"));
+  });
+
+  it("keeps complete release integrity mandatory for preflight, starts and traffic changes", () => {
+    for (const name of [
+      "preflight-read-only.sh",
+      "start-systemd-candidates.sh",
+      "probe-rollback-candidate.sh",
+      "adopt-systemd-boot-owner.sh",
+      "cutover-systemd.sh",
+      "finalise-systemd.sh",
+      "rollback-systemd.sh",
+      "record-traffic-switch.sh",
+      "remove-circle-card-traffic.sh"
+    ]) {
+      const body = source(name);
+      expect(body, name).toContain("require_environment_ready");
+      expect(body, name).toContain("require_release_integrity");
+    }
+    expect(source("preflight-read-only.sh")).toContain('validate-environment.mjs" bcn');
+    expect(source("preflight-read-only.sh")).toContain('validate-environment.mjs" circle-card');
+  });
+
+  it("includes the ordering validator and adversarial tests in deterministic publications", () => {
+    const fixture = createCommittedPackFixture();
+    const output = join(fixture.outputs, "environment-ordering");
+    execFileSync("node", ["ops/deploy/phase-f1/create-pack-artifact.mjs", fixture.commit, output], {
+      cwd: fixture.repository,
+      stdio: "pipe"
+    });
+    const members = tarMembers(readFileSync(join(output, "phase-f1-pack.tar")));
+    for (const name of ["environment-readiness.mjs", "environment-readiness.node-test.mjs"]) {
+      expect(
+        assertArchiveMemberEqualsCommittedBlob(
+          members,
+          fixture.repository,
+          fixture.commit,
+          name
+        )
+      ).toEqual(
+        readCommittedBlob(
+          fixture.repository,
+          fixture.commit,
+          `ops/deploy/phase-f1/${name}`
+        )
+      );
+    }
+  }, 60_000);
+});
+
 describe("Phase F1 durable state and rollback evidence", () => {
   const identities = { forwardApplicationSha: applicationSha, rollbackApplicationSha: rollbackSha, historicalProductionSha: HISTORICAL_PRODUCTION_SHA, operationsIdentity };
   const bindings = { forwardBcnArtifactDigest: "1".repeat(64), forwardCircleCardArtifactDigest: "2".repeat(64), rollbackBcnArtifactDigest: "3".repeat(64), forwardRehearsalEvidence: "4".repeat(64), rollbackRehearsalEvidence: "5".repeat(64), databaseIdentity: "6".repeat(64), storageConvergenceIdentity: "pending", systemdUnitIdentity: "7".repeat(64), activeBcnSelector: "legacy", circleCardTrafficStatus: "private" };

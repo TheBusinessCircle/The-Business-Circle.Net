@@ -5,7 +5,7 @@ umask 077
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
-require_root; require_application_sha forward "${1:-}"; start_write_log record-traffic-switch
+require_root; require_application_sha forward "${1:-}"; require_environment_ready; require_release_integrity; start_write_log record-traffic-switch
 /usr/bin/node "${PHASE_F1_PACK_DIR}/validate-release-gates.mjs" "${PHASE_F1_STATE_ROOT}" forward >/dev/null
 /usr/bin/node "${PHASE_F1_PACK_DIR}/validate-release-gates.mjs" "${PHASE_F1_STATE_ROOT}" rollback >/dev/null
 cloudflare_evidence="${PHASE_F1_STATE_ROOT}/cloudflare-tls-approval.json"

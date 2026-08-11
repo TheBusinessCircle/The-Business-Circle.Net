@@ -5,7 +5,7 @@ umask 077
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
-require_root; require_application_sha rollback "${1:-}"; start_write_log remove-circle-card-traffic
+require_root; require_application_sha rollback "${1:-}"; require_environment_ready; require_release_integrity; start_write_log remove-circle-card-traffic
 current_stage=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/deployment-state.mjs" read "${PHASE_F1_STATE_ROOT}" | /usr/bin/node -e 'let s="";process.stdin.on("data",c=>s+=c).on("end",()=>process.stdout.write(JSON.parse(s).stage))')
 [[ ${current_stage} == forward-live || ${current_stage} == traffic-switched || ${current_stage} == finalized ]] || die "Circle traffic removal requires a forward state"
 enabled=/etc/nginx/sites-enabled/circlecard.co.uk

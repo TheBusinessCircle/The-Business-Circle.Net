@@ -5,7 +5,7 @@ umask 077
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
-require_root; require_application_sha forward "${1:-}"; require_release_integrity; start_write_log cutover-systemd
+require_root; require_application_sha forward "${1:-}"; require_environment_ready; require_release_integrity; start_write_log cutover-systemd
 proof_pointer="${PHASE_F1_STATE_ROOT}/latest-rollback-proof.path"; require_protected_state_file "${proof_pointer}"; proof=$(<"${proof_pointer}"); [[ ${proof} == "${PHASE_F1_STATE_ROOT}/rollback-proof-"*.json ]] || die "unsafe rollback proof path"; /usr/bin/node "${PHASE_F1_PACK_DIR}/rollback-proof.mjs" verify "${proof}" "${PHASE_F1_ROLLBACK_SHA}" "${PHASE_F1_HISTORICAL_SHA}"
 
 atomic_selector() { local selector=$1 target=$2 parent temp; parent=$(dirname "${selector}"); [[ $(realpath -e "${target}") == "${target}" ]] || die "selector target not canonical"; temp="${parent}/.$(basename "${selector}").$(openssl rand -hex 8)"; ln -s "${target}" "${temp}"; mv -T "${temp}" "${selector}"; [[ $(readlink -f "${selector}") == "${target}" ]] || die "selector switch failed"; }
