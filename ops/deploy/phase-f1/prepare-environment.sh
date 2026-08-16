@@ -9,14 +9,14 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 require_root
 require_application_sha forward "${1:-}"
-readonly OPERATOR_INPUT=${2:-}
-[[ -n ${OPERATOR_INPUT} ]] ||
+readonly OPERATOR_INPUT_PATH=${2:-}
+[[ -n ${OPERATOR_INPUT_PATH} ]] ||
   die "a separately protected sanitised operator input path is required"
-[[ -f ${OPERATOR_INPUT} && ! -L ${OPERATOR_INPUT} ]] ||
+[[ -f ${OPERATOR_INPUT_PATH} && ! -L ${OPERATOR_INPUT_PATH} ]] ||
   die "the sanitised operator input is not a regular non-symlink file"
-[[ $(realpath -e "${OPERATOR_INPUT}") == "${OPERATOR_INPUT}" ]] ||
+[[ $(realpath -e "${OPERATOR_INPUT_PATH}") == "${OPERATOR_INPUT_PATH}" ]] ||
   die "the sanitised operator input path is not canonical"
-[[ $(stat -c '%U:%G:%a:%h' "${OPERATOR_INPUT}") == "root:root:600:1" ]] ||
+[[ $(stat -c '%U:%G:%a:%h' "${OPERATOR_INPUT_PATH}") == "root:root:600:1" ]] ||
   die "the sanitised operator input must be root:root mode 600 with link count 1"
 start_write_log "prepare-environment"
 
@@ -39,7 +39,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-OPERATOR_INPUT="${OPERATOR_INPUT}" \
+OPERATOR_INPUT="${OPERATOR_INPUT_PATH}" \
 BCN_PAYLOAD="${BCN_PAYLOAD}" \
 CIRCLE_PAYLOAD="${CIRCLE_PAYLOAD}" \
 BUILD_PAYLOAD="${BUILD_PAYLOAD}" \

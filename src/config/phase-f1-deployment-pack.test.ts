@@ -609,6 +609,22 @@ describe("Phase F1 build lifecycle and complete release sealing", () => {
 });
 
 describe("Phase F1 protected environment and release ordering", () => {
+  it("fixes the readonly protected-input child binding without weakening path checks", () => {
+    const preparation = source("prepare-environment.sh");
+    expect(preparation).toContain("readonly OPERATOR_INPUT_PATH=${2:-}");
+    expect(preparation).toContain('OPERATOR_INPUT="${OPERATOR_INPUT_PATH}" \\\n');
+    expect(preparation).not.toContain("readonly OPERATOR_INPUT=");
+    expect(preparation).not.toContain('OPERATOR_INPUT="${OPERATOR_INPUT}"');
+    for (const requiredCheck of [
+      "[[ -n ${OPERATOR_INPUT_PATH} ]]",
+      "[[ -f ${OPERATOR_INPUT_PATH} && ! -L ${OPERATOR_INPUT_PATH} ]]",
+      '[[ $(realpath -e "${OPERATOR_INPUT_PATH}") == "${OPERATOR_INPUT_PATH}" ]]',
+      '[[ $(stat -c \'%U:%G:%a:%h\' "${OPERATOR_INPUT_PATH}") == "root:root:600:1" ]]'
+    ]) {
+      expect(preparation).toContain(requiredCheck);
+    }
+  });
+
   it("publishes commit-bound environment-only readiness before release creation", () => {
     const validator = source("validate-environments.sh");
     const readiness = source("environment-readiness.mjs");

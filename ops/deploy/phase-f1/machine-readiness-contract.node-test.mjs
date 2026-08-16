@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   lstatSync,
@@ -275,6 +276,19 @@ describe("Phase F1 sanitised environment contract", () => {
       /install -m 0640|cp .*runtime\.env\.json|mv .*runtime\.env\.json/
     );
     assert.match(preparation, /publish-environment-set\.mjs/);
+    assert.match(
+      preparation,
+      /readonly OPERATOR_INPUT_PATH=\$\{2:-\}/
+    );
+    assert.equal(
+      preparation.includes('OPERATOR_INPUT="${OPERATOR_INPUT_PATH}" \\\n'),
+      true
+    );
+    assert.doesNotMatch(preparation, /readonly OPERATOR_INPUT=/);
+    assert.doesNotMatch(
+      preparation,
+      /OPERATOR_INPUT="\$\{OPERATOR_INPUT\}"/
+    );
     assert.match(validation, /"--context", "runtime"/);
     for (const name of ["POSTGRES_PASSWORD", "ADMIN_PASSWORD", "SEED_MODE"]) {
       assert.equal(groups.BCN_ALLOWED_KEYS.includes(name), false);
@@ -282,6 +296,51 @@ describe("Phase F1 sanitised environment contract", () => {
       assert.equal(groups.TOOLING_ONLY_KEYS.includes(name), true);
     }
   });
+
+  it("PREPARE_ENVIRONMENT_READONLY_OPERATOR_INPUT_BINDING_FIXED", () => {
+    const preparation = readFileSync(
+      join(packRoot, "prepare-environment.sh"),
+      "utf8"
+    );
+    for (const check of [
+      "[[ -n ${OPERATOR_INPUT_PATH} ]]",
+      "[[ -f ${OPERATOR_INPUT_PATH} && ! -L ${OPERATOR_INPUT_PATH} ]]",
+      '[[ $(realpath -e "${OPERATOR_INPUT_PATH}") == "${OPERATOR_INPUT_PATH}" ]]',
+      '[[ $(stat -c \'%U:%G:%a:%h\' "${OPERATOR_INPUT_PATH}") == "root:root:600:1" ]]'
+    ]) {
+      assert.equal(preparation.includes(check), true);
+    }
+    assert.equal(
+      preparation.includes('OPERATOR_INPUT="${OPERATOR_INPUT_PATH}" \\\n'),
+      true
+    );
+    assert.equal(preparation.includes("OPERATOR_INPUT: readonly variable"), false);
+  });
+
+  it(
+    "passes an immutable validated path through the OPERATOR_INPUT child binding",
+    { skip: process.platform === "win32" },
+    () => {
+      const output = execFileSync(
+        "/usr/bin/bash",
+        [
+          "-c",
+          [
+            "set -Eeuo pipefail",
+            "readonly OPERATOR_INPUT_PATH=/run/synthetic-operator-input.env",
+            "OPERATOR_INPUT=\"${OPERATOR_INPUT_PATH}\" /usr/bin/node -e " +
+              "'if (process.env.OPERATOR_INPUT !== \"/run/synthetic-operator-input.env\") process.exit(1)'",
+            "printf 'PREPARE_ENVIRONMENT_READONLY_OPERATOR_INPUT_BINDING_FIXED\\n'"
+          ].join("\n")
+        ],
+        { encoding: "utf8" }
+      );
+      assert.equal(
+        output,
+        "PREPARE_ENVIRONMENT_READONLY_OPERATOR_INPUT_BINDING_FIXED\n"
+      );
+    }
+  );
 });
 
 describe("Phase F1 atomic no-replace publication", () => {
