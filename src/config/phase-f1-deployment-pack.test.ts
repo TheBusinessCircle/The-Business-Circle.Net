@@ -957,7 +957,8 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
       "acquire",
       "verify-input",
       "destroy-input",
-      "correct-plan"
+      "correct-plan",
+      "carry-forward-plan"
     ]) {
       expect(utility).toContain(`"${mode}"`);
       expect(documentation).toContain(mode);
@@ -986,8 +987,17 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(utility).toContain(
       '"phase-f1-environment-selection-correction-report-v1"'
     );
+    expect(utility).toContain(
+      '"IDENTITY_ONLY_SELECTION_PLAN_CARRY_FORWARD"'
+    );
+    expect(utility).toContain(
+      '"phase-f1-environment-selection-carry-forward-report-v1"'
+    );
     expect(utility).toContain("publishCorrectedSelectionPlan");
     expect(utility).toContain("buildCorrectedSelectionPlan");
+    expect(utility).toContain("publishCarriedForwardSelectionPlan");
+    expect(utility).toContain("buildCarriedForwardSelectionPlan");
+    expect(utility).toContain("classifySelectionPlanSemanticDelta");
     expect(utility).toContain("prior-plan-sha256");
     expect(utility).not.toMatch(/--(?:value|secret|token|password)\b/u);
     expect(utility).not.toMatch(/--(?:source-path|selector|variable)\b/u);
@@ -1005,9 +1015,18 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(tests).toContain(
       "Upstash correction rejects KV and combined correction authority"
     );
+    expect(tests).toContain(
+      "identity-only carry-forward changes only operationsCommit"
+    );
+    expect(tests).toContain(
+      "identity-only semantic classifier rejects every plan semantic mutation"
+    );
     expect(documentation).toContain("Ad hoc `cp`, `grep`, `cat`, `printenv`, `pm2 env`");
     expect(documentation).toContain(
       "Immutable selection-plan correction across operations commits"
+    );
+    expect(documentation).toContain(
+      "Identity-only selection-plan carry-forward"
     );
     expect(documentation).toContain(
       "The old commit-bound plan remains byte-identical historical evidence"

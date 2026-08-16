@@ -51,6 +51,12 @@ export const PLAN_SCHEMA = "phase-f1-environment-selection-plan-v1";
 export const REPORT_SCHEMA = "phase-f1-environment-acquisition-report-v1";
 export const CORRECTION_REPORT_SCHEMA =
   "phase-f1-environment-selection-correction-report-v1";
+export const CARRY_FORWARD_REPORT_SCHEMA =
+  "phase-f1-environment-selection-carry-forward-report-v1";
+export const IDENTITY_ONLY_CARRY_FORWARD =
+  "IDENTITY_ONLY_SELECTION_PLAN_CARRY_FORWARD";
+export const IDENTITY_ONLY_SEMANTIC_DELTA = "IDENTITY_ONLY";
+export const UNEXPECTED_SEMANTIC_DELTA = "UNEXPECTED_SEMANTIC_DELTA";
 export const CLOUDINARY_CORRECTION =
   "CLOUDINARY_REQUIRED_SHARED_SOURCE_TO_HISTORICAL_DOTENV_PRODUCTION";
 export const CLOUDINARY_CORRECTION_NAMES = Object.freeze([
@@ -233,6 +239,16 @@ export function correctionReportPath(operationsCommit, stateRoot = STATE_ROOT) {
     fail("Correction report path requires an exact operations commit.");
   }
   return `${stateRoot}/phase-f1-environment-selection-correction-${operationsCommit}.json`;
+}
+
+export function carryForwardReportPath(
+  operationsCommit,
+  stateRoot = STATE_ROOT
+) {
+  if (!OPERATIONS_COMMIT_PATTERN.test(operationsCommit ?? "")) {
+    fail("Carry-forward report path requires an exact operations commit.");
+  }
+  return `${stateRoot}/phase-f1-environment-selection-carry-forward-${operationsCommit}.json`;
 }
 
 function expectedScopes(name) {
@@ -786,6 +802,223 @@ export function publishCorrectedSelectionPlan(options, dependencies = {}) {
     reportPath,
     priorPlanIdentity: priorRecord.identity,
     correctedPlanIdentity: artifacts.correctedPlanIdentity
+  };
+}
+
+export function classifySelectionPlanSemanticDelta(priorPlan, candidatePlan) {
+  let prior;
+  let candidate;
+  try {
+    prior = parseSelectionPlan(JSON.stringify(priorPlan));
+    candidate = parseSelectionPlan(JSON.stringify(candidatePlan));
+  } catch {
+    return UNEXPECTED_SEMANTIC_DELTA;
+  }
+  const expected = {
+    ...prior,
+    operationsCommit: candidate.operationsCommit,
+    decisions: { ...prior.decisions },
+    variables: prior.variables.map((entry) => ({ ...entry }))
+  };
+  return JSON.stringify(candidate) === JSON.stringify(expected) &&
+    JSON.stringify(candidatePlan) === JSON.stringify(expected)
+    ? IDENTITY_ONLY_SEMANTIC_DELTA
+    : UNEXPECTED_SEMANTIC_DELTA;
+}
+
+export function buildCarriedForwardSelectionPlan(priorPlan, options) {
+  assertExactKeys(
+    options,
+    [
+      "priorOperationsCommit",
+      "priorPlanSha256",
+      "operationsCommit",
+      "carryForward"
+    ],
+    "selection-plan carry-forward options"
+  );
+  const { priorOperationsCommit, operationsCommit, carryForward } = options;
+  if (carryForward !== IDENTITY_ONLY_CARRY_FORWARD) {
+    fail("Unsupported selection-plan carry-forward identifier.");
+  }
+  if (
+    !OPERATIONS_COMMIT_PATTERN.test(priorOperationsCommit ?? "") ||
+    !OPERATIONS_COMMIT_PATTERN.test(operationsCommit ?? "") ||
+    priorOperationsCommit === operationsCommit
+  ) {
+    fail("Distinct exact prior and new operations commits are required.");
+  }
+  const parsedPrior = parseSelectionPlan(JSON.stringify(priorPlan));
+  if (parsedPrior.operationsCommit !== priorOperationsCommit) {
+    fail("Prior selection plan operations commit differs.");
+  }
+  const candidate = parseSelectionPlan(
+    JSON.stringify({ ...parsedPrior, operationsCommit })
+  );
+  if (
+    classifySelectionPlanSemanticDelta(parsedPrior, candidate) !==
+    IDENTITY_ONLY_SEMANTIC_DELTA
+  ) {
+    fail("Carried-forward selection plan has an unexpected semantic delta.");
+  }
+  return candidate;
+}
+
+function carryForwardEvidence(priorRecord, carriedForwardPlanIdentity, options) {
+  return {
+    schemaVersion: CARRY_FORWARD_REPORT_SCHEMA,
+    priorOperationsCommit: options.priorOperationsCommit,
+    operationsCommit: options.operationsCommit,
+    priorPlanSha256: priorRecord.identity,
+    carriedForwardPlanSha256: carriedForwardPlanIdentity,
+    carryForward: options.carryForward,
+    semanticDelta: IDENTITY_ONLY_SEMANTIC_DELTA,
+    originalPreserved: true,
+    valuesRecorded: false
+  };
+}
+
+function parseCarryForwardEvidence(text, expected) {
+  let report;
+  try {
+    report = JSON.parse(text);
+  } catch {
+    fail("Selection-plan carry-forward evidence is not valid JSON.");
+  }
+  assertExactKeys(
+    report,
+    [
+      "schemaVersion",
+      "priorOperationsCommit",
+      "operationsCommit",
+      "priorPlanSha256",
+      "carriedForwardPlanSha256",
+      "carryForward",
+      "semanticDelta",
+      "originalPreserved",
+      "valuesRecorded"
+    ],
+    "selection-plan carry-forward evidence"
+  );
+  if (JSON.stringify(report) !== JSON.stringify(expected)) {
+    fail("Selection-plan carry-forward evidence differs from the approved record.");
+  }
+  return report;
+}
+
+export function createPlanCarryForwardArtifacts(priorRecord, options) {
+  if (!PLAN_IDENTITY_PATTERN.test(options.priorPlanSha256 ?? "")) {
+    fail("Exact prior selection-plan identity is required.");
+  }
+  if (priorRecord.identity !== options.priorPlanSha256) {
+    fail("Prior selection-plan identity differs.");
+  }
+  const carriedForwardPlan = buildCarriedForwardSelectionPlan(
+    priorRecord.plan,
+    options
+  );
+  const planPayload = renderSelectionPlan(carriedForwardPlan);
+  const carriedForwardPlanIdentity = planIdentity(planPayload);
+  const evidence = carryForwardEvidence(
+    priorRecord,
+    carriedForwardPlanIdentity,
+    options
+  );
+  const evidencePayload = Buffer.from(
+    `${JSON.stringify(evidence, null, 2)}\n`,
+    "utf8"
+  );
+  parseCarryForwardEvidence(evidencePayload.toString("utf8"), evidence);
+  return {
+    carriedForwardPlan,
+    carriedForwardPlanIdentity,
+    planPayload,
+    evidence,
+    evidencePayload
+  };
+}
+
+export function publishCarriedForwardSelectionPlan(options, dependencies = {}) {
+  const stateRoot = dependencies.stateRoot ?? STATE_ROOT;
+  const pathForPlan =
+    dependencies.selectionPlanPath ??
+    ((commit) => selectionPlanPath(commit, stateRoot));
+  const pathForReport =
+    dependencies.carryForwardReportPath ??
+    ((commit) => carryForwardReportPath(commit, stateRoot));
+  const readPlan =
+    dependencies.readSelectionPlan ??
+    ((path, commit) =>
+      readSelectionPlan(path, {
+        expectedOperationsCommit: commit,
+        stateRoot
+      }));
+  const read = dependencies.readFile ?? readFileSync;
+  const exists = dependencies.pathObjectExists ?? pathObjectExists;
+  const publish = dependencies.publishNoReplaceSet ?? publishNoReplaceSet;
+  (dependencies.assertStateRoot ?? assertCorrectionStateRoot)(stateRoot);
+  (dependencies.assertProductionContext ?? assertProductionCorrectionContext)(
+    options.operationsCommit
+  );
+
+  const priorPath = pathForPlan(options.priorOperationsCommit);
+  const carriedForwardPath = pathForPlan(options.operationsCommit);
+  const reportPath = pathForReport(options.operationsCommit);
+  if (exists(carriedForwardPath) || exists(reportPath)) {
+    fail("Carried-forward selection-plan target already exists.");
+  }
+  const priorRecord = readPlan(priorPath, options.priorOperationsCommit);
+  const artifacts = createPlanCarryForwardArtifacts(priorRecord, options);
+
+  publish(
+    [
+      {
+        target: carriedForwardPath,
+        payload: artifacts.planPayload,
+        uid: 0,
+        gid: 0,
+        mode: 0o600
+      },
+      {
+        target: reportPath,
+        payload: artifacts.evidencePayload,
+        uid: 0,
+        gid: 0,
+        mode: 0o600
+      }
+    ],
+    {
+      enforceMetadata: true,
+      fsyncDirectories: true,
+      verifySet() {
+        const preserved = readPlan(priorPath, options.priorOperationsCommit);
+        if (preserved.identity !== priorRecord.identity) {
+          fail("Original selection plan changed during carry-forward.");
+        }
+        const published = readPlan(carriedForwardPath, options.operationsCommit);
+        if (published.identity !== artifacts.carriedForwardPlanIdentity) {
+          fail("Carried-forward selection-plan identity verification failed.");
+        }
+        if (
+          classifySelectionPlanSemanticDelta(priorRecord.plan, published.plan) !==
+          IDENTITY_ONLY_SEMANTIC_DELTA
+        ) {
+          fail("Published selection plan has an unexpected semantic delta.");
+        }
+        parseCarryForwardEvidence(
+          read(reportPath, "utf8"),
+          artifacts.evidence
+        );
+      }
+    }
+  );
+  return {
+    priorPath,
+    carriedForwardPath,
+    reportPath,
+    priorPlanIdentity: priorRecord.identity,
+    carriedForwardPlanIdentity: artifacts.carriedForwardPlanIdentity,
+    semanticDelta: IDENTITY_ONLY_SEMANTIC_DELTA
   };
 }
 
@@ -1599,11 +1832,12 @@ export function runCli(argv = process.argv.slice(2)) {
       "acquire",
       "verify-input",
       "destroy-input",
-      "correct-plan"
+      "correct-plan",
+      "carry-forward-plan"
     ].includes(parsed.mode)
   ) {
     fail(
-      "Mode must be inspect, validate-plan, acquire, verify-input, destroy-input, or correct-plan."
+      "Mode must be inspect, validate-plan, acquire, verify-input, destroy-input, correct-plan, or carry-forward-plan."
     );
   }
   const expectedArgs =
@@ -1613,6 +1847,13 @@ export function runCli(argv = process.argv.slice(2)) {
           "prior-plan-sha256",
           "operations-commit",
           "correction"
+        ]
+      : parsed.mode === "carry-forward-plan"
+      ? [
+          "prior-operations-commit",
+          "prior-plan-sha256",
+          "operations-commit",
+          "carry-forward"
         ]
       : parsed.mode === "destroy-input"
       ? ["plan", "operations-commit", "publication-status", "preflight-status"]
@@ -1630,6 +1871,18 @@ export function runCli(argv = process.argv.slice(2)) {
     });
     process.stdout.write(
       `PLAN_CORRECTED prior=${result.priorPlanIdentity} corrected=${result.correctedPlanIdentity} values-recorded=false\n`
+    );
+    return;
+  }
+  if (parsed.mode === "carry-forward-plan") {
+    const result = publishCarriedForwardSelectionPlan({
+      priorOperationsCommit: parsed.args["prior-operations-commit"],
+      priorPlanSha256: parsed.args["prior-plan-sha256"],
+      operationsCommit: parsed.args["operations-commit"],
+      carryForward: parsed.args["carry-forward"]
+    });
+    process.stdout.write(
+      `PLAN_CARRIED_FORWARD prior=${result.priorPlanIdentity} carried-forward=${result.carriedForwardPlanIdentity} semantic-delta=${result.semanticDelta} values-recorded=false\n`
     );
     return;
   }

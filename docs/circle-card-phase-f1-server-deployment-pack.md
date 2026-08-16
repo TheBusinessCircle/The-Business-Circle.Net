@@ -217,6 +217,25 @@ Production correction requires Linux root, the exact installed utility path, the
 
 After publication, independently verify the original plan identity, the new plan identity and metadata, then run `validate-plan` and `inspect` against the new commit-bound plan before a separately authorised acquisition retry. The local implementation/republication gate creates only source, tests, one operations commit, and a deterministic six-file publication; it does not install a server pack, switch authority, create a production plan, or retry acquisition.
 
+#### Identity-only selection-plan carry-forward
+
+An operations-only authority change does not make commit-bound acquisition evidence reusable. When a prior plan is already semantically correct, a separately authorised gate may use the explicit `carry-forward-plan` mode after installing and atomically making the new pack authoritative. This mode accepts only the exact prior commit, exact prior plan SHA-256, exact new authoritative commit, and the fixed `IDENTITY_ONLY_SELECTION_PLAN_CARRY_FORWARD` identifier. It does not accept a plan body, variable name, selector, patch, source path, or environment value.
+
+The utility reads the prior plan only from its exact commit-derived protected path, validates its schema and protected metadata, constructs a new plan in memory, and changes only `operationsCommit`. It classifies the result as `IDENTITY_ONLY` only when decisions, variable inventory and order, scopes, selectors, required flags, omission behavior, equality and separation rules, operator-entry flags, and generated decisions are exactly preserved. Any parse failure or other delta is `UNEXPECTED_SEMANTIC_DELTA` and fails closed. Cloudinary or Upstash correction identifiers cannot be combined with carry-forward.
+
+With the prior plan verified and both new targets absent, invoke only the installed authoritative utility:
+
+```bash
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PACK}/environment-acquisition.mjs" carry-forward-plan \
+  --prior-operations-commit "${PRIOR_OPS_COMMIT}" \
+  --prior-plan-sha256 "${PRIOR_PLAN_SHA256}" \
+  --operations-commit "${OPS_COMMIT}" \
+  --carry-forward IDENTITY_ONLY_SELECTION_PLAN_CARRY_FORWARD
+```
+
+The new plan and `phase-f1-environment-selection-carry-forward-${OPS_COMMIT}.json` value-free evidence are published together by the fsync-backed no-replace set primitive. The evidence records only plan identities, operations identities, `semanticDelta=IDENTITY_ONLY`, `originalPreserved=true`, and `valuesRecorded=false`. The original plan remains byte-identical. Existing acquisition input and reports remain bound to their original operations commit and are never copied, renamed, relabelled, or reused; a fresh acquisition under the new authority is required after `validate-plan` and `inspect` pass.
+
 The only selectors are `LIVE_BCN_PROCESS`, `HISTORICAL_DOTENV`, `HISTORICAL_DOTENV_PRODUCTION`, `SECURE_OPERATOR_ENTRY`, `GENERATED_NON_SECRET_DECISION`, and `OMIT`. The two approved historical paths remain fixed internal configuration and neither is automatically authoritative. The protected-backup policy remains a fail-closed internal comparison whose rejected input is never reflected. Historical sources must be canonical, non-linked, root-owned, mode `0600`, regular and single-link. Parsing uses the same Node `util.parseEnv` contract as preparation, retains only allowlisted names, and never prints source content.
 
 `LIVE_BCN_PROCESS` is restricted to the committed safe-live allowlist. The utility invokes only `pm2 pid businesscircle`, never `pm2 jlist` or `pm2 env`, to obtain one online application PID without materialising PM2 environment metadata. It verifies the parent PM2 daemon, resolves the unique descendant Next process, proves that process owns the sole port-3000 listener, and requires Node executable identities for the daemon, application and Next process. It resolves PIDs at execution time and has no PID override. It reads `/proc/<verified-application-pid>/environ` internally, retains only individually selected allowlisted names, clears its mutable scan buffer, and never prints the environment. Reports contain only presence and equality classifications against the two historical sources; they never contain values, hashes, prefixes or lengths.

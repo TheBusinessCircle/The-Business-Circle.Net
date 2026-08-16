@@ -22,10 +22,13 @@ import test from "node:test";
 import {
   ACQUISITION_ROOT,
   AUTOMATION_CONDITIONAL_NAMES,
+  CARRY_FORWARD_REPORT_SCHEMA,
   CLOUDINARY_CORRECTION,
   CLOUDINARY_CORRECTION_NAMES,
   CORRECTION_REPORT_SCHEMA,
   HISTORICAL_DOTENV,
+  IDENTITY_ONLY_CARRY_FORWARD,
+  IDENTITY_ONLY_SEMANTIC_DELTA,
   LIVEKIT_CONDITIONAL_NAMES,
   PLAN_SCHEMA,
   PROTECTED_BACKUP,
@@ -35,18 +38,24 @@ import {
   SOURCE_COMPARISONS,
   UPSTASH_CORRECTION,
   UPSTASH_CORRECTION_NAMES,
+  UNEXPECTED_SEMANTIC_DELTA,
   __test,
   acquisitionDirectory,
   assembleSelectedValues,
   assertRunTmpfs,
+  buildCarriedForwardSelectionPlan,
   classifySources,
+  classifySelectionPlanSemanticDelta,
   correctionReportPath,
+  carryForwardReportPath,
+  createPlanCarryForwardArtifacts,
   createPlanCorrectionArtifacts,
   createAcquisitionDirectory,
   encodeDotEnvValue,
   extractAllowlistedEnvironment,
   buildCorrectedSelectionPlan,
   parseSelectionPlan,
+  publishCarriedForwardSelectionPlan,
   publishCorrectedSelectionPlan,
   readApprovedHistoricalFile,
   readSelectionPlan,
@@ -248,6 +257,30 @@ function upstashCorrectionFixture(overrides = {}) {
   };
 }
 
+function carryForwardFixture(overrides = {}) {
+  const priorPlan = overrides.priorPlan ?? correctablePriorPlan();
+  for (const name of [
+    ...CLOUDINARY_CORRECTION_NAMES,
+    ...UPSTASH_CORRECTION_NAMES
+  ]) {
+    priorPlan.variables.find((item) => item.name === name).source =
+      "HISTORICAL_DOTENV_PRODUCTION";
+  }
+  const validated = parseSelectionPlan(JSON.stringify(priorPlan));
+  const bytes = renderSelectionPlan(validated);
+  const identity = sha256(bytes);
+  return {
+    priorRecord: { plan: validated, bytes, identity },
+    options: {
+      priorOperationsCommit: operationsCommit,
+      priorPlanSha256: identity,
+      operationsCommit: nextOperationsCommit,
+      carryForward: IDENTITY_ONLY_CARRY_FORWARD,
+      ...overrides.options
+    }
+  };
+}
+
 function correctionPublicationHarness(fixture = correctionFixture(), options = {}) {
   const stateRoot = "/synthetic/deployment-state";
   const priorPath = selectionPlanPath(operationsCommit, stateRoot);
@@ -298,6 +331,66 @@ function correctionPublicationHarness(fixture = correctionFixture(), options = {
     dependencies,
     objects,
     paths: { priorPath, correctedPath, reportPath },
+    publishedEntries: () => publishedEntries
+  };
+}
+
+function carryForwardPublicationHarness(
+  fixture = carryForwardFixture(),
+  options = {}
+) {
+  const stateRoot = "/synthetic/deployment-state";
+  const priorPath = selectionPlanPath(operationsCommit, stateRoot);
+  const carriedForwardPath = selectionPlanPath(
+    nextOperationsCommit,
+    stateRoot
+  );
+  const reportPath = carryForwardReportPath(nextOperationsCommit, stateRoot);
+  const objects = new Map([[priorPath, fixture.priorRecord.bytes]]);
+  if (options.existingPlan) objects.set(carriedForwardPath, Buffer.from("existing"));
+  if (options.existingReport) objects.set(reportPath, Buffer.from("existing"));
+  let publishedEntries;
+  const dependencies = {
+    stateRoot,
+    assertStateRoot() {},
+    assertProductionContext() {},
+    pathObjectExists(path) {
+      return objects.has(path);
+    },
+    readSelectionPlan(path, commit) {
+      const bytes = objects.get(path);
+      if (!bytes) throw Object.assign(new Error("absent"), { code: "ENOENT" });
+      const parsed = parseSelectionPlan(bytes.toString("utf8"));
+      assert.equal(parsed.operationsCommit, commit);
+      return { plan: parsed, bytes, identity: sha256(bytes) };
+    },
+    readFile(path, encoding) {
+      assert.equal(encoding, "utf8");
+      return objects.get(path).toString("utf8");
+    },
+    publishNoReplaceSet(entries, publicationOptions) {
+      publishedEntries = entries;
+      const created = [];
+      try {
+        for (const item of entries) {
+          if (objects.has(item.target)) throw new Error("target exists");
+          objects.set(item.target, Buffer.from(item.payload));
+          created.push(item.target);
+        }
+        if (options.corruptAfterPublication) {
+          objects.set(carriedForwardPath, Buffer.from("corrupt"));
+        }
+        publicationOptions.verifySet();
+      } catch (error) {
+        for (const path of created) objects.delete(path);
+        throw error;
+      }
+    }
+  };
+  return {
+    dependencies,
+    objects,
+    paths: { priorPath, carriedForwardPath, reportPath },
     publishedEntries: () => publishedEntries
   };
 }
@@ -1501,6 +1594,243 @@ test(
     }
   }
 );
+
+test("75 identity-only carry-forward changes only operationsCommit", () => {
+  const fixture = carryForwardFixture();
+  const priorBytes = Buffer.from(fixture.priorRecord.bytes);
+  const carriedForward = buildCarriedForwardSelectionPlan(
+    fixture.priorRecord.plan,
+    fixture.options
+  );
+  assert.equal(carriedForward.operationsCommit, nextOperationsCommit);
+  assert.deepEqual(carriedForward.decisions, fixture.priorRecord.plan.decisions);
+  assert.deepEqual(carriedForward.variables, fixture.priorRecord.plan.variables);
+  assert.equal(
+    classifySelectionPlanSemanticDelta(fixture.priorRecord.plan, carriedForward),
+    IDENTITY_ONLY_SEMANTIC_DELTA
+  );
+  assert.deepEqual(fixture.priorRecord.bytes, priorBytes);
+  assert.doesNotThrow(() =>
+    parseSelectionPlan(renderSelectionPlan(carriedForward).toString("utf8"))
+  );
+  for (const name of UPSTASH_CORRECTION_NAMES) {
+    assert.equal(
+      carriedForward.variables.find((entry) => entry.name === name).source,
+      "HISTORICAL_DOTENV_PRODUCTION"
+    );
+  }
+});
+
+test("76 identity-only evidence is closed, deterministic, and value-free", () => {
+  const fixture = carryForwardFixture();
+  const artifacts = createPlanCarryForwardArtifacts(
+    fixture.priorRecord,
+    fixture.options
+  );
+  assert.equal(artifacts.evidence.schemaVersion, CARRY_FORWARD_REPORT_SCHEMA);
+  assert.equal(artifacts.evidence.carryForward, IDENTITY_ONLY_CARRY_FORWARD);
+  assert.equal(artifacts.evidence.semanticDelta, IDENTITY_ONLY_SEMANTIC_DELTA);
+  assert.equal(artifacts.evidence.originalPreserved, true);
+  assert.equal(artifacts.evidence.valuesRecorded, false);
+  assert.equal(
+    artifacts.evidence.carriedForwardPlanSha256,
+    sha256(artifacts.planPayload)
+  );
+  assert.doesNotMatch(
+    artifacts.evidencePayload.toString("utf8"),
+    /SYNTHETIC_ONLY_|UPSTASH_REDIS_REST_(?:URL|TOKEN)=/u
+  );
+});
+
+test("77 identity-only publication preserves prior and publishes a protected set", () => {
+  const fixture = carryForwardFixture();
+  const harness = carryForwardPublicationHarness(fixture);
+  const priorBefore = Buffer.from(harness.objects.get(harness.paths.priorPath));
+  const result = publishCarriedForwardSelectionPlan(
+    fixture.options,
+    harness.dependencies
+  );
+  assert.deepEqual(harness.objects.get(harness.paths.priorPath), priorBefore);
+  assert.equal(result.priorPlanIdentity, sha256(priorBefore));
+  assert.equal(result.semanticDelta, IDENTITY_ONLY_SEMANTIC_DELTA);
+  assert.equal(
+    result.carriedForwardPlanIdentity,
+    sha256(harness.objects.get(harness.paths.carriedForwardPath))
+  );
+  assert.deepEqual(
+    harness.publishedEntries().map(({ target, uid, gid, mode }) => ({
+      target,
+      uid,
+      gid,
+      mode
+    })),
+    [
+      { target: harness.paths.carriedForwardPath, uid: 0, gid: 0, mode: 0o600 },
+      { target: harness.paths.reportPath, uid: 0, gid: 0, mode: 0o600 }
+    ]
+  );
+});
+
+test("78 carry-forward destination existence and partial publication fail closed", () => {
+  for (const existing of ["existingPlan", "existingReport"]) {
+    const fixture = carryForwardFixture();
+    const harness = carryForwardPublicationHarness(fixture, { [existing]: true });
+    assert.throws(
+      () => publishCarriedForwardSelectionPlan(fixture.options, harness.dependencies),
+      /target already exists/u
+    );
+  }
+  const fixture = carryForwardFixture();
+  const harness = carryForwardPublicationHarness(fixture, {
+    corruptAfterPublication: true
+  });
+  assert.throws(() =>
+    publishCarriedForwardSelectionPlan(fixture.options, harness.dependencies)
+  );
+  assert.equal(harness.objects.has(harness.paths.carriedForwardPath), false);
+  assert.equal(harness.objects.has(harness.paths.reportPath), false);
+  assert.equal(harness.objects.has(harness.paths.priorPath), true);
+});
+
+test("79 carry-forward accepts only its exact identifier and control arguments", () => {
+  const fixture = carryForwardFixture();
+  for (const carryForward of [
+    "ARBITRARY_PLAN_EDIT",
+    CLOUDINARY_CORRECTION,
+    UPSTASH_CORRECTION
+  ]) {
+    assert.throws(
+      () => buildCarriedForwardSelectionPlan(fixture.priorRecord.plan, {
+        ...fixture.options,
+        carryForward
+      }),
+      /Unsupported/u
+    );
+  }
+  assert.throws(
+    () => buildCarriedForwardSelectionPlan(fixture.priorRecord.plan, {
+      ...fixture.options,
+      correction: CLOUDINARY_CORRECTION
+    }),
+    /unsupported or missing field/u
+  );
+  const parsed = __test.parseArguments([
+    "carry-forward-plan",
+    "--prior-operations-commit",
+    operationsCommit,
+    "--prior-plan-sha256",
+    fixture.priorRecord.identity,
+    "--operations-commit",
+    nextOperationsCommit,
+    "--carry-forward",
+    IDENTITY_ONLY_CARRY_FORWARD
+  ]);
+  assert.deepEqual(Object.keys(parsed.args).sort(), [
+    "carry-forward",
+    "operations-commit",
+    "prior-operations-commit",
+    "prior-plan-sha256"
+  ]);
+  assert.throws(
+    () => __test.exactArguments({ ...parsed.args, "set-source": "ARBITRARY" }, [
+      "prior-operations-commit",
+      "prior-plan-sha256",
+      "operations-commit",
+      "carry-forward"
+    ]),
+    /Unexpected/u
+  );
+  assert.doesNotMatch(
+    utilitySource,
+    /--set-variable|--set-source|--patch-json|--allow-arbitrary-change/u
+  );
+});
+
+test("80 identity-only semantic classifier rejects every plan semantic mutation", () => {
+  const fixture = carryForwardFixture();
+  const baseline = buildCarriedForwardSelectionPlan(
+    fixture.priorRecord.plan,
+    fixture.options
+  );
+  const mutations = [
+    (candidate) => { candidate.decisions.redisProvider = "KV"; },
+    (candidate) => { candidate.decisions.bcnCommunityAutomation = "ENABLED"; },
+    (candidate) => { candidate.decisions.livekitRealtime = "DISABLED"; },
+    (candidate) => {
+      candidate.variables.find(
+        (entry) => entry.name === "UPSTASH_REDIS_REST_URL"
+      ).source = "LIVE_BCN_PROCESS";
+    },
+    (candidate) => candidate.variables.push({ ...candidate.variables[0] }),
+    (candidate) => candidate.variables.pop(),
+    (candidate) => { candidate.variables[0].scopes = []; },
+    (candidate) => {
+      candidate.variables[0].required = !candidate.variables[0].required;
+    },
+    (candidate) => { candidate.variables[0].equality = "NONE"; },
+    (candidate) => { candidate.variables[0].differsFrom = "AUTH_SECRET"; },
+    (candidate) => {
+      candidate.variables[0].operatorEntered = !candidate.variables[0].operatorEntered;
+    },
+    (candidate) => {
+      candidate.variables[0].generatedDecision = "ARBITRARY";
+    },
+    (candidate) => {
+      candidate.variables[0].omissionDisablesFeature =
+        !candidate.variables[0].omissionDisablesFeature;
+    },
+    (candidate) => candidate.variables.reverse(),
+    (candidate) => { candidate.schemaVersion = "unsupported"; }
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(baseline);
+    mutate(changed);
+    assert.equal(
+      classifySelectionPlanSemanticDelta(fixture.priorRecord.plan, changed),
+      UNEXPECTED_SEMANTIC_DELTA
+    );
+  }
+});
+
+test("81 carry-forward rejects identity, commit, and source-plan drift", () => {
+  const fixture = carryForwardFixture();
+  assert.throws(
+    () => createPlanCarryForwardArtifacts(fixture.priorRecord, {
+      ...fixture.options,
+      priorPlanSha256: "0".repeat(64)
+    }),
+    /identity differs/u
+  );
+  assert.throws(
+    () => buildCarriedForwardSelectionPlan(fixture.priorRecord.plan, {
+      ...fixture.options,
+      priorOperationsCommit: "c".repeat(40)
+    }),
+    /operations commit differs/u
+  );
+  assert.throws(
+    () => buildCarriedForwardSelectionPlan(fixture.priorRecord.plan, {
+      ...fixture.options,
+      operationsCommit
+    }),
+    /Distinct/u
+  );
+  const malformed = structuredClone(fixture.priorRecord.plan);
+  malformed.schemaVersion = "unsupported";
+  assert.throws(() => buildCarriedForwardSelectionPlan(malformed, fixture.options));
+});
+
+test("82 carry-forward report path is commit-derived and distinct", () => {
+  assert.equal(
+    carryForwardReportPath(nextOperationsCommit),
+    `/var/lib/thebusinesscircle/deployment-state/phase-f1-environment-selection-carry-forward-${nextOperationsCommit}.json`
+  );
+  assert.notEqual(
+    carryForwardReportPath(nextOperationsCommit),
+    correctionReportPath(nextOperationsCommit)
+  );
+  assert.throws(() => carryForwardReportPath("../not-a-commit"), /commit/u);
+});
 
 function own(object, key) {
   return Object.hasOwn(object, key);
