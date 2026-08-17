@@ -39,6 +39,15 @@ SYNTHETIC_NEW = SYNTHETIC_NEW_PREFIX + b"C" * (
 )
 assert len(SYNTHETIC_OLD) == exchange.PRODUCTION_IDENTITY_SIZE
 assert len(SYNTHETIC_NEW) == exchange.PRODUCTION_IDENTITY_SIZE
+SYNTHETIC_READINESS_OLD = (
+    b'{"schemaVersion":"phase-f1-environment-readiness-v1",'
+    b'"operationsCommit":"' + (b"b" * 40) + b'"}\n'
+)
+SYNTHETIC_READINESS_NEW = (
+    b'{"schemaVersion":"phase-f1-environment-readiness-v1",'
+    b'"operationsCommit":"' + (b"a" * 40) + b'"}\n'
+)
+assert len(SYNTHETIC_READINESS_OLD) == len(SYNTHETIC_READINESS_NEW)
 
 
 def digest(payload: bytes) -> str:
@@ -113,6 +122,38 @@ class ContractTests(unittest.TestCase):
         )
         self.assertEqual(parsed.mode, "exchange")
         self.assertEqual(parsed.expected_size, 851)
+        readiness = parser.parse_args(
+            [
+                "readiness-exchange",
+                "--authority",
+                exchange.READINESS_AUTHORITY,
+                "--exchange-slot",
+                f"{exchange.READINESS_PARENT}/"
+                ".environment-readiness.exchange-"
+                + ("a" * 40)
+                + ".json",
+                "--preserved-history",
+                f"{exchange.READINESS_PARENT}/"
+                "environment-readiness-preserved-"
+                + ("b" * 40)
+                + ".json",
+                "--pre-authority-sha256",
+                "1" * 64,
+                "--pre-slot-sha256",
+                "2" * 64,
+                "--preserved-history-sha256",
+                "1" * 64,
+                "--post-authority-sha256",
+                "2" * 64,
+                "--post-slot-sha256",
+                "1" * 64,
+                "--expected-parent",
+                exchange.READINESS_PARENT,
+                "--expected-size",
+                str(len(SYNTHETIC_READINESS_OLD)),
+            ]
+        )
+        self.assertEqual(readiness.mode, "readiness-exchange")
 
     def test_relative_and_noncanonical_paths_are_rejected(self) -> None:
         for path in (
@@ -401,6 +442,89 @@ class LinuxRootBehaviorTests(unittest.TestCase):
         self.assertTrue(probe.is_dir())
         self.assertEqual(len(list(probe.iterdir())), 2)
         self.assertIn("evidence_retained=", error_output.getvalue())
+
+
+@unittest.skipUnless(
+    LINUX_ROOT_EXCHANGE,
+    "requires Linux, root ownership and libc renameat2; skip is not deployment evidence",
+)
+class LinuxRootReadinessExchangeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.mkdtemp(prefix="phase-f1-readiness-exchange-")
+        self.addCleanup(shutil.rmtree, self.temporary, ignore_errors=True)
+        self.parent = Path(self.temporary, "deployment-state")
+        self.parent.mkdir(mode=0o700)
+        self.authority = self.parent / "environment-readiness.json"
+        self.slot = self.parent / (
+            ".environment-readiness.exchange-" + ("a" * 40) + ".json"
+        )
+        self.history = self.parent / (
+            "environment-readiness-preserved-" + ("b" * 40) + ".json"
+        )
+        write_protected(self.authority, SYNTHETIC_READINESS_OLD)
+        write_protected(self.slot, SYNTHETIC_READINESS_NEW)
+        write_protected(self.history, SYNTHETIC_READINESS_OLD)
+        self.patches = [
+            mock.patch.object(exchange, "READINESS_PARENT", str(self.parent)),
+            mock.patch.object(exchange, "READINESS_AUTHORITY", str(self.authority)),
+            mock.patch.object(
+                exchange,
+                "READINESS_SLOT_PATTERN",
+                re.compile(
+                    "^" + re.escape(str(self.parent))
+                    + r"/\.environment-readiness\.exchange-([0-9a-f]{40})\.json$"
+                ),
+            ),
+            mock.patch.object(
+                exchange,
+                "READINESS_HISTORY_PATTERN",
+                re.compile(
+                    "^" + re.escape(str(self.parent))
+                    + r"/environment-readiness-preserved-([0-9a-f]{40})\.json$"
+                ),
+            ),
+        ]
+        for patch in self.patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def arguments(self) -> argparse.Namespace:
+        return argparse.Namespace(
+            authority=str(self.authority),
+            exchange_slot=str(self.slot),
+            preserved_history=str(self.history),
+            pre_authority_sha256=digest(SYNTHETIC_READINESS_OLD),
+            pre_slot_sha256=digest(SYNTHETIC_READINESS_NEW),
+            preserved_history_sha256=digest(SYNTHETIC_READINESS_OLD),
+            post_authority_sha256=digest(SYNTHETIC_READINESS_NEW),
+            post_slot_sha256=digest(SYNTHETIC_READINESS_OLD),
+            expected_parent=str(self.parent),
+            expected_size=len(SYNTHETIC_READINESS_OLD),
+        )
+
+    def test_readiness_exchange_is_atomic_and_preserves_source(self) -> None:
+        exchange.run_readiness_exchange(self.arguments())
+        self.assertEqual(self.authority.read_bytes(), SYNTHETIC_READINESS_NEW)
+        self.assertEqual(self.slot.read_bytes(), SYNTHETIC_READINESS_OLD)
+        self.assertEqual(self.history.read_bytes(), SYNTHETIC_READINESS_OLD)
+
+    def test_readiness_exchange_rejects_paths_metadata_hashes_and_size(self) -> None:
+        bad_path = self.arguments()
+        bad_path.authority = str(self.parent / "arbitrary-readiness.json")
+        with self.assertRaises(exchange.PrecheckFailure):
+            exchange.run_readiness_exchange(bad_path)
+        bad_hash = self.arguments()
+        bad_hash.pre_authority_sha256 = "0" * 64
+        with self.assertRaises(exchange.PrecheckFailure):
+            exchange.run_readiness_exchange(bad_hash)
+        bad_size = self.arguments()
+        bad_size.expected_size = 0
+        with self.assertRaises(exchange.PrecheckFailure):
+            exchange.run_readiness_exchange(bad_size)
+        os.chmod(self.slot, 0o640)
+        with self.assertRaises(exchange.PrecheckFailure):
+            exchange.run_readiness_exchange(self.arguments())
+        self.assertEqual(self.authority.read_bytes(), SYNTHETIC_READINESS_OLD)
 
 
 if __name__ == "__main__":

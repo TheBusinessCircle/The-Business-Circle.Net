@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   existsSync,
@@ -15,9 +16,21 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, it } from "node:test";
 import { publishNoReplaceSet } from "./atomic-no-replace.mjs";
 import {
+  ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA,
   ENVIRONMENT_READINESS_SCHEMA,
+  IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD,
+  IDENTITY_ONLY_READINESS_DELTA,
+  READINESS_CARRY_FORWARD_IMMEDIATE_PREDECESSOR,
+  READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT,
+  classifyEnvironmentReadinessDelta,
+  createEnvironmentReadinessCarryForwardArtifacts,
   createEnvironmentReadiness,
+  environmentReadinessCarryForwardReportPath,
+  environmentReadinessExchangeSlotPath,
+  preservedEnvironmentReadinessPath,
+  publishCarriedForwardEnvironmentReadiness,
   publishEnvironmentReadiness,
+  validateEnvironmentReadinessCarryForwardReport,
   validateEnvironmentReadinessRecord,
   verifyCrossUserIsolation,
   verifyEnvironmentReadiness
@@ -29,6 +42,7 @@ import {
 
 const OPERATIONS_COMMIT = "a".repeat(40);
 const OTHER_OPERATIONS_COMMIT = "b".repeat(40);
+const CARRY_FORWARD_OPERATIONS_COMMIT = "c".repeat(40);
 const roots = [];
 function temporaryRoot() {
   const root = mkdtempSync(join(tmpdir(), "phase-f1-environment-readiness-"));
@@ -53,6 +67,34 @@ function testDependencies(overrides = {}) {
     },
     ...overrides
   };
+}
+
+function readinessBytes(operationsCommit) {
+  return Buffer.from(`${JSON.stringify(createEnvironmentReadiness(operationsCommit), null, 2)}\n`);
+}
+
+function readinessIdentity(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function carryForwardOptions(overrides = {}) {
+  const bytes = readinessBytes(READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT);
+  return {
+    priorOperationsCommit: READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT,
+    priorReadinessSha256: readinessIdentity(bytes),
+    immediatePredecessorOperationsCommit:
+      READINESS_CARRY_FORWARD_IMMEDIATE_PREDECESSOR,
+    operationsCommit: CARRY_FORWARD_OPERATIONS_COMMIT,
+    carryForward: IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD,
+    ...overrides
+  };
+}
+
+function syntheticExchange(paths) {
+  const authority = readFileSync(paths.authority);
+  const slot = readFileSync(paths.slot);
+  writeFileSync(paths.authority, slot);
+  writeFileSync(paths.slot, authority);
 }
 
 describe("Phase F1 environment-only readiness", () => {
@@ -263,5 +305,324 @@ describe("Phase F1 corrected ordering source contract", () => {
       .map(source)
       .join("\n");
     assert.doesNotMatch(all, /SKIP_RELEASE_INTEGRITY|skip-integrity|bypass.*integrity/iu);
+  });
+});
+
+describe("Phase F1 environment-readiness identity-only carry-forward", () => {
+  it("preserves schema and semantics while atomically rebinding operations identity", () => {
+    const root = temporaryRoot();
+    const sourceBytes = readinessBytes(
+      READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT
+    );
+    const authority = join(root, "environment-readiness.json");
+    writeFileSync(authority, sourceBytes, { flag: "wx" });
+    const options = carryForwardOptions();
+    const result = publishCarriedForwardEnvironmentReadiness(options, {
+      ...testDependencies(),
+      stateRoot: root,
+      assertProductionContext() {},
+      exchange: syntheticExchange
+    });
+    const current = JSON.parse(readFileSync(authority, "utf8"));
+    assert.equal(current.schemaVersion, ENVIRONMENT_READINESS_SCHEMA);
+    assert.equal(current.operationsCommit, CARRY_FORWARD_OPERATIONS_COMMIT);
+    assert.equal(
+      classifyEnvironmentReadinessDelta(
+        JSON.parse(sourceBytes),
+        current
+      ),
+      IDENTITY_ONLY_READINESS_DELTA
+    );
+    assert.deepEqual(
+      readFileSync(
+        preservedEnvironmentReadinessPath(
+          root,
+          READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT
+        )
+      ),
+      sourceBytes
+    );
+    assert.deepEqual(
+      readFileSync(
+        environmentReadinessExchangeSlotPath(
+          root,
+          CARRY_FORWARD_OPERATIONS_COMMIT
+        )
+      ),
+      sourceBytes
+    );
+    const report = JSON.parse(readFileSync(
+      environmentReadinessCarryForwardReportPath(
+        root,
+        CARRY_FORWARD_OPERATIONS_COMMIT
+      ),
+      "utf8"
+    ));
+    assert.equal(report.schemaVersion, ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA);
+    assert.deepEqual(report.lineage, [
+      READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT,
+      READINESS_CARRY_FORWARD_IMMEDIATE_PREDECESSOR,
+      CARRY_FORWARD_OPERATIONS_COMMIT
+    ]);
+    assert.equal(report.sourceReadinessSha256, options.priorReadinessSha256);
+    assert.equal(report.carryForward, IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD);
+    assert.equal(report.semanticDelta, IDENTITY_ONLY_READINESS_DELTA);
+    assert.equal(report.sourcePreserved, true);
+    assert.equal(report.valuesRecorded, false);
+    assert.equal(result.semanticDelta, IDENTITY_ONLY_READINESS_DELTA);
+    assert.equal(
+      verifyEnvironmentReadiness(
+        root,
+        CARRY_FORWARD_OPERATIONS_COMMIT,
+        testDependencies()
+      ),
+      true
+    );
+  });
+
+  it("accepts only the exact source identity, identifier, and closed lineage", () => {
+    const bytes = readinessBytes(READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT);
+    const source = {
+      bytes,
+      record: JSON.parse(bytes),
+      identity: readinessIdentity(bytes)
+    };
+    assert.doesNotThrow(() =>
+      createEnvironmentReadinessCarryForwardArtifacts(source, carryForwardOptions())
+    );
+    for (const options of [
+      carryForwardOptions({ priorReadinessSha256: "d".repeat(64) }),
+      carryForwardOptions({ priorOperationsCommit: "d".repeat(40) }),
+      carryForwardOptions({ immediatePredecessorOperationsCommit: "d".repeat(40) }),
+      carryForwardOptions({ operationsCommit: READINESS_CARRY_FORWARD_IMMEDIATE_PREDECESSOR }),
+      carryForwardOptions({ carryForward: "ARBITRARY_REBIND" }),
+      { ...carryForwardOptions(), arbitrarySourcePath: "/tmp/readiness.json" }
+    ]) {
+      assert.throws(
+        () => createEnvironmentReadinessCarryForwardArtifacts(source, options),
+        /identity|lineage|identifier|unknown or missing/u
+      );
+    }
+  });
+
+  it("rejects every semantic readiness mutation", () => {
+    const source = createEnvironmentReadiness(
+      READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT
+    );
+    const candidate = createEnvironmentReadiness(CARRY_FORWARD_OPERATIONS_COMMIT);
+    const mutations = [
+      { ...candidate, authority: "release-ready" },
+      { ...candidate, ready: false },
+      { ...candidate, forwardApplicationSha: "d".repeat(40) },
+      { ...candidate, rollbackApplicationSha: "d".repeat(40) },
+      { ...candidate, historicalProductionSha: "d".repeat(40) },
+      { ...candidate, valuesRecorded: true },
+      {
+        ...candidate,
+        validations: {
+          ...candidate.validations,
+          bcnProtectedEnvironment: "FAILED"
+        }
+      },
+      {
+        ...candidate,
+        validations: {
+          ...candidate.validations,
+          circleCardProtectedEnvironment: "FAILED"
+        }
+      },
+      {
+        ...candidate,
+        validations: {
+          ...candidate.validations,
+          buildProtectedEnvironment: "FAILED"
+        }
+      },
+      {
+        ...candidate,
+        validations: {
+          ...candidate.validations,
+          crossEnvironmentContract: "FAILED"
+        }
+      },
+      {
+        ...candidate,
+        validations: {
+          ...candidate.validations,
+          crossUserIsolation: "FAILED"
+        }
+      },
+      {
+        ...candidate,
+        validations: {
+          ...candidate.validations,
+          releaseIntegrity: "PASSED"
+        }
+      },
+      { ...candidate, selectionPlanSha256: "d".repeat(64) }
+    ];
+    for (const mutation of mutations) {
+      assert.equal(
+        classifyEnvironmentReadinessDelta(source, mutation),
+        "UNEXPECTED_SEMANTIC_DELTA"
+      );
+    }
+  });
+
+  it("rejects tampered or value-bearing lineage reports", () => {
+    const bytes = readinessBytes(READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT);
+    const source = {
+      bytes,
+      record: JSON.parse(bytes),
+      identity: readinessIdentity(bytes)
+    };
+    const artifacts = createEnvironmentReadinessCarryForwardArtifacts(
+      source,
+      carryForwardOptions()
+    );
+    assert.equal(
+      validateEnvironmentReadinessCarryForwardReport(
+        artifacts.report,
+        artifacts.report
+      ),
+      artifacts.report
+    );
+    for (const report of [
+      { ...artifacts.report, semanticDelta: "SEMANTIC_CHANGE" },
+      { ...artifacts.report, sourcePreserved: false },
+      { ...artifacts.report, lineage: [...artifacts.report.lineage].reverse() },
+      { ...artifacts.report, valueHash: "d".repeat(64) }
+    ]) {
+      assert.throws(
+        () => validateEnvironmentReadinessCarryForwardReport(
+          report,
+          artifacts.report
+        ),
+        /invalid|unknown or missing/u
+      );
+    }
+  });
+
+  it("fails before publication when current environment semantics or isolation differ", () => {
+    for (const failure of [
+      "selection plan identity changed",
+      "acquisition report identity changed",
+      "BCN protected environment changed",
+      "Circle Card protected environment changed",
+      "build protected environment changed",
+      "Redis decision changed",
+      "LiveKit decision changed",
+      "automation decision changed",
+      "Circle Card Resend separation changed",
+      "sender-domain result changed",
+      "shared-environment rules changed",
+      "cross-user isolation changed"
+    ]) {
+      const root = temporaryRoot();
+      writeFileSync(
+        join(root, "environment-readiness.json"),
+        readinessBytes(READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT),
+        { flag: "wx" }
+      );
+      assert.throws(() => publishCarriedForwardEnvironmentReadiness(
+        carryForwardOptions(),
+        {
+          ...testDependencies(),
+          stateRoot: root,
+          assertProductionContext() {},
+          validateSchema() { throw new Error(failure); },
+          exchange: syntheticExchange
+        }
+      ), new RegExp(failure, "u"));
+      assert.equal(
+        existsSync(environmentReadinessCarryForwardReportPath(
+          root,
+          CARRY_FORWARD_OPERATIONS_COMMIT
+        )),
+        false
+      );
+    }
+  });
+
+  it("rejects partial publication state and preserves existing objects", () => {
+    for (const existingPath of [
+      (root) => preservedEnvironmentReadinessPath(
+        root,
+        READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT
+      ),
+      (root) => environmentReadinessExchangeSlotPath(
+        root,
+        CARRY_FORWARD_OPERATIONS_COMMIT
+      ),
+      (root) => environmentReadinessCarryForwardReportPath(
+        root,
+        CARRY_FORWARD_OPERATIONS_COMMIT
+      )
+    ]) {
+      const root = temporaryRoot();
+      writeFileSync(
+        join(root, "environment-readiness.json"),
+        readinessBytes(READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT),
+        { flag: "wx" }
+      );
+      const target = existingPath(root);
+      writeFileSync(target, "EXISTING\n", { flag: "wx" });
+      assert.throws(() => publishCarriedForwardEnvironmentReadiness(
+        carryForwardOptions(),
+        {
+          ...testDependencies(),
+          stateRoot: root,
+          assertProductionContext() {},
+          exchange: syntheticExchange
+        }
+      ), /target already exists/u);
+      assert.equal(readFileSync(target, "utf8"), "EXISTING\n");
+    }
+  });
+
+  it("rejects unsafe source metadata on Linux root", {
+    skip: process.platform === "win32" || process.getuid?.() !== 0
+  }, () => {
+    const root = temporaryRoot();
+    chmodSync(root, 0o700);
+    const authority = join(root, "environment-readiness.json");
+    writeFileSync(
+      authority,
+      readinessBytes(READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT),
+      { flag: "wx", mode: 0o600 }
+    );
+    const dependencies = {
+      stateRoot: root,
+      assertProductionContext() {},
+      validateSchema() {},
+      verifyIsolation() {},
+      exchange: syntheticExchange
+    };
+    chmodSync(authority, 0o640);
+    assert.throws(
+      () => publishCarriedForwardEnvironmentReadiness(
+        carryForwardOptions(),
+        dependencies
+      ),
+      /metadata is unsafe/u
+    );
+    chmodSync(authority, 0o600);
+    linkSync(authority, join(root, "readiness-hard-link.json"));
+    assert.throws(
+      () => publishCarriedForwardEnvironmentReadiness(
+        carryForwardOptions(),
+        dependencies
+      ),
+      /metadata is unsafe/u
+    );
+  });
+
+  it("exposes no generic CLI rebinding or arbitrary path interface", () => {
+    const source = readFileSync(
+      new URL("environment-readiness.mjs", import.meta.url),
+      "utf8"
+    );
+    assert.match(source, /IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD/u);
+    assert.doesNotMatch(source, /--source-path|--destination-path|--patch-json|--set-field/u);
   });
 });
