@@ -21,7 +21,8 @@ import { parsePackTreeRows } from "../../ops/deploy/phase-f1/pack-tree.mjs";
 import { ARCHIVE_FORMAT, CORE_PUBLICATION_FILES, PUBLICATION_SUMMARY_SCHEMA, inspectPublicationArchive, verifyPublicationDirectory } from "../../ops/deploy/phase-f1/publication-summary.mjs";
 import { renderSystemdUnit } from "../../ops/deploy/phase-f1/render-systemd-units.mjs";
 import { publishBootEligibility, validateBootEligibility } from "../../ops/deploy/phase-f1/boot-eligibility.mjs";
-import { consumeBuildAttempt, createBuildAttempt, finishBuildAttempt } from "../../ops/deploy/phase-f1/build-state.mjs";
+import { consumeBuildAttempt, createBuildAttempt, finishBuildAttempt, inspectBuildAttempt } from "../../ops/deploy/phase-f1/build-state.mjs";
+import { evaluateOfflineCache } from "../../ops/deploy/phase-f1/offline-npm-cache.mjs";
 import { parseSystemdExecStart, resolveProcessExpectation, verifyProcessSnapshot } from "../../ops/deploy/phase-f1/verify-systemd-process.mjs";
 import { createCandidateInvocation, readCandidateInvocation, validateCandidateCleanupResult } from "../../ops/deploy/phase-f1/candidate-invocation.mjs";
 import { validateStructuredEvidence } from "../../ops/deploy/phase-f1/structured-evidence.mjs";
@@ -537,13 +538,49 @@ describe("Phase F1 application and environment identity", () => {
 
 describe("Phase F1 build lifecycle and complete release sealing", () => {
   it("keeps non-reusable build-attempt state outside the checkout", () => {
-    const directory = temp(), attempt = join(directory, "attempt.json"), workspace = join(directory, "checkout"); mkdirSync(workspace);
-    expect(createBuildAttempt(attempt, { role: "forward", applicationSha, workspace, attemptId: "1".repeat(24) })).toMatchObject({ status: "prepared", path: resolve(workspace) });
-    expect(consumeBuildAttempt(attempt, { role: "forward", applicationSha })).toMatchObject({ status: "consumed" });
-    expect(() => consumeBuildAttempt(attempt, { role: "forward", applicationSha })).toThrow(/stale|reused/u);
-    expect(finishBuildAttempt(attempt, "failed")).toMatchObject({ status: "failed" });
-    expect(() => finishBuildAttempt(attempt, "complete")).toThrow(/consumed/u);
-    expect(() => createBuildAttempt(attempt, { role: "forward", applicationSha, workspace })).toThrow(/exists/u);
+    const directory = temp(), attempt = join(directory, "attempt.json"), workspace = join(directory, "builds", `forward-${applicationSha}-fixture`); mkdirSync(workspace, { recursive: true });
+    const identity = { role: "forward" as const, applicationSha, operationsCommit: operationsIdentity };
+    expect(createBuildAttempt(attempt, { ...identity, workspace, attemptId: "1".repeat(24) })).toMatchObject({ status: "prepared", operationsCommit: operationsIdentity, path: resolve(workspace) });
+    expect(inspectBuildAttempt(attempt, identity)).toMatchObject({ status: "prepared" });
+    expect(() => inspectBuildAttempt(attempt, { ...identity, operationsCommit: "e".repeat(40) })).toThrow(/another identity/u);
+    expect(consumeBuildAttempt(attempt, identity)).toMatchObject({ status: "consumed" });
+    expect(() => consumeBuildAttempt(attempt, identity)).toThrow(/stale|reused/u);
+    expect(finishBuildAttempt(attempt, "failed", operationsIdentity)).toMatchObject({ status: "failed" });
+    expect(() => finishBuildAttempt(attempt, "complete", operationsIdentity)).toThrow(/consumed/u);
+    expect(() => createBuildAttempt(attempt, { ...identity, workspace })).toThrow(/exists/u);
+  });
+
+  it("uses one operations-bound rollback handoff and rejects stale or tampered evidence", () => {
+    const directory = temp(), attempt = join(directory, "rollback-build-attempt.json"), workspace = join(directory, "builds", `rollback-${rollbackSha}-fixture`);
+    mkdirSync(workspace, { recursive: true });
+    const identity = { role: "rollback" as const, applicationSha: rollbackSha, operationsCommit: operationsIdentity };
+    const created = createBuildAttempt(attempt, { ...identity, workspace, attemptId: "2".repeat(24) });
+    expect(inspectBuildAttempt(attempt, identity)).toEqual(created);
+    const tampered = { ...created, path: resolve(directory, "unexpected") };
+    writeFileSync(attempt, `${JSON.stringify(tampered)}\n`);
+    expect(() => inspectBuildAttempt(attempt, identity)).toThrow(/invalid build-attempt/iu);
+    expect(source("prepare-rollback-fixture.sh")).toContain('attempt_file="${PHASE_F1_STATE_ROOT}/rollback-build-attempt.json"');
+    expect(source("prepare-rollback-fixture.sh")).not.toContain("rollback-build-attempt.path");
+    expect(source("prepare-rollback-fixture.sh")).toContain('build-state.mjs" inspect');
+    expect(source("prepare-rollback-fixture.sh")).toContain('build-state.mjs" consume');
+    expect(source("prepare-checkout.sh")).toContain('"${PHASE_F1_PACK_COMMIT}" "${attempt}"');
+  });
+
+  it("proves exact approved lockfile content exists in a value-free offline cache", () => {
+    const directory = temp(), cache = join(directory, "cache"), lockfile = join(directory, "package-lock.json");
+    const tarball = Buffer.from("synthetic public npm tarball fixture");
+    const digest = createHash("sha512").update(tarball).digest();
+    const integrity = `sha512-${digest.toString("base64")}`;
+    const hex = digest.toString("hex");
+    const content = join(cache, "_cacache", "content-v2", "sha512", hex.slice(0, 2), hex.slice(2, 4), hex.slice(4));
+    mkdirSync(resolve(content, ".."), { recursive: true });
+    writeFileSync(content, tarball);
+    writeFileSync(lockfile, `${JSON.stringify({ lockfileVersion: 3, packages: { "": {}, "node_modules/fixture": { resolved: "https://registry.npmjs.org/fixture/-/fixture-1.0.0.tgz", integrity } } })}\n`);
+    expect(evaluateOfflineCache(cache, lockfile, { enforceMetadata: false })).toMatchObject({ packageCount: 1 });
+    writeFileSync(content, "tampered");
+    expect(() => evaluateOfflineCache(cache, lockfile, { enforceMetadata: false })).toThrow(/integrity/u);
+    rmSync(content);
+    expect(() => evaluateOfflineCache(cache, lockfile, { enforceMetadata: false })).toThrow(/incomplete/u);
   });
 
   it("rejects unexpected ignored build input while classifying only generated roots", () => {

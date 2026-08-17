@@ -42,6 +42,6 @@ chmod 0600 "${identity_evidence}"; chown root:root "${identity_evidence}"
 evidence="${PHASE_F1_STATE_ROOT}/${ROLE}-build-attempt.json"
 [[ ! -e ${evidence} ]] || die "an earlier build attempt must be retired, never reused"
 /usr/bin/node "${PHASE_F1_PACK_DIR}/artifact-manifest.mjs" build-inputs "${attempt}" fresh >/dev/null
-/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" create "${evidence}" "${ROLE}" "${application_sha}" "${attempt}"
+/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" create "${evidence}" "${ROLE}" "${application_sha}" "${PHASE_F1_PACK_COMMIT}" "${attempt}"
 chmod 0600 "${evidence}"; chown root:root "${evidence}"
 printf 'Fresh detached %s build attempt prepared at exact application SHA %s.\n' "${ROLE}" "${application_sha}"

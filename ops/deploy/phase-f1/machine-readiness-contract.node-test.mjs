@@ -404,6 +404,37 @@ describe("Phase F1 sanitised environment contract", () => {
       );
     }
   );
+
+  it("uses one operations-bound rollback build-attempt JSON handoff", () => {
+    const checkout = readFileSync(join(packRoot, "prepare-checkout.sh"), "utf8");
+    const fixture = readFileSync(join(packRoot, "prepare-rollback-fixture.sh"), "utf8");
+    const state = readFileSync(join(packRoot, "build-state.mjs"), "utf8");
+    assert.match(checkout, /\$\{ROLE\}-build-attempt\.json/u);
+    assert.match(checkout, /"\$\{PHASE_F1_PACK_COMMIT\}" "\$\{attempt\}"/u);
+    assert.match(fixture, /rollback-build-attempt\.json/u);
+    assert.doesNotMatch(fixture, /rollback-build-attempt\.path/u);
+    assert.ok(fixture.indexOf('build-state.mjs" inspect') < fixture.indexOf('build-state.mjs" consume'));
+    assert.match(state, /phase-f1-build-attempt-v2/u);
+    assert.match(state, /operationsCommit/u);
+  });
+
+  it("keeps offline npm cache authority fixed, sealed and separately prepared", () => {
+    const common = readFileSync(join(packRoot, "common.sh"), "utf8");
+    const fixture = readFileSync(join(packRoot, "prepare-rollback-fixture.sh"), "utf8");
+    const preparation = readFileSync(join(packRoot, "prepare-offline-npm-cache.sh"), "utf8");
+    assert.match(common, /PHASE_F1_OFFLINE_NPM_CACHE_ROOT="\/var\/cache\/thebusinesscircle\/phase-f1\/npm-offline-v1"/u);
+    assert.doesNotMatch(fixture, /readonly OFFLINE_CACHE=\$\{PHASE_E3_OFFLINE_NPM_CACHE_ROOT/u);
+    assert.match(fixture, /offline-npm-cache\.mjs" verify/u);
+    assert.match(fixture, /NPM_CONFIG_OFFLINE=true/u);
+    assert.match(preparation, /build-state\.mjs" inspect/u);
+    assert.doesNotMatch(preparation, /build-state\.mjs" consume/u);
+    assert.match(preparation, /NPM_CONFIG_REGISTRY=https:\/\/registry\.npmjs\.org\//u);
+    assert.match(preparation, /chmod 0550/u);
+    assert.match(preparation, /chmod 0440/u);
+    assert.match(preparation, /sudo -u phase-f1-build test -r/u);
+    assert.match(preparation, /sudo -u bcn-app test ! -w/u);
+    assert.match(preparation, /sudo -u circle-card-app test ! -w/u);
+  });
 });
 
 describe("Phase F1 atomic no-replace publication", () => {

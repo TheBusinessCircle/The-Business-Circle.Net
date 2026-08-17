@@ -13,9 +13,9 @@ application_sha=${PHASE_F1_FORWARD_SHA}
 final_dir=${PHASE_F1_RELEASE_DIR}
 attempt_file="${PHASE_F1_STATE_ROOT}/${ROLE}-build-attempt.json"
 require_protected_state_file "${attempt_file}"
-workspace=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" consume "${attempt_file}" "${ROLE}" "${application_sha}"); workspace=$(realpath -e "${workspace}")
+workspace=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" consume "${attempt_file}" "${ROLE}" "${application_sha}" "${PHASE_F1_PACK_COMMIT}"); workspace=$(realpath -e "${workspace}")
 build_complete=false
-record_failed_attempt() { local status=$?; trap - EXIT ERR INT TERM; if ((status)) && [[ ${build_complete} != true ]]; then /usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" finish "${attempt_file}" failed || true; fi; exit "${status}"; }
+record_failed_attempt() { local status=$?; trap - EXIT ERR INT TERM; if ((status)) && [[ ${build_complete} != true ]]; then /usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" finish "${attempt_file}" failed "${PHASE_F1_PACK_COMMIT}" || true; fi; exit "${status}"; }
 trap record_failed_attempt EXIT INT TERM
 [[ ${workspace} == "${PHASE_F1_BUILD_ROOT}/${ROLE}-${application_sha}-"* && $(git -C "${workspace}" rev-parse HEAD) == "${application_sha}" ]] || die "unapproved build workspace"
 [[ ! -e ${final_dir} ]] || die "release cannot be reused"
@@ -67,7 +67,7 @@ cmp --silent "${PHASE_F1_ARTIFACT_ROOT}/runtime-bcn.manifest" "${PHASE_F1_ARTIFA
 (cd "${PHASE_F1_ARTIFACT_ROOT}" && sha256sum -- *.manifest >manifest-index.sha256)
 chown -R root:root "${PHASE_F1_ARTIFACT_ROOT}"; chmod -R go-rwx "${PHASE_F1_ARTIFACT_ROOT}"
 require_release_integrity
-/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" finish "${attempt_file}" complete
+/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" finish "${attempt_file}" complete "${PHASE_F1_PACK_COMMIT}"
 build_complete=true; trap - EXIT ERR INT TERM
 [[ ! -e ${PHASE_F1_CURRENT_CIRCLE} && ! -L ${PHASE_F1_CURRENT_CIRCLE} ]] || die "Circle stable selector already exists"
 ln -s "${PHASE_F1_RELEASE_DIR}" "${PHASE_F1_CURRENT_CIRCLE}"

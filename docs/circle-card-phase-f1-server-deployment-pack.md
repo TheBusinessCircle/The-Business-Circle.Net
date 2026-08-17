@@ -302,7 +302,7 @@ The corrected order is mandatory:
 1. acquire and verify the commit-bound protected input;
 2. publish the three protected environments;
 3. run `validate-environments.sh` and publish environment-only readiness;
-4. prepare the approved rollback artifact and build the approved immutable forward release using the validated build environment;
+4. prepare the approved rollback checkout, populate and seal the approved offline npm cache in a separately authorised network-enabled gate, prepare the rollback artifact, and build the approved immutable forward release using the validated build environment;
 5. require complete forward and rollback release integrity;
 6. run `preflight-read-only.sh`, which now requires both current environment readiness and complete release integrity and performs the release-bound BCN and Circle Card application validators;
 7. proceed to candidate probes, service starts, selector transitions or traffic evidence only while both gates continue to pass.
@@ -329,6 +329,42 @@ Acquisition plans, inputs and reports remain operations-commit-bound. Installing
 BCN automation `DISABLED` generates only the committed `false` value and requires automation conditionals to be absent or explicitly omitted. `ENABLED` requires an explicit selected source for every committed conditional. Circle Card remains launcher-fixed to `false`. LiveKit `DISABLED` omits its optional credential/server trio while retaining any independently required base URL; `RETAINED` requires all three explicit selections. Exactly one complete Redis pair is accepted, both runtimes receive the same pair, the unused pair is absent, and there is no provider alias conversion.
 
 ## Rollback provenance and proof
+
+Rollback checkout preparation publishes exactly one handoff object:
+`/var/lib/thebusinesscircle/deployment-state/rollback-build-attempt.json`. The closed
+`phase-f1-build-attempt-v2` record binds the rollback application SHA, current operations
+commit, random attempt identity, canonical `/var/www/builds/rollback-<sha>-*` checkout and
+single-use state. `prepare-rollback-fixture.sh` first inspects and then consumes that exact
+protected JSON through `build-state.mjs`; no `.path` compatibility object, caller-selected
+checkout path or second authority exists. Missing, stale, linked, malformed, wrong-commit or
+wrong-operations evidence fails closed.
+
+The rollback dependency build uses only the fixed cache
+`/var/cache/thebusinesscircle/phase-f1/npm-offline-v1`. It never accepts an inherited or
+caller-selected cache root and never relies on `/root/.npm`. Cache population is a distinct,
+separately authorised network-enabled operation:
+
+```bash
+/usr/bin/bash "${PACK}/prepare-offline-npm-cache.sh" \
+  5d1f81bb05a01b08e1134785c2f86b77c8969fe3
+```
+
+That operation requires the current prepared rollback attempt without consuming it, exact
+Node `22.22.2` and npm `10.9.7`, the committed rollback lockfile, the public npm registry and
+the validated protected-environment readiness gate. It populates a new promotion directory,
+removes the disposable `node_modules`, seals every cache directory root-owned
+`root:phase-f1-build` mode `0550` and every file mode `0440`, atomically publishes the cache,
+and publishes root-owned mode-`0600`
+`offline-npm-cache-readiness.json` without replacement. Runtime users receive no cache group
+authority. The value-free readiness record binds the operations commit, rollback application,
+exact lockfile, exact Node/npm versions and complete immutable cache inventory.
+
+`offline-npm-cache.mjs` independently proves that every public-registry `sha512` integrity in
+the exact committed rollback lockfile has matching content in npm's content-addressable cache.
+The rollback fixture refuses to consume the build attempt unless that current-authority
+readiness evidence verifies. Its subsequent `npm ci` remains frozen and offline. Cache
+population is not implicit in checkout or build and must never be run without its separate
+network-authorisation gate.
 
 The rollback build must run the committed-candidate flow in `src/config/rollback-immutable-runtime-cache.test.ts` from exact SHA `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`. Final fixture generation cannot run from an uncommitted review diff. Provenance must bind the actual candidate SHA, historical parent, exact three-file set, raw Git diff digest, reviewed-file hashes, package identities, Next.js `15.5.15`, `BUILD_ID`, and recomputed full artifact manifest. It must record a synthetic build, absent production authority, enforced Linux loopback-only/no-route network isolation, and historical BCN identity. Forward Circle Card identity is rejected.
 
@@ -418,7 +454,7 @@ The Circle HTTP raw-target map rejects repeated separators, case variants, encod
 2. Install it only after external bootstrap, archive, manifest, and operations-commit verification.
 3. Prepare protected environments and one canonical database identity.
 4. Create a fresh rollback checkout at `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`.
-5. Run committed-candidate provenance and the isolated Linux rollback build.
+5. In a separately authorised network-enabled gate, populate and seal the fixed offline npm cache from the exact rollback lockfile; then run committed-candidate provenance and the isolated Linux rollback build offline.
 6. Construct and rehearse the immutable rollback artifact privately.
 7. Create a separate fresh forward checkout at `b43a1e4e708bc9f02ef83bd63dab1db1f366b32e`.
 8. Construct forward BCN and Circle Card artifacts from that one forward build.

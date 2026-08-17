@@ -8,17 +8,24 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 require_root; require_application_sha rollback "${1:-}"
 [[ $(uname -s) == Linux && $(node --version) == v22.22.2 ]] || die "rollback fixture requires Linux and Node 22.22.2"
 start_write_log prepare-rollback-linux-fixture
-attempt_file="${PHASE_F1_STATE_ROOT}/rollback-build-attempt.path"; require_protected_state_file "${attempt_file}"
-workspace=$(realpath -e "$(<"${attempt_file}")")
+attempt_file="${PHASE_F1_STATE_ROOT}/rollback-build-attempt.json"; require_protected_state_file "${attempt_file}"
+workspace=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" inspect "${attempt_file}" rollback "${PHASE_F1_ROLLBACK_SHA}" "${PHASE_F1_PACK_COMMIT}"); workspace=$(realpath -e "${workspace}")
 [[ ${workspace} == "${PHASE_F1_BUILD_ROOT}/rollback-${PHASE_F1_ROLLBACK_SHA}-"* ]] || die "wrong rollback fixture workspace"
 identity_recheck="${PHASE_F1_STATE_ROOT}/rollback-application-identity.recheck.json"
 [[ ! -e ${identity_recheck} ]] || die "rollback identity recheck evidence already exists"
 env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin /usr/bin/node "${PHASE_F1_PACK_DIR}/application-identities.mjs" verify rollback "${workspace}" "${identity_recheck}" >/dev/null
 chmod 0600 "${identity_recheck}"; chown root:root "${identity_recheck}"
-readonly OFFLINE_CACHE=${PHASE_E3_OFFLINE_NPM_CACHE_ROOT:?approved offline npm cache required}
-[[ -d ${OFFLINE_CACHE} && ! -L ${OFFLINE_CACHE} ]] || die "unsafe offline npm cache"
+env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin /usr/bin/node \
+  "${PHASE_F1_PACK_DIR}/offline-npm-cache.mjs" verify "${workspace}" "${PHASE_F1_PACK_COMMIT}" >/dev/null || die "OFFLINE_NPM_CACHE_NOT_READY"
+readonly OFFLINE_CACHE=${PHASE_F1_OFFLINE_NPM_CACHE_ROOT}
+consumed_workspace=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" consume "${attempt_file}" rollback "${PHASE_F1_ROLLBACK_SHA}" "${PHASE_F1_PACK_COMMIT}")
+[[ $(realpath -e "${consumed_workspace}") == "${workspace}" ]] || die "rollback build attempt changed before consumption"
+build_complete=false
+record_failed_attempt() { local status=$?; trap - EXIT ERR INT TERM; if ((status)) && [[ ${build_complete} != true ]]; then /usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" finish "${attempt_file}" failed "${PHASE_F1_PACK_COMMIT}" || true; fi; exit "${status}"; }
+trap record_failed_attempt EXIT INT TERM
 sudo -u phase-f1-build env -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
-  NPM_CONFIG_CACHE="${OFFLINE_CACHE}" NPM_CONFIG_OFFLINE=true NEXT_TELEMETRY_DISABLED=1 \
+  NPM_CONFIG_USERCONFIG=/dev/null NPM_CONFIG_GLOBALCONFIG=/dev/null NPM_CONFIG_CACHE="${OFFLINE_CACHE}" \
+  NPM_CONFIG_LOGS_DIR=/var/lib/thebusinesscircle/build/npm-logs NPM_CONFIG_OFFLINE=true NPM_CONFIG_UPDATE_NOTIFIER=false NEXT_TELEMETRY_DISABLED=1 \
   npm --prefix "${workspace}" ci --offline --no-audit --no-fund
 fixture_parent="${PHASE_F1_BUILD_ROOT}/rollback-fixture-${PHASE_F1_ROLLBACK_SHA}-$(openssl rand -hex 8)"
 fixture="${fixture_parent}/fixture"
@@ -54,4 +61,6 @@ printf '{"skipped":false,"applicationSha":"%s","provenanceSha256":"%s","testSour
 chmod 0600 "${next_start_evidence}"; chown root:root "${next_start_evidence}"
 printf '%s\n' "${fixture}" >"${fixture_evidence}"
 chmod 0600 "${fixture_evidence}"; chown root:root "${fixture_evidence}"
+/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" finish "${attempt_file}" complete "${PHASE_F1_PACK_COMMIT}"
+build_complete=true; trap - EXIT ERR INT TERM
 printf 'Rollback fixture generation and provenance-gated real next start both executed successfully.\n'
