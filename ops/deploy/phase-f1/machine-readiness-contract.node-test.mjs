@@ -341,6 +341,69 @@ describe("Phase F1 sanitised environment contract", () => {
       );
     }
   );
+
+  it("PREPARE_ENVIRONMENT_READONLY_PAYLOAD_BINDING_FIXED", () => {
+    const preparation = readFileSync(
+      join(packRoot, "prepare-environment.sh"),
+      "utf8"
+    );
+    assert.match(
+      preparation,
+      /readonly BCN_PAYLOAD_PATH CIRCLE_PAYLOAD_PATH BUILD_PAYLOAD_PATH/
+    );
+    for (const [childName, trustedName] of [
+      ["BCN_PAYLOAD", "BCN_PAYLOAD_PATH"],
+      ["CIRCLE_PAYLOAD", "CIRCLE_PAYLOAD_PATH"],
+      ["BUILD_PAYLOAD", "BUILD_PAYLOAD_PATH"]
+    ]) {
+      assert.equal(
+        preparation.includes(`${childName}="\${${trustedName}}" \\\n`),
+        true
+      );
+      assert.doesNotMatch(
+        preparation,
+        new RegExp(`readonly(?: [A-Z_]+)* ${childName}(?: |$)`, "mu")
+      );
+    }
+    assert.equal(preparation.includes("BCN_PAYLOAD: readonly variable"), false);
+    assert.equal(preparation.includes("CIRCLE_PAYLOAD: readonly variable"), false);
+    assert.equal(preparation.includes("BUILD_PAYLOAD: readonly variable"), false);
+  });
+
+  it(
+    "maps all immutable trusted payload paths into child-only bindings",
+    { skip: process.platform === "win32" },
+    () => {
+      const output = execFileSync(
+        "/usr/bin/bash",
+        [
+          "-c",
+          [
+            "set -Eeuo pipefail",
+            "readonly BCN_PAYLOAD_PATH=/trusted/bcn.payload",
+            "readonly CIRCLE_PAYLOAD_PATH=/trusted/circle-card.payload",
+            "readonly BUILD_PAYLOAD_PATH=/trusted/build.payload",
+            "BCN_PAYLOAD=\"${BCN_PAYLOAD_PATH}\" CIRCLE_PAYLOAD=\"${CIRCLE_PAYLOAD_PATH}\" BUILD_PAYLOAD=\"${BUILD_PAYLOAD_PATH}\" /usr/bin/node -e " +
+              "'const expected={BCN_PAYLOAD:\"/trusted/bcn.payload\",CIRCLE_PAYLOAD:\"/trusted/circle-card.payload\",BUILD_PAYLOAD:\"/trusted/build.payload\"}; for(const [name,value] of Object.entries(expected)){if(process.env[name]!==value)process.exit(1)}'",
+            "printf 'PREPARE_ENVIRONMENT_READONLY_PAYLOAD_BINDING_FIXED\\n'"
+          ].join("\n")
+        ],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            BCN_PAYLOAD: "/caller/override-bcn",
+            CIRCLE_PAYLOAD: "/caller/override-circle",
+            BUILD_PAYLOAD: "/caller/override-build"
+          }
+        }
+      );
+      assert.equal(
+        output,
+        "PREPARE_ENVIRONMENT_READONLY_PAYLOAD_BINDING_FIXED\n"
+      );
+    }
+  );
 });
 
 describe("Phase F1 atomic no-replace publication", () => {

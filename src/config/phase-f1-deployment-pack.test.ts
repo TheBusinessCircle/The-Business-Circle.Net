@@ -623,6 +623,19 @@ describe("Phase F1 protected environment and release ordering", () => {
     ]) {
       expect(preparation).toContain(requiredCheck);
     }
+    expect(preparation).toContain(
+      "readonly BCN_PAYLOAD_PATH CIRCLE_PAYLOAD_PATH BUILD_PAYLOAD_PATH"
+    );
+    for (const [childName, trustedName] of [
+      ["BCN_PAYLOAD", "BCN_PAYLOAD_PATH"],
+      ["CIRCLE_PAYLOAD", "CIRCLE_PAYLOAD_PATH"],
+      ["BUILD_PAYLOAD", "BUILD_PAYLOAD_PATH"]
+    ]) {
+      expect(preparation).toContain(`${childName}="\${${trustedName}}" \\\n`);
+    }
+    expect(preparation).not.toMatch(
+      /readonly BCN_PAYLOAD(?: |$)|readonly CIRCLE_PAYLOAD(?: |$)|readonly BUILD_PAYLOAD(?: |$)/mu
+    );
   });
 
   it("publishes commit-bound environment-only readiness before release creation", () => {

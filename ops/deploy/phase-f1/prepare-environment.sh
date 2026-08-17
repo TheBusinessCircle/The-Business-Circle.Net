@@ -30,19 +30,19 @@ for target in "${PHASE_F1_BCN_ENV}" "${PHASE_F1_CIRCLE_ENV}" "${PHASE_F1_BUILD_E
     die "refusing to replace an existing or symlinked protected environment path: ${target}"
 done
 
-BCN_PAYLOAD=$(mktemp /etc/thebusinesscircle/bcn/.bcn.payload.XXXXXX)
-CIRCLE_PAYLOAD=$(mktemp /etc/thebusinesscircle/circle-card/.circle-card.payload.XXXXXX)
-BUILD_PAYLOAD=$(mktemp /etc/thebusinesscircle/build/.build.payload.XXXXXX)
-readonly BCN_PAYLOAD CIRCLE_PAYLOAD BUILD_PAYLOAD
+BCN_PAYLOAD_PATH=$(mktemp /etc/thebusinesscircle/bcn/.bcn.payload.XXXXXX)
+CIRCLE_PAYLOAD_PATH=$(mktemp /etc/thebusinesscircle/circle-card/.circle-card.payload.XXXXXX)
+BUILD_PAYLOAD_PATH=$(mktemp /etc/thebusinesscircle/build/.build.payload.XXXXXX)
+readonly BCN_PAYLOAD_PATH CIRCLE_PAYLOAD_PATH BUILD_PAYLOAD_PATH
 cleanup() {
-  rm -f -- "${BCN_PAYLOAD}" "${CIRCLE_PAYLOAD}" "${BUILD_PAYLOAD}"
+  rm -f -- "${BCN_PAYLOAD_PATH}" "${CIRCLE_PAYLOAD_PATH}" "${BUILD_PAYLOAD_PATH}"
 }
 trap cleanup EXIT
 
 OPERATOR_INPUT="${OPERATOR_INPUT_PATH}" \
-BCN_PAYLOAD="${BCN_PAYLOAD}" \
-CIRCLE_PAYLOAD="${CIRCLE_PAYLOAD}" \
-BUILD_PAYLOAD="${BUILD_PAYLOAD}" \
+BCN_PAYLOAD="${BCN_PAYLOAD_PATH}" \
+CIRCLE_PAYLOAD="${CIRCLE_PAYLOAD_PATH}" \
+BUILD_PAYLOAD="${BUILD_PAYLOAD_PATH}" \
 CONTRACT_FILE="${PHASE_F1_PACK_DIR}/environment-contract.cjs" \
 SERIALIZER_FILE="${PHASE_F1_PACK_DIR}/environment-serialization.cjs" \
 /usr/bin/node <<'NODE'
@@ -81,7 +81,7 @@ NODE
 
 env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
   /usr/bin/node "${PHASE_F1_PACK_DIR}/publish-environment-set.mjs" \
-  "${BCN_PAYLOAD}" "${CIRCLE_PAYLOAD}" "${BUILD_PAYLOAD}" \
+  "${BCN_PAYLOAD_PATH}" "${CIRCLE_PAYLOAD_PATH}" "${BUILD_PAYLOAD_PATH}" \
   "${PHASE_F1_BCN_ENV}" "${PHASE_F1_CIRCLE_ENV}" "${PHASE_F1_BUILD_ENV}"
 
 env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
