@@ -63,9 +63,15 @@ describe("Phase F1 pinned Git transport trust", () => {
       "-oHostKeyAlgorithms=ssh-ed25519",
       "-oUpdateHostKeys=no",
       "-oVerifyHostKeyDNS=no",
-      "-oIdentityAgent=none"
+      "-oIdentityAgent=none",
+      "-oIdentitiesOnly=yes",
+      "-oIdentityFile=/var/lib/thebusinesscircle/build/git-auth/github-deploy-key"
     ]) assert.match(command, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
     assert.doesNotMatch(command, /StrictHostKeyChecking=no|accept-new/u);
     assert.throws(() => buildPinnedSshCommand("/tmp/known hosts"), /unsafe/u);
+    assert.throws(() => buildPinnedSshCommand(
+      "/opt/thebusinesscircle/deployment-packs/0123456789012345678901234567890123456789/github.com.known_hosts",
+      "/tmp/alternate-key"
+    ), /identity path is unsafe/u);
   });
 });

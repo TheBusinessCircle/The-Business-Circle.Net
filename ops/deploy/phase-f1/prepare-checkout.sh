@@ -17,6 +17,8 @@ transport=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/git-transport-trust.mjs" origin 
   die "exact approved Git origin required"
 git_ssh_command=""
 if [[ ${transport} == ssh ]]; then
+  /usr/bin/node "${PHASE_F1_PACK_DIR}/git-authentication.mjs" verify-ready "${PHASE_F1_PACK_COMMIT}" >/dev/null ||
+    die "GIT_AUTH_NOT_READY"
   git_ssh_command=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/git-transport-trust.mjs" verify "${PHASE_F1_PACK_DIR}") ||
     die "approved Git transport trust is unavailable"
 elif [[ ${transport} != https ]]; then

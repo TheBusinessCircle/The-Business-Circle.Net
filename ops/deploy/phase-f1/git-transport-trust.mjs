@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PRIVATE_KEY } from "./git-authentication.mjs";
 
 export const APPROVED_GIT_HOST = "github.com";
 export const APPROVED_GIT_HOST_KEY_ALGORITHM = "ssh-ed25519";
@@ -79,7 +80,7 @@ export function verifyInstalledGitTrust(packRoot, { enforceMetadata = true } = {
   return trustPath;
 }
 
-export function buildPinnedSshCommand(trustPath) {
+export function buildPinnedSshCommand(trustPath, identityPath = PRIVATE_KEY) {
   const canonicalTrust = trustPath;
   if (!new RegExp(
     `^/opt/thebusinesscircle/deployment-packs/[0-9a-f]{40}/${TRUST_FILE_NAME.replace(".", "\\.")}$`,
@@ -87,6 +88,7 @@ export function buildPinnedSshCommand(trustPath) {
   ).test(canonicalTrust)) {
     throw new Error("Git transport trust path is unsafe.");
   }
+  if (identityPath !== PRIVATE_KEY) throw new Error("Git authentication identity path is unsafe.");
   return [
     "/usr/bin/ssh",
     "-F", "/dev/null",
@@ -100,16 +102,20 @@ export function buildPinnedSshCommand(trustPath) {
     "-oPasswordAuthentication=no",
     "-oKbdInteractiveAuthentication=no",
     "-oIdentityAgent=none"
+    ,"-oIdentitiesOnly=yes",
+    `-oIdentityFile=${identityPath}`
   ].join(" ");
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [command, value, ...extras] = process.argv.slice(2);
+  const [command, value, identity, ...extras] = process.argv.slice(2);
   if (extras.length) throw new Error("Unexpected Git transport trust arguments.");
   if (command === "verify") {
     const trustPath = verifyInstalledGitTrust(value);
+    if (identity && identity !== PRIVATE_KEY) throw new Error("Git authentication identity path is unsafe.");
     process.stdout.write(`${buildPinnedSshCommand(trustPath)}\n`);
   } else if (command === "origin") {
+    if (identity) throw new Error("Unexpected Git transport trust arguments.");
     process.stdout.write(`${validateApprovedOrigin(value)}\n`);
   } else {
     throw new Error("Usage: git-transport-trust.mjs <verify PACK_ROOT|origin GIT_ORIGIN>");

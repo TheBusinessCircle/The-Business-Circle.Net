@@ -433,6 +433,7 @@ describe("Phase F1 sanitised environment contract", () => {
     assert.doesNotMatch(trust, /StrictHostKeyChecking=(?:no|accept-new)/u);
     assert.match(checkout, /git-transport-trust\.mjs" verify/u);
     assert.match(checkout, /GIT_SSH_COMMAND=\$\{git_ssh_command\}/u);
+    assert.match(checkout, /git-authentication\.mjs" verify-ready/u);
     assert.match(checkout, /sudo -u phase-f1-build env -i/u);
     assert.match(checkout, /failed-checkout-cleanup\.mjs" cleanup/u);
     assert.match(cleanup, /PARTIAL_UNTRUSTED/u);
