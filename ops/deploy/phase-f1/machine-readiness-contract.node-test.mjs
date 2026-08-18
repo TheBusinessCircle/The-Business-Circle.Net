@@ -418,6 +418,29 @@ describe("Phase F1 sanitised environment contract", () => {
     assert.match(state, /operationsCommit/u);
   });
 
+  it("pins build-user GitHub SSH trust and guards failed-checkout cleanup", () => {
+    const checkout = readFileSync(join(packRoot, "prepare-checkout.sh"), "utf8");
+    const trust = readFileSync(join(packRoot, "git-transport-trust.mjs"), "utf8");
+    const knownHosts = readFileSync(join(packRoot, "github.com.known_hosts"), "utf8");
+    const cleanup = readFileSync(join(packRoot, "failed-checkout-cleanup.mjs"), "utf8");
+    assert.equal(knownHosts.split("\n").filter(Boolean).length, 1);
+    assert.match(knownHosts, /^github\.com ssh-ed25519 /u);
+    assert.match(trust, /StrictHostKeyChecking=yes/u);
+    assert.match(trust, /UserKnownHostsFile=/u);
+    assert.match(trust, /GlobalKnownHostsFile=\/dev\/null/u);
+    assert.match(trust, /HostKeyAlgorithms=\$\{APPROVED_GIT_HOST_KEY_ALGORITHM\}/u);
+    assert.match(trust, /IdentityAgent=none/u);
+    assert.doesNotMatch(trust, /StrictHostKeyChecking=(?:no|accept-new)/u);
+    assert.match(checkout, /git-transport-trust\.mjs" verify/u);
+    assert.match(checkout, /GIT_SSH_COMMAND=\$\{git_ssh_command\}/u);
+    assert.match(checkout, /sudo -u phase-f1-build env -i/u);
+    assert.match(checkout, /failed-checkout-cleanup\.mjs" cleanup/u);
+    assert.match(cleanup, /PARTIAL_UNTRUSTED/u);
+    assert.match(cleanup, /activeReference/u);
+    assert.match(cleanup, /selectorReference/u);
+    assert.match(cleanup, /mountpoint/u);
+  });
+
   it("keeps offline npm cache authority fixed, sealed and separately prepared", () => {
     const common = readFileSync(join(packRoot, "common.sh"), "utf8");
     const fixture = readFileSync(join(packRoot, "prepare-rollback-fixture.sh"), "utf8");
