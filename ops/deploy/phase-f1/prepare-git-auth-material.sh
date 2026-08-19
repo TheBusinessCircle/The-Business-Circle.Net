@@ -13,7 +13,7 @@ readonly PUBLIC_KEY=${PRIVATE_KEY}.pub
 [[ ! -e ${AUTH_ROOT} && ! -L ${AUTH_ROOT} ]] || die "Git authentication material already exists"
 install -d -m 0710 -o root -g phase-f1-build "${AUTH_ROOT}"
 /usr/bin/ssh-keygen -q -t ed25519 -N '' -C phase-f1-github-deploy-key -f "${PRIVATE_KEY}"
-chown root:phase-f1-build "${PRIVATE_KEY}"; chmod 0440 "${PRIVATE_KEY}"
+chown phase-f1-build:phase-f1-build "${PRIVATE_KEY}"; chmod 0400 "${PRIVATE_KEY}"
 chown root:root "${PUBLIC_KEY}"; chmod 0444 "${PUBLIC_KEY}"
 /usr/bin/sync -f "${PRIVATE_KEY}"; /usr/bin/sync -f "${PUBLIC_KEY}"; /usr/bin/sync -f "${AUTH_ROOT}"
 /usr/bin/node "${PHASE_F1_PACK_DIR}/git-authentication.mjs" verify-material >/dev/null

@@ -442,6 +442,27 @@ describe("Phase F1 sanitised environment contract", () => {
     assert.match(cleanup, /mountpoint/u);
   });
 
+  it("keeps deploy-key generation OpenSSH-compatible and recovery narrowly bounded", () => {
+    const authentication = readFileSync(join(packRoot, "git-authentication.mjs"), "utf8");
+    const preparation = readFileSync(join(packRoot, "prepare-git-auth-material.sh"), "utf8");
+    const recovery = readFileSync(join(packRoot, "recover-git-auth-material.sh"), "utf8");
+    assert.match(preparation, /chown phase-f1-build:phase-f1-build "\$\{PRIVATE_KEY\}"/u);
+    assert.match(preparation, /chmod 0400 "\$\{PRIVATE_KEY\}"/u);
+    assert.doesNotMatch(preparation, /chmod 0?(?:440|600) "\$\{PRIVATE_KEY\}"/u);
+    assert.match(authentication, /privateUid !== contract\.buildUid/u);
+    assert.match(authentication, /privateMode !== 0o400/u);
+    assert.match(authentication, /"phase-f1-build"[\s\S]+"\/usr\/bin\/ssh-keygen", "-y", "-f", PRIVATE_KEY/u);
+    assert.match(authentication, /contract\.privateUid !== 0[\s\S]+contract\.privateMode !== 0o440/u);
+    assert.match(authentication, /entries !== "github-deploy-key,github-deploy-key\.pub"/u);
+    assert.match(authentication, /readinessAbsent !== true/u);
+    assert.match(authentication, /buildsEmpty !== true/u);
+    assert.match(authentication, /keyUnused !== true/u);
+    assert.match(authentication, /Private-key byte identity changed during metadata recovery/u);
+    assert.match(authentication, /Public-key byte identity changed during metadata recovery/u);
+    assert.match(recovery, /require_pack_integrity/u);
+    assert.match(recovery, /git-authentication\.mjs" recover-partial/u);
+  });
+
   it("keeps offline npm cache authority fixed, sealed and separately prepared", () => {
     const common = readFileSync(join(packRoot, "common.sh"), "utf8");
     const fixture = readFileSync(join(packRoot, "prepare-rollback-fixture.sh"), "utf8");
