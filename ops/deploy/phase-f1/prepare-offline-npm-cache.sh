@@ -9,7 +9,7 @@ require_root; require_application_sha rollback "${1:-}"; require_environment_rea
 [[ $(node --version) == v22.22.2 && $(npm --version) == 10.9.7 ]] || die "exact Node/npm versions required"
 attempt_file="${PHASE_F1_STATE_ROOT}/rollback-build-attempt.json"; require_protected_state_file "${attempt_file}"
 workspace=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" inspect "${attempt_file}" rollback "${PHASE_F1_ROLLBACK_SHA}" "${PHASE_F1_PACK_COMMIT}"); workspace=$(realpath -e "${workspace}")
-[[ ${workspace} == "${PHASE_F1_BUILD_ROOT}/rollback-${PHASE_F1_ROLLBACK_SHA}-"* && $(git -C "${workspace}" rev-parse HEAD) == "${PHASE_F1_ROLLBACK_SHA}" ]] || die "unapproved rollback cache-preparation workspace"
+[[ ${workspace} == "${PHASE_F1_BUILD_ROOT}/rollback-${PHASE_F1_ROLLBACK_SHA}-"* && $(git_read_as_phase_f1_build_user -C "${workspace}" rev-parse HEAD) == "${PHASE_F1_ROLLBACK_SHA}" ]] || die "unapproved rollback cache-preparation workspace"
 [[ ! -e ${PHASE_F1_OFFLINE_NPM_CACHE_ROOT} && ! -L ${PHASE_F1_OFFLINE_NPM_CACHE_ROOT} ]] || die "offline npm cache destination already exists"
 [[ ! -e ${PHASE_F1_OFFLINE_NPM_CACHE_READINESS} && ! -L ${PHASE_F1_OFFLINE_NPM_CACHE_READINESS} ]] || die "offline npm cache readiness evidence already exists"
 cache_parent=$(dirname "${PHASE_F1_OFFLINE_NPM_CACHE_ROOT}")

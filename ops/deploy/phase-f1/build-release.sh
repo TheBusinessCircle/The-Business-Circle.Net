@@ -17,7 +17,7 @@ workspace=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" consume "${atte
 build_complete=false
 record_failed_attempt() { local status=$?; trap - EXIT ERR INT TERM; if ((status)) && [[ ${build_complete} != true ]]; then /usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" finish "${attempt_file}" failed "${PHASE_F1_PACK_COMMIT}" || true; fi; exit "${status}"; }
 trap record_failed_attempt EXIT INT TERM
-[[ ${workspace} == "${PHASE_F1_BUILD_ROOT}/${ROLE}-${application_sha}-"* && $(git -C "${workspace}" rev-parse HEAD) == "${application_sha}" ]] || die "unapproved build workspace"
+[[ ${workspace} == "${PHASE_F1_BUILD_ROOT}/${ROLE}-${application_sha}-"* && $(git_read_as_phase_f1_build_user -C "${workspace}" rev-parse HEAD) == "${application_sha}" ]] || die "unapproved build workspace"
 [[ ! -e ${final_dir} ]] || die "release cannot be reused"
 for forbidden in .env .env.local .env.production .next node_modules; do [[ ! -e ${workspace}/${forbidden} ]] || die "stale or secret-bearing build input: ${forbidden}"; done
 start_write_log "build-${ROLE}-release"

@@ -59,7 +59,6 @@ export function validateFailedCheckoutFacts(facts, { enforceMetadata = true } = 
     facts.activeReference !== false ||
     facts.selectorReference !== false ||
     facts.protectedEvidence !== false ||
-    facts.verifiedHead !== false ||
     facts.handoffEvidence !== false ||
     facts.identityEvidence !== false ||
     (enforceMetadata && (
@@ -163,7 +162,6 @@ function operationalFacts(workspace, role, applicationSha, operationsCommit, opt
     activeReference: options.activeReference ?? hasActiveReference(target, options.processRoot),
     selectorReference: options.selectorReference ?? selectorReferences(target, options.selectors),
     protectedEvidence: options.protectedEvidence ?? containsProtectedEvidence(target),
-    verifiedHead: options.verifiedHead ?? commandPasses("/usr/bin/git", ["-C", target, "rev-parse", "--verify", "HEAD"]),
     handoffEvidence: options.handoffEvidence ?? existsSync(join(stateRoot, `${role}-build-attempt.json`)),
     identityEvidence: options.identityEvidence ?? existsSync(join(stateRoot, `${role}-application-identity.json`)),
     target,

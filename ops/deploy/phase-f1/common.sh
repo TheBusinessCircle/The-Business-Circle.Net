@@ -39,6 +39,16 @@ PHASE_F1_PACK_MANIFEST_SHA256=""
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 require_root() { [[ ${EUID} -eq 0 ]] || die "this preparation phase requires root"; }
 
+git_read_as_phase_f1_build_user() {
+  sudo -u phase-f1-build -- /usr/bin/env -i \
+    HOME=/var/lib/thebusinesscircle/build \
+    USER=phase-f1-build LOGNAME=phase-f1-build \
+    PATH=/usr/local/bin:/usr/bin:/bin LANG=C.UTF-8 \
+    GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+    GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 \
+    /usr/bin/git "$@"
+}
+
 assert_no_symlink_components() {
   local path=$1 current=/ part
   [[ ${path} == /* ]] || die "absolute path required: ${path}"

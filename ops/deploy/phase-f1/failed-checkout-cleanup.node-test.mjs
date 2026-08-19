@@ -32,7 +32,6 @@ const validFacts = (overrides = {}) => ({
   activeReference: false,
   selectorReference: false,
   protectedEvidence: false,
-  verifiedHead: false,
   handoffEvidence: false,
   identityEvidence: false,
   ...overrides
@@ -51,7 +50,7 @@ describe("Phase F1 failed checkout cleanup", () => {
       { basename: "rollback-arbitrary" }, { directory: false }, { symlink: true },
       { mode: 0o777 }, { sameFilesystem: false }, { mountpoint: true },
       { activeReference: true }, { selectorReference: true }, { protectedEvidence: true },
-      { verifiedHead: true }, { handoffEvidence: true }, { identityEvidence: true }
+      { handoffEvidence: true }, { identityEvidence: true }
     ]) assert.throws(() => validateFailedCheckoutFacts(validFacts(changed)), /PARTIAL_UNTRUSTED/u);
   });
 
@@ -67,7 +66,7 @@ describe("Phase F1 failed checkout cleanup", () => {
     const result = cleanupFailedCheckout(workspace, "rollback", ROLLBACK_APPLICATION_SHA, operationsCommit, {
       buildRoot, stateRoot, enforceMetadata: false, expectedUid: 0, expectedGid: 0,
       mountpoint: false, activeReference: false, selectorReference: false,
-      protectedEvidence: false, verifiedHead: false, handoffEvidence: false,
+      protectedEvidence: false, handoffEvidence: false,
       identityEvidence: false, fsyncParent: false, fsyncDirectories: false
     });
     assert.equal(existsSync(workspace), false);
@@ -89,7 +88,7 @@ describe("Phase F1 failed checkout cleanup", () => {
     assert.throws(() => cleanupFailedCheckout(workspace, "rollback", ROLLBACK_APPLICATION_SHA, operationsCommit, {
       buildRoot, stateRoot, enforceMetadata: false, expectedUid: 0, expectedGid: 0,
       mountpoint: false, activeReference: false, selectorReference: false,
-      protectedEvidence: false, verifiedHead: false, handoffEvidence: false,
+      protectedEvidence: false, handoffEvidence: false,
       identityEvidence: false, fsyncParent: false, fsyncDirectories: false
     }), /PARTIAL_UNTRUSTED/u);
     assert.equal(existsSync(workspace), true);

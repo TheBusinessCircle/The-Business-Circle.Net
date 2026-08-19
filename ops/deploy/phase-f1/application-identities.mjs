@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { closeSync, existsSync, fsyncSync, openSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gitAsBuildUser } from "./build-user-git.mjs";
 
 export const FORWARD_APPLICATION_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
 export const FORWARD_PARENT_SHA = "6949bb2b7ef0ce28e5983751f3c8a10accde99b3";
@@ -40,22 +41,22 @@ function rowsFromNul(buffer) {
   return buffer.toString("utf8").split("\0").filter(Boolean);
 }
 
-export function verifyApplicationCommit(root, role, identities = APPLICATION_IDENTITIES) {
+export function verifyApplicationCommit(root, role, identities = APPLICATION_IDENTITIES, gitRunner = git) {
   const expected = identities[role];
   if (!expected) throw new Error("Application role must be forward or rollback.");
   const repository = resolve(root);
-  const head = git(repository, ["rev-parse", "HEAD"]).trim();
-  const status = git(repository, ["status", "--porcelain=v1", "-z", "--untracked-files=all"], "buffer");
+  const head = gitRunner(repository, ["rev-parse", "HEAD"]).trim();
+  const status = gitRunner(repository, ["status", "--porcelain=v1", "-z", "--untracked-files=all"], "buffer");
   if (head !== expected.sha || status.length !== 0) throw new Error(`${role} checkout is not the exact clean approved commit.`);
 
-  const parents = git(repository, ["rev-list", "--parents", "-n", "1", head]).trim().split(/\s+/u);
+  const parents = gitRunner(repository, ["rev-list", "--parents", "-n", "1", head]).trim().split(/\s+/u);
   if (parents.length !== 2 || parents[1] !== expected.parentSha) {
     throw new Error(`${role} commit is a merge, has an extra commit, or has the wrong parent.`);
   }
 
   const reviewBaseSha = expected.reviewBaseSha ?? parents[1];
   if (expected.reviewBaseSha) {
-    const reviewBaseIsAncestor = git(
+    const reviewBaseIsAncestor = gitRunner(
       repository,
       ["merge-base", "--is-ancestor", reviewBaseSha, parents[1]],
       "buffer"
@@ -64,7 +65,7 @@ export function verifyApplicationCommit(root, role, identities = APPLICATION_IDE
       throw new Error(`${role} reviewed base ancestry check produced unexpected output.`);
     }
   }
-  const statusRows = rowsFromNul(git(repository, [
+  const statusRows = rowsFromNul(gitRunner(repository, [
     "diff-tree", "--no-commit-id", "-r", "--no-renames", "--name-status", "-z", reviewBaseSha, head
   ], "buffer"));
   const actual = [];
@@ -77,19 +78,19 @@ export function verifyApplicationCommit(root, role, identities = APPLICATION_IDE
   }
 
   const fileHashes = expected.files.map(({ status: fileStatus, mode, path }) => {
-    const tree = git(repository, ["ls-tree", head, "--", path]).trim();
+    const tree = gitRunner(repository, ["ls-tree", head, "--", path]).trim();
     const match = /^(\d+) blob ([0-9a-f]+)\t(.+)$/u.exec(tree);
     if (!match || match[1] !== mode || match[3] !== path) {
       throw new Error(`${role} commit has a rename, deletion, special object, or mode change: ${path}`);
     }
-    const parentTree = git(repository, ["ls-tree", reviewBaseSha, "--", path]).trim();
+    const parentTree = gitRunner(repository, ["ls-tree", reviewBaseSha, "--", path]).trim();
     if (fileStatus === "M" && !parentTree.startsWith(`${mode} blob `)) {
       throw new Error(`${role} modified file did not exist with the approved mode in its parent: ${path}`);
     }
     if (fileStatus === "A" && parentTree) throw new Error(`${role} added file already existed in its parent: ${path}`);
-    return { path, sha256: sha256(git(repository, ["show", `${head}:${path}`], "buffer")) };
+    return { path, sha256: sha256(gitRunner(repository, ["show", `${head}:${path}`], "buffer")) };
   });
-  const rawDiff = git(repository, [
+  const rawDiff = gitRunner(repository, [
     "diff-tree", "--no-commit-id", "-r", "--no-renames", "--raw", "-z", reviewBaseSha, head
   ], "buffer");
   return {
@@ -124,7 +125,7 @@ if (
   if (command !== "verify" || !role || !repository || !evidencePath) {
     throw new Error("Usage: application-identities.mjs verify <forward|rollback> <repository> <new-evidence-path>");
   }
-  const identity = verifyApplicationCommit(repository, role);
+  const identity = verifyApplicationCommit(repository, role, APPLICATION_IDENTITIES, gitAsBuildUser);
   writeExclusive(resolve(evidencePath), identity);
   process.stdout.write(sha256(readFileSync(resolve(evidencePath))));
 }

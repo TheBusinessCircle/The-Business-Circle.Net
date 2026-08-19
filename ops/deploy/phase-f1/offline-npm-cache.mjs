@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gitAsBuildUser } from "./build-user-git.mjs";
 
 export const OFFLINE_CACHE_ROOT = "/var/cache/thebusinesscircle/phase-f1/npm-offline-v1";
 export const READINESS_PATH = "/var/lib/thebusinesscircle/deployment-state/offline-npm-cache-readiness.json";
@@ -113,10 +114,10 @@ function buildGroupId() {
 function verifyWorkspace(workspace) {
   const canonical = realpathSync(resolve(workspace));
   if (!canonical.startsWith(`/var/www/builds/rollback-${ROLLBACK_APPLICATION_SHA}-`)) throw new Error("Offline cache readiness requires the approved rollback checkout.");
-  const head = execFileSync("/usr/bin/git", ["-C", canonical, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  const head = gitAsBuildUser(canonical, ["rev-parse", "HEAD"]).trim();
   if (head !== ROLLBACK_APPLICATION_SHA) throw new Error("Offline cache readiness rollback identity mismatch.");
   const lockfile = join(canonical, "package-lock.json");
-  const committed = execFileSync("/usr/bin/git", ["-C", canonical, "show", `${ROLLBACK_APPLICATION_SHA}:package-lock.json`]);
+  const committed = gitAsBuildUser(canonical, ["show", `${ROLLBACK_APPLICATION_SHA}:package-lock.json`], "buffer");
   if (!readFileSync(lockfile).equals(committed)) throw new Error("Approved rollback lockfile differs from its commit.");
   return { canonical, lockfile };
 }

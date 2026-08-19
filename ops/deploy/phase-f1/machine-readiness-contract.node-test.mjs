@@ -442,6 +442,27 @@ describe("Phase F1 sanitised environment contract", () => {
     assert.match(cleanup, /mountpoint/u);
   });
 
+  it("inspects build-user-owned checkouts in the same scrubbed security context", () => {
+    const common = readFileSync(join(packRoot, "common.sh"), "utf8");
+    const checkout = readFileSync(join(packRoot, "prepare-checkout.sh"), "utf8");
+    const preparation = readFileSync(join(packRoot, "prepare-offline-npm-cache.sh"), "utf8");
+    const release = readFileSync(join(packRoot, "build-release.sh"), "utf8");
+    const identities = readFileSync(join(packRoot, "application-identities.mjs"), "utf8");
+    const manifests = readFileSync(join(packRoot, "artifact-manifest.mjs"), "utf8");
+    const cache = readFileSync(join(packRoot, "offline-npm-cache.mjs"), "utf8");
+    const cleanup = readFileSync(join(packRoot, "failed-checkout-cleanup.mjs"), "utf8");
+    assert.match(common, /git_read_as_phase_f1_build_user/u);
+    assert.match(common, /sudo -u phase-f1-build -- \/usr\/bin\/env -i/u);
+    assert.match(checkout, /git_read_as_phase_f1_build_user -C "\$\{attempt\}" rev-parse HEAD/u);
+    assert.match(preparation, /git_read_as_phase_f1_build_user -C "\$\{workspace\}" rev-parse HEAD/u);
+    assert.match(release, /git_read_as_phase_f1_build_user -C "\$\{workspace\}" rev-parse HEAD/u);
+    assert.match(identities, /gitAsBuildUser/u);
+    assert.match(manifests, /gitAsBuildUser/u);
+    assert.match(cache, /gitAsBuildUser/u);
+    assert.doesNotMatch([common, checkout, preparation, release, identities, manifests, cache, cleanup].join("\n"), /safe\.directory/u);
+    assert.doesNotMatch(cleanup, /execFileSync\("\/usr\/bin\/git"/u);
+  });
+
   it("keeps deploy-key generation OpenSSH-compatible and recovery narrowly bounded", () => {
     const authentication = readFileSync(join(packRoot, "git-authentication.mjs"), "utf8");
     const preparation = readFileSync(join(packRoot, "prepare-git-auth-material.sh"), "utf8");

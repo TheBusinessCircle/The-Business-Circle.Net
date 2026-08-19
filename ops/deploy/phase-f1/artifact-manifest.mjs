@@ -14,6 +14,7 @@ import {
 import { execFileSync } from "node:child_process";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gitAsBuildUser } from "./build-user-git.mjs";
 
 function sha(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -84,14 +85,18 @@ export function assertRuntimeCacheExcluded(root) {
   }
 }
 
-export function assertBuildWorkspaceInputs(root, phase) {
+const localGit = (root, arguments_, encoding = "utf8") => {
+  const git = existsSync("/usr/bin/git") ? "/usr/bin/git" : "git";
+  return execFileSync(git, ["-C", root, ...arguments_], { encoding, maxBuffer: 256 * 1024 * 1024 });
+};
+
+export function assertBuildWorkspaceInputs(root, phase, gitRunner = localGit) {
   const canonicalRoot = realpathSync(root);
   const allowedIgnored = phase === "post-install" ? ["node_modules/"] : phase === "post-build" ? ["node_modules/", ".next/"] : phase === "fresh" ? [] : null;
   if (!allowedIgnored) throw new Error("Unknown build input phase.");
-  const git = existsSync("/usr/bin/git") ? "/usr/bin/git" : "git";
-  const ignored = execFileSync(git, ["-C", canonicalRoot, "ls-files", "--others", "--ignored", "--exclude-standard", "-z"], { encoding: "buffer", maxBuffer: 256 * 1024 * 1024 }).toString("utf8").split("\0").filter(Boolean);
+  const ignored = gitRunner(canonicalRoot, ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"], "buffer").toString("utf8").split("\0").filter(Boolean);
   const unexpectedIgnored = ignored.filter((path) => !allowedIgnored.some((prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix)));
-  const untracked = execFileSync(git, ["-C", canonicalRoot, "ls-files", "--others", "--exclude-standard", "-z"], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 }).toString("utf8").split("\0").filter(Boolean);
+  const untracked = gitRunner(canonicalRoot, ["ls-files", "--others", "--exclude-standard", "-z"], "buffer").toString("utf8").split("\0").filter(Boolean);
   if (unexpectedIgnored.length || untracked.length) throw new Error("Unexpected ignored or untracked build input.");
   return { ignoredCount: ignored.length, allowedPrefixes: allowedIgnored };
 }
@@ -137,23 +142,17 @@ export function verifyReleaseManifest(root, manifest, options) {
   return sha(Buffer.from(manifest));
 }
 
-function trackedSourceInventory(root, excluded = []) {
+function trackedSourceInventory(root, excluded = [], gitRunner = localGit) {
   const canonicalRoot = realpathSync(root);
   const exclusions = excluded.map((entry) => entry.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/$/, ""));
   const isExcluded = (path) => exclusions.some((entry) => path === entry || path.startsWith(`${entry}/`));
-  const git = existsSync("/usr/bin/git") ? "/usr/bin/git" : "git";
-  const status = execFileSync(git, ["-C", canonicalRoot, "status", "--porcelain", "--untracked-files=all"], {
-    encoding: "utf8"
-  });
+  const status = gitRunner(canonicalRoot, ["status", "--porcelain", "--untracked-files=all"]);
   const unexpectedStatus = status.split("\n").filter(Boolean).filter((line) => {
     const path = line.slice(3).replace(/^.* -> /, "");
     return !isExcluded(path);
   });
   if (unexpectedStatus.length) throw new Error("Tracked source is dirty outside approved persistent overlays.");
-  const names = execFileSync(git, ["-C", canonicalRoot, "ls-files", "-z"], {
-    encoding: "buffer",
-    maxBuffer: 64 * 1024 * 1024
-  }).toString("utf8").split("\0").filter(Boolean).sort();
+  const names = gitRunner(canonicalRoot, ["ls-files", "-z"], "buffer").toString("utf8").split("\0").filter(Boolean).sort();
   return names.filter((path) => !isExcluded(path)).map((path) => {
     const absolute = resolve(canonicalRoot, path);
     if (!absolute.startsWith(`${canonicalRoot}${sep}`)) throw new Error("Tracked path escaped source root.");
@@ -172,15 +171,15 @@ if (fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   if (command === "runtime-create") assertRuntimeCacheExcluded(root);
   if (command === "release-create" || command === "release-verify") assertApprovedReleaseSymlinks(root);
   if (command === "build-inputs") {
-    process.stdout.write(JSON.stringify(assertBuildWorkspaceInputs(root, manifest)));
+    process.stdout.write(JSON.stringify(assertBuildWorkspaceInputs(root, manifest, gitAsBuildUser)));
   } else if (command === "create" || command === "source" || command === "runtime-create" || command === "release-create") {
-    const body = command === "source" ? trackedSourceInventory(root, excluded) : inventory(root, excluded);
+    const body = command === "source" ? trackedSourceInventory(root, excluded, gitAsBuildUser) : inventory(root, excluded);
     atomicWrite(manifest, body);
     process.stdout.write(sha(Buffer.from(body)));
   } else if (command === "verify" || command === "verify-source" || command === "runtime-verify" || command === "release-verify") {
     if (command === "runtime-verify") assertRuntimeCacheExcluded(root);
     const expected = readFileSync(manifest, "utf8");
-    const actual = command === "verify-source" ? trackedSourceInventory(root, excluded) : inventory(root, excluded);
+    const actual = command === "verify-source" ? trackedSourceInventory(root, excluded, gitAsBuildUser) : inventory(root, excluded);
     if (actual !== expected) throw new Error(`Artifact manifest mismatch: ${root}`);
     process.stdout.write(sha(Buffer.from(expected)));
   } else {

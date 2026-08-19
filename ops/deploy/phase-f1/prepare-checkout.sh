@@ -62,7 +62,7 @@ install -d -m 0750 -o phase-f1-build -g phase-f1-build "${attempt}"
 git_as_build_user clone --no-checkout -- "${origin}" "${attempt}"
 git_as_build_user -C "${attempt}" fetch --depth=2 origin "${application_sha}"
 git_as_build_user -C "${attempt}" checkout --detach "${application_sha}"
-[[ $(git -C "${attempt}" rev-parse HEAD) == "${application_sha}" && -z $(git -C "${attempt}" status --porcelain --untracked-files=all) ]] || die "fresh checkout identity failed"
+[[ $(git_read_as_phase_f1_build_user -C "${attempt}" rev-parse HEAD) == "${application_sha}" && -z $(git_read_as_phase_f1_build_user -C "${attempt}" status --porcelain --untracked-files=all) ]] || die "fresh checkout identity failed"
 identity_evidence="${PHASE_F1_STATE_ROOT}/${ROLE}-application-identity.json"
 [[ ! -e ${identity_evidence} && ! -L ${identity_evidence} ]] || die "application identity evidence already exists"
 env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin /usr/bin/node \
