@@ -27,12 +27,7 @@ export const READINESS_CARRY_FORWARD_IMMEDIATE_PREDECESSOR =
   "5b50788fc815fcde726db04f79254df3121ce13a";
 export const READINESS_CARRY_FORWARD_CHAIN_SOURCE =
   "f041d4f52ad4cbbb240f4a2ed51fb9f8f8c9a87f";
-export const READINESS_CARRY_FORWARD_VERIFIED_LINEAGE = Object.freeze([
-  READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT,
-  READINESS_CARRY_FORWARD_IMMEDIATE_PREDECESSOR,
-  READINESS_CARRY_FORWARD_CHAIN_SOURCE,
-  "0194428099a72badc83132bbb3488c4b3f2b0842"
-]);
+const MAX_AUTHORITY_LINEAGE_LENGTH = 64;
 const READINESS_NAME = "environment-readiness.json";
 const AUTHORITY_IDENTITY_PATH =
   "/var/lib/thebusinesscircle/approved-phase-f1-pack.json";
@@ -199,6 +194,12 @@ function readReadiness(target, operationsCommit, operational) {
 }
 
 function readReadinessEvidence(target, operationsCommit, operational) {
+  const evidence = readReadinessEvidenceUnbound(target, operational);
+  validateEnvironmentReadinessRecord(evidence.record, operationsCommit);
+  return evidence;
+}
+
+function readReadinessEvidenceUnbound(target, operational) {
   if (operational) {
     assertProtectedRegularFile(target, "Environment readiness file");
   }
@@ -209,7 +210,8 @@ function readReadinessEvidence(target, operationsCommit, operational) {
   } catch {
     throw new Error("Environment readiness is not valid JSON.");
   }
-  validateEnvironmentReadinessRecord(record, operationsCommit);
+  validateOperationsCommit(record?.operationsCommit);
+  validateEnvironmentReadinessRecord(record, record.operationsCommit);
   return { bytes, record, identity: sha256(bytes) };
 }
 
@@ -399,30 +401,25 @@ function chainedCarryForwardOptions(options) {
       CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD) {
     throw new Error("Unsupported chained environment-readiness carry-forward identifier.");
   }
-  if (options.sourceOperationsCommit !== READINESS_CARRY_FORWARD_CHAIN_SOURCE ||
-      READINESS_CARRY_FORWARD_VERIFIED_LINEAGE.includes(options.operationsCommit)) {
-    throw new Error("Chained environment-readiness carry-forward lineage is not approved.");
+  if (options.sourceOperationsCommit === options.operationsCommit) {
+    throw new Error("Chained environment-readiness source and target must differ.");
   }
   return options;
 }
 
-export function chainedEnvironmentReadinessLineage(operationsCommit) {
-  validateOperationsCommit(operationsCommit);
-  if (READINESS_CARRY_FORWARD_VERIFIED_LINEAGE.includes(operationsCommit)) {
-    throw new Error("Chained environment-readiness target must extend the approved lineage.");
+function validatePriorCarryForwardReport(report, sourceEvidence, lineage) {
+  const sourceIndex = lineage.indexOf(sourceEvidence.record.operationsCommit);
+  if (sourceIndex < 0) {
+    throw new Error("Source readiness authority is not in the trusted lineage.");
   }
-  return [...READINESS_CARRY_FORWARD_VERIFIED_LINEAGE, operationsCommit];
-}
-
-function validatePriorCarryForwardReport(report, sourceEvidence) {
-  validateEnvironmentReadinessCarryForwardReport(report);
-  const expectedLineage = [
-    READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT,
-    READINESS_CARRY_FORWARD_IMMEDIATE_PREDECESSOR,
-    READINESS_CARRY_FORWARD_CHAIN_SOURCE
-  ];
+  const expectedLineage = lineage.slice(0, sourceIndex + 1);
+  if (report.schemaVersion === ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA) {
+    validateEnvironmentReadinessCarryForwardReport(report);
+  } else {
+    validateChainedEnvironmentReadinessCarryForwardReport(report);
+  }
   if (JSON.stringify(report.lineage) !== JSON.stringify(expectedLineage) ||
-      report.operationsCommit !== READINESS_CARRY_FORWARD_CHAIN_SOURCE ||
+      report.operationsCommit !== sourceEvidence.record.operationsCommit ||
       report.carriedForwardReadinessSha256 !== sourceEvidence.identity) {
     throw new Error("Prior environment-readiness lineage report differs.");
   }
@@ -432,9 +429,18 @@ function validatePriorCarryForwardReport(report, sourceEvidence) {
 export function createChainedEnvironmentReadinessCarryForwardArtifacts(
   sourceEvidence,
   priorReportEvidence,
-  options
+  options,
+  trustedLineage
 ) {
   chainedCarryForwardOptions(options);
+  if (!Array.isArray(trustedLineage) || trustedLineage.length < 4 ||
+      new Set(trustedLineage).size !== trustedLineage.length ||
+      trustedLineage[0] !== READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT ||
+      trustedLineage.at(-1) !== options.operationsCommit ||
+      !trustedLineage.includes(options.sourceOperationsCommit)) {
+    throw new Error("Trusted readiness authority lineage is invalid.");
+  }
+  for (const commit of trustedLineage) validateOperationsCommit(commit);
   if (sourceEvidence.identity !== options.sourceReadinessSha256) {
     throw new Error("Chained source environment-readiness identity differs.");
   }
@@ -444,7 +450,8 @@ export function createChainedEnvironmentReadinessCarryForwardArtifacts(
   );
   const priorReport = validatePriorCarryForwardReport(
     priorReportEvidence.record,
-    sourceEvidence
+    sourceEvidence,
+    trustedLineage
   );
   if (priorReportEvidence.identity !== sha256(priorReportEvidence.bytes)) {
     throw new Error("Prior environment-readiness lineage report identity differs.");
@@ -465,11 +472,12 @@ export function createChainedEnvironmentReadinessCarryForwardArtifacts(
     semanticDelta: IDENTITY_ONLY_READINESS_DELTA,
     sourceOperationsCommit: options.sourceOperationsCommit,
     operationsCommit: options.operationsCommit,
-    lineage: chainedEnvironmentReadinessLineage(options.operationsCommit),
+    lineage: [...trustedLineage],
     sourceReadinessSha256: sourceEvidence.identity,
     carriedForwardReadinessSha256: readinessIdentity,
     priorCarryForwardReportSha256: priorReportEvidence.identity,
-    originalReadinessSha256: priorReport.sourceReadinessSha256,
+    originalReadinessSha256:
+      priorReport.originalReadinessSha256 ?? priorReport.sourceReadinessSha256,
     sourcePreserved: true,
     valuesRecorded: false
   };
@@ -502,11 +510,17 @@ export function validateChainedEnvironmentReadinessCarryForwardReport(
     operationsCommit: report.operationsCommit,
     carryForward: report.carryForward
   });
+  if (!Array.isArray(report.lineage) || report.lineage.length < 4 ||
+      new Set(report.lineage).size !== report.lineage.length) {
+    throw new Error("Chained environment-readiness carry-forward report is invalid.");
+  }
+  for (const commit of report.lineage) validateOperationsCommit(commit);
+  const sourceIndex = report.lineage.indexOf(report.sourceOperationsCommit);
   if (report.schemaVersion !== CHAINED_ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA ||
       report.semanticDelta !== IDENTITY_ONLY_READINESS_DELTA ||
-      JSON.stringify(report.lineage) !== JSON.stringify(
-        chainedEnvironmentReadinessLineage(report.operationsCommit)
-      ) ||
+      report.lineage[0] !== READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT ||
+      report.lineage.at(-1) !== report.operationsCommit ||
+      sourceIndex < 2 || sourceIndex >= report.lineage.length - 1 ||
       !/^[0-9a-f]{64}$/u.test(report.carriedForwardReadinessSha256 || "") ||
       !/^[0-9a-f]{64}$/u.test(report.priorCarryForwardReportSha256 || "") ||
       !/^[0-9a-f]{64}$/u.test(report.originalReadinessSha256 || "") ||
@@ -517,7 +531,7 @@ export function validateChainedEnvironmentReadinessCarryForwardReport(
   return report;
 }
 
-function readProtectedPackIdentity(target, expectedOperationsCommit) {
+function readProtectedPackIdentityUnbound(target) {
   assertProtectedRegularFile(target, "Operations-pack identity");
   const bytes = readFileSync(target);
   let identity;
@@ -526,10 +540,16 @@ function readProtectedPackIdentity(target, expectedOperationsCommit) {
   } catch {
     throw new Error("Operations-pack identity is not valid JSON.");
   }
-  if (identity.operationsCommit !== expectedOperationsCommit) {
+  validateOperationsCommit(identity?.operationsCommit);
+  return { bytes, identity, sha256: sha256(bytes) };
+}
+
+function readProtectedPackIdentity(target, expectedOperationsCommit) {
+  const evidence = readProtectedPackIdentityUnbound(target);
+  if (evidence.identity.operationsCommit !== expectedOperationsCommit) {
     throw new Error("Operations-pack identity lineage differs.");
   }
-  return { bytes, identity, sha256: sha256(bytes) };
+  return evidence;
 }
 
 function authorityHistoryIdentityPath(operationsCommit) {
@@ -583,6 +603,60 @@ export function verifyProtectedAuthorityLineage(lineage, dependencies = {}) {
     }
   }
   return true;
+}
+
+export function resolveProtectedAuthorityLineage(
+  operationsCommit,
+  dependencies = {}
+) {
+  validateOperationsCommit(operationsCommit);
+  const anchor = dependencies.anchorOperationsCommit ??
+    READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT;
+  validateOperationsCommit(anchor);
+  const readIdentity = dependencies.readIdentity ??
+    readProtectedPackIdentityUnbound;
+  const verifyPack = dependencies.verifyPack ?? ((commit, identityPath) => {
+    const verifier =
+      `/opt/thebusinesscircle/deployment-packs/${commit}/verify-pack-integrity.mjs`;
+    const result = spawnSync("/usr/bin/node", [verifier, identityPath], {
+      env: { HOME: "/root", PATH: "/usr/local/bin:/usr/bin:/bin" },
+      stdio: "ignore"
+    });
+    if (result.error || result.signal || result.status !== 0) {
+      throw new Error("Trusted readiness lineage pack integrity failed.");
+    }
+  });
+  const current = readIdentity(AUTHORITY_IDENTITY_PATH);
+  if (current.identity.operationsCommit !== operationsCommit) {
+    throw new Error("Trusted readiness target is not the current authority.");
+  }
+  verifyPack(operationsCommit, AUTHORITY_IDENTITY_PATH);
+  const reversed = [operationsCommit];
+  const seen = new Set(reversed);
+  let successor = operationsCommit;
+  while (successor !== anchor) {
+    if (reversed.length >= MAX_AUTHORITY_LINEAGE_LENGTH) {
+      throw new Error("Trusted readiness authority lineage is ambiguous.");
+    }
+    const slotPath = authorityExchangeSlotPath(successor);
+    const slot = readIdentity(slotPath);
+    const predecessor = slot.identity.operationsCommit;
+    validateOperationsCommit(predecessor);
+    if (seen.has(predecessor)) {
+      throw new Error("Trusted readiness authority lineage is ambiguous.");
+    }
+    const historyPath = authorityHistoryIdentityPath(predecessor);
+    const history = readIdentity(historyPath);
+    if (history.identity.operationsCommit !== predecessor ||
+        slot.sha256 !== history.sha256 || !slot.bytes.equals(history.bytes)) {
+      throw new Error("Trusted readiness authority exchange lineage differs.");
+    }
+    verifyPack(predecessor, historyPath);
+    reversed.push(predecessor);
+    seen.add(predecessor);
+    successor = predecessor;
+  }
+  return reversed.reverse();
 }
 
 function readCarryForwardReportEvidence(target, operational) {
@@ -646,9 +720,7 @@ function assertChainedCarryForwardProductionContext(options) {
       realpathSync(expectedUtility) !== expectedUtility) {
     throw new Error("Chained readiness carry-forward must run from the authoritative installed pack.");
   }
-  verifyProtectedAuthorityLineage(
-    chainedEnvironmentReadinessLineage(options.operationsCommit)
-  );
+  return resolveProtectedAuthorityLineage(options.operationsCommit);
 }
 
 function exchangeEnvironmentReadiness(paths, identities, operationsCommit) {
@@ -803,17 +875,48 @@ export function publishChainedCarriedForwardEnvironmentReadiness(
   options,
   dependencies = {}
 ) {
-  chainedCarryForwardOptions(options);
+  exactOptions(options, [
+    "sourceReadinessSha256",
+    "operationsCommit",
+    "carryForward"
+  ], "chained environment-readiness carry-forward invocation");
+  validateOperationsCommit(options.operationsCommit);
+  if (!/^[0-9a-f]{64}$/u.test(options.sourceReadinessSha256 || "") ||
+      options.carryForward !==
+        CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD) {
+    throw new Error("Chained environment-readiness carry-forward invocation is invalid.");
+  }
   const operational = dependencies.operational !== false;
   const root = operational
     ? assertOperationalStateRoot(dependencies.stateRoot)
     : resolve(dependencies.stateRoot);
+  const readEvidence = dependencies.readEvidence ?? readReadinessEvidence;
+  const readSourceEvidence = dependencies.readSourceEvidence ??
+    readReadinessEvidenceUnbound;
+  const source = readSourceEvidence(readinessPath(root), operational);
+  if (source.identity !== options.sourceReadinessSha256) {
+    throw new Error("Chained source environment-readiness identity differs.");
+  }
+  const resolvedOptions = {
+    sourceOperationsCommit: source.record.operationsCommit,
+    sourceReadinessSha256: options.sourceReadinessSha256,
+    operationsCommit: options.operationsCommit,
+    carryForward: options.carryForward
+  };
+  chainedCarryForwardOptions(resolvedOptions);
+  const lineage = (dependencies.assertProductionContext ??
+    assertChainedCarryForwardProductionContext)(resolvedOptions);
+  if (!Array.isArray(lineage) ||
+      lineage.at(-1) !== options.operationsCommit ||
+      !lineage.includes(source.record.operationsCommit)) {
+    throw new Error("Source readiness authority is not in the trusted lineage.");
+  }
   const paths = {
     stateRoot: root,
     authority: readinessPath(root),
     preserved: preservedEnvironmentReadinessPath(
       root,
-      options.sourceOperationsCommit
+      resolvedOptions.sourceOperationsCommit
     ),
     slot: environmentReadinessExchangeSlotPath(root, options.operationsCommit),
     report: environmentReadinessCarryForwardReportPath(
@@ -822,28 +925,20 @@ export function publishChainedCarriedForwardEnvironmentReadiness(
     ),
     priorReport: environmentReadinessCarryForwardReportPath(
       root,
-      options.sourceOperationsCommit
+      resolvedOptions.sourceOperationsCommit
     ),
     originalReadiness: preservedEnvironmentReadinessPath(
       root,
       READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT
     )
   };
-  (dependencies.assertProductionContext ??
-    assertChainedCarryForwardProductionContext)(options);
   for (const target of [paths.preserved, paths.slot, paths.report]) {
     if ((dependencies.exists ?? existsSync)(target)) {
       throw new Error("Chained environment-readiness carry-forward target already exists.");
     }
   }
-  const readEvidence = dependencies.readEvidence ?? readReadinessEvidence;
   const readReport = dependencies.readReportEvidence ??
     readCarryForwardReportEvidence;
-  const source = readEvidence(
-    paths.authority,
-    options.sourceOperationsCommit,
-    operational
-  );
   const priorReport = readReport(paths.priorReport, operational);
   const originalReadiness = readEvidence(
     paths.originalReadiness,
@@ -851,13 +946,15 @@ export function publishChainedCarriedForwardEnvironmentReadiness(
     operational
   );
   if (originalReadiness.identity !==
-      priorReport.record.sourceReadinessSha256) {
+      (priorReport.record.originalReadinessSha256 ??
+        priorReport.record.sourceReadinessSha256)) {
     throw new Error("Original environment-readiness lineage evidence differs.");
   }
   const artifacts = createChainedEnvironmentReadinessCarryForwardArtifacts(
     source,
     priorReport,
-    options
+    resolvedOptions,
+    lineage
   );
   validateCurrentEnvironment(dependencies);
   const publish = dependencies.publish ?? publishNoReplaceSet;
@@ -886,7 +983,7 @@ export function publishChainedCarriedForwardEnvironmentReadiness(
     verifySet() {
       const unchanged = readEvidence(
         paths.authority,
-        options.sourceOperationsCommit,
+        resolvedOptions.sourceOperationsCommit,
         operational
       );
       const unchangedPriorReport = readReport(paths.priorReport, operational);
@@ -902,7 +999,7 @@ export function publishChainedCarriedForwardEnvironmentReadiness(
       }
       const preserved = readEvidence(
         paths.preserved,
-        options.sourceOperationsCommit,
+        resolvedOptions.sourceOperationsCommit,
         operational
       );
       const candidate = readEvidence(
@@ -939,7 +1036,7 @@ export function publishChainedCarriedForwardEnvironmentReadiness(
       );
       const oldSlot = readEvidence(
         paths.slot,
-        options.sourceOperationsCommit,
+        resolvedOptions.sourceOperationsCommit,
         operational
       );
       if (current.identity !== artifacts.readinessIdentity ||
@@ -981,14 +1078,13 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
       `Environment readiness identity-only carried forward source=${result.sourceReadinessIdentity} current=${result.carriedForwardReadinessIdentity} values-recorded=false\n`
     );
   } else if (mode === "carry-forward-chained") {
-    const [stateRoot, sourceOperationsCommit, sourceReadinessSha256,
-      operationsCommit, carryForward, ...extras] = arguments_;
-    if (extras.length || !stateRoot || !sourceOperationsCommit ||
+    const [stateRoot, sourceReadinessSha256, operationsCommit,
+      carryForward, ...extras] = arguments_;
+    if (extras.length || !stateRoot ||
         !sourceReadinessSha256 || !operationsCommit || !carryForward) {
-      throw new Error("Usage: environment-readiness.mjs carry-forward-chained <state-root> <source-operations-commit> <source-readiness-sha256> <operations-commit> <carry-forward>");
+      throw new Error("Usage: environment-readiness.mjs carry-forward-chained <state-root> <source-readiness-sha256> <operations-commit> <carry-forward>");
     }
     const result = publishChainedCarriedForwardEnvironmentReadiness({
-      sourceOperationsCommit,
       sourceReadinessSha256,
       operationsCommit,
       carryForward
