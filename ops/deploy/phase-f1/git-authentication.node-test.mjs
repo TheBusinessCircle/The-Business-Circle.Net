@@ -1,9 +1,24 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, chownSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, chownSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { FORMAT, PRIVATE_KEY, REPOSITORY, validateAuthContract, validatePartialRecoveryContract, validateReadiness } from "./git-authentication.mjs";
+import {
+  FORMAT,
+  GIT_AUTH_READINESS_CARRY_FORWARD_FORMAT,
+  IDENTITY_ONLY_GIT_AUTH_DELTA,
+  IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD,
+  PRIVATE_KEY,
+  REPOSITORY,
+  classifyGitAuthReadinessDelta,
+  createGitAuthReadinessCarryForwardArtifacts,
+  publishCarriedForwardGitAuthReadiness,
+  validateAuthContract,
+  validateGitAuthReadinessCarryForwardReport,
+  validatePartialRecoveryContract,
+  validateReadiness
+} from "./git-authentication.mjs";
+import { createHash } from "node:crypto";
 
 const valid = (overrides = {}) => ({
   rootCanonical: true, rootDirectory: true, rootSymlink: false, rootUid: 0, rootGid: 44, rootMode: 0o710, buildUid: 100, buildGid: 44,
@@ -14,6 +29,29 @@ const valid = (overrides = {}) => ({
   buildReadable: true, buildWritable: false, bcnReadable: false, circleReadable: false, runtimeWritable: false,
   ...overrides
 });
+
+const sourceReadiness = (operationsCommit = "a".repeat(40), overrides = {}) => ({
+  schemaVersion: FORMAT,
+  operationsCommit,
+  repository: REPOSITORY,
+  host: "github.com",
+  authentication: "REPOSITORY_SCOPED_DEPLOY_KEY",
+  publicKeySha256: "b".repeat(64),
+  material: "PRESENT",
+  githubAuthorization: "VERIFIED",
+  ready: true,
+  valueMaterialRecorded: false,
+  ...overrides
+});
+
+const evidence = record => {
+  const bytes = Buffer.from(`${JSON.stringify(record)}\n`);
+  return {
+    record,
+    bytes,
+    identity: createHash("sha256").update(bytes).digest("hex")
+  };
+};
 
 describe("Phase F1 Git deploy-key authentication contract", () => {
   it("accepts only the fixed protected build-user-readable contract", () => {
@@ -70,5 +108,109 @@ describe("Phase F1 Git deploy-key authentication contract", () => {
 
   it("keeps the private identity at one non-caller-selected path", () => {
     assert.equal(PRIVATE_KEY, "/var/lib/thebusinesscircle/build/git-auth/github-deploy-key");
+  });
+
+  it("creates only an identity-only Git-auth readiness transition", () => {
+    const source = evidence(sourceReadiness());
+    const target = "c".repeat(40);
+    const artifacts = createGitAuthReadinessCarryForwardArtifacts(
+      source,
+      target,
+      ["0".repeat(40), source.record.operationsCommit, "d".repeat(40), target],
+      source.record.publicKeySha256
+    );
+    assert.equal(artifacts.report.schemaVersion, GIT_AUTH_READINESS_CARRY_FORWARD_FORMAT);
+    assert.equal(artifacts.report.semanticDelta, IDENTITY_ONLY_GIT_AUTH_DELTA);
+    assert.deepEqual(artifacts.report.lineage, [source.record.operationsCommit, "d".repeat(40), target]);
+    assert.equal(classifyGitAuthReadinessDelta(
+      source.record,
+      JSON.parse(artifacts.readinessPayload)
+    ), IDENTITY_ONLY_GIT_AUTH_DELTA);
+    assert.equal(validateGitAuthReadinessCarryForwardReport(artifacts.report).sourcePreserved, true);
+  });
+
+  it("rejects semantic mutation and untrusted Git-auth authority lineage", () => {
+    const source = evidence(sourceReadiness());
+    const target = "c".repeat(40);
+    assert.throws(() => createGitAuthReadinessCarryForwardArtifacts(
+      source, target, ["d".repeat(40), target], source.record.publicKeySha256
+    ), /not in the trusted lineage/u);
+    assert.equal(classifyGitAuthReadinessDelta(
+      source.record,
+      { ...source.record, operationsCommit: target, repository: "other/repo" }
+    ), "UNEXPECTED");
+    assert.throws(() => createGitAuthReadinessCarryForwardArtifacts(
+      evidence(sourceReadiness(undefined, { ready: false })),
+      target,
+      [source.record.operationsCommit, target],
+      source.record.publicKeySha256
+    ), /readiness is invalid/u);
+  });
+
+  it("publishes, preserves and exchanges genuine protected-lineage evidence", () => {
+    const root = mkdtempSync(join(process.cwd(), ".git-auth-carry-forward-test-"));
+    try {
+      const source = evidence(sourceReadiness());
+      const target = "c".repeat(40);
+      writeFileSync(join(root, "git-auth-readiness.json"), source.bytes);
+      const result = publishCarriedForwardGitAuthReadiness({
+        sourceReadinessSha256: source.identity,
+        operationsCommit: target,
+        carryForward: IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD
+      }, {
+        operational: false,
+        stateRoot: root,
+        verifyMaterial: () => ({ publicKeySha256: source.record.publicKeySha256, privateKey: PRIVATE_KEY }),
+        assertProductionContext: () => ["0".repeat(40), source.record.operationsCommit, target],
+        exchange(paths) {
+          const oldPayload = readFileSync(paths.authority);
+          const newPayload = readFileSync(paths.slot);
+          writeFileSync(paths.authority, newPayload);
+          writeFileSync(paths.slot, oldPayload);
+        }
+      });
+      assert.equal(result.sourceOperationsCommit, source.record.operationsCommit);
+      assert.equal(result.semanticDelta, IDENTITY_ONLY_GIT_AUTH_DELTA);
+      assert.equal(JSON.parse(readFileSync(result.authority)).operationsCommit, target);
+      assert.deepEqual(readFileSync(result.preserved), source.bytes);
+      assert.deepEqual(readFileSync(result.slot), source.bytes);
+      assert.equal(JSON.parse(readFileSync(result.report)).valueMaterialRecorded, false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects caller-selected state, identities and partial publication", () => {
+    const root = mkdtempSync(join(process.cwd(), ".git-auth-carry-forward-test-"));
+    try {
+      const source = evidence(sourceReadiness());
+      const target = "c".repeat(40);
+      writeFileSync(join(root, "git-auth-readiness.json"), source.bytes);
+      const base = {
+        operational: false,
+        stateRoot: root,
+        verifyMaterial: () => ({ publicKeySha256: source.record.publicKeySha256, privateKey: PRIVATE_KEY }),
+        assertProductionContext: () => [source.record.operationsCommit, target]
+      };
+      assert.throws(() => publishCarriedForwardGitAuthReadiness({
+        sourceReadinessSha256: "0".repeat(64),
+        operationsCommit: target,
+        carryForward: IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD
+      }, base), /identity differs/u);
+      assert.throws(() => publishCarriedForwardGitAuthReadiness({
+        sourceReadinessSha256: source.identity,
+        operationsCommit: target,
+        carryForward: IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD,
+        destination: "/tmp/arbitrary"
+      }, base), /unknown or missing fields/u);
+      writeFileSync(join(root, `git-auth-readiness-preserved-${source.record.operationsCommit}.json`), source.bytes);
+      assert.throws(() => publishCarriedForwardGitAuthReadiness({
+        sourceReadinessSha256: source.identity,
+        operationsCommit: target,
+        carryForward: IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD
+      }, base), /target already exists/u);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

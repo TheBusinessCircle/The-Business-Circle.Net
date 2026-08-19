@@ -527,5 +527,82 @@ class LinuxRootReadinessExchangeTests(unittest.TestCase):
         self.assertEqual(self.authority.read_bytes(), SYNTHETIC_READINESS_OLD)
 
 
+@unittest.skipUnless(
+    LINUX_ROOT_EXCHANGE,
+    "requires Linux, root ownership and libc renameat2; skip is not deployment evidence",
+)
+class LinuxRootGitAuthReadinessExchangeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.mkdtemp(prefix="phase-f1-git-auth-readiness-exchange-")
+        self.addCleanup(shutil.rmtree, self.temporary, ignore_errors=True)
+        self.parent = Path(self.temporary, "deployment-state")
+        self.parent.mkdir(mode=0o700)
+        self.authority = self.parent / "git-auth-readiness.json"
+        self.slot = self.parent / (
+            ".git-auth-readiness.exchange-" + ("a" * 40) + ".json"
+        )
+        self.history = self.parent / (
+            "git-auth-readiness-preserved-" + ("b" * 40) + ".json"
+        )
+        write_protected(self.authority, SYNTHETIC_READINESS_OLD)
+        write_protected(self.slot, SYNTHETIC_READINESS_NEW)
+        write_protected(self.history, SYNTHETIC_READINESS_OLD)
+        self.patches = [
+            mock.patch.object(exchange, "READINESS_PARENT", str(self.parent)),
+            mock.patch.object(
+                exchange, "GIT_AUTH_READINESS_AUTHORITY", str(self.authority)
+            ),
+            mock.patch.object(
+                exchange,
+                "GIT_AUTH_READINESS_SLOT_PATTERN",
+                re.compile(
+                    "^" + re.escape(str(self.parent))
+                    + r"/\.git-auth-readiness\.exchange-([0-9a-f]{40})\.json$"
+                ),
+            ),
+            mock.patch.object(
+                exchange,
+                "GIT_AUTH_READINESS_HISTORY_PATTERN",
+                re.compile(
+                    "^" + re.escape(str(self.parent))
+                    + r"/git-auth-readiness-preserved-([0-9a-f]{40})\.json$"
+                ),
+            ),
+        ]
+        for patch in self.patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def arguments(self) -> argparse.Namespace:
+        return argparse.Namespace(
+            authority=str(self.authority),
+            exchange_slot=str(self.slot),
+            preserved_history=str(self.history),
+            pre_authority_sha256=digest(SYNTHETIC_READINESS_OLD),
+            pre_slot_sha256=digest(SYNTHETIC_READINESS_NEW),
+            preserved_history_sha256=digest(SYNTHETIC_READINESS_OLD),
+            post_authority_sha256=digest(SYNTHETIC_READINESS_NEW),
+            post_slot_sha256=digest(SYNTHETIC_READINESS_OLD),
+            expected_parent=str(self.parent),
+            expected_size=len(SYNTHETIC_READINESS_OLD),
+        )
+
+    def test_git_auth_readiness_exchange_is_atomic_and_preserves_source(self) -> None:
+        exchange.run_git_auth_readiness_exchange(self.arguments())
+        self.assertEqual(self.authority.read_bytes(), SYNTHETIC_READINESS_NEW)
+        self.assertEqual(self.slot.read_bytes(), SYNTHETIC_READINESS_OLD)
+        self.assertEqual(self.history.read_bytes(), SYNTHETIC_READINESS_OLD)
+
+    def test_git_auth_readiness_exchange_rejects_arbitrary_paths(self) -> None:
+        bad_path = self.arguments()
+        bad_path.preserved_history = str(self.parent / "arbitrary.json")
+        with self.assertRaises(exchange.PrecheckFailure):
+            exchange.run_git_auth_readiness_exchange(bad_path)
+        os.chmod(self.slot, 0o640)
+        with self.assertRaises(exchange.PrecheckFailure):
+            exchange.run_git_auth_readiness_exchange(self.arguments())
+        self.assertEqual(self.authority.read_bytes(), SYNTHETIC_READINESS_OLD)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

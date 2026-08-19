@@ -1,9 +1,10 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, chownSync, closeSync, fsyncSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync } from "node:fs";
-import { resolve } from "node:path";
+import { chmodSync, chownSync, closeSync, existsSync, fsyncSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { publishNoReplaceSet } from "./atomic-no-replace.mjs";
+import { resolveProtectedAuthorityLineage } from "./environment-readiness.mjs";
 
 export const AUTH_ROOT = "/var/lib/thebusinesscircle/build/git-auth";
 export const PRIVATE_KEY = `${AUTH_ROOT}/github-deploy-key`;
@@ -11,7 +12,45 @@ export const PUBLIC_KEY = `${PRIVATE_KEY}.pub`;
 export const READINESS = "/var/lib/thebusinesscircle/deployment-state/git-auth-readiness.json";
 export const REPOSITORY = "TheBusinessCircle/The-Business-Circle.Net";
 export const FORMAT = "phase-f1-git-auth-readiness-v1";
+export const GIT_AUTH_READINESS_CARRY_FORWARD_FORMAT =
+  "phase-f1-git-auth-readiness-carry-forward-report-v1";
+export const IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD =
+  "IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD";
+export const IDENTITY_ONLY_GIT_AUTH_DELTA = "IDENTITY_ONLY";
+export const STATE_ROOT = "/var/lib/thebusinesscircle/deployment-state";
 const sha = value => createHash("sha256").update(value).digest("hex");
+
+function exactKeys(value, expected, label) {
+  if (!value || Array.isArray(value) || typeof value !== "object" ||
+      JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...expected].sort())) {
+    throw new Error(`${label} has unknown or missing fields.`);
+  }
+}
+
+function validateOperationsCommit(value) {
+  if (!/^[0-9a-f]{40}$/u.test(value || "")) {
+    throw new Error("Git authentication operations identity is invalid.");
+  }
+}
+
+function readinessPath(stateRoot) {
+  return join(resolve(stateRoot), "git-auth-readiness.json");
+}
+
+export function preservedGitAuthReadinessPath(stateRoot, operationsCommit) {
+  validateOperationsCommit(operationsCommit);
+  return join(resolve(stateRoot), `git-auth-readiness-preserved-${operationsCommit}.json`);
+}
+
+export function gitAuthReadinessExchangeSlotPath(stateRoot, operationsCommit) {
+  validateOperationsCommit(operationsCommit);
+  return join(resolve(stateRoot), `.git-auth-readiness.exchange-${operationsCommit}.json`);
+}
+
+export function gitAuthReadinessCarryForwardReportPath(stateRoot, operationsCommit) {
+  validateOperationsCommit(operationsCommit);
+  return join(resolve(stateRoot), `git-auth-readiness-carry-forward-${operationsCommit}.json`);
+}
 
 function pathIsAbsent(path) {
   try { lstatSync(path); return false; }
@@ -102,6 +141,234 @@ export function validateReadiness(record, operationsCommit, publicKeySha256) {
   return record;
 }
 
+function assertProtectedEvidence(path, label) {
+  const stats = lstatSync(path);
+  if (!stats.isFile() || stats.isSymbolicLink() || stats.nlink !== 1 ||
+      stats.uid !== 0 || stats.gid !== 0 || (stats.mode & 0o777) !== 0o600 ||
+      realpathSync(path) !== path) {
+    throw new Error(`Unsafe ${label}.`);
+  }
+}
+
+function readReadinessEvidence(path, operational) {
+  if (operational) assertProtectedEvidence(path, "Git authentication readiness evidence");
+  const bytes = readFileSync(path);
+  let record;
+  try { record = JSON.parse(bytes.toString("utf8")); }
+  catch { throw new Error("Git authentication readiness evidence is not valid JSON."); }
+  return { bytes, record, identity: sha(bytes) };
+}
+
+export function classifyGitAuthReadinessDelta(source, candidate) {
+  const sourceSemantics = { ...source }, candidateSemantics = { ...candidate };
+  delete sourceSemantics.operationsCommit;
+  delete candidateSemantics.operationsCommit;
+  return JSON.stringify(sourceSemantics) === JSON.stringify(candidateSemantics) &&
+    source.operationsCommit !== candidate.operationsCommit
+    ? IDENTITY_ONLY_GIT_AUTH_DELTA
+    : "UNEXPECTED";
+}
+
+export function validateGitAuthReadinessCarryForwardReport(report, expected = report) {
+  exactKeys(report, [
+    "schemaVersion", "carryForward", "semanticDelta", "sourceOperationsCommit",
+    "operationsCommit", "lineage", "sourceReadinessSha256",
+    "carriedForwardReadinessSha256", "sourcePreserved", "valueMaterialRecorded"
+  ], "Git-auth readiness carry-forward report");
+  validateOperationsCommit(report.sourceOperationsCommit);
+  validateOperationsCommit(report.operationsCommit);
+  if (report.schemaVersion !== GIT_AUTH_READINESS_CARRY_FORWARD_FORMAT ||
+      report.carryForward !== IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD ||
+      report.semanticDelta !== IDENTITY_ONLY_GIT_AUTH_DELTA ||
+      !Array.isArray(report.lineage) || report.lineage.length < 2 ||
+      report.lineage[0] !== report.sourceOperationsCommit ||
+      report.lineage.at(-1) !== report.operationsCommit ||
+      new Set(report.lineage).size !== report.lineage.length ||
+      report.lineage.some(commit => !/^[0-9a-f]{40}$/u.test(commit)) ||
+      !/^[0-9a-f]{64}$/u.test(report.sourceReadinessSha256 || "") ||
+      !/^[0-9a-f]{64}$/u.test(report.carriedForwardReadinessSha256 || "") ||
+      report.sourcePreserved !== true || report.valueMaterialRecorded !== false ||
+      JSON.stringify(report) !== JSON.stringify(expected)) {
+    throw new Error("Git-auth readiness carry-forward report is invalid.");
+  }
+  return report;
+}
+
+export function createGitAuthReadinessCarryForwardArtifacts(
+  source,
+  operationsCommit,
+  lineage,
+  publicKeySha256
+) {
+  validateOperationsCommit(operationsCommit);
+  validateReadiness(source.record, source.record.operationsCommit, publicKeySha256);
+  const sourceIndex = lineage.indexOf(source.record.operationsCommit);
+  if (sourceIndex < 0 || lineage.at(-1) !== operationsCommit ||
+      source.record.operationsCommit === operationsCommit) {
+    throw new Error("Git-auth readiness source authority is not in the trusted lineage.");
+  }
+  const trustedSuffix = lineage.slice(sourceIndex);
+  const candidate = { ...source.record, operationsCommit };
+  validateReadiness(candidate, operationsCommit, publicKeySha256);
+  if (classifyGitAuthReadinessDelta(source.record, candidate) !==
+      IDENTITY_ONLY_GIT_AUTH_DELTA) {
+    throw new Error("Git-auth readiness carry-forward changed authentication semantics.");
+  }
+  const readinessPayload = Buffer.from(`${JSON.stringify(candidate)}\n`);
+  const readinessIdentity = sha(readinessPayload);
+  const report = {
+    schemaVersion: GIT_AUTH_READINESS_CARRY_FORWARD_FORMAT,
+    carryForward: IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD,
+    semanticDelta: IDENTITY_ONLY_GIT_AUTH_DELTA,
+    sourceOperationsCommit: source.record.operationsCommit,
+    operationsCommit,
+    lineage: trustedSuffix,
+    sourceReadinessSha256: source.identity,
+    carriedForwardReadinessSha256: readinessIdentity,
+    sourcePreserved: true,
+    valueMaterialRecorded: false
+  };
+  validateGitAuthReadinessCarryForwardReport(report);
+  return {
+    readinessPayload,
+    readinessIdentity,
+    report,
+    reportPayload: Buffer.from(`${JSON.stringify(report)}\n`)
+  };
+}
+
+function assertCarryForwardProductionContext(operationsCommit) {
+  const packRoot = `/opt/thebusinesscircle/deployment-packs/${operationsCommit}`;
+  const expectedUtility = `${packRoot}/git-authentication.mjs`;
+  if (fileURLToPath(import.meta.url) !== expectedUtility ||
+      realpathSync(expectedUtility) !== expectedUtility) {
+    throw new Error("Git-auth readiness carry-forward must run from the authoritative installed pack.");
+  }
+  const lineage = resolveProtectedAuthorityLineage(operationsCommit);
+  const trust = spawnSync("/usr/bin/node", [
+    `${packRoot}/git-transport-trust.mjs`, "verify", packRoot
+  ], {
+    env: { HOME: "/root", PATH: "/usr/local/bin:/usr/bin:/bin" },
+    stdio: "ignore"
+  });
+  if (trust.error || trust.signal || trust.status !== 0) {
+    throw new Error("Current pinned Git transport trust verification failed.");
+  }
+  return lineage;
+}
+
+function exchangeGitAuthReadiness(paths, identities, operationsCommit) {
+  const helper = `/opt/thebusinesscircle/deployment-packs/${operationsCommit}/atomic-identity-exchange.py`;
+  const result = spawnSync("/usr/bin/python3", [
+    helper, "git-auth-readiness-exchange",
+    "--authority", paths.authority,
+    "--exchange-slot", paths.slot,
+    "--preserved-history", paths.preserved,
+    "--pre-authority-sha256", identities.source,
+    "--pre-slot-sha256", identities.candidate,
+    "--preserved-history-sha256", identities.source,
+    "--post-authority-sha256", identities.candidate,
+    "--post-slot-sha256", identities.source,
+    "--expected-parent", paths.stateRoot,
+    "--expected-size", String(identities.size)
+  ], {
+    env: { HOME: "/root", PATH: "/usr/local/bin:/usr/bin:/bin" },
+    stdio: "ignore"
+  });
+  if (result.error || result.signal || result.status !== 0) {
+    throw new Error("Atomic Git-auth readiness exchange failed.");
+  }
+}
+
+export function publishCarriedForwardGitAuthReadiness(options, dependencies = {}) {
+  exactKeys(options, ["sourceReadinessSha256", "operationsCommit", "carryForward"],
+    "Git-auth readiness carry-forward invocation");
+  validateOperationsCommit(options.operationsCommit);
+  if (!/^[0-9a-f]{64}$/u.test(options.sourceReadinessSha256 || "") ||
+      options.carryForward !== IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD) {
+    throw new Error("Git-auth readiness carry-forward invocation is invalid.");
+  }
+  const operational = dependencies.operational !== false;
+  const root = operational ? STATE_ROOT : resolve(dependencies.stateRoot);
+  if (operational && (dependencies.stateRoot && resolve(dependencies.stateRoot) !== STATE_ROOT ||
+      realpathSync(STATE_ROOT) !== STATE_ROOT)) {
+    throw new Error("Git-auth readiness state root is unsafe.");
+  }
+  const paths = {
+    stateRoot: root,
+    authority: readinessPath(root)
+  };
+  const readEvidence = dependencies.readEvidence ?? readReadinessEvidence;
+  const source = readEvidence(paths.authority, operational);
+  if (source.identity !== options.sourceReadinessSha256) {
+    throw new Error("Source Git-auth readiness identity differs.");
+  }
+  const material = (dependencies.verifyMaterial ?? verifyAuthMaterial)();
+  validateReadiness(source.record, source.record.operationsCommit, material.publicKeySha256);
+  const lineage = (dependencies.assertProductionContext ??
+    assertCarryForwardProductionContext)(options.operationsCommit);
+  paths.preserved = preservedGitAuthReadinessPath(root, source.record.operationsCommit);
+  paths.slot = gitAuthReadinessExchangeSlotPath(root, options.operationsCommit);
+  paths.report = gitAuthReadinessCarryForwardReportPath(root, options.operationsCommit);
+  for (const target of [paths.preserved, paths.slot, paths.report]) {
+    if ((dependencies.exists ?? existsSync)(target)) {
+      throw new Error("Git-auth readiness carry-forward target already exists.");
+    }
+  }
+  const artifacts = createGitAuthReadinessCarryForwardArtifacts(
+    source, options.operationsCommit, lineage, material.publicKeySha256
+  );
+  const publish = dependencies.publish ?? publishNoReplaceSet;
+  publish([
+    { target: paths.preserved, payload: source.bytes, mode: 0o600,
+      ...(operational ? { uid: 0, gid: 0 } : {}) },
+    { target: paths.slot, payload: artifacts.readinessPayload, mode: 0o600,
+      ...(operational ? { uid: 0, gid: 0 } : {}) },
+    { target: paths.report, payload: artifacts.reportPayload, mode: 0o600,
+      ...(operational ? { uid: 0, gid: 0 } : {}) }
+  ], {
+    enforceMetadata: operational,
+    fsyncDirectories: operational,
+    verifySet() {
+      const unchanged = readEvidence(paths.authority, operational);
+      const preserved = readEvidence(paths.preserved, operational);
+      const candidate = readEvidence(paths.slot, operational);
+      if (unchanged.identity !== source.identity || preserved.identity !== source.identity ||
+          candidate.identity !== artifacts.readinessIdentity ||
+          classifyGitAuthReadinessDelta(source.record, candidate.record) !==
+            IDENTITY_ONLY_GIT_AUTH_DELTA) {
+        throw new Error("Git-auth readiness carry-forward publication differs.");
+      }
+      let report;
+      try { report = JSON.parse(readFileSync(paths.report, "utf8")); }
+      catch { throw new Error("Git-auth readiness carry-forward report is not valid JSON."); }
+      validateGitAuthReadinessCarryForwardReport(report, artifacts.report);
+      (dependencies.verifyMaterial ?? verifyAuthMaterial)();
+      (dependencies.exchange ?? exchangeGitAuthReadiness)(paths, {
+        source: source.identity,
+        candidate: artifacts.readinessIdentity,
+        size: source.bytes.length
+      }, options.operationsCommit);
+      const current = readEvidence(paths.authority, operational);
+      const oldSlot = readEvidence(paths.slot, operational);
+      validateReadiness(current.record, options.operationsCommit, material.publicKeySha256);
+      if (current.identity !== artifacts.readinessIdentity ||
+          oldSlot.identity !== source.identity) {
+        throw new Error("Carried-forward Git-auth readiness verification failed.");
+      }
+      (dependencies.verifyMaterial ?? verifyAuthMaterial)();
+    }
+  });
+  return {
+    ...paths,
+    sourceOperationsCommit: source.record.operationsCommit,
+    sourceReadinessIdentity: source.identity,
+    carriedForwardReadinessIdentity: artifacts.readinessIdentity,
+    semanticDelta: IDENTITY_ONLY_GIT_AUTH_DELTA,
+    lineage: artifacts.report.lineage
+  };
+}
+
 export function verifyReadiness(operationsCommit) {
   const material = verifyAuthMaterial();
   const stats = lstatSync(READINESS);
@@ -121,6 +388,20 @@ export function publishReadiness(operationsCommit) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [command, operationsCommit, ...extras] = process.argv.slice(2);
+  if (command === "carry-forward") {
+    if (process.getuid?.() !== 0) throw new Error("Git-auth readiness carry-forward requires Linux root.");
+    const [sourceReadinessSha256, targetOperationsCommit, carryForward, ...rest] =
+      [operationsCommit, ...extras];
+    if (rest.length || !sourceReadinessSha256 || !targetOperationsCommit || !carryForward) {
+      throw new Error("Usage: git-authentication.mjs carry-forward <source-readiness-sha256> <operations-commit> <carry-forward>");
+    }
+    const result = publishCarriedForwardGitAuthReadiness({
+      sourceReadinessSha256,
+      operationsCommit: targetOperationsCommit,
+      carryForward
+    });
+    process.stdout.write(`Git authentication readiness identity-only carried forward source=${result.sourceReadinessIdentity} current=${result.carriedForwardReadinessIdentity} values-recorded=false\n`);
+  } else {
   if (extras.length) throw new Error("Unexpected Git authentication arguments.");
   if (command === "verify-material" && !operationsCommit) { verifyAuthMaterial(); process.stdout.write("GIT_AUTH_MATERIAL_PRESENT\n"); }
   else if (command === "verify-ready" && operationsCommit) { process.stdout.write(`${verifyReadiness(operationsCommit)}\n`); }
@@ -128,4 +409,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   else if (command === "public-key" && !operationsCommit) { verifyAuthMaterial(); process.stdout.write(readFileSync(PUBLIC_KEY, "utf8")); }
   else if (command === "recover-partial" && !operationsCommit) { const result = recoverPartialAuthMaterial(); process.stdout.write(`PRIVATE_KEY_BYTE_IDENTITY_PRESERVED=${result.privateKeyByteIdentityPreserved ? "PASS" : "FAIL"} KEYPAIR_MATCH=${result.keypairMatch ? "PASS" : "FAIL"}\n`); }
   else throw new Error("Usage: git-authentication.mjs <verify-material|recover-partial|verify-ready|publish-ready|public-key> [operations-commit]");
+  }
 }

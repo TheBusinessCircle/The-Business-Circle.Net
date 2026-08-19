@@ -691,6 +691,24 @@ describe("Phase F1 protected environment and release ordering", () => {
     expect(build.indexOf("require_release_integrity")).toBeGreaterThan(build.indexOf("release-create"));
   });
 
+  it("carries Git-auth readiness only through protected authority lineage", () => {
+    const authentication = source("git-authentication.mjs");
+    const exchange = source("atomic-identity-exchange.py");
+    expect(authentication).toContain(
+      '"phase-f1-git-auth-readiness-carry-forward-report-v1"'
+    );
+    expect(authentication).toContain(
+      '"IDENTITY_ONLY_GIT_AUTH_READINESS_CARRY_FORWARD"'
+    );
+    expect(authentication).toContain("resolveProtectedAuthorityLineage");
+    expect(authentication).toContain("verifyAuthMaterial");
+    expect(authentication).toContain("Current pinned Git transport trust verification failed.");
+    expect(authentication).toContain("publishNoReplaceSet");
+    expect(authentication).not.toMatch(/caller.*source.*path|arbitrary.*destination/iu);
+    expect(exchange).toContain('"git-auth-readiness-exchange"');
+    expect(exchange).toContain("GIT_AUTH_READINESS_EXCHANGE_OK");
+  });
+
   it("keeps complete release integrity mandatory for preflight, starts and traffic changes", () => {
     for (const name of [
       "preflight-read-only.sh",
