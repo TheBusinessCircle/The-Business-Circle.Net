@@ -9,6 +9,7 @@ readonly ROLE=${2:-}
 require_root; require_application_sha "${ROLE}" "${1:-}"; require_environment_ready
 [[ ${ROLE} == forward ]] || die "rollback builds must use prepare-rollback-fixture.sh and prepare-rollback-artifact.sh"
 [[ $(node --version) == v22.22.2 && $(npm --version) == 10.9.7 ]] || die "exact Node/npm versions required"
+require_trusted_npm_config_sources
 application_sha=${PHASE_F1_FORWARD_SHA}
 final_dir=${PHASE_F1_RELEASE_DIR}
 attempt_file="${PHASE_F1_STATE_ROOT}/${ROLE}-build-attempt.json"
@@ -32,7 +33,7 @@ dependencies_after_install="${evidence}/dependencies-after-install.manifest"; de
 cd "${workspace}"
 # Lifecycle scripts run without production authority in this disposable workspace.
 sudo -u phase-f1-build env -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
-  NPM_CONFIG_USERCONFIG=/dev/null NPM_CONFIG_GLOBALCONFIG=/dev/null NPM_CONFIG_CACHE=/var/lib/thebusinesscircle/build/npm-cache \
+  NPM_CONFIG_USERCONFIG="${PHASE_F1_NPM_USER_CONFIG}" NPM_CONFIG_GLOBALCONFIG="${PHASE_F1_NPM_GLOBAL_CONFIG}" NPM_CONFIG_CACHE=/var/lib/thebusinesscircle/build/npm-cache \
   npm ci --no-audit --no-fund
 for required in node_modules/.prisma node_modules/sharp node_modules/esbuild node_modules/next; do [[ -e ${required} ]] || die "required installed dependency missing: ${required}"; done
 /usr/bin/node "${helper}" source "${workspace}" "${post_install}" >/dev/null

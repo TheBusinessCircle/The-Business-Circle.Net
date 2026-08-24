@@ -391,6 +391,14 @@ and publishes root-owned mode-`0600`
 authority. The value-free readiness record binds the operations commit, rollback application,
 exact lockfile, exact Node/npm versions and complete immutable cache inventory.
 
+Every Phase F1 npm invocation runs under `env -i` and binds npm's user and global
+configuration to the two distinct committed empty files in `npm-config/`. The installed-pack
+manifest fixes those files as root-owned, single-link, mode-`0444` immutable objects beneath
+the root-owned mode-`0555` pack. `npm-configuration.mjs` rejects a collision, link, extra
+object, non-empty content, unsafe metadata or caller-selected path before npm starts. This
+keeps npm 10.9.7 from reading an ambient home/global `.npmrc` without assigning both config
+layers to the same `/dev/null` path.
+
 `offline-npm-cache.mjs` independently proves that every public-registry `sha512` integrity in
 the exact committed rollback lockfile has matching content in npm's content-addressable cache.
 The rollback fixture refuses to consume the build attempt unless that current-authority

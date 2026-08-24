@@ -7,6 +7,7 @@ export PATH
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 require_root; require_application_sha rollback "${1:-}"; require_environment_ready
 [[ $(node --version) == v22.22.2 && $(npm --version) == 10.9.7 ]] || die "exact Node/npm versions required"
+require_trusted_npm_config_sources
 attempt_file="${PHASE_F1_STATE_ROOT}/rollback-build-attempt.json"; require_protected_state_file "${attempt_file}"
 workspace=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" inspect "${attempt_file}" rollback "${PHASE_F1_ROLLBACK_SHA}" "${PHASE_F1_PACK_COMMIT}"); workspace=$(realpath -e "${workspace}")
 [[ ${workspace} == "${PHASE_F1_BUILD_ROOT}/rollback-${PHASE_F1_ROLLBACK_SHA}-"* && $(git_read_as_phase_f1_build_user -C "${workspace}" rev-parse HEAD) == "${PHASE_F1_ROLLBACK_SHA}" ]] || die "unapproved rollback cache-preparation workspace"
@@ -28,7 +29,7 @@ install -d -m 0750 -o phase-f1-build -g phase-f1-build "${promotion}"
 install -d -m 0750 -o phase-f1-build -g phase-f1-build /var/lib/thebusinesscircle/build/npm-logs
 start_write_log prepare-offline-npm-cache
 sudo -u phase-f1-build env -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
-  NPM_CONFIG_USERCONFIG=/dev/null NPM_CONFIG_GLOBALCONFIG=/dev/null NPM_CONFIG_CACHE="${promotion}" \
+  NPM_CONFIG_USERCONFIG="${PHASE_F1_NPM_USER_CONFIG}" NPM_CONFIG_GLOBALCONFIG="${PHASE_F1_NPM_GLOBAL_CONFIG}" NPM_CONFIG_CACHE="${promotion}" \
   NPM_CONFIG_LOGS_DIR=/var/lib/thebusinesscircle/build/npm-logs NPM_CONFIG_UPDATE_NOTIFIER=false \
   NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ NEXT_TELEMETRY_DISABLED=1 \
   npm --prefix "${workspace}" ci --ignore-scripts --no-audit --no-fund

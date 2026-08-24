@@ -17,6 +17,9 @@ readonly PHASE_F1_RELEASE_ROOT="/var/www/releases"
 readonly PHASE_F1_RELEASE_DIR="${PHASE_F1_RELEASE_ROOT}/${PHASE_F1_FORWARD_SHA}"
 readonly PHASE_F1_BUILD_ROOT="/var/www/builds"
 readonly PHASE_F1_OFFLINE_NPM_CACHE_ROOT="/var/cache/thebusinesscircle/phase-f1/npm-offline-v1"
+readonly PHASE_F1_NPM_CONFIG_ROOT="${PHASE_F1_PACK_DIR}/npm-config"
+readonly PHASE_F1_NPM_USER_CONFIG="${PHASE_F1_NPM_CONFIG_ROOT}/user.npmrc"
+readonly PHASE_F1_NPM_GLOBAL_CONFIG="${PHASE_F1_NPM_CONFIG_ROOT}/global.npmrc"
 readonly PHASE_F1_SHARED_ROOT="/var/www/shared"
 readonly PHASE_F1_PUBLIC_ROOT="${PHASE_F1_SHARED_ROOT}/public"
 readonly PHASE_F1_PRIVATE_ROOT="${PHASE_F1_SHARED_ROOT}/private"
@@ -38,6 +41,13 @@ PHASE_F1_PACK_MANIFEST_SHA256=""
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 require_root() { [[ ${EUID} -eq 0 ]] || die "this preparation phase requires root"; }
+
+require_trusted_npm_config_sources() {
+  [[ ${PHASE_F1_NPM_USER_CONFIG} != "${PHASE_F1_NPM_GLOBAL_CONFIG}" ]] ||
+    die "trusted npm user and global configuration sources collide"
+  /usr/bin/node "${PHASE_F1_PACK_DIR}/npm-configuration.mjs" verify >/dev/null ||
+    die "trusted npm configuration sources are unsafe"
+}
 
 git_read_as_phase_f1_build_user() {
   sudo -u phase-f1-build -- /usr/bin/env -i \

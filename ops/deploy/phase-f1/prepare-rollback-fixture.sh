@@ -7,6 +7,7 @@ export PATH
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 require_root; require_application_sha rollback "${1:-}"
 [[ $(uname -s) == Linux && $(node --version) == v22.22.2 ]] || die "rollback fixture requires Linux and Node 22.22.2"
+require_trusted_npm_config_sources
 start_write_log prepare-rollback-linux-fixture
 attempt_file="${PHASE_F1_STATE_ROOT}/rollback-build-attempt.json"; require_protected_state_file "${attempt_file}"
 workspace=$(/usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" inspect "${attempt_file}" rollback "${PHASE_F1_ROLLBACK_SHA}" "${PHASE_F1_PACK_COMMIT}"); workspace=$(realpath -e "${workspace}")
@@ -24,7 +25,7 @@ build_complete=false
 record_failed_attempt() { local status=$?; trap - EXIT ERR INT TERM; if ((status)) && [[ ${build_complete} != true ]]; then /usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" finish "${attempt_file}" failed "${PHASE_F1_PACK_COMMIT}" || true; fi; exit "${status}"; }
 trap record_failed_attempt EXIT INT TERM
 sudo -u phase-f1-build env -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
-  NPM_CONFIG_USERCONFIG=/dev/null NPM_CONFIG_GLOBALCONFIG=/dev/null NPM_CONFIG_CACHE="${OFFLINE_CACHE}" \
+  NPM_CONFIG_USERCONFIG="${PHASE_F1_NPM_USER_CONFIG}" NPM_CONFIG_GLOBALCONFIG="${PHASE_F1_NPM_GLOBAL_CONFIG}" NPM_CONFIG_CACHE="${OFFLINE_CACHE}" \
   NPM_CONFIG_LOGS_DIR=/var/lib/thebusinesscircle/build/npm-logs NPM_CONFIG_OFFLINE=true NPM_CONFIG_UPDATE_NOTIFIER=false NEXT_TELEMETRY_DISABLED=1 \
   npm --prefix "${workspace}" ci --offline --no-audit --no-fund
 fixture_parent="${PHASE_F1_BUILD_ROOT}/rollback-fixture-${PHASE_F1_ROLLBACK_SHA}-$(openssl rand -hex 8)"

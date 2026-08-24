@@ -23,6 +23,7 @@ import { renderSystemdUnit } from "../../ops/deploy/phase-f1/render-systemd-unit
 import { publishBootEligibility, validateBootEligibility } from "../../ops/deploy/phase-f1/boot-eligibility.mjs";
 import { consumeBuildAttempt, createBuildAttempt, finishBuildAttempt, inspectBuildAttempt } from "../../ops/deploy/phase-f1/build-state.mjs";
 import { evaluateOfflineCache } from "../../ops/deploy/phase-f1/offline-npm-cache.mjs";
+import { NPM_CONFIG_FILENAMES, TRUSTED_EMPTY_NPM_CONFIG, verifyTrustedNpmConfiguration } from "../../ops/deploy/phase-f1/npm-configuration.mjs";
 import { parseSystemdExecStart, resolveProcessExpectation, verifyProcessSnapshot } from "../../ops/deploy/phase-f1/verify-systemd-process.mjs";
 import { createCandidateInvocation, readCandidateInvocation, validateCandidateCleanupResult } from "../../ops/deploy/phase-f1/candidate-invocation.mjs";
 import { validateStructuredEvidence } from "../../ops/deploy/phase-f1/structured-evidence.mjs";
@@ -138,6 +139,17 @@ function createCommittedPackFixture() {
 }
 
 describe("Phase F1 installed pack and immutable systemd identity", () => {
+  it("packages two distinct immutable empty npm configuration sources", () => {
+    const npmConfigRoot = join(pack, "npm-config");
+    const result = verifyTrustedNpmConfiguration(npmConfigRoot);
+    expect(result.ready).toBe(true);
+    expect(result.userConfig).not.toBe(result.globalConfig);
+    for (const name of Object.values(NPM_CONFIG_FILENAMES)) {
+      expect(readFileSync(join(npmConfigRoot, name))).toEqual(TRUSTED_EMPTY_NPM_CONFIG);
+      expect(expectedPackMode(`npm-config/${name}`)).toBe("0444");
+    }
+  });
+
   it("omits only the selected root tree and strictly rejects unsafe enumeration rows", () => {
     const rootRow = "040000 tree " + "1".repeat(40) + "\tops/deploy/phase-f1";
     const fileRow = "100644 blob " + "2".repeat(40) + "\tops/deploy/phase-f1/nested/helper.mjs";

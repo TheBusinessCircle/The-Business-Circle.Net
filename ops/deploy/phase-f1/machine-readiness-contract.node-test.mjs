@@ -489,6 +489,9 @@ describe("Phase F1 sanitised environment contract", () => {
     const fixture = readFileSync(join(packRoot, "prepare-rollback-fixture.sh"), "utf8");
     const preparation = readFileSync(join(packRoot, "prepare-offline-npm-cache.sh"), "utf8");
     assert.match(common, /PHASE_F1_OFFLINE_NPM_CACHE_ROOT="\/var\/cache\/thebusinesscircle\/phase-f1\/npm-offline-v1"/u);
+    assert.match(common, /PHASE_F1_NPM_USER_CONFIG="\$\{PHASE_F1_NPM_CONFIG_ROOT\}\/user\.npmrc"/u);
+    assert.match(common, /PHASE_F1_NPM_GLOBAL_CONFIG="\$\{PHASE_F1_NPM_CONFIG_ROOT\}\/global\.npmrc"/u);
+    assert.match(common, /npm-configuration\.mjs" verify/u);
     assert.doesNotMatch(fixture, /readonly OFFLINE_CACHE=\$\{PHASE_E3_OFFLINE_NPM_CACHE_ROOT/u);
     assert.match(fixture, /offline-npm-cache\.mjs" verify/u);
     assert.match(fixture, /NPM_CONFIG_OFFLINE=true/u);
