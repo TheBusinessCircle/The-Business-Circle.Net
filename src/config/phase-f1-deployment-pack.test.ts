@@ -1306,6 +1306,22 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(attach).toContain("Phase E2 disables all Next disk persistence");
   });
 
+  it("builds and publishes immutable artifacts without creating selectors", () => {
+    const build = source("build-release.sh");
+    const rollback = source("prepare-rollback-artifact.sh");
+    const selector = source("publish-candidate-selector.sh");
+    const selectorUtility = source("candidate-selector.mjs");
+    const evidence = source("build-only-artifact.mjs");
+    expect(build).not.toMatch(/PHASE_F1_CURRENT_CIRCLE|current-circle-card|\bln -s\b/u);
+    expect(rollback).not.toMatch(/current-bcn-rollback-probe|\bln -s\b/u);
+    expect(build).toContain('build-only-artifact.mjs" publish forward');
+    expect(rollback).toContain('build-only-artifact.mjs" publish rollback');
+    expect(selector).toContain("require_release_integrity");
+    expect(selectorUtility).toContain("verifyBuildOnlyArtifactEvidence");
+    expect(evidence).toContain("phase-f1-build-only-artifact-v1");
+    expect(evidence).toContain("selectorsPublished: false");
+  });
+
   it("removes build-user mutation authority before accepting rollback next-start evidence", () => {
     const fixture = source("prepare-rollback-fixture.sh");
     expect(fixture).toContain("rollback-application-identity.post-build.json");

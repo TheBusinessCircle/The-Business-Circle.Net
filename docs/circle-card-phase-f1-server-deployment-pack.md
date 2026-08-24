@@ -463,6 +463,27 @@ readiness evidence verifies. Its subsequent `npm ci` remains frozen and offline.
 population is not implicit in checkout or build and must never be run without its separate
 network-authorisation gate.
 
+Immutable artifact construction and selector publication are separate operations. The rollback
+artifact command verifies and publishes the exact rollback release and a protected
+`rollback-build-only-artifact.json` record without creating `current-bcn-rollback-probe`. The
+forward build verifies both role-specific runtime copies and the complete release, then publishes
+`forward-build-only-artifact.json` without creating `current-circle-card` or changing
+`current-bcn`. Both records are current-operations-commit-bound, value-free, no-replace evidence;
+they bind the exact application SHA, canonical immutable artifact path, all required manifest
+identities, aggregate artifact identity, `releaseIntegrity=PASS`, and
+`selectorsPublished=false`.
+
+Selector publication is available only through `publish-candidate-selector.sh`, accepts only
+`rollback-probe` with the exact rollback SHA or `circle-card` with the exact forward SHA, requires
+current environment readiness and complete release integrity, and directly validates the matching
+protected build-only evidence. Its fixed selector and artifact paths cannot be caller-selected.
+It uses a same-directory staged symlink plus atomic no-replace hard-link publication and parent
+directory fsync. Build commands contain no selector publication path; candidate activation is a
+later separately authorised gate.
+
+After a pack containing this separation becomes authoritative, the exact next gate is
+`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READINESS_REVALIDATION_AND_IMMUTABLE_BUILD_ONLY_APPLICATION_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
+
 The rollback build must run the committed-candidate flow in `src/config/rollback-immutable-runtime-cache.test.ts` from exact SHA `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`. Final fixture generation cannot run from an uncommitted review diff. Provenance must bind the actual candidate SHA, historical parent, exact three-file set, raw Git diff digest, reviewed-file hashes, package identities, Next.js `15.5.15`, `BUILD_ID`, and recomputed full artifact manifest. It must record a synthetic build, absent production authority, enforced Linux loopback-only/no-route network isolation, and historical BCN identity. Forward Circle Card identity is rejected.
 
 A skipped fixture-generation or real-server test is incomplete evidence and blocks cutover. The rollback proof cryptographically binds:

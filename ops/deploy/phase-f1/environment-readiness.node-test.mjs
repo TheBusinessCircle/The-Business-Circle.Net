@@ -349,6 +349,29 @@ describe("Phase F1 corrected ordering source contract", () => {
     assert.ok(build.indexOf("require_release_integrity") > build.indexOf("release-create"));
   });
 
+  it("separates immutable artifact publication from candidate selector publication", () => {
+    const build = source("build-release.sh");
+    const rollback = source("prepare-rollback-artifact.sh");
+    const selector = source("publish-candidate-selector.sh");
+    const selectorUtility = source("candidate-selector.mjs");
+    const evidence = source("build-only-artifact.mjs");
+    assert.doesNotMatch(build, /PHASE_F1_CURRENT_CIRCLE|current-circle-card|\bln -s\b/u);
+    assert.doesNotMatch(rollback, /current-bcn-rollback-probe|\bln -s\b/u);
+    assert.match(build, /build-only-artifact\.mjs" publish forward/u);
+    assert.match(rollback, /build-only-artifact\.mjs" publish rollback/u);
+    assert.match(selector, /require_release_integrity/u);
+    assert.match(selector, /candidate-selector\.mjs" publish/u);
+    assert.match(selectorUtility, /verifyBuildOnlyArtifactEvidence/u);
+    assert.match(selectorUtility, /linkSync\(temporary, selector\)/u);
+    assert.doesNotMatch(selectorUtility, /process\.env/u);
+    assert.match(evidence, /selectorsPublished: false/u);
+    assert.match(evidence, /assertBuildOnlySelectorBoundary/u);
+    assert.match(evidence, /current-bcn-rollback-probe/u);
+    assert.match(evidence, /current-circle-card/u);
+    assert.match(evidence, /releaseIntegrity: "PASS"/u);
+    assert.match(evidence, /publishNoReplaceSet/u);
+  });
+
   it("requires both readiness and release integrity for full preflight and every start or traffic gate", () => {
     for (const name of [
       "preflight-read-only.sh",

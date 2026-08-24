@@ -30,6 +30,9 @@ install -d -m 0700 -o root -g root "${PHASE_F1_ARTIFACT_ROOT}"
 /usr/bin/node "${PHASE_F1_PACK_DIR}/artifact-manifest.mjs" runtime-create "${PHASE_F1_ROLLBACK_DIR}/.next" "${PHASE_F1_ARTIFACT_ROOT}/rollback-bcn.manifest" >/dev/null
 /usr/bin/node "${PHASE_F1_PACK_DIR}/artifact-manifest.mjs" release-create "${PHASE_F1_ROLLBACK_DIR}" "${PHASE_F1_ARTIFACT_ROOT}/rollback-release.manifest" >/dev/null
 chmod 0600 "${PHASE_F1_ARTIFACT_ROOT}"/rollback-*.manifest; chown root:root "${PHASE_F1_ARTIFACT_ROOT}"/rollback-*.manifest
-[[ ! -e /var/www/current-bcn-rollback-probe && ! -L /var/www/current-bcn-rollback-probe ]] || die "rollback probe selector exists"
-ln -s "${PHASE_F1_ROLLBACK_DIR}" /var/www/current-bcn-rollback-probe
-printf 'Rollback artifact was promoted only from the provenance-gated committed-candidate fixture.\n'
+/usr/bin/node "${PHASE_F1_PACK_DIR}/artifact-manifest.mjs" runtime-verify \
+  "${PHASE_F1_ROLLBACK_DIR}/.next" "${PHASE_F1_ARTIFACT_ROOT}/rollback-bcn.manifest" >/dev/null
+/usr/bin/node "${PHASE_F1_PACK_DIR}/artifact-manifest.mjs" release-verify \
+  "${PHASE_F1_ROLLBACK_DIR}" "${PHASE_F1_ARTIFACT_ROOT}/rollback-release.manifest" >/dev/null
+/usr/bin/node "${PHASE_F1_PACK_DIR}/build-only-artifact.mjs" publish rollback "${PHASE_F1_PACK_COMMIT}" >/dev/null
+printf 'Rollback artifact was immutably published without selector creation.\n'

@@ -68,10 +68,8 @@ cmp --silent "${PHASE_F1_ARTIFACT_ROOT}/runtime-bcn.manifest" "${PHASE_F1_ARTIFA
 (cd "${PHASE_F1_ARTIFACT_ROOT}" && sha256sum -- *.manifest >manifest-index.sha256)
 chown -R root:root "${PHASE_F1_ARTIFACT_ROOT}"; chmod -R go-rwx "${PHASE_F1_ARTIFACT_ROOT}"
 require_release_integrity
+/usr/bin/node "${PHASE_F1_PACK_DIR}/build-only-artifact.mjs" publish forward "${PHASE_F1_PACK_COMMIT}" >/dev/null
 /usr/bin/node "${PHASE_F1_PACK_DIR}/build-state.mjs" finish "${attempt_file}" complete "${PHASE_F1_PACK_COMMIT}"
 build_complete=true; trap - EXIT ERR INT TERM
-[[ ! -e ${PHASE_F1_CURRENT_CIRCLE} && ! -L ${PHASE_F1_CURRENT_CIRCLE} ]] || die "Circle stable selector already exists"
-ln -s "${PHASE_F1_RELEASE_DIR}" "${PHASE_F1_CURRENT_CIRCLE}"
-[[ $(readlink -f "${PHASE_F1_CURRENT_CIRCLE}") == "${PHASE_F1_RELEASE_DIR}" ]] || die "Circle selector verification failed"
 sha256sum "${PHASE_F1_ARTIFACT_ROOT}/manifest-index.sha256" "${PHASE_F1_ARTIFACT_ROOT}"/*.manifest
-printf '%s authority-free build produced immutable runtime artifact(s) from %s.\n' "${ROLE}" "${application_sha}"
+printf '%s authority-free build produced immutable runtime artifact(s) without selector publication from %s.\n' "${ROLE}" "${application_sha}"
