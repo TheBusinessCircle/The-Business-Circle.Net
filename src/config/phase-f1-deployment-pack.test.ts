@@ -588,11 +588,20 @@ describe("Phase F1 build lifecycle and complete release sealing", () => {
     mkdirSync(resolve(content, ".."), { recursive: true });
     writeFileSync(content, tarball);
     writeFileSync(lockfile, `${JSON.stringify({ lockfileVersion: 3, packages: { "": {}, "node_modules/fixture": { resolved: "https://registry.npmjs.org/fixture/-/fixture-1.0.0.tgz", integrity } } })}\n`);
-    expect(evaluateOfflineCache(cache, lockfile, { enforceMetadata: false })).toMatchObject({ packageCount: 1 });
+    expect(evaluateOfflineCache(cache, lockfile, {
+      enforceMetadata: false,
+      targetPlatform: { os: "linux", cpu: "x64", libc: "glibc" }
+    })).toMatchObject({ requiredTargetIntegrityCount: 1, missingRequiredTargetIntegrityCount: 0 });
     writeFileSync(content, "tampered");
-    expect(() => evaluateOfflineCache(cache, lockfile, { enforceMetadata: false })).toThrow(/integrity/u);
+    expect(() => evaluateOfflineCache(cache, lockfile, {
+      enforceMetadata: false,
+      targetPlatform: { os: "linux", cpu: "x64", libc: "glibc" }
+    })).toThrow(/integrity/u);
     rmSync(content);
-    expect(() => evaluateOfflineCache(cache, lockfile, { enforceMetadata: false })).toThrow(/incomplete/u);
+    expect(() => evaluateOfflineCache(cache, lockfile, {
+      enforceMetadata: false,
+      targetPlatform: { os: "linux", cpu: "x64", libc: "glibc" }
+    })).toThrow(/required target-platform/u);
   });
 
   it("rejects unexpected ignored build input while classifying only generated roots", () => {

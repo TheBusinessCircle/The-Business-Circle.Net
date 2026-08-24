@@ -49,7 +49,24 @@ mv "${promotion}" "${PHASE_F1_OFFLINE_NPM_CACHE_ROOT}"
 /usr/bin/sync -f "${PHASE_F1_OFFLINE_NPM_CACHE_ROOT}"
 /usr/bin/sync -f "${cache_parent}"
 cache_published=true; trap - EXIT INT TERM
-/usr/bin/node "${PHASE_F1_PACK_DIR}/offline-npm-cache.mjs" publish "${workspace}" "${PHASE_F1_PACK_COMMIT}" >/dev/null
+offline_cleanup() {
+  local target="${workspace}/node_modules"
+  if [[ -e ${target} || -L ${target} ]]; then
+    [[ ${workspace} == "${PHASE_F1_BUILD_ROOT}/rollback-${PHASE_F1_ROLLBACK_SHA}-"* && -d ${target} && ! -L ${target} ]] || return 1
+    rm -rf --one-file-system -- "${target}"
+  fi
+}
+trap offline_cleanup EXIT INT TERM
+sudo -u phase-f1-build env -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
+  NPM_CONFIG_USERCONFIG="${PHASE_F1_NPM_USER_CONFIG}" NPM_CONFIG_GLOBALCONFIG="${PHASE_F1_NPM_GLOBAL_CONFIG}" NPM_CONFIG_CACHE="${PHASE_F1_OFFLINE_NPM_CACHE_ROOT}" \
+  NPM_CONFIG_LOGS_DIR=/var/lib/thebusinesscircle/build/npm-logs NPM_CONFIG_UPDATE_NOTIFIER=false \
+  NPM_CONFIG_OFFLINE=true NEXT_TELEMETRY_DISABLED=1 \
+  npm --prefix "${workspace}" ci --offline --ignore-scripts --no-audit --no-fund
+[[ -d ${workspace}/node_modules && ! -L ${workspace}/node_modules ]] || die "offline npm resolution did not create disposable dependencies"
+offline_cleanup || die "offline npm resolution cleanup failed"
+[[ ! -e ${workspace}/node_modules && -z $(git_read_as_phase_f1_build_user -C "${workspace}" status --porcelain --untracked-files=all) ]] || die "offline npm resolution left workspace residue"
+/usr/bin/node "${PHASE_F1_PACK_DIR}/offline-npm-cache.mjs" publish-after-offline-verification "${workspace}" "${PHASE_F1_PACK_COMMIT}" >/dev/null
+trap - EXIT INT TERM
 first_cache_file=$(find -P "${PHASE_F1_OFFLINE_NPM_CACHE_ROOT}/_cacache/content-v2" -xdev -type f -print -quit)
 [[ -n ${first_cache_file} && ${first_cache_file} == "${PHASE_F1_OFFLINE_NPM_CACHE_ROOT}/_cacache/content-v2/"* ]] || die "offline npm cache contains no approved content"
 sudo -u phase-f1-build test -x "${cache_parent}" || die "build user cannot traverse the offline npm cache parent"

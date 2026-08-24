@@ -504,6 +504,8 @@ describe("Phase F1 sanitised environment contract", () => {
     const common = readFileSync(join(packRoot, "common.sh"), "utf8");
     const fixture = readFileSync(join(packRoot, "prepare-rollback-fixture.sh"), "utf8");
     const preparation = readFileSync(join(packRoot, "prepare-offline-npm-cache.sh"), "utf8");
+    const recovery = readFileSync(join(packRoot, "reverify-sealed-offline-npm-cache.sh"), "utf8");
+    const cache = readFileSync(join(packRoot, "offline-npm-cache.mjs"), "utf8");
     assert.match(common, /PHASE_F1_OFFLINE_NPM_CACHE_ROOT="\/var\/cache\/thebusinesscircle\/phase-f1\/npm-offline-v1"/u);
     assert.match(common, /PHASE_F1_NPM_USER_CONFIG="\$\{PHASE_F1_NPM_CONFIG_ROOT\}\/user\.npmrc"/u);
     assert.match(common, /PHASE_F1_NPM_GLOBAL_CONFIG="\$\{PHASE_F1_NPM_CONFIG_ROOT\}\/global\.npmrc"/u);
@@ -519,6 +521,21 @@ describe("Phase F1 sanitised environment contract", () => {
     assert.match(preparation, /sudo -u phase-f1-build test -r/u);
     assert.match(preparation, /sudo -u bcn-app test ! -w/u);
     assert.match(preparation, /sudo -u circle-card-app test ! -w/u);
+    assert.match(preparation, /npm --prefix "\$\{workspace\}" ci --offline/u);
+    assert.ok(preparation.indexOf("ci --offline") < preparation.indexOf("publish-after-offline-verification"));
+    assert.match(cache, /phase-f1-offline-npm-cache-readiness-v2/u);
+    assert.match(cache, /APPROVED_TARGET_PLATFORM/u);
+    assert.match(cache, /optionalInapplicableIntegrityCount/u);
+    assert.match(cache, /missingRequiredTargetIntegrityCount/u);
+    assert.match(cache, /Offline npm cache is missing a required target-platform integrity/u);
+    assert.match(recovery, /classify-recovery/u);
+    assert.match(recovery, /SEALED_NOT_READY_REVERIFY_APPROVED/u);
+    assert.match(recovery, /NPM_CONFIG_OFFLINE=true/u);
+    assert.match(recovery, /publish-after-offline-verification/u);
+    assert.match(recovery, /pgrep -u phase-f1-build/u);
+    assert.match(recovery, /\.npm-offline-v1\.promotion\./u);
+    assert.match(recovery, /git_read_as_phase_f1_build_user/u);
+    assert.doesNotMatch(recovery, /\$\{2|cache-root|readiness-path|alternate/u);
   });
 });
 

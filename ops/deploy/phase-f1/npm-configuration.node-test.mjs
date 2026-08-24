@@ -107,6 +107,7 @@ describe("Phase F1 trusted npm configuration", () => {
   it("binds every npm invocation to fixed sources under an empty environment", () => {
     const scripts = [
       "prepare-offline-npm-cache.sh",
+      "reverify-sealed-offline-npm-cache.sh",
       "prepare-rollback-fixture.sh",
       "build-release.sh"
     ].map((name) => readFileSync(join(packRoot, name), "utf8"));
@@ -122,6 +123,10 @@ describe("Phase F1 trusted npm configuration", () => {
     assert.match(preparation, /NPM_CONFIG_REGISTRY=https:\/\/registry\.npmjs\.org\//u);
     assert.match(preparation, /--ignore-scripts --no-audit --no-fund/u);
     assert.doesNotMatch(preparation, /NPM_TOKEN|NODE_AUTH_TOKEN|npm (?:update|audit fix)/u);
+    const recovery = scripts[1];
+    assert.match(recovery, /NPM_CONFIG_CACHE="\$\{PHASE_F1_OFFLINE_NPM_CACHE_ROOT\}"/u);
+    assert.match(recovery, /NPM_CONFIG_OFFLINE=true/u);
+    assert.match(recovery, /npm --prefix "\$\{workspace\}" ci --offline/u);
   });
 
   it("refuses caller-selected operational paths", () => {

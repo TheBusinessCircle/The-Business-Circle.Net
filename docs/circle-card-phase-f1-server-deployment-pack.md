@@ -425,7 +425,39 @@ keeps npm 10.9.7 from reading an ambient home/global `.npmrc` without assigning 
 layers to the same `/dev/null` path.
 
 `offline-npm-cache.mjs` independently proves that every public-registry `sha512` integrity in
-the exact committed rollback lockfile has matching content in npm's content-addressable cache.
+the exact committed rollback lockfile that is required for the approved Linux/x64/glibc target
+has matching content in npm's content-addressable cache. The classifier implements npm 10.9.7's
+positive and negative `os`, `cpu` and `libc` list semantics. A missing integrity is excluded only
+when every lockfile entry sharing it is explicitly `optional`, has valid structured platform
+constraints, and those constraints prove it inapplicable to the approved target. An optional
+entry without constraints, an optional entry applicable to Linux/x64/glibc, every non-optional
+entry, malformed metadata, an unavailable target platform, or a missing required integrity fails
+closed. Readiness schema `phase-f1-offline-npm-cache-readiness-v2` records only value-free target,
+total, required, present-required, missing-required and optional-inapplicable counts.
+
+Static cache completeness is never sufficient by itself. Both fresh population and sealed-cache
+recovery run a second `npm ci --offline --ignore-scripts` in the exact non-release rollback
+checkout with the two immutable npm configuration sources and the fixed cache. Disposable
+`node_modules` is guardedly removed and the checkout must return to its exact clean Git identity
+before `publish-after-offline-verification` may create readiness evidence.
+
+A cache sealed by the trusted population mechanism but left without readiness evidence may be
+re-evaluated only by `reverify-sealed-offline-npm-cache.sh`. The wrapper accepts only the exact
+rollback SHA and derives every path. It requires current Git-auth/environment authority through
+the checkout contract, a current prepared rollback attempt, exact Node/npm and target platform,
+an absent readiness file, no promotion residue, no disposable dependency or build output, no
+build-user npm process, exact root/build-group `0550`/`0440` cache metadata, runtime-user mutation
+isolation and complete required-target integrities. It records the sealed cache inventory before
+and after the offline install and refuses publication if any byte identity changes. Arbitrary
+cache paths, current READY evidence, unsafe metadata, an active writer, stale handoff or any
+missing target-required artifact cannot enter the recovery path. Eligibility is additionally
+bound to exactly one protected failed-preparation log whose operations commit and pack hashes
+validate within the protected authority lineage; safe cache metadata alone is not provenance.
+The production cache remains sealed and unchanged during implementation-only republication.
+
+After a pack containing this correction becomes authoritative, the exact next gate is
+`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_STALE_TRUSTED_ROLLBACK_EVIDENCE_RETIREMENT_AND_FRESH_TRUSTED_ROLLBACK_CHECKOUT_AND_SEALED_OFFLINE_NPM_CACHE_REVERIFICATION_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
+
 The rollback fixture refuses to consume the build attempt unless that current-authority
 readiness evidence verifies. Its subsequent `npm ci` remains frozen and offline. Cache
 population is not implicit in checkout or build and must never be run without its separate
