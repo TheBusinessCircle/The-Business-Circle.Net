@@ -721,6 +721,21 @@ describe("Phase F1 protected environment and release ordering", () => {
     expect(exchange).toContain("GIT_AUTH_READINESS_EXCHANGE_OK");
   });
 
+  it("retains stale rollback evidence through a narrow crash-safe retirement contract", () => {
+    const retirement = source("rollback-evidence-retirement.mjs");
+    const wrapper = source("retire-stale-rollback-evidence.sh");
+    expect(retirement).toContain('"phase-f1-stale-rollback-evidence-retirement-plan-v1"');
+    expect(retirement).toContain('"phase-f1-stale-rollback-evidence-retirement-report-v1"');
+    expect(retirement).toContain('"STALE_TRUSTED_ROLLBACK_EVIDENCE_RETIREMENT"');
+    expect(retirement).toContain("resolveProtectedAuthorityLineage");
+    expect(retirement).toContain("Historical rollback evidence byte identity differs.");
+    expect(retirement).toContain('canonicalSlots: "ABSENT"');
+    expect(retirement).toContain("publishNoReplaceSet");
+    expect(retirement).not.toMatch(/retire-any|caller.*(?:source|destination).*path/iu);
+    expect(wrapper).toContain("require_pack_integrity");
+    expect(wrapper).not.toMatch(/\b(?:mv|cp|rm)\b/u);
+  });
+
   it("keeps complete release integrity mandatory for preflight, starts and traffic changes", () => {
     for (const name of [
       "preflight-read-only.sh",

@@ -371,6 +371,31 @@ protected JSON through `build-state.mjs`; no `.path` compatibility object, calle
 checkout path or second authority exists. Missing, stale, linked, malformed, wrong-commit or
 wrong-operations evidence fails closed.
 
+An operations-authority-only transition never overwrites or silently deletes the prior
+canonical rollback application identity and prepared build-attempt evidence. The dedicated
+`retire-stale-rollback-evidence.sh` operation accepts only their two exact SHA-256 identities;
+source and destination paths, source authority, application SHA, attempt identity and evidence
+types are not caller-selectable. `rollback-evidence-retirement.mjs` reads only the two fixed
+canonical paths, validates the closed rollback application-identity structure and
+`phase-f1-build-attempt-v2` schema, re-verifies the exact clean rollback checkout as the build
+user, and proves the source operations commit is a genuine predecessor on the protected
+authority lineage. Current-authority, malformed, unsafe, linked, mismatched, active,
+selector-referenced, mounted or built workspaces fail closed.
+
+Retirement is a crash-safe logical pair operation. A root-owned mode-`0600` no-replace intent
+is published first. Byte-identical application-identity and build-attempt histories are then
+published at deterministic `preserved-<source-operations-commit>-<attempt-id>` names and
+fsync-verified. Only after both histories match the exact approved input identities are the
+two canonical sources unlinked with inode rechecks and state-root fsyncs. A final value-free
+no-replace report is published only when both canonical slots are absent and both histories
+remain verified. The protected intent makes an interruption after either unlink safely
+resumable; conflicting history, a report with a reappearing canonical source, or any byte
+drift fails closed. The old checkout itself remains immutable audit state and is never reused.
+
+Implementation and execution are separate gates. After a new pack containing this mechanism
+becomes authoritative, the exact next gate is
+`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_STALE_TRUSTED_ROLLBACK_EVIDENCE_RETIREMENT_AND_FRESH_TRUSTED_ROLLBACK_CHECKOUT_AND_OFFLINE_NPM_CACHE_POPULATION_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
+
 The rollback dependency build uses only the fixed cache
 `/var/cache/thebusinesscircle/phase-f1/npm-offline-v1`. It never accepts an inherited or
 caller-selected cache root and never relies on `/root/.npm`. Cache population is a distinct,

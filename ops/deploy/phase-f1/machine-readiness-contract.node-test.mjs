@@ -418,6 +418,22 @@ describe("Phase F1 sanitised environment contract", () => {
     assert.match(state, /operationsCommit/u);
   });
 
+  it("retires only the protected stale rollback evidence pair", () => {
+    const retirement = readFileSync(join(packRoot, "rollback-evidence-retirement.mjs"), "utf8");
+    const wrapper = readFileSync(join(packRoot, "retire-stale-rollback-evidence.sh"), "utf8");
+    assert.match(retirement, /STALE_TRUSTED_ROLLBACK_EVIDENCE_RETIREMENT/u);
+    assert.match(retirement, /rollback-application-identity\.json/u);
+    assert.match(retirement, /rollback-build-attempt\.json/u);
+    assert.match(retirement, /resolveProtectedAuthorityLineage/u);
+    assert.match(retirement, /publishNoReplaceSet/u);
+    assert.match(retirement, /Historical rollback evidence byte identity differs/u);
+    assert.match(retirement, /canonicalSlots: "ABSENT"/u);
+    assert.doesNotMatch(wrapper, /\b(?:mv|cp|rm)\b/u);
+    assert.match(wrapper, /require_pack_integrity/u);
+    assert.match(wrapper, /STALE_TRUSTED_ROLLBACK_EVIDENCE_RETIREMENT/u);
+    assert.doesNotMatch(wrapper, /source-path|destination|history-path/u);
+  });
+
   it("pins build-user GitHub SSH trust and guards failed-checkout cleanup", () => {
     const checkout = readFileSync(join(packRoot, "prepare-checkout.sh"), "utf8");
     const trust = readFileSync(join(packRoot, "git-transport-trust.mjs"), "utf8");
