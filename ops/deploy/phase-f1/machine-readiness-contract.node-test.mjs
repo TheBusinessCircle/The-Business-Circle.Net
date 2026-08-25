@@ -528,6 +528,14 @@ describe("Phase F1 sanitised environment contract", () => {
     assert.match(cache, /optionalInapplicableIntegrityCount/u);
     assert.match(cache, /missingRequiredTargetIntegrityCount/u);
     assert.match(cache, /Offline npm cache is missing a required target-platform integrity/u);
+    assert.match(cache, /carry-forward-ready/u);
+    assert.match(cache, /IDENTITY_ONLY_OFFLINE_NPM_CACHE_READY_EVIDENCE_CARRY_FORWARD/u);
+    assert.match(cache, /resolveProtectedAuthorityLineage/u);
+    assert.match(cache, /offline-npm-cache-readiness-preserved-/u);
+    assert.match(cache, /\.offline-npm-cache-readiness\.exchange-/u);
+    assert.match(cache, /cacheContentsUnchanged/u);
+    assert.match(cache, /offlineResolutionPreserved/u);
+    assert.doesNotMatch(cache, /--cache-root|--evidence-path|--destination-path/u);
     assert.match(recovery, /classify-recovery/u);
     assert.match(recovery, /SEALED_NOT_READY_REVERIFY_APPROVED/u);
     assert.match(recovery, /NPM_CONFIG_OFFLINE=true/u);

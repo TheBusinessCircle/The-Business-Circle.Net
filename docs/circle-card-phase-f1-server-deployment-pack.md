@@ -458,6 +458,37 @@ The production cache remains sealed and unchanged during implementation-only rep
 After a pack containing this correction becomes authoritative, the exact next gate is
 `SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_STALE_TRUSTED_ROLLBACK_EVIDENCE_RETIREMENT_AND_FRESH_TRUSTED_ROLLBACK_CHECKOUT_AND_SEALED_OFFLINE_NPM_CACHE_REVERIFICATION_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
 
+An existing `READY` cache is not eligible for the `SEALED_NOT_READY` recovery path and remains
+stale after an operations-authority transition by default. It may be rebound only through
+`offline-npm-cache.mjs carry-forward-ready`, using the exact protected canonical READY evidence
+SHA-256, the approved rollback workspace, the current operations commit and the fixed
+`IDENTITY_ONLY_OFFLINE_NPM_CACHE_READY_EVIDENCE_CARRY_FORWARD` identifier. The cache root,
+evidence paths, destination, source authority and lineage cannot be caller-selected.
+
+The mechanism resolves and verifies every protected operations-authority hop, requires the source
+authority on that unique lineage, validates the source evidence under its trusted installed pack,
+and re-creates both source- and current-authority READY records from the live sealed cache. This
+re-hashes the complete cache inventory and required package integrities; revalidates the exact
+rollback commit and lockfile, Linux/x64/glibc classifier, Node/npm contract, completeness counts,
+clean disposable workspace, absent writer and promotion residue, build-user read/non-write policy,
+and BCN/Circle Card mutation isolation; and requires current Git-authentication and environment
+readiness. The prior successful offline-resolution proof is reusable only when every other READY
+semantic field remains byte-for-byte equivalent. Any delta other than `operationsCommit` is
+`UNEXPECTED_SEMANTIC_DELTA` and fails closed. No package is fetched or removed and no cache byte,
+mode, ownership or seal metadata is changed.
+
+The canonical stale evidence, current-authority candidate and closed value-free carry-forward
+report are published as one fsync-backed no-replace set. The original is preserved at the exact
+source-commit-derived history path before the dedicated
+`offline-npm-cache-readiness-exchange` mode performs `renameat2(RENAME_EXCHANGE)` with the exact
+current-commit-derived slot. Source, preserved copy, candidate, report, cache inventory and access
+policy are verified around the exchange. Partial state, unsafe metadata, a linked path, wrong
+identity or size, failed exchange or uncertain post-exchange state fails closed. Implementation
+and production execution remain separate gates.
+
+After a pack containing this mechanism becomes authoritative, the exact next gate is
+`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_BCN_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
+
 The rollback fixture refuses to consume the build attempt unless that current-authority
 readiness evidence verifies. Its subsequent `npm ci` remains frozen and offline. Cache
 population is not implicit in checkout or build and must never be run without its separate

@@ -602,6 +602,14 @@ describe("Phase F1 build lifecycle and complete release sealing", () => {
       enforceMetadata: false,
       targetPlatform: { os: "linux", cpu: "x64", libc: "glibc" }
     })).toThrow(/required target-platform/u);
+    const cacheAuthority = source("offline-npm-cache.mjs");
+    expect(cacheAuthority).toContain("carry-forward-ready");
+    expect(cacheAuthority).toContain("IDENTITY_ONLY_OFFLINE_NPM_CACHE_READY_EVIDENCE_CARRY_FORWARD");
+    expect(cacheAuthority).toContain("UNEXPECTED_SEMANTIC_DELTA");
+    expect(cacheAuthority).toContain("offline-npm-cache-readiness-preserved-");
+    expect(cacheAuthority).toContain(".offline-npm-cache-readiness.exchange-");
+    expect(cacheAuthority).toContain("offline-npm-cache-readiness-carry-forward-");
+    expect(cacheAuthority).not.toMatch(/--cache-root|--evidence-path|--destination-path/u);
   });
 
   it("rejects unexpected ignored build input while classifying only generated roots", () => {
@@ -1044,6 +1052,8 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(utility).toContain("exchange_may_have_occurred=true");
     expect(utility).toContain("probe_cleanup=complete");
     expect(utility).toContain("phase-f1-identity-history");
+    expect(utility).toContain("offline-npm-cache-readiness-exchange");
+    expect(utility).toContain("OFFLINE_NPM_CACHE_READINESS_EXCHANGE_OK");
     expect(utility).not.toMatch(/\bos\.(?:rename|replace)\s*\(/u);
     expect(utility).not.toMatch(/\b(?:shutil|subprocess)\b/u);
     expect(utility).not.toMatch(/\.(?:syscall)\s*\(/u);

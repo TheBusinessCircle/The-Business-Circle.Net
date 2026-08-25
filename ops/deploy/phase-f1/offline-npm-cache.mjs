@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { publishNoReplaceSet } from "./atomic-no-replace.mjs";
 import { gitAsBuildUser } from "./build-user-git.mjs";
 import { resolveProtectedAuthorityLineage } from "./environment-readiness.mjs";
 
@@ -24,6 +25,12 @@ export const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe
 export const NODE_VERSION = "v22.22.2";
 export const NPM_VERSION = "10.9.7";
 export const READINESS_SCHEMA = "phase-f1-offline-npm-cache-readiness-v2";
+export const READY_CARRY_FORWARD_SCHEMA =
+  "phase-f1-offline-npm-cache-readiness-carry-forward-report-v1";
+export const IDENTITY_ONLY_READY_CARRY_FORWARD =
+  "IDENTITY_ONLY_OFFLINE_NPM_CACHE_READY_EVIDENCE_CARRY_FORWARD";
+export const IDENTITY_ONLY_READY_DELTA = "IDENTITY_ONLY";
+export const STATE_ROOT = "/var/lib/thebusinesscircle/deployment-state";
 export const APPROVED_TARGET_PLATFORM = Object.freeze({
   os: "linux",
   cpu: "x64",
@@ -46,6 +53,27 @@ const RECOVERY_KEYS = [
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const canonicalRelative = (root, path) => relative(root, path).split(sep).join("/");
+
+function validateOperationsCommit(value) {
+  if (!/^[0-9a-f]{40}$/u.test(value || "")) {
+    throw new Error("Offline npm cache operations identity is invalid.");
+  }
+}
+
+export function preservedOfflineCacheReadinessPath(stateRoot, operationsCommit) {
+  validateOperationsCommit(operationsCommit);
+  return join(resolve(stateRoot), `offline-npm-cache-readiness-preserved-${operationsCommit}.json`);
+}
+
+export function offlineCacheReadinessExchangeSlotPath(stateRoot, operationsCommit) {
+  validateOperationsCommit(operationsCommit);
+  return join(resolve(stateRoot), `.offline-npm-cache-readiness.exchange-${operationsCommit}.json`);
+}
+
+export function offlineCacheReadinessCarryForwardReportPath(stateRoot, operationsCommit) {
+  validateOperationsCommit(operationsCommit);
+  return join(resolve(stateRoot), `offline-npm-cache-readiness-carry-forward-${operationsCommit}.json`);
+}
 
 function exactKeys(record, keys, label) {
   if (!record || typeof record !== "object" || Array.isArray(record) || JSON.stringify(Object.keys(record).sort()) !== JSON.stringify([...keys].sort())) {
@@ -291,12 +319,144 @@ function writeExclusive(path, record) {
   try { fsyncSync(parentFd); } finally { closeSync(parentFd); }
 }
 
-function readReadiness() {
-  const stats = lstatSync(READINESS_PATH);
-  if (!stats.isFile() || stats.isSymbolicLink() || stats.nlink !== 1 || stats.uid !== 0 || stats.gid !== 0 || (stats.mode & 0o777) !== 0o600) throw new Error("Offline npm cache readiness evidence metadata is unsafe.");
-  const record = JSON.parse(readFileSync(READINESS_PATH, "utf8"));
+export function validateOfflineCacheReadiness(record, operationsCommit, expected = record) {
   exactKeys(record, ["applicationSha", "cacheFileCount", "cacheInventorySha256", "cacheRoot", "lockfileSha256", "missingRequiredTargetIntegrityCount", "nodeVersion", "npmVersion", "offlineResolutionVerified", "operationsCommit", "optionalInapplicableIntegrityCount", "presentRequiredTargetIntegrityCount", "ready", "requiredTargetIntegrityCount", "schemaVersion", "targetCpu", "targetLibc", "targetOs", "totalLockfileIntegrityCount", "valueMaterialRecorded"], "Offline npm cache readiness");
+  validateOperationsCommit(operationsCommit);
+  const counts = [
+    record.totalLockfileIntegrityCount,
+    record.requiredTargetIntegrityCount,
+    record.presentRequiredTargetIntegrityCount,
+    record.missingRequiredTargetIntegrityCount,
+    record.optionalInapplicableIntegrityCount,
+    record.cacheFileCount
+  ];
+  if (record.schemaVersion !== READINESS_SCHEMA ||
+      record.operationsCommit !== operationsCommit ||
+      record.applicationSha !== ROLLBACK_APPLICATION_SHA ||
+      record.cacheRoot !== OFFLINE_CACHE_ROOT ||
+      record.nodeVersion !== NODE_VERSION || record.npmVersion !== NPM_VERSION ||
+      record.targetOs !== APPROVED_TARGET_PLATFORM.os ||
+      record.targetCpu !== APPROVED_TARGET_PLATFORM.cpu ||
+      record.targetLibc !== APPROVED_TARGET_PLATFORM.libc ||
+      !/^[0-9a-f]{64}$/u.test(record.lockfileSha256 || "") ||
+      !/^[0-9a-f]{64}$/u.test(record.cacheInventorySha256 || "") ||
+      counts.some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      record.totalLockfileIntegrityCount <= 0 || record.cacheFileCount <= 0 ||
+      record.presentRequiredTargetIntegrityCount !== record.requiredTargetIntegrityCount ||
+      record.missingRequiredTargetIntegrityCount !== 0 ||
+      record.totalLockfileIntegrityCount !==
+        record.requiredTargetIntegrityCount + record.optionalInapplicableIntegrityCount ||
+      record.offlineResolutionVerified !== true || record.ready !== true ||
+      record.valueMaterialRecorded !== false ||
+      JSON.stringify(record) !== JSON.stringify(expected)) {
+    throw new Error("Offline npm cache readiness evidence is invalid.");
+  }
   return record;
+}
+
+function readReadinessEvidence(path, operational = true) {
+  if (operational) {
+    const stats = lstatSync(path);
+    if (!stats.isFile() || stats.isSymbolicLink() || stats.nlink !== 1 ||
+        stats.uid !== 0 || stats.gid !== 0 || (stats.mode & 0o777) !== 0o600 ||
+        realpathSync(path) !== path) {
+      throw new Error("Offline npm cache readiness evidence metadata is unsafe.");
+    }
+  }
+  const bytes = readFileSync(path);
+  let record;
+  try { record = JSON.parse(bytes.toString("utf8")); }
+  catch { throw new Error("Offline npm cache readiness evidence is not valid JSON."); }
+  return { bytes, record, identity: sha256(bytes) };
+}
+
+function readReadiness() {
+  return readReadinessEvidence(READINESS_PATH).record;
+}
+
+export function classifyOfflineCacheReadinessDelta(source, candidate) {
+  const sourceSemantics = { ...source }, candidateSemantics = { ...candidate };
+  delete sourceSemantics.operationsCommit;
+  delete candidateSemantics.operationsCommit;
+  return JSON.stringify(sourceSemantics) === JSON.stringify(candidateSemantics) &&
+    source.operationsCommit !== candidate.operationsCommit
+    ? IDENTITY_ONLY_READY_DELTA
+    : "UNEXPECTED_SEMANTIC_DELTA";
+}
+
+export function validateOfflineCacheReadinessCarryForwardReport(report, expected = report) {
+  exactKeys(report, [
+    "schemaVersion", "carryForward", "semanticDelta", "sourceOperationsCommit",
+    "operationsCommit", "lineage", "sourceReadinessSha256",
+    "carriedForwardReadinessSha256", "sourcePreserved", "cacheContentsUnchanged",
+    "offlineResolutionPreserved", "valueMaterialRecorded"
+  ], "Offline npm cache readiness carry-forward report");
+  validateOperationsCommit(report.sourceOperationsCommit);
+  validateOperationsCommit(report.operationsCommit);
+  if (report.schemaVersion !== READY_CARRY_FORWARD_SCHEMA ||
+      report.carryForward !== IDENTITY_ONLY_READY_CARRY_FORWARD ||
+      report.semanticDelta !== IDENTITY_ONLY_READY_DELTA ||
+      !Array.isArray(report.lineage) || report.lineage.length < 2 ||
+      report.lineage[0] !== report.sourceOperationsCommit ||
+      report.lineage.at(-1) !== report.operationsCommit ||
+      new Set(report.lineage).size !== report.lineage.length ||
+      report.lineage.some((commit) => !/^[0-9a-f]{40}$/u.test(commit)) ||
+      !/^[0-9a-f]{64}$/u.test(report.sourceReadinessSha256 || "") ||
+      !/^[0-9a-f]{64}$/u.test(report.carriedForwardReadinessSha256 || "") ||
+      report.sourcePreserved !== true || report.cacheContentsUnchanged !== true ||
+      report.offlineResolutionPreserved !== true ||
+      report.valueMaterialRecorded !== false ||
+      JSON.stringify(report) !== JSON.stringify(expected)) {
+    throw new Error("Offline npm cache readiness carry-forward report is invalid.");
+  }
+  return report;
+}
+
+export function createOfflineCacheReadinessCarryForwardArtifacts(
+  source,
+  candidate,
+  operationsCommit,
+  lineage
+) {
+  validateOperationsCommit(operationsCommit);
+  validateOfflineCacheReadiness(source.record, source.record.operationsCommit);
+  validateOfflineCacheReadiness(candidate, operationsCommit);
+  const sourceIndex = lineage.indexOf(source.record.operationsCommit);
+  if (sourceIndex < 0 || lineage.at(-1) !== operationsCommit ||
+      source.record.operationsCommit === operationsCommit) {
+    throw new Error("Offline npm cache readiness source authority is not in the trusted lineage.");
+  }
+  const trustedSuffix = lineage.slice(sourceIndex);
+  if (classifyOfflineCacheReadinessDelta(source.record, candidate) !==
+      IDENTITY_ONLY_READY_DELTA) {
+    throw new Error("Offline npm cache readiness carry-forward changed READY semantics.");
+  }
+  const readinessPayload = Buffer.from(`${JSON.stringify(candidate, null, 2)}\n`);
+  if (readinessPayload.length !== source.bytes.length) {
+    throw new Error("Offline npm cache readiness exchange size differs.");
+  }
+  const readinessIdentity = sha256(readinessPayload);
+  const report = {
+    schemaVersion: READY_CARRY_FORWARD_SCHEMA,
+    carryForward: IDENTITY_ONLY_READY_CARRY_FORWARD,
+    semanticDelta: IDENTITY_ONLY_READY_DELTA,
+    sourceOperationsCommit: source.record.operationsCommit,
+    operationsCommit,
+    lineage: trustedSuffix,
+    sourceReadinessSha256: source.identity,
+    carriedForwardReadinessSha256: readinessIdentity,
+    sourcePreserved: true,
+    cacheContentsUnchanged: true,
+    offlineResolutionPreserved: true,
+    valueMaterialRecorded: false
+  };
+  validateOfflineCacheReadinessCarryForwardReport(report);
+  return {
+    readinessPayload,
+    readinessIdentity,
+    report,
+    reportPayload: Buffer.from(`${JSON.stringify(report)}\n`)
+  };
 }
 
 export function publishOfflineCacheReadiness(workspace, operationsCommit, options = {}) {
@@ -308,8 +468,257 @@ export function publishOfflineCacheReadiness(workspace, operationsCommit, option
 export function verifyOfflineCacheReadiness(workspace, operationsCommit) {
   const expected = readinessRecord(workspace, operationsCommit, { offlineResolutionVerified: true });
   const actual = readReadiness();
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error("Offline npm cache readiness evidence is stale or inconsistent.");
-  return actual;
+  return validateOfflineCacheReadiness(actual, operationsCommit, expected);
+}
+
+function pathIsAbsent(path) {
+  try { lstatSync(path); return false; }
+  catch (error) { if (error?.code === "ENOENT") return true; throw error; }
+}
+
+function userTest(user, predicate, path) {
+  return spawnSync("/usr/bin/sudo", ["-u", user, "/usr/bin/test", predicate, path], {
+    stdio: "ignore"
+  }).status === 0;
+}
+
+function firstCacheContentFile(directory = join(OFFLINE_CACHE_ROOT, "_cacache", "content-v2")) {
+  for (const name of readdirSync(directory).sort()) {
+    const path = join(directory, name);
+    const stats = lstatSync(path);
+    if (stats.isSymbolicLink() || (!stats.isDirectory() && !stats.isFile())) {
+      throw new Error("Offline npm cache contains a linked or special object.");
+    }
+    if (stats.isFile()) return path;
+    const nested = firstCacheContentFile(path);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function assertReadyCarryForwardOperationalState(workspace) {
+  const canonicalWorkspace = verifyWorkspace(workspace).canonical;
+  if (!pathIsAbsent(join(canonicalWorkspace, "node_modules")) ||
+      !pathIsAbsent(join(canonicalWorkspace, ".next"))) {
+    throw new Error("Offline npm cache carry-forward workspace is not disposable and clean.");
+  }
+  const promotionPrefix = ".npm-offline-v1.promotion.";
+  if (readdirSync(dirname(OFFLINE_CACHE_ROOT)).some((name) => name.startsWith(promotionPrefix))) {
+    throw new Error("Offline npm cache promotion residue exists.");
+  }
+  const activeNpm = spawnSync("/usr/bin/pgrep", [
+    "-u", "phase-f1-build", "-f", "(npm|npm-cli\\.js)"
+  ], { stdio: "ignore" });
+  if (![0, 1].includes(activeNpm.status)) {
+    throw new Error("Offline npm cache writer check failed.");
+  }
+  if (activeNpm.status === 0) throw new Error("An offline npm cache writer is active.");
+  const first = firstCacheContentFile();
+  if (!first || !userTest("phase-f1-build", "-r", first) ||
+      userTest("phase-f1-build", "-w", OFFLINE_CACHE_ROOT)) {
+    throw new Error("Offline npm cache build-user access policy differs.");
+  }
+  if (userTest("bcn-app", "-w", OFFLINE_CACHE_ROOT) ||
+      userTest("circle-card-app", "-w", OFFLINE_CACHE_ROOT)) {
+    throw new Error("Offline npm cache runtime-user mutation isolation differs.");
+  }
+  return canonicalWorkspace;
+}
+
+function protectedCurrentAuthority(operationsCommit) {
+  const stats = lstatSync(AUTHORITY_PATH);
+  if (!stats.isFile() || stats.isSymbolicLink() || stats.nlink !== 1 ||
+      stats.uid !== 0 || stats.gid !== 0 || (stats.mode & 0o777) !== 0o600 ||
+      realpathSync(AUTHORITY_PATH) !== AUTHORITY_PATH) {
+    throw new Error("Offline npm cache carry-forward authority metadata is unsafe.");
+  }
+  const authority = JSON.parse(readFileSync(AUTHORITY_PATH, "utf8"));
+  if (authority.operationsCommit !== operationsCommit) {
+    throw new Error("Offline npm cache carry-forward requires the current authority.");
+  }
+}
+
+function successfulPackCommand(packRoot, arguments_, label) {
+  const result = spawnSync("/usr/bin/node", arguments_, {
+    env: { HOME: "/root", PATH: "/usr/local/bin:/usr/bin:/bin" },
+    stdio: "ignore"
+  });
+  if (result.error || result.signal || result.status !== 0) {
+    throw new Error(`${label} failed.`);
+  }
+  return packRoot;
+}
+
+function assertReadyCarryForwardProductionContext(
+  workspace,
+  sourceOperationsCommit,
+  operationsCommit
+) {
+  const packRoot = `/opt/thebusinesscircle/deployment-packs/${operationsCommit}`;
+  const expectedUtility = `${packRoot}/offline-npm-cache.mjs`;
+  if (fileURLToPath(import.meta.url) !== expectedUtility ||
+      realpathSync(expectedUtility) !== expectedUtility) {
+    throw new Error("Offline npm cache readiness carry-forward must run from the authoritative installed pack.");
+  }
+  protectedCurrentAuthority(operationsCommit);
+  const lineage = resolveProtectedAuthorityLineage(operationsCommit);
+  if (!lineage.includes(sourceOperationsCommit) || lineage.at(-1) !== operationsCommit) {
+    throw new Error("Offline npm cache readiness source authority is not in the trusted lineage.");
+  }
+  successfulPackCommand(packRoot, [
+    `${packRoot}/git-authentication.mjs`, "verify-ready", operationsCommit
+  ], "Current Git-authentication readiness verification");
+  successfulPackCommand(packRoot, [
+    `${packRoot}/environment-readiness.mjs`, "verify", STATE_ROOT, operationsCommit
+  ], "Current environment readiness verification");
+  const sourcePackRoot = `/opt/thebusinesscircle/deployment-packs/${sourceOperationsCommit}`;
+  successfulPackCommand(sourcePackRoot, [
+    `${sourcePackRoot}/offline-npm-cache.mjs`, "verify", workspace,
+    sourceOperationsCommit
+  ], "Trusted source offline npm cache readiness verification");
+  return lineage;
+}
+
+function exchangeOfflineCacheReadiness(paths, identities, operationsCommit) {
+  const helper = `/opt/thebusinesscircle/deployment-packs/${operationsCommit}/atomic-identity-exchange.py`;
+  const result = spawnSync("/usr/bin/python3", [
+    helper, "offline-npm-cache-readiness-exchange",
+    "--authority", paths.authority,
+    "--exchange-slot", paths.slot,
+    "--preserved-history", paths.preserved,
+    "--pre-authority-sha256", identities.source,
+    "--pre-slot-sha256", identities.candidate,
+    "--preserved-history-sha256", identities.source,
+    "--post-authority-sha256", identities.candidate,
+    "--post-slot-sha256", identities.source,
+    "--expected-parent", paths.stateRoot,
+    "--expected-size", String(identities.size)
+  ], {
+    env: { HOME: "/root", PATH: "/usr/local/bin:/usr/bin:/bin" },
+    stdio: "ignore"
+  });
+  if (result.error || result.signal || result.status !== 0) {
+    throw new Error("Atomic offline npm cache readiness exchange failed.");
+  }
+}
+
+export function publishCarriedForwardOfflineCacheReadiness(options, dependencies = {}) {
+  exactKeys(options, ["workspace", "sourceReadinessSha256", "operationsCommit", "carryForward"],
+    "Offline npm cache readiness carry-forward invocation");
+  validateOperationsCommit(options.operationsCommit);
+  if (typeof options.workspace !== "string" || !options.workspace ||
+      !/^[0-9a-f]{64}$/u.test(options.sourceReadinessSha256 || "") ||
+      options.carryForward !== IDENTITY_ONLY_READY_CARRY_FORWARD) {
+    throw new Error("Offline npm cache readiness carry-forward invocation is invalid.");
+  }
+  const operational = dependencies.operational !== false;
+  const root = operational ? STATE_ROOT : resolve(dependencies.stateRoot);
+  if (operational && (dependencies.stateRoot && resolve(dependencies.stateRoot) !== STATE_ROOT ||
+      realpathSync(STATE_ROOT) !== STATE_ROOT)) {
+    throw new Error("Offline npm cache readiness state root is unsafe.");
+  }
+  const paths = { stateRoot: root, authority: join(root, "offline-npm-cache-readiness.json") };
+  const readEvidence = dependencies.readEvidence ?? readReadinessEvidence;
+  const source = readEvidence(paths.authority, operational);
+  if (source.identity !== options.sourceReadinessSha256) {
+    throw new Error("Source offline npm cache readiness identity differs.");
+  }
+  validateOfflineCacheReadiness(source.record, source.record.operationsCommit);
+  const lineage = (dependencies.assertProductionContext ??
+    assertReadyCarryForwardProductionContext)(
+    options.workspace,
+    source.record.operationsCommit,
+    options.operationsCommit
+  );
+  const validateState = dependencies.validateOperationalState ??
+    assertReadyCarryForwardOperationalState;
+  validateState(options.workspace);
+  const createRecord = dependencies.createReadinessRecord ??
+    ((operationsCommit) => readinessRecord(options.workspace, operationsCommit, {
+      offlineResolutionVerified: true
+    }));
+  const sourceExpected = createRecord(source.record.operationsCommit);
+  validateOfflineCacheReadiness(
+    source.record,
+    source.record.operationsCommit,
+    sourceExpected
+  );
+  const candidate = createRecord(options.operationsCommit);
+  const artifacts = createOfflineCacheReadinessCarryForwardArtifacts(
+    source,
+    candidate,
+    options.operationsCommit,
+    lineage
+  );
+  paths.preserved = preservedOfflineCacheReadinessPath(root, source.record.operationsCommit);
+  paths.slot = offlineCacheReadinessExchangeSlotPath(root, options.operationsCommit);
+  paths.report = offlineCacheReadinessCarryForwardReportPath(root, options.operationsCommit);
+  for (const target of [paths.preserved, paths.slot, paths.report]) {
+    if (!(dependencies.pathIsAbsent ?? pathIsAbsent)(target)) {
+      throw new Error("Offline npm cache readiness carry-forward target already exists.");
+    }
+  }
+  const publish = dependencies.publish ?? publishNoReplaceSet;
+  publish([
+    { target: paths.preserved, payload: source.bytes, mode: 0o600,
+      ...(operational ? { uid: 0, gid: 0 } : {}) },
+    { target: paths.slot, payload: artifacts.readinessPayload, mode: 0o600,
+      ...(operational ? { uid: 0, gid: 0 } : {}) },
+    { target: paths.report, payload: artifacts.reportPayload, mode: 0o600,
+      ...(operational ? { uid: 0, gid: 0 } : {}) }
+  ], {
+    enforceMetadata: operational,
+    fsyncDirectories: operational,
+    verifySet() {
+      const unchanged = readEvidence(paths.authority, operational);
+      const preserved = readEvidence(paths.preserved, operational);
+      const candidateEvidence = readEvidence(paths.slot, operational);
+      if (unchanged.identity !== source.identity || preserved.identity !== source.identity ||
+          candidateEvidence.identity !== artifacts.readinessIdentity ||
+          classifyOfflineCacheReadinessDelta(
+            source.record,
+            candidateEvidence.record
+          ) !== IDENTITY_ONLY_READY_DELTA) {
+        throw new Error("Offline npm cache readiness carry-forward publication differs.");
+      }
+      let report;
+      try { report = JSON.parse(readFileSync(paths.report, "utf8")); }
+      catch { throw new Error("Offline npm cache readiness carry-forward report is not valid JSON."); }
+      validateOfflineCacheReadinessCarryForwardReport(report, artifacts.report);
+      validateState(options.workspace);
+      validateOfflineCacheReadiness(
+        source.record,
+        source.record.operationsCommit,
+        createRecord(source.record.operationsCommit)
+      );
+      (dependencies.exchange ?? exchangeOfflineCacheReadiness)(paths, {
+        source: source.identity,
+        candidate: artifacts.readinessIdentity,
+        size: source.bytes.length
+      }, options.operationsCommit);
+      const current = readEvidence(paths.authority, operational);
+      const oldSlot = readEvidence(paths.slot, operational);
+      validateOfflineCacheReadiness(
+        current.record,
+        options.operationsCommit,
+        createRecord(options.operationsCommit)
+      );
+      if (current.identity !== artifacts.readinessIdentity ||
+          oldSlot.identity !== source.identity ||
+          readEvidence(paths.preserved, operational).identity !== source.identity) {
+        throw new Error("Carried-forward offline npm cache readiness verification failed.");
+      }
+      validateState(options.workspace);
+    }
+  });
+  return {
+    ...paths,
+    sourceOperationsCommit: source.record.operationsCommit,
+    sourceReadinessIdentity: source.identity,
+    carriedForwardReadinessIdentity: artifacts.readinessIdentity,
+    semanticDelta: IDENTITY_ONLY_READY_DELTA,
+    lineage: artifacts.report.lineage
+  };
 }
 
 export function validateSealedNotReadyRecoveryContract(record) {
@@ -439,13 +848,36 @@ export function classifySealedNotReadyCache(workspace, operationsCommit) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [command, workspace, operationsCommit] = process.argv.slice(2);
-  if (command === "publish-after-offline-verification") publishOfflineCacheReadiness(workspace, operationsCommit, { offlineResolutionVerified: true });
-  else if (command === "verify") verifyOfflineCacheReadiness(workspace, operationsCommit);
-  else if (command === "classify-recovery") process.stdout.write(`${JSON.stringify(classifySealedNotReadyCache(workspace, operationsCommit))}\n`);
-  else if (command === "status") {
-    try { verifyOfflineCacheReadiness(workspace, operationsCommit); }
-    catch { process.stdout.write("OFFLINE_NPM_CACHE_NOT_READY\n"); process.exit(1); }
-  } else throw new Error("Usage: offline-npm-cache.mjs <publish-after-offline-verification|verify|classify-recovery|status> <approved-rollback-workspace> <operations-commit>");
-  if (command !== "classify-recovery") process.stdout.write("OFFLINE_NPM_CACHE_READY\n");
+  const [command, ...arguments_] = process.argv.slice(2);
+  if (command === "carry-forward-ready") {
+    if (process.getuid?.() !== 0) {
+      throw new Error("Offline npm cache readiness carry-forward requires Linux root.");
+    }
+    const [workspace, sourceReadinessSha256, operationsCommit, carryForward,
+      ...extras] = arguments_;
+    if (extras.length || !workspace || !sourceReadinessSha256 ||
+        !operationsCommit || !carryForward) {
+      throw new Error("Usage: offline-npm-cache.mjs carry-forward-ready <approved-rollback-workspace> <source-readiness-sha256> <operations-commit> <carry-forward>");
+    }
+    const result = publishCarriedForwardOfflineCacheReadiness({
+      workspace,
+      sourceReadinessSha256,
+      operationsCommit,
+      carryForward
+    });
+    process.stdout.write(`OFFLINE_NPM_CACHE_READY identity-only source=${result.sourceReadinessIdentity} current=${result.carriedForwardReadinessIdentity} cache-contents-unchanged=true\n`);
+  } else {
+    const [workspace, operationsCommit, ...extras] = arguments_;
+    if (extras.length || !workspace || !operationsCommit) {
+      throw new Error("Usage: offline-npm-cache.mjs <publish-after-offline-verification|verify|classify-recovery|status> <approved-rollback-workspace> <operations-commit>");
+    }
+    if (command === "publish-after-offline-verification") publishOfflineCacheReadiness(workspace, operationsCommit, { offlineResolutionVerified: true });
+    else if (command === "verify") verifyOfflineCacheReadiness(workspace, operationsCommit);
+    else if (command === "classify-recovery") process.stdout.write(`${JSON.stringify(classifySealedNotReadyCache(workspace, operationsCommit))}\n`);
+    else if (command === "status") {
+      try { verifyOfflineCacheReadiness(workspace, operationsCommit); }
+      catch { process.stdout.write("OFFLINE_NPM_CACHE_NOT_READY\n"); process.exit(1); }
+    } else throw new Error("Usage: offline-npm-cache.mjs <publish-after-offline-verification|verify|classify-recovery|status> <approved-rollback-workspace> <operations-commit>");
+    if (command !== "classify-recovery") process.stdout.write("OFFLINE_NPM_CACHE_READY\n");
+  }
 }

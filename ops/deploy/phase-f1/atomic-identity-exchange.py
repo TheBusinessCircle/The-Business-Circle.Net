@@ -61,6 +61,18 @@ GIT_AUTH_READINESS_HISTORY_PATTERN = re.compile(
     r"^/var/lib/thebusinesscircle/deployment-state/"
     r"git-auth-readiness-preserved-([0-9a-f]{40})\.json$"
 )
+OFFLINE_NPM_CACHE_READINESS_AUTHORITY = (
+    "/var/lib/thebusinesscircle/deployment-state/"
+    "offline-npm-cache-readiness.json"
+)
+OFFLINE_NPM_CACHE_READINESS_SLOT_PATTERN = re.compile(
+    r"^/var/lib/thebusinesscircle/deployment-state/"
+    r"\.offline-npm-cache-readiness\.exchange-([0-9a-f]{40})\.json$"
+)
+OFFLINE_NPM_CACHE_READINESS_HISTORY_PATTERN = re.compile(
+    r"^/var/lib/thebusinesscircle/deployment-state/"
+    r"offline-npm-cache-readiness-preserved-([0-9a-f]{40})\.json$"
+)
 
 
 class PrecheckFailure(RuntimeError):
@@ -370,6 +382,60 @@ def _validate_git_auth_readiness_exchange_inputs(
     return authority_state, slot_state, history_state
 
 
+def _validate_offline_npm_cache_readiness_exchange_inputs(
+    *,
+    authority: str,
+    slot: str,
+    history: str,
+    authority_hash: str,
+    slot_hash: str,
+    history_hash: str,
+    expected_parent: str,
+    expected_size: int,
+) -> tuple[FileState, FileState, FileState]:
+    if getattr(os, "geteuid", lambda: -1)() != 0:
+        raise PrecheckFailure("offline npm cache readiness exchange requires root")
+    if expected_parent != READINESS_PARENT:
+        raise PrecheckFailure("unexpected offline npm cache readiness parent")
+    if authority != OFFLINE_NPM_CACHE_READINESS_AUTHORITY:
+        raise PrecheckFailure("unexpected offline npm cache readiness authority path")
+    if not OFFLINE_NPM_CACHE_READINESS_SLOT_PATTERN.fullmatch(slot):
+        raise PrecheckFailure("unexpected offline npm cache readiness exchange slot")
+    if not OFFLINE_NPM_CACHE_READINESS_HISTORY_PATTERN.fullmatch(history):
+        raise PrecheckFailure("unexpected preserved offline npm cache readiness path")
+    if expected_size <= 0 or expected_size > 65536:
+        raise PrecheckFailure(
+            "offline npm cache readiness size is outside the approved bound"
+        )
+    if (
+        os.path.dirname(authority) != expected_parent
+        or os.path.dirname(slot) != expected_parent
+        or os.path.dirname(history) != expected_parent
+    ):
+        raise PrecheckFailure(
+            "offline npm cache readiness exchange operands must share the approved parent"
+        )
+    parent_state = _validate_protected_parent(expected_parent)
+    authority_state = _inspect_file(
+        authority, authority_hash, expected_size,
+        "offline npm cache readiness authority"
+    )
+    slot_state = _inspect_file(
+        slot, slot_hash, expected_size,
+        "offline npm cache readiness exchange slot"
+    )
+    history_state = _inspect_file(
+        history, history_hash, expected_size,
+        "preserved offline npm cache readiness"
+    )
+    _require_same_filesystem(authority_state, slot_state, parent_state)
+    if history_state.device != parent_state.device:
+        raise PrecheckFailure(
+            "preserved offline npm cache readiness must share the approved filesystem"
+        )
+    return authority_state, slot_state, history_state
+
+
 def _load_renameat2() -> Callable[[bytes, bytes], None]:
     library = ctypes.CDLL(None, use_errno=True)
     try:
@@ -550,6 +616,51 @@ def run_git_auth_readiness_exchange(
             "exchange may have occurred"
         ) from error
     print("GIT_AUTH_READINESS_EXCHANGE_OK")
+    print(f"authority_path={authority_state.path}")
+    print(f"authority_sha256={authority_state.sha256}")
+    print(f"exchange_slot_path={slot_state.path}")
+    print(f"exchange_slot_sha256={slot_state.sha256}")
+    print(f"preserved_history_path={history_state.path}")
+    print(f"preserved_history_sha256={history_state.sha256}")
+
+
+def run_offline_npm_cache_readiness_exchange(
+    arguments: argparse.Namespace,
+    *,
+    exchange_impl: Callable[[str, str], None] = _rename_exchange,
+    fsync_impl: Callable[[str], None] = _fsync_directory,
+) -> None:
+    parameters = {
+        "authority": arguments.authority,
+        "slot": arguments.exchange_slot,
+        "history": arguments.preserved_history,
+        "expected_parent": arguments.expected_parent,
+        "expected_size": arguments.expected_size,
+    }
+    for _ in range(2):
+        _validate_offline_npm_cache_readiness_exchange_inputs(
+            **parameters,
+            authority_hash=arguments.pre_authority_sha256,
+            slot_hash=arguments.pre_slot_sha256,
+            history_hash=arguments.preserved_history_sha256,
+        )
+    exchange_impl(arguments.authority, arguments.exchange_slot)
+    try:
+        fsync_impl(arguments.expected_parent)
+        authority_state, slot_state, history_state = (
+            _validate_offline_npm_cache_readiness_exchange_inputs(
+                **parameters,
+                authority_hash=arguments.post_authority_sha256,
+                slot_hash=arguments.post_slot_sha256,
+                history_hash=arguments.preserved_history_sha256,
+            )
+        )
+    except Exception as error:
+        raise PostExchangeFailure(
+            "post-exchange offline npm cache readiness verification failed; "
+            "exchange may have occurred"
+        ) from error
+    print("OFFLINE_NPM_CACHE_READINESS_EXCHANGE_OK")
     print(f"authority_path={authority_state.path}")
     print(f"authority_sha256={authority_state.sha256}")
     print(f"exchange_slot_path={slot_state.path}")
@@ -766,6 +877,37 @@ def _parser() -> argparse.ArgumentParser:
     git_auth_readiness_exchange.add_argument("--post-slot-sha256", required=True)
     git_auth_readiness_exchange.add_argument("--expected-parent", required=True)
     git_auth_readiness_exchange.add_argument("--expected-size", required=True, type=int)
+    offline_npm_cache_readiness_exchange = subparsers.add_parser(
+        "offline-npm-cache-readiness-exchange"
+    )
+    offline_npm_cache_readiness_exchange.add_argument("--authority", required=True)
+    offline_npm_cache_readiness_exchange.add_argument(
+        "--exchange-slot", required=True
+    )
+    offline_npm_cache_readiness_exchange.add_argument(
+        "--preserved-history", required=True
+    )
+    offline_npm_cache_readiness_exchange.add_argument(
+        "--pre-authority-sha256", required=True
+    )
+    offline_npm_cache_readiness_exchange.add_argument(
+        "--pre-slot-sha256", required=True
+    )
+    offline_npm_cache_readiness_exchange.add_argument(
+        "--preserved-history-sha256", required=True
+    )
+    offline_npm_cache_readiness_exchange.add_argument(
+        "--post-authority-sha256", required=True
+    )
+    offline_npm_cache_readiness_exchange.add_argument(
+        "--post-slot-sha256", required=True
+    )
+    offline_npm_cache_readiness_exchange.add_argument(
+        "--expected-parent", required=True
+    )
+    offline_npm_cache_readiness_exchange.add_argument(
+        "--expected-size", required=True, type=int
+    )
     probe = subparsers.add_parser("probe")
     probe.add_argument("--directory", required=True)
     return parser
@@ -780,6 +922,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             run_readiness_exchange(parsed)
         elif parsed.mode == "git-auth-readiness-exchange":
             run_git_auth_readiness_exchange(parsed)
+        elif parsed.mode == "offline-npm-cache-readiness-exchange":
+            run_offline_npm_cache_readiness_exchange(parsed)
         elif parsed.mode == "probe":
             run_probe(parsed)
         else:
